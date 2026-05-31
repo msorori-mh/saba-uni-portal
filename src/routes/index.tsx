@@ -131,7 +131,7 @@ function HomePage() {
           <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">البرامج الأكاديمية</h2>
           <div className="divider-gold mt-4" />
           <p className="mt-5 text-muted-foreground leading-8">
-            أربعة برامج متخصصة تغطي مجالات علوم الحاسوب وتقنية المعلومات، تجمع بين الأساس النظري القوي والتطبيق العملي.
+            برامج متخصصة على مستوى البكالوريوس والماجستير تغطي علوم الحاسوب، تكنولوجيا المعلومات والاتصالات، نظم المعلومات الحاسوبية، الأمن السيبراني، والذكاء الاصطناعي.
           </p>
         </div>
 

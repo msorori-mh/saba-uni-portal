@@ -13,6 +13,15 @@ import {
   ChevronLeft,
   Quote,
   ArrowLeft,
+  Building2,
+  HeartHandshake,
+  Award,
+  Lightbulb,
+  TrendingUp,
+  CheckCircle2,
+  Cpu,
+  Network,
+  UserCheck,
 } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
 
@@ -20,9 +29,9 @@ export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
       { title: "عن الكلية — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
-      { name: "description", content: "تعرّف على رؤية ورسالة كلية تكنولوجيا المعلومات وعلوم الحاسوب، تاريخها، أهدافها الاستراتيجية، وكلمة العميد." },
+      { name: "description", content: "تعرّف على رؤية ورسالة كلية تكنولوجيا المعلومات وعلوم الحاسوب، قيمها، أهدافها، قيادتها، وكلمة العميد." },
       { property: "og:title", content: "عن الكلية — كلية تكنولوجيا المعلومات" },
-      { property: "og:description", content: "رؤيتنا ورسالتنا وتاريخنا وأهدافنا الاستراتيجية." },
+      { property: "og:description", content: "رؤيتنا ورسالتنا وقيمنا وأهدافنا الاستراتيجية." },
       { property: "og:url", content: "/about" },
     ],
     links: [{ rel: "canonical", href: "/about" }],
@@ -32,22 +41,28 @@ export const Route = createFileRoute("/about")({
 });
 
 const milestones = [
-  { year: "2015", title: "تأسيس الكلية", desc: "انطلاق كلية تكنولوجيا المعلومات وعلوم الحاسوب ضمن جامعة إقليم سبأ." },
-  { year: "2017", title: "أول دفعة من الخريجين", desc: "تخرّج الدفعة الأولى من طلاب برنامج علوم الحاسوب." },
-  { year: "2019", title: "إطلاق برنامج المعلومات الحاسوبية", desc: "إضافة برنامج جديد يربط بين التقنية وحلول الأعمال." },
-  { year: "2021", title: "افتتاح برنامج الأمن السيبراني", desc: "تأسيس قسم متخصص في حماية الأنظمة والشبكات." },
-  { year: "2023", title: "إطلاق برنامج الذكاء الاصطناعي", desc: "استحداث برنامج يواكب التحولات في تعلم الآلة والبيانات." },
-  { year: "2026", title: "البوابة الإلكترونية الموحّدة", desc: "إطلاق المنصة الرقمية المتكاملة للكلية وأنظمتها الأكاديمية." },
+  { year: "2017", title: "تأسيس قسم نظم المعلومات الحاسوبية", desc: "بقرار مجلس الجامعة بتاريخ 25/4/2017م، انطلق برنامج CIS بنظام 4 سنوات و132 ساعة معتمدة." },
+  { year: "2022", title: "قيادة جديدة للكلية", desc: "تولي أ.م.د. مقبول قايد الكامل عمادة الكلية للفترة 2022 – 2026." },
+  { year: "2025", title: "إطلاق الخطة الاستراتيجية 2025-2030", desc: "خطة شاملة بأربعة محاور: التميز الأكاديمي، البحث العلمي، البنية التحتية التكنولوجية، والمسؤولية المجتمعية." },
+  { year: "2026", title: "تدشين برامج جديدة", desc: "بدء برنامج بكالوريوس الذكاء الاصطناعي وبرنامج ماجستير تكنولوجيا المعلومات من العام الأكاديمي 2026-2027م بإذن الله." },
+];
+
+const values = [
+  { icon: Building2, title: "الانتماء والعمل المؤسسي", desc: "تعزيز الانتماء للكلية، وتطبيق اللوائح والقوانين والأنظمة." },
+  { icon: Award, title: "الجودة والتميز", desc: "الالتزام بمعايير الجودة، والسعي للتميز في الجوانب الأكاديمية والبحثية والإدارية." },
+  { icon: Lightbulb, title: "الإبداع والابتكار", desc: "تعزيز التفكير الإبداعي والابتكار لدى الطلبة وجميع منتسبي الكلية." },
+  { icon: HeartHandshake, title: "التعاون والشراكة", desc: "بناء علاقات تعاون وشراكات مع المجتمع والمؤسسات التعليمية والبحثية." },
+  { icon: ShieldCheck, title: "المسؤولية والمساءلة", desc: "التأكيد على قيم المسؤولية والمساءلة، والالتزام بأداء الواجب بشكل أخلاقي ومهني." },
+  { icon: TrendingUp, title: "التحسين المستمر", desc: "تطوير الأداء في الكلية، والتشجيع نحو التعلم المستمر، وتحديث المعرفة والمهارات." },
 ];
 
 const goals = [
-  { icon: GraduationCap, title: "جودة التعليم", desc: "تقديم برامج أكاديمية معتمدة وفق أعلى المعايير العالمية." },
-  { icon: FlaskConical, title: "تميّز البحث العلمي", desc: "تشجيع البحث التطبيقي والابتكار في تقنية المعلومات." },
-  { icon: Handshake, title: "الشراكة المجتمعية", desc: "بناء شراكات فاعلة مع القطاعين الحكومي والخاص." },
-  { icon: Globe2, title: "الانفتاح الدولي", desc: "تعزيز التبادل الأكاديمي مع الجامعات الإقليمية والعالمية." },
-  { icon: Sparkles, title: "بيئة محفّزة", desc: "توفير بنية تحتية حديثة ومختبرات مجهّزة بأحدث التقنيات." },
-  { icon: ShieldCheck, title: "تأهيل للمستقبل", desc: "إعداد كوادر قادرة على المنافسة في سوق العمل الرقمي." },
+  { icon: GraduationCap, title: "إعداد كوادر مؤهلة", desc: "تخريج مؤهلين في تكنولوجيا المعلومات وعلوم الحاسوب يمتلكون المعارف والمهارات التقنية لتلبية احتياجات سوق العمل." },
+  { icon: FlaskConical, title: "بيئة بحثية متميزة", desc: "توفير بيئة ملائمة للبحث العلمي وتقديم الحلول التقنية في ضوء المستجدات العلمية والتكنولوجية." },
+  { icon: Handshake, title: "خدمة المجتمع", desc: "تقديم الخدمات المجتمعية والاستشارية في مجال تكنولوجيا المعلومات وعلوم الحاسوب." },
+  { icon: Globe2, title: "الشراكات الأكاديمية", desc: "بناء الشراكات وتبادل الخبرات مع الكليات المناظرة والمؤسسات؛ للارتقاء بالعملية التعليمية والإسهام في التنمية." },
 ];
+
 
 function AboutPage() {
   const { data: settings } = useSuspenseQuery(settingsQuery);
@@ -139,6 +154,29 @@ function AboutPage() {
         </div>
       </section>
 
+      {/* Values */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-2xl">
+          <div className="text-xs font-bold tracking-widest text-gold uppercase">قيمنا</div>
+          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">قيم الكلية</h2>
+          <div className="divider-gold mt-4" />
+          <p className="mt-5 text-muted-foreground leading-8">
+            القيم التي نلتزم بها في تعاملنا الأكاديمي والإداري وفي علاقاتنا مع الطلاب والمجتمع.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {values.map((v) => (
+            <article key={v.title} className="group rounded-xl border border-border bg-card p-7 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+              <div className="grid h-12 w-12 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
+                <v.icon className="h-6 w-6" strokeWidth={2.2} />
+              </div>
+              <h3 className="mt-5 font-display text-lg font-bold text-primary">{v.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-7">{v.desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       {/* Strategic Goals */}
       <section className="container mx-auto px-4 py-20">
         <div className="max-w-2xl">
@@ -202,6 +240,110 @@ function AboutPage() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Leadership */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-2xl">
+          <div className="text-xs font-bold tracking-widest text-gold uppercase">القيادة</div>
+          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">قيادة الكلية</h2>
+          <div className="divider-gold mt-4" />
+          <p className="mt-5 text-muted-foreground leading-8">
+            عمداء الكلية الذين أسهموا في رسم مسيرتها الأكاديمية والإدارية.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-2">
+          <article className="rounded-2xl border-2 border-gold/40 bg-card p-8 shadow-elegant">
+            <div className="flex items-center gap-4">
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-gold-gradient text-primary-deep font-display text-2xl font-extrabold shadow-gold">
+                م
+              </div>
+              <div>
+                <div className="inline-block rounded-full bg-gold/15 text-gold border border-gold/30 px-3 py-1 text-xs font-bold">العميد الحالي</div>
+                <div className="mt-1 font-display text-xs text-muted-foreground">الفترة 2022 – 2026</div>
+              </div>
+            </div>
+            <h3 className="mt-5 font-display text-xl font-extrabold text-primary">أ.م.د. مقبول قايد الكامل</h3>
+            <div className="mt-2 text-sm text-foreground/80">
+              <div><span className="font-bold text-primary">الرتبة:</span> أستاذ مشارك</div>
+              <div className="mt-1"><span className="font-bold text-primary">التخصص:</span> الذكاء الاصطناعي والأنظمة الموزعة</div>
+            </div>
+          </article>
+          <article className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-secondary text-muted-foreground">
+              <UserCheck className="h-7 w-7" />
+            </div>
+            <div className="mt-4 font-display text-xs text-muted-foreground">الفترة 2016 – 2022</div>
+            <p className="mt-3 text-sm text-muted-foreground leading-7">
+              لا توجد بيانات مسجلة لهذا المنصب حالياً.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      {/* Labs & Facilities */}
+      <section className="bg-surface border-y border-border">
+        <div className="container mx-auto px-4 py-20">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <div className="text-xs font-bold tracking-widest text-gold uppercase">البنية التحتية</div>
+              <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">إدارة المعامل والمختبرات</h2>
+              <div className="divider-gold mt-4" />
+              <p className="mt-5 text-foreground/85 leading-9 text-[17px]">
+                تضم الكلية معامل حاسوب وشبكات وتقنيات معلومات مخصصة للتدريب العملي، وتدعم تنفيذ التطبيقات البرمجية،
+                ومشاريع التخرج، والتدريب على الشبكات، وقواعد البيانات، والأمن السيبراني، والذكاء الاصطناعي.
+              </p>
+              <ul className="mt-6 space-y-2.5 text-sm text-foreground/80">
+                {[
+                  "معامل برمجة وتطوير برمجيات",
+                  "معامل شبكات حاسوب واتصالات",
+                  "معامل الأمن السيبراني واختبار الاختراق",
+                  "معامل قواعد البيانات وتحليل البيانات",
+                  "بيئة تطبيقية لمشاريع الذكاء الاصطناعي",
+                ].map((l) => (
+                  <li key={l} className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-gold shrink-0" />
+                    <span>{l}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: Cpu, label: "معامل حاسوب" },
+                { icon: Network, label: "معامل شبكات" },
+                { icon: ShieldCheck, label: "أمن سيبراني" },
+                { icon: FlaskConical, label: "بحث وتطوير" },
+              ].map((f) => (
+                <div key={f.label} className="rounded-2xl border border-border bg-card p-6 text-center shadow-card hover:border-gold/40 hover:-translate-y-1 transition-all">
+                  <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-gold-gradient text-primary-deep shadow-gold">
+                    <f.icon className="h-6 w-6" />
+                  </div>
+                  <div className="mt-3 text-sm font-bold text-primary">{f.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Org Structure */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-2xl">
+          <div className="text-xs font-bold tracking-widest text-gold uppercase">التنظيم</div>
+          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">الهيكل التنظيمي</h2>
+          <div className="divider-gold mt-4" />
+          <p className="mt-5 text-muted-foreground leading-8">
+            التسلسل الإداري والوحدات التنظيمية لكلية تكنولوجيا المعلومات وعلوم الحاسوب.
+          </p>
+        </div>
+        <div className="mt-10 rounded-2xl border border-dashed border-border bg-card p-12 text-center shadow-card">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-secondary text-primary">
+            <Building2 className="h-8 w-8" />
+          </div>
+          <p className="mt-5 font-display text-lg font-bold text-primary">سيتم نشر الهيكل التنظيمي للكلية قريباً.</p>
+          <p className="mt-2 text-sm text-muted-foreground">جاري إعداد المخطط التنظيمي الرسمي وسيُعرض فور اعتماده.</p>
         </div>
       </section>
 
