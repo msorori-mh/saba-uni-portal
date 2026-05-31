@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowLeft, Brain, Calendar, Code2, Cpu, Database, Shield, Sparkles, Trophy, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Brain, Calendar, Code2, Cpu, Database, FlaskConical, GraduationCap, MapPin, Newspaper, Shield, Sparkles, Trophy, Users } from "lucide-react";
 import heroCampus from "@/assets/hero-campus.jpg";
 import techPattern from "@/assets/tech-pattern.jpg";
-import { eventsQuery, newsQuery, programsQuery, statsQuery } from "@/lib/queries";
+import { eventsQuery, liveCountsQuery, newsQuery, programsQuery, settingsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,7 +16,8 @@ export const Route = createFileRoute("/")({
   }),
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(programsQuery);
-    context.queryClient.ensureQueryData(statsQuery);
+    context.queryClient.ensureQueryData(liveCountsQuery);
+    context.queryClient.ensureQueryData(settingsQuery);
     context.queryClient.ensureQueryData(newsQuery(3));
     context.queryClient.ensureQueryData(eventsQuery(3));
   },
@@ -32,9 +33,17 @@ const ICONS: Record<string, React.ComponentType<{ className?: string; strokeWidt
 
 function HomePage() {
   const { data: programs } = useSuspenseQuery(programsQuery);
-  const { data: stats } = useSuspenseQuery(statsQuery);
+  const { data: counts } = useSuspenseQuery(liveCountsQuery);
+  const { data: settings } = useSuspenseQuery(settingsQuery);
   const { data: news } = useSuspenseQuery(newsQuery(3));
   const { data: events } = useSuspenseQuery(eventsQuery(3));
+
+  const statCards = [
+    { icon: BookOpen, label: "البرامج الأكاديمية", value: counts.programs },
+    { icon: GraduationCap, label: "أعضاء هيئة التدريس", value: counts.faculty },
+    { icon: FlaskConical, label: "الأبحاث المنشورة", value: counts.research },
+    { icon: Newspaper, label: "الأخبار والإعلانات", value: counts.news },
+  ];
 
   return (
     <>
@@ -59,49 +68,61 @@ function HomePage() {
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
-              <Link to="/portal-login"
+              <Link to="/about"
                     className="inline-flex items-center gap-2 rounded-md bg-gold-gradient px-7 py-3.5 text-sm font-extrabold text-primary-deep shadow-gold transition-transform hover:-translate-y-0.5">
-                بوابة الطالب <ArrowLeft className="h-4 w-4" />
+                تعرف على الكلية <ArrowLeft className="h-4 w-4" />
               </Link>
               <Link to="/departments"
                     className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-white/5 px-7 py-3.5 text-sm font-bold text-primary-foreground hover:bg-white/10">
                 استكشف برامجنا
+              </Link>
+              <Link to="/portal-login"
+                    className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-white/5 px-7 py-3.5 text-sm font-bold text-primary-foreground hover:bg-white/10">
+                بوابة الطالب
               </Link>
             </div>
           </div>
 
           <div className="lg:col-span-4 lg:mt-12">
             <div className="rounded-2xl border border-white/15 bg-white/[0.06] backdrop-blur-md p-7 shadow-elegant">
-              <div className="text-xs font-bold tracking-widest text-gold uppercase">عمادة الكلية</div>
-              <p className="mt-4 text-base leading-8 text-primary-foreground/85">
-                ”نسعى أن نكون مرجعًا أكاديميًا متميزًا في علوم الحاسوب وتقنية المعلومات على المستوى المحلي والإقليمي،
-                ونرحّب بكم في بوابتنا الرقمية.“
+              <div className="text-xs font-bold tracking-widest text-gold uppercase">كلمة عميد الكلية</div>
+              <p className="mt-4 text-sm leading-8 text-primary-foreground/85 line-clamp-6">
+                {settings.dean_message || "نرحب بكم في بوابة الكلية الرقمية."}
               </p>
               <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-gold-gradient text-primary-deep font-extrabold">د</div>
+                <div className="grid h-11 w-11 place-items-center rounded-full bg-gold-gradient text-primary-deep font-extrabold">
+                  {(settings.dean_name || "د").trim().charAt(0)}
+                </div>
                 <div>
-                  <div className="text-sm font-bold">عميد الكلية</div>
-                  <div className="text-xs text-primary-foreground/60">كلية تكنولوجيا المعلومات</div>
+                  <div className="text-sm font-bold text-gold">{settings.dean_name || "عميد الكلية"}</div>
+                  <div className="text-xs text-primary-foreground/60 line-clamp-1">{settings.dean_title || "كلية تكنولوجيا المعلومات"}</div>
                 </div>
               </div>
+              <Link to="/about" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-gold hover:underline">
+                اقرأ الكلمة كاملة <ArrowLeft className="h-3.5 w-3.5" />
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats */}
-      {stats.length > 0 && (
-        <section className="border-b border-border bg-surface">
-          <div className="container mx-auto grid grid-cols-2 gap-6 px-4 py-10 md:grid-cols-4">
-            {stats.map((s) => (
-              <div key={s.id} className="text-center">
-                <div className="font-display text-3xl md:text-4xl font-extrabold text-primary">{s.value.toLocaleString("ar-EG")}+</div>
-                <div className="mt-1 text-xs md:text-sm text-muted-foreground">{s.label_ar}</div>
+      <section className="border-b border-border bg-surface">
+        <div className="container mx-auto grid grid-cols-2 gap-5 px-4 py-12 md:grid-cols-4">
+          {statCards.map((s) => (
+            <div key={s.label} className="group rounded-xl border border-border bg-card p-6 text-center shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/50">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-secondary text-primary transition-colors group-hover:bg-gold-gradient group-hover:text-primary-deep">
+                <s.icon className="h-7 w-7" strokeWidth={2.2} />
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+              <div className="mt-4 font-display text-3xl md:text-4xl font-extrabold text-primary">
+                {s.value.toLocaleString("ar-EG")}
+                <span className="text-gold">+</span>
+              </div>
+              <div className="mt-1 text-xs md:text-sm font-semibold text-muted-foreground">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Programs */}
       <section className="container mx-auto px-4 py-20">
