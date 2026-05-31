@@ -146,7 +146,7 @@ function DepartmentsPage() {
                       params={{ code: p.code }}
                       className="mt-7 inline-flex items-center justify-center gap-2 rounded-md border-2 border-gold bg-transparent px-6 py-3 text-sm font-extrabold text-gold transition-all hover:bg-gold hover:text-primary-deep"
                     >
-                      عرض البرامج <ArrowLeft className="h-4 w-4" />
+                      عرض التفاصيل <ArrowLeft className="h-4 w-4" />
                     </Link>
                   </div>
                 </article>
