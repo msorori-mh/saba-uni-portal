@@ -23,6 +23,7 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -105,6 +106,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const StudentChangePasswordRoute = StudentChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => StudentRoute,
 } as any)
 const NewsSlugRoute = NewsSlugRouteImport.update({
   id: '/$slug',
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/student/change-password': typeof StudentChangePasswordRoute
   '/admin/': typeof AdminIndexRoute
   '/student/': typeof StudentIndexRoute
 }
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/student/change-password': typeof StudentChangePasswordRoute
   '/admin': typeof AdminIndexRoute
   '/student': typeof StudentIndexRoute
 }
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/student/change-password': typeof StudentChangePasswordRoute
   '/admin/': typeof AdminIndexRoute
   '/student/': typeof StudentIndexRoute
 }
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/departments/$code'
     | '/news/$slug'
+    | '/student/change-password'
     | '/admin/'
     | '/student/'
   fileRoutesByTo: FileRoutesByTo
@@ -303,6 +313,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/departments/$code'
     | '/news/$slug'
+    | '/student/change-password'
     | '/admin'
     | '/student'
   id:
@@ -331,6 +342,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/departments/$code'
     | '/news/$slug'
+    | '/student/change-password'
     | '/admin/'
     | '/student/'
   fileRoutesById: FileRoutesById
@@ -449,6 +461,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/student/change-password': {
+      id: '/student/change-password'
+      path: '/change-password'
+      fullPath: '/student/change-password'
+      preLoaderRoute: typeof StudentChangePasswordRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/news/$slug': {
       id: '/news/$slug'
@@ -590,10 +609,12 @@ const NewsRouteChildren: NewsRouteChildren = {
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
 interface StudentRouteChildren {
+  StudentChangePasswordRoute: typeof StudentChangePasswordRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
+  StudentChangePasswordRoute: StudentChangePasswordRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
 
