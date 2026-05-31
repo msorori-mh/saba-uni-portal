@@ -243,6 +243,110 @@ function AboutPage() {
         </div>
       </section>
 
+      {/* Leadership */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-2xl">
+          <div className="text-xs font-bold tracking-widest text-gold uppercase">القيادة</div>
+          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">قيادة الكلية</h2>
+          <div className="divider-gold mt-4" />
+          <p className="mt-5 text-muted-foreground leading-8">
+            عمداء الكلية الذين أسهموا في رسم مسيرتها الأكاديمية والإدارية.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-2">
+          <article className="rounded-2xl border-2 border-gold/40 bg-card p-8 shadow-elegant">
+            <div className="flex items-center gap-4">
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-gold-gradient text-primary-deep font-display text-2xl font-extrabold shadow-gold">
+                م
+              </div>
+              <div>
+                <div className="inline-block rounded-full bg-gold/15 text-gold border border-gold/30 px-3 py-1 text-xs font-bold">العميد الحالي</div>
+                <div className="mt-1 font-display text-xs text-muted-foreground">الفترة 2022 – 2026</div>
+              </div>
+            </div>
+            <h3 className="mt-5 font-display text-xl font-extrabold text-primary">أ.م.د. مقبول قايد الكامل</h3>
+            <div className="mt-2 text-sm text-foreground/80">
+              <div><span className="font-bold text-primary">الرتبة:</span> أستاذ مشارك</div>
+              <div className="mt-1"><span className="font-bold text-primary">التخصص:</span> الذكاء الاصطناعي والأنظمة الموزعة</div>
+            </div>
+          </article>
+          <article className="rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-secondary text-muted-foreground">
+              <UserCheck className="h-7 w-7" />
+            </div>
+            <div className="mt-4 font-display text-xs text-muted-foreground">الفترة 2016 – 2022</div>
+            <p className="mt-3 text-sm text-muted-foreground leading-7">
+              لا توجد بيانات مسجلة لهذا المنصب حالياً.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      {/* Labs & Facilities */}
+      <section className="bg-surface border-y border-border">
+        <div className="container mx-auto px-4 py-20">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <div className="text-xs font-bold tracking-widest text-gold uppercase">البنية التحتية</div>
+              <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">إدارة المعامل والمختبرات</h2>
+              <div className="divider-gold mt-4" />
+              <p className="mt-5 text-foreground/85 leading-9 text-[17px]">
+                تضم الكلية معامل حاسوب وشبكات وتقنيات معلومات مخصصة للتدريب العملي، وتدعم تنفيذ التطبيقات البرمجية،
+                ومشاريع التخرج، والتدريب على الشبكات، وقواعد البيانات، والأمن السيبراني، والذكاء الاصطناعي.
+              </p>
+              <ul className="mt-6 space-y-2.5 text-sm text-foreground/80">
+                {[
+                  "معامل برمجة وتطوير برمجيات",
+                  "معامل شبكات حاسوب واتصالات",
+                  "معامل الأمن السيبراني واختبار الاختراق",
+                  "معامل قواعد البيانات وتحليل البيانات",
+                  "بيئة تطبيقية لمشاريع الذكاء الاصطناعي",
+                ].map((l) => (
+                  <li key={l} className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-gold shrink-0" />
+                    <span>{l}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { icon: Cpu, label: "معامل حاسوب" },
+                { icon: Network, label: "معامل شبكات" },
+                { icon: ShieldCheck, label: "أمن سيبراني" },
+                { icon: FlaskConical, label: "بحث وتطوير" },
+              ].map((f) => (
+                <div key={f.label} className="rounded-2xl border border-border bg-card p-6 text-center shadow-card hover:border-gold/40 hover:-translate-y-1 transition-all">
+                  <div className="mx-auto grid h-12 w-12 place-items-center rounded-lg bg-gold-gradient text-primary-deep shadow-gold">
+                    <f.icon className="h-6 w-6" />
+                  </div>
+                  <div className="mt-3 text-sm font-bold text-primary">{f.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Org Structure */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-2xl">
+          <div className="text-xs font-bold tracking-widest text-gold uppercase">التنظيم</div>
+          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">الهيكل التنظيمي</h2>
+          <div className="divider-gold mt-4" />
+          <p className="mt-5 text-muted-foreground leading-8">
+            التسلسل الإداري والوحدات التنظيمية لكلية تكنولوجيا المعلومات وعلوم الحاسوب.
+          </p>
+        </div>
+        <div className="mt-10 rounded-2xl border border-dashed border-border bg-card p-12 text-center shadow-card">
+          <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-secondary text-primary">
+            <Building2 className="h-8 w-8" />
+          </div>
+          <p className="mt-5 font-display text-lg font-bold text-primary">سيتم نشر الهيكل التنظيمي للكلية قريباً.</p>
+          <p className="mt-2 text-sm text-muted-foreground">جاري إعداد المخطط التنظيمي الرسمي وسيُعرض فور اعتماده.</p>
+        </div>
+      </section>
+
       {/* Contact CTA */}
       <section className="container mx-auto px-4 py-20">
         <div className="relative overflow-hidden rounded-2xl bg-gold-gradient p-10 md:p-14 shadow-gold">
