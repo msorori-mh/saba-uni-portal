@@ -116,6 +116,13 @@ export type Database = {
             referencedRelation: "course_sections"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "class_schedule_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_section_id"]
+          },
         ]
       }
       contact_messages: {
@@ -560,6 +567,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      grade_components: {
+        Row: {
+          course_section_id: string
+          created_at: string
+          id: string
+          max_score: number
+          name: string
+          sort_order: number
+          updated_at: string
+          weight: number | null
+        }
+        Insert: {
+          course_section_id: string
+          created_at?: string
+          id?: string
+          max_score: number
+          name: string
+          sort_order?: number
+          updated_at?: string
+          weight?: number | null
+        }
+        Update: {
+          course_section_id?: string
+          created_at?: string
+          id?: string
+          max_score?: number
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          weight?: number | null
+        }
+        Relationships: []
       }
       media_library: {
         Row: {
@@ -1035,6 +1075,13 @@ export type Database = {
             foreignKeyName: "student_academic_status_student_profile_id_fkey"
             columns: ["student_profile_id"]
             isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "student_academic_status_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
             referencedRelation: "student_profiles"
             referencedColumns: ["id"]
           },
@@ -1066,6 +1113,45 @@ export type Database = {
           enrollment_status?: string
           id?: string
           student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      student_grades: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          entered_by: string | null
+          grade_component_id: string
+          id: string
+          score: number
+          status: string
+          student_enrollment_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          entered_by?: string | null
+          grade_component_id: string
+          id?: string
+          score: number
+          status?: string
+          student_enrollment_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          entered_by?: string | null
+          grade_component_id?: string
+          id?: string
+          score?: number
+          status?: string
+          student_enrollment_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -1182,6 +1268,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "study_plan_courses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_id"]
+          },
+          {
             foreignKeyName: "study_plan_courses_level_id_fkey"
             columns: ["level_id"]
             isOneToOne: false
@@ -1194,6 +1287,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "courses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_plan_courses_prerequisite_course_id_fkey"
+            columns: ["prerequisite_course_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_id"]
           },
           {
             foreignKeyName: "study_plan_courses_study_plan_id_fkey"
@@ -1271,7 +1371,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      student_course_grade_summary: {
+        Row: {
+          academic_number: string | null
+          course_code: string | null
+          course_id: string | null
+          course_name: string | null
+          course_section_id: string | null
+          enrollment_id: string | null
+          overall_status: string | null
+          percentage: number | null
+          section_code: string | null
+          student_name: string | null
+          student_profile_id: string | null
+          total_max: number | null
+          total_score: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_manage_study_plan: {
@@ -1298,6 +1415,22 @@ export type Database = {
       }
       is_dept_head_of_program: {
         Args: { _program_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_dept_head_of_section: {
+        Args: { _section_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_faculty_of_grade: {
+        Args: { _enrollment_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_faculty_of_section: {
+        Args: { _section_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_student_of_enrollment: {
+        Args: { _enrollment_id: string; _user_id: string }
         Returns: boolean
       }
     }
