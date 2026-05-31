@@ -564,6 +564,72 @@ export type Database = {
         }
         Relationships: []
       }
+      student_profiles: {
+        Row: {
+          academic_number: string
+          created_at: string
+          department_id: string | null
+          email: string | null
+          full_name_ar: string
+          full_name_en: string | null
+          id: string
+          must_change_password: boolean
+          national_id: string | null
+          phone: string | null
+          program_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          academic_number: string
+          created_at?: string
+          department_id?: string | null
+          email?: string | null
+          full_name_ar: string
+          full_name_en?: string | null
+          id?: string
+          must_change_password?: boolean
+          national_id?: string | null
+          phone?: string | null
+          program_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          academic_number?: string
+          created_at?: string
+          department_id?: string | null
+          email?: string | null
+          full_name_ar?: string
+          full_name_en?: string | null
+          id?: string
+          must_change_password?: boolean
+          national_id?: string | null
+          phone?: string | null
+          program_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_profiles_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -590,6 +656,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_any_role: {
+        Args: { _roles: string[]; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -599,7 +669,19 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "editor" | "viewer"
+      app_role:
+        | "admin"
+        | "editor"
+        | "viewer"
+        | "system_admin"
+        | "dean"
+        | "department_head"
+        | "registrar"
+        | "student_affairs"
+        | "finance_officer"
+        | "faculty_member"
+        | "student"
+        | "graduate"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -727,7 +809,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "editor", "viewer"],
+      app_role: [
+        "admin",
+        "editor",
+        "viewer",
+        "system_admin",
+        "dean",
+        "department_head",
+        "registrar",
+        "student_affairs",
+        "finance_officer",
+        "faculty_member",
+        "student",
+        "graduate",
+      ],
     },
   },
 } as const
