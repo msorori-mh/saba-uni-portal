@@ -120,6 +120,18 @@ function StudentDashboard() {
               <InfoCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} />
             </div>
 
+            <div className="mt-6">
+              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                <CalendarRange className="h-4 w-4 text-gold" /> الوضع الأكاديمي الحالي
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <InfoCard icon={CalendarRange} label="السنة الأكاديمية" value={acad?.academic_year?.name ?? "—"} />
+                <InfoCard icon={BookMarked} label="الفصل الحالي" value={acad?.semester?.name ?? "—"} />
+                <InfoCard icon={Layers} label="المستوى" value={acad?.level?.name ?? "—"} />
+                <InfoCard icon={BadgeCheck} label="حالة التسجيل" value={statusLabel[acad?.enrollment_status ?? ""] ?? acad?.enrollment_status ?? "—"} />
+              </div>
+            </div>
+
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية (الجداول، الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
