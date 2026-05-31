@@ -34,6 +34,7 @@ import { Route as FacultyPortalChangePasswordRouteImport } from './routes/facult
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
+import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
@@ -175,6 +176,11 @@ const AdminStudyPlansRoute = AdminStudyPlansRouteImport.update({
   path: '/study-plans',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminStudentRequestsRoute = AdminStudentRequestsRouteImport.update({
+  id: '/student-requests',
+  path: '/student-requests',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -312,6 +319,7 @@ export interface FileRoutesByTo {
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -354,6 +362,7 @@ export interface FileRoutesById {
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -397,6 +406,7 @@ export interface FileRouteTypes {
     | '/admin/programs'
     | '/admin/research'
     | '/admin/settings'
+    | '/admin/student-requests'
     | '/admin/study-plans'
     | '/admin/transcripts'
     | '/departments/$code'
@@ -434,6 +444,7 @@ export interface FileRouteTypes {
     | '/admin/programs'
     | '/admin/research'
     | '/admin/settings'
+    | '/admin/student-requests'
     | '/admin/study-plans'
     | '/admin/transcripts'
     | '/departments/$code'
@@ -475,6 +486,7 @@ export interface FileRouteTypes {
     | '/admin/programs'
     | '/admin/research'
     | '/admin/settings'
+    | '/admin/student-requests'
     | '/admin/study-plans'
     | '/admin/transcripts'
     | '/departments/$code'
@@ -682,6 +694,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudyPlansRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/student-requests': {
+      id: '/admin/student-requests'
+      path: '/student-requests'
+      fullPath: '/admin/student-requests'
+      preLoaderRoute: typeof AdminStudentRequestsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/settings'
@@ -798,6 +817,7 @@ interface AdminRouteChildren {
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminResearchRoute: typeof AdminResearchRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
   AdminTranscriptsRoute: typeof AdminTranscriptsRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -818,6 +838,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminProgramsRoute: AdminProgramsRoute,
   AdminResearchRoute: AdminResearchRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminStudentRequestsRoute: AdminStudentRequestsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,
   AdminTranscriptsRoute: AdminTranscriptsRoute,
   AdminIndexRoute: AdminIndexRoute,
