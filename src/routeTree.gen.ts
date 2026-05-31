@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StudentRouteImport } from './routes/student'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
@@ -20,6 +21,7 @@ import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
@@ -34,6 +36,11 @@ import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 
+const StudentRoute = StudentRouteImport.update({
+  id: '/student',
+  path: '/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -88,6 +95,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const StudentIndexRoute = StudentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudentRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -167,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/student': typeof StudentRouteWithChildren
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
@@ -180,6 +193,7 @@ export interface FileRoutesByFullPath {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/student/': typeof StudentIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -205,6 +219,7 @@ export interface FileRoutesByTo {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
   '/admin': typeof AdminIndexRoute
+  '/student': typeof StudentIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -219,6 +234,7 @@ export interface FileRoutesById {
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/student': typeof StudentRouteWithChildren
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
@@ -232,6 +248,7 @@ export interface FileRoutesById {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/student/': typeof StudentIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -247,6 +264,7 @@ export interface FileRouteTypes {
     | '/portal-login'
     | '/research'
     | '/sitemap.xml'
+    | '/student'
     | '/admin/contacts'
     | '/admin/departments'
     | '/admin/events'
@@ -260,6 +278,7 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/news/$slug'
     | '/admin/'
+    | '/student/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -285,6 +304,7 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/news/$slug'
     | '/admin'
+    | '/student'
   id:
     | '__root__'
     | '/'
@@ -298,6 +318,7 @@ export interface FileRouteTypes {
     | '/portal-login'
     | '/research'
     | '/sitemap.xml'
+    | '/student'
     | '/admin/contacts'
     | '/admin/departments'
     | '/admin/events'
@@ -311,6 +332,7 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/news/$slug'
     | '/admin/'
+    | '/student/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -325,10 +347,18 @@ export interface RootRouteChildren {
   PortalLoginRoute: typeof PortalLoginRoute
   ResearchRoute: typeof ResearchRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StudentRoute: typeof StudentRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/student': {
+      id: '/student'
+      path: '/student'
+      fullPath: '/student'
+      preLoaderRoute: typeof StudentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -405,6 +435,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/student/': {
+      id: '/student/'
+      path: '/'
+      fullPath: '/student/'
+      preLoaderRoute: typeof StudentIndexRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -552,6 +589,17 @@ const NewsRouteChildren: NewsRouteChildren = {
 
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
+interface StudentRouteChildren {
+  StudentIndexRoute: typeof StudentIndexRoute
+}
+
+const StudentRouteChildren: StudentRouteChildren = {
+  StudentIndexRoute: StudentIndexRoute,
+}
+
+const StudentRouteWithChildren =
+  StudentRoute._addFileChildren(StudentRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
@@ -564,7 +612,18 @@ const rootRouteChildren: RootRouteChildren = {
   PortalLoginRoute: PortalLoginRoute,
   ResearchRoute: ResearchRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StudentRoute: StudentRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
