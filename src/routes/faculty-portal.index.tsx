@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2 } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type FacultyProfileRow = {
+  id: string;
   employee_number: string | null;
   full_name_ar: string;
   full_name_en: string | null;
@@ -15,27 +16,60 @@ type FacultyProfileRow = {
   program: { name_ar: string } | null;
 };
 
+type TeachingRow = {
+  id: string;
+  section_code: string;
+  course: { code: string; name_ar: string } | null;
+  schedule: { day_of_week: string; start_time: string; end_time: string; room: string | null; schedule_type: string }[];
+};
+
 async function fetchMyFacultyProfile(): Promise<FacultyProfileRow | null> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
   const { data, error } = await supabase
     .from("faculty_profiles")
-    .select("employee_number, full_name_ar, full_name_en, academic_rank, position_title, status, department:departments(name_ar), program:programs(name_ar)")
+    .select("id, employee_number, full_name_ar, full_name_en, academic_rank, position_title, status, department:departments(name_ar), program:programs(name_ar)")
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as FacultyProfileRow;
 }
 
+async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingRow[]> {
+  const { data, error } = await supabase
+    .from("course_sections")
+    .select("id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .eq("faculty_profile_id", facultyProfileId)
+    .eq("status", "active");
+  if (error) throw error;
+  type Raw = { id: string; section_code: string; offering: { course: { code: string; name_ar: string } | null } | null; schedule: TeachingRow["schedule"] };
+  return ((data ?? []) as unknown as Raw[]).map((r) => ({
+    id: r.id, section_code: r.section_code,
+    course: r.offering?.course ?? null,
+    schedule: r.schedule ?? [],
+  }));
+}
+
 export const Route = createFileRoute("/faculty-portal/")({
   component: FacultyDashboard,
 });
+
+const DAY_LABELS: Record<string, string> = {
+  saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
+  wednesday: "الأربعاء", thursday: "الخميس", friday: "الجمعة",
+};
+const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
 
 function FacultyDashboard() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useQuery({
     queryKey: ["faculty", "me"],
     queryFn: fetchMyFacultyProfile,
+  });
+  const { data: teaching = [] } = useQuery({
+    queryKey: ["faculty", "teaching", profile?.id],
+    queryFn: () => fetchMyTeaching(profile!.id),
+    enabled: !!profile?.id,
   });
 
   const handleLogout = async () => {
@@ -94,8 +128,48 @@ function FacultyDashboard() {
               <InfoCard icon={BookOpen} label="الصفة/المنصب" value={profile.position_title ?? "—"} />
             </div>
 
+            <div className="mt-6">
+              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-gold" /> جدولي التدريسي
+              </h2>
+              {teaching.length === 0 ? (
+                <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
+                  لا توجد شعب مرتبطة بك حالياً.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {teaching.map((t) => (
+                    <div key={t.id} className="rounded-lg border bg-card p-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div>
+                          <span className="font-mono font-bold text-primary">{t.course?.code}</span>
+                          <span className="mx-2 text-muted-foreground">—</span>
+                          <span className="font-semibold text-sm">{t.course?.name_ar}</span>
+                        </div>
+                        <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">شعبة {t.section_code}</span>
+                      </div>
+                      {t.schedule.length === 0 ? (
+                        <div className="text-[11px] text-muted-foreground mt-2">لا يوجد جدول بعد</div>
+                      ) : (
+                        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                          {t.schedule.map((s, i) => (
+                            <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1.5 text-xs">
+                              <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
+                              <span className="font-mono">{s.start_time.slice(0,5)}-{s.end_time.slice(0,5)}</span>
+                              {s.room && <span className="text-muted-foreground">• {s.room}</span>}
+                              <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">{TYPE_LABELS[s.schedule_type] ?? s.schedule_type}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية (المقررات، الشُعب، الدرجات، الجداول) في المراحل القادمة.
+              ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الحضور، التقارير) في المراحل القادمة.
             </div>
           </>
         )}

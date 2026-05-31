@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
@@ -28,9 +28,23 @@ type PlanCourseRow = {
 
 type AcademicStatus = {
   enrollment_status: string;
+  academic_year_id: string;
+  semester_id: string;
+  level_id: string;
   academic_year: { name: string } | null;
   semester: { name: string } | null;
   level: { name: string; level_number: number } | null;
+};
+
+type ScheduleSlot = {
+  day_of_week: string; start_time: string; end_time: string;
+  room: string | null; schedule_type: string;
+};
+type ScheduleRow = {
+  section_id: string; section_code: string;
+  course_code: string; course_name: string;
+  faculty_name: string | null;
+  slots: ScheduleSlot[];
 };
 
 async function fetchMyProfile(): Promise<StudentRow | null> {
@@ -48,13 +62,45 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
 async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus | null> {
   const { data, error } = await supabase
     .from("student_academic_status")
-    .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
+    .select("enrollment_status, academic_year_id, semester_id, level_id, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
     .eq("student_profile_id", studentId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as AcademicStatus;
+}
+
+async function fetchMySchedule(programId: string, yearId: string, semId: string, levelId: string): Promise<ScheduleRow[]> {
+  const { data: offerings, error: oErr } = await supabase
+    .from("course_offerings")
+    .select("id, course:courses(code, name_ar)")
+    .eq("program_id", programId)
+    .eq("academic_year_id", yearId)
+    .eq("semester_id", semId)
+    .eq("level_id", levelId)
+    .eq("status", "active");
+  if (oErr) throw oErr;
+  const offeringIds = (offerings ?? []).map((o: { id: string }) => o.id);
+  if (offeringIds.length === 0) return [];
+  const { data: sections, error: sErr } = await supabase
+    .from("course_sections")
+    .select("id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .in("course_offering_id", offeringIds)
+    .eq("status", "active");
+  if (sErr) throw sErr;
+  type RawOff = { id: string; course: { code: string; name_ar: string } | null };
+  type RawSec = { id: string; section_code: string; course_offering_id: string; faculty: { full_name_ar: string } | null; schedule: ScheduleSlot[] };
+  const offMap = new Map((offerings as unknown as RawOff[]).map((o) => [o.id, o.course]));
+  return ((sections ?? []) as unknown as RawSec[]).map((s) => {
+    const c = offMap.get(s.course_offering_id);
+    return {
+      section_id: s.id, section_code: s.section_code,
+      course_code: c?.code ?? "—", course_name: c?.name_ar ?? "—",
+      faculty_name: s.faculty?.full_name_ar ?? null,
+      slots: s.schedule ?? [],
+    };
+  });
 }
 
 async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
@@ -96,6 +142,11 @@ function StudentDashboard() {
     queryKey: ["student", "study-plan", profile?.program_id],
     queryFn: () => fetchMyStudyPlan(profile!.program_id!),
     enabled: !!profile?.program_id,
+  });
+  const { data: schedule = [] } = useQuery({
+    queryKey: ["student", "schedule", profile?.program_id, acad?.academic_year_id, acad?.semester_id, acad?.level_id],
+    queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
+    enabled: !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
   });
 
   const handleLogout = async () => {
@@ -170,8 +221,10 @@ function StudentDashboard() {
 
             <StudyPlanSection rows={planCourses} />
 
+            <ScheduleSection rows={schedule} />
+
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية (الجداول، الدرجات، الرسوم، الطلبات) في المراحل القادمة.
+              ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
 
           </>
@@ -257,3 +310,58 @@ function StudyPlanSection({ rows }: { rows: PlanCourseRow[] }) {
     </div>
   );
 }
+
+const DAY_LABELS: Record<string, string> = {
+  saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
+  wednesday: "الأربعاء", thursday: "الخميس", friday: "الجمعة",
+};
+const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
+const DAY_ORDER = ["saturday","sunday","monday","tuesday","wednesday","thursday","friday"];
+
+function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
+  if (!rows || rows.length === 0) return null;
+  // Flatten to day -> slots
+  type Flat = { day: string; start: string; end: string; room: string | null; type: string; course: string; section: string; faculty: string | null };
+  const flat: Flat[] = [];
+  for (const r of rows) for (const s of r.slots) flat.push({
+    day: s.day_of_week, start: s.start_time, end: s.end_time, room: s.room, type: s.schedule_type,
+    course: `${r.course_code} — ${r.course_name}`, section: r.section_code, faculty: r.faculty_name,
+  });
+  const byDay = new Map<string, Flat[]>();
+  for (const d of DAY_ORDER) byDay.set(d, []);
+  for (const f of flat) byDay.get(f.day)?.push(f);
+
+  return (
+    <div className="mt-6">
+      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+        <CalendarClock className="h-4 w-4 text-gold" /> الجدول الدراسي العام
+      </h2>
+      <div className="space-y-2">
+        {DAY_ORDER.map((d) => {
+          const items = (byDay.get(d) ?? []).sort((a, b) => a.start.localeCompare(b.start));
+          if (items.length === 0) return null;
+          return (
+            <div key={d} className="rounded-lg border bg-card overflow-hidden">
+              <div className="px-3 py-1.5 bg-muted/40 text-xs font-bold text-primary border-b">{DAY_LABELS[d]}</div>
+              <div className="divide-y">
+                {items.map((it, i) => (
+                  <div key={i} className="p-2.5 flex items-center gap-2 text-xs">
+                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{it.start.slice(0,5)}-{it.end.slice(0,5)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">{it.course}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        شعبة {it.section}{it.faculty && <> • {it.faculty}</>}{it.room && <> • {it.room}</>}
+                      </div>
+                    </div>
+                    <span className="text-[10px] border bg-muted/40 px-1.5 py-0.5 rounded shrink-0">{TYPE_LABELS[it.type] ?? it.type}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
