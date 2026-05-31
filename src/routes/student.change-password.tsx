@@ -26,14 +26,8 @@ function ChangePasswordPage() {
       const { error: updErr } = await supabase.auth.updateUser({ password: pwd });
       if (updErr) throw updErr;
 
-      const { data: auth } = await supabase.auth.getUser();
-      if (auth.user) {
-        const { error: flagErr } = await supabase
-          .from("student_profiles")
-          .update({ must_change_password: false })
-          .eq("user_id", auth.user.id);
-        if (flagErr) throw flagErr;
-      }
+      const { error: rpcErr } = await supabase.rpc("complete_student_password_change");
+      if (rpcErr) throw rpcErr;
       navigate({ to: "/student", replace: true });
     } catch (err) {
       const msg = err instanceof Error ? err.message : "تعذّر تغيير كلمة المرور";
