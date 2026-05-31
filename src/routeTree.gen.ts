@@ -22,7 +22,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminResearchRouteImport } from './routes/admin/research'
+import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
+import { Route as AdminNewsRouteImport } from './routes/admin/news'
+import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
+import { Route as AdminEventsRouteImport } from './routes/admin/events'
 
 const ResearchRoute = ResearchRouteImport.update({
   id: '/research',
@@ -89,9 +96,44 @@ const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
   path: '/$code',
   getParentRoute: () => DepartmentsRoute,
 } as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminResearchRoute = AdminResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProgramsRoute = AdminProgramsRouteImport.update({
+  id: '/programs',
+  path: '/programs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNewsRoute = AdminNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMessagesRoute = AdminMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFacultyRoute = AdminFacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEventsRoute = AdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => AdminRoute,
 } as any)
 
@@ -106,7 +148,14 @@ export interface FileRoutesByFullPath {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/admin/events': typeof AdminEventsRoute
+  '/admin/faculty': typeof AdminFacultyRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/messages': typeof AdminMessagesRoute
+  '/admin/news': typeof AdminNewsRoute
+  '/admin/programs': typeof AdminProgramsRoute
+  '/admin/research': typeof AdminResearchRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -121,7 +170,14 @@ export interface FileRoutesByTo {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/admin/events': typeof AdminEventsRoute
+  '/admin/faculty': typeof AdminFacultyRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/messages': typeof AdminMessagesRoute
+  '/admin/news': typeof AdminNewsRoute
+  '/admin/programs': typeof AdminProgramsRoute
+  '/admin/research': typeof AdminResearchRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
   '/admin': typeof AdminIndexRoute
@@ -138,7 +194,14 @@ export interface FileRoutesById {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/admin/events': typeof AdminEventsRoute
+  '/admin/faculty': typeof AdminFacultyRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/messages': typeof AdminMessagesRoute
+  '/admin/news': typeof AdminNewsRoute
+  '/admin/programs': typeof AdminProgramsRoute
+  '/admin/research': typeof AdminResearchRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/news/$slug': typeof NewsSlugRoute
   '/admin/': typeof AdminIndexRoute
@@ -156,7 +219,14 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/admin/events'
+    | '/admin/faculty'
     | '/admin/login'
+    | '/admin/messages'
+    | '/admin/news'
+    | '/admin/programs'
+    | '/admin/research'
+    | '/admin/settings'
     | '/departments/$code'
     | '/news/$slug'
     | '/admin/'
@@ -171,7 +241,14 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/admin/events'
+    | '/admin/faculty'
     | '/admin/login'
+    | '/admin/messages'
+    | '/admin/news'
+    | '/admin/programs'
+    | '/admin/research'
+    | '/admin/settings'
     | '/departments/$code'
     | '/news/$slug'
     | '/admin'
@@ -187,7 +264,14 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/admin/events'
+    | '/admin/faculty'
     | '/admin/login'
+    | '/admin/messages'
+    | '/admin/news'
+    | '/admin/programs'
+    | '/admin/research'
+    | '/admin/settings'
     | '/departments/$code'
     | '/news/$slug'
     | '/admin/'
@@ -299,6 +383,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DepartmentsCodeRouteImport
       parentRoute: typeof DepartmentsRoute
     }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/research': {
+      id: '/admin/research'
+      path: '/research'
+      fullPath: '/admin/research'
+      preLoaderRoute: typeof AdminResearchRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/programs': {
+      id: '/admin/programs'
+      path: '/programs'
+      fullPath: '/admin/programs'
+      preLoaderRoute: typeof AdminProgramsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/news': {
+      id: '/admin/news'
+      path: '/news'
+      fullPath: '/admin/news'
+      preLoaderRoute: typeof AdminNewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/messages': {
+      id: '/admin/messages'
+      path: '/messages'
+      fullPath: '/admin/messages'
+      preLoaderRoute: typeof AdminMessagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/login'
@@ -306,16 +425,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLoginRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/faculty': {
+      id: '/admin/faculty'
+      path: '/faculty'
+      fullPath: '/admin/faculty'
+      preLoaderRoute: typeof AdminFacultyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/events': {
+      id: '/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminEventsRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
+  AdminEventsRoute: typeof AdminEventsRoute
+  AdminFacultyRoute: typeof AdminFacultyRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminMessagesRoute: typeof AdminMessagesRoute
+  AdminNewsRoute: typeof AdminNewsRoute
+  AdminProgramsRoute: typeof AdminProgramsRoute
+  AdminResearchRoute: typeof AdminResearchRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminEventsRoute: AdminEventsRoute,
+  AdminFacultyRoute: AdminFacultyRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminMessagesRoute: AdminMessagesRoute,
+  AdminNewsRoute: AdminNewsRoute,
+  AdminProgramsRoute: AdminProgramsRoute,
+  AdminResearchRoute: AdminResearchRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
