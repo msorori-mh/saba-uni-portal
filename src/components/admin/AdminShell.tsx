@@ -20,6 +20,7 @@ const items: NavItem[] = [
   { to: "/admin/course-offerings", label: "الطرح والشعب", icon: CalendarDays },
   { to: "/admin/enrollments", label: "تسجيل الطلاب", icon: ClipboardList },
   { to: "/admin/grades", label: "إدارة الدرجات", icon: ClipboardCheck },
+  { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
   { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
   { to: "/admin/events", label: "الفعاليات", icon: Calendar },
   { to: "/admin/contacts", label: "رسائل التواصل", icon: MessageSquare, badgeKey: "new-messages" },
