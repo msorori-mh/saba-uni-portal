@@ -170,3 +170,83 @@ function InfoCard({ icon: Icon, label, value, mono }: { icon: typeof User; label
     </div>
   );
 }
+
+type ScheduleSlot = { day_of_week: string; start_time: string; end_time: string; room: string | null; schedule_type: string };
+
+function SectionCard({
+  sectionId, sectionCode, courseCode, courseName, schedule,
+}: {
+  sectionId: string; sectionCode: string; courseCode: string; courseName: string; schedule: ScheduleSlot[];
+}) {
+  const [open, setOpen] = useState(false);
+  const { data: students = [], isLoading } = useQuery({
+    queryKey: ["faculty", "section-students", sectionId],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("student_enrollments")
+        .select("id, enrollment_status, student:student_profiles(academic_number, full_name_ar)")
+        .eq("course_section_id", sectionId);
+      if (error) throw error;
+      type Raw = { id: string; enrollment_status: string; student: { academic_number: string; full_name_ar: string } | null };
+      return ((data ?? []) as unknown as Raw[]);
+    },
+  });
+  const statusLabel: Record<string, string> = { enrolled: "مُسجَّل", dropped: "محذوف", completed: "مكتمل" };
+
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <div>
+          <span className="font-mono font-bold text-primary">{courseCode}</span>
+          <span className="mx-2 text-muted-foreground">—</span>
+          <span className="font-semibold text-sm">{courseName}</span>
+        </div>
+        <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">شعبة {sectionCode}</span>
+      </div>
+      {schedule.length === 0 ? (
+        <div className="text-[11px] text-muted-foreground mt-2">لا يوجد جدول بعد</div>
+      ) : (
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          {schedule.map((s, i) => (
+            <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1.5 text-xs">
+              <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
+              <span className="font-mono">{s.start_time.slice(0,5)}-{s.end_time.slice(0,5)}</span>
+              {s.room && <span className="text-muted-foreground">• {s.room}</span>}
+              <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">{TYPE_LABELS[s.schedule_type] ?? s.schedule_type}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="mt-2.5 inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-gold transition-colors"
+      >
+        <Users2 className="h-3.5 w-3.5" />
+        الطلاب المسجلون
+        {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+      </button>
+      {open && (
+        <div className="mt-2 rounded border bg-muted/20 p-2">
+          {isLoading ? (
+            <div className="text-center py-2"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+          ) : students.length === 0 ? (
+            <div className="text-[11px] text-muted-foreground text-center py-2">لا يوجد طلاب مسجلون</div>
+          ) : (
+            <ul className="divide-y">
+              {students.map((s) => (
+                <li key={s.id} className="py-1.5 flex items-center gap-2 text-xs">
+                  <span className="font-mono text-muted-foreground w-20">{s.student?.academic_number ?? "—"}</span>
+                  <span className="flex-1 font-semibold truncate">{s.student?.full_name_ar ?? "—"}</span>
+                  <span className="text-[10px] bg-card border px-1.5 py-0.5 rounded">{statusLabel[s.enrollment_status] ?? s.enrollment_status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
