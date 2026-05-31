@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type StudentRow = {
@@ -265,6 +266,14 @@ function StudentDashboard() {
             <MyEnrollmentsSection rows={myEnrollments} />
 
             <MyGradesSection studentProfileId={profile.id} />
+
+            <div className="mt-6">
+              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
+              </h2>
+              <UnofficialTranscript studentProfileId={profile.id} />
+            </div>
+
 
 
             <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">

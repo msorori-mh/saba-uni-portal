@@ -6,9 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // Cast helper: new tables not in generated types yet
-const sb = supabase as unknown as {
-  from: (t: string) => ReturnType<typeof supabase.from>;
-};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as unknown as { from: (t: string) => any };
 
 export const Route = createFileRoute("/admin/grades")({
   component: AdminGradesPage,
