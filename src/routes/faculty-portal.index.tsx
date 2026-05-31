@@ -147,9 +147,23 @@ function FacultyDashboard() {
               )}
             </div>
 
+            <div className="mt-6">
+              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-gold" /> إدارة الدرجات
+              </h2>
+              <FacultyGradesManager
+                facultyProfileId={profile.id}
+                sections={teaching.map((t) => ({
+                  id: t.id,
+                  section_code: t.section_code,
+                  course_code: t.course?.code ?? "—",
+                  course_name: t.course?.name_ar ?? "—",
+                }))}
+              />
+            </div>
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الحضور، التقارير) في المراحل القادمة.
+              ستتوفر الخدمات الأكاديمية الأخرى (الحضور، التقارير) في المراحل القادمة.
             </div>
           </>
         )}
