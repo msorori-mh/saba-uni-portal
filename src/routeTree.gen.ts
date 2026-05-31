@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as EventsRouteImport } from './routes/events'
@@ -18,6 +19,11 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 
+const PortalLoginRoute = PortalLoginRouteImport.update({
+  id: '/portal-login',
+  path: '/portal-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
+  '/portal-login': typeof PortalLoginRoute
   '/departments/$code': typeof DepartmentsCodeRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
+  '/portal-login': typeof PortalLoginRoute
   '/departments/$code': typeof DepartmentsCodeRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
+  '/portal-login': typeof PortalLoginRoute
   '/departments/$code': typeof DepartmentsCodeRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/news'
+    | '/portal-login'
     | '/departments/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/news'
+    | '/portal-login'
     | '/departments/$code'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/news'
+    | '/portal-login'
     | '/departments/$code'
   fileRoutesById: FileRoutesById
 }
@@ -131,10 +143,18 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   FacultyRoute: typeof FacultyRoute
   NewsRoute: typeof NewsRoute
+  PortalLoginRoute: typeof PortalLoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/portal-login': {
+      id: '/portal-login'
+      path: '/portal-login'
+      fullPath: '/portal-login'
+      preLoaderRoute: typeof PortalLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/news': {
       id: '/news'
       path: '/news'
@@ -214,6 +234,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   FacultyRoute: FacultyRoute,
   NewsRoute: NewsRoute,
+  PortalLoginRoute: PortalLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
