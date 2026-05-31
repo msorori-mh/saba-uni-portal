@@ -143,6 +143,11 @@ function StudentDashboard() {
     queryFn: () => fetchMyStudyPlan(profile!.program_id!),
     enabled: !!profile?.program_id,
   });
+  const { data: schedule = [] } = useQuery({
+    queryKey: ["student", "schedule", profile?.program_id, acad?.academic_year_id, acad?.semester_id, acad?.level_id],
+    queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
+    enabled: !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
