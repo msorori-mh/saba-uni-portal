@@ -93,66 +93,67 @@ function DepartmentsPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid gap-6 md:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="rounded-2xl border border-border bg-card p-0 overflow-hidden">
-                <Skeleton className="h-48 w-full" />
-                <div className="p-6 space-y-3">
-                  <Skeleton className="h-6 w-2/3" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-4/5" />
-                  <Skeleton className="h-10 w-32 mt-3" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card overflow-hidden">
+                <Skeleton className="h-24 w-full" />
+                <div className="p-4 space-y-2">
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                  <Skeleton className="h-8 w-full mt-2" />
                 </div>
               </div>
             ))}
           </div>
+
         ) : list.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((p) => {
               const Icon = ICONS[p.icon ?? ""] ?? GraduationCap;
               const meta = PROGRAM_META[p.code] ?? PROGRAM_META.CS;
               return (
                 <article
                   key={p.id}
-                  className="group flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40"
+                  className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40"
                 >
-                  {/* Image placeholder */}
-                  <div className={`relative h-48 bg-gradient-to-br ${meta.gradient} overflow-hidden`}>
+                  {/* Compact gradient strip with icon */}
+                  <div className={`relative h-24 bg-gradient-to-br ${meta.gradient} px-4 flex items-center justify-between`}>
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,hsl(var(--gold)/0.25),transparent_55%)]" />
-                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
-                      <Badge className="bg-gold text-primary-deep hover:bg-gold font-bold tracking-wide">{p.code}</Badge>
-                      <StatusBadge status={(p as any).status} />
+                    <div className="relative grid h-12 w-12 place-items-center rounded-xl bg-white/15 backdrop-blur-md text-primary-foreground ring-1 ring-white/20">
+                      <Icon className="h-6 w-6" strokeWidth={2} />
                     </div>
-                    <div className="absolute bottom-5 right-5 grid h-16 w-16 place-items-center rounded-2xl bg-white/15 backdrop-blur-md text-primary-foreground shadow-elegant ring-1 ring-white/20">
-                      <Icon className="h-8 w-8" strokeWidth={2} />
+                    <div className="relative flex flex-col items-end gap-1.5">
+                      <Badge className="bg-gold text-primary-deep hover:bg-gold text-[10px] font-bold tracking-wide px-2 py-0.5">{p.code}</Badge>
+                      <StatusBadge status={(p as any).status} />
                     </div>
                   </div>
 
-                  <div className="flex-1 flex flex-col p-7">
-                    <h3 className="font-display text-2xl font-extrabold text-primary">{p.name_ar}</h3>
-                    {p.name_en && <div className="mt-1 text-xs text-muted-foreground">{p.name_en}</div>}
-                    <p className="mt-4 text-sm text-muted-foreground leading-7 line-clamp-3">{p.description_ar}</p>
+                  <div className="flex-1 flex flex-col p-4">
+                    <h3 className="font-display text-lg font-extrabold text-primary leading-snug line-clamp-2">{p.name_ar}</h3>
+                    {p.name_en && <div className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">{p.name_en}</div>}
+                    <p className="mt-2 text-xs text-muted-foreground leading-6 line-clamp-3">{p.description_ar}</p>
 
-                    <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{p.degree_type || meta.degree}</span>
-                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{p.years ?? meta.years} سنوات</span>
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className="rounded-full bg-secondary px-2 py-0.5 font-bold text-primary">{p.degree_type || meta.degree}</span>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 font-bold text-primary">{p.years ?? meta.years} سنوات</span>
                     </div>
-
 
                     <Link
                       to="/departments/$code"
                       params={{ code: p.code }}
-                      className="mt-7 inline-flex items-center justify-center gap-2 rounded-md border-2 border-gold bg-transparent px-6 py-3 text-sm font-extrabold text-gold transition-all hover:bg-gold hover:text-primary-deep"
+                      className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-md border-2 border-gold bg-transparent px-4 py-2 text-xs font-extrabold text-gold transition-all hover:bg-gold hover:text-primary-deep"
                     >
-                      عرض التفاصيل <ArrowLeft className="h-4 w-4" />
+                      عرض التفاصيل <ArrowLeft className="h-3.5 w-3.5" />
                     </Link>
                   </div>
                 </article>
               );
             })}
           </div>
+
         )}
       </section>
 

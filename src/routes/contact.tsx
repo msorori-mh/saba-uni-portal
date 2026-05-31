@@ -157,7 +157,7 @@ function ContactPage() {
 
       {/* Info cards */}
       <section className="container mx-auto px-4 -mt-10 relative z-10">
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-3">
           {[
             {
               icon: MapPin,
@@ -177,20 +177,23 @@ function ContactPage() {
           ].map((c) => (
             <div
               key={c.title}
-              className="group rounded-2xl border border-border bg-card p-6 shadow-elegant hover:border-gold/50 hover:-translate-y-1 transition-all"
+              className="group rounded-xl border border-border bg-card p-4 shadow-elegant hover:border-gold/50 hover:-translate-y-1 transition-all"
             >
-              <div className="grid h-14 w-14 place-items-center rounded-xl bg-gold-gradient text-primary-deep shadow-gold mb-4">
-                <c.icon className="h-7 w-7" />
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shadow-gold shrink-0">
+                  <c.icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-base font-extrabold text-primary">
+                  {c.title}
+                </h3>
               </div>
-              <h3 className="font-display text-lg font-extrabold text-primary">
-                {c.title}
-              </h3>
-              <div className="mt-2 space-y-1 text-sm text-muted-foreground leading-7">
+              <div className="mt-2.5 space-y-0.5 text-xs text-muted-foreground leading-6">
                 {c.lines.map((l, i) => <div key={i}>{l}</div>)}
               </div>
             </div>
           ))}
         </div>
+
       </section>
 
       {/* Form + Hours */}

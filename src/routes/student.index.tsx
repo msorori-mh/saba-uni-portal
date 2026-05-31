@@ -77,27 +77,28 @@ function StudentDashboard() {
           </div>
         ) : (
           <>
-            <div className="rounded-2xl bg-gold-gradient text-primary-deep p-6 shadow-elegant flex items-center gap-4">
-              <div className="grid h-14 w-14 place-items-center rounded-full bg-primary-deep text-gold">
-                <User className="h-7 w-7" />
+            <div className="rounded-xl bg-gold-gradient text-primary-deep p-4 shadow-elegant flex items-center gap-3">
+              <div className="grid h-12 w-12 place-items-center rounded-full bg-primary-deep text-gold shrink-0">
+                <User className="h-6 w-6" />
               </div>
-              <div>
-                <div className="text-xs font-bold uppercase tracking-widest opacity-70">مرحباً</div>
-                <h1 className="font-display text-2xl font-extrabold">{profile.full_name_ar}</h1>
-                {profile.full_name_en && <div className="text-sm opacity-80">{profile.full_name_en}</div>}
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">مرحباً</div>
+                <h1 className="font-display text-lg sm:text-xl font-extrabold truncate">{profile.full_name_ar}</h1>
+                {profile.full_name_en && <div className="text-xs opacity-80 truncate">{profile.full_name_en}</div>}
               </div>
             </div>
 
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <InfoCard icon={IdCard} label="الرقم الأكاديمي" value={profile.academic_number} mono />
               <InfoCard icon={BadgeCheck} label="الحالة" value={statusLabel[profile.status] ?? profile.status} />
               <InfoCard icon={Building2} label="القسم" value={profile.department?.name_ar ?? "—"} />
               <InfoCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} />
             </div>
 
-            <div className="mt-10 rounded-xl border border-border bg-card p-5 text-sm text-muted-foreground text-center">
+            <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية (الجداول، الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
+
           </>
         )}
       </main>
@@ -109,14 +110,15 @@ function InfoCard({
   icon: Icon, label, value, mono,
 }: { icon: typeof User; label: string; value: string; mono?: boolean }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-card">
-      <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-        <Icon className="h-4 w-4 text-gold" />
+    <div className="rounded-lg border border-border bg-card p-3.5 shadow-card">
+      <div className="flex items-center gap-1.5 text-[11px] font-bold text-muted-foreground">
+        <Icon className="h-3.5 w-3.5 text-gold" />
         {label}
       </div>
-      <div className={`mt-2 text-lg font-extrabold text-foreground ${mono ? "font-mono tracking-wider" : ""}`}>
+      <div className={`mt-1.5 text-base font-extrabold text-foreground ${mono ? "font-mono tracking-wider" : ""}`}>
         {value}
       </div>
     </div>
   );
+
 }

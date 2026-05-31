@@ -96,11 +96,12 @@ function FacultyPage() {
         </div>
 
         {isLoading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-72 rounded-2xl" />
+              <Skeleton key={i} className="h-32 rounded-xl" />
             ))}
           </div>
+
         ) : filtered.length === 0 ? (
           <div className="text-center py-20">
             <GraduationCap className="mx-auto h-16 w-16 text-muted-foreground/30" />
@@ -124,11 +125,12 @@ function FacultyPage() {
                     </div>
                   </div>
                   <div className="divider-gold mb-8" />
-                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {members.map((f) => (
                       <FacultyCard key={f.id} f={f} onSelect={setSelected} />
                     ))}
                   </div>
+
                 </div>
               );
             })}
@@ -221,49 +223,56 @@ function FacultyPage() {
 }
 
 function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
+  const initials = f.full_name_ar.trim().split(/\s+/).slice(0, 2).map((s) => s.charAt(0)).join("");
   return (
     <article
-      className="group rounded-2xl border border-border bg-card p-6 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-1 transition-all duration-300 flex flex-col"
+      className="group rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col"
     >
-      <div className="flex flex-col items-center text-center">
-        <div className="w-24 h-24 rounded-full overflow-hidden bg-hero-gradient grid place-items-center ring-4 ring-gold/20 group-hover:ring-gold/50 transition-all">
+      <div className="flex items-start gap-3">
+        <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-hero-gradient grid place-items-center ring-2 ring-gold/20 group-hover:ring-gold/50 transition-all">
           {f.photo ? (
             <img src={f.photo} alt={f.full_name_ar} className="w-full h-full object-cover" />
           ) : (
-            <span className="font-display text-3xl font-extrabold text-gold/90" aria-hidden>
-              {f.full_name_ar.charAt(0)}
+            <span className="font-display text-base font-extrabold text-gold/90" aria-hidden>
+              {initials}
             </span>
           )}
         </div>
-        <h3 className="mt-4 font-display text-base font-bold text-primary leading-snug">
-          {f.full_name_ar}
-        </h3>
-        <div className="mt-2 flex flex-wrap gap-1.5 justify-center">
-          {f.rank && (
-            <Badge className="bg-gold/15 text-gold border border-gold/30 hover:bg-gold/20">
-              {f.rank}
-            </Badge>
-          )}
-          {f.degree && (
-            <Badge variant="outline" className="text-xs">{f.degree}</Badge>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display text-sm font-bold text-primary leading-snug line-clamp-2">
+            {f.full_name_ar}
+          </h3>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {f.rank && (
+              <Badge className="bg-gold/15 text-gold border border-gold/30 hover:bg-gold/20 text-[10px] px-1.5 py-0">
+                {f.rank}
+              </Badge>
+            )}
+            {f.degree && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{f.degree}</Badge>
+            )}
+          </div>
+          {f.specialization && (
+            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{f.specialization}</div>
           )}
         </div>
       </div>
 
-      <div className="mt-auto pt-5 flex items-center justify-end border-t border-border/60 mt-5">
+      <div className="mt-3 pt-3 flex items-center justify-end border-t border-border/60">
         <Button
           size="sm"
           variant="outline"
-          className="border-gold/40 text-primary hover:bg-gold/10 hover:border-gold"
+          className="h-7 text-xs border-gold/40 text-primary hover:bg-gold/10 hover:border-gold"
           onClick={() => onSelect(f)}
         >
-          <FileText className="h-3.5 w-3.5 ml-1" />
+          <FileText className="h-3 w-3 ml-1" />
           التفاصيل
         </Button>
       </div>
     </article>
   );
 }
+
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
