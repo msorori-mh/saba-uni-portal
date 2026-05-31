@@ -34,10 +34,30 @@ const ICONS: Record<string, React.ComponentType<{ className?: string; strokeWidt
 // Per-program visual + meta hints (image gradient + degree/duration)
 const PROGRAM_META: Record<string, { gradient: string; degree: string; years: number }> = {
   CS:  { gradient: "from-primary via-primary-deep to-[hsl(220_70%_18%)]", degree: "بكالوريوس", years: 4 },
+  IT:  { gradient: "from-[hsl(200_60%_28%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
   CIS: { gradient: "from-[hsl(195_70%_30%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
   CYB: { gradient: "from-[hsl(220_50%_20%)] via-[hsl(220_60%_25%)] to-primary-deep", degree: "بكالوريوس", years: 4 },
   AI:  { gradient: "from-[hsl(260_50%_30%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
+  MCS: { gradient: "from-[hsl(240_55%_25%)] via-primary to-primary-deep", degree: "ماجستير", years: 2 },
+  MIT: { gradient: "from-[hsl(180_55%_25%)] via-primary to-primary-deep", degree: "ماجستير", years: 2 },
 };
+
+const STATUS_LABEL: Record<string, { label: string; tone: "active" | "warn" | "muted" }> = {
+  active: { label: "فعّال", tone: "active" },
+  launching_2026_2027: { label: "قيد التدشين 2026-2027", tone: "warn" },
+  under_review: { label: "قيد التحديث", tone: "muted" },
+};
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const meta = STATUS_LABEL[status ?? "active"] ?? STATUS_LABEL.active;
+  const cls =
+    meta.tone === "active"
+      ? "bg-emerald-500/15 text-emerald-700 border border-emerald-600/30 dark:text-emerald-300"
+      : meta.tone === "warn"
+      ? "bg-amber-500/15 text-amber-700 border border-amber-600/30 dark:text-amber-300"
+      : "bg-muted text-muted-foreground border border-border";
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${cls}`}>{meta.label}</span>;
+}
 
 function DepartmentsPage() {
   const { data: programs, isLoading } = useQuery(programsQuery);
