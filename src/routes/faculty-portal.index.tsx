@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock } from "lucide-react";
+import { useState } from "react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
@@ -139,34 +140,12 @@ function FacultyDashboard() {
               ) : (
                 <div className="space-y-2">
                   {teaching.map((t) => (
-                    <div key={t.id} className="rounded-lg border bg-card p-3">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <div>
-                          <span className="font-mono font-bold text-primary">{t.course?.code}</span>
-                          <span className="mx-2 text-muted-foreground">—</span>
-                          <span className="font-semibold text-sm">{t.course?.name_ar}</span>
-                        </div>
-                        <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">شعبة {t.section_code}</span>
-                      </div>
-                      {t.schedule.length === 0 ? (
-                        <div className="text-[11px] text-muted-foreground mt-2">لا يوجد جدول بعد</div>
-                      ) : (
-                        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                          {t.schedule.map((s, i) => (
-                            <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1.5 text-xs">
-                              <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
-                              <span className="font-mono">{s.start_time.slice(0,5)}-{s.end_time.slice(0,5)}</span>
-                              {s.room && <span className="text-muted-foreground">• {s.room}</span>}
-                              <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">{TYPE_LABELS[s.schedule_type] ?? s.schedule_type}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <SectionCard key={t.id} sectionId={t.id} sectionCode={t.section_code} courseCode={t.course?.code ?? "—"} courseName={t.course?.name_ar ?? "—"} schedule={t.schedule} />
                   ))}
                 </div>
               )}
             </div>
+
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الحضور، التقارير) في المراحل القادمة.
