@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
@@ -11,8 +11,19 @@ type StudentRow = {
   full_name_en: string | null;
   email: string | null;
   status: string;
+  program_id: string | null;
   department: { name_ar: string } | null;
   program: { name_ar: string } | null;
+};
+
+type PlanCourseRow = {
+  id: string;
+  semester_code: string;
+  is_required: boolean;
+  sort_order: number;
+  level: { name: string; level_number: number } | null;
+  course: { code: string; name_ar: string; credit_hours: number } | null;
+  prerequisite: { code: string } | null;
 };
 
 type AcademicStatus = {
@@ -27,7 +38,7 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
   if (!auth.user) return null;
   const { data, error } = await supabase
     .from("student_profiles")
-    .select("id, academic_number, full_name_ar, full_name_en, email, status, department:departments(name_ar), program:programs(name_ar)")
+    .select("id, academic_number, full_name_ar, full_name_en, email, status, program_id, department:departments(name_ar), program:programs(name_ar)")
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (error) throw error;
@@ -46,6 +57,26 @@ async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus 
   return data as unknown as AcademicStatus;
 }
 
+async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
+  const { data: plan, error: pErr } = await supabase
+    .from("study_plans")
+    .select("id")
+    .eq("program_id", programId)
+    .eq("is_active", true)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (pErr) throw pErr;
+  if (!plan) return [];
+  const { data, error } = await supabase
+    .from("study_plan_courses")
+    .select("id, semester_code, is_required, sort_order, level:academic_levels(name, level_number), course:courses!study_plan_courses_course_id_fkey(code, name_ar, credit_hours), prerequisite:courses!study_plan_courses_prerequisite_course_id_fkey(code)")
+    .eq("study_plan_id", plan.id)
+    .order("sort_order");
+  if (error) throw error;
+  return (data ?? []) as unknown as PlanCourseRow[];
+}
+
 export const Route = createFileRoute("/student/")({
   component: StudentDashboard,
 });
@@ -60,6 +91,11 @@ function StudentDashboard() {
     queryKey: ["student", "academic-status", profile?.id],
     queryFn: () => fetchMyAcademicStatus(profile!.id),
     enabled: !!profile?.id,
+  });
+  const { data: planCourses = [] } = useQuery({
+    queryKey: ["student", "study-plan", profile?.program_id],
+    queryFn: () => fetchMyStudyPlan(profile!.program_id!),
+    enabled: !!profile?.program_id,
   });
 
   const handleLogout = async () => {
@@ -132,6 +168,8 @@ function StudentDashboard() {
               </div>
             </div>
 
+            <StudyPlanSection rows={planCourses} />
+
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية (الجداول، الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
@@ -158,4 +196,64 @@ function InfoCard({
     </div>
   );
 
+}
+
+const SEMESTER_LABELS: Record<string, string> = {
+  first: "الفصل الأول",
+  second: "الفصل الثاني",
+  summer: "الفصل الصيفي",
+};
+
+function StudyPlanSection({ rows }: { rows: PlanCourseRow[] }) {
+  if (!rows || rows.length === 0) return null;
+
+  // Group by level_number then semester_code
+  type Group = { levelName: string; levelNumber: number; semesters: Record<string, PlanCourseRow[]> };
+  const map = new Map<number, Group>();
+  for (const r of rows) {
+    const ln = r.level?.level_number ?? 0;
+    if (!map.has(ln)) map.set(ln, { levelName: r.level?.name ?? `المستوى ${ln}`, levelNumber: ln, semesters: {} });
+    const g = map.get(ln)!;
+    (g.semesters[r.semester_code] ||= []).push(r);
+  }
+  const levels = Array.from(map.values()).sort((a, b) => a.levelNumber - b.levelNumber);
+
+  return (
+    <div className="mt-6">
+      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+        <BookOpen className="h-4 w-4 text-gold" /> الخطة الدراسية
+      </h2>
+      <div className="space-y-3">
+        {levels.map((lvl) => (
+          <div key={lvl.levelNumber} className="rounded-lg border border-border bg-card overflow-hidden">
+            <div className="px-3 py-2 bg-muted/40 text-sm font-bold text-primary border-b">{lvl.levelName}</div>
+            <div className="grid sm:grid-cols-2 gap-px bg-border">
+              {Object.entries(lvl.semesters).map(([sem, items]) => (
+                <div key={sem} className="bg-card p-3">
+                  <div className="text-[11px] font-bold text-muted-foreground mb-2">
+                    {SEMESTER_LABELS[sem] ?? sem}
+                  </div>
+                  <ul className="space-y-1.5">
+                    {items.map((it) => (
+                      <li key={it.id} className="rounded border p-2 text-xs">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-mono font-bold">{it.course?.code}</span>
+                          <span className="text-[10px] text-muted-foreground">{it.course?.credit_hours} س.م</span>
+                        </div>
+                        <div className="mt-0.5 font-semibold">{it.course?.name_ar}</div>
+                        <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
+                          <span>{it.is_required ? "إجباري" : "اختياري"}</span>
+                          {it.prerequisite && <span>• متطلب: <span className="font-mono">{it.prerequisite.code}</span></span>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

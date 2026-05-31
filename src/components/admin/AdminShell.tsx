@@ -3,7 +3,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Newspaper, Users, BookOpen, FlaskConical, Calendar,
-  MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft, CalendarRange,
+  MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft, CalendarRange, ListTree,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ const items: NavItem[] = [
   { to: "/admin/faculty", label: "هيئة التدريس", icon: Users },
   { to: "/admin/departments", label: "الأقسام والبرامج", icon: BookOpen },
   { to: "/admin/academic-core", label: "البنية الأكاديمية", icon: CalendarRange },
+  { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
   { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
   { to: "/admin/events", label: "الفعاليات", icon: Calendar },
   { to: "/admin/contacts", label: "رسائل التواصل", icon: MessageSquare, badgeKey: "new-messages" },
