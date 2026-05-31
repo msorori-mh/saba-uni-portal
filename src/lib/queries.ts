@@ -107,6 +107,25 @@ export const statsQuery = queryOptions({
   staleTime: 1000 * 60 * 10,
 });
 
+export const liveCountsQuery = queryOptions({
+  queryKey: ["live_counts"],
+  queryFn: async () => {
+    const [programs, faculty, papers, news] = await Promise.all([
+      supabase.from("programs").select("id", { count: "exact", head: true }).eq("is_active", true),
+      supabase.from("faculty").select("id", { count: "exact", head: true }).eq("is_active", true),
+      supabase.from("research_papers").select("id", { count: "exact", head: true }).eq("is_published", true),
+      supabase.from("news").select("id", { count: "exact", head: true }).eq("is_published", true),
+    ]);
+    return {
+      programs: programs.count ?? 0,
+      faculty: faculty.count ?? 0,
+      research: papers.count ?? 0,
+      news: news.count ?? 0,
+    };
+  },
+  staleTime: 1000 * 60 * 5,
+});
+
 export const settingsQuery = queryOptions({
   queryKey: ["site_settings"],
   queryFn: async () => {
