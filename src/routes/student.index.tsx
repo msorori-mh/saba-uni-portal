@@ -184,6 +184,11 @@ function StudentDashboard() {
     queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
     enabled: !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
   });
+  const { data: myEnrollments = [] } = useQuery({
+    queryKey: ["student", "my-enrollments", profile?.id],
+    queryFn: () => fetchMyEnrollments(profile!.id),
+    enabled: !!profile?.id,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -257,11 +262,19 @@ function StudentDashboard() {
 
             <StudyPlanSection rows={planCourses} />
 
+            <MyEnrollmentsSection rows={myEnrollments} />
+
+            <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
+              قسم «الجدول الدراسي العام» يعرض جميع شعب البرنامج للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط الشعب التي سُجلت فيها فعلياً.
+            </div>
+
             <ScheduleSection rows={schedule} />
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
+
+
 
           </>
         )}
