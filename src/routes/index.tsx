@@ -211,7 +211,7 @@ function HomePage() {
                 <article key={n.id} className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
                   {hasImage && (
                     <div className="relative h-32 bg-hero-gradient overflow-hidden">
-                      <img src={n.featured_image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      <img src={n.featured_image ?? ""} alt="" className="h-full w-full object-cover" loading="lazy" />
                       <span className="absolute bottom-2 right-2 rounded-full bg-gold px-2 py-0.5 text-[10px] font-bold text-primary-deep">{n.category}</span>
                     </div>
                   )}
