@@ -135,24 +135,34 @@ function HomePage() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {programs.map((p) => {
             const Icon = ICONS[p.icon ?? ""] ?? Cpu;
+            const isLaunching = (p as any).status === "launching_2026_2027";
             return (
               <Link to="/departments/$code" params={{ code: p.code }} key={p.id}
-                       className="group relative overflow-hidden rounded-xl border border-border bg-card p-7 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
-                <div className="grid h-14 w-14 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
-                  <Icon className="h-7 w-7" strokeWidth={2.2} />
+                       className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
+                    <Icon className="h-5 w-5" strokeWidth={2.2} />
+                  </div>
+                  <span className="rounded-full bg-gold/10 text-gold border border-gold/30 px-2 py-0.5 text-[10px] font-bold">{p.code}</span>
                 </div>
-                <h3 className="mt-5 font-display text-xl font-bold text-primary">{p.name_ar}</h3>
-                <p className="mt-2 text-sm text-muted-foreground leading-7 line-clamp-3">{p.description_ar}</p>
-                <div className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-primary group-hover:text-gold transition-colors">
-                  التفاصيل <ArrowLeft className="h-4 w-4" />
+                <h3 className="mt-3 font-display text-base font-bold text-primary leading-snug line-clamp-2">{p.name_ar}</h3>
+                <p className="mt-1.5 text-xs text-muted-foreground leading-6 line-clamp-2">{p.description_ar}</p>
+                {isLaunching && (
+                  <span className="mt-2 inline-flex w-fit items-center rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-600/30 px-2 py-0.5 text-[10px] font-bold">
+                    قيد التدشين 2026-2027
+                  </span>
+                )}
+                <div className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-primary group-hover:text-gold transition-colors">
+                  التفاصيل <ArrowLeft className="h-3.5 w-3.5" />
                 </div>
               </Link>
             );
           })}
         </div>
+
       </section>
 
       {/* Why us */}
@@ -194,23 +204,32 @@ function HomePage() {
             لا توجد أخبار منشورة حاليًا.
           </div>
         ) : (
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
-            {news.map((n) => (
-              <article key={n.id} className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
-                <div className="relative h-40 bg-hero-gradient overflow-hidden">
-                  {n.featured_image && <img src={n.featured_image} alt="" className="h-full w-full object-cover opacity-70" loading="lazy" />}
-                  <span className="absolute bottom-3 right-3 rounded-full bg-gold px-3 py-1 text-xs font-bold text-primary-deep">{n.category}</span>
-                </div>
-                <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" /> {new Date(n.published_at).toLocaleDateString("ar-EG")}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {news.map((n) => {
+              const hasImage = !!n.featured_image;
+              return (
+                <article key={n.id} className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+                  {hasImage && (
+                    <div className="relative h-32 bg-hero-gradient overflow-hidden">
+                      <img src={n.featured_image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                      <span className="absolute bottom-2 right-2 rounded-full bg-gold px-2 py-0.5 text-[10px] font-bold text-primary-deep">{n.category}</span>
+                    </div>
+                  )}
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(n.published_at).toLocaleDateString("ar-EG")}</span>
+                      {!hasImage && (
+                        <span className="rounded-full bg-gold/15 text-gold border border-gold/30 px-2 py-0 text-[10px] font-bold">{n.category}</span>
+                      )}
+                    </div>
+                    <h3 className="mt-2 font-display text-sm font-bold text-primary line-clamp-2 leading-6">{n.title_ar}</h3>
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-6 line-clamp-3">{n.excerpt_ar}</p>
                   </div>
-                  <h3 className="mt-3 font-display text-lg font-bold text-primary line-clamp-2">{n.title_ar}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-7 line-clamp-3">{n.excerpt_ar}</p>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
+
         )}
       </section>
 
@@ -229,18 +248,19 @@ function HomePage() {
               </Link>
             </div>
 
-            <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {events.map((e) => (
-                <article key={e.id} className="rounded-xl border border-border bg-card p-6 shadow-card hover:shadow-elegant transition-all hover:-translate-y-1">
-                  <div className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">
-                    <Calendar className="h-3.5 w-3.5" /> {new Date(e.event_date).toLocaleDateString("ar-EG")}
+                <article key={e.id} className="rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant transition-all hover:-translate-y-1 hover:border-gold/40">
+                  <div className="inline-flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground">
+                    <Calendar className="h-3 w-3" /> {new Date(e.event_date).toLocaleDateString("ar-EG")}
                   </div>
-                  <h3 className="mt-4 font-display text-lg font-bold text-primary line-clamp-2">{e.title_ar}</h3>
-                  {e.description_ar && <p className="mt-2 text-sm text-muted-foreground leading-7 line-clamp-3">{e.description_ar}</p>}
-                  {e.location && <div className="mt-3 text-xs text-muted-foreground">📍 {e.location}</div>}
+                  <h3 className="mt-3 font-display text-base font-bold text-primary line-clamp-2 leading-snug">{e.title_ar}</h3>
+                  {e.description_ar && <p className="mt-1.5 text-xs text-muted-foreground leading-6 line-clamp-2">{e.description_ar}</p>}
+                  {e.location && <div className="mt-2 text-[11px] text-muted-foreground inline-flex items-center gap-1"><MapPin className="h-3 w-3 text-gold" /> {e.location}</div>}
                 </article>
               ))}
             </div>
+
           </div>
         </section>
       )}
