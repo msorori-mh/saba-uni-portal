@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2 } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type StudentRow = {
+  id: string;
   academic_number: string;
   full_name_ar: string;
   full_name_en: string | null;
@@ -14,16 +15,35 @@ type StudentRow = {
   program: { name_ar: string } | null;
 };
 
+type AcademicStatus = {
+  enrollment_status: string;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+  level: { name: string; level_number: number } | null;
+};
+
 async function fetchMyProfile(): Promise<StudentRow | null> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
   const { data, error } = await supabase
     .from("student_profiles")
-    .select("academic_number, full_name_ar, full_name_en, email, status, department:departments(name_ar), program:programs(name_ar)")
+    .select("id, academic_number, full_name_ar, full_name_en, email, status, department:departments(name_ar), program:programs(name_ar)")
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as StudentRow;
+}
+
+async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus | null> {
+  const { data, error } = await supabase
+    .from("student_academic_status")
+    .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
+    .eq("student_profile_id", studentId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data as unknown as AcademicStatus;
 }
 
 export const Route = createFileRoute("/student/")({
@@ -35,6 +55,11 @@ function StudentDashboard() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
+  });
+  const { data: acad } = useQuery({
+    queryKey: ["student", "academic-status", profile?.id],
+    queryFn: () => fetchMyAcademicStatus(profile!.id),
+    enabled: !!profile?.id,
   });
 
   const handleLogout = async () => {
@@ -93,6 +118,18 @@ function StudentDashboard() {
               <InfoCard icon={BadgeCheck} label="الحالة" value={statusLabel[profile.status] ?? profile.status} />
               <InfoCard icon={Building2} label="القسم" value={profile.department?.name_ar ?? "—"} />
               <InfoCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} />
+            </div>
+
+            <div className="mt-6">
+              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                <CalendarRange className="h-4 w-4 text-gold" /> الوضع الأكاديمي الحالي
+              </h2>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <InfoCard icon={CalendarRange} label="السنة الأكاديمية" value={acad?.academic_year?.name ?? "—"} />
+                <InfoCard icon={BookMarked} label="الفصل الحالي" value={acad?.semester?.name ?? "—"} />
+                <InfoCard icon={Layers} label="المستوى" value={acad?.level?.name ?? "—"} />
+                <InfoCard icon={BadgeCheck} label="حالة التسجيل" value={statusLabel[acad?.enrollment_status ?? ""] ?? acad?.enrollment_status ?? "—"} />
+              </div>
             </div>
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
