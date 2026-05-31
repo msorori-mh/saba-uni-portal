@@ -337,6 +337,90 @@ export type Database = {
         }
         Relationships: []
       }
+      research_papers: {
+        Row: {
+          abstract_ar: string | null
+          abstract_en: string | null
+          authors: string
+          citations_count: number
+          created_at: string
+          doi: string | null
+          external_url: string | null
+          faculty_id: string | null
+          id: string
+          is_published: boolean
+          journal_name: string | null
+          keywords: string | null
+          pdf_url: string | null
+          program_id: string | null
+          publication_date: string | null
+          publication_year: number
+          sort_order: number
+          title_ar: string
+          title_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          abstract_ar?: string | null
+          abstract_en?: string | null
+          authors: string
+          citations_count?: number
+          created_at?: string
+          doi?: string | null
+          external_url?: string | null
+          faculty_id?: string | null
+          id?: string
+          is_published?: boolean
+          journal_name?: string | null
+          keywords?: string | null
+          pdf_url?: string | null
+          program_id?: string | null
+          publication_date?: string | null
+          publication_year: number
+          sort_order?: number
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abstract_ar?: string | null
+          abstract_en?: string | null
+          authors?: string
+          citations_count?: number
+          created_at?: string
+          doi?: string | null
+          external_url?: string | null
+          faculty_id?: string | null
+          id?: string
+          is_published?: boolean
+          journal_name?: string | null
+          keywords?: string | null
+          pdf_url?: string | null
+          program_id?: string | null
+          publication_date?: string | null
+          publication_year?: number
+          sort_order?: number
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_papers_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_papers_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_pages: {
         Row: {
           content_ar: string | null

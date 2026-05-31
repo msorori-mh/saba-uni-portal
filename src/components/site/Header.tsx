@@ -10,6 +10,7 @@ const navItems = [
   { to: "/faculty", label: "هيئة التدريس" },
   { to: "/news", label: "الأخبار" },
   { to: "/events", label: "الفعاليات" },
+  { to: "/research", label: "الأبحاث" },
   { to: "/contact", label: "اتصل بنا" },
 ] as const;
 
