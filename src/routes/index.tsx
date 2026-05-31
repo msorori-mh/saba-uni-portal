@@ -68,13 +68,17 @@ function HomePage() {
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
-              <Link to="/portal-login"
+              <Link to="/about"
                     className="inline-flex items-center gap-2 rounded-md bg-gold-gradient px-7 py-3.5 text-sm font-extrabold text-primary-deep shadow-gold transition-transform hover:-translate-y-0.5">
-                بوابة الطالب <ArrowLeft className="h-4 w-4" />
+                تعرف على الكلية <ArrowLeft className="h-4 w-4" />
               </Link>
               <Link to="/departments"
                     className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-white/5 px-7 py-3.5 text-sm font-bold text-primary-foreground hover:bg-white/10">
                 استكشف برامجنا
+              </Link>
+              <Link to="/portal-login"
+                    className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-white/5 px-7 py-3.5 text-sm font-bold text-primary-foreground hover:bg-white/10">
+                بوابة الطالب
               </Link>
             </div>
           </div>
