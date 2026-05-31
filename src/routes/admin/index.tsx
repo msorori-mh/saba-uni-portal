@@ -242,7 +242,7 @@ function AdminDashboard() {
               أحدث رسائل التواصل
             </h2>
             <Link
-              to="/admin/messages"
+              to="/admin/contacts"
               className="text-xs font-semibold text-primary hover:text-gold transition-colors"
             >
               عرض الكل ←
