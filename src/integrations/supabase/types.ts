@@ -656,6 +656,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_student_password_change: { Args: never; Returns: undefined }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
