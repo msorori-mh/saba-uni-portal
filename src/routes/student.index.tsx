@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
@@ -46,6 +46,42 @@ type ScheduleRow = {
   faculty_name: string | null;
   slots: ScheduleSlot[];
 };
+
+type MyEnrollmentRow = {
+  id: string;
+  enrollment_status: string;
+  section_code: string;
+  course_code: string;
+  course_name: string;
+  faculty_name: string | null;
+  slots: ScheduleSlot[];
+};
+
+async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]> {
+  const { data, error } = await supabase
+    .from("student_enrollments")
+    .select("id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type))")
+    .eq("student_profile_id", studentId);
+  if (error) throw error;
+  type Raw = {
+    id: string; enrollment_status: string;
+    section: {
+      section_code: string;
+      faculty: { full_name_ar: string } | null;
+      offering: { course: { code: string; name_ar: string } | null } | null;
+      schedule: ScheduleSlot[];
+    } | null;
+  };
+  return ((data ?? []) as unknown as Raw[]).map((r) => ({
+    id: r.id,
+    enrollment_status: r.enrollment_status,
+    section_code: r.section?.section_code ?? "—",
+    course_code: r.section?.offering?.course?.code ?? "—",
+    course_name: r.section?.offering?.course?.name_ar ?? "—",
+    faculty_name: r.section?.faculty?.full_name_ar ?? null,
+    slots: r.section?.schedule ?? [],
+  }));
+}
 
 async function fetchMyProfile(): Promise<StudentRow | null> {
   const { data: auth } = await supabase.auth.getUser();
@@ -148,6 +184,11 @@ function StudentDashboard() {
     queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
     enabled: !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
   });
+  const { data: myEnrollments = [] } = useQuery({
+    queryKey: ["student", "my-enrollments", profile?.id],
+    queryFn: () => fetchMyEnrollments(profile!.id),
+    enabled: !!profile?.id,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -221,11 +262,19 @@ function StudentDashboard() {
 
             <StudyPlanSection rows={planCourses} />
 
+            <MyEnrollmentsSection rows={myEnrollments} />
+
+            <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
+              قسم «الجدول الدراسي العام» يعرض جميع شعب البرنامج للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط الشعب التي سُجلت فيها فعلياً.
+            </div>
+
             <ScheduleSection rows={schedule} />
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
+
+
 
           </>
         )}
@@ -364,4 +413,59 @@ function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
     </div>
   );
 }
+
+function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
+  const statusLabel: Record<string, { text: string; cls: string }> = {
+    enrolled: { text: "مُسجَّل", cls: "bg-emerald-100 text-emerald-800" },
+    dropped: { text: "محذوف", cls: "bg-rose-100 text-rose-800" },
+    completed: { text: "مكتمل", cls: "bg-blue-100 text-blue-800" },
+  };
+  return (
+    <div className="mt-6">
+      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+        <ClipboardCheck className="h-4 w-4 text-gold" /> مقرراتي المسجلة
+      </h2>
+      {rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
+          لم يتم تسجيلك في أي شعبة بعد. تواصل مع شؤون الطلاب.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => {
+            const st = statusLabel[r.enrollment_status] ?? { text: r.enrollment_status, cls: "bg-muted" };
+            return (
+              <div key={r.id} className="rounded-lg border bg-card p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="font-mono font-bold text-primary">{r.course_code}</span>
+                    <span className="mx-2 text-muted-foreground">—</span>
+                    <span className="font-semibold text-sm">{r.course_name}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className="bg-muted px-1.5 py-0.5 rounded">شعبة {r.section_code}</span>
+                  {r.faculty_name && <span>• {r.faculty_name}</span>}
+                </div>
+                {r.slots.length > 0 && (
+                  <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                    {r.slots.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1 text-[11px]">
+                        <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
+                        <span className="font-mono">{s.start_time.slice(0,5)}-{s.end_time.slice(0,5)}</span>
+                        {s.room && <span className="text-muted-foreground">• {s.room}</span>}
+                        <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">{TYPE_LABELS[s.schedule_type] ?? s.schedule_type}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
