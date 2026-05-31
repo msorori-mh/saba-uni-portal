@@ -128,7 +128,7 @@ function AdminGradesPage() {
       toast.info("لا توجد درجات بحالة (مرسلة) للاعتماد");
       return;
     }
-    const { error } = await sb.from("student_grades")
+    const { error } = await (sb.from("student_grades") as any)
       .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: staff?.id ?? null })
       .in("id", idsToApprove);
     if (error) { toast.error(error.message); return; }
