@@ -1,0 +1,122 @@
+import { queryOptions } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+export const programsQuery = queryOptions({
+  queryKey: ["programs"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("programs")
+      .select("*")
+      .eq("is_active", true)
+      .order("sort_order");
+    if (error) throw error;
+    return data;
+  },
+  staleTime: 1000 * 60 * 5,
+});
+
+export const programByCodeQuery = (code: string) =>
+  queryOptions({
+    queryKey: ["programs", code],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("programs")
+        .select("*")
+        .eq("code", code)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+export const facultyQuery = queryOptions({
+  queryKey: ["faculty"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("faculty")
+      .select("*, programs(code, name_ar)")
+      .eq("is_active", true)
+      .order("sort_order");
+    if (error) throw error;
+    return data;
+  },
+  staleTime: 1000 * 60 * 5,
+});
+
+export const newsQuery = (limit?: number) =>
+  queryOptions({
+    queryKey: ["news", limit ?? "all"],
+    queryFn: async () => {
+      let q = supabase
+        .from("news")
+        .select("*")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false });
+      if (limit) q = q.limit(limit);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+export const eventsQuery = (limit?: number) =>
+  queryOptions({
+    queryKey: ["events", limit ?? "all"],
+    queryFn: async () => {
+      let q = supabase
+        .from("events")
+        .select("*")
+        .eq("is_published", true)
+        .order("event_date", { ascending: true });
+      if (limit) q = q.limit(limit);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
+export const statsQuery = queryOptions({
+  queryKey: ["dashboard_stats"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("dashboard_stats")
+      .select("*")
+      .order("sort_order");
+    if (error) throw error;
+    return data;
+  },
+  staleTime: 1000 * 60 * 10,
+});
+
+export const settingsQuery = queryOptions({
+  queryKey: ["site_settings"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("site_settings")
+      .select("setting_key, setting_value, setting_group");
+    if (error) throw error;
+    const map: Record<string, string> = {};
+    for (const row of data ?? []) map[row.setting_key] = row.setting_value ?? "";
+    return map;
+  },
+  staleTime: 1000 * 60 * 10,
+});
+
+export const pageBySlugQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ["site_pages", slug],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_pages")
+        .select("*")
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });

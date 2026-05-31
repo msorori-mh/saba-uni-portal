@@ -1,13 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, GraduationCap } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 const navItems = [
   { to: "/", label: "الرئيسية" },
   { to: "/about", label: "عن الكلية" },
-  { to: "/departments", label: "الأقسام" },
+  { to: "/departments", label: "البرامج" },
+  { to: "/faculty", label: "هيئة التدريس" },
   { to: "/news", label: "الأخبار" },
+  { to: "/events", label: "الفعاليات" },
   { to: "/contact", label: "اتصل بنا" },
 ] as const;
 
@@ -16,7 +18,6 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/85 backdrop-blur-lg">
-      {/* Top strip */}
       <div className="bg-primary-deep text-primary-foreground/90 text-xs">
         <div className="container mx-auto flex items-center justify-between px-4 py-1.5">
           <span>جامعة إقليم سبأ — اليمن</span>
@@ -30,18 +31,18 @@ export function Header() {
             <img src={collegeLogo} alt="شعار الكلية" className="h-full w-full object-contain" />
           </div>
           <div className="leading-tight">
-            <div className="font-display font-extrabold text-primary text-lg">كلية تكنولوجيا المعلومات</div>
+            <div className="font-display font-extrabold text-primary text-base lg:text-lg">كلية تكنولوجيا المعلومات</div>
             <div className="text-xs text-muted-foreground">وعلوم الحاسوب — جامعة إقليم سبأ</div>
           </div>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden xl:flex items-center gap-1">
           {navItems.map((item) => (
             <Link
               key={item.to}
               to={item.to}
-              className="px-4 py-2 text-sm font-semibold text-foreground/75 rounded-md transition-colors hover:text-primary hover:bg-secondary"
-              activeProps={{ className: "px-4 py-2 text-sm font-semibold rounded-md text-primary bg-secondary" }}
+              className="px-3 py-2 text-sm font-semibold text-foreground/75 rounded-md transition-colors hover:text-primary hover:bg-secondary"
+              activeProps={{ className: "px-3 py-2 text-sm font-semibold rounded-md text-primary bg-secondary" }}
               activeOptions={{ exact: item.to === "/" }}
             >
               {item.label}
@@ -50,16 +51,16 @@ export function Header() {
         </nav>
 
         <div className="hidden lg:block">
-          <a
-            href="#"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-primary-deep shadow-elegant"
+          <Link
+            to="/portal-login"
+            className="inline-flex items-center gap-2 rounded-md bg-gold-gradient px-5 py-2.5 text-sm font-extrabold text-primary-deep transition-all hover:-translate-y-0.5 shadow-gold"
           >
-            بوابة الطالب
-          </a>
+            <GraduationCap className="h-4 w-4" /> بوابة الطالب
+          </Link>
         </div>
 
         <button
-          className="lg:hidden p-2 text-primary"
+          className="xl:hidden p-2 text-primary"
           onClick={() => setOpen(!open)}
           aria-label="القائمة"
         >
@@ -68,7 +69,7 @@ export function Header() {
       </div>
 
       {open && (
-        <div className="lg:hidden border-t border-border bg-background">
+        <div className="xl:hidden border-t border-border bg-background">
           <nav className="container mx-auto flex flex-col px-4 py-3">
             {navItems.map((item) => (
               <Link
@@ -82,9 +83,13 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            <a href="#" className="mt-3 rounded-md bg-primary px-5 py-3 text-center text-sm font-bold text-primary-foreground">
-              بوابة الطالب
-            </a>
+            <Link
+              to="/portal-login"
+              onClick={() => setOpen(false)}
+              className="mt-3 inline-flex items-center justify-center gap-2 rounded-md bg-gold-gradient px-5 py-3 text-sm font-extrabold text-primary-deep shadow-gold"
+            >
+              <GraduationCap className="h-4 w-4" /> بوابة الطالب
+            </Link>
           </nav>
         </div>
       )}

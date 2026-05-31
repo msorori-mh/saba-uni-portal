@@ -14,7 +14,401 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_read: boolean
+          message: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          is_read?: boolean
+          message: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          subject?: string
+        }
+        Relationships: []
+      }
+      dashboard_stats: {
+        Row: {
+          icon: string | null
+          id: string
+          label_ar: string
+          label_en: string | null
+          sort_order: number
+          stat_key: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          icon?: string | null
+          id?: string
+          label_ar: string
+          label_en?: string | null
+          sort_order?: number
+          stat_key: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          icon?: string | null
+          id?: string
+          label_ar?: string
+          label_en?: string | null
+          sort_order?: number
+          stat_key?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          event_date: string
+          event_time: string | null
+          id: string
+          image: string | null
+          is_featured: boolean
+          is_published: boolean
+          location: string | null
+          registration_url: string | null
+          title_ar: string
+          title_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          event_date: string
+          event_time?: string | null
+          id?: string
+          image?: string | null
+          is_featured?: boolean
+          is_published?: boolean
+          location?: string | null
+          registration_url?: string | null
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          event_date?: string
+          event_time?: string | null
+          id?: string
+          image?: string | null
+          is_featured?: boolean
+          is_published?: boolean
+          location?: string | null
+          registration_url?: string | null
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      faculty: {
+        Row: {
+          bio_ar: string | null
+          bio_en: string | null
+          created_at: string
+          degree: string | null
+          email: string | null
+          employee_id: string
+          full_name_ar: string
+          full_name_en: string | null
+          id: string
+          is_active: boolean
+          phone: string | null
+          photo: string | null
+          program_id: string | null
+          rank: string | null
+          sort_order: number
+          specialization: string | null
+          updated_at: string
+        }
+        Insert: {
+          bio_ar?: string | null
+          bio_en?: string | null
+          created_at?: string
+          degree?: string | null
+          email?: string | null
+          employee_id: string
+          full_name_ar: string
+          full_name_en?: string | null
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          photo?: string | null
+          program_id?: string | null
+          rank?: string | null
+          sort_order?: number
+          specialization?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bio_ar?: string | null
+          bio_en?: string | null
+          created_at?: string
+          degree?: string | null
+          email?: string | null
+          employee_id?: string
+          full_name_ar?: string
+          full_name_en?: string | null
+          id?: string
+          is_active?: boolean
+          phone?: string | null
+          photo?: string | null
+          program_id?: string | null
+          rank?: string | null
+          sort_order?: number
+          specialization?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faculty_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_library: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          mime_type: string | null
+          thumbnail_path: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          mime_type?: string | null
+          thumbnail_path?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          mime_type?: string | null
+          thumbnail_path?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      news: {
+        Row: {
+          category: string
+          content_ar: string | null
+          content_en: string | null
+          created_at: string
+          excerpt_ar: string | null
+          excerpt_en: string | null
+          featured_image: string | null
+          id: string
+          is_published: boolean
+          published_at: string
+          slug: string
+          title_ar: string
+          title_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content_ar?: string | null
+          content_en?: string | null
+          created_at?: string
+          excerpt_ar?: string | null
+          excerpt_en?: string | null
+          featured_image?: string | null
+          id?: string
+          is_published?: boolean
+          published_at?: string
+          slug: string
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content_ar?: string | null
+          content_en?: string | null
+          created_at?: string
+          excerpt_ar?: string | null
+          excerpt_en?: string | null
+          featured_image?: string | null
+          id?: string
+          is_published?: boolean
+          published_at?: string
+          slug?: string
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      programs: {
+        Row: {
+          admission_requirements: string | null
+          career_opportunities: string | null
+          code: string
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          sort_order: number
+          study_plan: Json | null
+          updated_at: string
+        }
+        Insert: {
+          admission_requirements?: string | null
+          career_opportunities?: string | null
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          sort_order?: number
+          study_plan?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          admission_requirements?: string | null
+          career_opportunities?: string | null
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          sort_order?: number
+          study_plan?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_pages: {
+        Row: {
+          content_ar: string | null
+          content_en: string | null
+          created_at: string
+          id: string
+          is_published: boolean
+          meta_description: string | null
+          slug: string
+          sort_order: number
+          template: string
+          title_ar: string
+          title_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          content_ar?: string | null
+          content_en?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          slug: string
+          sort_order?: number
+          template?: string
+          title_ar: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content_ar?: string | null
+          content_en?: string | null
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          meta_description?: string | null
+          slug?: string
+          sort_order?: number
+          template?: string
+          title_ar?: string
+          title_en?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          created_at: string
+          id: string
+          setting_group: string
+          setting_key: string
+          setting_value: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          setting_group?: string
+          setting_key: string
+          setting_value?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          setting_group?: string
+          setting_key?: string
+          setting_value?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

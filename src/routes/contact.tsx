@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { Mail, Phone, MapPin, Clock, Send } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -15,7 +16,24 @@ export const Route = createFileRoute("/contact")({
 
 function ContactPage() {
   const [sent, setSent] = useState(false);
-  const onSubmit = (e: FormEvent) => { e.preventDefault(); setSent(true); };
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const fd = new FormData(e.currentTarget);
+    const { error: err } = await supabase.from("contact_messages").insert({
+      full_name: String(fd.get("name") ?? "").trim(),
+      email: String(fd.get("email") ?? "").trim(),
+      subject: String(fd.get("subject") ?? "").trim(),
+      message: String(fd.get("message") ?? "").trim(),
+    });
+    setLoading(false);
+    if (err) { setError("تعذّر إرسال الرسالة، حاول مرة أخرى."); return; }
+    setSent(true);
+  };
 
   return (
     <>

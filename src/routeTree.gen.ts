@@ -9,15 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as FacultyRouteImport } from './routes/faculty'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 
+const PortalLoginRoute = PortalLoginRouteImport.update({
+  id: '/portal-login',
+  path: '/portal-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyRoute = FacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DepartmentsRoute = DepartmentsRouteImport.update({
@@ -40,52 +59,121 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
+  id: '/$code',
+  path: '/$code',
+  getParentRoute: () => DepartmentsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRoute
+  '/departments': typeof DepartmentsRouteWithChildren
+  '/events': typeof EventsRoute
+  '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
+  '/portal-login': typeof PortalLoginRoute
+  '/departments/$code': typeof DepartmentsCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRoute
+  '/departments': typeof DepartmentsRouteWithChildren
+  '/events': typeof EventsRoute
+  '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
+  '/portal-login': typeof PortalLoginRoute
+  '/departments/$code': typeof DepartmentsCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
-  '/departments': typeof DepartmentsRoute
+  '/departments': typeof DepartmentsRouteWithChildren
+  '/events': typeof EventsRoute
+  '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
+  '/portal-login': typeof PortalLoginRoute
+  '/departments/$code': typeof DepartmentsCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/contact' | '/departments' | '/news'
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/departments'
+    | '/events'
+    | '/faculty'
+    | '/news'
+    | '/portal-login'
+    | '/departments/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/contact' | '/departments' | '/news'
-  id: '__root__' | '/' | '/about' | '/contact' | '/departments' | '/news'
+  to:
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/departments'
+    | '/events'
+    | '/faculty'
+    | '/news'
+    | '/portal-login'
+    | '/departments/$code'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/contact'
+    | '/departments'
+    | '/events'
+    | '/faculty'
+    | '/news'
+    | '/portal-login'
+    | '/departments/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
-  DepartmentsRoute: typeof DepartmentsRoute
+  DepartmentsRoute: typeof DepartmentsRouteWithChildren
+  EventsRoute: typeof EventsRoute
+  FacultyRoute: typeof FacultyRoute
   NewsRoute: typeof NewsRoute
+  PortalLoginRoute: typeof PortalLoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/portal-login': {
+      id: '/portal-login'
+      path: '/portal-login'
+      fullPath: '/portal-login'
+      preLoaderRoute: typeof PortalLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/news': {
       id: '/news'
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty': {
+      id: '/faculty'
+      path: '/faculty'
+      fullPath: '/faculty'
+      preLoaderRoute: typeof FacultyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/departments': {
@@ -116,26 +204,38 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/departments/$code': {
+      id: '/departments/$code'
+      path: '/$code'
+      fullPath: '/departments/$code'
+      preLoaderRoute: typeof DepartmentsCodeRouteImport
+      parentRoute: typeof DepartmentsRoute
+    }
   }
 }
+
+interface DepartmentsRouteChildren {
+  DepartmentsCodeRoute: typeof DepartmentsCodeRoute
+}
+
+const DepartmentsRouteChildren: DepartmentsRouteChildren = {
+  DepartmentsCodeRoute: DepartmentsCodeRoute,
+}
+
+const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
+  DepartmentsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
-  DepartmentsRoute: DepartmentsRoute,
+  DepartmentsRoute: DepartmentsRouteWithChildren,
+  EventsRoute: EventsRoute,
+  FacultyRoute: FacultyRoute,
   NewsRoute: NewsRoute,
+  PortalLoginRoute: PortalLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
