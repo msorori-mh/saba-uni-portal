@@ -154,6 +154,29 @@ function AboutPage() {
         </div>
       </section>
 
+      {/* Values */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-2xl">
+          <div className="text-xs font-bold tracking-widest text-gold uppercase">قيمنا</div>
+          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">قيم الكلية</h2>
+          <div className="divider-gold mt-4" />
+          <p className="mt-5 text-muted-foreground leading-8">
+            القيم التي نلتزم بها في تعاملنا الأكاديمي والإداري وفي علاقاتنا مع الطلاب والمجتمع.
+          </p>
+        </div>
+        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {values.map((v) => (
+            <article key={v.title} className="group rounded-xl border border-border bg-card p-7 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+              <div className="grid h-12 w-12 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
+                <v.icon className="h-6 w-6" strokeWidth={2.2} />
+              </div>
+              <h3 className="mt-5 font-display text-lg font-bold text-primary">{v.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-7">{v.desc}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       {/* Strategic Goals */}
       <section className="container mx-auto px-4 py-20">
         <div className="max-w-2xl">
