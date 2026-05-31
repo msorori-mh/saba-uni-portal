@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
@@ -33,6 +34,11 @@ import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResearchRoute = ResearchRouteImport.update({
   id: '/research',
   path: '/research',
@@ -160,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/sitemap.xml'
     | '/admin/contacts'
     | '/admin/departments'
     | '/admin/events'
@@ -261,6 +271,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/sitemap.xml'
     | '/admin/contacts'
     | '/admin/departments'
     | '/admin/events'
@@ -286,6 +297,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/sitemap.xml'
     | '/admin/contacts'
     | '/admin/departments'
     | '/admin/events'
@@ -312,10 +324,18 @@ export interface RootRouteChildren {
   NewsRoute: typeof NewsRouteWithChildren
   PortalLoginRoute: typeof PortalLoginRoute
   ResearchRoute: typeof ResearchRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/research': {
       id: '/research'
       path: '/research'
@@ -543,6 +563,7 @@ const rootRouteChildren: RootRouteChildren = {
   NewsRoute: NewsRouteWithChildren,
   PortalLoginRoute: PortalLoginRoute,
   ResearchRoute: ResearchRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
