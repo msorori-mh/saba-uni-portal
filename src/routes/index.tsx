@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ArrowLeft, Brain, Calendar, Code2, Cpu, Database, Shield, Sparkles, Trophy, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Brain, Calendar, Code2, Cpu, Database, FlaskConical, GraduationCap, MapPin, Newspaper, Shield, Sparkles, Trophy, Users } from "lucide-react";
 import heroCampus from "@/assets/hero-campus.jpg";
 import techPattern from "@/assets/tech-pattern.jpg";
-import { eventsQuery, newsQuery, programsQuery, statsQuery } from "@/lib/queries";
+import { eventsQuery, liveCountsQuery, newsQuery, programsQuery, settingsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,7 +16,8 @@ export const Route = createFileRoute("/")({
   }),
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(programsQuery);
-    context.queryClient.ensureQueryData(statsQuery);
+    context.queryClient.ensureQueryData(liveCountsQuery);
+    context.queryClient.ensureQueryData(settingsQuery);
     context.queryClient.ensureQueryData(newsQuery(3));
     context.queryClient.ensureQueryData(eventsQuery(3));
   },
@@ -32,9 +33,17 @@ const ICONS: Record<string, React.ComponentType<{ className?: string; strokeWidt
 
 function HomePage() {
   const { data: programs } = useSuspenseQuery(programsQuery);
-  const { data: stats } = useSuspenseQuery(statsQuery);
+  const { data: counts } = useSuspenseQuery(liveCountsQuery);
+  const { data: settings } = useSuspenseQuery(settingsQuery);
   const { data: news } = useSuspenseQuery(newsQuery(3));
   const { data: events } = useSuspenseQuery(eventsQuery(3));
+
+  const statCards = [
+    { icon: BookOpen, label: "البرامج الأكاديمية", value: counts.programs },
+    { icon: GraduationCap, label: "أعضاء هيئة التدريس", value: counts.faculty },
+    { icon: FlaskConical, label: "الأبحاث المنشورة", value: counts.research },
+    { icon: Newspaper, label: "الأخبار والإعلانات", value: counts.news },
+  ];
 
   return (
     <>
