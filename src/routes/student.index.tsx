@@ -267,6 +267,14 @@ function StudentDashboard() {
 
             <MyGradesSection studentProfileId={profile.id} />
 
+            <div className="mt-6">
+              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
+              </h2>
+              <UnofficialTranscript studentProfileId={profile.id} />
+            </div>
+
+
 
             <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
               قسم «الجدول الدراسي العام» يعرض جميع شعب البرنامج للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط الشعب التي سُجلت فيها فعلياً.
