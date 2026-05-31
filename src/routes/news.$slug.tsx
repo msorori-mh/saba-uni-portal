@@ -13,21 +13,24 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/news/$slug")({
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title: loaderData?.title_ar
-          ? `${loaderData.title_ar} — كلية تكنولوجيا المعلومات`
-          : "خبر — كلية تكنولوجيا المعلومات",
-      },
-      {
-        name: "description",
-        content:
-          loaderData?.excerpt_ar ??
-          "خبر من كلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
-      },
-    ],
-  }),
+  head: ({ loaderData }) => {
+    const data = loaderData as { title_ar?: string; excerpt_ar?: string } | undefined;
+    return {
+      meta: [
+        {
+          title: data?.title_ar
+            ? `${data.title_ar} — كلية تكنولوجيا المعلومات`
+            : "خبر — كلية تكنولوجيا المعلومات",
+        },
+        {
+          name: "description",
+          content:
+            data?.excerpt_ar ??
+            "خبر من كلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
+        },
+      ],
+    };
+  },
   loader: async ({ context, params }) => {
     const data = await context.queryClient.ensureQueryData(newsBySlugQuery(params.slug));
     if (!data) throw notFound();
