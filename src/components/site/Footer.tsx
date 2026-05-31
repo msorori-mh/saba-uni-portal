@@ -18,7 +18,7 @@ export function Footer() {
 
   const phone = s.contact_phone || "";
   const email = s.contact_email || "";
-  const address = s.contact_address || "مأرب، الجمهورية اليمنية";
+  const address = s.contact_address || "";
   const universityName = s.university_name_ar || "جامعة إقليم سبأ";
 
   return (
