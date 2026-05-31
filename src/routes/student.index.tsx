@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
@@ -11,8 +11,19 @@ type StudentRow = {
   full_name_en: string | null;
   email: string | null;
   status: string;
+  program_id: string | null;
   department: { name_ar: string } | null;
   program: { name_ar: string } | null;
+};
+
+type PlanCourseRow = {
+  id: string;
+  semester_code: string;
+  is_required: boolean;
+  sort_order: number;
+  level: { name: string; level_number: number } | null;
+  course: { code: string; name_ar: string; credit_hours: number } | null;
+  prerequisite: { code: string } | null;
 };
 
 type AcademicStatus = {
@@ -34,16 +45,36 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
   return data as unknown as StudentRow;
 }
 
-async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus | null> {
+async function fetchMyProfile(): Promise<StudentRow | null> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return null;
   const { data, error } = await supabase
-    .from("student_academic_status")
-    .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
-    .eq("student_profile_id", studentId)
-    .order("created_at", { ascending: false })
-    .limit(1)
+    .from("student_profiles")
+    .select("id, academic_number, full_name_ar, full_name_en, email, status, program_id, department:departments(name_ar), program:programs(name_ar)")
+    .eq("user_id", auth.user.id)
     .maybeSingle();
   if (error) throw error;
-  return data as unknown as AcademicStatus;
+  return data as unknown as StudentRow;
+}
+
+async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
+  const { data: plan, error: pErr } = await supabase
+    .from("study_plans")
+    .select("id")
+    .eq("program_id", programId)
+    .eq("is_active", true)
+    .order("version", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (pErr) throw pErr;
+  if (!plan) return [];
+  const { data, error } = await supabase
+    .from("study_plan_courses")
+    .select("id, semester_code, is_required, sort_order, level:academic_levels(name, level_number), course:courses!study_plan_courses_course_id_fkey(code, name_ar, credit_hours), prerequisite:courses!study_plan_courses_prerequisite_course_id_fkey(code)")
+    .eq("study_plan_id", plan.id)
+    .order("sort_order");
+  if (error) throw error;
+  return (data ?? []) as unknown as PlanCourseRow[];
 }
 
 export const Route = createFileRoute("/student/")({
