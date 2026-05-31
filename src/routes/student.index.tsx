@@ -38,23 +38,23 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
   if (!auth.user) return null;
   const { data, error } = await supabase
     .from("student_profiles")
-    .select("id, academic_number, full_name_ar, full_name_en, email, status, department:departments(name_ar), program:programs(name_ar)")
+    .select("id, academic_number, full_name_ar, full_name_en, email, status, program_id, department:departments(name_ar), program:programs(name_ar)")
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as StudentRow;
 }
 
-async function fetchMyProfile(): Promise<StudentRow | null> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return null;
+async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus | null> {
   const { data, error } = await supabase
-    .from("student_profiles")
-    .select("id, academic_number, full_name_ar, full_name_en, email, status, program_id, department:departments(name_ar), program:programs(name_ar)")
-    .eq("user_id", auth.user.id)
+    .from("student_academic_status")
+    .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
+    .eq("student_profile_id", studentId)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
   if (error) throw error;
-  return data as unknown as StudentRow;
+  return data as unknown as AcademicStatus;
 }
 
 async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
