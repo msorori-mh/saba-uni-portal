@@ -54,11 +54,22 @@ export const Route = createFileRoute("/faculty-portal/")({
   component: FacultyDashboard,
 });
 
+const DAY_LABELS: Record<string, string> = {
+  saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
+  wednesday: "الأربعاء", thursday: "الخميس", friday: "الجمعة",
+};
+const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
+
 function FacultyDashboard() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = useQuery({
     queryKey: ["faculty", "me"],
     queryFn: fetchMyFacultyProfile,
+  });
+  const { data: teaching = [] } = useQuery({
+    queryKey: ["faculty", "teaching", profile?.id],
+    queryFn: () => fetchMyTeaching(profile!.id),
+    enabled: !!profile?.id,
   });
 
   const handleLogout = async () => {
@@ -117,8 +128,48 @@ function FacultyDashboard() {
               <InfoCard icon={BookOpen} label="الصفة/المنصب" value={profile.position_title ?? "—"} />
             </div>
 
+            <div className="mt-6">
+              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                <CalendarClock className="h-4 w-4 text-gold" /> جدولي التدريسي
+              </h2>
+              {teaching.length === 0 ? (
+                <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
+                  لا توجد شعب مرتبطة بك حالياً.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {teaching.map((t) => (
+                    <div key={t.id} className="rounded-lg border bg-card p-3">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div>
+                          <span className="font-mono font-bold text-primary">{t.course?.code}</span>
+                          <span className="mx-2 text-muted-foreground">—</span>
+                          <span className="font-semibold text-sm">{t.course?.name_ar}</span>
+                        </div>
+                        <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">شعبة {t.section_code}</span>
+                      </div>
+                      {t.schedule.length === 0 ? (
+                        <div className="text-[11px] text-muted-foreground mt-2">لا يوجد جدول بعد</div>
+                      ) : (
+                        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                          {t.schedule.map((s, i) => (
+                            <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1.5 text-xs">
+                              <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
+                              <span className="font-mono">{s.start_time.slice(0,5)}-{s.end_time.slice(0,5)}</span>
+                              {s.room && <span className="text-muted-foreground">• {s.room}</span>}
+                              <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">{TYPE_LABELS[s.schedule_type] ?? s.schedule_type}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية (المقررات، الشُعب، الدرجات، الجداول) في المراحل القادمة.
+              ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الحضور، التقارير) في المراحل القادمة.
             </div>
           </>
         )}
