@@ -31,9 +31,9 @@ export function Footer() {
         <div>
           <div className="font-bold text-gold mb-4">اتصل بنا</div>
           <ul className="space-y-3 text-sm text-primary-foreground/75">
-            <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-gold shrink-0" /> مأرب، الجمهورية اليمنية</li>
-            <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-gold shrink-0" /> +967 1 234 5678</li>
-            <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-gold shrink-0" /> it@usr.edu.ye</li>
+            <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-gold shrink-0" /><span>مأرب، الجمهورية اليمنية</span></li>
+            <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-gold shrink-0" /><span>+967 1 234 5678</span></li>
+            <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-gold shrink-0" /><span>it@usr.edu.ye</span></li>
           </ul>
         </div>
       </div>
