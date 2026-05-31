@@ -42,6 +42,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
+import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 
@@ -211,6 +212,11 @@ const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
   path: '/departments',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCourseOfferingsRoute = AdminCourseOfferingsRouteImport.update({
+  id: '/course-offerings',
+  path: '/course-offerings',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminContactsRoute = AdminContactsRouteImport.update({
   id: '/contacts',
   path: '/contacts',
@@ -239,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/student': typeof StudentRouteWithChildren
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/contacts': typeof AdminContactsRoute
+  '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
@@ -272,6 +279,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/contacts': typeof AdminContactsRoute
+  '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
@@ -310,6 +318,7 @@ export interface FileRoutesById {
   '/student': typeof StudentRouteWithChildren
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/contacts': typeof AdminContactsRoute
+  '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
@@ -349,6 +358,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/admin/academic-core'
     | '/admin/contacts'
+    | '/admin/course-offerings'
     | '/admin/departments'
     | '/admin/events'
     | '/admin/faculty'
@@ -382,6 +392,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin/academic-core'
     | '/admin/contacts'
+    | '/admin/course-offerings'
     | '/admin/departments'
     | '/admin/events'
     | '/admin/faculty'
@@ -419,6 +430,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/admin/academic-core'
     | '/admin/contacts'
+    | '/admin/course-offerings'
     | '/admin/departments'
     | '/admin/events'
     | '/admin/faculty'
@@ -690,6 +702,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDepartmentsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/course-offerings': {
+      id: '/admin/course-offerings'
+      path: '/course-offerings'
+      fullPath: '/admin/course-offerings'
+      preLoaderRoute: typeof AdminCourseOfferingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/contacts': {
       id: '/admin/contacts'
       path: '/contacts'
@@ -710,6 +729,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
   AdminContactsRoute: typeof AdminContactsRoute
+  AdminCourseOfferingsRoute: typeof AdminCourseOfferingsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
   AdminEventsRoute: typeof AdminEventsRoute
   AdminFacultyRoute: typeof AdminFacultyRoute
@@ -726,6 +746,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAcademicCoreRoute: AdminAcademicCoreRoute,
   AdminContactsRoute: AdminContactsRoute,
+  AdminCourseOfferingsRoute: AdminCourseOfferingsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
   AdminEventsRoute: AdminEventsRoute,
   AdminFacultyRoute: AdminFacultyRoute,

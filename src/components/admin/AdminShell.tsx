@@ -3,7 +3,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Newspaper, Users, BookOpen, FlaskConical, Calendar,
-  MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft, CalendarRange, ListTree,
+  MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft, CalendarRange, ListTree, CalendarDays,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
