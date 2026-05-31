@@ -1040,6 +1040,36 @@ export type Database = {
           },
         ]
       }
+      student_enrollments: {
+        Row: {
+          course_section_id: string
+          created_at: string
+          enrolled_at: string
+          enrollment_status: string
+          id: string
+          student_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          course_section_id: string
+          created_at?: string
+          enrolled_at?: string
+          enrollment_status?: string
+          id?: string
+          student_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          course_section_id?: string
+          created_at?: string
+          enrolled_at?: string
+          enrollment_status?: string
+          id?: string
+          student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       student_profiles: {
         Row: {
           academic_number: string
