@@ -96,6 +96,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { title: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
       { name: "description", content: "البوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب في جامعة إقليم سبأ — أقسام أكاديمية، أبحاث، وأخبار الكلية." },
       { property: "og:type", content: "website" },
+      { property: "og:title", content: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
+      { name: "twitter:title", content: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
+      { property: "og:description", content: "البوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب في جامعة إقليم سبأ — أقسام أكاديمية، أبحاث، وأخبار الكلية." },
+      { name: "twitter:description", content: "البوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب في جامعة إقليم سبأ — أقسام أكاديمية، أبحاث، وأخبار الكلية." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bde3b3ec-c0bf-4bfa-a138-5e61caca0649/id-preview-b1084417--90f4dcde-07fb-4441-b86a-6ad5510833b8.lovable.app-1780267338048.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/bde3b3ec-c0bf-4bfa-a138-5e61caca0649/id-preview-b1084417--90f4dcde-07fb-4441-b86a-6ad5510833b8.lovable.app-1780267338048.png" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
