@@ -10,6 +10,7 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import collegeLogo from "@/assets/college-logo.jpg";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
@@ -17,19 +18,31 @@ import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
+    <div
+      dir="rtl"
+      className="flex min-h-dvh items-center justify-center px-4 text-primary-foreground"
+      style={{ background: "linear-gradient(135deg, oklch(0.22 0.07 220), oklch(0.16 0.05 230))" }}
+    >
+      <div className="max-w-lg text-center">
+        <img
+          src={collegeLogo}
+          alt="شعار كلية تكنولوجيا المعلومات"
+          className="mx-auto h-24 w-24 rounded-full border-2 border-[color:var(--gold,#d4af37)] object-cover shadow-2xl"
+        />
+        <h1 className="mt-8 text-8xl font-extrabold tracking-tight" style={{ color: "#d4af37" }}>
+          404
+        </h1>
+        <h2 className="mt-4 text-2xl font-bold">الصفحة غير موجودة</h2>
+        <p className="mt-3 text-sm text-primary-foreground/70">
+          عذراً، الصفحة التي تبحث عنها غير متوفرة أو تم نقلها إلى موقع آخر.
         </p>
-        <div className="mt-6">
+        <div className="mt-8">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-bold shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            style={{ backgroundColor: "#d4af37", color: "#0a2540" }}
           >
-            Go home
+            ← العودة للرئيسية
           </Link>
         </div>
       </div>
@@ -84,7 +97,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "البوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب في جامعة إقليم سبأ — أقسام أكاديمية، أبحاث، وأخبار الكلية." },
       { property: "og:type", content: "website" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/jpeg", href: collegeLogo },
+      { rel: "apple-touch-icon", href: collegeLogo },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
