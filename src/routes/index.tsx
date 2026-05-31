@@ -85,36 +85,44 @@ function HomePage() {
 
           <div className="lg:col-span-4 lg:mt-12">
             <div className="rounded-2xl border border-white/15 bg-white/[0.06] backdrop-blur-md p-7 shadow-elegant">
-              <div className="text-xs font-bold tracking-widest text-gold uppercase">عمادة الكلية</div>
-              <p className="mt-4 text-base leading-8 text-primary-foreground/85">
-                ”نسعى أن نكون مرجعًا أكاديميًا متميزًا في علوم الحاسوب وتقنية المعلومات على المستوى المحلي والإقليمي،
-                ونرحّب بكم في بوابتنا الرقمية.“
+              <div className="text-xs font-bold tracking-widest text-gold uppercase">كلمة عميد الكلية</div>
+              <p className="mt-4 text-sm leading-8 text-primary-foreground/85 line-clamp-6">
+                {settings.dean_message || "نرحب بكم في بوابة الكلية الرقمية."}
               </p>
               <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-gold-gradient text-primary-deep font-extrabold">د</div>
+                <div className="grid h-11 w-11 place-items-center rounded-full bg-gold-gradient text-primary-deep font-extrabold">
+                  {(settings.dean_name || "د").trim().charAt(0)}
+                </div>
                 <div>
-                  <div className="text-sm font-bold">عميد الكلية</div>
-                  <div className="text-xs text-primary-foreground/60">كلية تكنولوجيا المعلومات</div>
+                  <div className="text-sm font-bold text-gold">{settings.dean_name || "عميد الكلية"}</div>
+                  <div className="text-xs text-primary-foreground/60 line-clamp-1">{settings.dean_title || "كلية تكنولوجيا المعلومات"}</div>
                 </div>
               </div>
+              <Link to="/about" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-gold hover:underline">
+                اقرأ الكلمة كاملة <ArrowLeft className="h-3.5 w-3.5" />
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats */}
-      {stats.length > 0 && (
-        <section className="border-b border-border bg-surface">
-          <div className="container mx-auto grid grid-cols-2 gap-6 px-4 py-10 md:grid-cols-4">
-            {stats.map((s) => (
-              <div key={s.id} className="text-center">
-                <div className="font-display text-3xl md:text-4xl font-extrabold text-primary">{s.value.toLocaleString("ar-EG")}+</div>
-                <div className="mt-1 text-xs md:text-sm text-muted-foreground">{s.label_ar}</div>
+      <section className="border-b border-border bg-surface">
+        <div className="container mx-auto grid grid-cols-2 gap-5 px-4 py-12 md:grid-cols-4">
+          {statCards.map((s) => (
+            <div key={s.label} className="group rounded-xl border border-border bg-card p-6 text-center shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/50">
+              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-secondary text-primary transition-colors group-hover:bg-gold-gradient group-hover:text-primary-deep">
+                <s.icon className="h-7 w-7" strokeWidth={2.2} />
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+              <div className="mt-4 font-display text-3xl md:text-4xl font-extrabold text-primary">
+                {s.value.toLocaleString("ar-EG")}
+                <span className="text-gold">+</span>
+              </div>
+              <div className="mt-1 text-xs md:text-sm font-semibold text-muted-foreground">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       {/* Programs */}
       <section className="container mx-auto px-4 py-20">
