@@ -140,7 +140,7 @@ function AdminGradesPage() {
     const idsToReturn: string[] = [];
     for (const r of rows) for (const g of Object.values(r.grades)) if (g && g.status === "submitted") idsToReturn.push(g.id);
     if (idsToReturn.length === 0) { toast.info("لا توجد درجات للإرجاع"); return; }
-    const { error } = await sb.from("student_grades")
+    const { error } = await (sb.from("student_grades") as any)
       .update({ status: "draft" })
       .in("id", idsToReturn);
     if (error) { toast.error(error.message); return; }
