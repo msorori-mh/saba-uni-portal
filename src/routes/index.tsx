@@ -1,37 +1,41 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Code2, Cpu, Database, Network, ShieldCheck, Sparkles, Users, BookOpen, Trophy } from "lucide-react";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { ArrowLeft, Brain, Calendar, Code2, Cpu, Database, Shield, Sparkles, Trophy, Users } from "lucide-react";
 import heroCampus from "@/assets/hero-campus.jpg";
 import techPattern from "@/assets/tech-pattern.jpg";
+import { eventsQuery, newsQuery, programsQuery, statsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
-      { name: "description", content: "البوابة الرسمية لكلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. تعرّف على أقسامنا وأخبارنا وبرامجنا الأكاديمية." },
+      { name: "description", content: "البوابة الرسمية لكلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. تعرّف على برامجنا الأكاديمية، أخبارنا، وفعالياتنا." },
       { property: "og:title", content: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
-      { property: "og:description", content: "البوابة الرسمية للكلية — أقسام، أبحاث، أخبار." },
+      { property: "og:description", content: "البوابة الرسمية للكلية — برامج، أخبار، فعاليات." },
     ],
   }),
+  loader: ({ context }) => {
+    context.queryClient.ensureQueryData(programsQuery);
+    context.queryClient.ensureQueryData(statsQuery);
+    context.queryClient.ensureQueryData(newsQuery(3));
+    context.queryClient.ensureQueryData(eventsQuery(3));
+  },
   component: HomePage,
 });
 
-const departments = [
-  { icon: Code2, name: "هندسة البرمجيات", desc: "تصميم وتطوير الأنظمة البرمجية الحديثة وتطبيقات الويب والجوال." },
-  { icon: Network, name: "شبكات الحاسوب", desc: "بناء وإدارة البنى التحتية للشبكات والاتصالات الرقمية." },
-  { icon: ShieldCheck, name: "الأمن السيبراني", desc: "حماية الأنظمة والبيانات من التهديدات والمخاطر الإلكترونية." },
-  { icon: Database, name: "نظم المعلومات", desc: "تحليل وتصميم نظم المعلومات الإدارية وقواعد البيانات." },
-  { icon: Cpu, name: "الذكاء الاصطناعي", desc: "تعلّم الآلة، معالجة البيانات الضخمة، والرؤية الحاسوبية." },
-  { icon: BookOpen, name: "علوم الحاسوب", desc: "الأسس النظرية والخوارزميات والحوسبة العلمية." },
-];
-
-const stats = [
-  { value: "+1,200", label: "طالب وطالبة" },
-  { value: "+60", label: "عضو هيئة تدريس" },
-  { value: "6", label: "أقسام أكاديمية" },
-  { value: "+25", label: "مختبر وقاعة تقنية" },
-];
+const ICONS: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+  computer: Code2,
+  database: Database,
+  shield: Shield,
+  brain: Brain,
+};
 
 function HomePage() {
+  const { data: programs } = useSuspenseQuery(programsQuery);
+  const { data: stats } = useSuspenseQuery(statsQuery);
+  const { data: news } = useSuspenseQuery(newsQuery(3));
+  const { data: events } = useSuspenseQuery(eventsQuery(3));
+
   return (
     <>
       {/* Hero */}
@@ -50,23 +54,22 @@ function HomePage() {
             </h1>
             <div className="divider-gold mt-6" />
             <p className="mt-6 max-w-2xl text-lg text-primary-foreground/80 leading-9">
-              نُعدّ جيلًا من المتخصصين في علوم الحاسوب والتقنية، عبر برامج أكاديمية متطورة،
+              نُعدّ جيلًا من المتخصصين في علوم الحاسوب وتقنية المعلومات، عبر برامج أكاديمية متطورة،
               بيئة تعليمية محفّزة، وكوادر تدريسية متميزة تخدم تنمية الوطن وبناء مستقبل أبنائه.
             </p>
 
             <div className="mt-9 flex flex-wrap gap-3">
-              <Link to="/departments"
+              <Link to="/portal-login"
                     className="inline-flex items-center gap-2 rounded-md bg-gold-gradient px-7 py-3.5 text-sm font-extrabold text-primary-deep shadow-gold transition-transform hover:-translate-y-0.5">
-                الأقسام الأكاديمية <ArrowLeft className="h-4 w-4" />
+                بوابة الطالب <ArrowLeft className="h-4 w-4" />
               </Link>
-              <Link to="/about"
+              <Link to="/departments"
                     className="inline-flex items-center gap-2 rounded-md border border-white/25 bg-white/5 px-7 py-3.5 text-sm font-bold text-primary-foreground hover:bg-white/10">
-                تعرّف على الكلية
+                استكشف برامجنا
               </Link>
             </div>
           </div>
 
-          {/* Floating info card */}
           <div className="lg:col-span-4 lg:mt-12">
             <div className="rounded-2xl border border-white/15 bg-white/[0.06] backdrop-blur-md p-7 shadow-elegant">
               <div className="text-xs font-bold tracking-widest text-gold uppercase">عمادة الكلية</div>
@@ -87,46 +90,51 @@ function HomePage() {
       </section>
 
       {/* Stats */}
-      <section className="border-b border-border bg-surface">
-        <div className="container mx-auto grid grid-cols-2 gap-6 px-4 py-10 md:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center">
-              <div className="font-display text-3xl md:text-4xl font-extrabold text-primary">{s.value}</div>
-              <div className="mt-1 text-xs md:text-sm text-muted-foreground">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {stats.length > 0 && (
+        <section className="border-b border-border bg-surface">
+          <div className="container mx-auto grid grid-cols-2 gap-6 px-4 py-10 md:grid-cols-4">
+            {stats.map((s) => (
+              <div key={s.id} className="text-center">
+                <div className="font-display text-3xl md:text-4xl font-extrabold text-primary">{s.value.toLocaleString("ar-EG")}+</div>
+                <div className="mt-1 text-xs md:text-sm text-muted-foreground">{s.label_ar}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* Departments */}
+      {/* Programs */}
       <section className="container mx-auto px-4 py-20">
         <div className="max-w-2xl">
           <div className="text-xs font-bold tracking-widest text-gold uppercase">برامجنا</div>
-          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">الأقسام الأكاديمية</h2>
+          <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">البرامج الأكاديمية</h2>
           <div className="divider-gold mt-4" />
           <p className="mt-5 text-muted-foreground leading-8">
-            ستة أقسام متخصصة تغطي مختلف فروع علوم الحاسوب وتقنية المعلومات، تجمع بين الأساس النظري القوي والتطبيق العملي.
+            أربعة برامج متخصصة تغطي مجالات علوم الحاسوب وتقنية المعلومات، تجمع بين الأساس النظري القوي والتطبيق العملي.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {departments.map((d) => (
-            <article key={d.name}
-                     className="group relative overflow-hidden rounded-xl border border-border bg-card p-7 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
-              <div className="grid h-14 w-14 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
-                <d.icon className="h-7 w-7" strokeWidth={2.2} />
-              </div>
-              <h3 className="mt-5 font-display text-xl font-bold text-primary">{d.name}</h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-7">{d.desc}</p>
-              <div className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-primary group-hover:text-gold transition-colors">
-                التفاصيل <ArrowLeft className="h-4 w-4" />
-              </div>
-            </article>
-          ))}
+        <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+          {programs.map((p) => {
+            const Icon = ICONS[p.icon ?? ""] ?? Cpu;
+            return (
+              <Link to="/departments/$code" params={{ code: p.code }} key={p.id}
+                       className="group relative overflow-hidden rounded-xl border border-border bg-card p-7 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+                <div className="grid h-14 w-14 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
+                  <Icon className="h-7 w-7" strokeWidth={2.2} />
+                </div>
+                <h3 className="mt-5 font-display text-xl font-bold text-primary">{p.name_ar}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-7 line-clamp-3">{p.description_ar}</p>
+                <div className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-primary group-hover:text-gold transition-colors">
+                  التفاصيل <ArrowLeft className="h-4 w-4" />
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </section>
 
-      {/* Why us — tech band */}
+      {/* Why us */}
       <section className="relative overflow-hidden bg-primary-deep text-primary-foreground">
         <img src={techPattern} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-20" />
         <div className="absolute inset-0 bg-gradient-to-l from-primary-deep via-primary-deep/85 to-primary-deep/40" />
@@ -147,6 +155,75 @@ function HomePage() {
         </div>
       </section>
 
+      {/* Latest News */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="flex items-end justify-between flex-wrap gap-4">
+          <div>
+            <div className="text-xs font-bold tracking-widest text-gold uppercase">الإعلام</div>
+            <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">آخر الأخبار</h2>
+            <div className="divider-gold mt-4" />
+          </div>
+          <Link to="/news" className="text-sm font-bold text-primary hover:text-gold inline-flex items-center gap-1">
+            جميع الأخبار <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </div>
+
+        {news.length === 0 ? (
+          <div className="mt-10 rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
+            لا توجد أخبار منشورة حاليًا.
+          </div>
+        ) : (
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
+            {news.map((n) => (
+              <article key={n.id} className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+                <div className="relative h-40 bg-hero-gradient overflow-hidden">
+                  {n.featured_image && <img src={n.featured_image} alt="" className="h-full w-full object-cover opacity-70" loading="lazy" />}
+                  <span className="absolute bottom-3 right-3 rounded-full bg-gold px-3 py-1 text-xs font-bold text-primary-deep">{n.category}</span>
+                </div>
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Calendar className="h-3.5 w-3.5" /> {new Date(n.published_at).toLocaleDateString("ar-EG")}
+                  </div>
+                  <h3 className="mt-3 font-display text-lg font-bold text-primary line-clamp-2">{n.title_ar}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground leading-7 line-clamp-3">{n.excerpt_ar}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Upcoming Events */}
+      {events.length > 0 && (
+        <section className="bg-surface border-y border-border">
+          <div className="container mx-auto px-4 py-20">
+            <div className="flex items-end justify-between flex-wrap gap-4">
+              <div>
+                <div className="text-xs font-bold tracking-widest text-gold uppercase">القادم</div>
+                <h2 className="mt-2 font-display text-3xl md:text-4xl font-extrabold text-primary">الفعاليات القادمة</h2>
+                <div className="divider-gold mt-4" />
+              </div>
+              <Link to="/events" className="text-sm font-bold text-primary hover:text-gold inline-flex items-center gap-1">
+                كل الفعاليات <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </div>
+
+            <div className="mt-10 grid gap-6 md:grid-cols-3">
+              {events.map((e) => (
+                <article key={e.id} className="rounded-xl border border-border bg-card p-6 shadow-card hover:shadow-elegant transition-all hover:-translate-y-1">
+                  <div className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">
+                    <Calendar className="h-3.5 w-3.5" /> {new Date(e.event_date).toLocaleDateString("ar-EG")}
+                  </div>
+                  <h3 className="mt-4 font-display text-lg font-bold text-primary line-clamp-2">{e.title_ar}</h3>
+                  {e.description_ar && <p className="mt-2 text-sm text-muted-foreground leading-7 line-clamp-3">{e.description_ar}</p>}
+                  {e.location && <div className="mt-3 text-xs text-muted-foreground">📍 {e.location}</div>}
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* CTA */}
       <section className="container mx-auto px-4 py-20">
         <div className="rounded-2xl bg-hero-gradient p-10 md:p-14 text-primary-foreground shadow-elegant relative overflow-hidden">
@@ -162,8 +239,8 @@ function HomePage() {
               <Link to="/contact" className="rounded-md bg-gold-gradient px-7 py-3.5 text-sm font-extrabold text-primary-deep shadow-gold">
                 تواصل معنا
               </Link>
-              <Link to="/departments" className="rounded-md border border-white/30 bg-white/5 px-7 py-3.5 text-sm font-bold">
-                استعرض الأقسام
+              <Link to="/portal-login" className="rounded-md border border-white/30 bg-white/5 px-7 py-3.5 text-sm font-bold">
+                بوابة الطالب
               </Link>
             </div>
           </div>
