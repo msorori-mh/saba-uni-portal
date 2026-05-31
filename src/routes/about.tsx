@@ -166,13 +166,18 @@ function AboutPage() {
         </div>
         <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {values.map((v) => (
-            <article key={v.title} className="group rounded-xl border border-border bg-card p-7 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
-              <div className="grid h-12 w-12 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
-                <v.icon className="h-6 w-6" strokeWidth={2.2} />
+            <article key={v.title} className="group rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors shrink-0">
+                  <v.icon className="h-5 w-5" strokeWidth={2.2} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-display text-base font-bold text-primary leading-snug">{v.title}</h3>
+                  <p className="mt-1.5 text-xs text-muted-foreground leading-6 line-clamp-3">{v.desc}</p>
+                </div>
               </div>
-              <h3 className="mt-5 font-display text-lg font-bold text-primary">{v.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-7">{v.desc}</p>
             </article>
+
           ))}
         </div>
       </section>
@@ -190,13 +195,18 @@ function AboutPage() {
 
         <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {goals.map((g) => (
-            <article key={g.title} className="group rounded-xl border border-border bg-card p-7 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
-              <div className="grid h-12 w-12 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
-                <g.icon className="h-6 w-6" strokeWidth={2.2} />
+            <article key={g.title} className="group rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40">
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors shrink-0">
+                  <g.icon className="h-5 w-5" strokeWidth={2.2} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-display text-base font-bold text-primary leading-snug">{g.title}</h3>
+                  <p className="mt-1.5 text-xs text-muted-foreground leading-6 line-clamp-3">{g.desc}</p>
+                </div>
               </div>
-              <h3 className="mt-5 font-display text-lg font-bold text-primary">{g.title}</h3>
-              <p className="mt-2 text-sm text-muted-foreground leading-7">{g.desc}</p>
             </article>
+
           ))}
         </div>
       </section>

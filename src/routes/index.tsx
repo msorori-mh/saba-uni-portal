@@ -108,20 +108,21 @@ function HomePage() {
 
       {/* Stats */}
       <section className="border-b border-border bg-surface">
-        <div className="container mx-auto grid grid-cols-2 gap-5 px-4 py-12 md:grid-cols-4">
+        <div className="container mx-auto grid grid-cols-2 gap-3 px-4 py-8 md:gap-5 md:py-12 md:grid-cols-4">
           {statCards.map((s) => (
-            <div key={s.label} className="group rounded-xl border border-border bg-card p-6 text-center shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/50">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-secondary text-primary transition-colors group-hover:bg-gold-gradient group-hover:text-primary-deep">
-                <s.icon className="h-7 w-7" strokeWidth={2.2} />
+            <div key={s.label} className="group rounded-xl border border-border bg-card p-4 md:p-5 text-center shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/50">
+              <div className="mx-auto grid h-11 w-11 md:h-12 md:w-12 place-items-center rounded-full bg-secondary text-primary transition-colors group-hover:bg-gold-gradient group-hover:text-primary-deep">
+                <s.icon className="h-5 w-5 md:h-6 md:w-6" strokeWidth={2.2} />
               </div>
-              <div className="mt-4 font-display text-3xl md:text-4xl font-extrabold text-primary">
+              <div className="mt-2.5 font-display text-2xl md:text-3xl font-extrabold text-primary">
                 {s.value.toLocaleString("ar-EG")}
                 <span className="text-gold">+</span>
               </div>
-              <div className="mt-1 text-xs md:text-sm font-semibold text-muted-foreground">{s.label}</div>
+              <div className="mt-0.5 text-[11px] md:text-xs font-semibold text-muted-foreground line-clamp-1">{s.label}</div>
             </div>
           ))}
         </div>
+
       </section>
 
       {/* Programs */}
