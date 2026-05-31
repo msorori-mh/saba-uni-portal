@@ -183,96 +183,106 @@ function NewsTab() {
 }
 
 function FeaturedNewsCard({ item }: { item: any }) {
+  const hasImage = !!item.featured_image;
   return (
     <Link
       to="/news/$slug"
       params={{ slug: item.slug }}
-      className="group grid md:grid-cols-2 gap-0 rounded-2xl border border-border bg-card overflow-hidden shadow-card hover:shadow-elegant transition-all border-t-4 border-t-primary"
+      className={`group grid gap-0 rounded-2xl border border-border bg-card overflow-hidden shadow-card hover:shadow-elegant transition-all border-t-4 border-t-primary ${
+        hasImage ? "md:grid-cols-2" : ""
+      }`}
     >
-      <div className="relative h-64 md:h-auto bg-hero-gradient overflow-hidden">
-        {item.featured_image ? (
+      {hasImage && (
+        <div className="relative h-52 md:h-auto bg-hero-gradient overflow-hidden">
           <img
             src={item.featured_image}
             alt={item.title_ar}
             className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
-        ) : (
-          <div className="absolute inset-0 bg-overlay-gradient grid place-items-center">
-            <Megaphone className="h-20 w-20 text-gold/30" />
-          </div>
-        )}
-        <Badge className="absolute top-4 right-4 bg-gold text-primary-deep border-0">
-          مميز
-        </Badge>
-      </div>
-      <div className="p-7 md:p-9 flex flex-col justify-center">
-        <div className="flex items-center gap-3 mb-3">
-          <Badge variant="outline" className="border-primary/40 text-primary">
+          <Badge className="absolute top-3 right-3 bg-gold text-primary-deep border-0">
+            مميز
+          </Badge>
+        </div>
+      )}
+      <div className="p-6 md:p-7 flex flex-col justify-center">
+        <div className="flex items-center gap-2 flex-wrap mb-2.5">
+          <Badge className="bg-gold/15 text-gold border border-gold/30 hover:bg-gold/20 text-[10px] px-2 py-0">
+            مميز
+          </Badge>
+          <Badge variant="outline" className="border-primary/40 text-primary text-[10px] px-2 py-0">
             {CATEGORY_LABEL[item.category] ?? item.category}
           </Badge>
-          <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5" />
+          <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
             {new Date(item.published_at).toLocaleDateString("ar-EG")}
           </span>
         </div>
-        <h2 className="font-display text-2xl md:text-3xl font-extrabold text-primary leading-snug group-hover:text-gold transition-colors">
+        <h2 className="font-display text-xl md:text-2xl font-extrabold text-primary leading-snug group-hover:text-gold transition-colors line-clamp-2">
           {item.title_ar}
         </h2>
         {item.excerpt_ar && (
-          <p className="mt-4 text-muted-foreground leading-relaxed line-clamp-3">
+          <p className="mt-3 text-sm text-muted-foreground leading-relaxed line-clamp-3">
             {item.excerpt_ar}
           </p>
         )}
-        <span className="mt-6 inline-flex items-center gap-2 text-gold font-bold text-sm">
-          اقرأ المزيد <ArrowLeft className="h-4 w-4" />
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-function NewsCard({ item }: { item: any }) {
-  return (
-    <Link
-      to="/news/$slug"
-      params={{ slug: item.slug }}
-      className="group flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-card hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40 transition-all border-t-4 border-t-primary/80"
-    >
-      <div className="relative h-44 bg-hero-gradient overflow-hidden">
-        {item.featured_image ? (
-          <img
-            src={item.featured_image}
-            alt={item.title_ar}
-            className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-overlay-gradient" />
-        )}
-        <Badge className="absolute top-3 right-3 bg-gold text-primary-deep border-0">
-          {CATEGORY_LABEL[item.category] ?? item.category}
-        </Badge>
-      </div>
-      <div className="flex-1 p-5 flex flex-col">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Calendar className="h-3.5 w-3.5" />
-          {new Date(item.published_at).toLocaleDateString("ar-EG")}
-        </div>
-        <h3 className="mt-3 font-display text-lg font-bold text-primary leading-7 line-clamp-2 group-hover:text-gold transition-colors">
-          {item.title_ar}
-        </h3>
-        {item.excerpt_ar && (
-          <p className="mt-2 text-sm text-muted-foreground leading-6 line-clamp-3">
-            {item.excerpt_ar}
-          </p>
-        )}
-        <span className="mt-auto pt-4 inline-flex items-center gap-1.5 text-xs font-bold text-gold">
+        <span className="mt-4 inline-flex items-center gap-1.5 text-gold font-bold text-xs">
           اقرأ المزيد <ArrowLeft className="h-3.5 w-3.5" />
         </span>
       </div>
     </Link>
   );
 }
+
+
+function NewsCard({ item }: { item: any }) {
+  const hasImage = !!item.featured_image;
+  return (
+    <Link
+      to="/news/$slug"
+      params={{ slug: item.slug }}
+      className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden shadow-card hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40 transition-all border-t-4 border-t-primary/80"
+    >
+      {hasImage && (
+        <div className="relative h-36 bg-hero-gradient overflow-hidden">
+          <img
+            src={item.featured_image}
+            alt={item.title_ar}
+            className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+          />
+          <Badge className="absolute top-2.5 right-2.5 bg-gold text-primary-deep border-0 text-[10px] px-2 py-0.5">
+            {CATEGORY_LABEL[item.category] ?? item.category}
+          </Badge>
+        </div>
+      )}
+      <div className="flex-1 p-4 flex flex-col">
+        <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {new Date(item.published_at).toLocaleDateString("ar-EG")}
+          </span>
+          {!hasImage && (
+            <Badge className="bg-gold/15 text-gold border border-gold/30 text-[10px] px-2 py-0">
+              {CATEGORY_LABEL[item.category] ?? item.category}
+            </Badge>
+          )}
+        </div>
+        <h3 className="mt-2 font-display text-base font-bold text-primary leading-7 line-clamp-2 group-hover:text-gold transition-colors">
+          {item.title_ar}
+        </h3>
+        {item.excerpt_ar && (
+          <p className="mt-1.5 text-xs text-muted-foreground leading-6 line-clamp-3">
+            {item.excerpt_ar}
+          </p>
+        )}
+        <span className="mt-auto pt-3 inline-flex items-center gap-1.5 text-[11px] font-bold text-gold">
+          اقرأ المزيد <ArrowLeft className="h-3 w-3" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
 
 // =================== EVENTS TAB ===================
 
