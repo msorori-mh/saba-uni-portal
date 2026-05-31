@@ -221,8 +221,10 @@ function StudentDashboard() {
 
             <StudyPlanSection rows={planCourses} />
 
+            <ScheduleSection rows={schedule} />
+
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية (الجداول، الدرجات، الرسوم، الطلبات) في المراحل القادمة.
+              ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
 
           </>
