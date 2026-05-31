@@ -107,6 +107,59 @@ export type Database = {
         }
         Relationships: []
       }
+      courses: {
+        Row: {
+          code: string
+          created_at: string
+          credit_hours: number
+          department_id: string | null
+          description_ar: string | null
+          id: string
+          name_ar: string
+          name_en: string | null
+          practical_hours: number
+          status: string
+          theory_hours: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          credit_hours?: number
+          department_id?: string | null
+          description_ar?: string | null
+          id?: string
+          name_ar: string
+          name_en?: string | null
+          practical_hours?: number
+          status?: string
+          theory_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          credit_hours?: number
+          department_id?: string | null
+          description_ar?: string | null
+          id?: string
+          name_ar?: string
+          name_en?: string | null
+          practical_hours?: number
+          status?: string
+          theory_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dashboard_stats: {
         Row: {
           icon: string | null
@@ -925,6 +978,118 @@ export type Database = {
           },
         ]
       }
+      study_plan_courses: {
+        Row: {
+          course_id: string
+          created_at: string
+          id: string
+          is_required: boolean
+          level_id: string
+          prerequisite_course_id: string | null
+          semester_code: string
+          sort_order: number
+          study_plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          level_id: string
+          prerequisite_course_id?: string | null
+          semester_code: string
+          sort_order?: number
+          study_plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          level_id?: string
+          prerequisite_course_id?: string | null
+          semester_code?: string
+          sort_order?: number
+          study_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_plan_courses_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_plan_courses_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "academic_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_plan_courses_prerequisite_course_id_fkey"
+            columns: ["prerequisite_course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_plan_courses_study_plan_id_fkey"
+            columns: ["study_plan_id"]
+            isOneToOne: false
+            referencedRelation: "study_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_plans: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          program_id: string
+          status: string
+          total_credit_hours: number
+          updated_at: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          program_id: string
+          status?: string
+          total_credit_hours?: number
+          updated_at?: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          program_id?: string
+          status?: string
+          total_credit_hours?: number
+          updated_at?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_plans_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -951,6 +1116,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_study_plan: {
+        Args: { _study_plan_id: string; _user_id: string }
+        Returns: boolean
+      }
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
@@ -967,6 +1136,10 @@ export type Database = {
       }
       is_department_head_of: {
         Args: { _dept_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_dept_head_of_program: {
+        Args: { _program_id: string; _user_id: string }
         Returns: boolean
       }
     }
