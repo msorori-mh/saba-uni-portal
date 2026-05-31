@@ -414,3 +414,58 @@ function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
   );
 }
 
+function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
+  const statusLabel: Record<string, { text: string; cls: string }> = {
+    enrolled: { text: "مُسجَّل", cls: "bg-emerald-100 text-emerald-800" },
+    dropped: { text: "محذوف", cls: "bg-rose-100 text-rose-800" },
+    completed: { text: "مكتمل", cls: "bg-blue-100 text-blue-800" },
+  };
+  return (
+    <div className="mt-6">
+      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+        <ClipboardCheck className="h-4 w-4 text-gold" /> مقرراتي المسجلة
+      </h2>
+      {rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
+          لم يتم تسجيلك في أي شعبة بعد. تواصل مع شؤون الطلاب.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => {
+            const st = statusLabel[r.enrollment_status] ?? { text: r.enrollment_status, cls: "bg-muted" };
+            return (
+              <div key={r.id} className="rounded-lg border bg-card p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="min-w-0">
+                    <span className="font-mono font-bold text-primary">{r.course_code}</span>
+                    <span className="mx-2 text-muted-foreground">—</span>
+                    <span className="font-semibold text-sm">{r.course_name}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className="bg-muted px-1.5 py-0.5 rounded">شعبة {r.section_code}</span>
+                  {r.faculty_name && <span>• {r.faculty_name}</span>}
+                </div>
+                {r.slots.length > 0 && (
+                  <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                    {r.slots.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1 text-[11px]">
+                        <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
+                        <span className="font-mono">{s.start_time.slice(0,5)}-{s.end_time.slice(0,5)}</span>
+                        {s.room && <span className="text-muted-foreground">• {s.room}</span>}
+                        <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">{TYPE_LABELS[s.schedule_type] ?? s.schedule_type}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
