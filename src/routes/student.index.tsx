@@ -92,6 +92,11 @@ function StudentDashboard() {
     queryFn: () => fetchMyAcademicStatus(profile!.id),
     enabled: !!profile?.id,
   });
+  const { data: planCourses = [] } = useQuery({
+    queryKey: ["student", "study-plan", profile?.program_id],
+    queryFn: () => fetchMyStudyPlan(profile!.program_id!),
+    enabled: !!profile?.program_id,
+  });
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -162,6 +167,8 @@ function StudentDashboard() {
                 <InfoCard icon={BadgeCheck} label="حالة التسجيل" value={statusLabel[acad?.enrollment_status ?? ""] ?? acad?.enrollment_status ?? "—"} />
               </div>
             </div>
+
+            <StudyPlanSection rows={planCourses} />
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية (الجداول، الدرجات، الرسوم، الطلبات) في المراحل القادمة.
