@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
@@ -264,6 +264,9 @@ function StudentDashboard() {
 
             <MyEnrollmentsSection rows={myEnrollments} />
 
+            <MyGradesSection studentProfileId={profile.id} />
+
+
             <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
               قسم «الجدول الدراسي العام» يعرض جميع شعب البرنامج للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط الشعب التي سُجلت فيها فعلياً.
             </div>
@@ -467,5 +470,99 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
     </div>
   );
 }
+
+function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ["student", "grades", studentProfileId],
+    queryFn: async () => {
+      const sb = supabase as unknown as { from: (t: string) => any };
+      const { data: enr, error: e1 } = await supabase
+        .from("student_enrollments")
+        .select("id, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+        .eq("student_profile_id", studentProfileId);
+      if (e1) throw e1;
+      type EnRaw = { id: string; course_section_id: string; section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null };
+      const enrollments = (enr ?? []) as unknown as EnRaw[];
+      if (enrollments.length === 0) return [];
+      const { data: gs, error: e2 } = await sb.from("student_grades")
+        .select("id, student_enrollment_id, grade_component_id, score, status")
+        .in("student_enrollment_id", enrollments.map((e) => e.id))
+        .eq("status", "approved");
+      if (e2) throw e2;
+      type GR = { id: string; student_enrollment_id: string; grade_component_id: string; score: number; status: string };
+      const grades = (gs ?? []) as GR[];
+      if (grades.length === 0) return [];
+      const sectionIds = Array.from(new Set(enrollments.map((e) => e.course_section_id)));
+      const { data: cs, error: e3 } = await sb.from("grade_components")
+        .select("id, course_section_id, name, max_score, sort_order")
+        .in("course_section_id", sectionIds)
+        .order("sort_order");
+      if (e3) throw e3;
+      type CR = { id: string; course_section_id: string; name: string; max_score: number };
+      const comps = (cs ?? []) as CR[];
+      return enrollments
+        .map((e) => {
+          const myComps = comps.filter((c) => c.course_section_id === e.course_section_id);
+          const myGrades = grades.filter((g) => g.student_enrollment_id === e.id);
+          if (myGrades.length === 0) return null;
+          const totalMax = myComps.reduce((s, c) => s + Number(c.max_score), 0);
+          const total = myGrades.reduce((s, g) => s + Number(g.score), 0);
+          return {
+            enrollmentId: e.id,
+            courseCode: e.section?.offering?.course?.code ?? "—",
+            courseName: e.section?.offering?.course?.name_ar ?? "—",
+            sectionCode: e.section?.section_code ?? "—",
+            total, totalMax,
+            percentage: totalMax > 0 ? Math.round((total / totalMax) * 1000) / 10 : 0,
+            details: myComps.map((c) => ({ name: c.name, max: Number(c.max_score), score: Number(myGrades.find((g) => g.grade_component_id === c.id)?.score ?? 0) })),
+          };
+        })
+        .filter(Boolean) as Array<{ enrollmentId: string; courseCode: string; courseName: string; sectionCode: string; total: number; totalMax: number; percentage: number; details: { name: string; max: number; score: number }[] }>;
+    },
+  });
+
+  return (
+    <div className="mt-6">
+      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+        <Award className="h-4 w-4 text-gold" /> درجاتي
+      </h2>
+      {isLoading ? (
+        <div className="rounded-lg border bg-card p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
+          لا توجد درجات معتمدة حالياً.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => (
+            <div key={r.enrollmentId} className="rounded-lg border bg-card p-3">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="font-mono font-bold text-primary">{r.courseCode}</span>
+                  <span className="mx-2 text-muted-foreground">—</span>
+                  <span className="font-semibold text-sm">{r.courseName}</span>
+                </div>
+                <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">شعبة {r.sectionCode}</span>
+              </div>
+              <div className="mt-2 flex items-center gap-3 text-sm">
+                <span className="font-mono font-extrabold text-primary">{r.total}/{r.totalMax}</span>
+                <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">{r.percentage}%</span>
+              </div>
+              <div className="mt-2 grid gap-1 sm:grid-cols-2">
+                {r.details.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between rounded border bg-muted/30 px-2 py-1 text-xs">
+                    <span>{d.name}</span>
+                    <span className="font-mono"><b>{d.score}</b><span className="text-muted-foreground">/{d.max}</span></span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 

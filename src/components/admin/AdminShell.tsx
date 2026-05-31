@@ -3,7 +3,7 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Newspaper, Users, BookOpen, FlaskConical, Calendar,
-  MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft, CalendarRange, ListTree, CalendarDays, ClipboardList,
+  MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft, CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -19,11 +19,13 @@ const items: NavItem[] = [
   { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
   { to: "/admin/course-offerings", label: "الطرح والشعب", icon: CalendarDays },
   { to: "/admin/enrollments", label: "تسجيل الطلاب", icon: ClipboardList },
+  { to: "/admin/grades", label: "إدارة الدرجات", icon: ClipboardCheck },
   { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
   { to: "/admin/events", label: "الفعاليات", icon: Calendar },
   { to: "/admin/contacts", label: "رسائل التواصل", icon: MessageSquare, badgeKey: "new-messages" },
   { to: "/admin/settings", label: "الإعدادات", icon: Settings },
 ];
+
 
 export function AdminShell({ children, userEmail }: { children: React.ReactNode; userEmail: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
