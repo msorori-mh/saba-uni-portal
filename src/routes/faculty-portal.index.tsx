@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2 } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type FacultyProfileRow = {
+  id: string;
   employee_number: string | null;
   full_name_ar: string;
   full_name_en: string | null;
@@ -15,16 +16,38 @@ type FacultyProfileRow = {
   program: { name_ar: string } | null;
 };
 
+type TeachingRow = {
+  id: string;
+  section_code: string;
+  course: { code: string; name_ar: string } | null;
+  schedule: { day_of_week: string; start_time: string; end_time: string; room: string | null; schedule_type: string }[];
+};
+
 async function fetchMyFacultyProfile(): Promise<FacultyProfileRow | null> {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return null;
   const { data, error } = await supabase
     .from("faculty_profiles")
-    .select("employee_number, full_name_ar, full_name_en, academic_rank, position_title, status, department:departments(name_ar), program:programs(name_ar)")
+    .select("id, employee_number, full_name_ar, full_name_en, academic_rank, position_title, status, department:departments(name_ar), program:programs(name_ar)")
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as FacultyProfileRow;
+}
+
+async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingRow[]> {
+  const { data, error } = await supabase
+    .from("course_sections")
+    .select("id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .eq("faculty_profile_id", facultyProfileId)
+    .eq("status", "active");
+  if (error) throw error;
+  type Raw = { id: string; section_code: string; offering: { course: { code: string; name_ar: string } | null } | null; schedule: TeachingRow["schedule"] };
+  return ((data ?? []) as unknown as Raw[]).map((r) => ({
+    id: r.id, section_code: r.section_code,
+    course: r.offering?.course ?? null,
+    schedule: r.schedule ?? [],
+  }));
 }
 
 export const Route = createFileRoute("/faculty-portal/")({
