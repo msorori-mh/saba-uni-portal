@@ -10,10 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StudentRouteImport } from './routes/student'
+import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as DepartmentsRouteImport } from './routes/departments'
@@ -22,9 +24,13 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
+import { Route as StaffIndexRouteImport } from './routes/staff.index'
+import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
+import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
+import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
@@ -40,6 +46,11 @@ import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 const StudentRoute = StudentRouteImport.update({
   id: '/student',
   path: '/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffRoute = StaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -60,6 +71,11 @@ const PortalLoginRoute = PortalLoginRouteImport.update({
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyPortalRoute = FacultyPortalRouteImport.update({
+  id: '/faculty-portal',
+  path: '/faculty-portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FacultyRoute = FacultyRouteImport.update({
@@ -102,6 +118,16 @@ const StudentIndexRoute = StudentIndexRouteImport.update({
   path: '/',
   getParentRoute: () => StudentRoute,
 } as any)
+const StaffIndexRoute = StaffIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StaffRoute,
+} as any)
+const FacultyPortalIndexRoute = FacultyPortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => FacultyPortalRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -112,11 +138,22 @@ const StudentChangePasswordRoute = StudentChangePasswordRouteImport.update({
   path: '/change-password',
   getParentRoute: () => StudentRoute,
 } as any)
+const StaffChangePasswordRoute = StaffChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => StaffRoute,
+} as any)
 const NewsSlugRoute = NewsSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => NewsRoute,
 } as any)
+const FacultyPortalChangePasswordRoute =
+  FacultyPortalChangePasswordRouteImport.update({
+    id: '/change-password',
+    path: '/change-password',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
 const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
   id: '/$code',
   path: '/$code',
@@ -181,10 +218,12 @@ export interface FileRoutesByFullPath {
   '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
+  '/faculty-portal': typeof FacultyPortalRouteWithChildren
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -197,9 +236,13 @@ export interface FileRoutesByFullPath {
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
+  '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/admin/': typeof AdminIndexRoute
+  '/faculty-portal/': typeof FacultyPortalIndexRoute
+  '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
 }
 export interface FileRoutesByTo {
@@ -224,9 +267,13 @@ export interface FileRoutesByTo {
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
+  '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/admin': typeof AdminIndexRoute
+  '/faculty-portal': typeof FacultyPortalIndexRoute
+  '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
 }
 export interface FileRoutesById {
@@ -238,10 +285,12 @@ export interface FileRoutesById {
   '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
+  '/faculty-portal': typeof FacultyPortalRouteWithChildren
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -254,9 +303,13 @@ export interface FileRoutesById {
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
+  '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/admin/': typeof AdminIndexRoute
+  '/faculty-portal/': typeof FacultyPortalIndexRoute
+  '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
 }
 export interface FileRouteTypes {
@@ -269,10 +322,12 @@ export interface FileRouteTypes {
     | '/departments'
     | '/events'
     | '/faculty'
+    | '/faculty-portal'
     | '/news'
     | '/portal-login'
     | '/research'
     | '/sitemap.xml'
+    | '/staff'
     | '/student'
     | '/admin/contacts'
     | '/admin/departments'
@@ -285,9 +340,13 @@ export interface FileRouteTypes {
     | '/admin/research'
     | '/admin/settings'
     | '/departments/$code'
+    | '/faculty-portal/change-password'
     | '/news/$slug'
+    | '/staff/change-password'
     | '/student/change-password'
     | '/admin/'
+    | '/faculty-portal/'
+    | '/staff/'
     | '/student/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -312,9 +371,13 @@ export interface FileRouteTypes {
     | '/admin/research'
     | '/admin/settings'
     | '/departments/$code'
+    | '/faculty-portal/change-password'
     | '/news/$slug'
+    | '/staff/change-password'
     | '/student/change-password'
     | '/admin'
+    | '/faculty-portal'
+    | '/staff'
     | '/student'
   id:
     | '__root__'
@@ -325,10 +388,12 @@ export interface FileRouteTypes {
     | '/departments'
     | '/events'
     | '/faculty'
+    | '/faculty-portal'
     | '/news'
     | '/portal-login'
     | '/research'
     | '/sitemap.xml'
+    | '/staff'
     | '/student'
     | '/admin/contacts'
     | '/admin/departments'
@@ -341,9 +406,13 @@ export interface FileRouteTypes {
     | '/admin/research'
     | '/admin/settings'
     | '/departments/$code'
+    | '/faculty-portal/change-password'
     | '/news/$slug'
+    | '/staff/change-password'
     | '/student/change-password'
     | '/admin/'
+    | '/faculty-portal/'
+    | '/staff/'
     | '/student/'
   fileRoutesById: FileRoutesById
 }
@@ -355,10 +424,12 @@ export interface RootRouteChildren {
   DepartmentsRoute: typeof DepartmentsRouteWithChildren
   EventsRoute: typeof EventsRoute
   FacultyRoute: typeof FacultyRoute
+  FacultyPortalRoute: typeof FacultyPortalRouteWithChildren
   NewsRoute: typeof NewsRouteWithChildren
   PortalLoginRoute: typeof PortalLoginRoute
   ResearchRoute: typeof ResearchRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StaffRoute: typeof StaffRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
 }
 
@@ -369,6 +440,13 @@ declare module '@tanstack/react-router' {
       path: '/student'
       fullPath: '/student'
       preLoaderRoute: typeof StudentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff': {
+      id: '/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof StaffRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -397,6 +475,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty-portal': {
+      id: '/faculty-portal'
+      path: '/faculty-portal'
+      fullPath: '/faculty-portal'
+      preLoaderRoute: typeof FacultyPortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faculty': {
@@ -455,6 +540,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentIndexRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/staff/': {
+      id: '/staff/'
+      path: '/'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof StaffRoute
+    }
+    '/faculty-portal/': {
+      id: '/faculty-portal/'
+      path: '/'
+      fullPath: '/faculty-portal/'
+      preLoaderRoute: typeof FacultyPortalIndexRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
@@ -469,12 +568,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentChangePasswordRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/staff/change-password': {
+      id: '/staff/change-password'
+      path: '/change-password'
+      fullPath: '/staff/change-password'
+      preLoaderRoute: typeof StaffChangePasswordRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/news/$slug': {
       id: '/news/$slug'
       path: '/$slug'
       fullPath: '/news/$slug'
       preLoaderRoute: typeof NewsSlugRouteImport
       parentRoute: typeof NewsRoute
+    }
+    '/faculty-portal/change-password': {
+      id: '/faculty-portal/change-password'
+      path: '/change-password'
+      fullPath: '/faculty-portal/change-password'
+      preLoaderRoute: typeof FacultyPortalChangePasswordRouteImport
+      parentRoute: typeof FacultyPortalRoute
     }
     '/departments/$code': {
       id: '/departments/$code'
@@ -598,6 +711,20 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
   DepartmentsRouteChildren,
 )
 
+interface FacultyPortalRouteChildren {
+  FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
+  FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
+}
+
+const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
+  FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
+  FacultyPortalIndexRoute: FacultyPortalIndexRoute,
+}
+
+const FacultyPortalRouteWithChildren = FacultyPortalRoute._addFileChildren(
+  FacultyPortalRouteChildren,
+)
+
 interface NewsRouteChildren {
   NewsSlugRoute: typeof NewsSlugRoute
 }
@@ -607,6 +734,18 @@ const NewsRouteChildren: NewsRouteChildren = {
 }
 
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
+
+interface StaffRouteChildren {
+  StaffChangePasswordRoute: typeof StaffChangePasswordRoute
+  StaffIndexRoute: typeof StaffIndexRoute
+}
+
+const StaffRouteChildren: StaffRouteChildren = {
+  StaffChangePasswordRoute: StaffChangePasswordRoute,
+  StaffIndexRoute: StaffIndexRoute,
+}
+
+const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 
 interface StudentRouteChildren {
   StudentChangePasswordRoute: typeof StudentChangePasswordRoute
@@ -629,10 +768,12 @@ const rootRouteChildren: RootRouteChildren = {
   DepartmentsRoute: DepartmentsRouteWithChildren,
   EventsRoute: EventsRoute,
   FacultyRoute: FacultyRoute,
+  FacultyPortalRoute: FacultyPortalRouteWithChildren,
   NewsRoute: NewsRouteWithChildren,
   PortalLoginRoute: PortalLoginRoute,
   ResearchRoute: ResearchRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StaffRoute: StaffRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
 }
 export const routeTree = rootRouteImport
