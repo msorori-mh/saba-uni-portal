@@ -77,6 +77,48 @@ export type Database = {
         }
         Relationships: []
       }
+      departments: {
+        Row: {
+          created_at: string
+          description_ar: string | null
+          description_en: string | null
+          icon: string | null
+          id: string
+          image: string | null
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          icon?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description_ar?: string | null
+          description_en?: string | null
+          icon?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           created_at: string
@@ -292,6 +334,8 @@ export type Database = {
           career_opportunities: string | null
           code: string
           created_at: string
+          degree_type: string | null
+          department_id: string | null
           description_ar: string | null
           description_en: string | null
           icon: string | null
@@ -302,12 +346,15 @@ export type Database = {
           sort_order: number
           study_plan: Json | null
           updated_at: string
+          years: number | null
         }
         Insert: {
           admission_requirements?: string | null
           career_opportunities?: string | null
           code: string
           created_at?: string
+          degree_type?: string | null
+          department_id?: string | null
           description_ar?: string | null
           description_en?: string | null
           icon?: string | null
@@ -318,12 +365,15 @@ export type Database = {
           sort_order?: number
           study_plan?: Json | null
           updated_at?: string
+          years?: number | null
         }
         Update: {
           admission_requirements?: string | null
           career_opportunities?: string | null
           code?: string
           created_at?: string
+          degree_type?: string | null
+          department_id?: string | null
           description_ar?: string | null
           description_en?: string | null
           icon?: string | null
@@ -334,8 +384,17 @@ export type Database = {
           sort_order?: number
           study_plan?: Json | null
           updated_at?: string
+          years?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "programs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       research_papers: {
         Row: {

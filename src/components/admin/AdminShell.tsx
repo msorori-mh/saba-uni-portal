@@ -13,7 +13,7 @@ const items: NavItem[] = [
   { to: "/admin", label: "لوحة التحكم", icon: LayoutDashboard, exact: true },
   { to: "/admin/news", label: "الأخبار", icon: Newspaper },
   { to: "/admin/faculty", label: "هيئة التدريس", icon: Users },
-  { to: "/admin/programs", label: "الأقسام والبرامج", icon: BookOpen },
+  { to: "/admin/departments", label: "الأقسام والبرامج", icon: BookOpen },
   { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
   { to: "/admin/events", label: "الفعاليات", icon: Calendar },
   { to: "/admin/messages", label: "رسائل التواصل", icon: MessageSquare },
