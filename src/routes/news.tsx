@@ -361,51 +361,49 @@ function EventCard({ item, isPast = false }: { item: any; isPast?: boolean }) {
   const d = new Date(item.event_date);
   return (
     <article
-      className={`grid gap-0 md:grid-cols-[160px_1fr] rounded-2xl border border-border bg-card overflow-hidden shadow-card hover:shadow-elegant hover:border-gold/40 transition-all ${
+      className={`grid gap-0 grid-cols-[88px_1fr] md:grid-cols-[120px_1fr] rounded-xl border border-border bg-card overflow-hidden shadow-card hover:shadow-elegant hover:border-gold/40 transition-all ${
         isPast ? "opacity-75" : ""
       }`}
     >
-      <div className="bg-hero-gradient text-primary-foreground p-5 flex flex-col items-center justify-center text-center">
-        <div className="grid place-items-center w-20 h-20 rounded-full bg-gold/15 border-2 border-gold/40 backdrop-blur-sm">
-          <div className="font-display text-3xl font-extrabold text-gold leading-none">
-            {d.getDate()}
-          </div>
-          <div className="text-[10px] font-bold tracking-widest text-gold/90 uppercase">
-            {d.toLocaleDateString("ar-EG", { month: "short" })}
-          </div>
+      <div className="bg-hero-gradient text-primary-foreground p-3 flex flex-col items-center justify-center text-center">
+        <div className="font-display text-2xl md:text-3xl font-extrabold text-gold leading-none">
+          {d.getDate()}
         </div>
-        <div className="text-xs text-primary-foreground/70 mt-3">{d.getFullYear()}</div>
+        <div className="text-[10px] font-bold tracking-wider text-gold/90 uppercase mt-0.5">
+          {d.toLocaleDateString("ar-EG", { month: "short" })}
+        </div>
+        <div className="text-[10px] text-primary-foreground/70 mt-0.5">{d.getFullYear()}</div>
         {item.is_featured && !isPast && (
-          <Badge className="mt-2 bg-gold text-primary-deep border-0 text-[10px]">
+          <Badge className="mt-1.5 bg-gold text-primary-deep border-0 text-[9px] px-1.5 py-0">
             مميز
           </Badge>
         )}
       </div>
-      <div className="p-6">
-        <h3 className="font-display text-xl font-extrabold text-primary">
+      <div className="p-4">
+        <h3 className="font-display text-base md:text-lg font-extrabold text-primary line-clamp-2 leading-snug">
           {item.title_ar}
         </h3>
         {item.description_ar && (
-          <p className="mt-2 text-muted-foreground leading-7 line-clamp-2">
+          <p className="mt-1.5 text-xs text-muted-foreground leading-6 line-clamp-2">
             {item.description_ar}
           </p>
         )}
-        <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+        <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           {item.location && (
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 text-gold" /> {item.location}
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="h-3 w-3 text-gold" /> {item.location}
             </span>
           )}
           {item.event_time && (
-            <span className="inline-flex items-center gap-1.5">
-              <Clock className="h-4 w-4 text-gold" /> {item.event_time.slice(0, 5)}
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3 w-3 text-gold" /> {item.event_time.slice(0, 5)}
             </span>
           )}
         </div>
         {item.registration_url && !isPast && (
-          <Button asChild size="sm" className="mt-4 bg-primary hover:bg-primary-deep">
+          <Button asChild size="sm" className="mt-3 h-7 text-xs bg-primary hover:bg-primary-deep">
             <a href={item.registration_url} target="_blank" rel="noreferrer">
-              التفاصيل والتسجيل <ExternalLink className="h-4 w-4 mr-1" />
+              التفاصيل والتسجيل <ExternalLink className="h-3 w-3 mr-1" />
             </a>
           </Button>
         )}
@@ -413,6 +411,7 @@ function EventCard({ item, isPast = false }: { item: any; isPast?: boolean }) {
     </article>
   );
 }
+
 
 function EmptyState({
   icon: Icon,
