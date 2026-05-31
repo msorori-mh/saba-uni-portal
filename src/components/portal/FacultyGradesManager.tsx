@@ -4,7 +4,8 @@ import { Loader2, Plus, Save, Send, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const sb = supabase as unknown as { from: (t: string) => ReturnType<typeof supabase.from> };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const sb = supabase as unknown as { from: (t: string) => any };
 
 type Section = { id: string; section_code: string; course_code: string; course_name: string };
 
