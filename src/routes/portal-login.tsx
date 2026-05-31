@@ -100,6 +100,11 @@ function PortalLoginPage() {
             </div>
 
             <form onSubmit={onSubmit} className="mt-7 space-y-5">
+              {error && (
+                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive">
+                  {error}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold mb-2">الرقم الأكاديمي</label>
                 <div className="relative">
