@@ -1,65 +1,295 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Cpu, Database, Shield, Brain, BookOpen } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, Brain, Cpu, Database, GraduationCap, Search, Shield } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { programsQuery } from "@/lib/queries";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/departments")({
   head: () => ({
     meta: [
-      { title: "البرامج الأكاديمية — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
-      { name: "description", content: "البرامج الأكاديمية الأربعة في كلية تكنولوجيا المعلومات وعلوم الحاسوب: علوم الحاسوب، نظم المعلومات، الأمن السيبراني، الذكاء الاصطناعي." },
+      { title: "الأقسام والبرامج الدراسية — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
+      { name: "description", content: "الأقسام والبرامج الأكاديمية الأربعة في كلية تكنولوجيا المعلومات وعلوم الحاسوب: علوم الحاسوب، نظم المعلومات الحاسوبية، الأمن السيبراني، والذكاء الاصطناعي." },
+      { property: "og:title", content: "الأقسام والبرامج الدراسية" },
+      { property: "og:url", content: "/departments" },
     ],
+    links: [{ rel: "canonical", href: "/departments" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(programsQuery),
-  component: ProgramsPage,
+  component: DepartmentsPage,
 });
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  cpu: Cpu, database: Database, shield: Shield, brain: Brain, computer: Cpu,
+const ICONS: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number }>> = {
+  computer: Cpu,
+  database: Database,
+  shield: Shield,
+  brain: Brain,
 };
 
-function ProgramsPage() {
-  const { data: programs = [] } = useQuery(programsQuery);
+// Per-program visual + meta hints (image gradient + degree/duration)
+const PROGRAM_META: Record<string, { gradient: string; degree: string; years: number }> = {
+  CS:  { gradient: "from-primary via-primary-deep to-[hsl(220_70%_18%)]", degree: "بكالوريوس", years: 4 },
+  CIS: { gradient: "from-[hsl(195_70%_30%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
+  CYB: { gradient: "from-[hsl(220_50%_20%)] via-[hsl(220_60%_25%)] to-primary-deep", degree: "بكالوريوس", years: 4 },
+  AI:  { gradient: "from-[hsl(260_50%_30%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
+};
+
+function DepartmentsPage() {
+  const { data: programs, isLoading } = useQuery(programsQuery);
+  const [query, setQuery] = useState("");
+  const [sortAsc, setSortAsc] = useState(true);
+
+  const list = programs ?? [];
+
+  const filtered = useMemo(() => {
+    const q = query.trim();
+    const base = q
+      ? list.filter((p) => p.name_ar.includes(q) || (p.name_en ?? "").toLowerCase().includes(q.toLowerCase()) || p.code.toLowerCase().includes(q.toLowerCase()))
+      : list;
+    return [...base].sort((a, b) => (sortAsc ? a.name_ar.localeCompare(b.name_ar, "ar") : b.name_ar.localeCompare(a.name_ar, "ar")));
+  }, [list, query, sortAsc]);
 
   return (
     <>
       <PageHeader
         eyebrow="أكاديمي"
-        title="البرامج الأكاديمية"
-        subtitle="أربعة برامج متخصصة تغطي أحدث مجالات تكنولوجيا المعلومات وعلوم الحاسوب، تجمع بين الأساس النظري القوي والتطبيق العملي."
+        title="الأقسام والبرامج الدراسية"
+        subtitle="أربعة برامج متخصصة تغطي أحدث مجالات تكنولوجيا المعلومات وعلوم الحاسوب، تجمع بين الأساس النظري المتين والتطبيق العملي."
       />
 
+      {/* Departments Grid */}
       <section className="container mx-auto px-4 py-16">
-        <div className="grid gap-6 md:grid-cols-2">
-          {programs.map((p) => {
-            const Icon = iconMap[p.icon ?? ""] ?? BookOpen;
-            return (
-              <Link
-                key={p.id}
-                to="/departments/$code"
-                params={{ code: p.code }}
-                className="group relative overflow-hidden rounded-2xl border border-border bg-card p-8 shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40"
-              >
-                <div className="flex items-start gap-5">
-                  <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep transition-colors">
-                    <Icon className="h-8 w-8" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs font-bold tracking-widest text-gold">{p.code}</div>
-                    <h2 className="mt-1 font-display text-2xl font-extrabold text-primary">{p.name_ar}</h2>
-                    {p.name_en && <div className="mt-1 text-xs text-muted-foreground">{p.name_en}</div>}
-                    <p className="mt-4 text-sm text-muted-foreground leading-7">{p.description_ar}</p>
-                    <div className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-primary group-hover:text-gold transition-colors">
-                      تفاصيل البرنامج <ArrowLeft className="h-4 w-4" />
+        <div className="flex items-end justify-between flex-wrap gap-4 mb-10">
+          <div>
+            <div className="text-xs font-bold tracking-widest text-gold uppercase">استكشف</div>
+            <h2 className="mt-2 font-display text-3xl font-extrabold text-primary">الأقسام الأكاديمية</h2>
+            <div className="divider-gold mt-3" />
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="grid gap-6 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl border border-border bg-card p-0 overflow-hidden">
+                <Skeleton className="h-48 w-full" />
+                <div className="p-6 space-y-3">
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/5" />
+                  <Skeleton className="h-10 w-32 mt-3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : list.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2">
+            {list.map((p) => {
+              const Icon = ICONS[p.icon ?? ""] ?? GraduationCap;
+              const meta = PROGRAM_META[p.code] ?? PROGRAM_META.CS;
+              return (
+                <article
+                  key={p.id}
+                  className="group flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/40"
+                >
+                  {/* Image placeholder */}
+                  <div className={`relative h-48 bg-gradient-to-br ${meta.gradient} overflow-hidden`}>
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,hsl(var(--gold)/0.25),transparent_55%)]" />
+                    <div className="absolute top-4 right-4">
+                      <Badge className="bg-gold text-primary-deep hover:bg-gold font-bold tracking-wide">{p.code}</Badge>
+                    </div>
+                    <div className="absolute bottom-5 right-5 grid h-16 w-16 place-items-center rounded-2xl bg-white/15 backdrop-blur-md text-primary-foreground shadow-elegant ring-1 ring-white/20">
+                      <Icon className="h-8 w-8" strokeWidth={2} />
                     </div>
                   </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+
+                  <div className="flex-1 flex flex-col p-7">
+                    <h3 className="font-display text-2xl font-extrabold text-primary">{p.name_ar}</h3>
+                    {p.name_en && <div className="mt-1 text-xs text-muted-foreground">{p.name_en}</div>}
+                    <p className="mt-4 text-sm text-muted-foreground leading-7 line-clamp-3">{p.description_ar}</p>
+
+                    <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{meta.degree}</span>
+                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{meta.years} سنوات</span>
+                    </div>
+
+                    <Link
+                      to="/departments/$code"
+                      params={{ code: p.code }}
+                      className="mt-7 inline-flex items-center justify-center gap-2 rounded-md border-2 border-gold bg-transparent px-6 py-3 text-sm font-extrabold text-gold transition-all hover:bg-gold hover:text-primary-deep"
+                    >
+                      عرض البرامج <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
+
+      {/* Programs detail — Accordion */}
+      {list.length > 0 && (
+        <section className="bg-surface border-y border-border">
+          <div className="container mx-auto px-4 py-16">
+            <div className="max-w-2xl mb-8">
+              <div className="text-xs font-bold tracking-widest text-gold uppercase">تفاصيل</div>
+              <h2 className="mt-2 font-display text-3xl font-extrabold text-primary">نظرة على كل قسم</h2>
+              <div className="divider-gold mt-3" />
+              <p className="mt-4 text-muted-foreground leading-8">
+                اضغط على أي قسم لعرض الوصف المختصر، شروط القبول، وأبرز فرص العمل.
+              </p>
+            </div>
+
+            <Accordion type="single" collapsible className="max-w-4xl mx-auto space-y-3">
+              {list.map((p) => {
+                const Icon = ICONS[p.icon ?? ""] ?? GraduationCap;
+                return (
+                  <AccordionItem
+                    key={p.id}
+                    value={p.code}
+                    className="rounded-xl border border-border bg-card px-5 shadow-card data-[state=open]:border-gold/40 data-[state=open]:shadow-elegant"
+                  >
+                    <AccordionTrigger className="py-5 hover:no-underline">
+                      <div className="flex items-center gap-4 text-right">
+                        <div className="grid h-11 w-11 place-items-center rounded-lg bg-secondary text-primary shrink-0">
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <div className="font-display text-lg font-extrabold text-primary">{p.name_ar}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{p.code} — {PROGRAM_META[p.code]?.degree ?? "بكالوريوس"}</div>
+                        </div>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-6 pt-2">
+                      <div className="grid gap-5 md:grid-cols-2">
+                        <div>
+                          <h4 className="font-display font-bold text-primary mb-2">الوصف</h4>
+                          <p className="text-sm text-muted-foreground leading-7">{p.description_ar}</p>
+                        </div>
+                        {p.admission_requirements && (
+                          <div>
+                            <h4 className="font-display font-bold text-primary mb-2">شروط القبول</h4>
+                            <p className="text-sm text-muted-foreground leading-7 whitespace-pre-line">{p.admission_requirements}</p>
+                          </div>
+                        )}
+                        {p.career_opportunities && (
+                          <div className="md:col-span-2">
+                            <h4 className="font-display font-bold text-primary mb-2">فرص العمل</h4>
+                            <p className="text-sm text-muted-foreground leading-7 whitespace-pre-line">{p.career_opportunities}</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-6">
+                        <Link
+                          to="/departments/$code"
+                          params={{ code: p.code }}
+                          className="inline-flex items-center gap-1 text-sm font-bold text-gold hover:underline"
+                        >
+                          عرض التفاصيل الكاملة والخطة الدراسية <ArrowLeft className="h-4 w-4" />
+                        </Link>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </div>
+        </section>
+      )}
+
+      {/* Programs Table */}
+      {list.length > 0 && (
+        <section className="container mx-auto px-4 py-16">
+          <div className="max-w-2xl mb-8">
+            <div className="text-xs font-bold tracking-widest text-gold uppercase">مقارنة</div>
+            <h2 className="mt-2 font-display text-3xl font-extrabold text-primary">جدول البرامج</h2>
+            <div className="divider-gold mt-3" />
+          </div>
+
+          <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+            <div className="border-b border-border p-4 bg-surface">
+              <div className="relative max-w-sm">
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="ابحث عن برنامج..."
+                  className="pr-9"
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-surface hover:bg-surface">
+                    <TableHead className="text-right">
+                      <button onClick={() => setSortAsc((s) => !s)} className="inline-flex items-center gap-1 font-bold text-primary hover:text-gold">
+                        البرنامج <ArrowUpDown className="h-3.5 w-3.5" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-right font-bold text-primary">الرمز</TableHead>
+                    <TableHead className="text-right font-bold text-primary">الدرجة</TableHead>
+                    <TableHead className="text-right font-bold text-primary">المدة</TableHead>
+                    <TableHead className="text-right font-bold text-primary"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                        لا توجد نتائج مطابقة.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filtered.map((p) => {
+                      const meta = PROGRAM_META[p.code] ?? PROGRAM_META.CS;
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-bold text-primary">{p.name_ar}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="border-gold text-gold">{p.code}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{meta.degree}</TableCell>
+                          <TableCell className="text-muted-foreground">{meta.years} سنوات</TableCell>
+                          <TableCell>
+                            <Link
+                              to="/departments/$code"
+                              params={{ code: p.code }}
+                              className="inline-flex items-center gap-1 text-sm font-bold text-primary hover:text-gold"
+                            >
+                              التفاصيل <ArrowLeft className="h-3.5 w-3.5" />
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </section>
+      )}
     </>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-dashed border-border p-16 text-center">
+      <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-secondary text-primary">
+        <GraduationCap className="h-8 w-8" />
+      </div>
+      <h3 className="mt-5 font-display text-xl font-bold text-primary">لا توجد أقسام متاحة حاليًا</h3>
+      <p className="mt-2 text-sm text-muted-foreground">سيتم نشر الأقسام والبرامج فور تفعيلها من قبل إدارة الكلية.</p>
+    </div>
   );
 }
