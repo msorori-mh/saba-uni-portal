@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as DepartmentsRouteImport } from './routes/departments'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as AboutRouteImport } from './routes/about'
@@ -19,6 +20,11 @@ import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyRoute = FacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DepartmentsRoute = DepartmentsRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRouteWithChildren
+  '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRouteWithChildren
+  '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/contact': typeof ContactRoute
   '/departments': typeof DepartmentsRouteWithChildren
+  '/faculty': typeof FacultyRoute
   '/news': typeof NewsRoute
   '/departments/$code': typeof DepartmentsCodeRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/departments'
+    | '/faculty'
     | '/news'
     | '/departments/$code'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/departments'
+    | '/faculty'
     | '/news'
     | '/departments/$code'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/about'
     | '/contact'
     | '/departments'
+    | '/faculty'
     | '/news'
     | '/departments/$code'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   ContactRoute: typeof ContactRoute
   DepartmentsRoute: typeof DepartmentsRouteWithChildren
+  FacultyRoute: typeof FacultyRoute
   NewsRoute: typeof NewsRoute
 }
 
@@ -114,6 +127,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty': {
+      id: '/faculty'
+      path: '/faculty'
+      fullPath: '/faculty'
+      preLoaderRoute: typeof FacultyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/departments': {
@@ -171,6 +191,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   ContactRoute: ContactRoute,
   DepartmentsRoute: DepartmentsRouteWithChildren,
+  FacultyRoute: FacultyRoute,
   NewsRoute: NewsRoute,
 }
 export const routeTree = rootRouteImport
