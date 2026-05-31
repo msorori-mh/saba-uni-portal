@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 
@@ -46,6 +46,42 @@ type ScheduleRow = {
   faculty_name: string | null;
   slots: ScheduleSlot[];
 };
+
+type MyEnrollmentRow = {
+  id: string;
+  enrollment_status: string;
+  section_code: string;
+  course_code: string;
+  course_name: string;
+  faculty_name: string | null;
+  slots: ScheduleSlot[];
+};
+
+async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]> {
+  const { data, error } = await supabase
+    .from("student_enrollments")
+    .select("id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type))")
+    .eq("student_profile_id", studentId);
+  if (error) throw error;
+  type Raw = {
+    id: string; enrollment_status: string;
+    section: {
+      section_code: string;
+      faculty: { full_name_ar: string } | null;
+      offering: { course: { code: string; name_ar: string } | null } | null;
+      schedule: ScheduleSlot[];
+    } | null;
+  };
+  return ((data ?? []) as unknown as Raw[]).map((r) => ({
+    id: r.id,
+    enrollment_status: r.enrollment_status,
+    section_code: r.section?.section_code ?? "—",
+    course_code: r.section?.offering?.course?.code ?? "—",
+    course_name: r.section?.offering?.course?.name_ar ?? "—",
+    faculty_name: r.section?.faculty?.full_name_ar ?? null,
+    slots: r.section?.schedule ?? [],
+  }));
+}
 
 async function fetchMyProfile(): Promise<StudentRow | null> {
   const { data: auth } = await supabase.auth.getUser();
