@@ -247,6 +247,79 @@ export type Database = {
           },
         ]
       }
+      faculty_profiles: {
+        Row: {
+          academic_rank: string | null
+          created_at: string
+          department_id: string | null
+          employee_number: string | null
+          faculty_id: string
+          full_name_ar: string
+          full_name_en: string | null
+          id: string
+          must_change_password: boolean
+          position_title: string | null
+          program_id: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          academic_rank?: string | null
+          created_at?: string
+          department_id?: string | null
+          employee_number?: string | null
+          faculty_id: string
+          full_name_ar: string
+          full_name_en?: string | null
+          id?: string
+          must_change_password?: boolean
+          position_title?: string | null
+          program_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          academic_rank?: string | null
+          created_at?: string
+          department_id?: string | null
+          employee_number?: string | null
+          faculty_id?: string
+          full_name_ar?: string
+          full_name_en?: string | null
+          id?: string
+          must_change_password?: boolean
+          position_title?: string | null
+          program_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faculty_profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faculty_profiles_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: true
+            referencedRelation: "faculty"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faculty_profiles_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_library: {
         Row: {
           alt_text: string | null
@@ -564,6 +637,59 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_profiles: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          employee_number: string | null
+          full_name_ar: string
+          full_name_en: string | null
+          id: string
+          job_title: string
+          must_change_password: boolean
+          role_type: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          employee_number?: string | null
+          full_name_ar: string
+          full_name_en?: string | null
+          id?: string
+          job_title: string
+          must_change_password?: boolean
+          role_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          employee_number?: string | null
+          full_name_ar?: string
+          full_name_en?: string | null
+          id?: string
+          job_title?: string
+          must_change_password?: boolean
+          role_type?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_profiles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_profiles: {
         Row: {
           academic_number: string
@@ -656,6 +782,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      complete_faculty_password_change: { Args: never; Returns: undefined }
+      complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
@@ -666,6 +794,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_department_head_of: {
+        Args: { _dept_id: string; _user_id: string }
         Returns: boolean
       }
     }
