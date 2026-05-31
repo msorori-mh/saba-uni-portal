@@ -121,8 +121,9 @@ function DepartmentsPage() {
                   {/* Image placeholder */}
                   <div className={`relative h-48 bg-gradient-to-br ${meta.gradient} overflow-hidden`}>
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,hsl(var(--gold)/0.25),transparent_55%)]" />
-                    <div className="absolute top-4 right-4">
+                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
                       <Badge className="bg-gold text-primary-deep hover:bg-gold font-bold tracking-wide">{p.code}</Badge>
+                      <StatusBadge status={(p as any).status} />
                     </div>
                     <div className="absolute bottom-5 right-5 grid h-16 w-16 place-items-center rounded-2xl bg-white/15 backdrop-blur-md text-primary-foreground shadow-elegant ring-1 ring-white/20">
                       <Icon className="h-8 w-8" strokeWidth={2} />
@@ -135,9 +136,10 @@ function DepartmentsPage() {
                     <p className="mt-4 text-sm text-muted-foreground leading-7 line-clamp-3">{p.description_ar}</p>
 
                     <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{meta.degree}</span>
-                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{meta.years} سنوات</span>
+                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{p.degree_type || meta.degree}</span>
+                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{p.years ?? meta.years} سنوات</span>
                     </div>
+
 
                     <Link
                       to="/departments/$code"
