@@ -1,6 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ComingSoon } from "@/components/admin/ComingSoon";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
+// Deprecated route — unified under /admin/departments (Programs tab)
 export const Route = createFileRoute("/admin/programs")({
-  component: () => <ComingSoon title="الأقسام والبرامج" description="إدارة البرامج الأكاديمية والأقسام." />,
+  beforeLoad: () => {
+    throw redirect({ to: "/admin/departments" });
+  },
 });
