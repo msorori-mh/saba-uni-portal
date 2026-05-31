@@ -120,3 +120,18 @@ export const pageBySlugQuery = (slug: string) =>
     },
     staleTime: 1000 * 60 * 5,
   });
+
+export const researchPapersQuery = queryOptions({
+  queryKey: ["research_papers"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("research_papers")
+      .select("*, faculty:faculty_id(id, full_name_ar), programs:program_id(code, name_ar)")
+      .eq("is_published", true)
+      .order("publication_year", { ascending: false })
+      .order("sort_order");
+    if (error) throw error;
+    return data;
+  },
+  staleTime: 1000 * 60 * 5,
+});
