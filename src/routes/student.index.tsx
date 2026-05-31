@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
+import { StudentRequestsSection } from "@/components/portal/StudentRequestsSection";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type StudentRow = {
@@ -273,6 +274,8 @@ function StudentDashboard() {
               </h2>
               <UnofficialTranscript studentProfileId={profile.id} />
             </div>
+
+            <StudentRequestsSection studentProfileId={profile.id} />
 
 
 

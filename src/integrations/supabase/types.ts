@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      absence_excuse_details: {
+        Row: {
+          absence_date: string
+          course_section_id: string
+          created_at: string
+          id: string
+          reason_type: string
+          request_id: string
+          updated_at: string
+        }
+        Insert: {
+          absence_date: string
+          course_section_id: string
+          created_at?: string
+          id?: string
+          reason_type?: string
+          request_id: string
+          updated_at?: string
+        }
+        Update: {
+          absence_date?: string
+          course_section_id?: string
+          created_at?: string
+          id?: string
+          reason_type?: string
+          request_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       academic_levels: {
         Row: {
           created_at: string
@@ -1355,6 +1385,81 @@ export type Database = {
           },
         ]
       }
+      student_request_attachments: {
+        Row: {
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          request_id: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          request_id: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          request_id?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      student_requests: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          rejection_reason: string | null
+          request_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_profile_id: string
+          submitted_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          rejection_reason?: string | null
+          request_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_profile_id: string
+          submitted_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          rejection_reason?: string | null
+          request_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_profile_id?: string
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       study_plan_courses: {
         Row: {
           course_id: string
@@ -1640,6 +1745,10 @@ export type Database = {
         Args: { _program_id: string; _user_id: string }
         Returns: boolean
       }
+      is_dept_head_of_request: {
+        Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_dept_head_of_section: {
         Args: { _section_id: string; _user_id: string }
         Returns: boolean
@@ -1648,8 +1757,16 @@ export type Database = {
         Args: { _enrollment_id: string; _user_id: string }
         Returns: boolean
       }
+      is_faculty_of_request: {
+        Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_faculty_of_section: {
         Args: { _section_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_owner_of_request: {
+        Args: { _request_id: string; _user_id: string }
         Returns: boolean
       }
       is_student_of_enrollment: {
