@@ -28,9 +28,23 @@ type PlanCourseRow = {
 
 type AcademicStatus = {
   enrollment_status: string;
+  academic_year_id: string;
+  semester_id: string;
+  level_id: string;
   academic_year: { name: string } | null;
   semester: { name: string } | null;
   level: { name: string; level_number: number } | null;
+};
+
+type ScheduleSlot = {
+  day_of_week: string; start_time: string; end_time: string;
+  room: string | null; schedule_type: string;
+};
+type ScheduleRow = {
+  section_id: string; section_code: string;
+  course_code: string; course_name: string;
+  faculty_name: string | null;
+  slots: ScheduleSlot[];
 };
 
 async function fetchMyProfile(): Promise<StudentRow | null> {
@@ -48,13 +62,45 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
 async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus | null> {
   const { data, error } = await supabase
     .from("student_academic_status")
-    .select("enrollment_status, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
+    .select("enrollment_status, academic_year_id, semester_id, level_id, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
     .eq("student_profile_id", studentId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
   return data as unknown as AcademicStatus;
+}
+
+async function fetchMySchedule(programId: string, yearId: string, semId: string, levelId: string): Promise<ScheduleRow[]> {
+  const { data: offerings, error: oErr } = await supabase
+    .from("course_offerings")
+    .select("id, course:courses(code, name_ar)")
+    .eq("program_id", programId)
+    .eq("academic_year_id", yearId)
+    .eq("semester_id", semId)
+    .eq("level_id", levelId)
+    .eq("status", "active");
+  if (oErr) throw oErr;
+  const offeringIds = (offerings ?? []).map((o: { id: string }) => o.id);
+  if (offeringIds.length === 0) return [];
+  const { data: sections, error: sErr } = await supabase
+    .from("course_sections")
+    .select("id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .in("course_offering_id", offeringIds)
+    .eq("status", "active");
+  if (sErr) throw sErr;
+  type RawOff = { id: string; course: { code: string; name_ar: string } | null };
+  type RawSec = { id: string; section_code: string; course_offering_id: string; faculty: { full_name_ar: string } | null; schedule: ScheduleSlot[] };
+  const offMap = new Map((offerings as unknown as RawOff[]).map((o) => [o.id, o.course]));
+  return ((sections ?? []) as unknown as RawSec[]).map((s) => {
+    const c = offMap.get(s.course_offering_id);
+    return {
+      section_id: s.id, section_code: s.section_code,
+      course_code: c?.code ?? "—", course_name: c?.name_ar ?? "—",
+      faculty_name: s.faculty?.full_name_ar ?? null,
+      slots: s.schedule ?? [],
+    };
+  });
 }
 
 async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
