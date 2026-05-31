@@ -42,8 +42,8 @@ export function Header() {
             <Link
               key={item.to}
               to={item.to}
-              className="px-3 py-2 text-sm font-semibold text-foreground/75 rounded-md transition-colors hover:text-primary hover:bg-secondary"
-              activeProps={{ className: "px-3 py-2 text-sm font-semibold rounded-md text-primary bg-secondary" }}
+              className="relative px-3 py-2 text-sm font-semibold text-foreground/75 rounded-md transition-colors hover:text-primary after:absolute after:left-3 after:right-3 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-transparent"
+              activeProps={{ className: "relative px-3 py-2 text-sm font-semibold rounded-md text-primary after:absolute after:left-3 after:right-3 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-gold-gradient" }}
               activeOptions={{ exact: item.to === "/" }}
             >
               {item.label}
