@@ -275,6 +275,8 @@ function StudentDashboard() {
               <UnofficialTranscript studentProfileId={profile.id} />
             </div>
 
+            <StudentRequestsSection studentProfileId={profile.id} />
+
 
 
             <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
