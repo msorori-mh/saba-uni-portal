@@ -310,3 +310,58 @@ function StudyPlanSection({ rows }: { rows: PlanCourseRow[] }) {
     </div>
   );
 }
+
+const DAY_LABELS: Record<string, string> = {
+  saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
+  wednesday: "الأربعاء", thursday: "الخميس", friday: "الجمعة",
+};
+const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
+const DAY_ORDER = ["saturday","sunday","monday","tuesday","wednesday","thursday","friday"];
+
+function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
+  if (!rows || rows.length === 0) return null;
+  // Flatten to day -> slots
+  type Flat = { day: string; start: string; end: string; room: string | null; type: string; course: string; section: string; faculty: string | null };
+  const flat: Flat[] = [];
+  for (const r of rows) for (const s of r.slots) flat.push({
+    day: s.day_of_week, start: s.start_time, end: s.end_time, room: s.room, type: s.schedule_type,
+    course: `${r.course_code} — ${r.course_name}`, section: r.section_code, faculty: r.faculty_name,
+  });
+  const byDay = new Map<string, Flat[]>();
+  for (const d of DAY_ORDER) byDay.set(d, []);
+  for (const f of flat) byDay.get(f.day)?.push(f);
+
+  return (
+    <div className="mt-6">
+      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+        <CalendarClock className="h-4 w-4 text-gold" /> الجدول الدراسي العام
+      </h2>
+      <div className="space-y-2">
+        {DAY_ORDER.map((d) => {
+          const items = (byDay.get(d) ?? []).sort((a, b) => a.start.localeCompare(b.start));
+          if (items.length === 0) return null;
+          return (
+            <div key={d} className="rounded-lg border bg-card overflow-hidden">
+              <div className="px-3 py-1.5 bg-muted/40 text-xs font-bold text-primary border-b">{DAY_LABELS[d]}</div>
+              <div className="divide-y">
+                {items.map((it, i) => (
+                  <div key={i} className="p-2.5 flex items-center gap-2 text-xs">
+                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{it.start.slice(0,5)}-{it.end.slice(0,5)}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold truncate">{it.course}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        شعبة {it.section}{it.faculty && <> • {it.faculty}</>}{it.room && <> • {it.room}</>}
+                      </div>
+                    </div>
+                    <span className="text-[10px] border bg-muted/40 px-1.5 py-0.5 rounded shrink-0">{TYPE_LABELS[it.type] ?? it.type}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
