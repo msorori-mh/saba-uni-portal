@@ -177,6 +177,7 @@ export type Database = {
         Row: {
           bio_ar: string | null
           bio_en: string | null
+          category: string
           created_at: string
           degree: string | null
           email: string | null
@@ -191,11 +192,13 @@ export type Database = {
           rank: string | null
           sort_order: number
           specialization: string | null
+          start_year: number | null
           updated_at: string
         }
         Insert: {
           bio_ar?: string | null
           bio_en?: string | null
+          category?: string
           created_at?: string
           degree?: string | null
           email?: string | null
@@ -210,11 +213,13 @@ export type Database = {
           rank?: string | null
           sort_order?: number
           specialization?: string | null
+          start_year?: number | null
           updated_at?: string
         }
         Update: {
           bio_ar?: string | null
           bio_en?: string | null
+          category?: string
           created_at?: string
           degree?: string | null
           email?: string | null
@@ -229,6 +234,7 @@ export type Database = {
           rank?: string | null
           sort_order?: number
           specialization?: string | null
+          start_year?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -347,6 +353,7 @@ export type Database = {
           name_ar: string
           name_en: string | null
           sort_order: number
+          status: string
           study_plan: Json | null
           updated_at: string
           years: number | null
@@ -366,6 +373,7 @@ export type Database = {
           name_ar: string
           name_en?: string | null
           sort_order?: number
+          status?: string
           study_plan?: Json | null
           updated_at?: string
           years?: number | null
@@ -385,6 +393,7 @@ export type Database = {
           name_ar?: string
           name_en?: string | null
           sort_order?: number
+          status?: string
           study_plan?: Json | null
           updated_at?: string
           years?: number | null

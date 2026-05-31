@@ -34,10 +34,30 @@ const ICONS: Record<string, React.ComponentType<{ className?: string; strokeWidt
 // Per-program visual + meta hints (image gradient + degree/duration)
 const PROGRAM_META: Record<string, { gradient: string; degree: string; years: number }> = {
   CS:  { gradient: "from-primary via-primary-deep to-[hsl(220_70%_18%)]", degree: "بكالوريوس", years: 4 },
+  IT:  { gradient: "from-[hsl(200_60%_28%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
   CIS: { gradient: "from-[hsl(195_70%_30%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
   CYB: { gradient: "from-[hsl(220_50%_20%)] via-[hsl(220_60%_25%)] to-primary-deep", degree: "بكالوريوس", years: 4 },
   AI:  { gradient: "from-[hsl(260_50%_30%)] via-primary to-primary-deep", degree: "بكالوريوس", years: 4 },
+  MCS: { gradient: "from-[hsl(240_55%_25%)] via-primary to-primary-deep", degree: "ماجستير", years: 2 },
+  MIT: { gradient: "from-[hsl(180_55%_25%)] via-primary to-primary-deep", degree: "ماجستير", years: 2 },
 };
+
+const STATUS_LABEL: Record<string, { label: string; tone: "active" | "warn" | "muted" }> = {
+  active: { label: "فعّال", tone: "active" },
+  launching_2026_2027: { label: "قيد التدشين 2026-2027", tone: "warn" },
+  under_review: { label: "قيد التحديث", tone: "muted" },
+};
+
+function StatusBadge({ status }: { status?: string | null }) {
+  const meta = STATUS_LABEL[status ?? "active"] ?? STATUS_LABEL.active;
+  const cls =
+    meta.tone === "active"
+      ? "bg-emerald-500/15 text-emerald-700 border border-emerald-600/30 dark:text-emerald-300"
+      : meta.tone === "warn"
+      ? "bg-amber-500/15 text-amber-700 border border-amber-600/30 dark:text-amber-300"
+      : "bg-muted text-muted-foreground border border-border";
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold ${cls}`}>{meta.label}</span>;
+}
 
 function DepartmentsPage() {
   const { data: programs, isLoading } = useQuery(programsQuery);
@@ -101,8 +121,9 @@ function DepartmentsPage() {
                   {/* Image placeholder */}
                   <div className={`relative h-48 bg-gradient-to-br ${meta.gradient} overflow-hidden`}>
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_30%,hsl(var(--gold)/0.25),transparent_55%)]" />
-                    <div className="absolute top-4 right-4">
+                    <div className="absolute top-4 right-4 flex flex-col items-end gap-2">
                       <Badge className="bg-gold text-primary-deep hover:bg-gold font-bold tracking-wide">{p.code}</Badge>
+                      <StatusBadge status={(p as any).status} />
                     </div>
                     <div className="absolute bottom-5 right-5 grid h-16 w-16 place-items-center rounded-2xl bg-white/15 backdrop-blur-md text-primary-foreground shadow-elegant ring-1 ring-white/20">
                       <Icon className="h-8 w-8" strokeWidth={2} />
@@ -115,16 +136,17 @@ function DepartmentsPage() {
                     <p className="mt-4 text-sm text-muted-foreground leading-7 line-clamp-3">{p.description_ar}</p>
 
                     <div className="mt-5 flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{meta.degree}</span>
-                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{meta.years} سنوات</span>
+                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{p.degree_type || meta.degree}</span>
+                      <span className="rounded-full bg-secondary px-3 py-1 font-bold text-primary">{p.years ?? meta.years} سنوات</span>
                     </div>
+
 
                     <Link
                       to="/departments/$code"
                       params={{ code: p.code }}
                       className="mt-7 inline-flex items-center justify-center gap-2 rounded-md border-2 border-gold bg-transparent px-6 py-3 text-sm font-extrabold text-gold transition-all hover:bg-gold hover:text-primary-deep"
                     >
-                      عرض البرامج <ArrowLeft className="h-4 w-4" />
+                      عرض التفاصيل <ArrowLeft className="h-4 w-4" />
                     </Link>
                   </div>
                 </article>
@@ -238,13 +260,14 @@ function DepartmentsPage() {
                     <TableHead className="text-right font-bold text-primary">الرمز</TableHead>
                     <TableHead className="text-right font-bold text-primary">الدرجة</TableHead>
                     <TableHead className="text-right font-bold text-primary">المدة</TableHead>
+                    <TableHead className="text-right font-bold text-primary">الحالة</TableHead>
                     <TableHead className="text-right font-bold text-primary"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                         لا توجد نتائج مطابقة.
                       </TableCell>
                     </TableRow>
@@ -257,8 +280,9 @@ function DepartmentsPage() {
                           <TableCell>
                             <Badge variant="outline" className="border-gold text-gold">{p.code}</Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{meta.degree}</TableCell>
-                          <TableCell className="text-muted-foreground">{meta.years} سنوات</TableCell>
+                          <TableCell className="text-muted-foreground">{p.degree_type || meta.degree}</TableCell>
+                          <TableCell className="text-muted-foreground">{p.years ?? meta.years} سنوات</TableCell>
+                          <TableCell><StatusBadge status={(p as any).status} /></TableCell>
                           <TableCell>
                             <Link
                               to="/departments/$code"

@@ -1,7 +1,26 @@
 import { Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin, GraduationCap } from "lucide-react";
+import { settingsQuery } from "@/lib/queries";
 
 export function Footer() {
+  const { data: s = {} } = useQuery(settingsQuery);
+
+  const socials = [
+    { key: "facebook_url", Icon: Facebook, label: "Facebook" },
+    { key: "twitter_url", Icon: Twitter, label: "Twitter" },
+    { key: "youtube_url", Icon: Youtube, label: "YouTube" },
+    { key: "linkedin_url", Icon: Linkedin, label: "LinkedIn" },
+  ].filter((x) => {
+    const v = (s[x.key] ?? "").trim();
+    return v.length > 0 && /^https?:\/\//i.test(v);
+  });
+
+  const phone = s.contact_phone || "";
+  const email = s.contact_email || "";
+  const address = s.contact_address || "مأرب، الجمهورية اليمنية";
+  const universityName = s.university_name_ar || "جامعة إقليم سبأ";
+
   return (
     <footer className="bg-primary-deep text-primary-foreground mt-20 border-t-4 border-gold">
       <div className="container mx-auto grid gap-10 px-4 py-14 md:grid-cols-2 lg:grid-cols-4">
@@ -33,32 +52,52 @@ export function Footer() {
           <div className="font-display text-xl font-extrabold text-gold mb-3">تواصل معنا</div>
           <div className="divider-gold mb-4" />
           <ul className="space-y-3 text-sm text-primary-foreground/75">
-            <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-gold shrink-0" /><span>مأرب، الجمهورية اليمنية</span></li>
-            <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-gold shrink-0" /><span dir="ltr">+967 1 234 5678</span></li>
-            <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-gold shrink-0" /><span>it@usr.edu.ye</span></li>
-            <li className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-gold shrink-0" /><span>جامعة إقليم سبأ</span></li>
+            <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-gold shrink-0" /><span>{address}</span></li>
+            {phone && (
+              <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-gold shrink-0" /><span dir="ltr">{phone}</span></li>
+            )}
+            {email && (
+              <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-gold shrink-0" /><span dir="ltr">{email}</span></li>
+            )}
+            <li className="flex items-center gap-2"><GraduationCap className="h-4 w-4 text-gold shrink-0" /><span>{universityName}</span></li>
           </ul>
         </div>
 
-        {/* Social */}
+        {/* Social — only render if real verified links exist */}
         <div>
           <div className="font-display text-xl font-extrabold text-gold mb-3">تابعنا</div>
           <div className="divider-gold mb-4" />
-          <p className="text-sm text-primary-foreground/70 leading-7 mb-4">
-            تابع آخر أخبار الكلية وفعالياتها عبر منصات التواصل الاجتماعي.
-          </p>
-          <div className="flex items-center gap-3">
-            <a href="#" aria-label="Facebook" className="grid h-10 w-10 place-items-center rounded-md bg-white/10 hover:bg-gold hover:text-primary-deep transition-colors"><Facebook className="h-4 w-4" /></a>
-            <a href="#" aria-label="Twitter" className="grid h-10 w-10 place-items-center rounded-md bg-white/10 hover:bg-gold hover:text-primary-deep transition-colors"><Twitter className="h-4 w-4" /></a>
-            <a href="#" aria-label="YouTube" className="grid h-10 w-10 place-items-center rounded-md bg-white/10 hover:bg-gold hover:text-primary-deep transition-colors"><Youtube className="h-4 w-4" /></a>
-            <a href="#" aria-label="LinkedIn" className="grid h-10 w-10 place-items-center rounded-md bg-white/10 hover:bg-gold hover:text-primary-deep transition-colors"><Linkedin className="h-4 w-4" /></a>
-          </div>
+          {socials.length > 0 ? (
+            <>
+              <p className="text-sm text-primary-foreground/70 leading-7 mb-4">
+                تابع آخر أخبار الكلية وفعالياتها عبر منصات التواصل الاجتماعي.
+              </p>
+              <div className="flex items-center gap-3">
+                {socials.map(({ key, Icon, label }) => (
+                  <a
+                    key={key}
+                    href={s[key]}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    aria-label={label}
+                    className="grid h-10 w-10 place-items-center rounded-md bg-white/10 hover:bg-gold hover:text-primary-deep transition-colors"
+                  >
+                    <Icon className="h-4 w-4" />
+                  </a>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-primary-foreground/60 leading-7">
+              سيتم نشر روابط حسابات الكلية على منصات التواصل الاجتماعي قريباً.
+            </p>
+          )}
         </div>
       </div>
 
       <div className="border-t border-gold/30">
         <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 px-4 py-4 text-xs text-primary-foreground/60">
-          <div>جامعة إقليم سبأ — كلية تكنولوجيا المعلومات © {new Date().getFullYear()}</div>
+          <div>{universityName} — كلية تكنولوجيا المعلومات © {new Date().getFullYear()}</div>
           <div className="text-gold/80">جميع الحقوق محفوظة</div>
         </div>
       </div>
