@@ -52,7 +52,9 @@ export function Footer() {
           <div className="font-display text-xl font-extrabold text-gold mb-3">تواصل معنا</div>
           <div className="divider-gold mb-4" />
           <ul className="space-y-3 text-sm text-primary-foreground/75">
-            <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-gold shrink-0" /><span>{address}</span></li>
+            {address && (
+              <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-gold shrink-0" /><span>{address}</span></li>
+            )}
             {phone && (
               <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-gold shrink-0" /><span dir="ltr">{phone}</span></li>
             )}
