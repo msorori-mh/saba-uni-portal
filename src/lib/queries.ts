@@ -61,6 +61,22 @@ export const newsQuery = (limit?: number) =>
     staleTime: 1000 * 60 * 5,
   });
 
+export const newsBySlugQuery = (slug: string) =>
+  queryOptions({
+    queryKey: ["news", "slug", slug],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("news")
+        .select("*")
+        .eq("slug", slug)
+        .eq("is_published", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
+
 export const eventsQuery = (limit?: number) =>
   queryOptions({
     queryKey: ["events", limit ?? "all"],
