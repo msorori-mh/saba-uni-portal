@@ -74,6 +74,50 @@ export type Database = {
         }
         Relationships: []
       }
+      class_schedule: {
+        Row: {
+          course_section_id: string
+          created_at: string
+          day_of_week: string
+          end_time: string
+          id: string
+          room: string | null
+          schedule_type: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          course_section_id: string
+          created_at?: string
+          day_of_week: string
+          end_time: string
+          id?: string
+          room?: string | null
+          schedule_type?: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          course_section_id?: string
+          created_at?: string
+          day_of_week?: string
+          end_time?: string
+          id?: string
+          room?: string | null
+          schedule_type?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_schedule_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "course_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contact_messages: {
         Row: {
           created_at: string
@@ -106,6 +150,90 @@ export type Database = {
           subject?: string
         }
         Relationships: []
+      }
+      course_offerings: {
+        Row: {
+          academic_year_id: string
+          course_id: string
+          created_at: string
+          id: string
+          level_id: string
+          program_id: string
+          semester_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year_id: string
+          course_id: string
+          created_at?: string
+          id?: string
+          level_id: string
+          program_id: string
+          semester_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year_id?: string
+          course_id?: string
+          created_at?: string
+          id?: string
+          level_id?: string
+          program_id?: string
+          semester_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      course_sections: {
+        Row: {
+          capacity: number | null
+          course_offering_id: string
+          created_at: string
+          faculty_profile_id: string | null
+          id: string
+          section_code: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          course_offering_id: string
+          created_at?: string
+          faculty_profile_id?: string | null
+          id?: string
+          section_code: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          course_offering_id?: string
+          created_at?: string
+          faculty_profile_id?: string | null
+          id?: string
+          section_code?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_sections_course_offering_id_fkey"
+            columns: ["course_offering_id"]
+            isOneToOne: false
+            referencedRelation: "course_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_sections_faculty_profile_id_fkey"
+            columns: ["faculty_profile_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       courses: {
         Row: {
