@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type FacultyProfileRow = {
