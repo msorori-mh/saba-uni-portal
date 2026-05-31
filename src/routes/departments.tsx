@@ -260,13 +260,14 @@ function DepartmentsPage() {
                     <TableHead className="text-right font-bold text-primary">الرمز</TableHead>
                     <TableHead className="text-right font-bold text-primary">الدرجة</TableHead>
                     <TableHead className="text-right font-bold text-primary">المدة</TableHead>
+                    <TableHead className="text-right font-bold text-primary">الحالة</TableHead>
                     <TableHead className="text-right font-bold text-primary"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                         لا توجد نتائج مطابقة.
                       </TableCell>
                     </TableRow>
@@ -279,8 +280,9 @@ function DepartmentsPage() {
                           <TableCell>
                             <Badge variant="outline" className="border-gold text-gold">{p.code}</Badge>
                           </TableCell>
-                          <TableCell className="text-muted-foreground">{meta.degree}</TableCell>
-                          <TableCell className="text-muted-foreground">{meta.years} سنوات</TableCell>
+                          <TableCell className="text-muted-foreground">{p.degree_type || meta.degree}</TableCell>
+                          <TableCell className="text-muted-foreground">{p.years ?? meta.years} سنوات</TableCell>
+                          <TableCell><StatusBadge status={(p as any).status} /></TableCell>
                           <TableCell>
                             <Link
                               to="/departments/$code"
