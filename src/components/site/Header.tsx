@@ -26,8 +26,8 @@ export function Header() {
 
       <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-4">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="grid h-12 w-12 place-items-center rounded-lg bg-gold-gradient text-primary shadow-gold">
-            <GraduationCap className="h-7 w-7" strokeWidth={2.4} />
+          <div className="grid h-14 w-14 place-items-center rounded-lg bg-white p-1 shadow-elegant ring-1 ring-gold/40">
+            <img src={collegeLogo} alt="شعار الكلية" className="h-full w-full object-contain" />
           </div>
           <div className="leading-tight">
             <div className="font-display font-extrabold text-primary text-lg">كلية تكنولوجيا المعلومات</div>
