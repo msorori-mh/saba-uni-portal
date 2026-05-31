@@ -22,6 +22,7 @@ export type Database = {
           id: string
           is_read: boolean
           message: string
+          status: string
           subject: string
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message: string
+          status?: string
           subject: string
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           id?: string
           is_read?: boolean
           message?: string
+          status?: string
           subject?: string
         }
         Relationships: []

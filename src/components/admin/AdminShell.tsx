@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Newspaper, Users, BookOpen, FlaskConical, Calendar,
   MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft,
@@ -7,7 +8,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; badgeKey?: "new-messages" };
 
 const items: NavItem[] = [
   { to: "/admin", label: "لوحة التحكم", icon: LayoutDashboard, exact: true },
@@ -16,7 +17,7 @@ const items: NavItem[] = [
   { to: "/admin/departments", label: "الأقسام والبرامج", icon: BookOpen },
   { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
   { to: "/admin/events", label: "الفعاليات", icon: Calendar },
-  { to: "/admin/messages", label: "رسائل التواصل", icon: MessageSquare },
+  { to: "/admin/contacts", label: "رسائل التواصل", icon: MessageSquare, badgeKey: "new-messages" },
   { to: "/admin/settings", label: "الإعدادات", icon: Settings },
 ];
 
@@ -24,6 +25,18 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const { data: newMessagesCount = 0 } = useQuery({
+    queryKey: ["sidebar-new-messages"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("contact_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "new");
+      return count ?? 0;
+    },
+    refetchInterval: 60000,
+  });
 
   // close drawer on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -57,6 +70,7 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
           {items.map((item) => {
             const Icon = item.icon;
             const active = item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/");
+            const showBadge = item.badgeKey === "new-messages" && newMessagesCount > 0;
             return (
               <Link
                 key={item.to}
@@ -71,7 +85,12 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
                 {active && <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient" />}
                 <Icon className="h-4 w-4 shrink-0" />
                 <span className="flex-1">{item.label}</span>
-                {active && <ChevronLeft className="h-3.5 w-3.5 opacity-70" />}
+                {showBadge && (
+                  <span className="grid place-items-center min-w-[20px] h-5 px-1.5 rounded-full bg-gold-gradient text-primary-deep text-[10px] font-extrabold">
+                    {newMessagesCount}
+                  </span>
+                )}
+                {active && !showBadge && <ChevronLeft className="h-3.5 w-3.5 opacity-70" />}
               </Link>
             );
           })}
