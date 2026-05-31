@@ -76,7 +76,7 @@ export function FacultyGradesManager({ facultyProfileId, sections }: { facultyPr
 
   const deleteComponent = async (id: string) => {
     if (!confirm("حذف هذا المكون؟")) return;
-    const { error } = await sb.from("grade_components").delete().eq("id", id);
+    const { error } = await (sb.from("grade_components") as any).delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["fac-grade-components", sectionId] });
     qc.invalidateQueries({ queryKey: ["fac-grades", sectionId] });
