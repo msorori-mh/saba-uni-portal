@@ -162,17 +162,17 @@ function ContactPage() {
             {
               icon: MapPin,
               title: "العنوان",
-              lines: ["مأرب — الجمهورية اليمنية", "جامعة إقليم سبأ، مجمع الكليات"],
+              lines: ["الجمهورية اليمنية", "جامعة إقليم سبأ"],
             },
             {
               icon: Phone,
-              title: "الهاتف",
-              lines: ["+967 1 234 5678", "+967 7 1234 5678"],
+              title: "أرقام التواصل",
+              lines: ["6302008", "6301274", "77963595"],
             },
             {
               icon: Mail,
               title: "البريد الإلكتروني",
-              lines: ["it@usr.edu.ye", "dean.it@usr.edu.ye"],
+              lines: ["itandcs@usr.edu.ye"],
             },
           ].map((c) => (
             <div
