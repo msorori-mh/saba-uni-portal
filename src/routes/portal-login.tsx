@@ -1,36 +1,52 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useState, type FormEvent } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type FormEvent } from "react";
 import { Lock, User, ArrowLeft, HelpCircle, BookOpen, ShieldCheck } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
-import { settingsQuery } from "@/lib/queries";
+import { supabase } from "@/integrations/supabase/client";
+
+const STUDENT_EMAIL_DOMAIN = "students.usr.edu.ye";
 
 export const Route = createFileRoute("/portal-login")({
   head: () => ({
     meta: [
       { title: "بوابة الطالب — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
       { name: "description", content: "تسجيل الدخول إلى بوابة الطالب الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب." },
+      { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(settingsQuery),
   component: PortalLoginPage,
 });
 
 function PortalLoginPage() {
-  const { data: settings = {} } = useQuery(settingsQuery);
+  const navigate = useNavigate();
   const [studentId, setStudentId] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const portalUrl = settings.portal_link || "https://portal.it.saba.edu.ye";
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!cancelled && data.user) navigate({ to: "/student", replace: true });
+    })();
+    return () => { cancelled = true; };
+  }, [navigate]);
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!studentId || !password) return;
+    if (!studentId.trim() || !password) return;
+    setError(null);
     setLoading(true);
-    setTimeout(() => {
-      window.location.href = portalUrl;
-    }, 600);
+    try {
+      const email = `${studentId.trim()}@${STUDENT_EMAIL_DOMAIN}`;
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError || !data.user) throw new Error("invalid");
+      navigate({ to: "/student", replace: true });
+    } catch {
+      setError("الرقم الأكاديمي أو كلمة المرور غير صحيحة");
+      setLoading(false);
+    }
   };
 
   return (
