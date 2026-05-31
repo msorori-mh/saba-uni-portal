@@ -7,7 +7,9 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-const items = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+
+const items: NavItem[] = [
   { to: "/admin", label: "لوحة التحكم", icon: LayoutDashboard, exact: true },
   { to: "/admin/news", label: "الأخبار", icon: Newspaper },
   { to: "/admin/faculty", label: "هيئة التدريس", icon: Users },
@@ -16,7 +18,7 @@ const items = [
   { to: "/admin/events", label: "الفعاليات", icon: Calendar },
   { to: "/admin/messages", label: "رسائل التواصل", icon: MessageSquare },
   { to: "/admin/settings", label: "الإعدادات", icon: Settings },
-] as const;
+];
 
 export function AdminShell({ children, userEmail }: { children: React.ReactNode; userEmail: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
