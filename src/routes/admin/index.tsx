@@ -177,6 +177,15 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "صحة النظام",
+      cards: [
+        { label: "حالة العمليات", value: 1, icon: Activity, to: "/admin/operations" },
+        { label: "حالة النسخ الاحتياطي", value: 1, icon: Database, to: "/admin/backup-status" },
+        { label: "التنبيهات الحرجة", value: (counts.importsFailed ?? 0) + (counts.feesPending > 50 ? 1 : 0), icon: ShieldAlert, to: "/admin/operations" },
+        { label: "جاهزية الاسترجاع", value: 1, icon: HardDrive, to: "/admin/operations" },
+      ],
+    },
+    {
       title: "إحصائيات أكاديمية",
       cards: [
         { label: "البرامج", value: counts.programs, icon: GraduationCap },
