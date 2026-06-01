@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { exportCsv, exportXlsx, type ExportRow } from "@/lib/reports/export";
+import { exportCsv, exportXlsx, logReportView, type ExportRow } from "@/lib/reports/export";
 import { cn } from "@/lib/utils";
 import {
   GraduationCap, BookOpen, CalendarDays, ClipboardList, Users,
   FileWarning, Wallet, TrendingUp, Loader2, FileDown,
+  ArrowUpDown, Search, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/reports")({
@@ -78,27 +79,78 @@ function ReportTable({
   columns,
   rows,
   loading,
+  pageSize = 50,
 }: {
   title: string;
   reportName: string;
   columns: Array<{ key: string; label: string; numeric?: boolean }>;
   rows: Array<Record<string, any>>;
   loading?: boolean;
+  pageSize?: number;
 }) {
-  const exportRows: ExportRow[] = rows.map((r) => {
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(1);
+
+  const enableControls = rows.length > 100;
+
+  const filtered = useMemo(() => {
+    if (!enableControls || !search.trim()) return rows;
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) =>
+      columns.some((c) => String(r[c.key] ?? "").toLowerCase().includes(q)),
+    );
+  }, [rows, search, columns, enableControls]);
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      const av = a[sortKey], bv = b[sortKey];
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv), "ar") * dir;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = enableControls ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1;
+  const currentPage = Math.min(page, totalPages);
+  const display = enableControls
+    ? sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : sorted;
+
+  const exportRows: ExportRow[] = sorted.map((r) => {
     const o: ExportRow = {};
     for (const c of columns) o[c.label] = r[c.key];
     return o;
   });
 
+  const toggleSort = (key: string) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
   return (
     <div className="rounded-xl bg-card border border-border shadow-card overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
         <div className="font-display text-sm font-bold text-primary">{title}</div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {enableControls && (
+            <div className="relative">
+              <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="بحث..."
+                className="h-8 w-40 rounded-md border border-border bg-background pe-7 ps-2 text-xs"
+              />
+            </div>
+          )}
           <button
             type="button"
-            disabled={!rows.length}
+            disabled={!sorted.length}
             onClick={() => exportCsv(reportName, exportRows)}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-secondary disabled:opacity-50"
           >
@@ -106,7 +158,7 @@ function ReportTable({
           </button>
           <button
             type="button"
-            disabled={!rows.length}
+            disabled={!sorted.length}
             onClick={() => exportXlsx(reportName, exportRows)}
             className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-secondary disabled:opacity-50"
           >
@@ -118,33 +170,70 @@ function ReportTable({
         <div className="p-8 text-center text-sm text-muted-foreground">
           <Loader2 className="inline h-4 w-4 animate-spin me-2" /> جاري التحميل...
         </div>
-      ) : rows.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <div className="p-8 text-center text-sm text-muted-foreground">لا توجد بيانات.</div>
       ) : (
-        <div className="overflow-x-auto max-h-[480px]">
-          <table className="w-full text-sm">
-            <thead className="bg-secondary/50 text-xs sticky top-0">
-              <tr>
-                {columns.map((c) => (
-                  <th key={c.key} className={cn("px-4 py-2 font-bold", c.numeric ? "text-left" : "text-right")}>
-                    {c.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-t border-border hover:bg-secondary/30">
+        <>
+          <div className="overflow-x-auto max-h-[480px]">
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/50 text-xs sticky top-0">
+                <tr>
                   {columns.map((c) => (
-                    <td key={c.key} className={cn("px-4 py-2 text-xs", c.numeric ? "text-left font-mono" : "text-right")}>
-                      {r[c.key] ?? "—"}
-                    </td>
+                    <th
+                      key={c.key}
+                      onClick={() => toggleSort(c.key)}
+                      className={cn(
+                        "px-4 py-2 font-bold cursor-pointer select-none hover:bg-secondary/80",
+                        c.numeric ? "text-left" : "text-right",
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {c.label}
+                        <ArrowUpDown className={cn("h-3 w-3", sortKey === c.key ? "text-primary" : "text-muted-foreground/50")} />
+                      </span>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {display.map((r, i) => (
+                  <tr key={i} className="border-t border-border hover:bg-secondary/30">
+                    {columns.map((c) => (
+                      <td key={c.key} className={cn("px-4 py-2 text-xs", c.numeric ? "text-left font-mono" : "text-right")}>
+                        {r[c.key] ?? "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {enableControls && (
+            <div className="flex items-center justify-between px-4 py-2 border-t border-border text-xs">
+              <div className="text-muted-foreground">
+                {sorted.length.toLocaleString("ar-EG")} سجل · صفحة {currentPage} من {totalPages}
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/40 px-2 py-1 font-bold disabled:opacity-40"
+                >
+                  <ChevronRight className="h-3 w-3" /> السابق
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/40 px-2 py-1 font-bold disabled:opacity-40"
+                >
+                  التالي <ChevronLeft className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -709,6 +798,11 @@ function FinancialTab() {
 // ===================================================================
 function ReportsPage() {
   const [tab, setTab] = useState<TabId>("academic");
+
+  useEffect(() => {
+    logReportView(`tab_${tab}`);
+  }, [tab]);
+
   const content = useMemo(() => {
     switch (tab) {
       case "academic":    return <AcademicTab />;

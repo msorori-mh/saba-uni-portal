@@ -1,6 +1,6 @@
 // Phase 10B: client-side export utilities for reports (CSV + XLSX).
 import * as XLSX from "xlsx";
-import { logReportExport } from "./report-audit.functions";
+import { logReportEvent } from "./report-audit.functions";
 
 export type ExportRow = Record<string, string | number | null | undefined>;
 
@@ -10,9 +10,17 @@ function safeFilename(name: string) {
 
 async function audit(reportName: string, format: "csv" | "xlsx", rows: ExportRow[]) {
   try {
-    await logReportExport({
-      data: { reportName, format, rowCount: rows.length },
+    await logReportEvent({
+      data: { reportName, action: "report_exported", format, rowCount: rows.length },
     });
+  } catch {
+    // best-effort
+  }
+}
+
+export async function logReportView(reportName: string) {
+  try {
+    await logReportEvent({ data: { reportName, action: "report_viewed" } });
   } catch {
     // best-effort
   }
