@@ -83,6 +83,14 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    id: "reports",
+    label: "التقارير والتحليلات",
+    icon: BarChart3,
+    items: [
+      { to: "/admin/reports", label: "مركز التقارير", icon: BarChart3 },
+    ],
+  },
+  {
     id: "site",
     label: "إدارة الموقع",
     icon: Globe,
