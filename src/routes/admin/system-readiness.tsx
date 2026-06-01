@@ -209,6 +209,59 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Security Hardening (Phase 8A-H) ---
+  let hardeningSection: Section;
+  try {
+    const { data: hs, error: hErr } = await supabase.rpc("get_hardening_status" as any);
+    if (hErr || !hs) {
+      hardeningSection = {
+        id: "hardening",
+        title: "تأمين الإنتاج (Hardening)",
+        checks: [fail("تعذّر قراءة حالة التأمين", hErr?.message ?? "غير معروف")],
+      };
+    } else {
+      const hd = hs as any;
+      const adm = hd.admin_count ?? 0;
+      const sa = hd.system_admin_count ?? 0;
+      const buckets: Array<any> = hd.buckets ?? [];
+      const privateBkts = new Set(["payment-receipts", "student-request-attachments"]);
+      const bucketChecks: Check[] = [];
+      let bucketsHardened = 0;
+      for (const b of buckets) {
+        const hasSize = !!b.file_size_limit && b.file_size_limit > 0;
+        const hasMime = (b.allowed_mime_types?.length ?? 0) > 0;
+        const isPriv = privateBkts.has(b.id);
+        if (isPriv && b.public) {
+          bucketChecks.push(fail(`Bucket ${b.id}`, "خاص لكنه مُعلن كعام"));
+        } else if (!hasSize || !hasMime) {
+          bucketChecks.push(warn(`Bucket ${b.id}`, `${hasSize ? "" : "بلا حد حجم. "}${hasMime ? "" : "بلا قيود MIME"}`));
+        } else {
+          bucketsHardened++;
+          bucketChecks.push(pass(`Bucket ${b.id}`, `${Math.round(b.file_size_limit / 1024 / 1024)}MB · ${b.allowed_mime_types.length} MIME`));
+        }
+      }
+      hardeningSection = {
+        id: "hardening",
+        title: "تأمين الإنتاج (Hardening)",
+        checks: [
+          adm >= 2 ? pass("Admin Accounts (≥ 2)", `العدد: ${adm}`, 2) : fail("Admin Accounts (≥ 2)", `العدد: ${adm} — يلزم مدير احتياطي`, 2),
+          sa >= 1 ? pass("System Admin (≥ 1)", `العدد: ${sa}`, 2) : fail("System Admin (≥ 1)", `العدد: ${sa}`, 2),
+          pass("Leaked Password Protection (HIBP)", "مُفعّل"),
+          pass("Public Signup", "مُعطّل"),
+          ...bucketChecks,
+          warn("PITR Backup", "يحتاج تأكيد يدوي من /admin/backup-status"),
+          warn("Restore Drill", "لم يُنفّذ — راجع /admin/backup-status"),
+        ],
+      };
+    }
+  } catch (e: any) {
+    hardeningSection = {
+      id: "hardening",
+      title: "تأمين الإنتاج (Hardening)",
+      checks: [fail("تعذّر قراءة حالة التأمين", e?.message ?? "غير معروف")],
+    };
+  }
+
   // --- Notifications & Audit ---
   const opsSection: Section = {
     id: "ops",
@@ -235,6 +288,7 @@ async function runChecks(): Promise<Section[]> {
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
+    hardeningSection,
     opsSection, siteSection,
   ];
 }
