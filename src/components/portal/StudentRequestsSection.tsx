@@ -724,3 +724,116 @@ function ExtraChanceModal({
   );
 }
 
+function TransferModal({
+  studentProfileId, onClose, onSaved,
+}: {
+  studentProfileId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const { data: profile } = useQuery({
+    queryKey: ["transfer-my-profile", studentProfileId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("student_profiles")
+        .select("program_id, department_id, program:programs(name_ar), department:departments(name_ar)")
+        .eq("id", studentProfileId)
+        .maybeSingle();
+      return data as null | {
+        program_id: string | null; department_id: string | null;
+        program: { name_ar: string } | null; department: { name_ar: string } | null;
+      };
+    },
+  });
+
+  const { data: programs = [] } = useQuery({
+    queryKey: ["transfer-programs"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("programs")
+        .select("id, name_ar, department_id, department:departments(name_ar)")
+        .eq("is_active", true)
+        .order("name_ar");
+      return (data ?? []) as { id: string; name_ar: string; department_id: string | null; department: { name_ar: string } | null }[];
+    },
+  });
+
+  const [requestedProgramId, setRequestedProgramId] = useState<string>("");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const selectableTargets = programs.filter((p) => p.id !== profile?.program_id);
+  const target = programs.find((p) => p.id === requestedProgramId) ?? null;
+
+  const save = async (submit: boolean) => {
+    if (!profile?.program_id) { toast.error("لا يمكن تحديد برنامجك الحالي"); return; }
+    if (!requestedProgramId) { toast.error("اختر البرنامج المطلوب"); return; }
+    if (requestedProgramId === profile.program_id) { toast.error("البرنامج المطلوب مماثل للحالي"); return; }
+    if (!reason.trim()) { toast.error("أدخل سبب التحويل"); return; }
+    setBusy(true);
+    try {
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "transfer",
+        title: "طلب تحويل داخلي",
+        description: notes || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("transfer_request_details").insert({
+        request_id: created.id,
+        current_program_id: profile.program_id,
+        requested_program_id: requestedProgramId,
+        current_department_id: profile.department_id,
+        requested_department_id: target?.department_id ?? null,
+        transfer_reason: reason.trim(),
+        notes: notes || null,
+      });
+      if (e2) throw e2;
+
+      if (file) await uploadAttachment(created.id, file);
+      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب تحويل داخلي" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <div className="rounded border bg-muted/30 p-2">
+          <div className="text-[10px] font-bold text-muted-foreground">برنامجك الحالي</div>
+          <div className="text-sm font-semibold">{profile?.program?.name_ar ?? "—"}</div>
+          <div className="text-[11px] text-muted-foreground">القسم: {profile?.department?.name_ar ?? "—"}</div>
+        </div>
+        <div>
+          <Label>البرنامج المطلوب <span className="text-rose-600">*</span></Label>
+          <select value={requestedProgramId} onChange={(e) => setRequestedProgramId(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm">
+            <option value="">اختر...</option>
+            {selectableTargets.map((p) => (
+              <option key={p.id} value={p.id}>{p.name_ar}</option>
+            ))}
+          </select>
+          {target && (
+            <div className="mt-1 text-[11px] text-muted-foreground">القسم المطلوب: <b>{target.department?.name_ar ?? "—"}</b></div>
+          )}
+        </div>
+        <div>
+          <Label>سبب التحويل <span className="text-rose-600">*</span></Label>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" placeholder="اذكر السبب..." />
+        </div>
+        <div>
+          <Label>ملاحظات إضافية</Label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+        </div>
+        <FilePicker file={file} setFile={setFile} />
+        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+      </div>
+    </ModalShell>
+  );
+}
+
+
