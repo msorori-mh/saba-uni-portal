@@ -338,6 +338,16 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               {req.extra_chance_details.notes && <Row label="ملاحظات" value={req.extra_chance_details.notes} />}
             </>
           )}
+          {req.transfer_details && (
+            <>
+              <Row label="البرنامج الحالي" value={req.transfer_details.current_program?.name_ar ?? "—"} />
+              <Row label="البرنامج المطلوب" value={req.transfer_details.requested_program?.name_ar ?? "—"} />
+              <Row label="القسم الحالي" value={req.transfer_details.current_department?.name_ar ?? "—"} />
+              <Row label="القسم المطلوب" value={req.transfer_details.requested_department?.name_ar ?? "—"} />
+              <Row label="سبب التحويل" value={req.transfer_details.transfer_reason} />
+              {req.transfer_details.notes && <Row label="ملاحظات" value={req.transfer_details.notes} />}
+            </>
+          )}
 
           <Row label="الحالة" value={<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>} />
           <Row label="تاريخ الإنشاء" value={new Date(req.created_at).toLocaleString("ar-EG")} />
