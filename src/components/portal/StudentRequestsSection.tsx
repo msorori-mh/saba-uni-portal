@@ -65,6 +65,22 @@ type TransferDetails = {
   requested_department: { name_ar: string } | null;
 };
 
+type EquivalencyDetails = {
+  previous_university_name: string;
+  previous_program_name: string;
+  notes: string | null;
+};
+
+type EquivalencyCourseRow = {
+  id: string;
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: number | null;
+  status: string;
+  reviewer_notes: string | null;
+  target_course: { code: string; name_ar: string } | null;
+};
+
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
@@ -73,6 +89,8 @@ type RequestRow = {
   suspension_details: SuspensionDetails | null;
   extra_chance_details: ExtraChanceDetails | null;
   transfer_details: TransferDetails | null;
+  equivalency_details: EquivalencyDetails | null;
+  equivalency_courses: EquivalencyCourseRow[];
   attachments: { id: string; file_name: string; file_url: string }[];
 };
 
