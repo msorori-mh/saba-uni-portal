@@ -95,12 +95,15 @@ function FacultyDashboard() {
               <div className="text-xs text-primary-foreground/70">كلية تكنولوجيا المعلومات وعلوم الحاسوب</div>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="inline-flex items-center gap-2 rounded-md border border-gold/40 px-4 py-2 text-sm font-bold text-gold hover:bg-gold hover:text-primary-deep transition-colors"
-          >
-            <LogOut className="h-4 w-4" /> تسجيل الخروج
-          </button>
+          <div className="flex items-center gap-2">
+            <NotificationsBell />
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-md border border-gold/40 px-4 py-2 text-sm font-bold text-gold hover:bg-gold hover:text-primary-deep transition-colors"
+            >
+              <LogOut className="h-4 w-4" /> تسجيل الخروج
+            </button>
+          </div>
         </div>
       </header>
 
