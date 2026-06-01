@@ -155,10 +155,22 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "الوثائق الرسمية",
+      cards: [
+        { label: "إجمالي الوثائق", value: counts.docsAll, icon: FileSignature, to: "/admin/documents" },
+        { label: "شهادات القيد", value: counts.docsEnroll, icon: FileBadge, to: "/admin/documents" },
+        { label: "السجلات الأكاديمية", value: counts.docsTranscript, icon: FileCheck2, to: "/admin/documents" },
+        { label: "السندات المالية", value: counts.docsReceipt, icon: Receipt, to: "/admin/documents" },
+        { label: "وثائق اليوم", value: counts.docsToday, icon: FileClock, to: "/admin/documents" },
+      ],
+    },
+    {
       title: "النظام",
       cards: [
         { label: "سجل التدقيق (آخر 24 ساعة)", value: counts.audit24h, icon: ScrollText },
         { label: "الإشعارات (آخر 24 ساعة)", value: counts.notif24h, icon: Bell },
+        { label: "وثائق صادرة اليوم", value: counts.docsIssuedToday, icon: FileSignature, to: "/admin/documents" },
+        { label: "وثائق ملغاة اليوم", value: counts.docsCancelledToday, icon: FileWarning, to: "/admin/documents" },
         { label: "طلاب نشطون", value: active?.students ?? 0, icon: ShieldCheck },
         { label: "أعضاء هيئة تدريس نشطون", value: active?.faculty ?? 0, icon: ShieldCheck },
         { label: "موظفون نشطون", value: active?.staff ?? 0, icon: ShieldCheck },
