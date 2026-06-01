@@ -1144,6 +1144,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          notification_type: string
+          reference_id: string | null
+          reference_type: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          notification_type: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          notification_type?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payment_receipts: {
         Row: {
           amount: number
@@ -2694,6 +2730,17 @@ export type Database = {
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
+      create_notification: {
+        Args: {
+          _message: string
+          _reference_id?: string
+          _reference_type?: string
+          _target_user_id: string
+          _title: string
+          _type: string
+        }
+        Returns: string
+      }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
