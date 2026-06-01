@@ -266,9 +266,23 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         <div className="space-y-2 text-sm">
           <Row label="الطالب" value={`${req.student?.full_name_ar ?? "—"} (${req.student?.academic_number ?? "—"})`} />
           <Row label="البرنامج / القسم" value={`${req.student?.program?.name_ar ?? "—"} • ${req.student?.department?.name_ar ?? "—"}`} />
-          <Row label="المقرر" value={`${req.details?.section?.offering?.course?.code ?? "—"} — ${req.details?.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.details?.section?.section_code ?? "—"})`} />
-          <Row label="تاريخ الغياب" value={req.details?.absence_date ?? "—"} />
-          <Row label="نوع العذر" value={REASON_LABEL[req.details?.reason_type ?? "other"]} />
+          {req.absence_details && (
+            <>
+              <Row label="المقرر" value={`${req.absence_details.section?.offering?.course?.code ?? "—"} — ${req.absence_details.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.absence_details.section?.section_code ?? "—"})`} />
+              <Row label="تاريخ الغياب" value={req.absence_details.absence_date} />
+              <Row label="نوع العذر" value={REASON_LABEL[req.absence_details.reason_type ?? "other"]} />
+            </>
+          )}
+          {req.suspension_details && (
+            <>
+              <Row label="السنة الأكاديمية" value={req.suspension_details.academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.suspension_details.semester?.name ?? "—"} />
+              <Row label="مدة الوقف" value={DURATION_LABEL[req.suspension_details.suspension_duration_type] ?? req.suspension_details.suspension_duration_type} />
+              <Row label="السبب" value={req.suspension_details.suspension_reason} />
+              {req.suspension_details.notes && <Row label="ملاحظات" value={req.suspension_details.notes} />}
+            </>
+          )}
+
           <Row label="الحالة" value={<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>} />
           <Row label="تاريخ الإنشاء" value={new Date(req.created_at).toLocaleString("ar-EG")} />
           {req.submitted_at && <Row label="تاريخ الإرسال" value={new Date(req.submitted_at).toLocaleString("ar-EG")} />}
