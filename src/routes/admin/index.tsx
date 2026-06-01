@@ -175,10 +175,13 @@ function AdminDashboard() {
       title: "الوثائق الرسمية",
       cards: [
         { label: "إجمالي الوثائق", value: counts.docsAll, icon: FileSignature, to: "/admin/documents" },
+        { label: "وثائق صادرة اليوم", value: counts.docsIssuedToday, icon: FileClock, to: "/admin/documents" },
+        { label: "وثائق هذا الشهر", value: counts.docsThisMonth, icon: FileClock, to: "/admin/documents" },
+        { label: "وثائق فعالة", value: counts.docsActive, icon: FileCheck2, to: "/admin/documents" },
+        { label: "وثائق ملغاة", value: counts.docsCancelled, icon: FileWarning, to: "/admin/documents" },
         { label: "شهادات القيد", value: counts.docsEnroll, icon: FileBadge, to: "/admin/documents" },
         { label: "السجلات الأكاديمية", value: counts.docsTranscript, icon: FileCheck2, to: "/admin/documents" },
         { label: "السندات المالية", value: counts.docsReceipt, icon: Receipt, to: "/admin/documents" },
-        { label: "وثائق اليوم", value: counts.docsToday, icon: FileClock, to: "/admin/documents" },
       ],
     },
     {
