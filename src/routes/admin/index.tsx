@@ -231,6 +231,49 @@ function AdminDashboard() {
         </section>
       ))}
 
+      {/* Recent Official Documents */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-base font-bold text-primary">آخر الوثائق الصادرة</h2>
+          <Link to="/admin/documents" className="text-xs font-bold text-primary hover:underline">عرض الكل</Link>
+        </div>
+        <div className="rounded-xl bg-card border border-border shadow-card overflow-hidden">
+          {(!recentDocs || recentDocs.length === 0) ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">لا توجد وثائق صادرة بعد.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/50 text-xs">
+                  <tr>
+                    <th className="px-4 py-2 text-right font-bold">رقم الوثيقة</th>
+                    <th className="px-4 py-2 text-right font-bold">الطالب</th>
+                    <th className="px-4 py-2 text-right font-bold">النوع</th>
+                    <th className="px-4 py-2 text-right font-bold">التاريخ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentDocs.map((d) => (
+                    <tr key={d.id} className="border-t border-border">
+                      <td className="px-4 py-2 font-mono text-xs">{d.document_number}</td>
+                      <td className="px-4 py-2">
+                        {d.student_profiles?.full_name_ar ?? "—"}
+                        {d.student_profiles?.academic_number ? (
+                          <span className="ms-2 text-xs text-muted-foreground">({d.student_profiles.academic_number})</span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-2 text-xs">{docTypeLabel(d.document_type)}</td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                        {d.issued_at ? new Date(d.issued_at).toLocaleDateString("ar-EG") : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Quick actions */}
       <section className="space-y-3">
         <h2 className="font-display text-base font-bold text-primary">إجراءات سريعة</h2>
