@@ -59,6 +59,36 @@ export function StudentFinanceSection({ studentProfileId }: { studentProfileId: 
     },
   });
 
+  type DiscountRow = {
+    id: string; value: number; status: string; approved_at: string | null;
+    discount_type: { name_ar: string; discount_type: string } | null;
+    academic_year: { name: string } | null;
+    semester: { name: string } | null;
+    adjustments: { original_amount: number; discount_amount: number; final_amount: number }[];
+  };
+  const { data: discounts = [], isLoading: ld } = useQuery({
+    queryKey: ["student-discounts", studentProfileId],
+    queryFn: async (): Promise<DiscountRow[]> => {
+      const { data, error } = await sb.from("student_discounts")
+        .select("id, value, status, approved_at, discount_type:discount_types(name_ar, discount_type), academic_year:academic_years(name), semester:semesters(name)")
+        .eq("student_profile_id", studentProfileId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []) as Omit<DiscountRow, "adjustments">[];
+      if (rows.length === 0) return [];
+      const { data: adjs } = await sb.from("student_fee_adjustments")
+        .select("student_discount_id, original_amount, discount_amount, final_amount")
+        .in("student_discount_id", rows.map((r) => r.id));
+      const m = new Map<string, DiscountRow["adjustments"]>();
+      for (const a of (adjs ?? []) as { student_discount_id: string; original_amount: number; discount_amount: number; final_amount: number }[]) {
+        const arr = m.get(a.student_discount_id) ?? [];
+        arr.push({ original_amount: a.original_amount, discount_amount: a.discount_amount, final_amount: a.final_amount });
+        m.set(a.student_discount_id, arr);
+      }
+      return rows.map((r) => ({ ...r, adjustments: m.get(r.id) ?? [] }));
+    },
+  });
+
   const totals = fees.reduce(
     (acc, f) => {
       if (f.status === "cancelled") return acc;
