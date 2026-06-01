@@ -65,6 +65,14 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    id: "finance",
+    label: "الشؤون المالية",
+    icon: Wallet,
+    items: [
+      { to: "/admin/finance", label: "الرسوم والمدفوعات", icon: Wallet },
+    ],
+  },
+  {
     id: "site",
     label: "إدارة الموقع",
     icon: Globe,
