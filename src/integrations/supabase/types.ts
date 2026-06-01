@@ -544,6 +544,92 @@ export type Database = {
         }
         Relationships: []
       }
+      extra_chance_details: {
+        Row: {
+          academic_year_id: string
+          chance_type: string
+          created_at: string
+          id: string
+          notes: string | null
+          reason: string
+          request_id: string
+          semester_id: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year_id: string
+          chance_type: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reason: string
+          request_id: string
+          semester_id: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year_id?: string
+          chance_type?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          request_id?: string
+          semester_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extra_chance_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_chance_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "extra_chance_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "extra_chance_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_chance_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_chance_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "extra_chance_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["semester_id"]
+          },
+        ]
+      }
       faculty: {
         Row: {
           bio_ar: string | null
