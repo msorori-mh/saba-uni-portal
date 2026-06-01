@@ -295,6 +295,32 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span>← إلى: <b>{r.transfer_details.requested_program?.name_ar ?? "—"}</b></span>
                   </div>
                 )}
+                {r.equivalency_details && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                    <span>الجامعة السابقة: <b>{r.equivalency_details.previous_university_name}</b></span>
+                    <span>• البرنامج: <b>{r.equivalency_details.previous_program_name}</b></span>
+                  </div>
+                )}
+                {r.equivalency_courses.length > 0 && (
+                  <div className="mt-2 rounded border bg-muted/20 p-2">
+                    <div className="text-[10px] font-bold text-muted-foreground mb-1">المواد</div>
+                    <div className="space-y-1">
+                      {r.equivalency_courses.map((c) => {
+                        const st = STATUS_LABEL[c.status === "pending" ? "submitted" : c.status === "approved" ? "approved" : "rejected"];
+                        const stText = c.status === "pending" ? "قيد المراجعة" : c.status === "approved" ? "تمت المعادلة" : "مرفوضة";
+                        return (
+                          <div key={c.id} className="flex items-center justify-between gap-2 text-[11px]">
+                            <div className="min-w-0 truncate">
+                              <b>{c.external_course_code}</b> — {c.external_course_name}
+                              {c.target_course && <> ← <b>{c.target_course.code}</b></>}
+                            </div>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${st.cls}`}>{stText}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 {r.description && <div className="mt-1.5 text-xs">{r.description}</div>}
                 {r.suspension_details?.suspension_reason && (
                   <div className="mt-1.5 text-xs">
