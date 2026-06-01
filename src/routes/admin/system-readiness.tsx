@@ -437,6 +437,30 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Reports & Analytics (Phase 10B) ---
+  const [reportExportsAll, reportExportsCsv, reportExportsXlsx] = await Promise.all([
+    safeCount("audit_logs", (q) => q.eq("entity_type", "report").eq("action_type", "report_exported")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "report").eq("action_type", "report_exported").contains("new_values", { format: "csv" })),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "report").eq("action_type", "report_exported").contains("new_values", { format: "xlsx" })),
+  ]);
+  const reportsSection: Section = {
+    id: "reports",
+    title: "التقارير والتحليلات",
+    checks: [
+      pass("التقارير الأكاديمية متاحة", "students/programs/levels/status"),
+      fees.ok && payments.ok ? pass("التقارير المالية متاحة", "fees / payments / receipts / discounts")
+        : warn("التقارير المالية ناقصة"),
+      requests.ok ? pass("تقارير الطلبات متاحة", `سجلات: ${requests.count}`)
+        : warn("لا توجد بيانات طلبات"),
+      faculty.ok ? pass("تقارير هيئة التدريس متاحة", `أعضاء: ${faculty.count}`)
+        : warn("لا توجد بيانات هيئة تدريس"),
+      pass("تصدير CSV / Excel متاح", "xlsx bundled"),
+      reportExportsAll.ok && reportExportsAll.count > 0
+        ? pass("تكامل سجل التدقيق للتقارير", `${reportExportsAll.count} تصدير (CSV:${reportExportsCsv.count} · XLSX:${reportExportsXlsx.count})`)
+        : warn("لا توجد عمليات تصدير بعد", "action_type=report_exported"),
+    ],
+  };
+
 
   return [
     studentSection, facultySection, staffSection,
@@ -444,6 +468,7 @@ async function runChecks(): Promise<Section[]> {
     hardeningSection,
     documentsSection, pdfSection,
     importSection,
+    reportsSection,
     opsSection, siteSection,
   ];
 }

@@ -44,6 +44,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
+import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
 import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
@@ -238,6 +239,11 @@ const AdminRequestTypesRoute = AdminRequestTypesRouteImport.update({
   path: '/request-types',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminProgramsRoute = AdminProgramsRouteImport.update({
   id: '/programs',
   path: '/programs',
@@ -357,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/programs': typeof AdminProgramsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
@@ -407,6 +414,7 @@ export interface FileRoutesByTo {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/programs': typeof AdminProgramsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
@@ -462,6 +470,7 @@ export interface FileRoutesById {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/programs': typeof AdminProgramsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
@@ -518,6 +527,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/programs'
+    | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
     | '/admin/security-status'
@@ -568,6 +578,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/programs'
+    | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
     | '/admin/security-status'
@@ -622,6 +633,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/programs'
+    | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
     | '/admin/security-status'
@@ -910,6 +922,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRequestTypesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/programs': {
       id: '/admin/programs'
       path: '/programs'
@@ -1050,6 +1069,7 @@ interface AdminRouteChildren {
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNewsRoute: typeof AdminNewsRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
+  AdminReportsRoute: typeof AdminReportsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
   AdminResearchRoute: typeof AdminResearchRoute
   AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
@@ -1080,6 +1100,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNewsRoute: AdminNewsRoute,
   AdminProgramsRoute: AdminProgramsRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,
   AdminResearchRoute: AdminResearchRoute,
   AdminSecurityStatusRoute: AdminSecurityStatusRoute,
