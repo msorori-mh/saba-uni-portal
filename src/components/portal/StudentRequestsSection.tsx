@@ -271,6 +271,11 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span className="text-muted-foreground">السبب: </span>{r.extra_chance_details.reason}
                   </div>
                 )}
+                {r.transfer_details?.transfer_reason && (
+                  <div className="mt-1.5 text-xs">
+                    <span className="text-muted-foreground">السبب: </span>{r.transfer_details.transfer_reason}
+                  </div>
+                )}
                 {r.rejection_reason && (
                   <div className="mt-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">
                     سبب الرفض: {r.rejection_reason}
