@@ -147,6 +147,46 @@ export function StudentFinanceSection({ studentProfileId }: { studentProfileId: 
 
       <div className="rounded-lg border bg-card overflow-hidden mt-3">
         <div className="px-3 py-2 bg-muted/40 text-xs font-bold text-primary border-b flex items-center gap-1.5">
+          <Percent className="h-3.5 w-3.5" /> الخصومات والإعفاءات
+        </div>
+        {ld ? (
+          <div className="p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+        ) : discounts.length === 0 ? (
+          <div className="p-4 text-center text-xs text-muted-foreground">لا توجد خصومات.</div>
+        ) : (
+          <div className="divide-y">
+            {discounts.map((d) => {
+              const tOrig = d.adjustments.reduce((s, a) => s + Number(a.original_amount), 0);
+              const tDisc = d.adjustments.reduce((s, a) => s + Number(a.discount_amount), 0);
+              const tFinal = d.adjustments.reduce((s, a) => s + Number(a.final_amount), 0);
+              const stCls = d.status === "active" ? "bg-emerald-100 text-emerald-800" : d.status === "cancelled" ? "bg-rose-100 text-rose-800" : "bg-muted";
+              const stTxt = d.status === "active" ? "مفعّل" : d.status === "cancelled" ? "ملغي" : "غير مفعّل";
+              return (
+                <div key={d.id} className="p-3 text-xs">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="font-bold">{d.discount_type?.name_ar}</div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${stCls}`}>{stTxt}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {d.academic_year?.name} — {d.semester?.name} • القيمة: <b>{Number(d.value)}{d.discount_type?.discount_type === "percentage" ? "%" : ""}</b>
+                    {d.approved_at && <> • اعتُمد في {d.approved_at.slice(0, 10)}</>}
+                  </div>
+                  {d.adjustments.length > 0 && (
+                    <div className="mt-2 grid grid-cols-3 gap-2 font-mono">
+                      <Mini label="الأصلي" value={tOrig} />
+                      <Mini label="الخصم" value={tDisc} tone="warn" />
+                      <Mini label="بعد الخصم" value={tFinal} tone="ok" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border bg-card overflow-hidden mt-3">
+        <div className="px-3 py-2 bg-muted/40 text-xs font-bold text-primary border-b flex items-center gap-1.5">
           <Receipt className="h-3.5 w-3.5" /> سندات الدفع
         </div>
         {lp ? (
