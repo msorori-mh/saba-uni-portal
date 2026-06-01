@@ -56,6 +56,8 @@ function AdminDashboard() {
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
       const todayIso = startOfToday.toISOString();
+      const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+      const monthIso = startOfMonth.toISOString();
       const [
         programs, courses, sections, students,
         faculty, staff,
@@ -65,6 +67,7 @@ function AdminDashboard() {
         feesPending, feesPartial,
         docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
         docsIssuedToday, docsCancelledToday,
+        docsActive, docsCancelled, docsThisMonth,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -88,6 +91,9 @@ function AdminDashboard() {
         tableCount("official_documents", (q) => q.gte("issued_at", todayIso)),
         tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_issued").gte("created_at", todayIso)),
         tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_cancelled").gte("created_at", todayIso)),
+        tableCount("official_documents", (q) => q.eq("status", "issued")),
+        tableCount("official_documents", (q) => q.eq("status", "cancelled")),
+        tableCount("official_documents", (q) => q.gte("issued_at", monthIso)),
       ]);
       return {
         programs, courses, sections, students, faculty, staff,
@@ -95,6 +101,7 @@ function AdminDashboard() {
         feesPending, feesPartial,
         docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
         docsIssuedToday, docsCancelledToday,
+        docsActive, docsCancelled, docsThisMonth,
       };
     },
   });
