@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (t: string) => any };
+const sb = supabase as unknown as { from: (t: string) => any; storage: any };
 
 export const Route = createFileRoute("/admin/finance")({
   component: AdminFinancePage,
