@@ -1,39 +1,108 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard, Newspaper, Users, BookOpen, FlaskConical, Calendar,
-  MessageSquare, Settings, LogOut, Menu, X, GraduationCap, ChevronLeft, CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText, FileWarning, ListChecks,
+  MessageSquare, Settings, LogOut, Menu, GraduationCap, ChevronLeft, ChevronDown,
+  CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
+  FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean; badgeKey?: "new-messages" };
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+  badgeKey?: "new-messages";
+};
 
-const items: NavItem[] = [
-  { to: "/admin", label: "لوحة التحكم", icon: LayoutDashboard, exact: true },
-  { to: "/admin/news", label: "الأخبار", icon: Newspaper },
-  { to: "/admin/faculty", label: "هيئة التدريس", icon: Users },
-  { to: "/admin/departments", label: "الأقسام والبرامج", icon: BookOpen },
-  { to: "/admin/academic-core", label: "البنية الأكاديمية", icon: CalendarRange },
-  { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
-  { to: "/admin/course-offerings", label: "الطرح والشعب", icon: CalendarDays },
-  { to: "/admin/enrollments", label: "تسجيل الطلاب", icon: ClipboardList },
-  { to: "/admin/grades", label: "إدارة الدرجات", icon: ClipboardCheck },
-  { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
-  { to: "/admin/student-requests", label: "طلبات الطلاب", icon: FileWarning },
-  { to: "/admin/request-types", label: "أنواع الطلبات", icon: ListChecks },
-  { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
-  { to: "/admin/events", label: "الفعاليات", icon: Calendar },
-  { to: "/admin/contacts", label: "رسائل التواصل", icon: MessageSquare, badgeKey: "new-messages" },
-  { to: "/admin/settings", label: "الإعدادات", icon: Settings },
+type NavGroup = {
+  id: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  items: NavItem[];
+};
+
+const groups: NavGroup[] = [
+  {
+    id: "dashboard",
+    label: "لوحة التحكم",
+    icon: LayoutDashboard,
+    items: [
+      { to: "/admin", label: "الرئيسية", icon: LayoutDashboard, exact: true },
+    ],
+  },
+  {
+    id: "academic",
+    label: "الشؤون الأكاديمية",
+    icon: GradCap,
+    items: [
+      { to: "/admin/academic-core", label: "البنية الأكاديمية", icon: CalendarRange },
+      { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
+      { to: "/admin/course-offerings", label: "الطرح والشعب", icon: CalendarDays },
+      { to: "/admin/enrollments", label: "تسجيل الطلاب", icon: ClipboardList },
+      { to: "/admin/grades", label: "الدرجات", icon: ClipboardCheck },
+      { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
+    ],
+  },
+  {
+    id: "students",
+    label: "شؤون الطلاب",
+    icon: FileWarning,
+    items: [
+      { to: "/admin/student-requests", label: "طلبات الطلاب", icon: FileWarning },
+      { to: "/admin/request-types", label: "أنواع الطلبات", icon: ListChecks },
+    ],
+  },
+  {
+    id: "hr",
+    label: "الموارد البشرية",
+    icon: UserCog,
+    items: [
+      { to: "/admin/faculty", label: "أعضاء هيئة التدريس", icon: Users },
+    ],
+  },
+  {
+    id: "site",
+    label: "إدارة الموقع",
+    icon: Globe,
+    items: [
+      { to: "/admin/news", label: "الأخبار", icon: Newspaper },
+      { to: "/admin/events", label: "الفعاليات", icon: Calendar },
+      { to: "/admin/research", label: "الأبحاث", icon: FlaskConical },
+      { to: "/admin/departments", label: "الأقسام والبرامج", icon: BookOpen },
+      { to: "/admin/contacts", label: "الرسائل", icon: MessageSquare, badgeKey: "new-messages" },
+      { to: "/admin/settings", label: "الإعدادات", icon: Settings },
+    ],
+  },
 ];
 
+function isItemActive(pathname: string, item: NavItem) {
+  return item.exact
+    ? pathname === item.to
+    : pathname === item.to || pathname.startsWith(item.to + "/");
+}
 
 export function AdminShell({ children, userEmail }: { children: React.ReactNode; userEmail: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const activeGroupId = useMemo(() => {
+    const g = groups.find((g) => g.items.some((it) => isItemActive(pathname, it)));
+    return g?.id ?? "dashboard";
+  }, [pathname]);
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
+    [activeGroupId]: true,
+  }));
+
+  // Keep the active group open whenever route changes.
+  useEffect(() => {
+    setOpenGroups((prev) => ({ ...prev, [activeGroupId]: true }));
+  }, [activeGroupId]);
 
   const { data: newMessagesCount = 0 } = useQuery({
     queryKey: ["sidebar-new-messages"],
@@ -47,7 +116,6 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
     refetchInterval: 60000,
   });
 
-  // close drawer on navigation
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   const handleLogout = async () => {
@@ -55,9 +123,11 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
     navigate({ to: "/admin/login", replace: true });
   };
 
+  const toggleGroup = (id: string) =>
+    setOpenGroups((p) => ({ ...p, [id]: !p[id] }));
+
   return (
     <div dir="rtl" className="min-h-screen bg-surface flex">
-      {/* Sidebar (right side in RTL flex) */}
       <aside
         className={cn(
           "fixed lg:sticky top-0 right-0 z-40 h-screen w-72 shrink-0 flex flex-col text-primary-foreground transition-transform duration-300",
@@ -76,31 +146,86 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active = item.exact ? pathname === item.to : pathname === item.to || pathname.startsWith(item.to + "/");
-            const showBadge = item.badgeKey === "new-messages" && newMessagesCount > 0;
+          {groups.map((group) => {
+            const GroupIcon = group.icon;
+            const isOpen = !!openGroups[group.id];
+            const isActiveGroup = activeGroupId === group.id;
+            // Single-item dashboard group: render as a flat link
+            if (group.items.length === 1 && group.id === "dashboard") {
+              const item = group.items[0];
+              const active = isItemActive(pathname, item);
+              return (
+                <Link
+                  key={group.id}
+                  to={item.to}
+                  className={cn(
+                    "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-all",
+                    active
+                      ? "bg-white/[0.08] text-gold"
+                      : "text-primary-foreground/75 hover:text-gold hover:bg-white/[0.04]",
+                  )}
+                >
+                  {active && <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient" />}
+                  <GroupIcon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">{group.label}</span>
+                  {active && <ChevronLeft className="h-3.5 w-3.5 opacity-70" />}
+                </Link>
+              );
+            }
+
             return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold transition-all",
-                  active
-                    ? "bg-white/[0.08] text-gold"
-                    : "text-primary-foreground/75 hover:text-gold hover:bg-white/[0.04]",
+              <div key={group.id} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-bold transition-all",
+                    isActiveGroup
+                      ? "text-gold"
+                      : "text-primary-foreground/85 hover:text-gold hover:bg-white/[0.04]",
+                  )}
+                  aria-expanded={isOpen}
+                >
+                  <GroupIcon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 text-right">{group.label}</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform opacity-70",
+                      isOpen ? "rotate-180" : "rotate-0",
+                    )}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="pr-3 mr-1 border-r border-white/10 space-y-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = isItemActive(pathname, item);
+                      const showBadge = item.badgeKey === "new-messages" && newMessagesCount > 0;
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className={cn(
+                            "group relative flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-semibold transition-all",
+                            active
+                              ? "bg-white/[0.08] text-gold"
+                              : "text-primary-foreground/70 hover:text-gold hover:bg-white/[0.04]",
+                          )}
+                        >
+                          {active && <span className="absolute right-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient" />}
+                          <Icon className="h-3.5 w-3.5 shrink-0" />
+                          <span className="flex-1">{item.label}</span>
+                          {showBadge && (
+                            <span className="grid place-items-center min-w-[20px] h-5 px-1.5 rounded-full bg-gold-gradient text-primary-deep text-[10px] font-extrabold">
+                              {newMessagesCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 )}
-              >
-                {active && <span className="absolute right-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-l-full bg-gold-gradient" />}
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
-                {showBadge && (
-                  <span className="grid place-items-center min-w-[20px] h-5 px-1.5 rounded-full bg-gold-gradient text-primary-deep text-[10px] font-extrabold">
-                    {newMessagesCount}
-                  </span>
-                )}
-                {active && !showBadge && <ChevronLeft className="h-3.5 w-3.5 opacity-70" />}
-              </Link>
+              </div>
             );
           })}
         </nav>
@@ -119,7 +244,6 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
         <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* Main */}
       <div className="flex-1 min-w-0 flex flex-col">
         <header className="sticky top-0 z-20 bg-card border-b border-border h-16 flex items-center px-4 lg:px-8 gap-4">
           <button
@@ -128,13 +252,6 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
             aria-label="فتح القائمة"
           >
             <Menu className="h-5 w-5" />
-          </button>
-          <button
-            className="hidden lg:flex p-2 text-primary"
-            onClick={() => setMobileOpen(true)}
-            aria-label="القائمة"
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : null}
           </button>
 
           <div className="flex-1 font-display font-bold text-primary">

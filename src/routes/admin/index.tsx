@@ -1,378 +1,180 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Newspaper,
-  Users,
-  FlaskConical,
-  Calendar,
-  MessageSquare,
-  Plus,
-  Edit,
-  CheckCircle2,
-  Clock,
-  MapPin,
+  Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
+  GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
+  FileWarning, UserCog, FileText, ListTree,
 } from "lucide-react";
-import { eventsQuery, liveCountsQuery, newsQuery } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
-import { useMemo } from "react";
 
 export const Route = createFileRoute("/admin/")({
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(liveCountsQuery);
-    context.queryClient.ensureQueryData(newsQuery(5));
-    context.queryClient.ensureQueryData(eventsQuery(5));
-  },
   component: AdminDashboard,
 });
 
+async function tableCount(table: string, filters?: (q: any) => any) {
+  let q = supabase.from(table as any).select("id", { count: "exact", head: true });
+  if (filters) q = filters(q);
+  const { count } = await q;
+  return count ?? 0;
+}
+
 function AdminDashboard() {
-  const { data: counts } = useSuspenseQuery(liveCountsQuery);
-  const { data: news } = useSuspenseQuery(newsQuery(5));
-  const { data: events } = useSuspenseQuery(eventsQuery(5));
-
-  const { data: unreadCount = 0 } = useQuery({
-    queryKey: ["contact_messages", "unread_count"],
+  const { data: s } = useQuery({
+    queryKey: ["admin-dashboard-counts"],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("contact_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("is_read", false);
-      return count ?? 0;
+      const [
+        programs, courses, sections, students,
+        faculty, staff,
+        newReq, reviewReq,
+        news, events, research,
+      ] = await Promise.all([
+        tableCount("programs", (q) => q.eq("is_active", true)),
+        tableCount("courses"),
+        tableCount("course_sections"),
+        tableCount("student_profiles"),
+        tableCount("faculty_profiles"),
+        tableCount("staff_profiles"),
+        tableCount("student_requests", (q) => q.eq("status", "submitted")),
+        tableCount("student_requests", (q) => q.eq("status", "under_review")),
+        tableCount("news", (q) => q.eq("is_published", true)),
+        tableCount("events", (q) => q.eq("is_published", true)),
+        tableCount("research_papers", (q) => q.eq("is_published", true)),
+      ]);
+      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research };
     },
   });
 
-  const { data: recentMessages = [] } = useQuery({
-    queryKey: ["contact_messages", "recent"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("contact_messages")
-        .select("id, full_name, subject, created_at, is_read")
-        .order("created_at", { ascending: false })
-        .limit(5);
-      return data ?? [];
-    },
-  });
+  const counts = s ?? {
+    programs: 0, courses: 0, sections: 0, students: 0,
+    faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
+    news: 0, events: 0, research: 0,
+  };
 
-  const stats = [
+  const sections_: Array<{
+    title: string;
+    cards: Array<{ label: string; value: number; icon: any }>;
+  }> = [
     {
-      label: "أعضاء هيئة التدريس",
-      value: counts.faculty,
-      icon: Users,
-      bg: "bg-primary",
-      fg: "text-primary-foreground",
+      title: "إحصائيات أكاديمية",
+      cards: [
+        { label: "البرامج", value: counts.programs, icon: GraduationCap },
+        { label: "المقررات", value: counts.courses, icon: BookOpen },
+        { label: "الشعب", value: counts.sections, icon: CalendarDays },
+        { label: "الطلاب", value: counts.students, icon: ClipboardList },
+      ],
     },
     {
-      label: "الأخبار",
-      value: counts.news,
-      icon: Newspaper,
-      bg: "bg-secondary",
-      fg: "text-secondary-foreground",
+      title: "الموارد البشرية",
+      cards: [
+        { label: "أعضاء هيئة التدريس", value: counts.faculty, icon: Users },
+        { label: "الموظفون", value: counts.staff, icon: UserCog },
+      ],
     },
     {
-      label: "الأبحاث العلمية",
-      value: counts.research,
-      icon: FlaskConical,
-      bg: "bg-accent",
-      fg: "text-accent-foreground",
+      title: "الخدمات",
+      cards: [
+        { label: "طلبات جديدة", value: counts.newReq, icon: FileWarning },
+        { label: "قيد المراجعة", value: counts.reviewReq, icon: ClipboardCheck },
+      ],
     },
     {
-      label: "رسائل جديدة",
-      value: unreadCount,
-      icon: MessageSquare,
-      bg: "bg-gold-gradient",
-      fg: "text-primary",
+      title: "الموقع",
+      cards: [
+        { label: "الأخبار المنشورة", value: counts.news, icon: Newspaper },
+        { label: "الفعاليات", value: counts.events, icon: Calendar },
+        { label: "الأبحاث", value: counts.research, icon: FlaskConical },
+      ],
     },
   ];
 
-  // News-per-month chart (last 6 months from loaded news + all news count)
-  const monthly = useMemo(() => {
-    const months: { label: string; count: number }[] = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({
-        label: d.toLocaleDateString("ar-EG", { month: "short" }),
-        count: 0,
-      });
-    }
-    news.forEach((n) => {
-      const d = new Date(n.published_at);
-      const diff =
-        (now.getFullYear() - d.getFullYear()) * 12 +
-        (now.getMonth() - d.getMonth());
-      if (diff >= 0 && diff <= 5) months[5 - diff].count += 1;
-    });
-    return months;
-  }, [news]);
-
-  const maxMonthly = Math.max(1, ...monthly.map((m) => m.count));
-
-  const upcomingEvents = events
-    .filter((e) => new Date(e.event_date) >= new Date(new Date().toDateString()))
-    .slice(0, 3);
+  const quickActions = [
+    { to: "/admin/study-plans", label: "إضافة مقرر", icon: BookOpen },
+    { to: "/admin/study-plans", label: "إنشاء خطة دراسية", icon: ListTree },
+    { to: "/admin/course-offerings", label: "إنشاء شعبة", icon: CalendarDays },
+    { to: "/admin/enrollments", label: "تسجيل طالب", icon: ClipboardList },
+    { to: "/admin/grades", label: "إدخال درجات", icon: ClipboardCheck },
+    { to: "/admin/student-requests", label: "مراجعة الطلبات", icon: FileWarning },
+    { to: "/admin/news", label: "خبر جديد", icon: Newspaper },
+    { to: "/admin/contacts", label: "الرسائل", icon: MessageSquare },
+  ];
 
   return (
     <div className="space-y-8">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="font-display text-3xl font-extrabold text-primary">
-            لوحة التحكم
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            نظرة عامة على محتوى الموقع وإحصاءاته.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <QuickAction to="/admin/news" icon={Newspaper} label="خبر جديد" />
-          <QuickAction
-            to="/admin/faculty"
-            icon={Users}
-            label="عضو هيئة تدريس"
-          />
-          <QuickAction
-            to="/admin/research"
-            icon={FlaskConical}
-            label="بحث جديد"
-          />
-        </div>
+      <div>
+        <h1 className="font-display text-3xl font-extrabold text-primary">لوحة التحكم</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          نظرة شاملة على حركة الكلية والخدمات الأكاديمية.
+        </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <div
-            key={s.label}
-            className={`rounded-xl ${s.bg} p-6 shadow-card relative overflow-hidden`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className={`text-xs font-semibold opacity-80 ${s.fg}`}>
-                  {s.label}
-                </div>
-                <div
-                  className={`mt-2 font-display text-3xl font-extrabold ${s.fg}`}
-                >
-                  {s.value.toLocaleString("ar-EG")}
-                </div>
-              </div>
-              <div
-                className={`grid h-12 w-12 place-items-center rounded-lg bg-background/20 ${s.fg}`}
-              >
-                <s.icon className="h-6 w-6" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Chart + Upcoming events */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section className="lg:col-span-2 rounded-xl bg-card border border-border p-6 shadow-card">
-          <h2 className="font-display text-lg font-bold text-primary mb-6">
-            الأخبار خلال الأشهر الستة الماضية
-          </h2>
-          <div className="flex items-end gap-3 h-44">
-            {monthly.map((m, i) => (
-              <div
-                key={i}
-                className="flex-1 flex flex-col items-center gap-2 h-full justify-end"
-              >
-                <div className="text-xs font-bold text-primary">{m.count}</div>
-                <div
-                  className="w-full bg-gold-gradient rounded-t-md transition-all"
-                  style={{
-                    height: `${(m.count / maxMonthly) * 100}%`,
-                    minHeight: m.count > 0 ? "8px" : "2px",
-                  }}
-                />
-                <div className="text-xs text-muted-foreground">{m.label}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-xl bg-card border border-border p-6 shadow-card">
-          <h2 className="font-display text-lg font-bold text-primary mb-4">
-            الفعاليات القادمة
-          </h2>
-          <ul className="space-y-3">
-            {upcomingEvents.length === 0 && (
-              <li className="text-sm text-muted-foreground py-4 text-center">
-                لا توجد فعاليات قادمة.
-              </li>
-            )}
-            {upcomingEvents.map((e) => {
-              const d = new Date(e.event_date);
+      {/* Stats grouped sections */}
+      {sections_.map((sec) => (
+        <section key={sec.title} className="space-y-3">
+          <h2 className="font-display text-base font-bold text-primary">{sec.title}</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {sec.cards.map((c) => {
+              const Icon = c.icon;
               return (
-                <li
-                  key={e.id}
-                  className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30"
+                <div
+                  key={c.label}
+                  className="rounded-xl bg-card border border-border p-5 shadow-card flex items-center justify-between"
                 >
-                  <div className="shrink-0 grid place-items-center h-12 w-12 rounded-lg bg-gold-gradient text-primary font-display font-extrabold">
-                    <div className="text-center leading-none">
-                      <div className="text-lg">{d.getDate()}</div>
-                      <div className="text-[10px]">
-                        {d.toLocaleDateString("ar-EG", { month: "short" })}
-                      </div>
+                  <div>
+                    <div className="text-xs font-semibold text-muted-foreground">{c.label}</div>
+                    <div className="mt-2 font-display text-3xl font-extrabold text-primary">
+                      {c.value.toLocaleString("ar-EG")}
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-primary line-clamp-1">
-                      {e.title_ar}
-                    </div>
-                    {e.location && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                        <MapPin className="h-3 w-3" />
-                        <span className="line-clamp-1">{e.location}</span>
-                      </div>
-                    )}
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary">
+                    <Icon className="h-5 w-5" />
                   </div>
-                </li>
+                </div>
               );
             })}
-          </ul>
-        </section>
-      </div>
-
-      {/* Recent messages + Recent news */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl bg-card border border-border p-6 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-bold text-primary">
-              أحدث رسائل التواصل
-            </h2>
-            <Link
-              to="/admin/contacts"
-              className="text-xs font-semibold text-primary hover:text-gold transition-colors"
-            >
-              عرض الكل ←
-            </Link>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-right text-xs text-muted-foreground border-b border-border">
-                  <th className="pb-2 font-semibold">الاسم</th>
-                  <th className="pb-2 font-semibold">الموضوع</th>
-                  <th className="pb-2 font-semibold">التاريخ</th>
-                  <th className="pb-2 font-semibold">الحالة</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {recentMessages.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="py-6 text-center text-muted-foreground"
-                    >
-                      لا توجد رسائل.
-                    </td>
-                  </tr>
-                )}
-                {recentMessages.map((m) => (
-                  <tr
-                    key={m.id}
-                    className={!m.is_read ? "bg-gold/10" : undefined}
-                  >
-                    <td className="py-3 font-semibold text-primary">
-                      {m.full_name}
-                    </td>
-                    <td className="py-3 text-muted-foreground line-clamp-1 max-w-[160px]">
-                      {m.subject}
-                    </td>
-                    <td className="py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(m.created_at).toLocaleDateString("ar-EG")}
-                    </td>
-                    <td className="py-3">
-                      {m.is_read ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <CheckCircle2 className="h-3 w-3" /> مقروءة
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-gold-dark">
-                          <Clock className="h-3 w-3" /> جديدة
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </section>
+      ))}
 
-        <section className="rounded-xl bg-card border border-border p-6 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-lg font-bold text-primary">
-              أحدث الأخبار
-            </h2>
-            <Link
-              to="/admin/news"
-              className="text-xs font-semibold text-primary hover:text-gold transition-colors"
-            >
-              إدارة الأخبار ←
-            </Link>
-          </div>
-          <ul className="divide-y divide-border">
-            {news.length === 0 && (
-              <li className="py-4 text-sm text-muted-foreground text-center">
-                لا توجد أخبار.
-              </li>
-            )}
-            {news.map((n) => (
-              <li
-                key={n.id}
-                className="py-3 flex items-center justify-between gap-3"
+      {/* Quick actions */}
+      <section className="space-y-3">
+        <h2 className="font-display text-base font-bold text-primary">إجراءات سريعة</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickActions.map((a) => {
+            const Icon = a.icon;
+            return (
+              <Link
+                key={a.label}
+                to={a.to}
+                className="flex items-center gap-3 rounded-xl bg-card border border-border p-4 hover:border-gold hover:shadow-card transition-all"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-primary line-clamp-1">
-                    {n.title_ar}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span
-                      className={`inline-block h-2 w-2 rounded-full ${
-                        n.is_published ? "bg-green-500" : "bg-muted-foreground"
-                      }`}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {n.is_published ? "منشور" : "مسودة"} ·{" "}
-                      {new Date(n.published_at).toLocaleDateString("ar-EG")}
-                    </span>
-                  </div>
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary">
+                  <Icon className="h-5 w-5" />
                 </div>
-                <Link
-                  to="/admin/news"
-                  className="shrink-0 p-2 rounded-md hover:bg-secondary text-muted-foreground hover:text-primary transition-colors"
-                  aria-label="تعديل"
-                >
-                  <Edit className="h-4 w-4" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-    </div>
-  );
-}
+                <div className="flex-1 text-sm font-bold text-primary">{a.label}</div>
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
-function QuickAction({
-  to,
-  icon: Icon,
-  label,
-}: {
-  to: string;
-  icon: typeof Plus;
-  label: string;
-}) {
-  return (
-    <Link
-      to={to}
-      className="inline-flex items-center gap-2 rounded-lg bg-gold-gradient px-4 py-2 text-sm font-bold text-primary shadow-card hover:opacity-90 transition-opacity"
-    >
-      <Icon className="h-4 w-4" />
-      <Plus className="h-3 w-3" />
-      <span>{label}</span>
-    </Link>
+      {/* Shortcut to record link */}
+      <section className="rounded-xl bg-card border border-border p-6 shadow-card">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="font-display text-lg font-bold text-primary">السجلات الأكاديمية</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              ابحث عن طالب لعرض سجله الأكاديمي غير الرسمي.
+            </p>
+          </div>
+          <Link
+            to="/admin/transcripts"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+          >
+            <FileText className="h-4 w-4" /> فتح السجلات
+          </Link>
+        </div>
+      </section>
+    </div>
   );
 }
