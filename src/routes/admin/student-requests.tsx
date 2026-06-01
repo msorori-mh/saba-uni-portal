@@ -90,16 +90,21 @@ function AdminRequestsPage() {
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [detRes, attRes] = await Promise.all([
+      const [absRes, suspRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details")
           .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+          .in("request_id", ids),
+        sb.from("enrollment_suspension_details")
+          .select("request_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
           .in("request_id", ids),
         sb.from("student_request_attachments")
           .select("id, request_id, file_url, file_name")
           .in("request_id", ids),
       ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const detMap = new Map((detRes.data ?? []).map((d: any) => [d.request_id, d]));
+      const absMap = new Map((absRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,7 +113,13 @@ function AdminRequestsPage() {
         attMap.get(a.request_id)!.push(a);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (reqs as any[]).map((r) => ({ ...r, details: detMap.get(r.id) ?? null, attachments: attMap.get(r.id) ?? [] }));
+      return (reqs as any[]).map((r) => ({
+        ...r,
+        absence_details: absMap.get(r.id) ?? null,
+        suspension_details: suspMap.get(r.id) ?? null,
+        attachments: attMap.get(r.id) ?? [],
+      }));
+
     },
   });
 
