@@ -104,6 +104,51 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action_type: string
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: string | null
+          new_values: Json | null
+          notes: string | null
+          old_values: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_type: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          notes?: string | null
+          old_values?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_type?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: string | null
+          new_values?: Json | null
+          notes?: string | null
+          old_values?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       class_schedule: {
         Row: {
           course_section_id: string
@@ -2641,6 +2686,7 @@ export type Database = {
         Args: { _discount_id: string }
         Returns: undefined
       }
+      audit_resolve_role: { Args: { _user_id: string }; Returns: string }
       can_manage_study_plan: {
         Args: { _study_plan_id: string; _user_id: string }
         Returns: boolean
@@ -2694,6 +2740,17 @@ export type Database = {
       is_student_of_enrollment: {
         Args: { _enrollment_id: string; _user_id: string }
         Returns: boolean
+      }
+      log_audit: {
+        Args: {
+          _action_type: string
+          _entity_id: string
+          _entity_type: string
+          _new?: Json
+          _notes?: string
+          _old?: Json
+        }
+        Returns: undefined
       }
       recalc_student_fee_status: {
         Args: { _fee_id: string }
