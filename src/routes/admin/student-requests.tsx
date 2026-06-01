@@ -462,3 +462,79 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
+
+type EqCourseLite = {
+  id: string;
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: number | null;
+  status: string;
+  reviewer_notes: string | null;
+  target_course: { code: string; name_ar: string } | null;
+};
+
+function EquivalencyCoursesReview({ requestId, courses }: { requestId: string; courses: EqCourseLite[] }) {
+  const qc = useQueryClient();
+  const [local, setLocal] = useState(courses);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const updateCourse = async (id: string, patch: Partial<EqCourseLite>) => {
+    setBusyId(id);
+    const { error } = await sb.from("equivalency_courses").update(patch).eq("id", id);
+    setBusyId(null);
+    if (error) { toast.error(error.message); return; }
+    setLocal((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    qc.invalidateQueries({ queryKey: ["admin-requests"] });
+    void requestId;
+  };
+
+  if (local.length === 0) {
+    return <div className="text-xs text-muted-foreground">لا توجد مواد.</div>;
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="text-[11px] font-bold text-muted-foreground mb-1">المواد المطلوبة</div>
+      <div className="space-y-2">
+        {local.map((c) => (
+          <div key={c.id} className="rounded border bg-muted/20 p-2 space-y-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="text-xs">
+                <b>{c.external_course_code}</b> — {c.external_course_name}
+                {c.external_credit_hours != null && <span className="text-muted-foreground"> ({c.external_credit_hours} س)</span>}
+              </div>
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                c.status === "approved" ? "bg-emerald-100 text-emerald-800"
+                : c.status === "rejected" ? "bg-rose-100 text-rose-800"
+                : "bg-amber-100 text-amber-800"
+              }`}>
+                {c.status === "approved" ? "تمت المعادلة" : c.status === "rejected" ? "مرفوضة" : "قيد المراجعة"}
+              </span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              المعادلة: {c.target_course ? <><b>{c.target_course.code}</b> — {c.target_course.name_ar}</> : "—"}
+            </div>
+            <input
+              defaultValue={c.reviewer_notes ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v !== (c.reviewer_notes ?? "")) updateCourse(c.id, { reviewer_notes: v || null });
+              }}
+              placeholder="ملاحظات المراجع..."
+              className="w-full h-7 rounded border bg-background px-2 text-xs"
+            />
+            <div className="flex gap-1.5">
+              <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "approved" })}
+                className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded hover:opacity-90">قبول</button>
+              <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "rejected" })}
+                className="text-[11px] bg-rose-600 text-white px-2 py-0.5 rounded hover:opacity-90">رفض</button>
+              <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "pending" })}
+                className="text-[11px] border px-2 py-0.5 rounded hover:bg-muted">إعادة</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
