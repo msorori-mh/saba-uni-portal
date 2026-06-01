@@ -277,6 +277,11 @@ function AdminRequestsPage() {
                         {r.transfer_details.current_program?.name_ar ?? "—"} ← {r.transfer_details.requested_program?.name_ar ?? "—"}
                       </>
                     )}
+                    {r.equivalency_details && (
+                      <>
+                        {r.equivalency_details.previous_university_name} • {r.equivalency_details.previous_program_name} • {r.equivalency_courses.length} مادة
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
