@@ -1,11 +1,26 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { ImportReport, ImportType, RowError, ValidatedRow } from "./types";
+import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type { CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow } from "./validators";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
 
 const CHUNK = 200;
+
+type ParsedRow<T> = { rowNumber: number; parsed: T };
+
+function splitRows<T>(rows: ValidatedRow<T>[], report: ImportReport): ParsedRow<T>[] {
+  const valid: ParsedRow<T>[] = [];
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+    } else {
+      valid.push({ rowNumber: r.rowNumber, parsed: r.parsed });
+    }
+  }
+  return valid;
+}
 
 async function insertBatched<T>(
   table: string,
@@ -16,7 +31,6 @@ async function insertBatched<T>(
     const slice = rows.slice(i, i + CHUNK);
     const { error } = await sb.from(table).insert(slice.map((r) => r.payload));
     if (error) {
-      // Fall back to one-by-one to identify failing rows
       for (const r of slice) {
         const { error: e2 } = await sb.from(table).insert([r.payload]);
         if (e2) {
@@ -34,14 +48,8 @@ async function insertBatched<T>(
 
 export async function importStudents(rows: ValidatedRow<StudentRow>[]): Promise<ImportReport> {
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
-  const valid = rows.filter((r) => r.parsed) as Required<ValidatedRow<StudentRow>>[];
-  // record pre-failed rows
-  rows.filter((r) => !r.parsed).forEach((r) => {
-    report.rows_failed += 1;
-    r.errors.forEach((e) => report.errors.push(e));
-  });
+  const valid = splitRows(rows, report);
 
-  // Insert student_profiles and capture ids
   const inserts = valid.map((r) => ({
     rowNumber: r.rowNumber,
     payload: {
@@ -57,13 +65,13 @@ export async function importStudents(rows: ValidatedRow<StudentRow>[]): Promise<
     },
   }));
 
-  // Insert profiles one chunk at a time and capture returned ids
+  const byAcademic = new Map(valid.map((v) => [v.parsed.academic_number, v.parsed]));
+
   for (let i = 0; i < inserts.length; i += CHUNK) {
     const slice = inserts.slice(i, i + CHUNK);
     const { data, error } = await sb.from("student_profiles")
       .insert(slice.map((s) => s.payload)).select("id, academic_number");
     if (error || !data) {
-      // fallback per-row
       for (const r of slice) {
         const { data: d, error: e2 } = await sb.from("student_profiles")
           .insert([r.payload]).select("id, academic_number").maybeSingle();
@@ -72,32 +80,32 @@ export async function importStudents(rows: ValidatedRow<StudentRow>[]): Promise<
           report.errors.push({ row: r.rowNumber, message: e2?.message ?? "insert failed" });
         } else {
           report.rows_success += 1;
-          const orig = valid.find((v) => v.parsed.academic_number === d.academic_number);
+          const orig = byAcademic.get(d.academic_number);
           if (orig) {
             await sb.from("student_academic_status").insert({
               student_profile_id: d.id,
-              academic_year_id: orig.parsed.academic_year_id,
-              semester_id: orig.parsed.semester_id,
-              level_id: orig.parsed.level_id,
-              enrollment_status: orig.parsed.status === "active" ? "enrolled" : orig.parsed.status,
+              academic_year_id: orig.academic_year_id,
+              semester_id: orig.semester_id,
+              level_id: orig.level_id,
+              enrollment_status: orig.status === "active" ? "enrolled" : orig.status,
             });
           }
         }
       }
     } else {
       report.rows_success += data.length;
-      // bulk insert statuses
-      const statusRows = data.map((d: { id: string; academic_number: string }) => {
-        const orig = valid.find((v) => v.parsed.academic_number === d.academic_number);
-        if (!orig) return null;
-        return {
+      const statusRows: Record<string, unknown>[] = [];
+      for (const d of data as Array<{ id: string; academic_number: string }>) {
+        const orig = byAcademic.get(d.academic_number);
+        if (!orig) continue;
+        statusRows.push({
           student_profile_id: d.id,
-          academic_year_id: orig.parsed.academic_year_id,
-          semester_id: orig.parsed.semester_id,
-          level_id: orig.parsed.level_id,
-          enrollment_status: orig.parsed.status === "active" ? "enrolled" : orig.parsed.status,
-        };
-      }).filter(Boolean);
+          academic_year_id: orig.academic_year_id,
+          semester_id: orig.semester_id,
+          level_id: orig.level_id,
+          enrollment_status: orig.status === "active" ? "enrolled" : orig.status,
+        });
+      }
       if (statusRows.length) await sb.from("student_academic_status").insert(statusRows);
     }
   }
@@ -106,13 +114,8 @@ export async function importStudents(rows: ValidatedRow<StudentRow>[]): Promise<
 
 export async function importFaculty(rows: ValidatedRow<FacultyRow>[]): Promise<ImportReport> {
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
-  rows.filter((r) => !r.parsed).forEach((r) => {
-    report.rows_failed += 1;
-    r.errors.forEach((e) => report.errors.push(e));
-  });
-  const valid = rows.filter((r) => r.parsed) as Required<ValidatedRow<FacultyRow>>[];
+  const valid = splitRows(rows, report);
 
-  // faculty_profiles.faculty_id is NOT NULL → create a faculty record per profile.
   for (const r of valid) {
     const { data: fac, error: e1 } = await sb.from("faculty").insert({
       employee_id: r.parsed.employee_number,
@@ -150,11 +153,7 @@ export async function importFaculty(rows: ValidatedRow<FacultyRow>[]): Promise<I
 
 export async function importStaff(rows: ValidatedRow<StaffRow>[]): Promise<ImportReport> {
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
-  rows.filter((r) => !r.parsed).forEach((r) => {
-    report.rows_failed += 1;
-    r.errors.forEach((e) => report.errors.push(e));
-  });
-  const valid = rows.filter((r) => r.parsed) as Required<ValidatedRow<StaffRow>>[];
+  const valid = splitRows(rows, report);
   await insertBatched("staff_profiles", valid.map((r) => ({
     rowNumber: r.rowNumber,
     payload: { ...r.parsed },
@@ -164,11 +163,7 @@ export async function importStaff(rows: ValidatedRow<StaffRow>[]): Promise<Impor
 
 export async function importCourses(rows: ValidatedRow<CourseRow>[]): Promise<ImportReport> {
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
-  rows.filter((r) => !r.parsed).forEach((r) => {
-    report.rows_failed += 1;
-    r.errors.forEach((e) => report.errors.push(e));
-  });
-  const valid = rows.filter((r) => r.parsed) as Required<ValidatedRow<CourseRow>>[];
+  const valid = splitRows(rows, report);
   await insertBatched("courses", valid.map((r) => ({
     rowNumber: r.rowNumber,
     payload: { ...r.parsed },
@@ -178,13 +173,8 @@ export async function importCourses(rows: ValidatedRow<CourseRow>[]): Promise<Im
 
 export async function importStudyPlans(rows: ValidatedRow<StudyPlanRow>[]): Promise<ImportReport> {
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
-  rows.filter((r) => !r.parsed).forEach((r) => {
-    report.rows_failed += 1;
-    r.errors.forEach((e) => report.errors.push(e));
-  });
-  const valid = rows.filter((r) => r.parsed) as Required<ValidatedRow<StudyPlanRow>>[];
+  const valid = splitRows(rows, report);
 
-  // Group by (program_id, plan_name, version) and resolve/create study_plans rows.
   const planCache = new Map<string, string>();
   async function getOrCreatePlan(program_id: string, name: string, version: string): Promise<string | null> {
     const key = `${program_id}|${name}|${version}`;
@@ -242,7 +232,8 @@ export async function finalizeImport(opts: {
     rows_success: opts.report.rows_success,
     rows_failed: opts.report.rows_failed,
     status,
-    notes: opts.report.errors.slice(0, 50).map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`).join(" | ") || null,
+    notes: opts.report.errors.slice(0, 50)
+      .map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`).join(" | ") || null,
   }).select("id").maybeSingle();
 
   const actionMap: Record<ImportType, string> = {
@@ -275,6 +266,3 @@ export async function finalizeImport(opts: {
 export function emptyReport(): ImportReport {
   return { rows_total: 0, rows_success: 0, rows_failed: 0, errors: [] };
 }
-
-// re-export for convenience
-export type { RowError };
