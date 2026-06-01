@@ -34,7 +34,6 @@ import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
 import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
@@ -283,11 +282,6 @@ const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
   path: '/audit-log',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
-  id: '/system-readiness',
-  path: '/system-readiness',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   id: '/academic-core',
   path: '/academic-core',
@@ -331,7 +325,6 @@ export interface FileRoutesByFullPath {
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -376,7 +369,6 @@ export interface FileRoutesByTo {
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -426,7 +418,6 @@ export interface FileRoutesById {
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -477,7 +468,6 @@ export interface FileRouteTypes {
     | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
-    | '/admin/system-readiness'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -522,7 +512,6 @@ export interface FileRouteTypes {
     | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
-    | '/admin/system-readiness'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -571,7 +560,6 @@ export interface FileRouteTypes {
     | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
-    | '/admin/system-readiness'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -918,13 +906,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditLogRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/system-readiness': {
-      id: '/admin/system-readiness'
-      path: '/system-readiness'
-      fullPath: '/admin/system-readiness'
-      preLoaderRoute: typeof AdminSystemReadinessRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/academic-core': {
       id: '/admin/academic-core'
       path: '/academic-core'
@@ -958,7 +939,6 @@ interface AdminRouteChildren {
   AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
   AdminTranscriptsRoute: typeof AdminTranscriptsRoute
   AdminUsersRoute: typeof AdminUsersRoute
-  AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -985,7 +965,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSystemReadinessRoute: AdminSystemReadinessRoute,
   AdminTranscriptsRoute: AdminTranscriptsRoute,
   AdminUsersRoute: AdminUsersRoute,
-  AdminSystemReadinessRoute: AdminSystemReadinessRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
