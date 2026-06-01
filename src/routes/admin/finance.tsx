@@ -41,7 +41,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
 const METHOD_LABEL: Record<string, string> = { cash: "نقداً", bank_transfer: "تحويل بنكي", other: "أخرى" };
 
 function AdminFinancePage() {
-  const [tab, setTab] = useState<"types" | "fees" | "payments" | "discounts">("types");
+  const [tab, setTab] = useState<"types" | "fees" | "payments" | "discounts" | "receipts">("types");
 
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-6xl mx-auto">
