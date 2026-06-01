@@ -45,6 +45,8 @@ function AdminDashboard() {
     queryKey: ["admin-dashboard-counts"],
     queryFn: async () => {
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+      const todayIso = startOfToday.toISOString();
       const [
         programs, courses, sections, students,
         faculty, staff,
@@ -52,6 +54,8 @@ function AdminDashboard() {
         news, events, research,
         audit24h, notif24h,
         feesPending, feesPartial,
+        docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
+        docsIssuedToday, docsCancelledToday,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -68,17 +72,36 @@ function AdminDashboard() {
         tableCount("notifications", (q) => q.gte("created_at", since24h)),
         tableCount("student_fees", (q) => q.eq("status", "pending")),
         tableCount("student_fees", (q) => q.eq("status", "partially_paid")),
+        tableCount("official_documents"),
+        tableCount("official_documents", (q) => q.eq("document_type", "enrollment_certificate")),
+        tableCount("official_documents", (q) => q.eq("document_type", "official_transcript")),
+        tableCount("official_documents", (q) => q.eq("document_type", "financial_receipt")),
+        tableCount("official_documents", (q) => q.gte("issued_at", todayIso)),
+        tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_issued").gte("created_at", todayIso)),
+        tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_cancelled").gte("created_at", todayIso)),
       ]);
-      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h, notif24h, feesPending, feesPartial };
+      return {
+        programs, courses, sections, students, faculty, staff,
+        newReq, reviewReq, news, events, research, audit24h, notif24h,
+        feesPending, feesPartial,
+        docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
+        docsIssuedToday, docsCancelledToday,
+      };
     },
   });
 
-  const counts = s ?? {
-    programs: 0, courses: 0, sections: 0, students: 0,
-    faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
-    news: 0, events: 0, research: 0, audit24h: 0, notif24h: 0,
-    feesPending: 0, feesPartial: 0,
-  };
+  const { data: recentDocs } = useQuery({
+    queryKey: ["admin-recent-documents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("official_documents")
+        .select("id, document_number, document_type, issued_at, status, student_profiles(full_name_ar, academic_number)")
+        .order("issued_at", { ascending: false })
+        .limit(10);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as any[];
+    },
+  });
 
   const sections_: Array<{
     title: string;
