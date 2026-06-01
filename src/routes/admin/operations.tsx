@@ -50,8 +50,8 @@ async function fetchOps() {
     lastAudit, lastFinance, lastDoc,
     studentReqFailed, importsFailed, receiptsPending,
   ] = await Promise.all([
-    supabase.rpc("get_table_count" as any).then((r: any) => r.data ?? null).catch(() => null),
-    supabase.rpc("get_function_count" as any).then((r: any) => r.data ?? null).catch(() => null),
+    Promise.resolve(supabase.rpc("get_table_count" as any)).then((r: any) => r.data ?? null).catch(() => null),
+    Promise.resolve(supabase.rpc("get_function_count" as any)).then((r: any) => r.data ?? null).catch(() => null),
     safeCount("audit_logs"),
     safeCount("audit_logs", (q) => q.gte("created_at", new Date(Date.now() - 86400000).toISOString())),
     safeCount("notifications"),

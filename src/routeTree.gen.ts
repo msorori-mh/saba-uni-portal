@@ -46,6 +46,7 @@ import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
+import { Route as AdminOperationsRouteImport } from './routes/admin/operations'
 import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
@@ -249,6 +250,11 @@ const AdminProgramsRoute = AdminProgramsRouteImport.update({
   path: '/programs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminOperationsRoute = AdminOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminNewsRoute = AdminNewsRouteImport.update({
   id: '/news',
   path: '/news',
@@ -362,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -413,6 +420,7 @@ export interface FileRoutesByTo {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -469,6 +477,7 @@ export interface FileRoutesById {
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
+  '/admin/operations': typeof AdminOperationsRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -526,6 +535,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/news'
+    | '/admin/operations'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -577,6 +587,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/news'
+    | '/admin/operations'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -632,6 +643,7 @@ export interface FileRouteTypes {
     | '/admin/login'
     | '/admin/messages'
     | '/admin/news'
+    | '/admin/operations'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -936,6 +948,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProgramsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/operations': {
+      id: '/admin/operations'
+      path: '/operations'
+      fullPath: '/admin/operations'
+      preLoaderRoute: typeof AdminOperationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/news': {
       id: '/admin/news'
       path: '/news'
@@ -1068,6 +1087,7 @@ interface AdminRouteChildren {
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNewsRoute: typeof AdminNewsRoute
+  AdminOperationsRoute: typeof AdminOperationsRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
@@ -1099,6 +1119,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminLoginRoute: AdminLoginRoute,
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNewsRoute: AdminNewsRoute,
+  AdminOperationsRoute: AdminOperationsRoute,
   AdminProgramsRoute: AdminProgramsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,
