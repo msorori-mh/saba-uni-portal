@@ -156,7 +156,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     if (error) toast.error(error.message); else { toast.success("تم الحذف"); refresh(); }
   };
 
-  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension"]);
+  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension", "extra_chance"]);
 
   return (
     <div className="mt-6">
