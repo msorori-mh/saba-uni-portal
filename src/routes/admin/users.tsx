@@ -277,6 +277,10 @@ function UsersPage() {
                 })}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
       {/* Create Admin/SystemAdmin modal */}
       {showAdminForm && (
         <CreateAdminModal
