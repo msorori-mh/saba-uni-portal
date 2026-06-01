@@ -25,6 +25,11 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   cancelled:    { text: "ملغي",        cls: "bg-zinc-200 text-zinc-800" },
 };
 
+const CHANCE_LABEL: Record<string, string> = {
+  final_chance: "فرصة أخيرة",
+  additional_chance: "فرصة إضافية",
+};
+
 type Enrollment = { id: string; course_section_id: string; section_code: string; course_code: string; course_name: string };
 
 type SuspensionDetails = {
@@ -37,14 +42,26 @@ type SuspensionDetails = {
   semester: { name: string } | null;
 };
 
+type ExtraChanceDetails = {
+  academic_year_id: string;
+  semester_id: string;
+  chance_type: string;
+  reason: string;
+  notes: string | null;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+};
+
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
   request_type: string;
   absence_details: { absence_date: string; reason_type: string; course_section_id: string } | null;
   suspension_details: SuspensionDetails | null;
+  extra_chance_details: ExtraChanceDetails | null;
   attachments: { id: string; file_name: string; file_url: string }[];
 };
+
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
