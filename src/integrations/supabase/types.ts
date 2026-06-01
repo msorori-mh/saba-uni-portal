@@ -2808,6 +2808,15 @@ export type Database = {
         Args: { _discount_id: string }
         Returns: undefined
       }
+      validate_financial_transaction: {
+        Args: {
+          _amount: number
+          _exclude_payment_id?: string
+          _kind: string
+          _student_fee_id?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:

@@ -5,6 +5,7 @@ import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
+  Wallet, AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts } from "@/lib/admin-users.functions";
@@ -36,6 +37,7 @@ function AdminDashboard() {
         newReq, reviewReq,
         news, events, research,
         audit24h, notif24h,
+        feesPending, feesPartial,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -50,8 +52,10 @@ function AdminDashboard() {
         tableCount("research_papers", (q) => q.eq("is_published", true)),
         tableCount("audit_logs", (q) => q.gte("created_at", since24h)),
         tableCount("notifications", (q) => q.gte("created_at", since24h)),
+        tableCount("student_fees", (q) => q.eq("status", "pending")),
+        tableCount("student_fees", (q) => q.eq("status", "partially_paid")),
       ]);
-      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h, notif24h };
+      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h, notif24h, feesPending, feesPartial };
     },
   });
 
@@ -59,6 +63,7 @@ function AdminDashboard() {
     programs: 0, courses: 0, sections: 0, students: 0,
     faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
     news: 0, events: 0, research: 0, audit24h: 0, notif24h: 0,
+    feesPending: 0, feesPartial: 0,
   };
 
   const sections_: Array<{
@@ -86,6 +91,13 @@ function AdminDashboard() {
       cards: [
         { label: "طلبات جديدة", value: counts.newReq, icon: FileWarning },
         { label: "قيد المراجعة", value: counts.reviewReq, icon: ClipboardCheck },
+      ],
+    },
+    {
+      title: "المالية",
+      cards: [
+        { label: "رسوم غير مسددة", value: counts.feesPending, icon: Wallet },
+        { label: "رسوم مسددة جزئياً", value: counts.feesPartial, icon: AlertCircle },
       ],
     },
     {
