@@ -93,6 +93,7 @@ function AdminDashboard() {
       title: "النظام",
       cards: [
         { label: "سجل التدقيق (آخر 24 ساعة)", value: counts.audit24h, icon: ScrollText },
+        { label: "الإشعارات (آخر 24 ساعة)", value: counts.notif24h, icon: Bell },
       ],
     },
   ];
