@@ -205,11 +205,8 @@ function AdminDashboard() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {sec.cards.map((c) => {
               const Icon = c.icon;
-              return (
-                <div
-                  key={c.label}
-                  className="rounded-xl bg-card border border-border p-5 shadow-card flex items-center justify-between"
-                >
+              const inner = (
+                <>
                   <div>
                     <div className="text-xs font-semibold text-muted-foreground">{c.label}</div>
                     <div className="mt-2 font-display text-3xl font-extrabold text-primary">
@@ -219,7 +216,15 @@ function AdminDashboard() {
                   <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
-                </div>
+                </>
+              );
+              const cls = "rounded-xl bg-card border border-border p-5 shadow-card flex items-center justify-between";
+              return c.to ? (
+                <Link key={c.label} to={c.to} className={cls + " hover:border-gold transition-all"}>
+                  {inner}
+                </Link>
+              ) : (
+                <div key={c.label} className={cls}>{inner}</div>
               );
             })}
           </div>
