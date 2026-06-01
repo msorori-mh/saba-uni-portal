@@ -217,6 +217,25 @@ function IssueDialog({ onClose, onIssued }: { onClose: () => void; onIssued: () 
       });
       if (error) throw error;
       alert(`تم إصدار الوثيقة: ${data?.document_number}`);
+      // Phase 9B: best-effort email
+      try {
+        const { data: srow } = await sb.from("student_profiles")
+          .select("email, full_name_ar").eq("id", studentId).maybeSingle();
+        if (srow?.email && data?.document_number) {
+          sendNotificationEmail({ data: {
+            templateKey: "document_issued",
+            recipientEmail: srow.email,
+            recipientName: srow.full_name_ar,
+            variables: {
+              document_type: TYPE_LABEL[docType] ?? docType,
+              document_number: data.document_number,
+              verification_code: data.verification_code ?? "",
+            },
+            relatedEntityType: "official_document",
+            relatedEntityId: data.id ?? null,
+          } }).catch(() => undefined);
+        }
+      } catch { /* secondary */ }
       onIssued();
     } catch (e) { alert((e as Error).message); }
     finally { setLoading(false); }
