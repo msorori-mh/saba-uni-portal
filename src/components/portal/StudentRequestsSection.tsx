@@ -74,7 +74,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     queryKey: ["my-requests", studentProfileId],
     queryFn: async (): Promise<RequestRow[]> => {
       const { data: reqs, error } = await sb.from("student_requests")
-        .select("id, title, description, status, submitted_at, rejection_reason, created_at")
+        .select("id, title, description, status, submitted_at, rejection_reason, created_at, request_type")
         .eq("student_profile_id", studentProfileId)
         .order("created_at", { ascending: false });
       if (error) throw error;
