@@ -94,6 +94,13 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "المالية",
+      cards: [
+        { label: "رسوم غير مسددة", value: counts.feesPending, icon: Wallet },
+        { label: "رسوم مسددة جزئياً", value: counts.feesPartial, icon: AlertCircle },
+      ],
+    },
+    {
       title: "الموقع",
       cards: [
         { label: "الأخبار المنشورة", value: counts.news, icon: Newspaper },
