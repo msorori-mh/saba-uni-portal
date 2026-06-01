@@ -1,7 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { FileText, Loader2, Eye, ShieldCheck } from "lucide-react";
+import { FileText, Loader2, Eye, ShieldCheck, Printer, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+function openDoc(id: string, withPrint = false) {
+  const url = withPrint ? `/document-view/${id}?print=1` : `/document-view/${id}`;
+  window.open(url, "_blank", "noopener,noreferrer");
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
