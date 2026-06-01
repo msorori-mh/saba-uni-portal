@@ -74,6 +74,14 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    id: "documents",
+    label: "الوثائق الرسمية",
+    icon: FileBadge,
+    items: [
+      { to: "/admin/documents", label: "جميع الوثائق", icon: FileText },
+    ],
+  },
+  {
     id: "site",
     label: "إدارة الموقع",
     icon: Globe,
