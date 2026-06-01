@@ -134,6 +134,34 @@ function AdminGradesPage() {
     if (error) { toast.error(error.message); return; }
     toast.success(`تم اعتماد ${idsToApprove.length} درجة`);
     qc.invalidateQueries({ queryKey: ["adm-grades-rows", sectionId] });
+    // Phase 9B: best-effort emails per affected student (one email/student)
+    try {
+      const { data: sec } = await sb.from("course_sections")
+        .select("offering:course_offerings(course:courses(name_ar))").eq("id", sectionId).maybeSingle();
+      const courseName = sec?.offering?.course?.name_ar ?? "المقرر";
+      const enrIds = Array.from(new Set(rows
+        .filter(r => Object.values(r.grades).some(g => g && idsToApprove.includes(g.id)))
+        .map(r => r.enrollmentId)));
+      if (enrIds.length > 0) {
+        const { data: enrs } = await sb.from("student_enrollments")
+          .select("student_profile_id, student:student_profiles(email, full_name_ar)")
+          .in("id", enrIds);
+        const seen = new Set<string>();
+        for (const e of (enrs ?? [])) {
+          const email = e?.student?.email as string | undefined;
+          if (!email || seen.has(email)) continue;
+          seen.add(email);
+          sendNotificationEmail({ data: {
+            templateKey: "grade_approved",
+            recipientEmail: email,
+            recipientName: e.student?.full_name_ar ?? null,
+            variables: { course_name: courseName },
+            relatedEntityType: "course_section",
+            relatedEntityId: sectionId,
+          } }).catch(() => undefined);
+        }
+      }
+    } catch { /* secondary */ }
   };
 
   const returnAll = async () => {
