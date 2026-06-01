@@ -1099,6 +1099,106 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_receipts: {
+        Row: {
+          amount: number
+          created_at: string
+          file_name: string
+          file_url: string
+          id: string
+          payment_date: string
+          payment_method: string
+          receipt_reference: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          student_fee_id: string
+          student_payment_id: string | null
+          student_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          file_name: string
+          file_url: string
+          id?: string
+          payment_date?: string
+          payment_method: string
+          receipt_reference?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_fee_id: string
+          student_payment_id?: string | null
+          student_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          file_name?: string
+          file_url?: string
+          id?: string
+          payment_date?: string
+          payment_method?: string
+          receipt_reference?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          student_fee_id?: string
+          student_payment_id?: string | null
+          student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_receipts_student_fee_id_fkey"
+            columns: ["student_fee_id"]
+            isOneToOne: false
+            referencedRelation: "student_fees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_student_payment_id_fkey"
+            columns: ["student_payment_id"]
+            isOneToOne: false
+            referencedRelation: "student_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "payment_receipts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["student_profile_id"]
+          },
+        ]
+      }
       programs: {
         Row: {
           admission_requirements: string | null
