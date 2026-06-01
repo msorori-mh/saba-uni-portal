@@ -4,6 +4,7 @@ import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, Ca
 import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 import { StudentRequestsSection } from "@/components/portal/StudentRequestsSection";
+import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type StudentRow = {
@@ -277,6 +278,8 @@ function StudentDashboard() {
             </div>
 
             <StudentRequestsSection studentProfileId={profile.id} />
+
+            <StudentFinanceSection studentProfileId={profile.id} />
 
 
 

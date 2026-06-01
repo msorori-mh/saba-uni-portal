@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Newspaper, Users, BookOpen, FlaskConical, Calendar,
   MessageSquare, Settings, LogOut, Menu, GraduationCap, ChevronLeft, ChevronDown,
   CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
-  FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe,
+  FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe, Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -62,6 +62,14 @@ const groups: NavGroup[] = [
     icon: UserCog,
     items: [
       { to: "/admin/faculty", label: "أعضاء هيئة التدريس", icon: Users },
+    ],
+  },
+  {
+    id: "finance",
+    label: "الشؤون المالية",
+    icon: Wallet,
+    items: [
+      { to: "/admin/finance", label: "الرسوم والمدفوعات", icon: Wallet },
     ],
   },
   {
