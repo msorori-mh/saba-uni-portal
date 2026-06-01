@@ -2742,6 +2742,7 @@ export type Database = {
         }
         Returns: string
       }
+      get_hardening_status: { Args: never; Returns: Json }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean

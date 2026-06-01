@@ -5,10 +5,10 @@ import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
-  Wallet, AlertCircle,
+  Wallet, AlertCircle, Lock, Database, ShieldAlert,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { activeUserCounts } from "@/lib/admin-users.functions";
+import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -23,9 +23,22 @@ async function tableCount(table: string, filters?: (q: any) => any) {
 
 function AdminDashboard() {
   const fetchActive = useServerFn(activeUserCounts);
+  const fetchAdminCounts = useServerFn(adminAccountCounts);
   const { data: active } = useQuery({
     queryKey: ["active-user-counts"],
     queryFn: () => fetchActive(),
+  });
+  const { data: adminCounts } = useQuery({
+    queryKey: ["admin-account-counts"],
+    queryFn: () => fetchAdminCounts(),
+  });
+  const { data: hardening } = useQuery({
+    queryKey: ["hardening-status"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_hardening_status" as any);
+      if (error) throw new Error(error.message);
+      return data as any;
+    },
   });
   const { data: s } = useQuery({
     queryKey: ["admin-dashboard-counts"],
@@ -191,6 +204,40 @@ function AdminDashboard() {
         </div>
       </section>
 
+      {/* Production Readiness section */}
+      <section className="space-y-3">
+        <h2 className="font-display text-base font-bold text-primary">Production Readiness</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          <ReadinessCard
+            title="الحسابات الإدارية"
+            icon={ShieldAlert}
+            to="/admin/users"
+            status={
+              (adminCounts?.admin ?? 0) >= 2 && (adminCounts?.system_admin ?? 0) >= 1
+                ? "PASS" : "FAIL"
+            }
+            primary={`Admin: ${adminCounts?.admin ?? 0}`}
+            secondary={`System Admin: ${adminCounts?.system_admin ?? 0}`}
+          />
+          <ReadinessCard
+            title="حالة التأمين"
+            icon={Lock}
+            to="/admin/security-status"
+            status={hardening ? (hardeningOverall(hardening)) : "WARNING"}
+            primary="Auth · Storage · Admins"
+            secondary="مراجعة قراءة-فقط"
+          />
+          <ReadinessCard
+            title="النسخ الاحتياطي"
+            icon={Database}
+            to="/admin/backup-status"
+            status="WARNING"
+            primary="يحتاج تحقق يدوي"
+            secondary="PITR · Restore Drill"
+          />
+        </div>
+      </section>
+
       {/* System Readiness CTA */}
       <section className="rounded-xl bg-card border border-border p-6 shadow-card">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -228,5 +275,44 @@ function AdminDashboard() {
         </div>
       </section>
     </div>
+  );
+}
+
+function hardeningOverall(h: any): "PASS" | "WARNING" | "FAIL" {
+  if (!h) return "WARNING";
+  const buckets: any[] = h.buckets ?? [];
+  const privateBkts = new Set(["payment-receipts", "student-request-attachments"]);
+  let fail = false, warn = false;
+  if ((h.admin_count ?? 0) < 2 || (h.system_admin_count ?? 0) < 1) fail = true;
+  for (const b of buckets) {
+    if (privateBkts.has(b.id) && b.public) fail = true;
+    if (!b.file_size_limit || !(b.allowed_mime_types?.length)) warn = true;
+  }
+  if (fail) return "FAIL";
+  if (warn) return "WARNING";
+  return "PASS";
+}
+
+function ReadinessCard({
+  title, icon: Icon, to, status, primary, secondary,
+}: {
+  title: string; icon: any; to: string;
+  status: "PASS" | "WARNING" | "FAIL";
+  primary: string; secondary: string;
+}) {
+  const color =
+    status === "PASS" ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+    : status === "WARNING" ? "border-amber-200 bg-amber-50 text-amber-700"
+    : "border-red-200 bg-red-50 text-red-700";
+  return (
+    <Link to={to} className={`block rounded-xl border p-5 shadow-card hover:opacity-90 transition ${color}`}>
+      <div className="flex items-center justify-between">
+        <Icon className="h-5 w-5" />
+        <span className="rounded-md border bg-white/60 px-2 py-0.5 text-[10px] font-extrabold">{status}</span>
+      </div>
+      <div className="mt-3 text-sm font-extrabold">{title}</div>
+      <div className="mt-1 text-xs font-bold">{primary}</div>
+      <div className="text-[11px] opacity-80">{secondary}</div>
+    </Link>
   );
 }

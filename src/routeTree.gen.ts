@@ -39,6 +39,7 @@ import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
@@ -53,6 +54,7 @@ import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
+import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-status'
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 
@@ -207,6 +209,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSecurityStatusRoute = AdminSecurityStatusRouteImport.update({
+  id: '/security-status',
+  path: '/security-status',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminResearchRoute = AdminResearchRouteImport.update({
   id: '/research',
   path: '/research',
@@ -277,6 +284,11 @@ const AdminContactsRoute = AdminContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminBackupStatusRoute = AdminBackupStatusRouteImport.update({
+  id: '/backup-status',
+  path: '/backup-status',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
   id: '/audit-log',
   path: '/audit-log',
@@ -305,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/student': typeof StudentRouteWithChildren
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -319,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -349,6 +363,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -363,6 +378,7 @@ export interface FileRoutesByTo {
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -398,6 +414,7 @@ export interface FileRoutesById {
   '/student': typeof StudentRouteWithChildren
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -412,6 +429,7 @@ export interface FileRoutesById {
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -448,6 +466,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/admin/academic-core'
     | '/admin/audit-log'
+    | '/admin/backup-status'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -462,6 +481,7 @@ export interface FileRouteTypes {
     | '/admin/programs'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/security-status'
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
@@ -492,6 +512,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/admin/academic-core'
     | '/admin/audit-log'
+    | '/admin/backup-status'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -506,6 +527,7 @@ export interface FileRouteTypes {
     | '/admin/programs'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/security-status'
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
@@ -540,6 +562,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/admin/academic-core'
     | '/admin/audit-log'
+    | '/admin/backup-status'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -554,6 +577,7 @@ export interface FileRouteTypes {
     | '/admin/programs'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/security-status'
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
@@ -801,6 +825,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/security-status': {
+      id: '/admin/security-status'
+      path: '/security-status'
+      fullPath: '/admin/security-status'
+      preLoaderRoute: typeof AdminSecurityStatusRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/research': {
       id: '/admin/research'
       path: '/research'
@@ -899,6 +930,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminContactsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/backup-status': {
+      id: '/admin/backup-status'
+      path: '/backup-status'
+      fullPath: '/admin/backup-status'
+      preLoaderRoute: typeof AdminBackupStatusRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/audit-log': {
       id: '/admin/audit-log'
       path: '/audit-log'
@@ -919,6 +957,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
+  AdminBackupStatusRoute: typeof AdminBackupStatusRoute
   AdminContactsRoute: typeof AdminContactsRoute
   AdminCourseOfferingsRoute: typeof AdminCourseOfferingsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
@@ -933,6 +972,7 @@ interface AdminRouteChildren {
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
   AdminResearchRoute: typeof AdminResearchRoute
+  AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
@@ -945,6 +985,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAcademicCoreRoute: AdminAcademicCoreRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
+  AdminBackupStatusRoute: AdminBackupStatusRoute,
   AdminContactsRoute: AdminContactsRoute,
   AdminCourseOfferingsRoute: AdminCourseOfferingsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
@@ -959,6 +1000,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminProgramsRoute: AdminProgramsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,
   AdminResearchRoute: AdminResearchRoute,
+  AdminSecurityStatusRoute: AdminSecurityStatusRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,
