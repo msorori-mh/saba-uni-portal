@@ -123,13 +123,16 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id").in("request_id", ids),
         sb.from("enrollment_suspension_details")
           .select("request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
           .in("request_id", ids),
         sb.from("extra_chance_details")
           .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .in("request_id", ids),
+        sb.from("transfer_request_details")
+          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
           .in("request_id", ids),
         sb.from("student_request_attachments").select("id, request_id, file_name, file_url").in("request_id", ids),
       ]);
@@ -139,6 +142,8 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -152,6 +157,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         absence_details: absMap.get(r.id) ?? null,
         suspension_details: suspMap.get(r.id) ?? null,
         extra_chance_details: ecMap.get(r.id) ?? null,
+        transfer_details: trMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
     },
