@@ -5,7 +5,7 @@ import {
   LayoutDashboard, Newspaper, Users, BookOpen, FlaskConical, Calendar,
   MessageSquare, Settings, LogOut, Menu, GraduationCap, ChevronLeft, ChevronDown,
   CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
-  FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe,
+  FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe, Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
