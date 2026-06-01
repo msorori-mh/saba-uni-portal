@@ -1,8 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Printer, ArrowRight, XCircle } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import QRCode from "qrcode";
+import { Loader2, Printer, ArrowRight, XCircle, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { logDocumentAction } from "@/lib/document-audit.functions";
 import {
   EnrollmentCertificate, StatusCertificate, OfficialTranscript, FinancialReceipt,
   type DocumentBase, type StudentInfo, type SiteInfo, type TranscriptCourse, type ReceiptInfo,
@@ -20,17 +23,18 @@ function DocumentViewPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const autoprint = typeof window !== "undefined" && window.location.search.includes("print=1");
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const auditFn = useServerFn(logDocumentAction);
+  const loggedPrintRef = useRef(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["official-document-view", id],
     queryFn: async () => {
-      // 1. Document row
       const { data: doc, error: e1 } = await sb.from("official_documents")
         .select("*").eq("id", id).maybeSingle();
       if (e1) throw new Error(e1.message);
       if (!doc) throw new Error("الوثيقة غير موجودة");
 
-      // 2. Student + lookups
       const { data: student, error: e2 } = await sb.from("student_profiles")
         .select("id, academic_number, full_name_ar, full_name_en, national_id, department:departments(name_ar), program:programs(name_ar)")
         .eq("id", doc.student_profile_id).maybeSingle();
@@ -41,9 +45,8 @@ function DocumentViewPage() {
         .eq("student_profile_id", doc.student_profile_id)
         .order("updated_at", { ascending: false }).limit(1).maybeSingle();
 
-      // 3. Site settings
       const { data: settings } = await sb.from("site_settings")
-        .select("setting_key, setting_value").in("setting_key", ["university_name", "college_name", "logo_url"]);
+        .select("setting_key, setting_value").in("setting_key", ["university_name", "college_name", "logo_url", "college_logo_url"]);
       const settingMap = new Map<string, string>();
       (settings ?? []).forEach((r: { setting_key: string; setting_value: string }) =>
         settingMap.set(r.setting_key, r.setting_value));
@@ -52,6 +55,7 @@ function DocumentViewPage() {
         university_name: settingMap.get("university_name") ?? "جامعة سبأ",
         college_name: settingMap.get("college_name") ?? "كلية تكنولوجيا المعلومات وعلوم الحاسوب",
         logo_url: settingMap.get("logo_url") ?? null,
+        college_logo_url: settingMap.get("college_logo_url") ?? null,
       };
 
       const studentInfo: StudentInfo = {
@@ -67,7 +71,6 @@ function DocumentViewPage() {
         enrollment_status: status?.enrollment_status ?? null,
       };
 
-      // 4. Transcript data
       let courses: TranscriptCourse[] = [];
       if (doc.document_type === "official_transcript") {
         const { data: tx } = await sb.from("student_unofficial_transcript")
@@ -76,7 +79,6 @@ function DocumentViewPage() {
         courses = (tx ?? []) as TranscriptCourse[];
       }
 
-      // 5. Receipt data
       let receipt: ReceiptInfo | null = null;
       if (doc.document_type === "financial_receipt") {
         const meta = (doc.metadata ?? {}) as Record<string, unknown>;
@@ -110,12 +112,41 @@ function DocumentViewPage() {
     },
   });
 
+  // Generate QR code data URL pointing to verification page
   useEffect(() => {
-    if (autoprint && data) {
-      const t = setTimeout(() => window.print(), 500);
+    if (!data?.doc?.verification_code) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/verify-document?code=${encodeURIComponent(data.doc.verification_code)}`;
+    QRCode.toDataURL(url, { width: 240, margin: 1, errorCorrectionLevel: "M" })
+      .then((u) => setQrDataUrl(u))
+      .catch(() => setQrDataUrl(null));
+  }, [data?.doc?.verification_code]);
+
+  // Best-effort: log print event (browser fires beforeprint on Ctrl+P too)
+  useEffect(() => {
+    if (!data) return;
+    const onBeforePrint = () => {
+      if (loggedPrintRef.current) return;
+      loggedPrintRef.current = true;
+      auditFn({ data: { documentId: id, action: "document_printed" } }).catch(() => undefined);
+    };
+    window.addEventListener("beforeprint", onBeforePrint);
+    return () => window.removeEventListener("beforeprint", onBeforePrint);
+  }, [data, id, auditFn]);
+
+  useEffect(() => {
+    if (autoprint && data && qrDataUrl !== null) {
+      const t = setTimeout(() => window.print(), 600);
       return () => clearTimeout(t);
     }
-  }, [autoprint, data]);
+  }, [autoprint, data, qrDataUrl]);
+
+  const handlePrint = () => window.print();
+  const handleDownload = () => {
+    auditFn({ data: { documentId: id, action: "document_downloaded" } }).catch(() => undefined);
+    // Browser "Save as PDF" via print dialog
+    window.print();
+  };
 
   if (isLoading) {
     return <div className="min-h-screen grid place-items-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -140,25 +171,33 @@ function DocumentViewPage() {
         <button onClick={() => window.history.back()} className="inline-flex items-center gap-1.5 text-sm font-bold text-primary">
           <ArrowRight className="h-4 w-4" /> رجوع
         </button>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
-        >
-          <Printer className="h-4 w-4" /> طباعة / PDF
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleDownload}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:border-gold"
+          >
+            <Download className="h-4 w-4" /> تنزيل PDF
+          </button>
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
+          >
+            <Printer className="h-4 w-4" /> طباعة
+          </button>
+        </div>
       </div>
       <div className="py-6 print:py-0">
         {doc.document_type === "enrollment_certificate" && (
-          <EnrollmentCertificate doc={doc} student={student} site={site} />
+          <EnrollmentCertificate doc={doc} student={student} site={site} qrDataUrl={qrDataUrl} />
         )}
         {doc.document_type === "student_status_certificate" && (
-          <StatusCertificate doc={doc} student={student} site={site} />
+          <StatusCertificate doc={doc} student={student} site={site} qrDataUrl={qrDataUrl} />
         )}
         {doc.document_type === "official_transcript" && (
-          <OfficialTranscript doc={doc} student={student} site={site} courses={courses} />
+          <OfficialTranscript doc={doc} student={student} site={site} courses={courses} qrDataUrl={qrDataUrl} />
         )}
         {doc.document_type === "financial_receipt" && receipt && (
-          <FinancialReceipt doc={doc} student={student} site={site} receipt={receipt} />
+          <FinancialReceipt doc={doc} student={student} site={site} receipt={receipt} qrDataUrl={qrDataUrl} />
         )}
       </div>
     </div>
