@@ -6,6 +6,7 @@ import {
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
   Wallet, AlertCircle, Lock, Database, ShieldAlert,
+  FileBadge, FileCheck2, Receipt, FileSignature, FileClock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
