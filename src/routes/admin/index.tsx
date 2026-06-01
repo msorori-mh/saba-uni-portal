@@ -126,6 +126,7 @@ function AdminDashboard() {
     feesPending: 0, feesPartial: 0,
     docsAll: 0, docsEnroll: 0, docsTranscript: 0, docsReceipt: 0, docsToday: 0,
     docsIssuedToday: 0, docsCancelledToday: 0,
+    docsActive: 0, docsCancelled: 0, docsThisMonth: 0,
   };
 
   const sections_: Array<{
