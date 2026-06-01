@@ -570,3 +570,119 @@ function Actions({ busy, onDraft, onSubmit }: { busy: boolean; onDraft: () => vo
     </div>
   );
 }
+
+function ExtraChanceModal({
+  studentProfileId, onClose, onSaved,
+}: {
+  studentProfileId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const { data: years = [] } = useQuery({
+    queryKey: ["ec-years"],
+    queryFn: async () => {
+      const { data } = await supabase.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false });
+      return (data ?? []) as { id: string; name: string; is_current: boolean }[];
+    },
+  });
+  const [yearId, setYearId] = useState<string>("");
+  const { data: semesters = [] } = useQuery({
+    queryKey: ["ec-sems", yearId],
+    enabled: !!yearId,
+    queryFn: async () => {
+      const { data } = await supabase.from("semesters").select("id, name").eq("academic_year_id", yearId).order("start_date");
+      return (data ?? []) as { id: string; name: string }[];
+    },
+  });
+  const [semId, setSemId] = useState<string>("");
+  const [chanceType, setChanceType] = useState<"final_chance" | "additional_chance">("final_chance");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!yearId && years.length > 0) {
+    const cur = years.find((y) => y.is_current) ?? years[0];
+    setYearId(cur.id);
+  }
+  if (!semId && semesters.length > 0) {
+    setSemId(semesters[0].id);
+  }
+
+  const save = async (submit: boolean) => {
+    if (!yearId) { toast.error("اختر السنة الأكاديمية"); return; }
+    if (!semId) { toast.error("اختر الفصل"); return; }
+    if (!reason.trim()) { toast.error("أدخل سبب الطلب"); return; }
+    setBusy(true);
+    try {
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "extra_chance",
+        title: "طلب منح فرصة",
+        description: notes || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("extra_chance_details").insert({
+        request_id: created.id,
+        academic_year_id: yearId,
+        semester_id: semId,
+        chance_type: chanceType,
+        reason: reason.trim(),
+        notes: notes || null,
+      });
+      if (e2) throw e2;
+
+      if (file) await uploadAttachment(created.id, file);
+      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب منح فرصة" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label>السنة الأكاديمية</Label>
+            <select value={yearId} onChange={(e) => { setYearId(e.target.value); setSemId(""); }} className="w-full h-9 rounded border bg-background px-2 text-sm">
+              <option value="">اختر...</option>
+              {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label>الفصل</Label>
+            <select value={semId} onChange={(e) => setSemId(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm">
+              <option value="">اختر...</option>
+              {semesters.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <Label>نوع الفرصة</Label>
+          <div className="flex gap-2">
+            {(["final_chance", "additional_chance"] as const).map((d) => (
+              <label key={d} className={`flex-1 cursor-pointer border rounded-lg p-2 text-center text-xs font-semibold ${chanceType === d ? "border-primary bg-primary/5 text-primary" : "border-border"}`}>
+                <input type="radio" name="chance_type" value={d} checked={chanceType === d} onChange={() => setChanceType(d)} className="sr-only" />
+                {CHANCE_LABEL[d]}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>سبب الطلب <span className="text-rose-600">*</span></Label>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" placeholder="اذكر السبب..." />
+        </div>
+        <div>
+          <Label>ملاحظات إضافية</Label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+        </div>
+        <FilePicker file={file} setFile={setFile} />
+        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+      </div>
+    </ModalShell>
+  );
+}
+
