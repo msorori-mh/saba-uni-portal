@@ -185,6 +185,16 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "الاستيراد الجماعي",
+      cards: [
+        { label: "إجمالي الاستيرادات", value: counts.importsTotal, icon: FileSpreadsheet, to: "/admin/imports" },
+        { label: "استيرادات اليوم", value: counts.importsToday, icon: FileSpreadsheet, to: "/admin/imports" },
+        { label: "ناجحة", value: counts.importsCompleted, icon: FileCheck2, to: "/admin/imports" },
+        { label: "فاشلة", value: counts.importsFailed, icon: FileWarning, to: "/admin/imports" },
+        { label: "نسبة النجاح %", value: counts.importsRate, icon: FileBadge, to: "/admin/imports" },
+      ],
+    },
+    {
       title: "النظام",
       cards: [
         { label: "سجل التدقيق (آخر 24 ساعة)", value: counts.audit24h, icon: ScrollText },
