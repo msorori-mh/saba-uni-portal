@@ -121,11 +121,13 @@ function AdminRequestsPage() {
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-7xl mx-auto">
       <div className="flex items-center gap-2">
         <FileWarning className="h-5 w-5 text-gold" />
-        <h1 className="font-display text-xl font-extrabold text-primary">طلبات الطلاب — غياب بعذر</h1>
+        <h1 className="font-display text-xl font-extrabold text-primary">طلبات الطلاب</h1>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 rounded-lg border bg-card p-3">
+        <FilterSelect label="نوع الطلب" value={typeFilter} onChange={setTypeFilter}
+          options={requestTypes.map((t) => ({ value: t.code, label: `${t.name_ar}${t.is_active ? "" : " (معطل)"}` }))} />
         <FilterSelect label="الحالة" value={statusFilter} onChange={setStatusFilter}
           options={Object.entries(STATUS_LABEL).map(([k, v]) => ({ value: k, label: v.text }))} />
         <FilterSelect label="البرنامج" value={programFilter} onChange={setProgramFilter}
