@@ -33,6 +33,7 @@ import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-p
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
@@ -175,6 +176,11 @@ const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
   path: '/$code',
   getParentRoute: () => DepartmentsRoute,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminTranscriptsRoute = AdminTranscriptsRouteImport.update({
   id: '/transcripts',
   path: '/transcripts',
@@ -311,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -353,6 +360,7 @@ export interface FileRoutesByTo {
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -400,6 +408,7 @@ export interface FileRoutesById {
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -448,6 +457,7 @@ export interface FileRouteTypes {
     | '/admin/student-requests'
     | '/admin/study-plans'
     | '/admin/transcripts'
+    | '/admin/users'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/admin/student-requests'
     | '/admin/study-plans'
     | '/admin/transcripts'
+    | '/admin/users'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -536,6 +547,7 @@ export interface FileRouteTypes {
     | '/admin/student-requests'
     | '/admin/study-plans'
     | '/admin/transcripts'
+    | '/admin/users'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -735,6 +747,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DepartmentsCodeRouteImport
       parentRoute: typeof DepartmentsRoute
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/transcripts': {
       id: '/admin/transcripts'
       path: '/transcripts'
@@ -899,6 +918,7 @@ interface AdminRouteChildren {
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
   AdminTranscriptsRoute: typeof AdminTranscriptsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -923,6 +943,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,
   AdminTranscriptsRoute: AdminTranscriptsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
