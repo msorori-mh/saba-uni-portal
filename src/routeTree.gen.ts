@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyDocumentRouteImport } from './routes/verify-document'
 import { Route as StudentRouteImport } from './routes/student'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -32,6 +33,7 @@ import { Route as StudentChangePasswordRouteImport } from './routes/student.chan
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
+import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
@@ -58,6 +60,11 @@ import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-sta
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 
+const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
+  id: '/verify-document',
+  path: '/verify-document',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StudentRoute = StudentRouteImport.update({
   id: '/student',
   path: '/student',
@@ -174,6 +181,11 @@ const FacultyPortalChangePasswordRoute =
     path: '/change-password',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
+const DocumentViewIdRoute = DocumentViewIdRouteImport.update({
+  id: '/document-view/$id',
+  path: '/document-view/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
   id: '/$code',
   path: '/$code',
@@ -315,6 +327,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
@@ -340,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
+  '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
@@ -361,6 +375,7 @@ export interface FileRoutesByTo {
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
@@ -386,6 +401,7 @@ export interface FileRoutesByTo {
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
+  '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
@@ -412,6 +428,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
+  '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
@@ -437,6 +454,7 @@ export interface FileRoutesById {
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
+  '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
@@ -464,6 +482,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/staff'
     | '/student'
+    | '/verify-document'
     | '/admin/academic-core'
     | '/admin/audit-log'
     | '/admin/backup-status'
@@ -489,6 +508,7 @@ export interface FileRouteTypes {
     | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
+    | '/document-view/$id'
     | '/faculty-portal/change-password'
     | '/news/$slug'
     | '/staff/change-password'
@@ -510,6 +530,7 @@ export interface FileRouteTypes {
     | '/portal-login'
     | '/research'
     | '/sitemap.xml'
+    | '/verify-document'
     | '/admin/academic-core'
     | '/admin/audit-log'
     | '/admin/backup-status'
@@ -535,6 +556,7 @@ export interface FileRouteTypes {
     | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
+    | '/document-view/$id'
     | '/faculty-portal/change-password'
     | '/news/$slug'
     | '/staff/change-password'
@@ -560,6 +582,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/staff'
     | '/student'
+    | '/verify-document'
     | '/admin/academic-core'
     | '/admin/audit-log'
     | '/admin/backup-status'
@@ -585,6 +608,7 @@ export interface FileRouteTypes {
     | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
+    | '/document-view/$id'
     | '/faculty-portal/change-password'
     | '/news/$slug'
     | '/staff/change-password'
@@ -611,10 +635,19 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StaffRoute: typeof StaffRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
+  VerifyDocumentRoute: typeof VerifyDocumentRoute
+  DocumentViewIdRoute: typeof DocumentViewIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-document': {
+      id: '/verify-document'
+      path: '/verify-document'
+      fullPath: '/verify-document'
+      preLoaderRoute: typeof VerifyDocumentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/student': {
       id: '/student'
       path: '/student'
@@ -775,6 +808,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/faculty-portal/change-password'
       preLoaderRoute: typeof FacultyPortalChangePasswordRouteImport
       parentRoute: typeof FacultyPortalRoute
+    }
+    '/document-view/$id': {
+      id: '/document-view/$id'
+      path: '/document-view/$id'
+      fullPath: '/document-view/$id'
+      preLoaderRoute: typeof DocumentViewIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/departments/$code': {
       id: '/departments/$code'
@@ -1090,7 +1130,19 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StaffRoute: StaffRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
+  VerifyDocumentRoute: VerifyDocumentRoute,
+  DocumentViewIdRoute: DocumentViewIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
