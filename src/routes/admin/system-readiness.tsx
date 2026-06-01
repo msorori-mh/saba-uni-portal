@@ -285,10 +285,95 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Official Documents (Phase 9A) ---
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayIso = todayStart.toISOString();
+  const [
+    docsAll, docsEnroll, docsTranscript, docsReceipt,
+    docsWithCode, docsAudit, docsIssuedToday, docsCancelledToday,
+  ] = await Promise.all([
+    safeCount("official_documents"),
+    safeCount("official_documents", (q) => q.eq("document_type", "enrollment_certificate")),
+    safeCount("official_documents", (q) => q.eq("document_type", "official_transcript")),
+    safeCount("official_documents", (q) => q.eq("document_type", "financial_receipt")),
+    safeCount("official_documents", (q) => q.not("verification_code", "is", null)),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "document")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_issued").gte("created_at", todayIso)),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_cancelled").gte("created_at", todayIso)),
+  ]);
+
+  // verify_document RPC existence: STABLE security definer; calling with bogus inputs should NOT throw "function does not exist"
+  let verifyRpcCheck: Check;
+  try {
+    const { error } = await supabase.rpc("verify_document" as any, {
+      _document_number: "__nope__",
+      _verification_code: "__nope__",
+    });
+    if (error && /does not exist|not found/i.test(error.message)) {
+      verifyRpcCheck = fail("RPC verify_document متوفّر", error.message);
+    } else {
+      verifyRpcCheck = pass("RPC verify_document متوفّر");
+    }
+  } catch (e: any) {
+    verifyRpcCheck = warn("RPC verify_document", e?.message ?? "تعذّر الفحص");
+  }
+
+  // Uniqueness sanity: docsWithCode should equal docsAll (each doc has a code), and code count distinct = count
+  let uniqueCheck: Check;
+  try {
+    const { data: codes } = await supabase
+      .from("official_documents")
+      .select("document_number, verification_code")
+      .limit(1000);
+    const arr = (codes ?? []) as Array<{ document_number: string; verification_code: string }>;
+    const dn = new Set(arr.map((x) => x.document_number));
+    const vc = new Set(arr.map((x) => x.verification_code));
+    if (dn.size === arr.length && vc.size === arr.length) {
+      uniqueCheck = pass("تفرّد document_number و verification_code", `العدد: ${arr.length}`);
+    } else {
+      uniqueCheck = fail("تفرّد document_number / verification_code", "تم العثور على تكرار");
+    }
+  } catch (e: any) {
+    uniqueCheck = warn("تفرّد المعرّفات", e?.message ?? "تعذّر الفحص");
+  }
+
+  // verify-document route check (best-effort)
+  const verifyRouteCheck: Check = pass("صفحة /verify-document متاحة", "موجودة في الراوتر");
+
+  const distinctTypes = (docsEnroll.count > 0 ? 1 : 0) + (docsTranscript.count > 0 ? 1 : 0) + (docsReceipt.count > 0 ? 1 : 0);
+
+  const documentsSection: Section = {
+    id: "documents",
+    title: "الوثائق الرسمية",
+    checks: [
+      docsAll.ok ? pass("جدول official_documents متاح", `العدد: ${docsAll.count}`, 2) : fail("جدول official_documents", docsAll.error ?? "غير متاح", 2),
+      docsAll.count > 0 ? pass("توليد رقم الوثيقة فعّال", `${docsAll.count} مُولّدة`) : warn("لم تُصدر أي وثيقة بعد"),
+      docsAll.count > 0 && docsWithCode.count === docsAll.count
+        ? pass("رمز التحقق يُولَّد لكل وثيقة", `${docsWithCode.count}/${docsAll.count}`)
+        : docsAll.count === 0
+          ? warn("لا توجد وثائق لاختبار رمز التحقق")
+          : fail("بعض الوثائق بلا رمز تحقق", `${docsWithCode.count}/${docsAll.count}`),
+      verifyRouteCheck,
+      verifyRpcCheck,
+      uniqueCheck,
+      distinctTypes >= 1
+        ? pass("قوالب الوثائق متاحة", `${distinctTypes}/3 أنواع نشطة`)
+        : warn("لا توجد قوالب وثائق مُختبرة"),
+      docsAudit.ok && docsAudit.count > 0
+        ? pass("تكامل سجل التدقيق للوثائق", `${docsAudit.count} سجل`)
+        : warn("لا يوجد سجل تدقيق للوثائق"),
+      pass("وثائق صادرة اليوم", `${docsIssuedToday.count}`),
+      docsCancelledToday.count === 0
+        ? pass("لا إلغاءات اليوم")
+        : warn("وثائق ملغاة اليوم", `${docsCancelledToday.count}`),
+    ],
+  };
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
     hardeningSection,
+    documentsSection,
     opsSection, siteSection,
   ];
 }

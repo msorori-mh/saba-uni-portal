@@ -6,6 +6,7 @@ import {
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
   Wallet, AlertCircle, Lock, Database, ShieldAlert,
+  FileBadge, FileCheck2, Receipt, FileSignature, FileClock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
@@ -19,6 +20,15 @@ async function tableCount(table: string, filters?: (q: any) => any) {
   if (filters) q = filters(q);
   const { count } = await q;
   return count ?? 0;
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  enrollment_certificate: "شهادة قيد",
+  official_transcript: "سجل أكاديمي",
+  financial_receipt: "سند مالي",
+};
+function docTypeLabel(t: string) {
+  return DOC_TYPE_LABELS[t] ?? t;
 }
 
 function AdminDashboard() {
@@ -44,6 +54,8 @@ function AdminDashboard() {
     queryKey: ["admin-dashboard-counts"],
     queryFn: async () => {
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+      const todayIso = startOfToday.toISOString();
       const [
         programs, courses, sections, students,
         faculty, staff,
@@ -51,6 +63,8 @@ function AdminDashboard() {
         news, events, research,
         audit24h, notif24h,
         feesPending, feesPartial,
+        docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
+        docsIssuedToday, docsCancelledToday,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -67,8 +81,34 @@ function AdminDashboard() {
         tableCount("notifications", (q) => q.gte("created_at", since24h)),
         tableCount("student_fees", (q) => q.eq("status", "pending")),
         tableCount("student_fees", (q) => q.eq("status", "partially_paid")),
+        tableCount("official_documents"),
+        tableCount("official_documents", (q) => q.eq("document_type", "enrollment_certificate")),
+        tableCount("official_documents", (q) => q.eq("document_type", "official_transcript")),
+        tableCount("official_documents", (q) => q.eq("document_type", "financial_receipt")),
+        tableCount("official_documents", (q) => q.gte("issued_at", todayIso)),
+        tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_issued").gte("created_at", todayIso)),
+        tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_cancelled").gte("created_at", todayIso)),
       ]);
-      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h, notif24h, feesPending, feesPartial };
+      return {
+        programs, courses, sections, students, faculty, staff,
+        newReq, reviewReq, news, events, research, audit24h, notif24h,
+        feesPending, feesPartial,
+        docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
+        docsIssuedToday, docsCancelledToday,
+      };
+    },
+  });
+
+  const { data: recentDocs } = useQuery({
+    queryKey: ["admin-recent-documents"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("official_documents")
+        .select("id, document_number, document_type, issued_at, status, student_profiles(full_name_ar, academic_number)")
+        .order("issued_at", { ascending: false })
+        .limit(10);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as any[];
     },
   });
 
@@ -77,11 +117,13 @@ function AdminDashboard() {
     faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
     news: 0, events: 0, research: 0, audit24h: 0, notif24h: 0,
     feesPending: 0, feesPartial: 0,
+    docsAll: 0, docsEnroll: 0, docsTranscript: 0, docsReceipt: 0, docsToday: 0,
+    docsIssuedToday: 0, docsCancelledToday: 0,
   };
 
   const sections_: Array<{
     title: string;
-    cards: Array<{ label: string; value: number; icon: any }>;
+    cards: Array<{ label: string; value: number; icon: any; to?: string }>;
   }> = [
     {
       title: "إحصائيات أكاديمية",
@@ -122,10 +164,22 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "الوثائق الرسمية",
+      cards: [
+        { label: "إجمالي الوثائق", value: counts.docsAll, icon: FileSignature, to: "/admin/documents" },
+        { label: "شهادات القيد", value: counts.docsEnroll, icon: FileBadge, to: "/admin/documents" },
+        { label: "السجلات الأكاديمية", value: counts.docsTranscript, icon: FileCheck2, to: "/admin/documents" },
+        { label: "السندات المالية", value: counts.docsReceipt, icon: Receipt, to: "/admin/documents" },
+        { label: "وثائق اليوم", value: counts.docsToday, icon: FileClock, to: "/admin/documents" },
+      ],
+    },
+    {
       title: "النظام",
       cards: [
         { label: "سجل التدقيق (آخر 24 ساعة)", value: counts.audit24h, icon: ScrollText },
         { label: "الإشعارات (آخر 24 ساعة)", value: counts.notif24h, icon: Bell },
+        { label: "وثائق صادرة اليوم", value: counts.docsIssuedToday, icon: FileSignature, to: "/admin/documents" },
+        { label: "وثائق ملغاة اليوم", value: counts.docsCancelledToday, icon: FileWarning, to: "/admin/documents" },
         { label: "طلاب نشطون", value: active?.students ?? 0, icon: ShieldCheck },
         { label: "أعضاء هيئة تدريس نشطون", value: active?.faculty ?? 0, icon: ShieldCheck },
         { label: "موظفون نشطون", value: active?.staff ?? 0, icon: ShieldCheck },
@@ -160,11 +214,8 @@ function AdminDashboard() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {sec.cards.map((c) => {
               const Icon = c.icon;
-              return (
-                <div
-                  key={c.label}
-                  className="rounded-xl bg-card border border-border p-5 shadow-card flex items-center justify-between"
-                >
+              const inner = (
+                <>
                   <div>
                     <div className="text-xs font-semibold text-muted-foreground">{c.label}</div>
                     <div className="mt-2 font-display text-3xl font-extrabold text-primary">
@@ -174,12 +225,63 @@ function AdminDashboard() {
                   <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary">
                     <Icon className="h-5 w-5" />
                   </div>
-                </div>
+                </>
+              );
+              const cls = "rounded-xl bg-card border border-border p-5 shadow-card flex items-center justify-between";
+              return c.to ? (
+                <Link key={c.label} to={c.to} className={cls + " hover:border-gold transition-all"}>
+                  {inner}
+                </Link>
+              ) : (
+                <div key={c.label} className={cls}>{inner}</div>
               );
             })}
           </div>
         </section>
       ))}
+
+      {/* Recent Official Documents */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-base font-bold text-primary">آخر الوثائق الصادرة</h2>
+          <Link to="/admin/documents" className="text-xs font-bold text-primary hover:underline">عرض الكل</Link>
+        </div>
+        <div className="rounded-xl bg-card border border-border shadow-card overflow-hidden">
+          {(!recentDocs || recentDocs.length === 0) ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">لا توجد وثائق صادرة بعد.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/50 text-xs">
+                  <tr>
+                    <th className="px-4 py-2 text-right font-bold">رقم الوثيقة</th>
+                    <th className="px-4 py-2 text-right font-bold">الطالب</th>
+                    <th className="px-4 py-2 text-right font-bold">النوع</th>
+                    <th className="px-4 py-2 text-right font-bold">التاريخ</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentDocs.map((d) => (
+                    <tr key={d.id} className="border-t border-border">
+                      <td className="px-4 py-2 font-mono text-xs">{d.document_number}</td>
+                      <td className="px-4 py-2">
+                        {d.student_profiles?.full_name_ar ?? "—"}
+                        {d.student_profiles?.academic_number ? (
+                          <span className="ms-2 text-xs text-muted-foreground">({d.student_profiles.academic_number})</span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-2 text-xs">{docTypeLabel(d.document_type)}</td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                        {d.issued_at ? new Date(d.issued_at).toLocaleDateString("ar-EG") : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Quick actions */}
       <section className="space-y-3">
