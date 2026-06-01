@@ -74,14 +74,30 @@ export function StudentDocumentsSection({ studentProfileId }: { studentProfileId
               <div className="text-[11px] text-muted-foreground">
                 رمز التحقق: <span className="font-mono">{d.verification_code}</span>
               </div>
-              <Link
-                to="/document-view/$id"
-                params={{ id: d.id }}
-                target="_blank"
-                className="mt-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
-              >
-                <Eye className="h-3.5 w-3.5" /> عرض / طباعة
-              </Link>
+              <div className="mt-1 grid grid-cols-3 gap-1.5">
+                <Link
+                  to="/document-view/$id"
+                  params={{ id: d.id }}
+                  target="_blank"
+                  className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-bold text-primary-foreground"
+                >
+                  <Eye className="h-3.5 w-3.5" /> عرض
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => openDoc(d.id, true)}
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
+                >
+                  <Printer className="h-3.5 w-3.5" /> طباعة
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openDoc(d.id, true)}
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
+                >
+                  <Download className="h-3.5 w-3.5" /> PDF
+                </button>
+              </div>
             </div>
           ))}
         </div>
