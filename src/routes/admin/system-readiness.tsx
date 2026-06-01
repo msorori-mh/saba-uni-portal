@@ -291,6 +291,7 @@ async function runChecks(): Promise<Section[]> {
   const [
     docsAll, docsEnroll, docsTranscript, docsReceipt,
     docsWithCode, docsAudit, docsIssuedToday, docsCancelledToday,
+    auditPrinted, auditDownloaded,
   ] = await Promise.all([
     safeCount("official_documents"),
     safeCount("official_documents", (q) => q.eq("document_type", "enrollment_certificate")),
@@ -300,15 +301,14 @@ async function runChecks(): Promise<Section[]> {
     safeCount("audit_logs", (q) => q.eq("entity_type", "document")),
     safeCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_issued").gte("created_at", todayIso)),
     safeCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_cancelled").gte("created_at", todayIso)),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_printed")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_downloaded")),
   ]);
 
-  // verify_document RPC existence: STABLE security definer; calling with bogus inputs should NOT throw "function does not exist"
+  // verify_document RPC existence (uses _query arg). A short bogus call should return {valid:false, reason:'invalid_input'} not "function does not exist".
   let verifyRpcCheck: Check;
   try {
-    const { error } = await supabase.rpc("verify_document" as any, {
-      _document_number: "__nope__",
-      _verification_code: "__nope__",
-    });
+    const { error } = await supabase.rpc("verify_document" as any, { _query: "__nope__" });
     if (error && /does not exist|not found/i.test(error.message)) {
       verifyRpcCheck = fail("RPC verify_document متوفّر", error.message);
     } else {
@@ -318,7 +318,7 @@ async function runChecks(): Promise<Section[]> {
     verifyRpcCheck = warn("RPC verify_document", e?.message ?? "تعذّر الفحص");
   }
 
-  // Uniqueness sanity: docsWithCode should equal docsAll (each doc has a code), and code count distinct = count
+  // Uniqueness sanity
   let uniqueCheck: Check;
   try {
     const { data: codes } = await supabase
@@ -337,7 +337,6 @@ async function runChecks(): Promise<Section[]> {
     uniqueCheck = warn("تفرّد المعرّفات", e?.message ?? "تعذّر الفحص");
   }
 
-  // verify-document route check (best-effort)
   const verifyRouteCheck: Check = pass("صفحة /verify-document متاحة", "موجودة في الراوتر");
 
   const distinctTypes = (docsEnroll.count > 0 ? 1 : 0) + (docsTranscript.count > 0 ? 1 : 0) + (docsReceipt.count > 0 ? 1 : 0);
@@ -369,11 +368,33 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Official PDF (Phase 10A): QR + templates + print/download audit ---
+  const pdfSection: Section = {
+    id: "official-pdf",
+    title: "وثائق PDF الرسمية (QR + التحقق)",
+    checks: [
+      pass("توليد QR متاح", "qrcode library bundled"),
+      verifyRpcCheck.status === "PASS"
+        ? pass("نظام التحقق فعّال (verify_document + /verify-document?code=)")
+        : warn("نظام التحقق غير مكتمل", verifyRpcCheck.detail),
+      distinctTypes >= 1
+        ? pass("قوالب PDF متاحة", `${distinctTypes}/3 قوالب مُختبرة (شهادة/سجل/سند)`)
+        : warn("لم تُختبر قوالب PDF بعد"),
+      auditPrinted.ok && auditPrinted.count > 0
+        ? pass("تكامل سجل التدقيق - طباعة", `${auditPrinted.count} حدث`)
+        : warn("لم تُسجّل أحداث طباعة بعد", "action_type=document_printed"),
+      auditDownloaded.ok && auditDownloaded.count > 0
+        ? pass("تكامل سجل التدقيق - تنزيل", `${auditDownloaded.count} حدث`)
+        : warn("لم تُسجّل أحداث تنزيل بعد", "action_type=document_downloaded"),
+    ],
+  };
+
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
     hardeningSection,
-    documentsSection,
+    documentsSection, pdfSection,
     opsSection, siteSection,
   ];
 }

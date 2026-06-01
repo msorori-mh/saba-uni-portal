@@ -56,6 +56,8 @@ function AdminDashboard() {
       const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
       const todayIso = startOfToday.toISOString();
+      const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+      const monthIso = startOfMonth.toISOString();
       const [
         programs, courses, sections, students,
         faculty, staff,
@@ -65,6 +67,7 @@ function AdminDashboard() {
         feesPending, feesPartial,
         docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
         docsIssuedToday, docsCancelledToday,
+        docsActive, docsCancelled, docsThisMonth,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -88,6 +91,9 @@ function AdminDashboard() {
         tableCount("official_documents", (q) => q.gte("issued_at", todayIso)),
         tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_issued").gte("created_at", todayIso)),
         tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_cancelled").gte("created_at", todayIso)),
+        tableCount("official_documents", (q) => q.eq("status", "issued")),
+        tableCount("official_documents", (q) => q.eq("status", "cancelled")),
+        tableCount("official_documents", (q) => q.gte("issued_at", monthIso)),
       ]);
       return {
         programs, courses, sections, students, faculty, staff,
@@ -95,6 +101,7 @@ function AdminDashboard() {
         feesPending, feesPartial,
         docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
         docsIssuedToday, docsCancelledToday,
+        docsActive, docsCancelled, docsThisMonth,
       };
     },
   });
@@ -119,6 +126,7 @@ function AdminDashboard() {
     feesPending: 0, feesPartial: 0,
     docsAll: 0, docsEnroll: 0, docsTranscript: 0, docsReceipt: 0, docsToday: 0,
     docsIssuedToday: 0, docsCancelledToday: 0,
+    docsActive: 0, docsCancelled: 0, docsThisMonth: 0,
   };
 
   const sections_: Array<{
@@ -167,10 +175,13 @@ function AdminDashboard() {
       title: "الوثائق الرسمية",
       cards: [
         { label: "إجمالي الوثائق", value: counts.docsAll, icon: FileSignature, to: "/admin/documents" },
+        { label: "وثائق صادرة اليوم", value: counts.docsIssuedToday, icon: FileClock, to: "/admin/documents" },
+        { label: "وثائق هذا الشهر", value: counts.docsThisMonth, icon: FileClock, to: "/admin/documents" },
+        { label: "وثائق فعالة", value: counts.docsActive, icon: FileCheck2, to: "/admin/documents" },
+        { label: "وثائق ملغاة", value: counts.docsCancelled, icon: FileWarning, to: "/admin/documents" },
         { label: "شهادات القيد", value: counts.docsEnroll, icon: FileBadge, to: "/admin/documents" },
         { label: "السجلات الأكاديمية", value: counts.docsTranscript, icon: FileCheck2, to: "/admin/documents" },
         { label: "السندات المالية", value: counts.docsReceipt, icon: Receipt, to: "/admin/documents" },
-        { label: "وثائق اليوم", value: counts.docsToday, icon: FileClock, to: "/admin/documents" },
       ],
     },
     {
