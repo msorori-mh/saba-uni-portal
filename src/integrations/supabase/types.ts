@@ -2216,7 +2216,7 @@ export type Database = {
           program_id: string | null
           status: string
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           academic_number: string
@@ -2232,7 +2232,7 @@ export type Database = {
           program_id?: string | null
           status?: string
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           academic_number?: string
@@ -2248,7 +2248,7 @@ export type Database = {
           program_id?: string | null
           status?: string
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
