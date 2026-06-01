@@ -34,7 +34,9 @@ import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
+import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -186,6 +188,11 @@ const AdminTranscriptsRoute = AdminTranscriptsRouteImport.update({
   path: '/transcripts',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
+  id: '/system-readiness',
+  path: '/system-readiness',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminStudyPlansRoute = AdminStudyPlansRouteImport.update({
   id: '/study-plans',
   path: '/study-plans',
@@ -276,6 +283,11 @@ const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
   path: '/audit-log',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
+  id: '/system-readiness',
+  path: '/system-readiness',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   id: '/academic-core',
   path: '/academic-core',
@@ -316,8 +328,10 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -359,8 +373,10 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -407,8 +423,10 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -456,8 +474,10 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
+    | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
+    | '/admin/system-readiness'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -499,8 +519,10 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
+    | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
+    | '/admin/system-readiness'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -546,8 +568,10 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
+    | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
+    | '/admin/system-readiness'
     | '/departments/$code'
     | '/faculty-portal/change-password'
     | '/news/$slug'
@@ -761,6 +785,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTranscriptsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/system-readiness': {
+      id: '/admin/system-readiness'
+      path: '/system-readiness'
+      fullPath: '/admin/system-readiness'
+      preLoaderRoute: typeof AdminSystemReadinessRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/study-plans': {
       id: '/admin/study-plans'
       path: '/study-plans'
@@ -887,6 +918,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditLogRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/system-readiness': {
+      id: '/admin/system-readiness'
+      path: '/system-readiness'
+      fullPath: '/admin/system-readiness'
+      preLoaderRoute: typeof AdminSystemReadinessRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/academic-core': {
       id: '/admin/academic-core'
       path: '/academic-core'
@@ -917,8 +955,10 @@ interface AdminRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
+  AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
   AdminTranscriptsRoute: typeof AdminTranscriptsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -942,8 +982,10 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,
+  AdminSystemReadinessRoute: AdminSystemReadinessRoute,
   AdminTranscriptsRoute: AdminTranscriptsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminSystemReadinessRoute: AdminSystemReadinessRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 
