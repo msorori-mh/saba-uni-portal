@@ -335,6 +335,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
           onSaved={() => { setOpenType(null); refresh(); }}
         />
       )}
+      {openType === "equivalency" && (
+        <EquivalencyModal
+          studentProfileId={studentProfileId}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }
