@@ -986,6 +986,21 @@ function ReceiptsTab() {
     if (error) return toast.error(error.message);
     toast.success("تم الاعتماد وتسجيل الدفعة");
     qc.invalidateQueries({ queryKey: ["admin-payment-receipts"] });
+    // Phase 9B: best-effort email
+    try {
+      const { data: srow } = await sb.from("student_profiles")
+        .select("email, full_name_ar").eq("id", r.student_profile_id).maybeSingle();
+      if (srow?.email) {
+        sendNotificationEmail({ data: {
+          templateKey: "receipt_approved",
+          recipientEmail: srow.email,
+          recipientName: srow.full_name_ar,
+          variables: { amount: Number(r.amount).toFixed(2), payment_date: r.payment_date, fee_type: r.fee?.fee_type?.name_ar ?? null },
+          relatedEntityType: "payment_receipt",
+          relatedEntityId: r.id,
+        } }).catch(() => undefined);
+      }
+    } catch { /* secondary */ }
   };
 
   return (
