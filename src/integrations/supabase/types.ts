@@ -907,6 +907,39 @@ export type Database = {
           },
         ]
       }
+      fee_types: {
+        Row: {
+          amount: number
+          code: string
+          created_at: string
+          description_ar: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       grade_components: {
         Row: {
           course_section_id: string
@@ -1583,6 +1616,123 @@ export type Database = {
         }
         Relationships: []
       }
+      student_fees: {
+        Row: {
+          academic_year_id: string
+          amount: number
+          created_at: string
+          fee_type_id: string
+          id: string
+          notes: string | null
+          semester_id: string
+          status: string
+          student_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year_id: string
+          amount: number
+          created_at?: string
+          fee_type_id: string
+          id?: string
+          notes?: string | null
+          semester_id: string
+          status?: string
+          student_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year_id?: string
+          amount?: number
+          created_at?: string
+          fee_type_id?: string
+          id?: string
+          notes?: string | null
+          semester_id?: string
+          status?: string
+          student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_fees_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fees_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "student_fees_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "student_fees_fee_type_id_fkey"
+            columns: ["fee_type_id"]
+            isOneToOne: false
+            referencedRelation: "fee_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fees_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fees_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "student_fees_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "student_fees_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "student_fees_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fees_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "student_fees_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["student_profile_id"]
+          },
+        ]
+      }
       student_grades: {
         Row: {
           approved_at: string | null
@@ -1621,6 +1771,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      student_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          receipt_number: string
+          student_fee_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method: string
+          receipt_number: string
+          student_fee_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          receipt_number?: string
+          student_fee_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_payments_student_fee_id_fkey"
+            columns: ["student_fee_id"]
+            isOneToOne: false
+            referencedRelation: "student_fees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_profiles: {
         Row: {
@@ -2192,6 +2386,10 @@ export type Database = {
       is_student_of_enrollment: {
         Args: { _enrollment_id: string; _user_id: string }
         Returns: boolean
+      }
+      recalc_student_fee_status: {
+        Args: { _fee_id: string }
+        Returns: undefined
       }
     }
     Enums: {
