@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 import { StudentRequestsSection } from "@/components/portal/StudentRequestsSection";
 import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection";
+import { StudentDocumentsSection } from "@/components/portal/StudentDocumentsSection";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import collegeLogo from "@/assets/college-logo.jpg";
 
