@@ -328,6 +328,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
           onSaved={() => { setOpenType(null); refresh(); }}
         />
       )}
+      {openType === "transfer" && (
+        <TransferModal
+          studentProfileId={studentProfileId}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }
