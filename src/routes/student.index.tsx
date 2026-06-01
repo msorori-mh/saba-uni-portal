@@ -199,10 +199,11 @@ function StudentDashboard() {
 
   const statusLabel: Record<string, string> = {
     active: "منتظم",
-    suspended: "موقوف",
+    suspended: "موقوف قيد",
     graduated: "خريج",
     withdrawn: "منسحب",
   };
+
 
   return (
     <div dir="rtl" className="min-h-screen bg-surface">

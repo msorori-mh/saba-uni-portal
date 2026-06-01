@@ -15,6 +15,10 @@ export const Route = createFileRoute("/admin/student-requests")({
 const REASON_LABEL: Record<string, string> = {
   medical: "طبي", family: "عائلي", emergency: "طارئ", other: "أخرى",
 };
+const DURATION_LABEL: Record<string, string> = {
+  one_semester: "فصل دراسي",
+  full_year: "سنة كاملة",
+};
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft:        { text: "مسودة",       cls: "bg-muted text-foreground" },
   submitted:    { text: "مُرسَل",       cls: "bg-blue-100 text-blue-800" },
@@ -24,16 +28,26 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   cancelled:    { text: "ملغي",        cls: "bg-zinc-200 text-zinc-800" },
 };
 
+type SuspensionDetails = {
+  suspension_reason: string;
+  suspension_duration_type: string;
+  notes: string | null;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
   student_profile_id: string; request_type: string;
   student: { academic_number: string; full_name_ar: string; program_id: string | null; department_id: string | null;
              program: { name_ar: string } | null; department: { name_ar: string } | null } | null;
-  details: { absence_date: string; reason_type: string; course_section_id: string;
+  absence_details: { absence_date: string; reason_type: string; course_section_id: string;
              section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null } | null;
+  suspension_details: SuspensionDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
+
 
 function AdminRequestsPage() {
   const qc = useQueryClient();
@@ -76,16 +90,21 @@ function AdminRequestsPage() {
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [detRes, attRes] = await Promise.all([
+      const [absRes, suspRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details")
           .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+          .in("request_id", ids),
+        sb.from("enrollment_suspension_details")
+          .select("request_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
           .in("request_id", ids),
         sb.from("student_request_attachments")
           .select("id, request_id, file_url, file_name")
           .in("request_id", ids),
       ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const detMap = new Map((detRes.data ?? []).map((d: any) => [d.request_id, d]));
+      const absMap = new Map((absRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +113,13 @@ function AdminRequestsPage() {
         attMap.get(a.request_id)!.push(a);
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (reqs as any[]).map((r) => ({ ...r, details: detMap.get(r.id) ?? null, attachments: attMap.get(r.id) ?? [] }));
+      return (reqs as any[]).map((r) => ({
+        ...r,
+        absence_details: absMap.get(r.id) ?? null,
+        suspension_details: suspMap.get(r.id) ?? null,
+        attachments: attMap.get(r.id) ?? [],
+      }));
+
     },
   });
 
@@ -159,9 +184,18 @@ function AdminRequestsPage() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground truncate">
-                    {r.details?.section?.offering?.course?.code ?? "—"} — {r.details?.section?.offering?.course?.name_ar ?? "—"}
-                    {r.details && <> • {r.details.absence_date} • {REASON_LABEL[r.details.reason_type]}</>}
+                    {r.absence_details && (
+                      <>
+                        {r.absence_details.section?.offering?.course?.code ?? "—"} — {r.absence_details.section?.offering?.course?.name_ar ?? "—"} • {r.absence_details.absence_date} • {REASON_LABEL[r.absence_details.reason_type]}
+                      </>
+                    )}
+                    {r.suspension_details && (
+                      <>
+                        {r.suspension_details.academic_year?.name ?? "—"} • {r.suspension_details.semester?.name ?? "—"} • {DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}
+                      </>
+                    )}
                   </div>
+
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
                     <Clock className="inline h-3 w-3" /> {new Date(r.created_at).toLocaleString("ar-EG")}
                     {r.attachments.length > 0 && <> • <Paperclip className="inline h-3 w-3" /> {r.attachments.length}</>}
@@ -232,9 +266,23 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         <div className="space-y-2 text-sm">
           <Row label="الطالب" value={`${req.student?.full_name_ar ?? "—"} (${req.student?.academic_number ?? "—"})`} />
           <Row label="البرنامج / القسم" value={`${req.student?.program?.name_ar ?? "—"} • ${req.student?.department?.name_ar ?? "—"}`} />
-          <Row label="المقرر" value={`${req.details?.section?.offering?.course?.code ?? "—"} — ${req.details?.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.details?.section?.section_code ?? "—"})`} />
-          <Row label="تاريخ الغياب" value={req.details?.absence_date ?? "—"} />
-          <Row label="نوع العذر" value={REASON_LABEL[req.details?.reason_type ?? "other"]} />
+          {req.absence_details && (
+            <>
+              <Row label="المقرر" value={`${req.absence_details.section?.offering?.course?.code ?? "—"} — ${req.absence_details.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.absence_details.section?.section_code ?? "—"})`} />
+              <Row label="تاريخ الغياب" value={req.absence_details.absence_date} />
+              <Row label="نوع العذر" value={REASON_LABEL[req.absence_details.reason_type ?? "other"]} />
+            </>
+          )}
+          {req.suspension_details && (
+            <>
+              <Row label="السنة الأكاديمية" value={req.suspension_details.academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.suspension_details.semester?.name ?? "—"} />
+              <Row label="مدة الوقف" value={DURATION_LABEL[req.suspension_details.suspension_duration_type] ?? req.suspension_details.suspension_duration_type} />
+              <Row label="السبب" value={req.suspension_details.suspension_reason} />
+              {req.suspension_details.notes && <Row label="ملاحظات" value={req.suspension_details.notes} />}
+            </>
+          )}
+
           <Row label="الحالة" value={<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>} />
           <Row label="تاريخ الإنشاء" value={new Date(req.created_at).toLocaleString("ar-EG")} />
           {req.submitted_at && <Row label="تاريخ الإرسال" value={new Date(req.submitted_at).toLocaleString("ar-EG")} />}
