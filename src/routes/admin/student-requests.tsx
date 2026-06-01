@@ -19,6 +19,10 @@ const DURATION_LABEL: Record<string, string> = {
   one_semester: "فصل دراسي",
   full_year: "سنة كاملة",
 };
+const CHANCE_LABEL: Record<string, string> = {
+  final_chance: "فرصة أخيرة",
+  additional_chance: "فرصة إضافية",
+};
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft:        { text: "مسودة",       cls: "bg-muted text-foreground" },
   submitted:    { text: "مُرسَل",       cls: "bg-blue-100 text-blue-800" },
