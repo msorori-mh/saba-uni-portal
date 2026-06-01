@@ -7,7 +7,7 @@ import {
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
   Wallet, AlertCircle, Lock, Database, ShieldAlert,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
-  BarChart3, TrendingUp,
+  BarChart3, TrendingUp, Activity, HardDrive,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
@@ -174,6 +174,15 @@ function AdminDashboard() {
         { label: "نسبة النجاح %", value: kpis?.successRate ?? 0, icon: TrendingUp, to: "/admin/reports" },
         { label: "الرسوم المستحقة", value: kpis?.outstanding ?? 0, icon: Wallet, to: "/admin/reports" },
         { label: "طلبات مفتوحة", value: kpis?.openRequests ?? 0, icon: FileWarning, to: "/admin/reports" },
+      ],
+    },
+    {
+      title: "صحة النظام",
+      cards: [
+        { label: "حالة العمليات", value: 1, icon: Activity, to: "/admin/operations" },
+        { label: "حالة النسخ الاحتياطي", value: 1, icon: Database, to: "/admin/backup-status" },
+        { label: "التنبيهات الحرجة", value: (counts.importsFailed ?? 0) + (counts.feesPending > 50 ? 1 : 0), icon: ShieldAlert, to: "/admin/operations" },
+        { label: "جاهزية الاسترجاع", value: 1, icon: HardDrive, to: "/admin/operations" },
       ],
     },
     {

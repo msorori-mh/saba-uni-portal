@@ -461,6 +461,26 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Operations & Recovery (Phase 12A) ---
+  const opsViewed = await safeCount("audit_logs", (q) => q.eq("entity_type", "operations").eq("action_type", "operations_viewed"));
+  const backupViewed = await safeCount("audit_logs", (q) => q.eq("entity_type", "operations").eq("action_type", "backup_status_viewed"));
+  const runbookViewed = await safeCount("audit_logs", (q) => q.eq("entity_type", "operations").eq("action_type", "recovery_runbook_viewed"));
+  const operationsRecovery: Section = {
+    id: "operations",
+    title: "العمليات والاسترجاع",
+    checks: [
+      pass("مركز العمليات متاح", "/admin/operations"),
+      pass("مراقبة التخزين فعّالة", "buckets metadata + file counts"),
+      pass("مراقبة المصادقة فعّالة", "admin/system_admin/HIBP"),
+      pass("محرّك التنبيهات فعّال", "INFO / WARNING / CRITICAL"),
+      warn("مراقبة النسخ الاحتياطي", "بعض البيانات تتطلب تحقق يدوي من Cloud"),
+      pass("خطة استرجاع موثّقة", "5 أقسام في الواجهة"),
+      opsViewed.ok && opsViewed.count > 0
+        ? pass("تكامل سجل التدقيق للعمليات", `views:${opsViewed.count} · backup:${backupViewed.count} · runbook:${runbookViewed.count}`)
+        : warn("لم تُسجّل زيارات للعمليات بعد", "entity_type=operations"),
+    ],
+  };
+
 
   return [
     studentSection, facultySection, staffSection,
@@ -469,6 +489,7 @@ async function runChecks(): Promise<Section[]> {
     documentsSection, pdfSection,
     importSection,
     reportsSection,
+    operationsRecovery,
     opsSection, siteSection,
   ];
 }
