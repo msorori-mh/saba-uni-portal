@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Loader2, CheckCircle2, RotateCcw, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { sendNotificationEmail } from "@/lib/email.functions";
 
 // Cast helper: new tables not in generated types yet
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
