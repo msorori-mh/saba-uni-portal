@@ -53,6 +53,23 @@ type TransferDetails = {
   requested_department: { name_ar: string } | null;
 };
 
+type EquivalencyDetails = {
+  previous_university_name: string;
+  previous_program_name: string;
+  transfer_reference: string | null;
+  notes: string | null;
+};
+
+type EquivalencyCourse = {
+  id: string;
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: number | null;
+  status: string;
+  reviewer_notes: string | null;
+  target_course: { code: string; name_ar: string } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
@@ -70,6 +87,8 @@ type AdminReq = {
     semester: { name: string } | null;
   } | null;
   transfer_details: TransferDetails | null;
+  equivalency_details: EquivalencyDetails | null;
+  equivalency_courses: EquivalencyCourse[];
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
