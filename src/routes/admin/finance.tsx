@@ -1073,6 +1073,21 @@ function RejectReceiptModal({ receipt, onClose, onDone }: { receipt: ReceiptReco
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("تم رفض السند");
+    // Phase 9B: best-effort email
+    try {
+      const { data: srow } = await sb.from("student_profiles")
+        .select("email, full_name_ar").eq("id", receipt.student_profile_id).maybeSingle();
+      if (srow?.email) {
+        sendNotificationEmail({ data: {
+          templateKey: "receipt_rejected",
+          recipientEmail: srow.email,
+          recipientName: srow.full_name_ar,
+          variables: { amount: Number(receipt.amount).toFixed(2), rejection_reason: reason.trim() },
+          relatedEntityType: "payment_receipt",
+          relatedEntityId: receipt.id,
+        } }).catch(() => undefined);
+      }
+    } catch { /* secondary */ }
     onDone();
   };
   return (
