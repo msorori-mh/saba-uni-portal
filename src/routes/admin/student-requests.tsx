@@ -38,9 +38,19 @@ type AdminReq = {
 function AdminRequestsPage() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
   const [programFilter, setProgramFilter] = useState<string>("");
   const [deptFilter, setDeptFilter] = useState<string>("");
   const [selected, setSelected] = useState<AdminReq | null>(null);
+
+  const { data: requestTypes = [] } = useQuery({
+    queryKey: ["admin-request-types-min"],
+    queryFn: async () => {
+      const { data } = await sb.from("request_types").select("code, name_ar, is_active").order("sort_order");
+      return (data ?? []) as { code: string; name_ar: string; is_active: boolean }[];
+    },
+  });
+  const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin-programs-min"],
