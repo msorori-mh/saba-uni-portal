@@ -231,3 +231,13 @@ function SummaryCard({ label, value, tone }: { label: string; value: number; ton
     </div>
   );
 }
+
+function Mini({ label, value, tone }: { label: string; value: number; tone?: "ok" | "warn" }) {
+  const cls = tone === "ok" ? "border-emerald-300 bg-emerald-50" : tone === "warn" ? "border-amber-300 bg-amber-50" : "";
+  return (
+    <div className={`rounded border p-1.5 ${cls}`}>
+      <div className="text-[9px] text-muted-foreground">{label}</div>
+      <div className="font-bold">{Number(value).toFixed(2)}</div>
+    </div>
+  );
+}
