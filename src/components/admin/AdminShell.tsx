@@ -6,7 +6,7 @@ import {
   MessageSquare, Settings, LogOut, Menu, GraduationCap, ChevronLeft, ChevronDown,
   CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
   FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe, Wallet,
-  ShieldCheck, ScrollText, Lock, Database, FileBadge,
+  ShieldCheck, ScrollText, Lock, Database, FileBadge, Upload,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,7 @@ const groups: NavGroup[] = [
       { to: "/admin/enrollments", label: "تسجيل الطلاب", icon: ClipboardList },
       { to: "/admin/grades", label: "الدرجات", icon: ClipboardCheck },
       { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
+      { to: "/admin/imports", label: "الاستيراد الجماعي", icon: Upload },
     ],
   },
   {

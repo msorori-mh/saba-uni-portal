@@ -1102,6 +1102,45 @@ export type Database = {
         }
         Relationships: []
       }
+      import_logs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_name: string
+          id: string
+          import_type: string
+          notes: string | null
+          rows_failed: number
+          rows_success: number
+          rows_total: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_name: string
+          id?: string
+          import_type: string
+          notes?: string | null
+          rows_failed?: number
+          rows_success?: number
+          rows_total?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string
+          id?: string
+          import_type?: string
+          notes?: string | null
+          rows_failed?: number
+          rows_success?: number
+          rows_total?: number
+          status?: string
+        }
+        Relationships: []
+      }
       media_library: {
         Row: {
           alt_text: string | null
