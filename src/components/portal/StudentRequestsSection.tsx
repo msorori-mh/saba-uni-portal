@@ -843,4 +843,167 @@ function TransferModal({
   );
 }
 
+type EqCourseRow = {
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: string;
+  target_course_id: string;
+};
+
+function EquivalencyModal({
+  studentProfileId, onClose, onSaved,
+}: {
+  studentProfileId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const { data: courses = [] } = useQuery({
+    queryKey: ["eq-courses-catalog"],
+    queryFn: async () => {
+      const { data } = await supabase.from("courses").select("id, code, name_ar").eq("status", "active").order("code");
+      return (data ?? []) as { id: string; code: string; name_ar: string }[];
+    },
+  });
+
+  const [prevUni, setPrevUni] = useState("");
+  const [prevProg, setPrevProg] = useState("");
+  const [ref, setRef] = useState("");
+  const [notes, setNotes] = useState("");
+  const [rows, setRows] = useState<EqCourseRow[]>([
+    { external_course_code: "", external_course_name: "", external_credit_hours: "", target_course_id: "" },
+  ]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const addRow = () => setRows((r) => [...r, { external_course_code: "", external_course_name: "", external_credit_hours: "", target_course_id: "" }]);
+  const removeRow = (i: number) => setRows((r) => r.filter((_, idx) => idx !== i));
+  const updateRow = (i: number, patch: Partial<EqCourseRow>) =>
+    setRows((r) => r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+
+  const save = async (submit: boolean) => {
+    if (!prevUni.trim()) { toast.error("أدخل اسم الجامعة السابقة"); return; }
+    if (!prevProg.trim()) { toast.error("أدخل اسم البرنامج السابق"); return; }
+    const validRows = rows.filter((r) => r.external_course_code.trim() && r.external_course_name.trim());
+    if (validRows.length === 0) { toast.error("أضف مادة واحدة على الأقل"); return; }
+    setBusy(true);
+    try {
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "equivalency",
+        title: "طلب مقاصة أكاديمية",
+        description: notes || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("equivalency_request_details").insert({
+        request_id: created.id,
+        previous_university_name: prevUni.trim(),
+        previous_program_name: prevProg.trim(),
+        transfer_reference: ref.trim() || null,
+        notes: notes || null,
+      });
+      if (e2) throw e2;
+
+      const { error: e3 } = await sb.from("equivalency_courses").insert(
+        validRows.map((r) => ({
+          equivalency_request_id: created.id,
+          external_course_code: r.external_course_code.trim(),
+          external_course_name: r.external_course_name.trim(),
+          external_credit_hours: r.external_credit_hours ? parseInt(r.external_credit_hours, 10) : null,
+          target_course_id: r.target_course_id || null,
+          status: "pending",
+        })),
+      );
+      if (e3) throw e3;
+
+      for (const f of files) await uploadAttachment(created.id, f);
+      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب مقاصة أكاديمية" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <div>
+          <Label>الجامعة السابقة <span className="text-rose-600">*</span></Label>
+          <input value={prevUni} onChange={(e) => setPrevUni(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm" />
+        </div>
+        <div>
+          <Label>البرنامج السابق <span className="text-rose-600">*</span></Label>
+          <input value={prevProg} onChange={(e) => setPrevProg(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm" />
+        </div>
+        <div>
+          <Label>رقم/مرجع التحويل (اختياري)</Label>
+          <input value={ref} onChange={(e) => setRef(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm" />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Label>المواد المطلوب معادلتها</Label>
+            <button onClick={addRow} type="button" className="text-[11px] inline-flex items-center gap-1 border px-2 py-0.5 rounded hover:bg-muted">
+              <Plus className="h-3 w-3" /> إضافة مادة
+            </button>
+          </div>
+          <div className="space-y-2">
+            {rows.map((r, i) => (
+              <div key={i} className="rounded border bg-muted/20 p-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold text-muted-foreground">المادة #{i + 1}</div>
+                  {rows.length > 1 && (
+                    <button type="button" onClick={() => removeRow(i)} className="text-rose-600 hover:bg-rose-50 rounded p-0.5">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input value={r.external_course_code} onChange={(e) => updateRow(i, { external_course_code: e.target.value })}
+                    placeholder="رمز المادة السابقة" className="h-8 rounded border bg-background px-2 text-xs" />
+                  <input value={r.external_credit_hours} onChange={(e) => updateRow(i, { external_credit_hours: e.target.value })}
+                    placeholder="الساعات" type="number" min={0} className="h-8 rounded border bg-background px-2 text-xs" />
+                </div>
+                <input value={r.external_course_name} onChange={(e) => updateRow(i, { external_course_name: e.target.value })}
+                  placeholder="اسم المادة السابقة" className="w-full h-8 rounded border bg-background px-2 text-xs" />
+                <select value={r.target_course_id} onChange={(e) => updateRow(i, { target_course_id: e.target.value })}
+                  className="w-full h-8 rounded border bg-background px-2 text-xs">
+                  <option value="">المادة المراد معادلتها (اختياري)...</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.code} — {c.name_ar}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Label>المرفقات (كشف درجات، توصيف مقررات، ...)</Label>
+          <label className="flex items-center gap-2 border border-dashed rounded p-2 cursor-pointer hover:bg-muted/30 text-xs">
+            <Upload className="h-3.5 w-3.5" />
+            <span>{files.length > 0 ? `تم اختيار ${files.length} ملف` : "اختر ملفات..."}</span>
+            <input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} className="hidden" />
+          </label>
+          {files.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {files.map((f, i) => (
+                <span key={i} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{f.name}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Label>ملاحظات</Label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+        </div>
+
+        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+      </div>
+    </ModalShell>
+  );
+}
+
+
 
