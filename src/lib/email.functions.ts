@@ -132,11 +132,10 @@ export const sendNotificationEmail = createServerFn({ method: "POST" })
         });
         // Audit important failures
         await supabase.from("audit_logs").insert({
-          action: "email_send_failed",
+          action_type: "email_send_failed",
           entity_type: "email",
-          entity_id: null,
           actor_user_id: triggeredBy ?? null,
-          metadata: { template: data.templateKey, recipient: data.recipientEmail, http_status: resp.status },
+          new_values: { template: data.templateKey, recipient: data.recipientEmail, http_status: resp.status },
         }).then(() => undefined, () => undefined);
         return { ok: false, error: `http_${resp.status}` };
       }
