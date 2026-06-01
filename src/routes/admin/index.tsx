@@ -168,6 +168,15 @@ function AdminDashboard() {
     cards: Array<{ label: string; value: number; icon: any; to?: string }>;
   }> = [
     {
+      title: "مؤشرات الأداء",
+      cards: [
+        { label: "الطلاب", value: counts.students, icon: ClipboardList, to: "/admin/reports" },
+        { label: "نسبة النجاح %", value: kpis?.successRate ?? 0, icon: TrendingUp, to: "/admin/reports" },
+        { label: "الرسوم المستحقة", value: kpis?.outstanding ?? 0, icon: Wallet, to: "/admin/reports" },
+        { label: "طلبات مفتوحة", value: kpis?.openRequests ?? 0, icon: FileWarning, to: "/admin/reports" },
+      ],
+    },
+    {
       title: "إحصائيات أكاديمية",
       cards: [
         { label: "البرامج", value: counts.programs, icon: GraduationCap },
