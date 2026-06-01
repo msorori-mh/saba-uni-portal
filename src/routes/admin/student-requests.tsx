@@ -184,9 +184,18 @@ function AdminRequestsPage() {
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground truncate">
-                    {r.details?.section?.offering?.course?.code ?? "—"} — {r.details?.section?.offering?.course?.name_ar ?? "—"}
-                    {r.details && <> • {r.details.absence_date} • {REASON_LABEL[r.details.reason_type]}</>}
+                    {r.absence_details && (
+                      <>
+                        {r.absence_details.section?.offering?.course?.code ?? "—"} — {r.absence_details.section?.offering?.course?.name_ar ?? "—"} • {r.absence_details.absence_date} • {REASON_LABEL[r.absence_details.reason_type]}
+                      </>
+                    )}
+                    {r.suspension_details && (
+                      <>
+                        {r.suspension_details.academic_year?.name ?? "—"} • {r.suspension_details.semester?.name ?? "—"} • {DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}
+                      </>
+                    )}
                   </div>
+
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
                     <Clock className="inline h-3 w-3" /> {new Date(r.created_at).toLocaleString("ar-EG")}
                     {r.attachments.length > 0 && <> • <Paperclip className="inline h-3 w-3" /> {r.attachments.length}</>}
