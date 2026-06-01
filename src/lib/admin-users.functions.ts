@@ -409,3 +409,59 @@ export const activeUserCounts = createServerFn({ method: "GET" })
       staff: st.count ?? 0,
     };
   });
+
+// ------------ Admin counts (for hardening dashboard) ------------
+
+export const adminAccountCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const [a, sa] = await Promise.all([
+      supabaseAdmin.from("user_roles").select("id", { count: "exact", head: true }).eq("role", "admin"),
+      supabaseAdmin.from("user_roles").select("id", { count: "exact", head: true }).eq("role", "system_admin"),
+    ]);
+    return { admin: a.count ?? 0, system_admin: sa.count ?? 0 };
+  });
+
+// ------------ Create Admin / System Admin account (Backup Admin) ------------
+
+export const createAdminAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { email: string; password: string; full_name_ar: string; role: "admin" | "system_admin" }) =>
+    z.object({
+      email: z.string().email().max(160),
+      password: z.string().min(8).max(72),
+      full_name_ar: z.string().min(2).max(120),
+      role: z.enum(["admin", "system_admin"]),
+    }).parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+      user_metadata: { full_name_ar: data.full_name_ar, kind: "admin" },
+    });
+    if (cErr || !created.user) throw new Error(cErr?.message ?? "تعذّر إنشاء الحساب");
+
+    const newUserId = created.user.id;
+    const { error: rErr } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: newUserId, role: data.role as any });
+    if (rErr) {
+      await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      throw new Error(rErr.message);
+    }
+
+    await logAudit({
+      actor_user_id: context.userId,
+      action_type: "admin_account_created",
+      entity_id: newUserId,
+      notes: `إنشاء حساب ${data.role} للبريد ${data.email}`,
+      new_values: { email: data.email, role: data.role },
+    });
+
+    return { user_id: newUserId, email: data.email };
+  });
