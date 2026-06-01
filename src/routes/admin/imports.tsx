@@ -360,8 +360,7 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload }: {
       <div className={`flex items-center justify-between gap-2 font-bold text-${tone}-700`}>
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5" />
-          {dryRun ? "تشغيل تجريبي مكتمل (لم تتم أي تغييرات)" : `تم تنفيذ استيراد ${type ? "" : ""}`}
-          <span className="text-primary">{!dryRun && `استيراد ${type ? "" : ""}`}</span>
+          {dryRun ? "تشغيل تجريبي مكتمل (لم تتم أي تغييرات)" : `تم تنفيذ استيراد ${TYPE_LABEL[type]}`}
         </div>
         <button
           onClick={onDownload}
