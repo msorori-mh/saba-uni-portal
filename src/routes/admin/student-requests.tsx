@@ -211,6 +211,11 @@ function AdminRequestsPage() {
                         {r.suspension_details.academic_year?.name ?? "—"} • {r.suspension_details.semester?.name ?? "—"} • {DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}
                       </>
                     )}
+                    {r.extra_chance_details && (
+                      <>
+                        {r.extra_chance_details.academic_year?.name ?? "—"} • {r.extra_chance_details.semester?.name ?? "—"} • {CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
