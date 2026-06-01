@@ -394,7 +394,7 @@ async function runChecks(): Promise<Section[]> {
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
     hardeningSection,
-    documentsSection,
+    documentsSection, pdfSection,
     opsSection, siteSection,
   ];
 }
