@@ -177,7 +177,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
               </div>
               {supported ? (
                 <button
-                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension")}
+                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension" | "extra_chance")}
                   className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-semibold"
                 >
                   <Plus className="h-3 w-3" /> طلب جديد
