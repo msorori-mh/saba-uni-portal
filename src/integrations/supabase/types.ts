@@ -1180,6 +1180,80 @@ export type Database = {
         }
         Relationships: []
       }
+      official_documents: {
+        Row: {
+          created_at: string
+          document_number: string
+          document_type: string
+          id: string
+          issued_at: string
+          issued_by: string | null
+          metadata: Json
+          pdf_url: string | null
+          status: string
+          student_profile_id: string
+          updated_at: string
+          verification_code: string
+        }
+        Insert: {
+          created_at?: string
+          document_number: string
+          document_type: string
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          metadata?: Json
+          pdf_url?: string | null
+          status?: string
+          student_profile_id: string
+          updated_at?: string
+          verification_code: string
+        }
+        Update: {
+          created_at?: string
+          document_number?: string
+          document_type?: string
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          metadata?: Json
+          pdf_url?: string | null
+          status?: string
+          student_profile_id?: string
+          updated_at?: string
+          verification_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "official_documents_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "official_documents_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "official_documents_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "official_documents_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["student_profile_id"]
+          },
+        ]
+      }
       payment_receipts: {
         Row: {
           amount: number
@@ -2727,6 +2801,10 @@ export type Database = {
         Args: { _study_plan_id: string; _user_id: string }
         Returns: boolean
       }
+      cancel_official_document: {
+        Args: { _document_id: string; _reason?: string }
+        Returns: undefined
+      }
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
@@ -2742,6 +2820,8 @@ export type Database = {
         }
         Returns: string
       }
+      generate_document_number: { Args: never; Returns: string }
+      generate_verification_code: { Args: never; Returns: string }
       get_hardening_status: { Args: never; Returns: Json }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
@@ -2790,6 +2870,14 @@ export type Database = {
         Args: { _enrollment_id: string; _user_id: string }
         Returns: boolean
       }
+      issue_official_document: {
+        Args: {
+          _document_type: string
+          _metadata?: Json
+          _student_profile_id: string
+        }
+        Returns: Json
+      }
       log_audit: {
         Args: {
           _action_type: string
@@ -2818,6 +2906,7 @@ export type Database = {
         }
         Returns: Json
       }
+      verify_document: { Args: { _query: string }; Returns: Json }
     }
     Enums: {
       app_role:
