@@ -290,6 +290,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
           onSaved={() => { setOpenType(null); refresh(); }}
         />
       )}
+      {openType === "extra_chance" && (
+        <ExtraChanceModal
+          studentProfileId={studentProfileId}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }
