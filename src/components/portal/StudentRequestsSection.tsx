@@ -34,6 +34,22 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
 
+  const { data: requestTypes = [] } = useQuery({
+    queryKey: ["request-types-active"],
+    queryFn: async (): Promise<RequestType[]> => {
+      const { data, error } = await sb.from("request_types")
+        .select("id, code, name_ar, description_ar, is_active")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as RequestType[];
+    },
+  });
+
+  const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
+  const absenceActive = requestTypes.find((t) => t.code === "absence_excuse")?.is_active ?? false;
+
+
+
   const { data: enrollments = [] } = useQuery({
     queryKey: ["my-enrollments-simple", studentProfileId],
     queryFn: async (): Promise<Enrollment[]> => {
