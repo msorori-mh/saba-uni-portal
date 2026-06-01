@@ -304,6 +304,15 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               {req.suspension_details.notes && <Row label="ملاحظات" value={req.suspension_details.notes} />}
             </>
           )}
+          {req.extra_chance_details && (
+            <>
+              <Row label="السنة الأكاديمية" value={req.extra_chance_details.academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.extra_chance_details.semester?.name ?? "—"} />
+              <Row label="نوع الفرصة" value={CHANCE_LABEL[req.extra_chance_details.chance_type] ?? req.extra_chance_details.chance_type} />
+              <Row label="السبب" value={req.extra_chance_details.reason} />
+              {req.extra_chance_details.notes && <Row label="ملاحظات" value={req.extra_chance_details.notes} />}
+            </>
+          )}
 
           <Row label="الحالة" value={<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>} />
           <Row label="تاريخ الإنشاء" value={new Date(req.created_at).toLocaleString("ar-EG")} />
