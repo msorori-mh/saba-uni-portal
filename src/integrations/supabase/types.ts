@@ -407,6 +407,42 @@ export type Database = {
         }
         Relationships: []
       }
+      discount_types: {
+        Row: {
+          code: string
+          created_at: string
+          default_value: number
+          description_ar: string | null
+          discount_type: string
+          id: string
+          is_active: boolean
+          name_ar: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          default_value?: number
+          description_ar?: string | null
+          discount_type: string
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          default_value?: number
+          description_ar?: string | null
+          discount_type?: string
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       enrollment_suspension_details: {
         Row: {
           created_at: string
@@ -1586,6 +1622,129 @@ export type Database = {
           },
         ]
       }
+      student_discounts: {
+        Row: {
+          academic_year_id: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          discount_type_id: string
+          id: string
+          notes: string | null
+          semester_id: string
+          status: string
+          student_profile_id: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          academic_year_id: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          discount_type_id: string
+          id?: string
+          notes?: string | null
+          semester_id: string
+          status?: string
+          student_profile_id: string
+          updated_at?: string
+          value: number
+        }
+        Update: {
+          academic_year_id?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          discount_type_id?: string
+          id?: string
+          notes?: string | null
+          semester_id?: string
+          status?: string
+          student_profile_id?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_discounts_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_discounts_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "student_discounts_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "student_discounts_discount_type_id_fkey"
+            columns: ["discount_type_id"]
+            isOneToOne: false
+            referencedRelation: "discount_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_discounts_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_discounts_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "student_discounts_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "student_discounts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "student_discounts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_discounts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "student_discounts_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["student_profile_id"]
+          },
+        ]
+      }
       student_enrollments: {
         Row: {
           course_section_id: string
@@ -1615,6 +1774,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      student_fee_adjustments: {
+        Row: {
+          created_at: string
+          discount_amount: number
+          final_amount: number
+          id: string
+          original_amount: number
+          student_discount_id: string
+          student_fee_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_amount: number
+          final_amount: number
+          id?: string
+          original_amount: number
+          student_discount_id: string
+          student_fee_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number
+          final_amount?: number
+          id?: string
+          original_amount?: number
+          student_discount_id?: string
+          student_fee_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_fee_adjustments_student_discount_id_fkey"
+            columns: ["student_discount_id"]
+            isOneToOne: false
+            referencedRelation: "student_discounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_fee_adjustments_student_fee_id_fkey"
+            columns: ["student_fee_id"]
+            isOneToOne: false
+            referencedRelation: "student_fees"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_fees: {
         Row: {
@@ -2333,6 +2537,10 @@ export type Database = {
       }
     }
     Functions: {
+      apply_student_discount: {
+        Args: { _discount_id: string }
+        Returns: undefined
+      }
       can_manage_study_plan: {
         Args: { _study_plan_id: string; _user_id: string }
         Returns: boolean
@@ -2389,6 +2597,10 @@ export type Database = {
       }
       recalc_student_fee_status: {
         Args: { _fee_id: string }
+        Returns: undefined
+      }
+      revert_student_discount: {
+        Args: { _discount_id: string }
         Returns: undefined
       }
     }
