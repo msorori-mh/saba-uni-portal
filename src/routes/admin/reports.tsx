@@ -1,12 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { exportCsv, exportXlsx, type ExportRow } from "@/lib/reports/export";
+import { exportCsv, exportXlsx, logReportView, type ExportRow } from "@/lib/reports/export";
 import { cn } from "@/lib/utils";
 import {
   GraduationCap, BookOpen, CalendarDays, ClipboardList, Users,
   FileWarning, Wallet, TrendingUp, Loader2, FileDown,
+  ArrowUpDown, Search, ChevronLeft, ChevronRight,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/reports")({
