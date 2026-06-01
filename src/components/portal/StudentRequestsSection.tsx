@@ -114,15 +114,37 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     <div className="mt-6">
       <div className="flex items-center justify-between mb-3 gap-2">
         <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
-          <FileWarning className="h-4 w-4 text-gold" /> طلب غياب بعذر
+          <FileWarning className="h-4 w-4 text-gold" /> الطلبات الطلابية
         </h2>
-        <button
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold"
-        >
-          <Plus className="h-3.5 w-3.5" /> طلب جديد
-        </button>
       </div>
+
+      {/* Available request types catalog */}
+      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {requestTypes.map((t) => (
+          <div key={t.id} className={`rounded-lg border bg-card p-2.5 flex items-center justify-between gap-2 ${!t.is_active ? "opacity-70" : ""}`}>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-primary truncate">{t.name_ar}</div>
+              {t.description_ar && <div className="text-[11px] text-muted-foreground truncate">{t.description_ar}</div>}
+            </div>
+            {t.is_active && t.code === "absence_excuse" ? (
+              <button
+                onClick={() => setOpen(true)}
+                className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-semibold"
+              >
+                <Plus className="h-3 w-3" /> طلب جديد
+              </button>
+            ) : (
+              <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                <Clock className="h-3 w-3" /> قريباً
+              </span>
+            )}
+          </div>
+        ))}
+        {!absenceActive && requestTypes.length > 0 && (
+          <div className="text-[11px] text-muted-foreground col-span-full">خدمة "غياب بعذر" غير مفعلة حالياً.</div>
+        )}
+      </div>
+
 
       {isLoading ? (
         <div className="rounded-lg border bg-card p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
