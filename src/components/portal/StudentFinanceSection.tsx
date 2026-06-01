@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, Loader2, Receipt } from "lucide-react";
+import { Wallet, Loader2, Receipt, Percent } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -56,6 +56,36 @@ export function StudentFinanceSection({ studentProfileId }: { studentProfileId: 
         .order("payment_date", { ascending: false });
       if (error) throw error;
       return data ?? [];
+    },
+  });
+
+  type DiscountRow = {
+    id: string; value: number; status: string; approved_at: string | null;
+    discount_type: { name_ar: string; discount_type: string } | null;
+    academic_year: { name: string } | null;
+    semester: { name: string } | null;
+    adjustments: { original_amount: number; discount_amount: number; final_amount: number }[];
+  };
+  const { data: discounts = [], isLoading: ld } = useQuery({
+    queryKey: ["student-discounts", studentProfileId],
+    queryFn: async (): Promise<DiscountRow[]> => {
+      const { data, error } = await sb.from("student_discounts")
+        .select("id, value, status, approved_at, discount_type:discount_types(name_ar, discount_type), academic_year:academic_years(name), semester:semesters(name)")
+        .eq("student_profile_id", studentProfileId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []) as Omit<DiscountRow, "adjustments">[];
+      if (rows.length === 0) return [];
+      const { data: adjs } = await sb.from("student_fee_adjustments")
+        .select("student_discount_id, original_amount, discount_amount, final_amount")
+        .in("student_discount_id", rows.map((r) => r.id));
+      const m = new Map<string, DiscountRow["adjustments"]>();
+      for (const a of (adjs ?? []) as { student_discount_id: string; original_amount: number; discount_amount: number; final_amount: number }[]) {
+        const arr = m.get(a.student_discount_id) ?? [];
+        arr.push({ original_amount: a.original_amount, discount_amount: a.discount_amount, final_amount: a.final_amount });
+        m.set(a.student_discount_id, arr);
+      }
+      return rows.map((r) => ({ ...r, adjustments: m.get(r.id) ?? [] }));
     },
   });
 
@@ -117,6 +147,46 @@ export function StudentFinanceSection({ studentProfileId }: { studentProfileId: 
 
       <div className="rounded-lg border bg-card overflow-hidden mt-3">
         <div className="px-3 py-2 bg-muted/40 text-xs font-bold text-primary border-b flex items-center gap-1.5">
+          <Percent className="h-3.5 w-3.5" /> الخصومات والإعفاءات
+        </div>
+        {ld ? (
+          <div className="p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+        ) : discounts.length === 0 ? (
+          <div className="p-4 text-center text-xs text-muted-foreground">لا توجد خصومات.</div>
+        ) : (
+          <div className="divide-y">
+            {discounts.map((d) => {
+              const tOrig = d.adjustments.reduce((s, a) => s + Number(a.original_amount), 0);
+              const tDisc = d.adjustments.reduce((s, a) => s + Number(a.discount_amount), 0);
+              const tFinal = d.adjustments.reduce((s, a) => s + Number(a.final_amount), 0);
+              const stCls = d.status === "active" ? "bg-emerald-100 text-emerald-800" : d.status === "cancelled" ? "bg-rose-100 text-rose-800" : "bg-muted";
+              const stTxt = d.status === "active" ? "مفعّل" : d.status === "cancelled" ? "ملغي" : "غير مفعّل";
+              return (
+                <div key={d.id} className="p-3 text-xs">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="font-bold">{d.discount_type?.name_ar}</div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${stCls}`}>{stTxt}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">
+                    {d.academic_year?.name} — {d.semester?.name} • القيمة: <b>{Number(d.value)}{d.discount_type?.discount_type === "percentage" ? "%" : ""}</b>
+                    {d.approved_at && <> • اعتُمد في {d.approved_at.slice(0, 10)}</>}
+                  </div>
+                  {d.adjustments.length > 0 && (
+                    <div className="mt-2 grid grid-cols-3 gap-2 font-mono">
+                      <Mini label="الأصلي" value={tOrig} />
+                      <Mini label="الخصم" value={tDisc} tone="warn" />
+                      <Mini label="بعد الخصم" value={tFinal} tone="ok" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-lg border bg-card overflow-hidden mt-3">
+        <div className="px-3 py-2 bg-muted/40 text-xs font-bold text-primary border-b flex items-center gap-1.5">
           <Receipt className="h-3.5 w-3.5" /> سندات الدفع
         </div>
         {lp ? (
@@ -158,6 +228,16 @@ function SummaryCard({ label, value, tone }: { label: string; value: number; ton
     <div className={`rounded-lg border p-3 ${cls}`}>
       <div className="text-[10px] font-bold text-muted-foreground">{label}</div>
       <div className="font-mono font-extrabold text-base mt-1">{value.toFixed(2)}</div>
+    </div>
+  );
+}
+
+function Mini({ label, value, tone }: { label: string; value: number; tone?: "ok" | "warn" }) {
+  const cls = tone === "ok" ? "border-emerald-300 bg-emerald-50" : tone === "warn" ? "border-amber-300 bg-amber-50" : "";
+  return (
+    <div className={`rounded border p-1.5 ${cls}`}>
+      <div className="text-[9px] text-muted-foreground">{label}</div>
+      <div className="font-bold">{Number(value).toFixed(2)}</div>
     </div>
   );
 }

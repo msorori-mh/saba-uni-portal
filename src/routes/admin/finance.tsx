@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Wallet, Plus, X, Receipt, Tag, Users } from "lucide-react";
+import { Loader2, Wallet, Plus, X, Receipt, Tag, Users, Percent } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -41,7 +41,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
 const METHOD_LABEL: Record<string, string> = { cash: "نقداً", bank_transfer: "تحويل بنكي", other: "أخرى" };
 
 function AdminFinancePage() {
-  const [tab, setTab] = useState<"types" | "fees" | "payments">("types");
+  const [tab, setTab] = useState<"types" | "fees" | "payments" | "discounts">("types");
 
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-6xl mx-auto">
@@ -50,15 +50,17 @@ function AdminFinancePage() {
         <h1 className="font-display text-xl font-extrabold text-primary">الشؤون المالية</h1>
       </div>
 
-      <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+      <div className="inline-flex gap-1 rounded-lg bg-muted p-1 flex-wrap">
         <TabButton active={tab === "types"} onClick={() => setTab("types")} icon={Tag}>أنواع الرسوم</TabButton>
         <TabButton active={tab === "fees"} onClick={() => setTab("fees")} icon={Users}>رسوم الطلاب</TabButton>
         <TabButton active={tab === "payments"} onClick={() => setTab("payments")} icon={Receipt}>المدفوعات</TabButton>
+        <TabButton active={tab === "discounts"} onClick={() => setTab("discounts")} icon={Percent}>الخصومات والإعفاءات</TabButton>
       </div>
 
       {tab === "types" && <FeeTypesTab />}
       {tab === "fees" && <StudentFeesTab />}
       {tab === "payments" && <PaymentsTab />}
+      {tab === "discounts" && <DiscountsTab />}
     </div>
   );
 }
@@ -591,4 +593,333 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <div><label className="text-[11px] font-bold text-muted-foreground block mb-1">{label}</label>{children}</div>;
+}
+
+// ===================== Discounts & Exemptions =====================
+type DiscountType = { id: string; code: string; name_ar: string; description_ar: string | null; discount_type: "percentage" | "fixed_amount"; default_value: number; is_active: boolean };
+type StudentDiscount = {
+  id: string; student_profile_id: string; discount_type_id: string;
+  academic_year_id: string; semester_id: string; value: number; status: string;
+  notes: string | null; approved_at: string | null;
+  discount_type: { name_ar: string; discount_type: string; code: string } | null;
+  student: { academic_number: string; full_name_ar: string } | null;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+  adjustments?: { id: string; original_amount: number; discount_amount: number; final_amount: number }[];
+};
+
+function DiscountsTab() {
+  const [sub, setSub] = useState<"types" | "students">("types");
+  return (
+    <div className="space-y-3">
+      <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+        <TabButton active={sub === "types"} onClick={() => setSub("types")} icon={Tag}>أنواع الخصومات</TabButton>
+        <TabButton active={sub === "students"} onClick={() => setSub("students")} icon={Users}>خصومات الطلاب</TabButton>
+      </div>
+      {sub === "types" ? <DiscountTypesPanel /> : <StudentDiscountsPanel />}
+    </div>
+  );
+}
+
+function DiscountTypesPanel() {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState<DiscountType | null>(null);
+  const [creating, setCreating] = useState(false);
+  const { data: types = [], isLoading } = useQuery({
+    queryKey: ["admin-discount-types"],
+    queryFn: async (): Promise<DiscountType[]> => (await sb.from("discount_types").select("*").order("code")).data ?? [],
+  });
+  const remove = async (id: string) => {
+    if (!confirm("حذف نوع الخصم؟")) return;
+    const { error } = await sb.from("discount_types").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("تم الحذف");
+    qc.invalidateQueries({ queryKey: ["admin-discount-types"] });
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-xs font-bold">
+          <Plus className="h-3.5 w-3.5" /> نوع خصم جديد
+        </button>
+      </div>
+      {isLoading ? (
+        <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : (
+        <div className="rounded-lg border bg-card overflow-hidden divide-y">
+          {types.map((t) => (
+            <div key={t.id} className="p-3 flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="font-bold text-sm text-primary">{t.name_ar}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">{t.code}</span>
+                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{t.discount_type === "percentage" ? "نسبة %" : "مبلغ ثابت"}</span>
+                  {!t.is_active && <span className="text-[10px] bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded">معطّل</span>}
+                </div>
+                {t.description_ar && <p className="text-xs text-muted-foreground mt-0.5">{t.description_ar}</p>}
+                <p className="text-xs mt-1 font-mono">القيمة الافتراضية: <b>{Number(t.default_value)}{t.discount_type === "percentage" ? "%" : ""}</b></p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setEditing(t)} className="text-xs px-2 py-1 rounded border hover:bg-muted">تعديل</button>
+                <button onClick={() => remove(t.id)} className="text-xs px-2 py-1 rounded border border-rose-300 text-rose-700 hover:bg-rose-50">حذف</button>
+              </div>
+            </div>
+          ))}
+          {types.length === 0 && <div className="p-6 text-center text-xs text-muted-foreground">لا توجد أنواع خصومات.</div>}
+        </div>
+      )}
+      {(creating || editing) && (
+        <DiscountTypeModal value={editing} onClose={() => { setCreating(false); setEditing(null); }}
+          onSaved={() => { qc.invalidateQueries({ queryKey: ["admin-discount-types"] }); setCreating(false); setEditing(null); }} />
+      )}
+    </div>
+  );
+}
+
+function DiscountTypeModal({ value, onClose, onSaved }: { value: DiscountType | null; onClose: () => void; onSaved: () => void }) {
+  const [code, setCode] = useState(value?.code ?? "");
+  const [name, setName] = useState(value?.name_ar ?? "");
+  const [desc, setDesc] = useState(value?.description_ar ?? "");
+  const [type, setType] = useState<"percentage" | "fixed_amount">(value?.discount_type ?? "percentage");
+  const [defVal, setDefVal] = useState(String(value?.default_value ?? 0));
+  const [active, setActive] = useState(value?.is_active ?? true);
+  const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (!code.trim() || !name.trim()) return toast.error("الرمز والاسم مطلوبان");
+    setSaving(true);
+    const payload = { code: code.trim(), name_ar: name.trim(), description_ar: desc || null, discount_type: type, default_value: Number(defVal) || 0, is_active: active };
+    const q = value ? sb.from("discount_types").update(payload).eq("id", value.id) : sb.from("discount_types").insert(payload);
+    const { error } = await q;
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم الحفظ"); onSaved();
+  };
+  return (
+    <ModalShell title={value ? "تعديل نوع خصم" : "نوع خصم جديد"} onClose={onClose}>
+      <Field label="الرمز"><input value={code} onChange={(e) => setCode(e.target.value)} className="w-full border rounded-md px-2 py-1.5 text-sm font-mono" /></Field>
+      <Field label="الاسم بالعربية"><input value={name} onChange={(e) => setName(e.target.value)} className="w-full border rounded-md px-2 py-1.5 text-sm" /></Field>
+      <Field label="الوصف"><textarea value={desc ?? ""} onChange={(e) => setDesc(e.target.value)} rows={2} className="w-full border rounded-md px-2 py-1.5 text-sm" /></Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="نوع الخصم">
+          <select value={type} onChange={(e) => setType(e.target.value as "percentage" | "fixed_amount")} className="w-full border rounded-md px-2 py-1.5 text-sm">
+            <option value="percentage">نسبة مئوية (%)</option>
+            <option value="fixed_amount">مبلغ ثابت</option>
+          </select>
+        </Field>
+        <Field label="القيمة الافتراضية"><input type="number" min="0" step="0.01" value={defVal} onChange={(e) => setDefVal(e.target.value)} className="w-full border rounded-md px-2 py-1.5 text-sm font-mono" /></Field>
+      </div>
+      <label className="flex items-center gap-2 text-xs">
+        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} /> مفعّل
+      </label>
+      <div className="flex justify-end gap-2 pt-2">
+        <button onClick={onClose} className="px-3 py-1.5 rounded border text-xs">إلغاء</button>
+        <button onClick={submit} disabled={saving} className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50">
+          {saving ? "جاري الحفظ..." : "حفظ"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function StudentDiscountsPanel() {
+  const qc = useQueryClient();
+  const [creating, setCreating] = useState(false);
+  const { data: discounts = [], isLoading } = useQuery({
+    queryKey: ["admin-student-discounts"],
+    queryFn: async (): Promise<StudentDiscount[]> => {
+      const { data, error } = await sb.from("student_discounts")
+        .select("id, student_profile_id, discount_type_id, academic_year_id, semester_id, value, status, notes, approved_at, discount_type:discount_types(name_ar, discount_type, code), student:student_profiles(academic_number, full_name_ar), academic_year:academic_years(name), semester:semesters(name)")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const rows = (data ?? []) as StudentDiscount[];
+      if (rows.length === 0) return rows;
+      const { data: adjs } = await sb.from("student_fee_adjustments")
+        .select("id, student_discount_id, original_amount, discount_amount, final_amount")
+        .in("student_discount_id", rows.map((r) => r.id));
+      const m = new Map<string, StudentDiscount["adjustments"]>();
+      for (const a of (adjs ?? []) as { id: string; student_discount_id: string; original_amount: number; discount_amount: number; final_amount: number }[]) {
+        const arr = m.get(a.student_discount_id) ?? [];
+        arr.push({ id: a.id, original_amount: a.original_amount, discount_amount: a.discount_amount, final_amount: a.final_amount });
+        m.set(a.student_discount_id, arr);
+      }
+      return rows.map((r) => ({ ...r, adjustments: m.get(r.id) ?? [] }));
+    },
+  });
+  const setStatus = async (id: string, status: string) => {
+    const { error } = await sb.from("student_discounts").update({ status }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("تم التحديث");
+    qc.invalidateQueries({ queryKey: ["admin-student-discounts"] });
+    qc.invalidateQueries({ queryKey: ["admin-student-fees"] });
+  };
+  return (
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-2 text-xs font-bold">
+          <Plus className="h-3.5 w-3.5" /> منح خصم لطالب
+        </button>
+      </div>
+      {isLoading ? (
+        <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : (
+        <div className="rounded-lg border bg-card overflow-hidden divide-y">
+          {discounts.map((d) => {
+            const totalDiscount = (d.adjustments ?? []).reduce((s, a) => s + Number(a.discount_amount), 0);
+            const totalOrig = (d.adjustments ?? []).reduce((s, a) => s + Number(a.original_amount), 0);
+            const totalFinal = (d.adjustments ?? []).reduce((s, a) => s + Number(a.final_amount), 0);
+            const stCls = d.status === "active" ? "bg-emerald-100 text-emerald-800" : d.status === "cancelled" ? "bg-rose-100 text-rose-800" : "bg-muted";
+            return (
+              <div key={d.id} className="p-3 text-xs">
+                <div className="flex items-baseline justify-between gap-2 flex-wrap">
+                  <div>
+                    <span className="font-bold text-sm text-primary">{d.discount_type?.name_ar}</span>
+                    <span className="mx-2 text-muted-foreground">|</span>
+                    <span className="font-mono">{d.student?.academic_number}</span> — <b>{d.student?.full_name_ar}</b>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${stCls}`}>
+                    {d.status === "active" ? "مفعّل" : d.status === "inactive" ? "غير مفعّل" : "ملغي"}
+                  </span>
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-1">
+                  {d.academic_year?.name} — {d.semester?.name} • قيمة الخصم: <b>{Number(d.value)}{d.discount_type?.discount_type === "percentage" ? "%" : ""}</b>
+                </div>
+                {(d.adjustments ?? []).length > 0 && (
+                  <div className="mt-2 grid grid-cols-3 gap-2 font-mono">
+                    <Mini label="الأصلي" value={totalOrig} />
+                    <Mini label="الخصم" value={totalDiscount} tone="warn" />
+                    <Mini label="النهائي" value={totalFinal} tone="ok" />
+                  </div>
+                )}
+                <div className="mt-2 flex gap-2">
+                  {d.status !== "active" && <button onClick={() => setStatus(d.id, "active")} className="text-[10px] px-2 py-1 rounded border border-emerald-300 text-emerald-700 hover:bg-emerald-50">تفعيل</button>}
+                  {d.status === "active" && <button onClick={() => setStatus(d.id, "inactive")} className="text-[10px] px-2 py-1 rounded border hover:bg-muted">إيقاف</button>}
+                  {d.status !== "cancelled" && <button onClick={() => setStatus(d.id, "cancelled")} className="text-[10px] px-2 py-1 rounded border border-rose-300 text-rose-700 hover:bg-rose-50">إلغاء</button>}
+                </div>
+              </div>
+            );
+          })}
+          {discounts.length === 0 && <div className="p-6 text-center text-xs text-muted-foreground">لا توجد خصومات.</div>}
+        </div>
+      )}
+      {creating && <StudentDiscountModal onClose={() => setCreating(false)} onSaved={() => { qc.invalidateQueries({ queryKey: ["admin-student-discounts"] }); qc.invalidateQueries({ queryKey: ["admin-student-fees"] }); setCreating(false); }} />}
+    </div>
+  );
+}
+
+function Mini({ label, value, tone }: { label: string; value: number; tone?: "ok" | "warn" }) {
+  const cls = tone === "ok" ? "border-emerald-300 bg-emerald-50" : tone === "warn" ? "border-amber-300 bg-amber-50" : "";
+  return (
+    <div className={`rounded border p-1.5 ${cls}`}>
+      <div className="text-[9px] text-muted-foreground">{label}</div>
+      <div className="font-bold">{Number(value).toFixed(2)}</div>
+    </div>
+  );
+}
+
+function StudentDiscountModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [typeId, setTypeId] = useState("");
+  const [yearId, setYearId] = useState("");
+  const [semId, setSemId] = useState("");
+  const [value, setValue] = useState("");
+  const [notes, setNotes] = useState("");
+  const [activate, setActivate] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const { data: students = [] } = useQuery({
+    queryKey: ["student-search-disc", studentSearch],
+    queryFn: async (): Promise<Student[]> => {
+      if (studentSearch.trim().length < 2) return [];
+      const { data } = await sb.from("student_profiles").select("id, academic_number, full_name_ar, program_id")
+        .or(`academic_number.ilike.%${studentSearch}%,full_name_ar.ilike.%${studentSearch}%`).limit(10);
+      return data ?? [];
+    },
+  });
+  const { data: types = [] } = useQuery({
+    queryKey: ["discount-types-active"],
+    queryFn: async (): Promise<DiscountType[]> => (await sb.from("discount_types").select("*").eq("is_active", true).order("name_ar")).data ?? [],
+  });
+  const { data: years = [] } = useQuery({
+    queryKey: ["years-disc"],
+    queryFn: async (): Promise<Year[]> => (await sb.from("academic_years").select("id, name, is_current").order("name", { ascending: false })).data ?? [],
+  });
+  const { data: semesters = [] } = useQuery({
+    queryKey: ["semesters-disc"],
+    queryFn: async (): Promise<Sem[]> => (await sb.from("semesters").select("id, name, academic_year_id, is_current")).data ?? [],
+  });
+
+  const selectedType = useMemo(() => types.find((t) => t.id === typeId), [types, typeId]);
+
+  const onPickType = (id: string) => {
+    setTypeId(id);
+    const t = types.find((x) => x.id === id);
+    if (t && !value) setValue(String(t.default_value));
+  };
+
+  const submit = async () => {
+    if (!studentId || !typeId || !yearId || !semId || !value) return toast.error("الرجاء تعبئة كل الحقول");
+    setSaving(true);
+    const { error } = await sb.from("student_discounts").insert({
+      student_profile_id: studentId, discount_type_id: typeId,
+      academic_year_id: yearId, semester_id: semId,
+      value: Number(value), notes: notes || null,
+      status: activate ? "active" : "inactive",
+      approved_at: activate ? new Date().toISOString() : null,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(activate ? "تم منح الخصم وتطبيقه" : "تم حفظ الخصم (غير مفعّل)");
+    onSaved();
+  };
+
+  return (
+    <ModalShell title="منح خصم لطالب" onClose={onClose}>
+      <Field label="بحث عن طالب">
+        <input value={studentSearch} onChange={(e) => { setStudentSearch(e.target.value); setStudentId(""); }} className="w-full border rounded-md px-2 py-1.5 text-sm" />
+        {!studentId && students.length > 0 && (
+          <div className="mt-1 border rounded max-h-40 overflow-auto">
+            {students.map((s) => (
+              <button key={s.id} type="button" onClick={() => { setStudentId(s.id); setStudentSearch(`${s.academic_number} — ${s.full_name_ar}`); }} className="w-full text-right px-2 py-1.5 text-xs hover:bg-muted">
+                <span className="font-mono">{s.academic_number}</span> — {s.full_name_ar}
+              </button>
+            ))}
+          </div>
+        )}
+      </Field>
+      <Field label="نوع الخصم">
+        <select value={typeId} onChange={(e) => onPickType(e.target.value)} className="w-full border rounded-md px-2 py-1.5 text-sm">
+          <option value="">اختر</option>
+          {types.map((t) => <option key={t.id} value={t.id}>{t.name_ar} ({t.discount_type === "percentage" ? `${t.default_value}%` : t.default_value})</option>)}
+        </select>
+      </Field>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="السنة">
+          <select value={yearId} onChange={(e) => { setYearId(e.target.value); setSemId(""); }} className="w-full border rounded-md px-2 py-1.5 text-sm">
+            <option value="">اختر</option>
+            {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
+          </select>
+        </Field>
+        <Field label="الفصل">
+          <select value={semId} onChange={(e) => setSemId(e.target.value)} disabled={!yearId} className="w-full border rounded-md px-2 py-1.5 text-sm">
+            <option value="">اختر</option>
+            {semesters.filter((s) => s.academic_year_id === yearId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
+      </div>
+      <Field label={`القيمة ${selectedType?.discount_type === "percentage" ? "(%)" : "(مبلغ ثابت)"}`}>
+        <input type="number" min="0" step="0.01" value={value} onChange={(e) => setValue(e.target.value)} className="w-full border rounded-md px-2 py-1.5 text-sm font-mono" />
+      </Field>
+      <Field label="ملاحظات"><textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full border rounded-md px-2 py-1.5 text-sm" /></Field>
+      <label className="flex items-center gap-2 text-xs">
+        <input type="checkbox" checked={activate} onChange={(e) => setActivate(e.target.checked)} /> اعتماد الخصم وتطبيقه فوراً على الرسوم
+      </label>
+      <div className="flex justify-end gap-2 pt-2">
+        <button onClick={onClose} className="px-3 py-1.5 rounded border text-xs">إلغاء</button>
+        <button onClick={submit} disabled={saving} className="px-3 py-1.5 rounded bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50">
+          {saving ? "جاري..." : "حفظ"}
+        </button>
+      </div>
+    </ModalShell>
+  );
 }
