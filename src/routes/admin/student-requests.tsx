@@ -155,6 +155,7 @@ function AdminRequestsPage() {
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="font-mono text-xs font-bold text-primary">{r.student?.academic_number ?? "—"}</span>
                     <span className="font-semibold text-sm truncate">{r.student?.full_name_ar ?? "—"}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{typeLabel(r.request_type)}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground truncate">
