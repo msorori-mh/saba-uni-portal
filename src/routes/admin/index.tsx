@@ -126,6 +126,31 @@ function AdminDashboard() {
     },
   });
 
+  const { data: kpis } = useQuery({
+    queryKey: ["admin-perf-kpis"],
+    queryFn: async () => {
+      const [grades, feesRows, paymentsRows, openReq] = await Promise.all([
+        supabase.from("student_course_grade_summary").select("percentage").limit(10000),
+        supabase.from("student_fees").select("amount").limit(10000),
+        supabase.from("student_payments").select("amount").limit(10000),
+        supabase.from("student_requests").select("id", { count: "exact", head: true }).in("status", ["submitted", "under_review"]),
+      ]);
+      const grows = (grades.data ?? []) as Array<{ percentage: number | null }>;
+      const passed = grows.filter((g) => Number(g.percentage ?? 0) >= 60).length;
+      const successRate = grows.length ? Math.round((passed / grows.length) * 1000) / 10 : 0;
+      const totalFees = ((feesRows.data ?? []) as Array<{ amount: number | null }>)
+        .reduce((a, r) => a + Number(r.amount ?? 0), 0);
+      const totalPaid = ((paymentsRows.data ?? []) as Array<{ amount: number | null }>)
+        .reduce((a, r) => a + Number(r.amount ?? 0), 0);
+      const outstanding = Math.max(0, totalFees - totalPaid);
+      return {
+        successRate,
+        outstanding: Math.round(outstanding * 100) / 100,
+        openRequests: openReq.count ?? 0,
+      };
+    },
+  });
+
   const counts = s ?? {
     programs: 0, courses: 0, sections: 0, students: 0,
     faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
