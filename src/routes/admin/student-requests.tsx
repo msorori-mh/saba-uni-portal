@@ -38,9 +38,19 @@ type AdminReq = {
 function AdminRequestsPage() {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
   const [programFilter, setProgramFilter] = useState<string>("");
   const [deptFilter, setDeptFilter] = useState<string>("");
   const [selected, setSelected] = useState<AdminReq | null>(null);
+
+  const { data: requestTypes = [] } = useQuery({
+    queryKey: ["admin-request-types-min"],
+    queryFn: async () => {
+      const { data } = await sb.from("request_types").select("code, name_ar, is_active").order("sort_order");
+      return (data ?? []) as { code: string; name_ar: string; is_active: boolean }[];
+    },
+  });
+  const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin-programs-min"],
@@ -90,9 +100,10 @@ function AdminRequestsPage() {
 
   const filtered = useMemo(() => requests.filter((r) =>
     (!statusFilter || r.status === statusFilter)
+    && (!typeFilter || r.request_type === typeFilter)
     && (!programFilter || r.student?.program_id === programFilter)
     && (!deptFilter || r.student?.department_id === deptFilter)
-  ), [requests, statusFilter, programFilter, deptFilter]);
+  ), [requests, statusFilter, typeFilter, programFilter, deptFilter]);
 
   const updateStatus = async (id: string, status: string, rejection_reason?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -110,11 +121,13 @@ function AdminRequestsPage() {
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-7xl mx-auto">
       <div className="flex items-center gap-2">
         <FileWarning className="h-5 w-5 text-gold" />
-        <h1 className="font-display text-xl font-extrabold text-primary">طلبات الطلاب — غياب بعذر</h1>
+        <h1 className="font-display text-xl font-extrabold text-primary">طلبات الطلاب</h1>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-2 rounded-lg border bg-card p-3">
+        <FilterSelect label="نوع الطلب" value={typeFilter} onChange={setTypeFilter}
+          options={requestTypes.map((t) => ({ value: t.code, label: `${t.name_ar}${t.is_active ? "" : " (معطل)"}` }))} />
         <FilterSelect label="الحالة" value={statusFilter} onChange={setStatusFilter}
           options={Object.entries(STATUS_LABEL).map(([k, v]) => ({ value: k, label: v.text }))} />
         <FilterSelect label="البرنامج" value={programFilter} onChange={setProgramFilter}
@@ -142,6 +155,7 @@ function AdminRequestsPage() {
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="font-mono text-xs font-bold text-primary">{r.student?.academic_number ?? "—"}</span>
                     <span className="font-semibold text-sm truncate">{r.student?.full_name_ar ?? "—"}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{typeLabel(r.request_type)}</span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground truncate">

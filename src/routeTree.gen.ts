@@ -37,6 +37,7 @@ import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
+import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
 import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
@@ -191,6 +192,11 @@ const AdminResearchRoute = AdminResearchRouteImport.update({
   path: '/research',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRequestTypesRoute = AdminRequestTypesRouteImport.update({
+  id: '/request-types',
+  path: '/request-types',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminProgramsRoute = AdminProgramsRouteImport.update({
   id: '/programs',
   path: '/programs',
@@ -279,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/programs': typeof AdminProgramsRoute
+  '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/programs': typeof AdminProgramsRoute
+  '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
@@ -360,6 +368,7 @@ export interface FileRoutesById {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/programs': typeof AdminProgramsRoute
+  '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
@@ -404,6 +413,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/programs'
+    | '/admin/request-types'
     | '/admin/research'
     | '/admin/settings'
     | '/admin/student-requests'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/programs'
+    | '/admin/request-types'
     | '/admin/research'
     | '/admin/settings'
     | '/admin/student-requests'
@@ -484,6 +495,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/programs'
+    | '/admin/request-types'
     | '/admin/research'
     | '/admin/settings'
     | '/admin/student-requests'
@@ -715,6 +727,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminResearchRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/request-types': {
+      id: '/admin/request-types'
+      path: '/request-types'
+      fullPath: '/admin/request-types'
+      preLoaderRoute: typeof AdminRequestTypesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/programs': {
       id: '/admin/programs'
       path: '/programs'
@@ -815,6 +834,7 @@ interface AdminRouteChildren {
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNewsRoute: typeof AdminNewsRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
+  AdminRequestTypesRoute: typeof AdminRequestTypesRoute
   AdminResearchRoute: typeof AdminResearchRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
@@ -836,6 +856,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNewsRoute: AdminNewsRoute,
   AdminProgramsRoute: AdminProgramsRoute,
+  AdminRequestTypesRoute: AdminRequestTypesRoute,
   AdminResearchRoute: AdminResearchRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,

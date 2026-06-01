@@ -827,6 +827,42 @@ export type Database = {
           },
         ]
       }
+      request_types: {
+        Row: {
+          code: string
+          created_at: string
+          description_ar: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          requires_attachment: boolean
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          requires_attachment?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          requires_attachment?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       research_papers: {
         Row: {
           abstract_ar: string | null

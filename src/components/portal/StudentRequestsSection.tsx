@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, FileWarning, Plus, Send, Trash2, Upload, X, Paperclip, Ban } from "lucide-react";
+import { Loader2, FileWarning, Plus, Send, Trash2, Upload, X, Paperclip, Ban, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as unknown as { from: (t: string) => any };
+
+type RequestType = { id: string; code: string; name_ar: string; description_ar: string | null; is_active: boolean };
 
 const REASON_LABEL: Record<string, string> = {
   medical: "طبي", family: "عائلي", emergency: "طارئ", other: "أخرى",
@@ -24,6 +26,7 @@ type Enrollment = { id: string; course_section_id: string; section_code: string;
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
+  request_type: string;
   details: { absence_date: string; reason_type: string; course_section_id: string } | null;
   attachments: { id: string; file_name: string; file_url: string }[];
 };
@@ -31,6 +34,22 @@ type RequestRow = {
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+
+  const { data: requestTypes = [] } = useQuery({
+    queryKey: ["request-types-active"],
+    queryFn: async (): Promise<RequestType[]> => {
+      const { data, error } = await sb.from("request_types")
+        .select("id, code, name_ar, description_ar, is_active")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as RequestType[];
+    },
+  });
+
+  const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
+  const absenceActive = requestTypes.find((t) => t.code === "absence_excuse")?.is_active ?? false;
+
+
 
   const { data: enrollments = [] } = useQuery({
     queryKey: ["my-enrollments-simple", studentProfileId],
@@ -55,7 +74,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     queryKey: ["my-requests", studentProfileId],
     queryFn: async (): Promise<RequestRow[]> => {
       const { data: reqs, error } = await sb.from("student_requests")
-        .select("id, title, description, status, submitted_at, rejection_reason, created_at")
+        .select("id, title, description, status, submitted_at, rejection_reason, created_at, request_type")
         .eq("student_profile_id", studentProfileId)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -96,15 +115,37 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     <div className="mt-6">
       <div className="flex items-center justify-between mb-3 gap-2">
         <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
-          <FileWarning className="h-4 w-4 text-gold" /> طلب غياب بعذر
+          <FileWarning className="h-4 w-4 text-gold" /> الطلبات الطلابية
         </h2>
-        <button
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold"
-        >
-          <Plus className="h-3.5 w-3.5" /> طلب جديد
-        </button>
       </div>
+
+      {/* Available request types catalog */}
+      <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {requestTypes.map((t) => (
+          <div key={t.id} className={`rounded-lg border bg-card p-2.5 flex items-center justify-between gap-2 ${!t.is_active ? "opacity-70" : ""}`}>
+            <div className="min-w-0">
+              <div className="text-sm font-bold text-primary truncate">{t.name_ar}</div>
+              {t.description_ar && <div className="text-[11px] text-muted-foreground truncate">{t.description_ar}</div>}
+            </div>
+            {t.is_active && t.code === "absence_excuse" ? (
+              <button
+                onClick={() => setOpen(true)}
+                className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-semibold"
+              >
+                <Plus className="h-3 w-3" /> طلب جديد
+              </button>
+            ) : (
+              <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
+                <Clock className="h-3 w-3" /> قريباً
+              </span>
+            )}
+          </div>
+        ))}
+        {!absenceActive && requestTypes.length > 0 && (
+          <div className="text-[11px] text-muted-foreground col-span-full">خدمة "غياب بعذر" غير مفعلة حالياً.</div>
+        )}
+      </div>
+
 
       {isLoading ? (
         <div className="rounded-lg border bg-card p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
@@ -120,7 +161,10 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
             return (
               <div key={r.id} className="rounded-lg border bg-card p-3">
                 <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                  <div className="font-semibold text-sm">{r.title}</div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground">{typeLabel(r.request_type)}</div>
+                    <div className="font-semibold text-sm">{r.title}</div>
+                  </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
                 </div>
                 {r.details && (
