@@ -52,6 +52,19 @@ type ExtraChanceDetails = {
   semester: { name: string } | null;
 };
 
+type TransferDetails = {
+  current_program_id: string | null;
+  requested_program_id: string | null;
+  current_department_id: string | null;
+  requested_department_id: string | null;
+  transfer_reason: string;
+  notes: string | null;
+  current_program: { name_ar: string } | null;
+  requested_program: { name_ar: string } | null;
+  current_department: { name_ar: string } | null;
+  requested_department: { name_ar: string } | null;
+};
+
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
@@ -59,13 +72,14 @@ type RequestRow = {
   absence_details: { absence_date: string; reason_type: string; course_section_id: string } | null;
   suspension_details: SuspensionDetails | null;
   extra_chance_details: ExtraChanceDetails | null;
+  transfer_details: TransferDetails | null;
   attachments: { id: string; file_name: string; file_url: string }[];
 };
 
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
-  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance">(null);
+  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance" | "transfer">(null);
 
   const { data: requestTypes = [] } = useQuery({
     queryKey: ["request-types-active"],
