@@ -49,6 +49,13 @@ type AdminReq = {
   absence_details: { absence_date: string; reason_type: string; course_section_id: string;
              section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null } | null;
   suspension_details: SuspensionDetails | null;
+  extra_chance_details: {
+    chance_type: string;
+    reason: string;
+    notes: string | null;
+    academic_year: { name: string } | null;
+    semester: { name: string } | null;
+  } | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
