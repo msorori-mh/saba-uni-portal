@@ -55,12 +55,14 @@ function AdminFinancePage() {
         <TabButton active={tab === "fees"} onClick={() => setTab("fees")} icon={Users}>رسوم الطلاب</TabButton>
         <TabButton active={tab === "payments"} onClick={() => setTab("payments")} icon={Receipt}>المدفوعات</TabButton>
         <TabButton active={tab === "discounts"} onClick={() => setTab("discounts")} icon={Percent}>الخصومات والإعفاءات</TabButton>
+        <TabButton active={tab === "receipts"} onClick={() => setTab("receipts")} icon={FileText}>سندات الدفع</TabButton>
       </div>
 
       {tab === "types" && <FeeTypesTab />}
       {tab === "fees" && <StudentFeesTab />}
       {tab === "payments" && <PaymentsTab />}
       {tab === "discounts" && <DiscountsTab />}
+      {tab === "receipts" && <ReceiptsTab />}
     </div>
   );
 }
