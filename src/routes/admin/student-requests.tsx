@@ -40,6 +40,19 @@ type SuspensionDetails = {
   semester: { name: string } | null;
 };
 
+type TransferDetails = {
+  current_program_id: string | null;
+  requested_program_id: string | null;
+  current_department_id: string | null;
+  requested_department_id: string | null;
+  transfer_reason: string;
+  notes: string | null;
+  current_program: { name_ar: string } | null;
+  requested_program: { name_ar: string } | null;
+  current_department: { name_ar: string } | null;
+  requested_department: { name_ar: string } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
@@ -56,6 +69,7 @@ type AdminReq = {
     academic_year: { name: string } | null;
     semester: { name: string } | null;
   } | null;
+  transfer_details: TransferDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
