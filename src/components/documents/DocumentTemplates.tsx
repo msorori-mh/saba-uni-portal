@@ -1,5 +1,4 @@
-// Reusable printable document templates used by /document-view/$id
-// Styling is intentionally minimal & print-friendly. RTL.
+// Phase 9A + 10A: printable official documents with QR + security banner.
 import type { ReactNode } from "react";
 
 export type DocumentBase = {
@@ -33,6 +32,7 @@ export type SiteInfo = {
   university_name: string;
   college_name: string;
   logo_url?: string | null;
+  college_logo_url?: string | null;
 };
 
 export type TranscriptCourse = {
@@ -60,42 +60,58 @@ export const DOC_TYPE_LABEL: Record<DocumentBase["document_type"], string> = {
   financial_receipt: "سند مالي رسمي",
 };
 
+const SECURITY_NOTICE =
+  "يمكن التحقق من صحة هذه الوثيقة عبر بوابة الجامعة باستخدام رمز التحقق أو رمز QR.";
+
 function Header({ site, title }: { site: SiteInfo; title: string }) {
   return (
-    <header className="border-b-2 border-primary pb-4 mb-6 text-center">
-      {site.logo_url ? (
-        <img src={site.logo_url} alt="" className="mx-auto h-16 w-auto mb-2" />
-      ) : null}
-      <h1 className="font-display text-2xl font-extrabold text-primary">
-        {site.university_name}
-      </h1>
-      <h2 className="font-display text-lg font-bold text-primary/80 mt-1">
-        {site.college_name}
-      </h2>
-      <div className="mt-3 inline-block rounded border-2 border-primary px-4 py-1 font-display text-base font-extrabold text-primary">
-        {title}
+    <header className="border-b-2 border-primary pb-4 mb-6">
+      <div className="flex items-center justify-between gap-4">
+        {site.logo_url ? (
+          <img src={site.logo_url} alt="شعار الجامعة" className="h-20 w-20 object-contain" />
+        ) : <div className="h-20 w-20" />}
+        <div className="text-center flex-1">
+          <h1 className="font-display text-2xl font-extrabold text-primary">
+            {site.university_name}
+          </h1>
+          <h2 className="font-display text-base font-bold text-primary/80 mt-1">
+            {site.college_name}
+          </h2>
+          <div className="mt-3 inline-block rounded border-2 border-primary px-5 py-1 font-display text-base font-extrabold text-primary">
+            {title}
+          </div>
+        </div>
+        {site.college_logo_url ? (
+          <img src={site.college_logo_url} alt="شعار الكلية" className="h-20 w-20 object-contain" />
+        ) : site.logo_url ? (
+          <img src={site.logo_url} alt="" className="h-20 w-20 object-contain opacity-80" />
+        ) : <div className="h-20 w-20" />}
       </div>
     </header>
   );
 }
 
-function Footer({ doc }: { doc: DocumentBase }) {
+function Footer({ doc, qrDataUrl }: { doc: DocumentBase; qrDataUrl?: string | null }) {
   const issued = new Date(doc.issued_at).toLocaleDateString("ar-EG", {
     year: "numeric", month: "long", day: "numeric",
   });
   return (
-    <footer className="mt-10 pt-4 border-t border-border text-xs text-muted-foreground">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <div><span className="font-bold">رقم الوثيقة:</span> {doc.document_number}</div>
-          <div className="mt-1"><span className="font-bold">رمز التحقق:</span> <span className="font-mono">{doc.verification_code}</span></div>
-          <div className="mt-1"><span className="font-bold">تاريخ الإصدار:</span> {issued}</div>
+    <footer className="mt-10 pt-4 border-t-2 border-primary text-xs text-foreground">
+      <div className="grid grid-cols-[1fr_auto] gap-4 items-start">
+        <div className="space-y-1">
+          <div><span className="font-bold text-primary">رقم الوثيقة:</span> <span className="font-mono">{doc.document_number}</span></div>
+          <div><span className="font-bold text-primary">رمز التحقق:</span> <span className="font-mono">{doc.verification_code}</span></div>
+          <div><span className="font-bold text-primary">تاريخ الإصدار:</span> {issued}</div>
+          <div className="mt-2 text-[11px] text-muted-foreground leading-5">
+            {SECURITY_NOTICE}
+          </div>
         </div>
-        <div className="text-left">
-          <div className="font-bold text-primary">للتحقق من صحة الوثيقة:</div>
-          <div className="mt-1">قم بزيارة صفحة التحقق وأدخل رقم الوثيقة أو رمز التحقق.</div>
-          <div className="mt-1 font-mono text-[10px]">/verify-document</div>
-        </div>
+        {qrDataUrl ? (
+          <div className="text-center">
+            <img src={qrDataUrl} alt="رمز التحقق QR" className="h-24 w-24 border border-border rounded" />
+            <div className="text-[10px] text-muted-foreground mt-1">امسح للتحقق</div>
+          </div>
+        ) : null}
       </div>
       {doc.status === "cancelled" ? (
         <div className="mt-4 rounded border-2 border-destructive bg-destructive/10 p-2 text-center font-bold text-destructive">
@@ -115,9 +131,11 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+type WithQR = { qrDataUrl?: string | null };
+
 export function EnrollmentCertificate({
-  doc, student, site,
-}: { doc: DocumentBase; student: StudentInfo; site: SiteInfo }) {
+  doc, student, site, qrDataUrl,
+}: { doc: DocumentBase; student: StudentInfo; site: SiteInfo } & WithQR) {
   return (
     <article dir="rtl" className="bg-white text-foreground p-8 max-w-3xl mx-auto print:max-w-none">
       <Header site={site} title={DOC_TYPE_LABEL.enrollment_certificate} />
@@ -138,13 +156,14 @@ export function EnrollmentCertificate({
       <p className="text-sm leading-7 text-foreground mt-4">
         وقد منحت هذه الشهادة بناءً على طلبه لاستخدامها فيما يلزم.
       </p>
-      <Footer doc={doc} />
+      <Footer doc={doc} qrDataUrl={qrDataUrl} />
     </article>
   );
 }
 
-export function StatusCertificate(props: { doc: DocumentBase; student: StudentInfo; site: SiteInfo }) {
-  const { doc, student, site } = props;
+export function StatusCertificate({
+  doc, student, site, qrDataUrl,
+}: { doc: DocumentBase; student: StudentInfo; site: SiteInfo } & WithQR) {
   return (
     <article dir="rtl" className="bg-white text-foreground p-8 max-w-3xl mx-auto print:max-w-none">
       <Header site={site} title={DOC_TYPE_LABEL.student_status_certificate} />
@@ -163,14 +182,14 @@ export function StatusCertificate(props: { doc: DocumentBase; student: StudentIn
           <span className="font-bold">{student.enrollment_status === "active" ? "منتظم" : (student.enrollment_status ?? "—")}</span>
         } />
       </div>
-      <Footer doc={doc} />
+      <Footer doc={doc} qrDataUrl={qrDataUrl} />
     </article>
   );
 }
 
 export function OfficialTranscript({
-  doc, student, site, courses,
-}: { doc: DocumentBase; student: StudentInfo; site: SiteInfo; courses: TranscriptCourse[] }) {
+  doc, student, site, courses, qrDataUrl,
+}: { doc: DocumentBase; student: StudentInfo; site: SiteInfo; courses: TranscriptCourse[] } & WithQR) {
   const totalHours = courses.reduce((s, c) => s + Number(c.credit_hours || 0), 0);
   const passedHours = courses
     .filter((c) => c.course_status === "passed")
@@ -231,14 +250,14 @@ export function OfficialTranscript({
           <div className="font-bold text-primary text-lg">{avg}%</div>
         </div>
       </div>
-      <Footer doc={doc} />
+      <Footer doc={doc} qrDataUrl={qrDataUrl} />
     </article>
   );
 }
 
 export function FinancialReceipt({
-  doc, student, site, receipt,
-}: { doc: DocumentBase; student: StudentInfo; site: SiteInfo; receipt: ReceiptInfo }) {
+  doc, student, site, receipt, qrDataUrl,
+}: { doc: DocumentBase; student: StudentInfo; site: SiteInfo; receipt: ReceiptInfo } & WithQR) {
   return (
     <article dir="rtl" className="bg-white text-foreground p-8 max-w-3xl mx-auto print:max-w-none">
       <Header site={site} title={DOC_TYPE_LABEL.financial_receipt} />
@@ -259,7 +278,7 @@ export function FinancialReceipt({
           receipt.payment_method === "bank_transfer" ? "تحويل بنكي" : "أخرى"
         } />
       </div>
-      <Footer doc={doc} />
+      <Footer doc={doc} qrDataUrl={qrDataUrl} />
     </article>
   );
 }
