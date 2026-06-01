@@ -5,6 +5,7 @@ import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
+  Wallet, AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts } from "@/lib/admin-users.functions";
