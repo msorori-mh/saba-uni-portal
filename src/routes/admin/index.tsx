@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
-  FileWarning, UserCog, FileText, ListTree, ScrollText,
+  FileWarning, UserCog, FileText, ListTree, ScrollText, Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
