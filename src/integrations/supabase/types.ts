@@ -2730,6 +2730,7 @@ export type Database = {
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
+      count_admins: { Args: never; Returns: number }
       create_notification: {
         Args: {
           _message: string
