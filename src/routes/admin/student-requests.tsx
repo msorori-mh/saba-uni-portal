@@ -389,6 +389,15 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               {req.transfer_details.notes && <Row label="ملاحظات" value={req.transfer_details.notes} />}
             </>
           )}
+          {req.equivalency_details && (
+            <>
+              <Row label="الجامعة السابقة" value={req.equivalency_details.previous_university_name} />
+              <Row label="البرنامج السابق" value={req.equivalency_details.previous_program_name} />
+              {req.equivalency_details.transfer_reference && <Row label="مرجع التحويل" value={req.equivalency_details.transfer_reference} />}
+              {req.equivalency_details.notes && <Row label="ملاحظات" value={req.equivalency_details.notes} />}
+              <EquivalencyCoursesReview requestId={req.id} courses={req.equivalency_courses} />
+            </>
+          )}
 
           <Row label="الحالة" value={<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>} />
           <Row label="تاريخ الإنشاء" value={new Date(req.created_at).toLocaleString("ar-EG")} />
