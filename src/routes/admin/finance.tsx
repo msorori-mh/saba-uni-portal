@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Wallet, Plus, X, Receipt, Tag, Users, Percent, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { sendNotificationEmail } from "@/lib/email.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as unknown as { from: (t: string) => any; storage: any };
@@ -985,6 +986,21 @@ function ReceiptsTab() {
     if (error) return toast.error(error.message);
     toast.success("تم الاعتماد وتسجيل الدفعة");
     qc.invalidateQueries({ queryKey: ["admin-payment-receipts"] });
+    // Phase 9B: best-effort email
+    try {
+      const { data: srow } = await sb.from("student_profiles")
+        .select("email, full_name_ar").eq("id", r.student_profile_id).maybeSingle();
+      if (srow?.email) {
+        sendNotificationEmail({ data: {
+          templateKey: "receipt_approved",
+          recipientEmail: srow.email,
+          recipientName: srow.full_name_ar,
+          variables: { amount: Number(r.amount).toFixed(2), payment_date: r.payment_date, fee_type: r.fee?.fee_type?.name_ar ?? null },
+          relatedEntityType: "payment_receipt",
+          relatedEntityId: r.id,
+        } }).catch(() => undefined);
+      }
+    } catch { /* secondary */ }
   };
 
   return (
@@ -1057,6 +1073,21 @@ function RejectReceiptModal({ receipt, onClose, onDone }: { receipt: ReceiptReco
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("تم رفض السند");
+    // Phase 9B: best-effort email
+    try {
+      const { data: srow } = await sb.from("student_profiles")
+        .select("email, full_name_ar").eq("id", receipt.student_profile_id).maybeSingle();
+      if (srow?.email) {
+        sendNotificationEmail({ data: {
+          templateKey: "receipt_rejected",
+          recipientEmail: srow.email,
+          recipientName: srow.full_name_ar,
+          variables: { amount: Number(receipt.amount).toFixed(2), rejection_reason: reason.trim() },
+          relatedEntityType: "payment_receipt",
+          relatedEntityId: receipt.id,
+        } }).catch(() => undefined);
+      }
+    } catch { /* secondary */ }
     onDone();
   };
   return (

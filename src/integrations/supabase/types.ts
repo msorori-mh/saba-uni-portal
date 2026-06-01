@@ -488,6 +488,54 @@ export type Database = {
         }
         Relationships: []
       }
+      email_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          metadata: Json
+          provider: string
+          provider_message_id: string | null
+          recipient_email: string
+          related_entity_id: string | null
+          related_entity_type: string | null
+          status: string
+          subject: string
+          template_name: string
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          status: string
+          subject: string
+          template_name: string
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metadata?: Json
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          status?: string
+          subject?: string
+          template_name?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       enrollment_suspension_details: {
         Row: {
           created_at: string
