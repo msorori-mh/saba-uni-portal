@@ -236,6 +236,11 @@ function AdminRequestsPage() {
                         {r.extra_chance_details.academic_year?.name ?? "—"} • {r.extra_chance_details.semester?.name ?? "—"} • {CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}
                       </>
                     )}
+                    {r.transfer_details && (
+                      <>
+                        {r.transfer_details.current_program?.name_ar ?? "—"} ← {r.transfer_details.requested_program?.name_ar ?? "—"}
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
