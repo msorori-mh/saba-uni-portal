@@ -100,9 +100,10 @@ function AdminRequestsPage() {
 
   const filtered = useMemo(() => requests.filter((r) =>
     (!statusFilter || r.status === statusFilter)
+    && (!typeFilter || r.request_type === typeFilter)
     && (!programFilter || r.student?.program_id === programFilter)
     && (!deptFilter || r.student?.department_id === deptFilter)
-  ), [requests, statusFilter, programFilter, deptFilter]);
+  ), [requests, statusFilter, typeFilter, programFilter, deptFilter]);
 
   const updateStatus = async (id: string, status: string, rejection_reason?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
