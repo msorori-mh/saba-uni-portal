@@ -52,6 +52,19 @@ type ExtraChanceDetails = {
   semester: { name: string } | null;
 };
 
+type TransferDetails = {
+  current_program_id: string | null;
+  requested_program_id: string | null;
+  current_department_id: string | null;
+  requested_department_id: string | null;
+  transfer_reason: string;
+  notes: string | null;
+  current_program: { name_ar: string } | null;
+  requested_program: { name_ar: string } | null;
+  current_department: { name_ar: string } | null;
+  requested_department: { name_ar: string } | null;
+};
+
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
@@ -59,13 +72,14 @@ type RequestRow = {
   absence_details: { absence_date: string; reason_type: string; course_section_id: string } | null;
   suspension_details: SuspensionDetails | null;
   extra_chance_details: ExtraChanceDetails | null;
+  transfer_details: TransferDetails | null;
   attachments: { id: string; file_name: string; file_url: string }[];
 };
 
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
-  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance">(null);
+  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance" | "transfer">(null);
 
   const { data: requestTypes = [] } = useQuery({
     queryKey: ["request-types-active"],
@@ -109,13 +123,16 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id").in("request_id", ids),
         sb.from("enrollment_suspension_details")
           .select("request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
           .in("request_id", ids),
         sb.from("extra_chance_details")
           .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .in("request_id", ids),
+        sb.from("transfer_request_details")
+          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
           .in("request_id", ids),
         sb.from("student_request_attachments").select("id, request_id, file_name, file_url").in("request_id", ids),
       ]);
@@ -125,6 +142,8 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -138,6 +157,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         absence_details: absMap.get(r.id) ?? null,
         suspension_details: suspMap.get(r.id) ?? null,
         extra_chance_details: ecMap.get(r.id) ?? null,
+        transfer_details: trMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
     },
@@ -156,7 +176,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     if (error) toast.error(error.message); else { toast.success("تم الحذف"); refresh(); }
   };
 
-  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension", "extra_chance"]);
+  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension", "extra_chance", "transfer"]);
 
   return (
     <div className="mt-6">
@@ -177,7 +197,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
               </div>
               {supported ? (
                 <button
-                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension" | "extra_chance")}
+                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension" | "extra_chance" | "transfer")}
                   className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-semibold"
                 >
                   <Plus className="h-3 w-3" /> طلب جديد
@@ -234,6 +254,12 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span>• نوع الفرصة: <b>{CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}</b></span>
                   </div>
                 )}
+                {r.transfer_details && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                    <span>من: <b>{r.transfer_details.current_program?.name_ar ?? "—"}</b></span>
+                    <span>← إلى: <b>{r.transfer_details.requested_program?.name_ar ?? "—"}</b></span>
+                  </div>
+                )}
                 {r.description && <div className="mt-1.5 text-xs">{r.description}</div>}
                 {r.suspension_details?.suspension_reason && (
                   <div className="mt-1.5 text-xs">
@@ -243,6 +269,11 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                 {r.extra_chance_details?.reason && (
                   <div className="mt-1.5 text-xs">
                     <span className="text-muted-foreground">السبب: </span>{r.extra_chance_details.reason}
+                  </div>
+                )}
+                {r.transfer_details?.transfer_reason && (
+                  <div className="mt-1.5 text-xs">
+                    <span className="text-muted-foreground">السبب: </span>{r.transfer_details.transfer_reason}
                   </div>
                 )}
                 {r.rejection_reason && (
@@ -292,6 +323,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       )}
       {openType === "extra_chance" && (
         <ExtraChanceModal
+          studentProfileId={studentProfileId}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
+      {openType === "transfer" && (
+        <TransferModal
           studentProfileId={studentProfileId}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
@@ -685,4 +723,117 @@ function ExtraChanceModal({
     </ModalShell>
   );
 }
+
+function TransferModal({
+  studentProfileId, onClose, onSaved,
+}: {
+  studentProfileId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const { data: profile } = useQuery({
+    queryKey: ["transfer-my-profile", studentProfileId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("student_profiles")
+        .select("program_id, department_id, program:programs(name_ar), department:departments(name_ar)")
+        .eq("id", studentProfileId)
+        .maybeSingle();
+      return data as null | {
+        program_id: string | null; department_id: string | null;
+        program: { name_ar: string } | null; department: { name_ar: string } | null;
+      };
+    },
+  });
+
+  const { data: programs = [] } = useQuery({
+    queryKey: ["transfer-programs"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("programs")
+        .select("id, name_ar, department_id, department:departments(name_ar)")
+        .eq("is_active", true)
+        .order("name_ar");
+      return (data ?? []) as { id: string; name_ar: string; department_id: string | null; department: { name_ar: string } | null }[];
+    },
+  });
+
+  const [requestedProgramId, setRequestedProgramId] = useState<string>("");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const selectableTargets = programs.filter((p) => p.id !== profile?.program_id);
+  const target = programs.find((p) => p.id === requestedProgramId) ?? null;
+
+  const save = async (submit: boolean) => {
+    if (!profile?.program_id) { toast.error("لا يمكن تحديد برنامجك الحالي"); return; }
+    if (!requestedProgramId) { toast.error("اختر البرنامج المطلوب"); return; }
+    if (requestedProgramId === profile.program_id) { toast.error("البرنامج المطلوب مماثل للحالي"); return; }
+    if (!reason.trim()) { toast.error("أدخل سبب التحويل"); return; }
+    setBusy(true);
+    try {
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "transfer",
+        title: "طلب تحويل داخلي",
+        description: notes || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("transfer_request_details").insert({
+        request_id: created.id,
+        current_program_id: profile.program_id,
+        requested_program_id: requestedProgramId,
+        current_department_id: profile.department_id,
+        requested_department_id: target?.department_id ?? null,
+        transfer_reason: reason.trim(),
+        notes: notes || null,
+      });
+      if (e2) throw e2;
+
+      if (file) await uploadAttachment(created.id, file);
+      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب تحويل داخلي" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <div className="rounded border bg-muted/30 p-2">
+          <div className="text-[10px] font-bold text-muted-foreground">برنامجك الحالي</div>
+          <div className="text-sm font-semibold">{profile?.program?.name_ar ?? "—"}</div>
+          <div className="text-[11px] text-muted-foreground">القسم: {profile?.department?.name_ar ?? "—"}</div>
+        </div>
+        <div>
+          <Label>البرنامج المطلوب <span className="text-rose-600">*</span></Label>
+          <select value={requestedProgramId} onChange={(e) => setRequestedProgramId(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm">
+            <option value="">اختر...</option>
+            {selectableTargets.map((p) => (
+              <option key={p.id} value={p.id}>{p.name_ar}</option>
+            ))}
+          </select>
+          {target && (
+            <div className="mt-1 text-[11px] text-muted-foreground">القسم المطلوب: <b>{target.department?.name_ar ?? "—"}</b></div>
+          )}
+        </div>
+        <div>
+          <Label>سبب التحويل <span className="text-rose-600">*</span></Label>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" placeholder="اذكر السبب..." />
+        </div>
+        <div>
+          <Label>ملاحظات إضافية</Label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+        </div>
+        <FilePicker file={file} setFile={setFile} />
+        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+      </div>
+    </ModalShell>
+  );
+}
+
 

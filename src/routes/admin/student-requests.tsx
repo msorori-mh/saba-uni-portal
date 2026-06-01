@@ -40,6 +40,19 @@ type SuspensionDetails = {
   semester: { name: string } | null;
 };
 
+type TransferDetails = {
+  current_program_id: string | null;
+  requested_program_id: string | null;
+  current_department_id: string | null;
+  requested_department_id: string | null;
+  transfer_reason: string;
+  notes: string | null;
+  current_program: { name_ar: string } | null;
+  requested_program: { name_ar: string } | null;
+  current_department: { name_ar: string } | null;
+  requested_department: { name_ar: string } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
@@ -56,6 +69,7 @@ type AdminReq = {
     academic_year: { name: string } | null;
     semester: { name: string } | null;
   } | null;
+  transfer_details: TransferDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
@@ -101,7 +115,7 @@ function AdminRequestsPage() {
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details")
           .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
           .in("request_id", ids),
@@ -110,6 +124,9 @@ function AdminRequestsPage() {
           .in("request_id", ids),
         sb.from("extra_chance_details")
           .select("request_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .in("request_id", ids),
+        sb.from("transfer_request_details")
+          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
           .in("request_id", ids),
         sb.from("student_request_attachments")
           .select("id, request_id, file_url, file_name")
@@ -121,6 +138,8 @@ function AdminRequestsPage() {
       const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -134,6 +153,7 @@ function AdminRequestsPage() {
         absence_details: absMap.get(r.id) ?? null,
         suspension_details: suspMap.get(r.id) ?? null,
         extra_chance_details: ecMap.get(r.id) ?? null,
+        transfer_details: trMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
 
@@ -214,6 +234,11 @@ function AdminRequestsPage() {
                     {r.extra_chance_details && (
                       <>
                         {r.extra_chance_details.academic_year?.name ?? "—"} • {r.extra_chance_details.semester?.name ?? "—"} • {CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}
+                      </>
+                    )}
+                    {r.transfer_details && (
+                      <>
+                        {r.transfer_details.current_program?.name_ar ?? "—"} ← {r.transfer_details.requested_program?.name_ar ?? "—"}
                       </>
                     )}
                   </div>
@@ -311,6 +336,16 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <Row label="نوع الفرصة" value={CHANCE_LABEL[req.extra_chance_details.chance_type] ?? req.extra_chance_details.chance_type} />
               <Row label="السبب" value={req.extra_chance_details.reason} />
               {req.extra_chance_details.notes && <Row label="ملاحظات" value={req.extra_chance_details.notes} />}
+            </>
+          )}
+          {req.transfer_details && (
+            <>
+              <Row label="البرنامج الحالي" value={req.transfer_details.current_program?.name_ar ?? "—"} />
+              <Row label="البرنامج المطلوب" value={req.transfer_details.requested_program?.name_ar ?? "—"} />
+              <Row label="القسم الحالي" value={req.transfer_details.current_department?.name_ar ?? "—"} />
+              <Row label="القسم المطلوب" value={req.transfer_details.requested_department?.name_ar ?? "—"} />
+              <Row label="سبب التحويل" value={req.transfer_details.transfer_reason} />
+              {req.transfer_details.notes && <Row label="ملاحظات" value={req.transfer_details.notes} />}
             </>
           )}
 
