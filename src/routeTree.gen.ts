@@ -35,6 +35,7 @@ import { Route as FacultyPortalChangePasswordRouteImport } from './routes/facult
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
+import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -186,6 +187,11 @@ const AdminTranscriptsRoute = AdminTranscriptsRouteImport.update({
   path: '/transcripts',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
+  id: '/system-readiness',
+  path: '/system-readiness',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminStudyPlansRoute = AdminStudyPlansRouteImport.update({
   id: '/study-plans',
   path: '/study-plans',
@@ -316,6 +322,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -359,6 +366,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -407,6 +415,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
+  '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -456,6 +465,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
+    | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
@@ -499,6 +509,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
+    | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
@@ -546,6 +557,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/student-requests'
     | '/admin/study-plans'
+    | '/admin/system-readiness'
     | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
@@ -761,6 +773,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminTranscriptsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/system-readiness': {
+      id: '/admin/system-readiness'
+      path: '/system-readiness'
+      fullPath: '/admin/system-readiness'
+      preLoaderRoute: typeof AdminSystemReadinessRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/study-plans': {
       id: '/admin/study-plans'
       path: '/study-plans'
@@ -917,6 +936,7 @@ interface AdminRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
+  AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
   AdminTranscriptsRoute: typeof AdminTranscriptsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -942,6 +962,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,
+  AdminSystemReadinessRoute: AdminSystemReadinessRoute,
   AdminTranscriptsRoute: AdminTranscriptsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,

@@ -93,6 +93,7 @@ const groups: NavGroup[] = [
     items: [
       { to: "/admin/audit-log", label: "سجل التدقيق", icon: ScrollText },
       { to: "/admin/users", label: "المستخدمون والصلاحيات", icon: UserCog },
+      { to: "/admin/system-readiness", label: "جاهزية النظام", icon: ShieldCheck },
     ],
   },
 ];

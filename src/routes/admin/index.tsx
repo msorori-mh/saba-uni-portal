@@ -191,8 +191,27 @@ function AdminDashboard() {
         </div>
       </section>
 
+      {/* System Readiness CTA */}
+      <section className="rounded-xl bg-card border border-border p-6 shadow-card">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="font-display text-lg font-bold text-primary">جاهزية النظام للتشغيل</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              نتائج الاختبارات التشخيصية لجميع الأنظمة الحالية.
+            </p>
+          </div>
+          <Link
+            to="/admin/system-readiness"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+          >
+            <ShieldCheck className="h-4 w-4" /> فتح لوحة الجاهزية
+          </Link>
+        </div>
+      </section>
+
       {/* Shortcut to record link */}
       <section className="rounded-xl bg-card border border-border p-6 shadow-card">
+
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="font-display text-lg font-bold text-primary">السجلات الأكاديمية</h2>
