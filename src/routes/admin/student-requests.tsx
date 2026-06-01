@@ -205,6 +205,8 @@ function AdminRequestsPage() {
     && (!deptFilter || r.student?.department_id === deptFilter)
   ), [requests, statusFilter, typeFilter, programFilter, deptFilter]);
 
+  const sendEmail = useServerFn(sendNotificationEmail);
+
   const updateStatus = async (id: string, status: string, rejection_reason?: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     const patch: Record<string, unknown> = { status, reviewed_by: user?.id, reviewed_at: new Date().toISOString() };
@@ -214,6 +216,32 @@ function AdminRequestsPage() {
     toast.success("تم تحديث الحالة");
     qc.invalidateQueries({ queryKey: ["admin-requests"] });
     if (selected?.id === id) setSelected({ ...selected, status, rejection_reason: patch.rejection_reason as string ?? null });
+
+    // Phase 9B: secondary email notification (best-effort; never blocks)
+    if (status === "approved" || status === "rejected") {
+      try {
+        const { data: req } = await sb.from("student_requests")
+          .select("title, student:student_profiles(email, full_name_ar)")
+          .eq("id", id).maybeSingle();
+        const email = (req?.student?.email as string | undefined) ?? null;
+        if (email) {
+          sendEmail({
+            data: {
+              templateKey: status === "approved" ? "request_approved" : "request_rejected",
+              recipientEmail: email,
+              recipientName: req?.student?.full_name_ar ?? null,
+              variables: {
+                request_title: req?.title ?? "",
+                rejection_reason: rejection_reason ?? null,
+              },
+              relatedEntityType: "student_request",
+              relatedEntityId: id,
+            },
+          }).catch(() => undefined);
+        }
+      } catch { /* silent — email is secondary */ }
+    }
+
     return true;
   };
 
