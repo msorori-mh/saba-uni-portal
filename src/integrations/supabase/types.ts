@@ -1829,6 +1829,109 @@ export type Database = {
           },
         ]
       }
+      transfer_request_details: {
+        Row: {
+          created_at: string
+          current_department_id: string | null
+          current_program_id: string
+          id: string
+          notes: string | null
+          request_id: string
+          requested_department_id: string | null
+          requested_program_id: string
+          transfer_reason: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_department_id?: string | null
+          current_program_id: string
+          id?: string
+          notes?: string | null
+          request_id: string
+          requested_department_id?: string | null
+          requested_program_id: string
+          transfer_reason: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_department_id?: string | null
+          current_program_id?: string
+          id?: string
+          notes?: string | null
+          request_id?: string
+          requested_department_id?: string | null
+          requested_program_id?: string
+          transfer_reason?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transfer_request_details_current_department_id_fkey"
+            columns: ["current_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_current_department_id_fkey"
+            columns: ["current_department_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["department_id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_current_program_id_fkey"
+            columns: ["current_program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_current_program_id_fkey"
+            columns: ["current_program_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["program_id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_requested_department_id_fkey"
+            columns: ["requested_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_requested_department_id_fkey"
+            columns: ["requested_department_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["department_id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_requested_program_id_fkey"
+            columns: ["requested_program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_requested_program_id_fkey"
+            columns: ["requested_program_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["program_id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
