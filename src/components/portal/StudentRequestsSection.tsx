@@ -254,6 +254,12 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span>• نوع الفرصة: <b>{CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}</b></span>
                   </div>
                 )}
+                {r.transfer_details && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                    <span>من: <b>{r.transfer_details.current_program?.name_ar ?? "—"}</b></span>
+                    <span>← إلى: <b>{r.transfer_details.requested_program?.name_ar ?? "—"}</b></span>
+                  </div>
+                )}
                 {r.description && <div className="mt-1.5 text-xs">{r.description}</div>}
                 {r.suspension_details?.suspension_reason && (
                   <div className="mt-1.5 text-xs">
