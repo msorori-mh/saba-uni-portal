@@ -227,10 +227,22 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span>• المدة: <b>{DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}</b></span>
                   </div>
                 )}
+                {r.extra_chance_details && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                    <span>السنة: <b>{r.extra_chance_details.academic_year?.name ?? "—"}</b></span>
+                    <span>• الفصل: <b>{r.extra_chance_details.semester?.name ?? "—"}</b></span>
+                    <span>• نوع الفرصة: <b>{CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}</b></span>
+                  </div>
+                )}
                 {r.description && <div className="mt-1.5 text-xs">{r.description}</div>}
                 {r.suspension_details?.suspension_reason && (
                   <div className="mt-1.5 text-xs">
                     <span className="text-muted-foreground">السبب: </span>{r.suspension_details.suspension_reason}
+                  </div>
+                )}
+                {r.extra_chance_details?.reason && (
+                  <div className="mt-1.5 text-xs">
+                    <span className="text-muted-foreground">السبب: </span>{r.extra_chance_details.reason}
                   </div>
                 )}
                 {r.rejection_reason && (
