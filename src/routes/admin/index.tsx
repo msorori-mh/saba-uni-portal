@@ -103,9 +103,18 @@ function AdminDashboard() {
     },
   });
 
+  const counts = s ?? {
+    programs: 0, courses: 0, sections: 0, students: 0,
+    faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
+    news: 0, events: 0, research: 0, audit24h: 0, notif24h: 0,
+    feesPending: 0, feesPartial: 0,
+    docsAll: 0, docsEnroll: 0, docsTranscript: 0, docsReceipt: 0, docsToday: 0,
+    docsIssuedToday: 0, docsCancelledToday: 0,
+  };
+
   const sections_: Array<{
     title: string;
-    cards: Array<{ label: string; value: number; icon: any }>;
+    cards: Array<{ label: string; value: number; icon: any; to?: string }>;
   }> = [
     {
       title: "إحصائيات أكاديمية",
