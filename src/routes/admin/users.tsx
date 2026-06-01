@@ -4,9 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listUsers, createAccount, resetPassword, setActive, addRole, removeRole,
+  adminAccountCounts, createAdminAccount,
 } from "@/lib/admin-users.functions";
 import {
   Loader2, Search, KeyRound, UserCheck, UserX, ShieldPlus, X, Plus, ShieldMinus,
+  ShieldAlert, ShieldCheck,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/users")({
@@ -33,6 +35,8 @@ function UsersPage() {
   const [rolesFor, setRolesFor] = useState<{ user_id: string; name: string; roles: string[] } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAdminForm, setShowAdminForm] = useState(false);
+  const [adminMsg, setAdminMsg] = useState<string | null>(null);
 
   const list = useServerFn(listUsers);
   const create = useServerFn(createAccount);
@@ -40,17 +44,25 @@ function UsersPage() {
   const toggle = useServerFn(setActive);
   const addR = useServerFn(addRole);
   const rmR = useServerFn(removeRole);
+  const adminCounts = useServerFn(adminAccountCounts);
+  const createAdmin = useServerFn(createAdminAccount);
 
   const qc = useQueryClient();
   const { data: rows, isLoading } = useQuery({
     queryKey: ["admin-users", kind, search, status],
     queryFn: () => list({ data: { kind, search: search || undefined, status } }),
   });
+  const { data: counts } = useQuery({
+    queryKey: ["admin-account-counts"],
+    queryFn: () => adminCounts(),
+  });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["admin-users"] });
     qc.invalidateQueries({ queryKey: ["admin-dashboard-counts"] });
     qc.invalidateQueries({ queryKey: ["active-user-counts"] });
+    qc.invalidateQueries({ queryKey: ["admin-account-counts"] });
+    qc.invalidateQueries({ queryKey: ["hardening-status"] });
   };
 
   const run = async (key: string, fn: () => Promise<any>) => {
@@ -59,6 +71,10 @@ function UsersPage() {
     catch (e: any) { setError(e?.message ?? "خطأ"); }
     finally { setBusy(null); }
   };
+
+  const adminCount = counts?.admin ?? 0;
+  const systemAdminCount = counts?.system_admin ?? 0;
+  const adminHealthy = adminCount >= 2 && systemAdminCount >= 1;
 
   return (
     <div className="space-y-6">
@@ -75,6 +91,28 @@ function UsersPage() {
           <button onClick={() => setError(null)}><X className="h-4 w-4" /></button>
         </div>
       )}
+
+      {/* Admin Accounts banner */}
+      <div className={`rounded-xl border p-5 shadow-card ${adminHealthy ? "border-emerald-200 bg-emerald-50" : "border-amber-300 bg-amber-50"}`}>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div className="flex items-start gap-3">
+            {adminHealthy ? <ShieldCheck className="h-5 w-5 text-emerald-700 mt-0.5" /> : <ShieldAlert className="h-5 w-5 text-amber-700 mt-0.5" />}
+            <div>
+              <div className={`font-bold ${adminHealthy ? "text-emerald-800" : "text-amber-800"}`}>الحسابات الإدارية</div>
+              <div className="text-xs mt-1 text-muted-foreground">
+                Admin: <span className="font-bold">{adminCount}</span> · System Admin: <span className="font-bold">{systemAdminCount}</span>
+                {!adminHealthy && <span className="block mt-1 text-amber-800">يُنصح بوجود ≥ 2 Admin و ≥ 1 System Admin قبل الإطلاق.</span>}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => { setShowAdminForm(true); setAdminMsg(null); }}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-xs font-bold hover:opacity-90"
+          >
+            <ShieldPlus className="h-3.5 w-3.5" /> إنشاء حساب Admin / System Admin
+          </button>
+        </div>
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-border">
@@ -239,9 +277,103 @@ function UsersPage() {
                 })}
               </div>
             </div>
-          </div>
+      {/* Create Admin/SystemAdmin modal */}
+      {showAdminForm && (
+        <CreateAdminModal
+          onClose={() => setShowAdminForm(false)}
+          onSubmit={async (payload) => {
+            setAdminMsg(null);
+            try {
+              const r = await createAdmin({ data: payload });
+              setAdminMsg(`تم إنشاء الحساب: ${r.email}`);
+              refresh();
+              setShowAdminForm(false);
+            } catch (e: any) {
+              throw new Error(e?.message ?? "تعذّر الإنشاء");
+            }
+          }}
+        />
+      )}
+      {adminMsg && (
+        <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-sm rounded-lg bg-emerald-600 text-white px-4 py-3 text-sm font-bold shadow-lg z-50">
+          {adminMsg}
         </div>
       )}
     </div>
+  );
+}
+
+function CreateAdminModal({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (data: { email: string; password: string; full_name_ar: string; role: "admin" | "system_admin" }) => Promise<void>;
+}) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState<"admin" | "system_admin">("admin");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try { await onSubmit({ email, password, full_name_ar: name, role }); }
+    catch (e: any) { setErr(e?.message ?? "خطأ"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={onClose}>
+      <form
+        onSubmit={submit}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-card rounded-xl shadow-2xl w-full max-w-md"
+      >
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h3 className="font-display text-lg font-bold text-primary">إنشاء حساب إداري</h3>
+          <button type="button" onClick={onClose} className="p-1 hover:bg-secondary rounded"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <Field label="الاسم الكامل (عربي)">
+            <input required minLength={2} maxLength={120} value={name} onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </Field>
+          <Field label="البريد الإلكتروني">
+            <input required type="email" maxLength={160} value={email} onChange={(e) => setEmail(e.target.value)} dir="ltr"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono" />
+          </Field>
+          <Field label="كلمة المرور (8+ محارف)">
+            <input required type="password" minLength={8} maxLength={72} value={password} onChange={(e) => setPassword(e.target.value)} dir="ltr"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono" />
+          </Field>
+          <Field label="نوع الحساب">
+            <select value={role} onChange={(e) => setRole(e.target.value as any)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="admin">Admin</option>
+              <option value="system_admin">System Admin</option>
+            </select>
+          </Field>
+          {err && <div className="text-xs text-destructive">{err}</div>}
+        </div>
+        <div className="p-4 border-t border-border flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">إلغاء</button>
+          <button type="submit" disabled={busy} className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-bold hover:opacity-90 disabled:opacity-50">
+            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} إنشاء
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-xs font-bold text-primary">{label}</span>
+      {children}
+    </label>
   );
 }
