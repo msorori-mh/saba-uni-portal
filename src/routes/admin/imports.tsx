@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Upload, Download, CheckCircle2, XCircle, Loader2, FileSpreadsheet, AlertTriangle, History } from "lucide-react";
+import {
+  Upload, Download, CheckCircle2, XCircle, Loader2, FileSpreadsheet,
+  AlertTriangle, History, FileDown, FlaskConical, BarChart3, ChevronDown, ChevronUp,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { loadLookups } from "@/lib/imports/lookups";
 import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
@@ -11,7 +14,9 @@ import {
 import {
   importStudents, importFaculty, importStaff, importCourses, importStudyPlans,
   finalizeImport, emptyReport,
+  auditImportStarted, auditImportValidated, auditImportFailed,
 } from "@/lib/imports/engine";
+import { downloadValidationReport, downloadImportReport } from "@/lib/imports/reports";
 import type { ImportReport, ImportType, ValidationResult, ValidatedRow } from "@/lib/imports/types";
 
 export const Route = createFileRoute("/admin/imports")({
@@ -34,6 +39,15 @@ const TYPE_LABEL: Record<ImportType, string> = {
   students: "طلاب", faculty: "أعضاء هيئة تدريس", staff: "موظفون", courses: "مقررات", study_plans: "خطط دراسية",
 };
 
+const STEPS = [
+  "تنزيل القالب",
+  "رفع الملف",
+  "المعاينة",
+  "التحقق",
+  "الاستيراد",
+  "التقرير",
+] as const;
+
 function ImportsPage() {
   const [tab, setTab] = useState<ImportType>("students");
   const [file, setFile] = useState<File | null>(null);
@@ -43,16 +57,28 @@ function ImportsPage() {
   const [validating, setValidating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
+  const [dryRun, setDryRun] = useState(false);
+  const [perfMs, setPerfMs] = useState<number | null>(null);
   const qc = useQueryClient();
 
   const reset = () => {
-    setFile(null); setRows(null); setValidation(null); setReport(null);
+    setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
   };
 
   const onTabChange = (t: ImportType) => { setTab(t); reset(); };
 
+  // Determine current step (0..5)
+  const step = useMemo(() => {
+    if (report) return 5;
+    if (importing) return 4;
+    if (validation) return 3;
+    if (rows) return 2;
+    if (file) return 1;
+    return 0;
+  }, [report, importing, validation, rows, file]);
+
   const onFile = async (f: File) => {
-    setFile(f); setRows(null); setValidation(null); setReport(null);
+    setFile(f); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
     setValidating(true);
     try {
       const parsed = await parseExcel(f);
@@ -65,7 +91,11 @@ function ImportsPage() {
       else if (tab === "courses") res = await validateCourses(parsed, lookups);
       else res = await validateStudyPlans(parsed, lookups);
       setValidation(res);
+      void auditImportValidated(tab, f.name, {
+        total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
+      });
     } catch (e) {
+      void auditImportFailed(tab, f.name, (e as Error).message);
       alert("تعذر قراءة الملف: " + (e as Error).message);
     } finally {
       setValidating(false);
@@ -76,19 +106,26 @@ function ImportsPage() {
     if (!validation || !file) return;
     setImporting(true);
     setReport(null);
+    setPerfMs(null);
+    const t0 = performance.now();
     try {
+      void auditImportStarted(tab, file.name, validation.totalRows, dryRun);
       let rep = emptyReport();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const vrows = validation.rows as ValidatedRow<any>[];
-      if (tab === "students") rep = await importStudents(vrows);
-      else if (tab === "faculty") rep = await importFaculty(vrows);
-      else if (tab === "staff") rep = await importStaff(vrows);
-      else if (tab === "courses") rep = await importCourses(vrows);
-      else rep = await importStudyPlans(vrows);
-      await finalizeImport({ type: tab, fileName: file.name, report: rep });
+      if (tab === "students") rep = await importStudents(vrows, dryRun);
+      else if (tab === "faculty") rep = await importFaculty(vrows, dryRun);
+      else if (tab === "staff") rep = await importStaff(vrows, dryRun);
+      else if (tab === "courses") rep = await importCourses(vrows, dryRun);
+      else rep = await importStudyPlans(vrows, dryRun);
+      const duration = Math.round(performance.now() - t0);
+      setPerfMs(duration);
+      await finalizeImport({ type: tab, fileName: file.name, report: rep, dryRun, durationMs: duration });
       setReport(rep);
       qc.invalidateQueries({ queryKey: ["import-history"] });
+      qc.invalidateQueries({ queryKey: ["import-stats"] });
     } catch (e) {
+      void auditImportFailed(tab, file.name, (e as Error).message);
       alert("فشل الاستيراد: " + (e as Error).message);
     } finally {
       setImporting(false);
@@ -102,9 +139,13 @@ function ImportsPage() {
           <FileSpreadsheet className="h-6 w-6 text-gold" /> الاستيراد الجماعي
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          استورد بيانات حقيقية من ملفات Excel مع التحقق المسبق، المعاينة، وتقرير الأخطاء.
+          استورد بيانات حقيقية من ملفات Excel مع التحقق المسبق، الوضع التجريبي، وتقارير قابلة للتنزيل.
         </p>
       </header>
+
+      <ImportStats />
+
+      <Stepper current={step} />
 
       <nav className="flex flex-wrap gap-2 border-b border-border">
         {TABS.map((t) => (
@@ -146,15 +187,37 @@ function ImportsPage() {
             </span>
           )}
 
-          {validation && !report && (
+          {validation && (
             <button
-              onClick={runImport}
-              disabled={importing || validation.validRows === 0}
-              className="ml-auto inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              onClick={() => downloadValidationReport(tab, file?.name ?? "file.xlsx", validation)}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold"
             >
-              {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              تنفيذ الاستيراد ({validation.validRows} صف)
+              <FileDown className="h-3.5 w-3.5" /> تقرير التحقق
             </button>
+          )}
+
+          {validation && !report && (
+            <div className="ml-auto flex items-center gap-3">
+              <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-gold"
+                  checked={dryRun}
+                  onChange={(e) => setDryRun(e.target.checked)}
+                />
+                <FlaskConical className="h-3.5 w-3.5 text-gold" /> وضع التحقق فقط (Dry Run)
+              </label>
+              <button
+                onClick={runImport}
+                disabled={importing || validation.validRows === 0}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50 ${
+                  dryRun ? "bg-amber-600" : "bg-emerald-600"
+                }`}
+              >
+                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                {dryRun ? "تشغيل تجريبي" : "تنفيذ الاستيراد"} ({validation.validRows} صف)
+              </button>
+            </div>
           )}
         </div>
 
@@ -168,11 +231,78 @@ function ImportsPage() {
           <PreviewBlock validation={validation} />
         )}
 
-        {report && <ReportBlock report={report} type={tab} />}
+        {report && (
+          <ReportBlock
+            report={report}
+            type={tab}
+            dryRun={dryRun}
+            durationMs={perfMs}
+            onDownload={() => downloadImportReport(tab, file?.name ?? "file.xlsx", report)}
+          />
+        )}
       </section>
 
       <ImportHistory />
     </div>
+  );
+}
+
+function Stepper({ current }: { current: number }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-card">
+      {STEPS.map((label, i) => {
+        const done = i < current;
+        const active = i === current;
+        return (
+          <li key={label} className="flex items-center gap-2">
+            <div className={`grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold ${
+              done ? "bg-emerald-600 text-white" : active ? "bg-gold text-primary" : "bg-secondary text-muted-foreground"
+            }`}>{i + 1}</div>
+            <span className={`text-xs font-bold ${active ? "text-primary" : done ? "text-emerald-700" : "text-muted-foreground"}`}>{label}</span>
+            {i < STEPS.length - 1 && <span className="mx-1 hidden h-px w-6 bg-border sm:block" />}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function ImportStats() {
+  const { data } = useQuery({
+    queryKey: ["import-stats"],
+    queryFn: async () => {
+      const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+      const todayIso = startOfToday.toISOString();
+      const [all, today, completed, failed] = await Promise.all([
+        sb.from("import_logs").select("id", { count: "exact", head: true }),
+        sb.from("import_logs").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
+        sb.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "completed"),
+        sb.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "failed"),
+      ]);
+      const total = all.count ?? 0;
+      const okCount = completed.count ?? 0;
+      const rate = total > 0 ? Math.round((okCount / total) * 100) : 0;
+      return { total, today: today.count ?? 0, completed: okCount, failed: failed.count ?? 0, rate };
+    },
+  });
+  const cards = [
+    { label: "إجمالي الاستيرادات", value: data?.total ?? 0, tone: "neutral" as const },
+    { label: "استيرادات اليوم", value: data?.today ?? 0, tone: "neutral" as const },
+    { label: "ناجحة", value: data?.completed ?? 0, tone: "ok" as const },
+    { label: "فاشلة", value: data?.failed ?? 0, tone: "bad" as const },
+    { label: "نسبة النجاح %", value: data?.rate ?? 0, tone: "ok" as const },
+  ];
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 shadow-card">
+      <h2 className="font-display text-sm font-bold text-primary flex items-center gap-2 mb-3">
+        <BarChart3 className="h-4 w-4 text-gold" /> إحصائيات الاستيراد الجماعي
+      </h2>
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+        {cards.map((c) => (
+          <Stat key={c.label} label={c.label} value={c.value} tone={c.tone} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -221,20 +351,33 @@ function PreviewBlock({ validation }: { validation: ValidationResult<any> }) {
   );
 }
 
-function ReportBlock({ report, type }: { report: ImportReport; type: ImportType }) {
+function ReportBlock({ report, type, dryRun, durationMs, onDownload }: {
+  report: ImportReport; type: ImportType; dryRun: boolean; durationMs: number | null; onDownload: () => void;
+}) {
+  const tone = dryRun ? "amber" : "emerald";
   return (
-    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
-      <div className="flex items-center gap-2 font-bold text-emerald-700">
-        <CheckCircle2 className="h-5 w-5" /> تم تنفيذ استيراد {TYPE_LABEL[type]}
+    <div className={`rounded-lg border border-${tone}-500/30 bg-${tone}-500/5 p-4 space-y-3`}>
+      <div className={`flex items-center justify-between gap-2 font-bold text-${tone}-700`}>
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5" />
+          {dryRun ? "تشغيل تجريبي مكتمل (لم تتم أي تغييرات)" : `تم تنفيذ استيراد ${TYPE_LABEL[type]}`}
+        </div>
+        <button
+          onClick={onDownload}
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-bold text-primary hover:border-gold"
+        >
+          <FileDown className="h-3.5 w-3.5" /> تنزيل التقرير
+        </button>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <Stat label="إجمالي" value={report.rows_total} tone="neutral" />
         <Stat label="نجح" value={report.rows_success} tone="ok" />
         <Stat label="فشل" value={report.rows_failed} tone="bad" />
+        <Stat label="الزمن (ms)" value={durationMs ?? 0} tone="neutral" />
       </div>
       {report.errors.length > 0 && (
         <details className="text-xs">
-          <summary className="cursor-pointer font-bold text-destructive">أخطاء الإدراج ({report.errors.length})</summary>
+          <summary className="cursor-pointer font-bold text-destructive">أخطاء ({report.errors.length})</summary>
           <ul className="mt-2 list-disc pr-5 space-y-1 max-h-40 overflow-y-auto">
             {report.errors.slice(0, 100).map((e, i) => (
               <li key={i}>صف {e.row}{e.column ? ` [${e.column}]` : ""}: {e.message}</li>
@@ -256,15 +399,21 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "ok"
   );
 }
 
+type HistoryRow = {
+  id: string; created_at: string; import_type: ImportType; file_name: string;
+  rows_total: number; rows_success: number; rows_failed: number; status: string; notes: string | null;
+};
+
 function ImportHistory() {
+  const [expanded, setExpanded] = useState<string | null>(null);
   const { data = [], isLoading } = useQuery({
     queryKey: ["import-history"],
     queryFn: async () => {
       const { data, error } = await sb.from("import_logs")
-        .select("id, created_at, import_type, file_name, rows_total, rows_success, rows_failed, status")
+        .select("id, created_at, import_type, file_name, rows_total, rows_success, rows_failed, status, notes")
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw new Error(error.message);
-      return data ?? [];
+      return (data ?? []) as HistoryRow[];
     },
   });
 
@@ -282,6 +431,7 @@ function ImportHistory() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-right text-muted-foreground border-b border-border">
+                <th className="py-2 px-2 w-8" />
                 <th className="py-2 px-2">التاريخ</th>
                 <th className="py-2 px-2">النوع</th>
                 <th className="py-2 px-2">الملف</th>
@@ -292,25 +442,53 @@ function ImportHistory() {
               </tr>
             </thead>
             <tbody>
-              {(data as Array<{ id: string; created_at: string; import_type: ImportType; file_name: string; rows_total: number; rows_success: number; rows_failed: number; status: string }>).map((r) => (
-                <tr key={r.id} className="border-b border-border/50">
-                  <td className="py-2 px-2 text-xs">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
-                  <td className="py-2 px-2">{TYPE_LABEL[r.import_type] ?? r.import_type}</td>
-                  <td className="py-2 px-2 font-mono text-xs">{r.file_name}</td>
-                  <td className="py-2 px-2">{r.rows_total}</td>
-                  <td className="py-2 px-2 text-emerald-700 font-bold">{r.rows_success}</td>
-                  <td className="py-2 px-2 text-destructive font-bold">{r.rows_failed}</td>
-                  <td className="py-2 px-2">
-                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
-                      r.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                      r.status === "partial" ? "bg-amber-100 text-amber-700" :
-                      "bg-destructive/10 text-destructive"
-                    }`}>
-                      {r.status === "completed" ? "مكتمل" : r.status === "partial" ? "جزئي" : "فشل"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {data.map((r) => {
+                const isOpen = expanded === r.id;
+                return (
+                  <>
+                    <tr key={r.id} className="border-b border-border/50 hover:bg-secondary/30">
+                      <td className="py-2 px-2">
+                        {r.notes ? (
+                          <button
+                            onClick={() => setExpanded(isOpen ? null : r.id)}
+                            className="text-primary"
+                            aria-label="تفاصيل"
+                          >
+                            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </button>
+                        ) : null}
+                      </td>
+                      <td className="py-2 px-2 text-xs">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
+                      <td className="py-2 px-2">{TYPE_LABEL[r.import_type] ?? r.import_type}</td>
+                      <td className="py-2 px-2 font-mono text-xs">{r.file_name}</td>
+                      <td className="py-2 px-2">{r.rows_total}</td>
+                      <td className="py-2 px-2 text-emerald-700 font-bold">{r.rows_success}</td>
+                      <td className="py-2 px-2 text-destructive font-bold">{r.rows_failed}</td>
+                      <td className="py-2 px-2">
+                        <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
+                          r.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                          r.status === "partial" ? "bg-amber-100 text-amber-700" :
+                          "bg-destructive/10 text-destructive"
+                        }`}>
+                          {r.status === "completed" ? "مكتمل" : r.status === "partial" ? "جزئي" : "فشل"}
+                        </span>
+                      </td>
+                    </tr>
+                    {isOpen && r.notes && (
+                      <tr key={`${r.id}-d`} className="bg-secondary/20">
+                        <td colSpan={8} className="px-4 py-3">
+                          <div className="text-xs font-bold text-primary mb-1 flex items-center gap-1">
+                            <XCircle className="h-3.5 w-3.5 text-destructive" /> ملخص الأخطاء
+                          </div>
+                          <div className="text-xs font-mono whitespace-pre-wrap break-words text-muted-foreground">
+                            {r.notes}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         </div>

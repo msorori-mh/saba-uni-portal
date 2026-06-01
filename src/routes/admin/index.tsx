@@ -6,7 +6,7 @@ import {
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
   Wallet, AlertCircle, Lock, Database, ShieldAlert,
-  FileBadge, FileCheck2, Receipt, FileSignature, FileClock,
+  FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
@@ -68,6 +68,7 @@ function AdminDashboard() {
         docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
         docsIssuedToday, docsCancelledToday,
         docsActive, docsCancelled, docsThisMonth,
+        importsTotal, importsToday, importsCompleted, importsFailed,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -94,7 +95,12 @@ function AdminDashboard() {
         tableCount("official_documents", (q) => q.eq("status", "issued")),
         tableCount("official_documents", (q) => q.eq("status", "cancelled")),
         tableCount("official_documents", (q) => q.gte("issued_at", monthIso)),
+        tableCount("import_logs"),
+        tableCount("import_logs", (q) => q.gte("created_at", todayIso)),
+        tableCount("import_logs", (q) => q.eq("status", "completed")),
+        tableCount("import_logs", (q) => q.eq("status", "failed")),
       ]);
+      const importsRate = importsTotal > 0 ? Math.round((importsCompleted / importsTotal) * 100) : 0;
       return {
         programs, courses, sections, students, faculty, staff,
         newReq, reviewReq, news, events, research, audit24h, notif24h,
@@ -102,6 +108,7 @@ function AdminDashboard() {
         docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
         docsIssuedToday, docsCancelledToday,
         docsActive, docsCancelled, docsThisMonth,
+        importsTotal, importsToday, importsCompleted, importsFailed, importsRate,
       };
     },
   });
@@ -127,6 +134,7 @@ function AdminDashboard() {
     docsAll: 0, docsEnroll: 0, docsTranscript: 0, docsReceipt: 0, docsToday: 0,
     docsIssuedToday: 0, docsCancelledToday: 0,
     docsActive: 0, docsCancelled: 0, docsThisMonth: 0,
+    importsTotal: 0, importsToday: 0, importsCompleted: 0, importsFailed: 0, importsRate: 0,
   };
 
   const sections_: Array<{
@@ -182,6 +190,16 @@ function AdminDashboard() {
         { label: "شهادات القيد", value: counts.docsEnroll, icon: FileBadge, to: "/admin/documents" },
         { label: "السجلات الأكاديمية", value: counts.docsTranscript, icon: FileCheck2, to: "/admin/documents" },
         { label: "السندات المالية", value: counts.docsReceipt, icon: Receipt, to: "/admin/documents" },
+      ],
+    },
+    {
+      title: "الاستيراد الجماعي",
+      cards: [
+        { label: "إجمالي الاستيرادات", value: counts.importsTotal, icon: FileSpreadsheet, to: "/admin/imports" },
+        { label: "استيرادات اليوم", value: counts.importsToday, icon: FileSpreadsheet, to: "/admin/imports" },
+        { label: "ناجحة", value: counts.importsCompleted, icon: FileCheck2, to: "/admin/imports" },
+        { label: "فاشلة", value: counts.importsFailed, icon: FileWarning, to: "/admin/imports" },
+        { label: "نسبة النجاح %", value: counts.importsRate, icon: FileBadge, to: "/admin/imports" },
       ],
     },
     {

@@ -22,6 +22,21 @@ function splitRows<T>(rows: ValidatedRow<T>[], report: ImportReport): ParsedRow<
   return valid;
 }
 
+async function safeAudit(action: string, entityId: string | null, payload: Record<string, unknown>) {
+  try {
+    await sb.rpc("log_audit", {
+      _entity_type: "import",
+      _entity_id: entityId,
+      _action_type: action,
+      _old: null,
+      _new: payload,
+      _notes: null,
+    });
+  } catch {
+    // best-effort
+  }
+}
+
 async function insertBatched<T>(
   table: string,
   rows: { rowNumber: number; payload: T }[],
@@ -46,7 +61,24 @@ async function insertBatched<T>(
   }
 }
 
-export async function importStudents(rows: ValidatedRow<StudentRow>[]): Promise<ImportReport> {
+// ============================================================
+// Dry-run helper — counts valid rows as success, no DB writes.
+// ============================================================
+function dryRunReport<T>(rows: ValidatedRow<T>[]): ImportReport {
+  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+    } else {
+      report.rows_success += 1;
+    }
+  }
+  return report;
+}
+
+export async function importStudents(rows: ValidatedRow<StudentRow>[], dryRun = false): Promise<ImportReport> {
+  if (dryRun) return dryRunReport(rows);
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
   const valid = splitRows(rows, report);
 
@@ -112,7 +144,8 @@ export async function importStudents(rows: ValidatedRow<StudentRow>[]): Promise<
   return report;
 }
 
-export async function importFaculty(rows: ValidatedRow<FacultyRow>[]): Promise<ImportReport> {
+export async function importFaculty(rows: ValidatedRow<FacultyRow>[], dryRun = false): Promise<ImportReport> {
+  if (dryRun) return dryRunReport(rows);
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
   const valid = splitRows(rows, report);
 
@@ -151,7 +184,8 @@ export async function importFaculty(rows: ValidatedRow<FacultyRow>[]): Promise<I
   return report;
 }
 
-export async function importStaff(rows: ValidatedRow<StaffRow>[]): Promise<ImportReport> {
+export async function importStaff(rows: ValidatedRow<StaffRow>[], dryRun = false): Promise<ImportReport> {
+  if (dryRun) return dryRunReport(rows);
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
   const valid = splitRows(rows, report);
   await insertBatched("staff_profiles", valid.map((r) => ({
@@ -161,7 +195,8 @@ export async function importStaff(rows: ValidatedRow<StaffRow>[]): Promise<Impor
   return report;
 }
 
-export async function importCourses(rows: ValidatedRow<CourseRow>[]): Promise<ImportReport> {
+export async function importCourses(rows: ValidatedRow<CourseRow>[], dryRun = false): Promise<ImportReport> {
+  if (dryRun) return dryRunReport(rows);
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
   const valid = splitRows(rows, report);
   await insertBatched("courses", valid.map((r) => ({
@@ -171,7 +206,8 @@ export async function importCourses(rows: ValidatedRow<CourseRow>[]): Promise<Im
   return report;
 }
 
-export async function importStudyPlans(rows: ValidatedRow<StudyPlanRow>[]): Promise<ImportReport> {
+export async function importStudyPlans(rows: ValidatedRow<StudyPlanRow>[], dryRun = false): Promise<ImportReport> {
+  if (dryRun) return dryRunReport(rows);
   const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
   const valid = splitRows(rows, report);
 
@@ -216,11 +252,45 @@ export async function importStudyPlans(rows: ValidatedRow<StudyPlanRow>[]): Prom
   return report;
 }
 
+// ============================================================
+// Lifecycle audit helpers — exposed for UI to emit start/validated/failed
+// ============================================================
+export async function auditImportStarted(type: ImportType, fileName: string, rowsTotal: number, dryRun: boolean) {
+  await safeAudit("import_started", null, { import_type: type, file_name: fileName, rows_total: rowsTotal, dry_run: dryRun });
+}
+
+export async function auditImportValidated(type: ImportType, fileName: string, totals: { total: number; valid: number; invalid: number }) {
+  await safeAudit("import_validated", null, {
+    import_type: type, file_name: fileName,
+    rows_total: totals.total, rows_success: totals.valid, rows_failed: totals.invalid,
+  });
+}
+
+export async function auditImportFailed(type: ImportType, fileName: string, error: string) {
+  await safeAudit("import_failed", null, { import_type: type, file_name: fileName, error });
+}
+
 export async function finalizeImport(opts: {
   type: ImportType;
   fileName: string;
   report: ImportReport;
+  dryRun?: boolean;
+  durationMs?: number;
 }) {
+  // Dry-run: emit audit only, do not write to import_logs (it's not a real import).
+  if (opts.dryRun) {
+    await safeAudit("import_validated", null, {
+      import_type: opts.type,
+      file_name: opts.fileName,
+      rows_total: opts.report.rows_total,
+      rows_success: opts.report.rows_success,
+      rows_failed: opts.report.rows_failed,
+      duration_ms: opts.durationMs ?? null,
+      dry_run: true,
+    });
+    return { logId: null as string | null };
+  }
+
   const auth = await supabase.auth.getUser();
   const userId = auth.data.user?.id ?? null;
   const status = opts.report.rows_failed === 0 ? "completed" : opts.report.rows_success === 0 ? "failed" : "partial";
@@ -236,6 +306,7 @@ export async function finalizeImport(opts: {
       .map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`).join(" | ") || null,
   }).select("id").maybeSingle();
 
+  // Legacy per-type audit action (kept for backward compatibility)
   const actionMap: Record<ImportType, string> = {
     students: "students_imported",
     faculty: "faculty_imported",
@@ -244,23 +315,19 @@ export async function finalizeImport(opts: {
     study_plans: "study_plans_imported",
   };
 
-  try {
-    await sb.rpc("log_audit", {
-      _entity_type: "import",
-      _entity_id: logRow?.id ?? null,
-      _action_type: actionMap[opts.type],
-      _old: null,
-      _new: {
-        rows_total: opts.report.rows_total,
-        rows_success: opts.report.rows_success,
-        rows_failed: opts.report.rows_failed,
-        file_name: opts.fileName,
-      },
-      _notes: null,
-    });
-  } catch {
-    // best-effort
-  }
+  const payload = {
+    rows_total: opts.report.rows_total,
+    rows_success: opts.report.rows_success,
+    rows_failed: opts.report.rows_failed,
+    file_name: opts.fileName,
+    import_type: opts.type,
+    duration_ms: opts.durationMs ?? null,
+  };
+
+  await safeAudit(actionMap[opts.type], logRow?.id ?? null, payload);
+  await safeAudit(status === "failed" ? "import_failed" : "import_completed", logRow?.id ?? null, payload);
+
+  return { logId: (logRow?.id ?? null) as string | null };
 }
 
 export function emptyReport(): ImportReport {

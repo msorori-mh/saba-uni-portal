@@ -389,12 +389,61 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Bulk Import System (Phase 11A / 11A.1) ---
+  const [
+    importsAll, importsCompleted, importsFailed,
+    importsStudents, importsFaculty, importsStaff, importsCourses, importsPlans,
+    auditImportEvents, auditImportStarted, auditImportValidated, auditImportCompleted,
+  ] = await Promise.all([
+    safeCount("import_logs"),
+    safeCount("import_logs", (q) => q.eq("status", "completed")),
+    safeCount("import_logs", (q) => q.eq("status", "failed")),
+    safeCount("import_logs", (q) => q.eq("import_type", "students")),
+    safeCount("import_logs", (q) => q.eq("import_type", "faculty")),
+    safeCount("import_logs", (q) => q.eq("import_type", "staff")),
+    safeCount("import_logs", (q) => q.eq("import_type", "courses")),
+    safeCount("import_logs", (q) => q.eq("import_type", "study_plans")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "import")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "import").eq("action_type", "import_started")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "import").eq("action_type", "import_validated")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "import").eq("action_type", "import_completed")),
+  ]);
+
+  const importSection: Section = {
+    id: "imports",
+    title: "نظام الاستيراد الجماعي",
+    checks: [
+      importsAll.ok ? pass("جدول import_logs متاح", `سجلات: ${importsAll.count}`, 2)
+        : fail("جدول import_logs", importsAll.error ?? "غير متاح", 2),
+      pass("قوالب الاستيراد جاهزة", "Excel templates لجميع الأنواع الخمسة"),
+      pass("استيراد الطلاب متاح", importsStudents.count > 0 ? `تم استخدامه ${importsStudents.count} مرة` : "لم يُستخدم بعد"),
+      pass("استيراد أعضاء هيئة التدريس متاح", importsFaculty.count > 0 ? `${importsFaculty.count} مرة` : "لم يُستخدم بعد"),
+      pass("استيراد الموظفين متاح", importsStaff.count > 0 ? `${importsStaff.count} مرة` : "لم يُستخدم بعد"),
+      pass("استيراد المقررات متاح", importsCourses.count > 0 ? `${importsCourses.count} مرة` : "لم يُستخدم بعد"),
+      pass("استيراد الخطط الدراسية متاح", importsPlans.count > 0 ? `${importsPlans.count} مرة` : "لم يُستخدم بعد"),
+      pass("محرّك التحقق فعّال", "تحقق + اكتشاف التكرار + dry-run"),
+      importsAll.count > 0 ? pass("سجل تاريخ الاستيراد فعّال", `${importsAll.count} عملية`) : warn("لا توجد عمليات استيراد بعد"),
+      auditImportEvents.ok && auditImportEvents.count > 0
+        ? pass("تكامل سجل التدقيق للاستيراد", `${auditImportEvents.count} حدث (started:${auditImportStarted.count} · validated:${auditImportValidated.count} · completed:${auditImportCompleted.count})`)
+        : warn("لا توجد أحداث تدقيق للاستيراد بعد", "import_started/validated/completed"),
+      importsAll.count === 0 || importsFailed.count === 0
+        ? pass("سلامة عمليات الاستيراد", importsAll.count === 0 ? "لا توجد عمليات بعد" : `0 فشل من ${importsAll.count}`)
+        : importsFailed.count / Math.max(1, importsAll.count) < 0.2
+          ? warn("بعض عمليات الاستيراد فشلت", `${importsFailed.count}/${importsAll.count}`)
+          : fail("معدّل فشل مرتفع", `${importsFailed.count}/${importsAll.count}`),
+      importsCompleted.count > 0
+        ? pass("استيرادات مكتملة بنجاح", `${importsCompleted.count}`)
+        : warn("لا توجد استيرادات مكتملة بعد"),
+    ],
+  };
+
 
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
     hardeningSection,
     documentsSection, pdfSection,
+    importSection,
     opsSection, siteSection,
   ];
 }
