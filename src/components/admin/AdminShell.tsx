@@ -6,7 +6,7 @@ import {
   MessageSquare, Settings, LogOut, Menu, GraduationCap, ChevronLeft, ChevronDown,
   CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
   FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe, Wallet,
-  ShieldCheck, ScrollText, Lock, Database, FileBadge, Upload, BarChart3,
+  ShieldCheck, ScrollText, Lock, Database, FileBadge, Upload, BarChart3, Activity,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -111,6 +111,7 @@ const groups: NavGroup[] = [
       { to: "/admin/audit-log", label: "سجل التدقيق", icon: ScrollText },
       { to: "/admin/users", label: "المستخدمون والصلاحيات", icon: UserCog },
       { to: "/admin/security-status", label: "حالة التأمين", icon: Lock },
+      { to: "/admin/operations", label: "مركز العمليات", icon: Activity },
       { to: "/admin/backup-status", label: "النسخ الاحتياطي", icon: Database },
       { to: "/admin/system-readiness", label: "جاهزية النظام", icon: ShieldCheck },
     ],
