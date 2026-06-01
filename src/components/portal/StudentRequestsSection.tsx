@@ -65,7 +65,7 @@ type RequestRow = {
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
-  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension">(null);
+  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance">(null);
 
   const { data: requestTypes = [] } = useQuery({
     queryKey: ["request-types-active"],
