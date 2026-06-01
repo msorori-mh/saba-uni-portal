@@ -798,6 +798,11 @@ function FinancialTab() {
 // ===================================================================
 function ReportsPage() {
   const [tab, setTab] = useState<TabId>("academic");
+
+  useEffect(() => {
+    logReportView(`tab_${tab}`);
+  }, [tab]);
+
   const content = useMemo(() => {
     switch (tab) {
       case "academic":    return <AcademicTab />;
