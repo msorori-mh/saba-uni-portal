@@ -1,9 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { Wallet, Loader2, Receipt, Percent } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Wallet, Loader2, Receipt, Percent, Upload, X, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (t: string) => any };
+const sb = supabase as unknown as { from: (t: string) => any; storage: any; auth: any };
 
 type FeeRow = {
   id: string; amount: number; status: string; notes: string | null;
