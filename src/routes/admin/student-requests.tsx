@@ -15,6 +15,10 @@ export const Route = createFileRoute("/admin/student-requests")({
 const REASON_LABEL: Record<string, string> = {
   medical: "طبي", family: "عائلي", emergency: "طارئ", other: "أخرى",
 };
+const DURATION_LABEL: Record<string, string> = {
+  one_semester: "فصل دراسي",
+  full_year: "سنة كاملة",
+};
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft:        { text: "مسودة",       cls: "bg-muted text-foreground" },
   submitted:    { text: "مُرسَل",       cls: "bg-blue-100 text-blue-800" },
@@ -24,16 +28,26 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   cancelled:    { text: "ملغي",        cls: "bg-zinc-200 text-zinc-800" },
 };
 
+type SuspensionDetails = {
+  suspension_reason: string;
+  suspension_duration_type: string;
+  notes: string | null;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
   student_profile_id: string; request_type: string;
   student: { academic_number: string; full_name_ar: string; program_id: string | null; department_id: string | null;
              program: { name_ar: string } | null; department: { name_ar: string } | null } | null;
-  details: { absence_date: string; reason_type: string; course_section_id: string;
+  absence_details: { absence_date: string; reason_type: string; course_section_id: string;
              section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null } | null;
+  suspension_details: SuspensionDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
+
 
 function AdminRequestsPage() {
   const qc = useQueryClient();
