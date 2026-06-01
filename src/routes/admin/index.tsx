@@ -22,6 +22,15 @@ async function tableCount(table: string, filters?: (q: any) => any) {
   return count ?? 0;
 }
 
+const DOC_TYPE_LABELS: Record<string, string> = {
+  enrollment_certificate: "شهادة قيد",
+  official_transcript: "سجل أكاديمي",
+  financial_receipt: "سند مالي",
+};
+function docTypeLabel(t: string) {
+  return DOC_TYPE_LABELS[t] ?? t;
+}
+
 function AdminDashboard() {
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
