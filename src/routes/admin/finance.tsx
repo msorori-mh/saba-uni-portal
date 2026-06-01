@@ -925,3 +925,161 @@ function StudentDiscountModal({ onClose, onSaved }: { onClose: () => void; onSav
     </ModalShell>
   );
 }
+
+// ===================== Payment Receipts =====================
+type ReceiptRecord = {
+  id: string; student_profile_id: string; student_fee_id: string;
+  amount: number; payment_date: string; payment_method: string;
+  receipt_reference: string | null; file_url: string; file_name: string;
+  status: string; rejection_reason: string | null; created_at: string;
+  reviewed_at: string | null; student_payment_id: string | null;
+  student: { academic_number: string; full_name_ar: string } | null;
+  fee: { amount: number; fee_type: { name_ar: string } | null } | null;
+};
+
+const REC_STATUS_LABEL: Record<string, { text: string; cls: string }> = {
+  submitted: { text: "قيد الإرسال", cls: "bg-sky-100 text-sky-800" },
+  under_review: { text: "قيد المراجعة", cls: "bg-amber-100 text-amber-800" },
+  approved: { text: "معتمد", cls: "bg-emerald-100 text-emerald-800" },
+  rejected: { text: "مرفوض", cls: "bg-rose-100 text-rose-800" },
+};
+
+function ReceiptsTab() {
+  const qc = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState<string>("submitted");
+  const [search, setSearch] = useState("");
+  const [rejecting, setRejecting] = useState<ReceiptRecord | null>(null);
+
+  const { data: receipts = [], isLoading } = useQuery({
+    queryKey: ["admin-payment-receipts", statusFilter],
+    queryFn: async (): Promise<ReceiptRecord[]> => {
+      let q = sb.from("payment_receipts")
+        .select("id, student_profile_id, student_fee_id, amount, payment_date, payment_method, receipt_reference, file_url, file_name, status, rejection_reason, created_at, reviewed_at, student_payment_id, student:student_profiles(academic_number, full_name_ar), fee:student_fees(amount, fee_type:fee_types(name_ar))")
+        .order("created_at", { ascending: false });
+      if (statusFilter !== "all") q = q.eq("status", statusFilter);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return receipts;
+    const s = search.trim().toLowerCase();
+    return receipts.filter((r) =>
+      (r.student?.academic_number ?? "").toLowerCase().includes(s) ||
+      (r.student?.full_name_ar ?? "").toLowerCase().includes(s)
+    );
+  }, [receipts, search]);
+
+  const viewFile = async (path: string) => {
+    const { data, error } = await (sb.storage as { from: (b: string) => { createSignedUrl: (p: string, n: number) => Promise<{ data: { signedUrl: string }; error: { message: string } | null }> } })
+      .from("payment-receipts").createSignedUrl(path, 60 * 5);
+    if (error) return toast.error(error.message);
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const approve = async (r: ReceiptRecord) => {
+    if (!confirm(`اعتماد سند الدفع للطالب ${r.student?.academic_number}؟ سيتم تسجيل دفعة بقيمة ${Number(r.amount).toFixed(2)}.`)) return;
+    const { error } = await sb.from("payment_receipts").update({ status: "approved" }).eq("id", r.id);
+    if (error) return toast.error(error.message);
+    toast.success("تم الاعتماد وتسجيل الدفعة");
+    qc.invalidateQueries({ queryKey: ["admin-payment-receipts"] });
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded border px-2 py-1.5 text-xs bg-background">
+          <option value="all">كل الحالات</option>
+          <option value="submitted">قيد الإرسال</option>
+          <option value="under_review">قيد المراجعة</option>
+          <option value="approved">معتمد</option>
+          <option value="rejected">مرفوض</option>
+        </select>
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث برقم أكاديمي أو اسم"
+          className="rounded border px-2 py-1.5 text-xs bg-background flex-1 min-w-[200px]" />
+      </div>
+
+      {isLoading ? (
+        <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center text-xs text-muted-foreground py-10">لا توجد سندات.</div>
+      ) : (
+        <div className="rounded-lg border bg-card overflow-hidden divide-y">
+          {filtered.map((r) => {
+            const st = REC_STATUS_LABEL[r.status] ?? { text: r.status, cls: "bg-muted" };
+            const canAct = r.status === "submitted" || r.status === "under_review";
+            return (
+              <div key={r.id} className="p-3 text-xs space-y-1.5">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="font-bold text-sm text-primary">
+                    {r.student?.full_name_ar} <span className="font-mono text-[11px] text-muted-foreground">({r.student?.academic_number})</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground font-mono">
+                  {r.fee?.fee_type?.name_ar} • المبلغ المدفوع: <b>{Number(r.amount).toFixed(2)}</b> • {r.payment_date} • {METHOD_LABEL[r.payment_method] ?? r.payment_method}
+                  {r.receipt_reference && <> • مرجع: {r.receipt_reference}</>}
+                </div>
+                {r.status === "rejected" && r.rejection_reason && (
+                  <div className="text-[11px] text-rose-700">سبب الرفض: {r.rejection_reason}</div>
+                )}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button onClick={() => viewFile(r.file_url)} className="rounded border px-2 py-1 text-[11px]">عرض المرفق</button>
+                  {canAct && (
+                    <>
+                      <button onClick={() => approve(r)} className="rounded bg-emerald-600 text-white px-2 py-1 text-[11px] font-bold">اعتماد</button>
+                      <button onClick={() => setRejecting(r)} className="rounded bg-rose-600 text-white px-2 py-1 text-[11px] font-bold">رفض</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {rejecting && (
+        <RejectReceiptModal receipt={rejecting} onClose={() => setRejecting(null)} onDone={() => { setRejecting(null); qc.invalidateQueries({ queryKey: ["admin-payment-receipts"] }); }} />
+      )}
+    </div>
+  );
+}
+
+function RejectReceiptModal({ receipt, onClose, onDone }: { receipt: ReceiptRecord; onClose: () => void; onDone: () => void }) {
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!reason.trim()) return toast.error("سبب الرفض مطلوب");
+    setBusy(true);
+    const { error } = await sb.from("payment_receipts").update({ status: "rejected", rejection_reason: reason.trim() }).eq("id", receipt.id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("تم رفض السند");
+    onDone();
+  };
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-3" dir="rtl">
+      <div className="bg-card border rounded-lg shadow-xl w-full max-w-md">
+        <div className="px-4 py-3 border-b flex items-center justify-between">
+          <h3 className="font-bold text-sm">رفض السند</h3>
+          <button onClick={onClose}><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-4 space-y-2 text-xs">
+          <div>الطالب: <b>{receipt.student?.full_name_ar}</b></div>
+          <label className="block">
+            <div className="text-[10px] font-bold text-muted-foreground mb-1">سبب الرفض</div>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} className="w-full rounded border px-2 py-1.5 bg-background" />
+          </label>
+        </div>
+        <div className="px-4 py-3 border-t flex justify-end gap-2">
+          <button onClick={onClose} className="rounded border px-3 py-1.5 text-xs">إلغاء</button>
+          <button onClick={submit} disabled={busy} className="rounded bg-rose-600 text-white px-3 py-1.5 text-xs font-bold disabled:opacity-50">
+            {busy ? "جارٍ..." : "تأكيد الرفض"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
