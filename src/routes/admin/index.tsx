@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
-  FileWarning, UserCog, FileText, ListTree,
+  FileWarning, UserCog, FileText, ListTree, ScrollText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -22,11 +22,13 @@ function AdminDashboard() {
   const { data: s } = useQuery({
     queryKey: ["admin-dashboard-counts"],
     queryFn: async () => {
+      const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const [
         programs, courses, sections, students,
         faculty, staff,
         newReq, reviewReq,
         news, events, research,
+        audit24h,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -39,15 +41,16 @@ function AdminDashboard() {
         tableCount("news", (q) => q.eq("is_published", true)),
         tableCount("events", (q) => q.eq("is_published", true)),
         tableCount("research_papers", (q) => q.eq("is_published", true)),
+        tableCount("audit_logs", (q) => q.gte("created_at", since24h)),
       ]);
-      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research };
+      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h };
     },
   });
 
   const counts = s ?? {
     programs: 0, courses: 0, sections: 0, students: 0,
     faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
-    news: 0, events: 0, research: 0,
+    news: 0, events: 0, research: 0, audit24h: 0,
   };
 
   const sections_: Array<{
@@ -83,6 +86,12 @@ function AdminDashboard() {
         { label: "الأخبار المنشورة", value: counts.news, icon: Newspaper },
         { label: "الفعاليات", value: counts.events, icon: Calendar },
         { label: "الأبحاث", value: counts.research, icon: FlaskConical },
+      ],
+    },
+    {
+      title: "النظام",
+      cards: [
+        { label: "سجل التدقيق (آخر 24 ساعة)", value: counts.audit24h, icon: ScrollText },
       ],
     },
   ];

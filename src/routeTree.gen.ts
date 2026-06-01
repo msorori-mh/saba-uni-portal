@@ -50,6 +50,7 @@ import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
+import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 
 const StudentRoute = StudentRouteImport.update({
@@ -258,6 +259,11 @@ const AdminContactsRoute = AdminContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   id: '/academic-core',
   path: '/academic-core',
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -320,6 +327,7 @@ export interface FileRoutesByTo {
   '/research': typeof ResearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -365,6 +373,7 @@ export interface FileRoutesById {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -411,6 +420,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/admin/academic-core'
+    | '/admin/audit-log'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -451,6 +461,7 @@ export interface FileRouteTypes {
     | '/research'
     | '/sitemap.xml'
     | '/admin/academic-core'
+    | '/admin/audit-log'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -495,6 +506,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/admin/academic-core'
+    | '/admin/audit-log'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -830,6 +842,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminContactsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/audit-log': {
+      id: '/admin/audit-log'
+      path: '/audit-log'
+      fullPath: '/admin/audit-log'
+      preLoaderRoute: typeof AdminAuditLogRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/academic-core': {
       id: '/admin/academic-core'
       path: '/academic-core'
@@ -842,6 +861,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
+  AdminAuditLogRoute: typeof AdminAuditLogRoute
   AdminContactsRoute: typeof AdminContactsRoute
   AdminCourseOfferingsRoute: typeof AdminCourseOfferingsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
@@ -865,6 +885,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAcademicCoreRoute: AdminAcademicCoreRoute,
+  AdminAuditLogRoute: AdminAuditLogRoute,
   AdminContactsRoute: AdminContactsRoute,
   AdminCourseOfferingsRoute: AdminCourseOfferingsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
