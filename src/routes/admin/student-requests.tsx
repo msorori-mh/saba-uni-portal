@@ -19,6 +19,10 @@ const DURATION_LABEL: Record<string, string> = {
   one_semester: "فصل دراسي",
   full_year: "سنة كاملة",
 };
+const CHANCE_LABEL: Record<string, string> = {
+  final_chance: "فرصة أخيرة",
+  additional_chance: "فرصة إضافية",
+};
 const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft:        { text: "مسودة",       cls: "bg-muted text-foreground" },
   submitted:    { text: "مُرسَل",       cls: "bg-blue-100 text-blue-800" },
@@ -45,6 +49,13 @@ type AdminReq = {
   absence_details: { absence_date: string; reason_type: string; course_section_id: string;
              section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null } | null;
   suspension_details: SuspensionDetails | null;
+  extra_chance_details: {
+    chance_type: string;
+    reason: string;
+    notes: string | null;
+    academic_year: { name: string } | null;
+    semester: { name: string } | null;
+  } | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
@@ -90,12 +101,15 @@ function AdminRequestsPage() {
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details")
           .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
           .in("request_id", ids),
         sb.from("enrollment_suspension_details")
           .select("request_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .in("request_id", ids),
+        sb.from("extra_chance_details")
+          .select("request_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
           .in("request_id", ids),
         sb.from("student_request_attachments")
           .select("id, request_id, file_url, file_name")
@@ -105,6 +119,8 @@ function AdminRequestsPage() {
       const absMap = new Map((absRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,6 +133,7 @@ function AdminRequestsPage() {
         ...r,
         absence_details: absMap.get(r.id) ?? null,
         suspension_details: suspMap.get(r.id) ?? null,
+        extra_chance_details: ecMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
 
@@ -192,6 +209,11 @@ function AdminRequestsPage() {
                     {r.suspension_details && (
                       <>
                         {r.suspension_details.academic_year?.name ?? "—"} • {r.suspension_details.semester?.name ?? "—"} • {DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}
+                      </>
+                    )}
+                    {r.extra_chance_details && (
+                      <>
+                        {r.extra_chance_details.academic_year?.name ?? "—"} • {r.extra_chance_details.semester?.name ?? "—"} • {CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}
                       </>
                     )}
                   </div>
@@ -280,6 +302,15 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <Row label="مدة الوقف" value={DURATION_LABEL[req.suspension_details.suspension_duration_type] ?? req.suspension_details.suspension_duration_type} />
               <Row label="السبب" value={req.suspension_details.suspension_reason} />
               {req.suspension_details.notes && <Row label="ملاحظات" value={req.suspension_details.notes} />}
+            </>
+          )}
+          {req.extra_chance_details && (
+            <>
+              <Row label="السنة الأكاديمية" value={req.extra_chance_details.academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.extra_chance_details.semester?.name ?? "—"} />
+              <Row label="نوع الفرصة" value={CHANCE_LABEL[req.extra_chance_details.chance_type] ?? req.extra_chance_details.chance_type} />
+              <Row label="السبب" value={req.extra_chance_details.reason} />
+              {req.extra_chance_details.notes && <Row label="ملاحظات" value={req.extra_chance_details.notes} />}
             </>
           )}
 

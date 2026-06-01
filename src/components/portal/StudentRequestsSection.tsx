@@ -25,6 +25,11 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   cancelled:    { text: "ملغي",        cls: "bg-zinc-200 text-zinc-800" },
 };
 
+const CHANCE_LABEL: Record<string, string> = {
+  final_chance: "فرصة أخيرة",
+  additional_chance: "فرصة إضافية",
+};
+
 type Enrollment = { id: string; course_section_id: string; section_code: string; course_code: string; course_name: string };
 
 type SuspensionDetails = {
@@ -37,18 +42,30 @@ type SuspensionDetails = {
   semester: { name: string } | null;
 };
 
+type ExtraChanceDetails = {
+  academic_year_id: string;
+  semester_id: string;
+  chance_type: string;
+  reason: string;
+  notes: string | null;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+};
+
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
   request_type: string;
   absence_details: { absence_date: string; reason_type: string; course_section_id: string } | null;
   suspension_details: SuspensionDetails | null;
+  extra_chance_details: ExtraChanceDetails | null;
   attachments: { id: string; file_name: string; file_url: string }[];
 };
 
+
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
-  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension">(null);
+  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance">(null);
 
   const { data: requestTypes = [] } = useQuery({
     queryKey: ["request-types-active"],
@@ -92,10 +109,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id").in("request_id", ids),
         sb.from("enrollment_suspension_details")
           .select("request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .in("request_id", ids),
+        sb.from("extra_chance_details")
+          .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
           .in("request_id", ids),
         sb.from("student_request_attachments").select("id, request_id, file_name, file_url").in("request_id", ids),
       ]);
@@ -103,6 +123,8 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       const absMap = new Map((absRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -115,6 +137,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         ...r,
         absence_details: absMap.get(r.id) ?? null,
         suspension_details: suspMap.get(r.id) ?? null,
+        extra_chance_details: ecMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
     },
@@ -133,7 +156,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     if (error) toast.error(error.message); else { toast.success("تم الحذف"); refresh(); }
   };
 
-  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension"]);
+  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension", "extra_chance"]);
 
   return (
     <div className="mt-6">
@@ -154,7 +177,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
               </div>
               {supported ? (
                 <button
-                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension")}
+                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension" | "extra_chance")}
                   className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-semibold"
                 >
                   <Plus className="h-3 w-3" /> طلب جديد
@@ -204,10 +227,22 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span>• المدة: <b>{DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}</b></span>
                   </div>
                 )}
+                {r.extra_chance_details && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                    <span>السنة: <b>{r.extra_chance_details.academic_year?.name ?? "—"}</b></span>
+                    <span>• الفصل: <b>{r.extra_chance_details.semester?.name ?? "—"}</b></span>
+                    <span>• نوع الفرصة: <b>{CHANCE_LABEL[r.extra_chance_details.chance_type] ?? r.extra_chance_details.chance_type}</b></span>
+                  </div>
+                )}
                 {r.description && <div className="mt-1.5 text-xs">{r.description}</div>}
                 {r.suspension_details?.suspension_reason && (
                   <div className="mt-1.5 text-xs">
                     <span className="text-muted-foreground">السبب: </span>{r.suspension_details.suspension_reason}
+                  </div>
+                )}
+                {r.extra_chance_details?.reason && (
+                  <div className="mt-1.5 text-xs">
+                    <span className="text-muted-foreground">السبب: </span>{r.extra_chance_details.reason}
                   </div>
                 )}
                 {r.rejection_reason && (
@@ -250,6 +285,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       )}
       {openType === "enrollment_suspension" && (
         <SuspensionModal
+          studentProfileId={studentProfileId}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
+      {openType === "extra_chance" && (
+        <ExtraChanceModal
           studentProfileId={studentProfileId}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
@@ -528,3 +570,119 @@ function Actions({ busy, onDraft, onSubmit }: { busy: boolean; onDraft: () => vo
     </div>
   );
 }
+
+function ExtraChanceModal({
+  studentProfileId, onClose, onSaved,
+}: {
+  studentProfileId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const { data: years = [] } = useQuery({
+    queryKey: ["ec-years"],
+    queryFn: async () => {
+      const { data } = await supabase.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false });
+      return (data ?? []) as { id: string; name: string; is_current: boolean }[];
+    },
+  });
+  const [yearId, setYearId] = useState<string>("");
+  const { data: semesters = [] } = useQuery({
+    queryKey: ["ec-sems", yearId],
+    enabled: !!yearId,
+    queryFn: async () => {
+      const { data } = await supabase.from("semesters").select("id, name").eq("academic_year_id", yearId).order("start_date");
+      return (data ?? []) as { id: string; name: string }[];
+    },
+  });
+  const [semId, setSemId] = useState<string>("");
+  const [chanceType, setChanceType] = useState<"final_chance" | "additional_chance">("final_chance");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  if (!yearId && years.length > 0) {
+    const cur = years.find((y) => y.is_current) ?? years[0];
+    setYearId(cur.id);
+  }
+  if (!semId && semesters.length > 0) {
+    setSemId(semesters[0].id);
+  }
+
+  const save = async (submit: boolean) => {
+    if (!yearId) { toast.error("اختر السنة الأكاديمية"); return; }
+    if (!semId) { toast.error("اختر الفصل"); return; }
+    if (!reason.trim()) { toast.error("أدخل سبب الطلب"); return; }
+    setBusy(true);
+    try {
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "extra_chance",
+        title: "طلب منح فرصة",
+        description: notes || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("extra_chance_details").insert({
+        request_id: created.id,
+        academic_year_id: yearId,
+        semester_id: semId,
+        chance_type: chanceType,
+        reason: reason.trim(),
+        notes: notes || null,
+      });
+      if (e2) throw e2;
+
+      if (file) await uploadAttachment(created.id, file);
+      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب منح فرصة" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label>السنة الأكاديمية</Label>
+            <select value={yearId} onChange={(e) => { setYearId(e.target.value); setSemId(""); }} className="w-full h-9 rounded border bg-background px-2 text-sm">
+              <option value="">اختر...</option>
+              {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <Label>الفصل</Label>
+            <select value={semId} onChange={(e) => setSemId(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm">
+              <option value="">اختر...</option>
+              {semesters.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <Label>نوع الفرصة</Label>
+          <div className="flex gap-2">
+            {(["final_chance", "additional_chance"] as const).map((d) => (
+              <label key={d} className={`flex-1 cursor-pointer border rounded-lg p-2 text-center text-xs font-semibold ${chanceType === d ? "border-primary bg-primary/5 text-primary" : "border-border"}`}>
+                <input type="radio" name="chance_type" value={d} checked={chanceType === d} onChange={() => setChanceType(d)} className="sr-only" />
+                {CHANCE_LABEL[d]}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>سبب الطلب <span className="text-rose-600">*</span></Label>
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" placeholder="اذكر السبب..." />
+        </div>
+        <div>
+          <Label>ملاحظات إضافية</Label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+        </div>
+        <FilePicker file={file} setFile={setFile} />
+        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+      </div>
+    </ModalShell>
+  );
+}
+
