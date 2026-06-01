@@ -68,6 +68,7 @@ function AdminDashboard() {
         docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
         docsIssuedToday, docsCancelledToday,
         docsActive, docsCancelled, docsThisMonth,
+        importsTotal, importsToday, importsCompleted, importsFailed,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -99,26 +100,6 @@ function AdminDashboard() {
         tableCount("import_logs", (q) => q.eq("status", "completed")),
         tableCount("import_logs", (q) => q.eq("status", "failed")),
       ]);
-      const [
-        programs, courses, sections, students,
-        faculty, staff,
-        newReq, reviewReq,
-        news, events, research,
-        audit24h, notif24h,
-        feesPending, feesPartial,
-        docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
-        docsIssuedToday, docsCancelledToday,
-        docsActive, docsCancelled, docsThisMonth,
-        importsTotal, importsToday, importsCompleted, importsFailed,
-      ] = [
-        programs_, courses_, sections_, students_, faculty_, staff_,
-        newReq_, reviewReq_, news_, events_, research_, audit24h_, notif24h_,
-        feesPending_, feesPartial_,
-        docsAll_, docsEnroll_, docsTranscript_, docsReceipt_, docsToday_,
-        docsIssuedToday_, docsCancelledToday_,
-        docsActive_, docsCancelled_, docsThisMonth_,
-        importsTotal_, importsToday_, importsCompleted_, importsFailed_,
-      ];
       const importsRate = importsTotal > 0 ? Math.round((importsCompleted / importsTotal) * 100) : 0;
       return {
         programs, courses, sections, students, faculty, staff,
