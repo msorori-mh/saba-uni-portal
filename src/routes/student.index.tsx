@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 import { StudentRequestsSection } from "@/components/portal/StudentRequestsSection";
 import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection";
+import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type StudentRow = {
@@ -218,12 +219,15 @@ function StudentDashboard() {
               <div className="text-xs text-primary-foreground/70">كلية تكنولوجيا المعلومات وعلوم الحاسوب</div>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="inline-flex items-center gap-2 rounded-md border border-gold/40 px-4 py-2 text-sm font-bold text-gold hover:bg-gold hover:text-primary-deep transition-colors"
-          >
-            <LogOut className="h-4 w-4" /> تسجيل الخروج
-          </button>
+          <div className="flex items-center gap-2">
+            <NotificationsBell seeAllHref="/student/notifications" />
+            <button
+              onClick={handleLogout}
+              className="inline-flex items-center gap-2 rounded-md border border-gold/40 px-4 py-2 text-sm font-bold text-gold hover:bg-gold hover:text-primary-deep transition-colors"
+            >
+              <LogOut className="h-4 w-4" /> تسجيل الخروج
+            </button>
+          </div>
         </div>
       </header>
 

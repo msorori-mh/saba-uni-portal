@@ -27,6 +27,7 @@ import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
@@ -142,6 +143,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => StudentRoute,
 } as any)
 const StudentChangePasswordRoute = StudentChangePasswordRouteImport.update({
   id: '/change-password',
@@ -310,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
+  '/student/notifications': typeof StudentNotificationsRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
+  '/student/notifications': typeof StudentNotificationsRoute
   '/admin': typeof AdminIndexRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
   '/staff': typeof StaffIndexRoute
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
+  '/student/notifications': typeof StudentNotificationsRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
+    | '/student/notifications'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
+    | '/student/notifications'
     | '/admin'
     | '/faculty-portal'
     | '/staff'
@@ -530,6 +541,7 @@ export interface FileRouteTypes {
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
+    | '/student/notifications'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
@@ -680,6 +692,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/student/notifications': {
+      id: '/student/notifications'
+      path: '/notifications'
+      fullPath: '/student/notifications'
+      preLoaderRoute: typeof StudentNotificationsRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/student/change-password': {
       id: '/student/change-password'
@@ -959,11 +978,13 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 
 interface StudentRouteChildren {
   StudentChangePasswordRoute: typeof StudentChangePasswordRoute
+  StudentNotificationsRoute: typeof StudentNotificationsRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
   StudentChangePasswordRoute: StudentChangePasswordRoute,
+  StudentNotificationsRoute: StudentNotificationsRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
 

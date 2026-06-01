@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
-  FileWarning, UserCog, FileText, ListTree, ScrollText,
+  FileWarning, UserCog, FileText, ListTree, ScrollText, Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,7 +28,7 @@ function AdminDashboard() {
         faculty, staff,
         newReq, reviewReq,
         news, events, research,
-        audit24h,
+        audit24h, notif24h,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -42,15 +42,16 @@ function AdminDashboard() {
         tableCount("events", (q) => q.eq("is_published", true)),
         tableCount("research_papers", (q) => q.eq("is_published", true)),
         tableCount("audit_logs", (q) => q.gte("created_at", since24h)),
+        tableCount("notifications", (q) => q.gte("created_at", since24h)),
       ]);
-      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h };
+      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h, notif24h };
     },
   });
 
   const counts = s ?? {
     programs: 0, courses: 0, sections: 0, students: 0,
     faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
-    news: 0, events: 0, research: 0, audit24h: 0,
+    news: 0, events: 0, research: 0, audit24h: 0, notif24h: 0,
   };
 
   const sections_: Array<{
@@ -92,6 +93,7 @@ function AdminDashboard() {
       title: "النظام",
       cards: [
         { label: "سجل التدقيق (آخر 24 ساعة)", value: counts.audit24h, icon: ScrollText },
+        { label: "الإشعارات (آخر 24 ساعة)", value: counts.notif24h, icon: Bell },
       ],
     },
   ];
