@@ -161,7 +161,10 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
             return (
               <div key={r.id} className="rounded-lg border bg-card p-3">
                 <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                  <div className="font-semibold text-sm">{r.title}</div>
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold text-muted-foreground">{typeLabel(r.request_type)}</div>
+                    <div className="font-semibold text-sm">{r.title}</div>
+                  </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
                 </div>
                 {r.details && (
