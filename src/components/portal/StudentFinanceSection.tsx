@@ -220,7 +220,187 @@ export function StudentFinanceSection({ studentProfileId }: { studentProfileId: 
           </table>
         )}
       </div>
+      <ReceiptsBlock studentProfileId={studentProfileId} fees={fees} />
     </div>
+  );
+}
+
+type ReceiptRow = {
+  id: string; amount: number; payment_date: string; payment_method: string;
+  receipt_reference: string | null; file_url: string; file_name: string;
+  status: string; rejection_reason: string | null; created_at: string;
+  student_fee: { id: string; fee_type: { name_ar: string } | null } | null;
+};
+
+const REC_STATUS: Record<string, { text: string; cls: string }> = {
+  submitted: { text: "قيد الإرسال", cls: "bg-sky-100 text-sky-800" },
+  under_review: { text: "قيد المراجعة", cls: "bg-amber-100 text-amber-800" },
+  approved: { text: "معتمد", cls: "bg-emerald-100 text-emerald-800" },
+  rejected: { text: "مرفوض", cls: "bg-rose-100 text-rose-800" },
+};
+
+function ReceiptsBlock({ studentProfileId, fees }: { studentProfileId: string; fees: FeeRow[] }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+
+  const { data: receipts = [], isLoading } = useQuery({
+    queryKey: ["student-payment-receipts", studentProfileId],
+    queryFn: async (): Promise<ReceiptRow[]> => {
+      const { data, error } = await sb.from("payment_receipts")
+        .select("id, amount, payment_date, payment_method, receipt_reference, file_url, file_name, status, rejection_reason, created_at, student_fee:student_fees(id, fee_type:fee_types(name_ar))")
+        .eq("student_profile_id", studentProfileId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const openFile = async (path: string) => {
+    const { data, error } = await sb.storage.from("payment-receipts").createSignedUrl(path, 60 * 5);
+    if (error) return toast.error(error.message);
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const openFees = fees.filter((f) => f.status !== "paid" && f.status !== "cancelled");
+
+  return (
+    <div className="rounded-lg border bg-card overflow-hidden mt-3">
+      <div className="px-3 py-2 bg-muted/40 text-xs font-bold text-primary border-b flex items-center justify-between gap-1.5">
+        <span className="flex items-center gap-1.5"><FileText className="h-3.5 w-3.5" /> سندات الدفع المرفوعة</span>
+        <button onClick={() => setOpen(true)} disabled={openFees.length === 0} className="inline-flex items-center gap-1 rounded bg-primary text-primary-foreground px-2 py-1 text-[10px] font-bold disabled:opacity-40">
+          <Upload className="h-3 w-3" /> رفع سند دفع
+        </button>
+      </div>
+      {isLoading ? (
+        <div className="p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+      ) : receipts.length === 0 ? (
+        <div className="p-4 text-center text-xs text-muted-foreground">لا توجد سندات مرفوعة.</div>
+      ) : (
+        <div className="divide-y">
+          {receipts.map((r) => {
+            const st = REC_STATUS[r.status] ?? { text: r.status, cls: "bg-muted" };
+            return (
+              <div key={r.id} className="p-3 text-xs">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="font-bold">{r.student_fee?.fee_type?.name_ar ?? "—"}</div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
+                </div>
+                <div className="text-[11px] text-muted-foreground mt-0.5 font-mono">
+                  المبلغ: <b>{Number(r.amount).toFixed(2)}</b> • {r.payment_date} • {METHOD_LABEL[r.payment_method] ?? r.payment_method}
+                  {r.receipt_reference && <> • مرجع: {r.receipt_reference}</>}
+                </div>
+                {r.status === "rejected" && r.rejection_reason && (
+                  <div className="mt-1 text-[11px] text-rose-700">سبب الرفض: {r.rejection_reason}</div>
+                )}
+                <div className="mt-1">
+                  <button onClick={() => openFile(r.file_url)} className="text-[11px] text-primary underline">عرض المرفق</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {open && (
+        <ReceiptUploadModal
+          studentProfileId={studentProfileId}
+          fees={openFees}
+          onClose={() => setOpen(false)}
+          onDone={() => { setOpen(false); qc.invalidateQueries({ queryKey: ["student-payment-receipts", studentProfileId] }); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ReceiptUploadModal({ studentProfileId, fees, onClose, onDone }: {
+  studentProfileId: string; fees: FeeRow[]; onClose: () => void; onDone: () => void;
+}) {
+  const [feeId, setFeeId] = useState(fees[0]?.id ?? "");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [method, setMethod] = useState("bank_transfer");
+  const [ref, setRef] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    if (!feeId || !amount || !file) return toast.error("الرجاء تعبئة الحقول المطلوبة ورفع الملف");
+    const amt = Number(amount);
+    if (!(amt > 0)) return toast.error("المبلغ غير صالح");
+    setBusy(true);
+    try {
+      const { data: u } = await sb.auth.getUser();
+      const uid = u?.user?.id;
+      if (!uid) throw new Error("غير مسجل الدخول");
+      const receiptId = crypto.randomUUID();
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${uid}/${receiptId}/receipt.${ext}`;
+      const up = await sb.storage.from("payment-receipts").upload(path, file, { upsert: false, contentType: file.type });
+      if (up.error) throw up.error;
+      const ins = await sb.from("payment_receipts").insert({
+        id: receiptId, student_profile_id: studentProfileId, student_fee_id: feeId,
+        amount: amt, payment_date: date, payment_method: method,
+        receipt_reference: ref || null, file_url: path, file_name: file.name, status: "submitted",
+      });
+      if (ins.error) throw ins.error;
+      toast.success("تم إرسال السند للمراجعة");
+      onDone();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الإرسال");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-3" dir="rtl">
+      <div className="bg-card border rounded-lg shadow-xl w-full max-w-md">
+        <div className="px-4 py-3 border-b flex items-center justify-between">
+          <h3 className="font-bold text-sm">رفع سند دفع</h3>
+          <button onClick={onClose}><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-4 space-y-3 text-xs">
+          <Field label="الرسم">
+            <select value={feeId} onChange={(e) => setFeeId(e.target.value)} className="w-full rounded border px-2 py-1.5 bg-background">
+              {fees.map((f) => (
+                <option key={f.id} value={f.id}>{f.fee_type?.name_ar} — {Number(f.amount).toFixed(2)}</option>
+              ))}
+            </select>
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="المبلغ"><input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="w-full rounded border px-2 py-1.5 bg-background" /></Field>
+            <Field label="تاريخ الدفع"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded border px-2 py-1.5 bg-background" /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="طريقة الدفع">
+              <select value={method} onChange={(e) => setMethod(e.target.value)} className="w-full rounded border px-2 py-1.5 bg-background">
+                <option value="cash">نقداً</option>
+                <option value="bank_transfer">تحويل بنكي</option>
+                <option value="other">أخرى</option>
+              </select>
+            </Field>
+            <Field label="رقم السند / المرجع"><input value={ref} onChange={(e) => setRef(e.target.value)} className="w-full rounded border px-2 py-1.5 bg-background" /></Field>
+          </div>
+          <Field label="ملف السند (صورة أو PDF)">
+            <input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="w-full text-xs" />
+          </Field>
+        </div>
+        <div className="px-4 py-3 border-t flex justify-end gap-2">
+          <button onClick={onClose} className="rounded border px-3 py-1.5 text-xs">إلغاء</button>
+          <button onClick={submit} disabled={busy} className="rounded bg-primary text-primary-foreground px-3 py-1.5 text-xs font-bold disabled:opacity-50">
+            {busy ? "جارٍ الإرسال…" : "إرسال للمراجعة"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <div className="text-[10px] font-bold text-muted-foreground mb-1">{label}</div>
+      {children}
+    </label>
   );
 }
 
