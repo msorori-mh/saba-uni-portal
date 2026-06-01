@@ -86,6 +86,14 @@ const groups: NavGroup[] = [
       { to: "/admin/settings", label: "الإعدادات", icon: Settings },
     ],
   },
+  {
+    id: "system",
+    label: "النظام والرقابة",
+    icon: ShieldCheck,
+    items: [
+      { to: "/admin/audit-log", label: "سجل التدقيق", icon: ScrollText },
+    ],
+  },
 ];
 
 function isItemActive(pathname: string, item: NavItem) {
