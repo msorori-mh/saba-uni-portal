@@ -43,6 +43,7 @@ import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminGradesRouteImport } from './routes/admin/grades'
+import { Route as AdminFinanceRouteImport } from './routes/admin/finance'
 import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments'
@@ -222,6 +223,11 @@ const AdminGradesRoute = AdminGradesRouteImport.update({
   path: '/grades',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminFinanceRoute = AdminFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFacultyRoute = AdminFacultyRouteImport.update({
   id: '/faculty',
   path: '/faculty',
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
+  '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
+  '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -363,6 +371,7 @@ export interface FileRoutesById {
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
+  '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -408,6 +417,7 @@ export interface FileRouteTypes {
     | '/admin/enrollments'
     | '/admin/events'
     | '/admin/faculty'
+    | '/admin/finance'
     | '/admin/grades'
     | '/admin/login'
     | '/admin/messages'
@@ -447,6 +457,7 @@ export interface FileRouteTypes {
     | '/admin/enrollments'
     | '/admin/events'
     | '/admin/faculty'
+    | '/admin/finance'
     | '/admin/grades'
     | '/admin/login'
     | '/admin/messages'
@@ -490,6 +501,7 @@ export interface FileRouteTypes {
     | '/admin/enrollments'
     | '/admin/events'
     | '/admin/faculty'
+    | '/admin/finance'
     | '/admin/grades'
     | '/admin/login'
     | '/admin/messages'
@@ -769,6 +781,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGradesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/finance': {
+      id: '/admin/finance'
+      path: '/finance'
+      fullPath: '/admin/finance'
+      preLoaderRoute: typeof AdminFinanceRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/faculty': {
       id: '/admin/faculty'
       path: '/faculty'
@@ -829,6 +848,7 @@ interface AdminRouteChildren {
   AdminEnrollmentsRoute: typeof AdminEnrollmentsRoute
   AdminEventsRoute: typeof AdminEventsRoute
   AdminFacultyRoute: typeof AdminFacultyRoute
+  AdminFinanceRoute: typeof AdminFinanceRoute
   AdminGradesRoute: typeof AdminGradesRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
@@ -851,6 +871,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminEnrollmentsRoute: AdminEnrollmentsRoute,
   AdminEventsRoute: AdminEventsRoute,
   AdminFacultyRoute: AdminFacultyRoute,
+  AdminFinanceRoute: AdminFinanceRoute,
   AdminGradesRoute: AdminGradesRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMessagesRoute: AdminMessagesRoute,
