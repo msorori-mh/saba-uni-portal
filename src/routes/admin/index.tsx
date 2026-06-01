@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
-  FileWarning, UserCog, FileText, ListTree, ScrollText, Bell,
+  FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { activeUserCounts } from "@/lib/admin-users.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -19,6 +21,11 @@ async function tableCount(table: string, filters?: (q: any) => any) {
 }
 
 function AdminDashboard() {
+  const fetchActive = useServerFn(activeUserCounts);
+  const { data: active } = useQuery({
+    queryKey: ["active-user-counts"],
+    queryFn: () => fetchActive(),
+  });
   const { data: s } = useQuery({
     queryKey: ["admin-dashboard-counts"],
     queryFn: async () => {
@@ -94,6 +101,9 @@ function AdminDashboard() {
       cards: [
         { label: "سجل التدقيق (آخر 24 ساعة)", value: counts.audit24h, icon: ScrollText },
         { label: "الإشعارات (آخر 24 ساعة)", value: counts.notif24h, icon: Bell },
+        { label: "طلاب نشطون", value: active?.students ?? 0, icon: ShieldCheck },
+        { label: "أعضاء هيئة تدريس نشطون", value: active?.faculty ?? 0, icon: ShieldCheck },
+        { label: "موظفون نشطون", value: active?.staff ?? 0, icon: ShieldCheck },
       ],
     },
   ];
