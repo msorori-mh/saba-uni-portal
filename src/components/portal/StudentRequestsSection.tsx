@@ -26,6 +26,7 @@ type Enrollment = { id: string; course_section_id: string; section_code: string;
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
+  request_type: string;
   details: { absence_date: string; reason_type: string; course_section_id: string } | null;
   attachments: { id: string; file_name: string; file_url: string }[];
 };
