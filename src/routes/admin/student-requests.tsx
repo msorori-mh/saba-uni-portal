@@ -53,6 +53,23 @@ type TransferDetails = {
   requested_department: { name_ar: string } | null;
 };
 
+type EquivalencyDetails = {
+  previous_university_name: string;
+  previous_program_name: string;
+  transfer_reference: string | null;
+  notes: string | null;
+};
+
+type EquivalencyCourse = {
+  id: string;
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: number | null;
+  status: string;
+  reviewer_notes: string | null;
+  target_course: { code: string; name_ar: string } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
@@ -70,6 +87,8 @@ type AdminReq = {
     semester: { name: string } | null;
   } | null;
   transfer_details: TransferDetails | null;
+  equivalency_details: EquivalencyDetails | null;
+  equivalency_courses: EquivalencyCourse[];
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
@@ -115,7 +134,7 @@ function AdminRequestsPage() {
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, trRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details")
           .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
           .in("request_id", ids),
@@ -128,6 +147,12 @@ function AdminRequestsPage() {
         sb.from("transfer_request_details")
           .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
           .in("request_id", ids),
+        sb.from("equivalency_request_details")
+          .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes")
+          .in("request_id", ids),
+        sb.from("equivalency_courses")
+          .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
+          .in("equivalency_request_id", ids),
         sb.from("student_request_attachments")
           .select("id, request_id, file_url, file_name")
           .in("request_id", ids),
@@ -140,6 +165,15 @@ function AdminRequestsPage() {
       const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eqdMap = new Map((eqdRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eqcMap = new Map<string, any[]>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const c of (eqcRes.data ?? []) as any[]) {
+        if (!eqcMap.has(c.equivalency_request_id)) eqcMap.set(c.equivalency_request_id, []);
+        eqcMap.get(c.equivalency_request_id)!.push(c);
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -154,6 +188,8 @@ function AdminRequestsPage() {
         suspension_details: suspMap.get(r.id) ?? null,
         extra_chance_details: ecMap.get(r.id) ?? null,
         transfer_details: trMap.get(r.id) ?? null,
+        equivalency_details: eqdMap.get(r.id) ?? null,
+        equivalency_courses: eqcMap.get(r.id) ?? [],
         attachments: attMap.get(r.id) ?? [],
       }));
 
@@ -239,6 +275,11 @@ function AdminRequestsPage() {
                     {r.transfer_details && (
                       <>
                         {r.transfer_details.current_program?.name_ar ?? "—"} ← {r.transfer_details.requested_program?.name_ar ?? "—"}
+                      </>
+                    )}
+                    {r.equivalency_details && (
+                      <>
+                        {r.equivalency_details.previous_university_name} • {r.equivalency_details.previous_program_name} • {r.equivalency_courses.length} مادة
                       </>
                     )}
                   </div>
@@ -348,6 +389,15 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               {req.transfer_details.notes && <Row label="ملاحظات" value={req.transfer_details.notes} />}
             </>
           )}
+          {req.equivalency_details && (
+            <>
+              <Row label="الجامعة السابقة" value={req.equivalency_details.previous_university_name} />
+              <Row label="البرنامج السابق" value={req.equivalency_details.previous_program_name} />
+              {req.equivalency_details.transfer_reference && <Row label="مرجع التحويل" value={req.equivalency_details.transfer_reference} />}
+              {req.equivalency_details.notes && <Row label="ملاحظات" value={req.equivalency_details.notes} />}
+              <EquivalencyCoursesReview requestId={req.id} courses={req.equivalency_courses} />
+            </>
+          )}
 
           <Row label="الحالة" value={<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>} />
           <Row label="تاريخ الإنشاء" value={new Date(req.created_at).toLocaleString("ar-EG")} />
@@ -412,3 +462,79 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     </div>
   );
 }
+
+type EqCourseLite = {
+  id: string;
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: number | null;
+  status: string;
+  reviewer_notes: string | null;
+  target_course: { code: string; name_ar: string } | null;
+};
+
+function EquivalencyCoursesReview({ requestId, courses }: { requestId: string; courses: EqCourseLite[] }) {
+  const qc = useQueryClient();
+  const [local, setLocal] = useState(courses);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const updateCourse = async (id: string, patch: Partial<EqCourseLite>) => {
+    setBusyId(id);
+    const { error } = await sb.from("equivalency_courses").update(patch).eq("id", id);
+    setBusyId(null);
+    if (error) { toast.error(error.message); return; }
+    setLocal((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+    qc.invalidateQueries({ queryKey: ["admin-requests"] });
+    void requestId;
+  };
+
+  if (local.length === 0) {
+    return <div className="text-xs text-muted-foreground">لا توجد مواد.</div>;
+  }
+
+  return (
+    <div className="mt-2">
+      <div className="text-[11px] font-bold text-muted-foreground mb-1">المواد المطلوبة</div>
+      <div className="space-y-2">
+        {local.map((c) => (
+          <div key={c.id} className="rounded border bg-muted/20 p-2 space-y-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="text-xs">
+                <b>{c.external_course_code}</b> — {c.external_course_name}
+                {c.external_credit_hours != null && <span className="text-muted-foreground"> ({c.external_credit_hours} س)</span>}
+              </div>
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                c.status === "approved" ? "bg-emerald-100 text-emerald-800"
+                : c.status === "rejected" ? "bg-rose-100 text-rose-800"
+                : "bg-amber-100 text-amber-800"
+              }`}>
+                {c.status === "approved" ? "تمت المعادلة" : c.status === "rejected" ? "مرفوضة" : "قيد المراجعة"}
+              </span>
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              المعادلة: {c.target_course ? <><b>{c.target_course.code}</b> — {c.target_course.name_ar}</> : "—"}
+            </div>
+            <input
+              defaultValue={c.reviewer_notes ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v !== (c.reviewer_notes ?? "")) updateCourse(c.id, { reviewer_notes: v || null });
+              }}
+              placeholder="ملاحظات المراجع..."
+              className="w-full h-7 rounded border bg-background px-2 text-xs"
+            />
+            <div className="flex gap-1.5">
+              <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "approved" })}
+                className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded hover:opacity-90">قبول</button>
+              <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "rejected" })}
+                className="text-[11px] bg-rose-600 text-white px-2 py-0.5 rounded hover:opacity-90">رفض</button>
+              <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "pending" })}
+                className="text-[11px] border px-2 py-0.5 rounded hover:bg-muted">إعادة</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+

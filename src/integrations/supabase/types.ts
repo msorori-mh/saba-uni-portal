@@ -493,6 +493,115 @@ export type Database = {
           },
         ]
       }
+      equivalency_courses: {
+        Row: {
+          created_at: string
+          equivalency_request_id: string
+          external_course_code: string
+          external_course_name: string
+          external_credit_hours: number | null
+          id: string
+          reviewer_notes: string | null
+          status: string
+          target_course_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          equivalency_request_id: string
+          external_course_code: string
+          external_course_name: string
+          external_credit_hours?: number | null
+          id?: string
+          reviewer_notes?: string | null
+          status?: string
+          target_course_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          equivalency_request_id?: string
+          external_course_code?: string
+          external_course_name?: string
+          external_credit_hours?: number | null
+          id?: string
+          reviewer_notes?: string | null
+          status?: string
+          target_course_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equivalency_courses_equivalency_request_id_fkey"
+            columns: ["equivalency_request_id"]
+            isOneToOne: false
+            referencedRelation: "equivalency_request_details"
+            referencedColumns: ["request_id"]
+          },
+          {
+            foreignKeyName: "equivalency_courses_target_course_id_fkey"
+            columns: ["target_course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equivalency_courses_target_course_id_fkey"
+            columns: ["target_course_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_id"]
+          },
+          {
+            foreignKeyName: "equivalency_courses_target_course_id_fkey"
+            columns: ["target_course_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["course_id"]
+          },
+        ]
+      }
+      equivalency_request_details: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          previous_program_name: string
+          previous_university_name: string
+          request_id: string
+          transfer_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          previous_program_name: string
+          previous_university_name: string
+          request_id: string
+          transfer_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          previous_program_name?: string
+          previous_university_name?: string
+          request_id?: string
+          transfer_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equivalency_request_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           created_at: string

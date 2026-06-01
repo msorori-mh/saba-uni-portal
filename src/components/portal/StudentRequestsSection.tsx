@@ -65,6 +65,22 @@ type TransferDetails = {
   requested_department: { name_ar: string } | null;
 };
 
+type EquivalencyDetails = {
+  previous_university_name: string;
+  previous_program_name: string;
+  notes: string | null;
+};
+
+type EquivalencyCourseRow = {
+  id: string;
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: number | null;
+  status: string;
+  reviewer_notes: string | null;
+  target_course: { code: string; name_ar: string } | null;
+};
+
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
@@ -73,13 +89,15 @@ type RequestRow = {
   suspension_details: SuspensionDetails | null;
   extra_chance_details: ExtraChanceDetails | null;
   transfer_details: TransferDetails | null;
+  equivalency_details: EquivalencyDetails | null;
+  equivalency_courses: EquivalencyCourseRow[];
   attachments: { id: string; file_name: string; file_url: string }[];
 };
 
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
-  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance" | "transfer">(null);
+  const [openType, setOpenType] = useState<null | "absence_excuse" | "enrollment_suspension" | "extra_chance" | "transfer" | "equivalency">(null);
 
   const { data: requestTypes = [] } = useQuery({
     queryKey: ["request-types-active"],
@@ -123,7 +141,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, trRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id").in("request_id", ids),
         sb.from("enrollment_suspension_details")
           .select("request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
@@ -134,6 +152,12 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         sb.from("transfer_request_details")
           .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
           .in("request_id", ids),
+        sb.from("equivalency_request_details")
+          .select("request_id, previous_university_name, previous_program_name, notes")
+          .in("request_id", ids),
+        sb.from("equivalency_courses")
+          .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
+          .in("equivalency_request_id", ids),
         sb.from("student_request_attachments").select("id, request_id, file_name, file_url").in("request_id", ids),
       ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,6 +168,15 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eqdMap = new Map((eqdRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eqcMap = new Map<string, any[]>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const c of (eqcRes.data ?? []) as any[]) {
+        if (!eqcMap.has(c.equivalency_request_id)) eqcMap.set(c.equivalency_request_id, []);
+        eqcMap.get(c.equivalency_request_id)!.push(c);
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const attMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -158,6 +191,8 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         suspension_details: suspMap.get(r.id) ?? null,
         extra_chance_details: ecMap.get(r.id) ?? null,
         transfer_details: trMap.get(r.id) ?? null,
+        equivalency_details: eqdMap.get(r.id) ?? null,
+        equivalency_courses: eqcMap.get(r.id) ?? [],
         attachments: attMap.get(r.id) ?? [],
       }));
     },
@@ -176,7 +211,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     if (error) toast.error(error.message); else { toast.success("تم الحذف"); refresh(); }
   };
 
-  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension", "extra_chance", "transfer"]);
+  const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension", "extra_chance", "transfer", "equivalency"]);
 
   return (
     <div className="mt-6">
@@ -197,7 +232,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
               </div>
               {supported ? (
                 <button
-                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension" | "extra_chance" | "transfer")}
+                  onClick={() => setOpenType(t.code as "absence_excuse" | "enrollment_suspension" | "extra_chance" | "transfer" | "equivalency")}
                   className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1 text-[11px] font-semibold"
                 >
                   <Plus className="h-3 w-3" /> طلب جديد
@@ -258,6 +293,32 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                   <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
                     <span>من: <b>{r.transfer_details.current_program?.name_ar ?? "—"}</b></span>
                     <span>← إلى: <b>{r.transfer_details.requested_program?.name_ar ?? "—"}</b></span>
+                  </div>
+                )}
+                {r.equivalency_details && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                    <span>الجامعة السابقة: <b>{r.equivalency_details.previous_university_name}</b></span>
+                    <span>• البرنامج: <b>{r.equivalency_details.previous_program_name}</b></span>
+                  </div>
+                )}
+                {r.equivalency_courses.length > 0 && (
+                  <div className="mt-2 rounded border bg-muted/20 p-2">
+                    <div className="text-[10px] font-bold text-muted-foreground mb-1">المواد</div>
+                    <div className="space-y-1">
+                      {r.equivalency_courses.map((c) => {
+                        const st = STATUS_LABEL[c.status === "pending" ? "submitted" : c.status === "approved" ? "approved" : "rejected"];
+                        const stText = c.status === "pending" ? "قيد المراجعة" : c.status === "approved" ? "تمت المعادلة" : "مرفوضة";
+                        return (
+                          <div key={c.id} className="flex items-center justify-between gap-2 text-[11px]">
+                            <div className="min-w-0 truncate">
+                              <b>{c.external_course_code}</b> — {c.external_course_name}
+                              {c.target_course && <> ← <b>{c.target_course.code}</b></>}
+                            </div>
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${st.cls}`}>{stText}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
                 {r.description && <div className="mt-1.5 text-xs">{r.description}</div>}
@@ -330,6 +391,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       )}
       {openType === "transfer" && (
         <TransferModal
+          studentProfileId={studentProfileId}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
+      {openType === "equivalency" && (
+        <EquivalencyModal
           studentProfileId={studentProfileId}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
@@ -835,5 +903,168 @@ function TransferModal({
     </ModalShell>
   );
 }
+
+type EqCourseRow = {
+  external_course_code: string;
+  external_course_name: string;
+  external_credit_hours: string;
+  target_course_id: string;
+};
+
+function EquivalencyModal({
+  studentProfileId, onClose, onSaved,
+}: {
+  studentProfileId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const { data: courses = [] } = useQuery({
+    queryKey: ["eq-courses-catalog"],
+    queryFn: async () => {
+      const { data } = await supabase.from("courses").select("id, code, name_ar").eq("status", "active").order("code");
+      return (data ?? []) as { id: string; code: string; name_ar: string }[];
+    },
+  });
+
+  const [prevUni, setPrevUni] = useState("");
+  const [prevProg, setPrevProg] = useState("");
+  const [ref, setRef] = useState("");
+  const [notes, setNotes] = useState("");
+  const [rows, setRows] = useState<EqCourseRow[]>([
+    { external_course_code: "", external_course_name: "", external_credit_hours: "", target_course_id: "" },
+  ]);
+  const [files, setFiles] = useState<File[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const addRow = () => setRows((r) => [...r, { external_course_code: "", external_course_name: "", external_credit_hours: "", target_course_id: "" }]);
+  const removeRow = (i: number) => setRows((r) => r.filter((_, idx) => idx !== i));
+  const updateRow = (i: number, patch: Partial<EqCourseRow>) =>
+    setRows((r) => r.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
+
+  const save = async (submit: boolean) => {
+    if (!prevUni.trim()) { toast.error("أدخل اسم الجامعة السابقة"); return; }
+    if (!prevProg.trim()) { toast.error("أدخل اسم البرنامج السابق"); return; }
+    const validRows = rows.filter((r) => r.external_course_code.trim() && r.external_course_name.trim());
+    if (validRows.length === 0) { toast.error("أضف مادة واحدة على الأقل"); return; }
+    setBusy(true);
+    try {
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "equivalency",
+        title: "طلب مقاصة أكاديمية",
+        description: notes || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("equivalency_request_details").insert({
+        request_id: created.id,
+        previous_university_name: prevUni.trim(),
+        previous_program_name: prevProg.trim(),
+        transfer_reference: ref.trim() || null,
+        notes: notes || null,
+      });
+      if (e2) throw e2;
+
+      const { error: e3 } = await sb.from("equivalency_courses").insert(
+        validRows.map((r) => ({
+          equivalency_request_id: created.id,
+          external_course_code: r.external_course_code.trim(),
+          external_course_name: r.external_course_name.trim(),
+          external_credit_hours: r.external_credit_hours ? parseInt(r.external_credit_hours, 10) : null,
+          target_course_id: r.target_course_id || null,
+          status: "pending",
+        })),
+      );
+      if (e3) throw e3;
+
+      for (const f of files) await uploadAttachment(created.id, f);
+      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب مقاصة أكاديمية" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <div>
+          <Label>الجامعة السابقة <span className="text-rose-600">*</span></Label>
+          <input value={prevUni} onChange={(e) => setPrevUni(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm" />
+        </div>
+        <div>
+          <Label>البرنامج السابق <span className="text-rose-600">*</span></Label>
+          <input value={prevProg} onChange={(e) => setPrevProg(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm" />
+        </div>
+        <div>
+          <Label>رقم/مرجع التحويل (اختياري)</Label>
+          <input value={ref} onChange={(e) => setRef(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm" />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <Label>المواد المطلوب معادلتها</Label>
+            <button onClick={addRow} type="button" className="text-[11px] inline-flex items-center gap-1 border px-2 py-0.5 rounded hover:bg-muted">
+              <Plus className="h-3 w-3" /> إضافة مادة
+            </button>
+          </div>
+          <div className="space-y-2">
+            {rows.map((r, i) => (
+              <div key={i} className="rounded border bg-muted/20 p-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold text-muted-foreground">المادة #{i + 1}</div>
+                  {rows.length > 1 && (
+                    <button type="button" onClick={() => removeRow(i)} className="text-rose-600 hover:bg-rose-50 rounded p-0.5">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <input value={r.external_course_code} onChange={(e) => updateRow(i, { external_course_code: e.target.value })}
+                    placeholder="رمز المادة السابقة" className="h-8 rounded border bg-background px-2 text-xs" />
+                  <input value={r.external_credit_hours} onChange={(e) => updateRow(i, { external_credit_hours: e.target.value })}
+                    placeholder="الساعات" type="number" min={0} className="h-8 rounded border bg-background px-2 text-xs" />
+                </div>
+                <input value={r.external_course_name} onChange={(e) => updateRow(i, { external_course_name: e.target.value })}
+                  placeholder="اسم المادة السابقة" className="w-full h-8 rounded border bg-background px-2 text-xs" />
+                <select value={r.target_course_id} onChange={(e) => updateRow(i, { target_course_id: e.target.value })}
+                  className="w-full h-8 rounded border bg-background px-2 text-xs">
+                  <option value="">المادة المراد معادلتها (اختياري)...</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.code} — {c.name_ar}</option>
+                  ))}
+                </select>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <Label>المرفقات (كشف درجات، توصيف مقررات، ...)</Label>
+          <label className="flex items-center gap-2 border border-dashed rounded p-2 cursor-pointer hover:bg-muted/30 text-xs">
+            <Upload className="h-3.5 w-3.5" />
+            <span>{files.length > 0 ? `تم اختيار ${files.length} ملف` : "اختر ملفات..."}</span>
+            <input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files ?? []))} className="hidden" />
+          </label>
+          {files.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {files.map((f, i) => (
+                <span key={i} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{f.name}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Label>ملاحظات</Label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+        </div>
+
+        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+      </div>
+    </ModalShell>
+  );
+}
+
 
 
