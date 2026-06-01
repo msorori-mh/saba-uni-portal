@@ -22,11 +22,13 @@ function AdminDashboard() {
   const { data: s } = useQuery({
     queryKey: ["admin-dashboard-counts"],
     queryFn: async () => {
+      const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const [
         programs, courses, sections, students,
         faculty, staff,
         newReq, reviewReq,
         news, events, research,
+        audit24h,
       ] = await Promise.all([
         tableCount("programs", (q) => q.eq("is_active", true)),
         tableCount("courses"),
@@ -39,8 +41,9 @@ function AdminDashboard() {
         tableCount("news", (q) => q.eq("is_published", true)),
         tableCount("events", (q) => q.eq("is_published", true)),
         tableCount("research_papers", (q) => q.eq("is_published", true)),
+        tableCount("audit_logs", (q) => q.gte("created_at", since24h)),
       ]);
-      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research };
+      return { programs, courses, sections, students, faculty, staff, newReq, reviewReq, news, events, research, audit24h };
     },
   });
 
