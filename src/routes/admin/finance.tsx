@@ -41,7 +41,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
 const METHOD_LABEL: Record<string, string> = { cash: "نقداً", bank_transfer: "تحويل بنكي", other: "أخرى" };
 
 function AdminFinancePage() {
-  const [tab, setTab] = useState<"types" | "fees" | "payments">("types");
+  const [tab, setTab] = useState<"types" | "fees" | "payments" | "discounts">("types");
 
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-6xl mx-auto">
@@ -50,15 +50,17 @@ function AdminFinancePage() {
         <h1 className="font-display text-xl font-extrabold text-primary">الشؤون المالية</h1>
       </div>
 
-      <div className="inline-flex gap-1 rounded-lg bg-muted p-1">
+      <div className="inline-flex gap-1 rounded-lg bg-muted p-1 flex-wrap">
         <TabButton active={tab === "types"} onClick={() => setTab("types")} icon={Tag}>أنواع الرسوم</TabButton>
         <TabButton active={tab === "fees"} onClick={() => setTab("fees")} icon={Users}>رسوم الطلاب</TabButton>
         <TabButton active={tab === "payments"} onClick={() => setTab("payments")} icon={Receipt}>المدفوعات</TabButton>
+        <TabButton active={tab === "discounts"} onClick={() => setTab("discounts")} icon={Percent}>الخصومات والإعفاءات</TabButton>
       </div>
 
       {tab === "types" && <FeeTypesTab />}
       {tab === "fees" && <StudentFeesTab />}
       {tab === "payments" && <PaymentsTab />}
+      {tab === "discounts" && <DiscountsTab />}
     </div>
   );
 }
