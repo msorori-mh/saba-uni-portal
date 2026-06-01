@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, Loader2, Receipt } from "lucide-react";
+import { Wallet, Loader2, Receipt, Percent } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
