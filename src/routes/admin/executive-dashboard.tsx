@@ -674,7 +674,7 @@ function ExecutiveDashboardPage() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
         <FileWarning className="h-3.5 w-3.5" />
-        هذه اللوحة للقراءة فقط — لا تتضمن أي إجراءات تشغيلية. الرسوم البيانية والتحليلات المتقدمة ضمن Phase 11H.1B.
+        هذه اللوحة للقراءة فقط — تشمل KPIs، تنبيهات، تحليلات بيانية، اتجاهات، وتصدير Excel. لا تتضمن أي إجراءات تشغيلية.
       </div>
     </div>
   );
