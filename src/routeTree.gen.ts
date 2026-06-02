@@ -33,6 +33,7 @@ import { Route as StudentNotificationsRouteImport } from './routes/student.notif
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
+import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
@@ -188,6 +189,11 @@ const NewsSlugRoute = NewsSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => NewsRoute,
+} as any)
+const FacultyPortalScheduleRoute = FacultyPortalScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => FacultyPortalRoute,
 } as any)
 const FacultyPortalChangePasswordRoute =
   FacultyPortalChangePasswordRouteImport.update({
@@ -417,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
@@ -474,6 +481,7 @@ export interface FileRoutesByTo {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
@@ -536,6 +544,7 @@ export interface FileRoutesById {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
@@ -599,6 +608,7 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/document-view/$id'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/schedule'
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
@@ -656,6 +666,7 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/document-view/$id'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/schedule'
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
@@ -717,6 +728,7 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/document-view/$id'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/schedule'
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
@@ -916,6 +928,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/news/$slug'
       preLoaderRoute: typeof NewsSlugRouteImport
       parentRoute: typeof NewsRoute
+    }
+    '/faculty-portal/schedule': {
+      id: '/faculty-portal/schedule'
+      path: '/schedule'
+      fullPath: '/faculty-portal/schedule'
+      preLoaderRoute: typeof FacultyPortalScheduleRouteImport
+      parentRoute: typeof FacultyPortalRoute
     }
     '/faculty-portal/change-password': {
       id: '/faculty-portal/change-password'
@@ -1253,11 +1272,13 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
 
 interface FacultyPortalRouteChildren {
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
+  FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
 }
 
 const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
+  FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
 }
 
