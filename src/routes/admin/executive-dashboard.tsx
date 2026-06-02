@@ -86,10 +86,10 @@ function ExecutiveDashboardPage() {
       ] = await Promise.all([
         tableCount("student_profiles"),
         tableCount("student_profiles", (q) => q.eq("status", "active")),
-        tableCount("faculty_profiles", (q) => q.eq("is_active", true)),
+        tableCount("faculty_profiles", (q) => q.eq("status", "active")),
         tableCount("course_sections", (q) => q.eq("status", "active")),
-        supabase.from("academic_years").select("name_ar, name_en").eq("is_current", true).maybeSingle(),
-        supabase.from("semesters").select("name_ar, name_en").eq("is_current", true).maybeSingle(),
+        supabase.from("academic_years").select("name").eq("is_current", true).maybeSingle(),
+        supabase.from("semesters").select("name").eq("is_current", true).maybeSingle(),
         supabase.from("student_fees").select("amount"),
         supabase.from("student_fees").select("amount").eq("status", "paid"),
         tableCount("student_profiles", (q) => q.is("program_id", null)),
