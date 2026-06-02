@@ -62,10 +62,23 @@ type MyEnrollmentRow = {
   slots: ScheduleSlot[];
 };
 
+type RawSched = { schedule_type: string; status: string; time_slot: { day_of_week: string; start_time: string; end_time: string } | null; room: { name_ar: string; code: string } | null };
+function flattenSched(raws: RawSched[] | null | undefined): ScheduleSlot[] {
+  return (raws ?? [])
+    .filter((s) => s.status !== "cancelled" && s.time_slot)
+    .map((s) => ({
+      day_of_week: s.time_slot!.day_of_week,
+      start_time: s.time_slot!.start_time,
+      end_time: s.time_slot!.end_time,
+      room: s.room?.name_ar ?? s.room?.code ?? null,
+      schedule_type: s.schedule_type,
+    }));
+}
+
 async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]> {
   const { data, error } = await supabase
     .from("student_enrollments")
-    .select("id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type))")
+    .select("id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code)))")
     .eq("student_profile_id", studentId);
   if (error) throw error;
   type Raw = {
@@ -74,7 +87,7 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
       section_code: string;
       faculty: { full_name_ar: string } | null;
       offering: { course: { code: string; name_ar: string } | null } | null;
-      schedule: ScheduleSlot[];
+      schedule: RawSched[] | null;
     } | null;
   };
   return ((data ?? []) as unknown as Raw[]).map((r) => ({
@@ -84,9 +97,10 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
     course_code: r.section?.offering?.course?.code ?? "—",
     course_name: r.section?.offering?.course?.name_ar ?? "—",
     faculty_name: r.section?.faculty?.full_name_ar ?? null,
-    slots: r.section?.schedule ?? [],
+    slots: flattenSched(r.section?.schedule),
   }));
 }
+
 
 async function fetchMyProfile(): Promise<StudentRow | null> {
   const { data: auth } = await supabase.auth.getUser();
