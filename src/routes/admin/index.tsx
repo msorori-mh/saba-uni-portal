@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
 import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
+import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -39,9 +40,21 @@ function AdminDashboard() {
   const fetchAdminCounts = useServerFn(adminAccountCounts);
   const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
   const fetchCommStats = useServerFn(getCommunicationsDashboardStats);
+  const fetchAutomationSettings = useServerFn(getAutomationSettings);
+  const fetchAutomationPreview = useServerFn(getAutomationPreview);
   const { data: commStats } = useQuery({
     queryKey: ["admin-comm-stats"],
     queryFn: () => fetchCommStats(),
+    staleTime: 60_000,
+  });
+  const { data: automation } = useQuery({
+    queryKey: ["admin-automation-status"],
+    queryFn: async () => {
+      const [s, p] = await Promise.all([fetchAutomationSettings(), fetchAutomationPreview()]);
+      const enabled_count = s.settings.filter((x) => x.enabled).length;
+      const disabled_count = s.settings.length - enabled_count;
+      return { enabled_count, disabled_count, upcoming_action: p.registration.upcoming_action };
+    },
     staleTime: 60_000,
   });
   const { data: progressKpis } = useQuery({
@@ -317,6 +330,15 @@ function AdminDashboard() {
         { label: "إعلانات نشطة", value: commStats?.active_announcements ?? 0, icon: Megaphone, to: "/admin/communications" },
         { label: "إعلانات غير مقروءة", value: commStats?.unread_announcements ?? 0, icon: Bell, to: "/admin/communications" },
         { label: "رسائل غير مقروءة", value: commStats?.unread_messages ?? 0, icon: MailOpen, to: "/messages" },
+      ],
+    },
+    {
+      title: "حالة الأتمتة",
+      cards: [
+        { label: "الأتمتة المفعّلة", value: automation?.enabled_count ?? 0, icon: Activity, to: "/admin/automation" },
+        { label: "الأتمتة المعطّلة", value: automation?.disabled_count ?? 0, icon: AlertCircle, to: "/admin/automation" },
+        { label: "إجراءات قادمة", value: automation?.upcoming_action ? 1 : 0, icon: CalendarClock, to: "/admin/automation" },
+        { label: "أحداث معلّقة", value: 0, icon: Bell, to: "/admin/automation" },
       ],
     },
     {

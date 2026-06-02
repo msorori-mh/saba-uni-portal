@@ -73,6 +73,7 @@ import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 import { Route as AdminCommunicationsRouteImport } from './routes/admin/communications'
 import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-status'
+import { Route as AdminAutomationRouteImport } from './routes/admin/automation'
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
 import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
@@ -401,6 +402,11 @@ const AdminBackupStatusRoute = AdminBackupStatusRouteImport.update({
   path: '/backup-status',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAutomationRoute = AdminAutomationRouteImport.update({
+  id: '/automation',
+  path: '/automation',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
   id: '/audit-log',
   path: '/audit-log',
@@ -449,6 +455,7 @@ export interface FileRoutesByFullPath {
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/automation': typeof AdminAutomationRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -516,6 +523,7 @@ export interface FileRoutesByTo {
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/automation': typeof AdminAutomationRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -588,6 +596,7 @@ export interface FileRoutesById {
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/automation': typeof AdminAutomationRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -661,6 +670,7 @@ export interface FileRouteTypes {
     | '/admin/academic-operations'
     | '/admin/at-risk-students'
     | '/admin/audit-log'
+    | '/admin/automation'
     | '/admin/backup-status'
     | '/admin/communications'
     | '/admin/contacts'
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
     | '/admin/academic-operations'
     | '/admin/at-risk-students'
     | '/admin/audit-log'
+    | '/admin/automation'
     | '/admin/backup-status'
     | '/admin/communications'
     | '/admin/contacts'
@@ -799,6 +810,7 @@ export interface FileRouteTypes {
     | '/admin/academic-operations'
     | '/admin/at-risk-students'
     | '/admin/audit-log'
+    | '/admin/automation'
     | '/admin/backup-status'
     | '/admin/communications'
     | '/admin/contacts'
@@ -1320,6 +1332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBackupStatusRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/automation': {
+      id: '/admin/automation'
+      path: '/automation'
+      fullPath: '/admin/automation'
+      preLoaderRoute: typeof AdminAutomationRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/audit-log': {
       id: '/admin/audit-log'
       path: '/audit-log'
@@ -1363,6 +1382,7 @@ interface AdminRouteChildren {
   AdminAcademicOperationsRoute: typeof AdminAcademicOperationsRoute
   AdminAtRiskStudentsRoute: typeof AdminAtRiskStudentsRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
+  AdminAutomationRoute: typeof AdminAutomationRoute
   AdminBackupStatusRoute: typeof AdminBackupStatusRoute
   AdminCommunicationsRoute: typeof AdminCommunicationsRoute
   AdminContactsRoute: typeof AdminContactsRoute
@@ -1405,6 +1425,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAcademicOperationsRoute: AdminAcademicOperationsRoute,
   AdminAtRiskStudentsRoute: AdminAtRiskStudentsRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
+  AdminAutomationRoute: AdminAutomationRoute,
   AdminBackupStatusRoute: AdminBackupStatusRoute,
   AdminCommunicationsRoute: AdminCommunicationsRoute,
   AdminContactsRoute: AdminContactsRoute,

@@ -638,6 +638,28 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Academic Automation (Phase 12A.1) ---
+  const automationRows = await safeCount("automation_settings");
+  const automationKeys = ["registration", "progression", "graduation", "finance"];
+  const automationByKey = await Promise.all(
+    automationKeys.map((k) => safeCount("automation_settings", (q) => q.eq("key", k))),
+  );
+  const automationSection: Section = {
+    id: "automation",
+    title: "الأتمتة الأكاديمية",
+    checks: [
+      pass("صفحة مركز الأتمتة متاحة", "/admin/automation"),
+      automationRows.ok && automationRows.count >= 4
+        ? pass("جدول إعدادات الأتمتة جاهز", `الصفوف: ${automationRows.count}`)
+        : fail("جدول إعدادات الأتمتة غير جاهز", automationRows.error),
+      ...automationKeys.map((k, i) =>
+        automationByKey[i].ok && automationByKey[i].count > 0
+          ? pass(`أتمتة ${k} مُهيأة`, "configuration present")
+          : warn(`أتمتة ${k} غير مُهيأة`, automationByKey[i].error),
+      ),
+    ],
+  };
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
@@ -651,6 +673,7 @@ async function runChecks(): Promise<Section[]> {
     academicProgressSection,
     communicationsSection,
     executiveSection,
+    automationSection,
     opsSection, siteSection,
   ];
 

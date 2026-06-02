@@ -109,6 +109,14 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    id: "automation",
+    label: "الأتمتة",
+    icon: Activity,
+    items: [
+      { to: "/admin/automation", label: "مركز الأتمتة الأكاديمية", icon: Activity },
+    ],
+  },
+  {
     id: "reports",
     label: "التقارير والتحليلات",
     icon: BarChart3,
