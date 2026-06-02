@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import collegeLogo from "@/assets/college-logo.jpg";
+import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 
 type FacultyProfileRow = {
   id: string;
