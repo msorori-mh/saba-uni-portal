@@ -251,7 +251,7 @@ function PortalLoginPage() {
               </button>
 
               <div className="text-center text-xs pt-2">
-                <Link to="/forgot-password" className="text-primary hover:text-gold font-bold">
+                <Link to="/forgot-password" search={{ ctx: accountType }} className="text-primary hover:text-gold font-bold">
                   نسيت كلمة المرور؟
                 </Link>
               </div>

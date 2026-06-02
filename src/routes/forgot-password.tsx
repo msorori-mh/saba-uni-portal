@@ -71,7 +71,7 @@ const COPY: Record<Ctx, {
 
 function ForgotPasswordPage() {
   const { ctx } = Route.useSearch();
-  const cfg = useMemo(() => COPY[ctx ?? "admin"], [ctx]);
+  const cfg = useMemo(() => COPY[(ctx ?? "admin") as Ctx], [ctx]);
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
