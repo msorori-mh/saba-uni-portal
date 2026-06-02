@@ -832,3 +832,258 @@ function ConflictGroup({ title, groups }: { title: string; groups: Schedule[][] 
     </div>
   );
 }
+
+// ====================== Timetable Views (read-only with filters + print/export) ======================
+type ViewType = "program" | "level" | "department" | "room" | "faculty";
+const VIEW_OPTIONS: Array<{ code: ViewType; label: string }> = [
+  { code: "program", label: "حسب البرنامج" },
+  { code: "level", label: "حسب المستوى" },
+  { code: "department", label: "حسب القسم" },
+  { code: "room", label: "حسب القاعة" },
+  { code: "faculty", label: "حسب عضو هيئة التدريس" },
+];
+
+function TimetableViewsTab() {
+  const lookups = useScheduleLookups();
+  const [viewType, setViewType] = useState<ViewType>("program");
+  const [yearId, setYearId] = useState<string>("");
+  const [semId, setSemId] = useState<string>("");
+  const [programId, setProgramId] = useState<string>("");
+  const [levelId, setLevelId] = useState<string>("");
+  const [departmentId, setDepartmentId] = useState<string>("");
+  const [roomId, setRoomId] = useState<string>("");
+  const [facultyId, setFacultyId] = useState<string>("");
+  const [status, setStatus] = useState<string>("published");
+
+  // Defaults to current year/semester
+  useMemo(() => {
+    if (yearId || !lookups.years.length) return;
+    const cy = lookups.years.find((y) => y.is_current) ?? lookups.years[0];
+    if (cy) setYearId(cy.id);
+    const cs = lookups.semesters.find((s) => s.is_current && s.academic_year_id === cy?.id);
+    if (cs) setSemId(cs.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookups.years.length, lookups.semesters.length]);
+
+  // Levels & departments
+  const levels = useQuery({
+    queryKey: ["lk-levels"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("academic_levels").select("id, name, level_number").order("level_number");
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; name: string; level_number: number }>;
+    },
+  });
+  const departments = useQuery({
+    queryKey: ["lk-departments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("id, name_ar").eq("is_active", true);
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; name_ar: string }>;
+    },
+  });
+
+  // Fetch enriched schedules (filtered)
+  const schedules = useQuery({
+    queryKey: ["adm-tt-views", { yearId, semId, status, viewType }],
+    enabled: !!yearId && !!semId,
+    queryFn: async () => {
+      let q = supabase
+        .from("class_schedule")
+        .select("id, schedule_type, status, course_section_id, room_id, time_slot_id, faculty_profile_id");
+      if (status !== "all") q = q.eq("status", status as "draft" | "published" | "cancelled");
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string; schedule_type: string; status: string;
+        course_section_id: string; room_id: string; time_slot_id: string;
+        faculty_profile_id: string | null;
+      }>;
+    },
+  });
+
+  // Build display rows
+  const rows: ScheduleRow[] = useMemo(() => {
+    if (!schedules.data) return [];
+    const out: ScheduleRow[] = [];
+    for (const s of schedules.data) {
+      const sec = lookups.sections.find((x) => x.id === s.course_section_id); if (!sec) continue;
+      const off = lookups.offerings.find((o) => o.id === sec.course_offering_id); if (!off) continue;
+      if (off.academic_year_id !== yearId || off.semester_id !== semId) continue;
+      if (programId && off.program_id !== programId) continue;
+      const course = lookups.courses.find((c) => c.id === off.course_id);
+      const slot = lookups.slots.find((t) => t.id === s.time_slot_id); if (!slot) continue;
+      const room = lookups.rooms.find((r) => r.id === s.room_id);
+      const fac = s.faculty_profile_id ? lookups.faculty.find((f) => f.id === s.faculty_profile_id) : null;
+      if (roomId && s.room_id !== roomId) continue;
+      if (facultyId && s.faculty_profile_id !== facultyId) continue;
+      // department/level filters need joins not in lookups — skip for now (program covers most)
+      out.push({
+        id: s.id,
+        course_code: course?.code ?? "—",
+        course_name: course?.name_ar ?? "—",
+        section_code: sec.section_code,
+        faculty: fac?.full_name_ar ?? null,
+        room: room?.name_ar ?? room?.code ?? null,
+        schedule_type: s.schedule_type,
+        day_of_week: slot.day_of_week,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+      });
+    }
+    return out;
+  }, [schedules.data, lookups, yearId, semId, programId, roomId, facultyId, levelId, departmentId]);
+
+  const handlePrint = () => {
+    logScheduleAudit("timetable_printed", `admin:${viewType}`, { yearId, semId, programId, levelId, departmentId, roomId, facultyId, status });
+    window.print();
+  };
+  const handleExport = () => {
+    if (!rows.length) return;
+    const yearName = lookups.years.find((y) => y.id === yearId)?.name ?? "current";
+    const semName = lookups.semesters.find((s) => s.id === semId)?.name ?? "term";
+    const safe = (s: string) => s.replace(/[^\dA-Za-z\u0600-\u06FF]+/g, "_");
+    exportScheduleXlsx({
+      filename: `admin_schedule_${viewType}_${safe(yearName)}_${safe(semName)}.xlsx`,
+      sheetName: "الجدول",
+      header: [
+        ["جامعة سبأ", "كلية الإدارة والعلوم الإنسانية"],
+        ["نوع العرض", VIEW_OPTIONS.find((v) => v.code === viewType)?.label ?? viewType],
+        ["السنة الأكاديمية", yearName],
+        ["الفصل", semName],
+        ["الحالة", status],
+        ["تاريخ الإصدار", todayLabel()],
+      ],
+      rows,
+      includeFaculty: true,
+    });
+    logScheduleAudit("timetable_exported", `admin:${viewType}`, { yearId, semId });
+  };
+
+  const filteredSems = lookups.semesters.filter((s) => s.academic_year_id === yearId);
+
+  return (
+    <div className="space-y-4 print-page">
+      <style>{PRINT_CSS}</style>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 no-print">
+        <div>
+          <Label className="text-xs">نوع العرض</Label>
+          <Select value={viewType} onValueChange={(v) => setViewType(v as ViewType)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>{VIEW_OPTIONS.map((o) => <SelectItem key={o.code} value={o.code}>{o.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">السنة الأكاديمية</Label>
+          <Select value={yearId} onValueChange={(v) => { setYearId(v); setSemId(""); }}>
+            <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+            <SelectContent>{lookups.years.map((y) => <SelectItem key={y.id} value={y.id}>{y.name}{y.is_current && " ★"}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">الفصل</Label>
+          <Select value={semId} onValueChange={setSemId} disabled={!yearId}>
+            <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+            <SelectContent>{filteredSems.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">الحالة</Label>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">الكل</SelectItem>
+              <SelectItem value="draft">مسودة</SelectItem>
+              <SelectItem value="published">منشور</SelectItem>
+              <SelectItem value="cancelled">ملغي</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-xs">البرنامج</Label>
+          <Select value={programId || "__all"} onValueChange={(v) => setProgramId(v === "__all" ? "" : v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">جميع البرامج</SelectItem>
+              {lookups.programs.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">المستوى</Label>
+          <Select value={levelId || "__all"} onValueChange={(v) => setLevelId(v === "__all" ? "" : v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">جميع المستويات</SelectItem>
+              {(levels.data ?? []).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">القسم</Label>
+          <Select value={departmentId || "__all"} onValueChange={(v) => setDepartmentId(v === "__all" ? "" : v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">جميع الأقسام</SelectItem>
+              {(departments.data ?? []).map((d) => <SelectItem key={d.id} value={d.id}>{d.name_ar}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">القاعة</Label>
+          <Select value={roomId || "__all"} onValueChange={(v) => setRoomId(v === "__all" ? "" : v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">جميع القاعات</SelectItem>
+              {lookups.rooms.map((r) => <SelectItem key={r.id} value={r.id}>{r.name_ar} ({r.code})</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="col-span-2">
+          <Label className="text-xs">عضو هيئة التدريس</Label>
+          <Select value={facultyId || "__all"} onValueChange={(v) => setFacultyId(v === "__all" ? "" : v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all">الكل</SelectItem>
+              {lookups.faculty.map((f) => <SelectItem key={f.id} value={f.id}>{f.full_name_ar}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 no-print">
+        <Button size="sm" variant="outline" onClick={handlePrint} disabled={!rows.length}>
+          <Printer className="h-4 w-4 ml-1" /> طباعة
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleExport} disabled={!rows.length}>
+          <FileSpreadsheet className="h-4 w-4 ml-1" /> تصدير Excel
+        </Button>
+      </div>
+
+      <PrintHeader
+        title={`الجدول الدراسي — ${VIEW_OPTIONS.find((v) => v.code === viewType)?.label ?? ""}`}
+        lines={[
+          ["السنة الأكاديمية", lookups.years.find((y) => y.id === yearId)?.name ?? "—"],
+          ["الفصل", lookups.semesters.find((s) => s.id === semId)?.name ?? "—"],
+          ["الحالة", status],
+          ["تاريخ الإصدار", todayLabel()],
+        ]}
+      />
+
+      {schedules.isLoading ? (
+        <div className="grid place-items-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          لم يتم إنشاء جدول مطابق للفلاتر المحددة.
+        </div>
+      ) : (
+        <>
+          <div className="hidden md:block"><WeeklyGrid rows={rows} showFaculty /></div>
+          <div className="md:hidden"><DayList rows={rows} showFaculty /></div>
+        </>
+      )}
+    </div>
+  );
+}
