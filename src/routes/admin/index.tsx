@@ -350,6 +350,15 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "التشغيل التجريبي",
+      cards: [
+        { label: "نسبة الجاهزية", value: `${pilot?.readiness?.score ?? 0}%`, icon: Rocket, to: "/admin/pilot-center" },
+        { label: "مشاكل مفتوحة", value: pilot?.issues?.open ?? 0, icon: AlertCircle, to: "/admin/pilot-center" },
+        { label: "مشاكل حرجة", value: pilot?.issues?.critical ?? 0, icon: ShieldAlert, to: "/admin/pilot-center" },
+        { label: "مشاركون نشطون", value: pilot?.participants?.active ?? 0, icon: Users, to: "/admin/pilot-center" },
+      ],
+    },
+    {
       title: "الخدمات",
       cards: [
         { label: "طلبات جديدة", value: counts.newReq, icon: FileWarning },
