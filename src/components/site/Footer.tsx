@@ -48,17 +48,17 @@ export function Footer() {
           <div className="divider-gold mb-4" />
           <ul className="space-y-2.5 text-sm text-primary-foreground/80">
             <li>
-              <Link to="/portal-login" className="inline-flex items-center gap-2 hover:text-gold transition-colors">
+              <Link to="/portal-login" search={{ type: "student" }} className="inline-flex items-center gap-2 hover:text-gold transition-colors">
                 <GraduationCap className="h-4 w-4 text-gold" /> بوابة الطالب
               </Link>
             </li>
             <li>
-              <Link to="/portal-login" className="inline-flex items-center gap-2 hover:text-gold transition-colors">
+              <Link to="/portal-login" search={{ type: "faculty" }} className="inline-flex items-center gap-2 hover:text-gold transition-colors">
                 <BookOpen className="h-4 w-4 text-gold" /> بوابة أعضاء هيئة التدريس
               </Link>
             </li>
             <li>
-              <Link to="/portal-login" className="inline-flex items-center gap-2 hover:text-gold transition-colors">
+              <Link to="/portal-login" search={{ type: "staff" }} className="inline-flex items-center gap-2 hover:text-gold transition-colors">
                 <Briefcase className="h-4 w-4 text-gold" /> بوابة الموظفين
               </Link>
             </li>

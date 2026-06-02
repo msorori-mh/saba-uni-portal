@@ -17,9 +17,9 @@ const navItems = [
 ] as const;
 
 const portalButtons = [
-  { label: "دخول الطالب", Icon: GraduationCap, tone: "gold" as const },
-  { label: "دخول الأكاديمي", Icon: BookOpen, tone: "light" as const },
-  { label: "دخول الموظف", Icon: Briefcase, tone: "light" as const },
+  { label: "دخول الطالب", Icon: GraduationCap, tone: "gold" as const, type: "student" as const },
+  { label: "دخول الأكاديمي", Icon: BookOpen, tone: "light" as const, type: "faculty" as const },
+  { label: "دخول الموظف", Icon: Briefcase, tone: "light" as const, type: "staff" as const },
 ];
 
 export function Header() {
@@ -74,10 +74,11 @@ export function Header() {
 
         {/* Portal buttons — desktop */}
         <div className="hidden lg:flex items-center gap-1.5">
-          {portalButtons.map(({ label, Icon, tone }) => (
+          {portalButtons.map(({ label, Icon, tone, type }) => (
             <Link
               key={label}
               to="/portal-login"
+              search={{ type }}
               className={
                 tone === "gold"
                   ? "inline-flex items-center gap-1.5 rounded-md bg-gold-gradient px-3.5 py-2 text-[12px] font-extrabold text-primary-deep transition-all hover:-translate-y-0.5 shadow-gold"
@@ -121,10 +122,11 @@ export function Header() {
         <div className="lg:hidden border-t border-border bg-background">
           <nav className="container mx-auto flex flex-col px-4 py-3">
             <div className="grid grid-cols-1 gap-2 pb-3 border-b border-border">
-              {portalButtons.map(({ label, Icon, tone }) => (
+              {portalButtons.map(({ label, Icon, tone, type }) => (
                 <Link
                   key={label}
                   to="/portal-login"
+                  search={{ type }}
                   onClick={() => setOpen(false)}
                   className={
                     tone === "gold"

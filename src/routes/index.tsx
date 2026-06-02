@@ -43,6 +43,7 @@ type PortalCard = {
   short: string;
   cta: string;
   to: string;
+  search?: Record<string, string>;
   tone: "gold" | "primary" | "emerald" | "slate";
 };
 
@@ -50,17 +51,17 @@ const PORTAL_CARDS: PortalCard[] = [
   {
     Icon: GraduationCap, emoji: "🎓", title: "بوابة الطالب", tone: "gold",
     short: "خدمات أكاديمية وإدارية متكاملة للطلاب.",
-    cta: "دخول بوابة الطالب", to: "/portal-login",
+    cta: "دخول بوابة الطالب", to: "/portal-login", search: { type: "student" },
   },
   {
     Icon: BookOpen, emoji: "👨‍🏫", title: "بوابة أعضاء هيئة التدريس", tone: "primary",
     short: "إدارة الشُعب والدرجات والأنشطة الأكاديمية.",
-    cta: "دخول بوابة أعضاء هيئة التدريس", to: "/portal-login",
+    cta: "دخول بوابة أعضاء هيئة التدريس", to: "/portal-login", search: { type: "faculty" },
   },
   {
     Icon: Briefcase, emoji: "👨‍💼", title: "بوابة الموظفين", tone: "emerald",
     short: "إدارة الخدمات الأكاديمية والإدارية.",
-    cta: "دخول بوابة الموظفين", to: "/portal-login",
+    cta: "دخول بوابة الموظفين", to: "/portal-login", search: { type: "staff" },
   },
   {
     Icon: ShieldCheck, emoji: "⚙️", title: "لوحة الإدارة", tone: "slate",
@@ -476,7 +477,8 @@ function PortalAccessCard({ card }: { card: PortalCard }) {
 
   return (
     <Link
-      to={card.to}
+      to={card.to as any}
+      search={(card.search as any) ?? undefined}
       className={`group relative flex flex-col rounded-2xl border-2 bg-card p-4 md:p-5 shadow-elegant transition-all hover:-translate-y-1 ${s.ring}`}
     >
       <div className="flex items-center gap-3">
