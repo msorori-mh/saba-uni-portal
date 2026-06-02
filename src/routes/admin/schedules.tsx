@@ -444,8 +444,8 @@ function TimeSlotDialog({ open, onOpenChange, editing, onSaved }: {
 // ====================== Class Schedule ======================
 type Year = { id: string; name: string; is_current: boolean };
 type Semester = { id: string; academic_year_id: string; name: string; is_current: boolean };
-type Program = { id: string; name_ar: string };
-type Offering = { id: string; course_id: string; program_id: string; academic_year_id: string; semester_id: string };
+type Program = { id: string; name_ar: string; department_id: string | null };
+type Offering = { id: string; course_id: string; program_id: string; academic_year_id: string; semester_id: string; level_id: string };
 type Course = { id: string; code: string; name_ar: string };
 type Section = { id: string; course_offering_id: string; section_code: string; faculty_profile_id: string | null };
 type Faculty = { id: string; full_name_ar: string };
