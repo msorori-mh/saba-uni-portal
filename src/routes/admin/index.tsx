@@ -38,6 +38,12 @@ function AdminDashboard() {
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
   const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
+  const fetchCommStats = useServerFn(getCommunicationsDashboardStats);
+  const { data: commStats } = useQuery({
+    queryKey: ["admin-comm-stats"],
+    queryFn: () => fetchCommStats(),
+    staleTime: 60_000,
+  });
   const { data: progressKpis } = useQuery({
     queryKey: ["admin-progress-kpis"],
     queryFn: () => fetchProgressKpis(),
