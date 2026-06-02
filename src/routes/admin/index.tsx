@@ -320,6 +320,15 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "حالة الأتمتة",
+      cards: [
+        { label: "الأتمتة المفعّلة", value: automation?.enabled_count ?? 0, icon: Activity, to: "/admin/automation" },
+        { label: "الأتمتة المعطّلة", value: automation?.disabled_count ?? 0, icon: AlertCircle, to: "/admin/automation" },
+        { label: "إجراءات قادمة", value: automation?.upcoming_action ? 1 : 0, icon: CalendarClock, to: "/admin/automation" },
+        { label: "أحداث معلّقة", value: 0, icon: Bell, to: "/admin/automation" },
+      ],
+    },
+    {
       title: "الخدمات",
       cards: [
         { label: "طلبات جديدة", value: counts.newReq, icon: FileWarning },
