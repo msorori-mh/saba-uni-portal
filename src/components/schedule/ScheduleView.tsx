@@ -1,4 +1,28 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { DAYS, dayLabel, TYPE_LABELS, type ScheduleRow } from "@/lib/schedule-export";
+
+export const FALLBACK_UNIVERSITY_AR = "جامعة إقليم سبأ";
+export const FALLBACK_COLLEGE_AR = "كلية تكنولوجيا المعلومات وعلوم الحاسوب";
+
+export function useSiteIdentity() {
+  const { data } = useQuery({
+    queryKey: ["site-identity"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("site_settings")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["university_name_ar", "site_name_ar", "college_name_ar"]);
+      const map = new Map<string, string | null>((data ?? []).map((r: any) => [r.setting_key, r.setting_value]));
+      return {
+        university: (map.get("university_name_ar") || "").trim() || FALLBACK_UNIVERSITY_AR,
+        college: (map.get("college_name_ar") || map.get("site_name_ar") || "").trim() || FALLBACK_COLLEGE_AR,
+      };
+    },
+  });
+  return data ?? { university: FALLBACK_UNIVERSITY_AR, college: FALLBACK_COLLEGE_AR };
+}
 
 export const PRINT_CSS = `
 @media print {
@@ -13,11 +37,12 @@ export const PRINT_CSS = `
 `;
 
 export function PrintHeader({ title, lines }: { title: string; lines: Array<[string, string]> }) {
+  const { university, college } = useSiteIdentity();
   return (
     <div className="print-only border-b pb-3 mb-4">
       <div className="text-center mb-2">
-        <div className="font-display text-lg font-extrabold">جامعة سبأ</div>
-        <div className="text-sm">كلية الإدارة والعلوم الإنسانية</div>
+        <div className="font-display text-lg font-extrabold">{university}</div>
+        <div className="text-sm">{college}</div>
         <div className="text-base font-bold mt-1">{title}</div>
       </div>
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs mt-2">
