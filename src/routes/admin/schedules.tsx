@@ -854,6 +854,7 @@ function TimetableViewsTab() {
   const [roomId, setRoomId] = useState<string>("");
   const [facultyId, setFacultyId] = useState<string>("");
   const [status, setStatus] = useState<string>("published");
+  const identity = useSiteIdentity();
 
   // Defaults to current year/semester
   useMemo(() => {
