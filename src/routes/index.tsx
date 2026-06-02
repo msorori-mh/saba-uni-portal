@@ -50,17 +50,17 @@ const PORTAL_CARDS: PortalCard[] = [
   {
     Icon: GraduationCap, emoji: "🎓", title: "بوابة الطالب", tone: "gold",
     short: "خدمات أكاديمية وإدارية متكاملة للطلاب.",
-    cta: "دخول بوابة الطالب", to: "/portal-login",
+    cta: "دخول بوابة الطالب", to: "/portal-login?type=student",
   },
   {
     Icon: BookOpen, emoji: "👨‍🏫", title: "بوابة أعضاء هيئة التدريس", tone: "primary",
     short: "إدارة الشُعب والدرجات والأنشطة الأكاديمية.",
-    cta: "دخول بوابة أعضاء هيئة التدريس", to: "/portal-login",
+    cta: "دخول بوابة أعضاء هيئة التدريس", to: "/portal-login?type=faculty",
   },
   {
     Icon: Briefcase, emoji: "👨‍💼", title: "بوابة الموظفين", tone: "emerald",
     short: "إدارة الخدمات الأكاديمية والإدارية.",
-    cta: "دخول بوابة الموظفين", to: "/portal-login",
+    cta: "دخول بوابة الموظفين", to: "/portal-login?type=staff",
   },
   {
     Icon: ShieldCheck, emoji: "⚙️", title: "لوحة الإدارة", tone: "slate",
