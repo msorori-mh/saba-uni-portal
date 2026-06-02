@@ -14,6 +14,8 @@ import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.function
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
 import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
 import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.functions";
+import { getPilotOverview } from "@/lib/pilot.functions";
+import { Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -55,6 +57,12 @@ function AdminDashboard() {
       const disabled_count = s.settings.length - enabled_count;
       return { enabled_count, disabled_count, upcoming_action: p.registration.upcoming_action };
     },
+    staleTime: 60_000,
+  });
+  const fetchPilot = useServerFn(getPilotOverview);
+  const { data: pilot } = useQuery({
+    queryKey: ["admin-pilot-overview"],
+    queryFn: () => fetchPilot(),
     staleTime: 60_000,
   });
   const { data: progressKpis } = useQuery({
@@ -339,6 +347,15 @@ function AdminDashboard() {
         { label: "الأتمتة المعطّلة", value: automation?.disabled_count ?? 0, icon: AlertCircle, to: "/admin/automation" },
         { label: "إجراءات قادمة", value: automation?.upcoming_action ? 1 : 0, icon: CalendarClock, to: "/admin/automation" },
         { label: "أحداث معلّقة", value: 0, icon: Bell, to: "/admin/automation" },
+      ],
+    },
+    {
+      title: "التشغيل التجريبي",
+      cards: [
+        { label: "نسبة الجاهزية %", value: pilot?.readiness?.score ?? 0, icon: Rocket, to: "/admin/pilot-center" },
+        { label: "مشاكل مفتوحة", value: pilot?.issues?.open ?? 0, icon: AlertCircle, to: "/admin/pilot-center" },
+        { label: "مشاكل حرجة", value: pilot?.issues?.critical ?? 0, icon: ShieldAlert, to: "/admin/pilot-center" },
+        { label: "مشاركون نشطون", value: pilot?.participants?.active ?? 0, icon: Users, to: "/admin/pilot-center" },
       ],
     },
     {

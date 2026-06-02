@@ -660,6 +660,50 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Pilot Launch Readiness (Phase 12B) ---
+  const [
+    pilotConfig, pilotScenarios, pilotResults, pilotChecklist,
+    pilotIssues, pilotFeedback, pilotAudit,
+  ] = await Promise.all([
+    safeCount("pilot_config"),
+    safeCount("pilot_test_scenarios"),
+    safeCount("pilot_test_results"),
+    safeCount("pilot_checklist_items"),
+    safeCount("pilot_issues"),
+    safeCount("pilot_feedback"),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "pilot")),
+  ]);
+  const pilotSection: Section = {
+    id: "pilot",
+    title: "جاهزية التشغيل التجريبي",
+    checks: [
+      pass("صفحة مركز التشغيل التجريبي متاحة", "/admin/pilot-center"),
+      pilotConfig.ok && pilotConfig.count > 0
+        ? pass("إعدادات التشغيل التجريبي مُهيأة", `صف: ${pilotConfig.count}`)
+        : fail("إعدادات التشغيل التجريبي غير مُهيأة"),
+      pilotScenarios.ok && pilotScenarios.count >= 15
+        ? pass("مكتبة سيناريوهات الاختبار جاهزة", `العدد: ${pilotScenarios.count}`)
+        : warn("مكتبة السيناريوهات منقوصة", `العدد: ${pilotScenarios.count}`),
+      pilotResults.ok
+        ? pass("جدول نتائج الاختبارات جاهز", `العدد: ${pilotResults.count}`)
+        : fail("جدول نتائج الاختبارات غير متاح"),
+      pilotChecklist.ok && pilotChecklist.count >= 8
+        ? pass("القائمة اليومية للعمليات جاهزة", `العدد: ${pilotChecklist.count}`)
+        : warn("القائمة اليومية منقوصة", `العدد: ${pilotChecklist.count}`),
+      pilotIssues.ok
+        ? pass("تتبع المشاكل فعّال", `المسجلة: ${pilotIssues.count}`)
+        : fail("تتبع المشاكل غير متاح"),
+      pilotFeedback.ok
+        ? pass("تتبع الملاحظات فعّال", `المسجلة: ${pilotFeedback.count}`)
+        : fail("تتبع الملاحظات غير متاح"),
+      pass("تقارير التشغيل التجريبي متاحة", "CSV / Excel"),
+      pilotAudit.ok && pilotAudit.count > 0
+        ? pass("تكامل سجل التدقيق", `${pilotAudit.count} حدث`)
+        : warn("لا توجد أحداث تدقيق للتشغيل التجريبي بعد", "entity_type=pilot"),
+    ],
+  };
+
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
@@ -674,6 +718,7 @@ async function runChecks(): Promise<Section[]> {
     communicationsSection,
     executiveSection,
     automationSection,
+    pilotSection,
     opsSection, siteSection,
   ];
 

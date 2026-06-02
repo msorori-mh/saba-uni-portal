@@ -54,6 +54,7 @@ import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
+import { Route as AdminPilotCenterRouteImport } from './routes/admin/pilot-center'
 import { Route as AdminOperationsRouteImport } from './routes/admin/operations'
 import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
@@ -306,6 +307,11 @@ const AdminProgramsRoute = AdminProgramsRouteImport.update({
   path: '/programs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPilotCenterRoute = AdminPilotCenterRouteImport.update({
+  id: '/pilot-center',
+  path: '/pilot-center',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminOperationsRoute = AdminOperationsRouteImport.update({
   id: '/operations',
   path: '/operations',
@@ -475,6 +481,7 @@ export interface FileRoutesByFullPath {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -543,6 +550,7 @@ export interface FileRoutesByTo {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -616,6 +624,7 @@ export interface FileRoutesById {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -690,6 +699,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/operations'
+    | '/admin/pilot-center'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -758,6 +768,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/operations'
+    | '/admin/pilot-center'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -830,6 +841,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/operations'
+    | '/admin/pilot-center'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -1199,6 +1211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProgramsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/pilot-center': {
+      id: '/admin/pilot-center'
+      path: '/pilot-center'
+      fullPath: '/admin/pilot-center'
+      preLoaderRoute: typeof AdminPilotCenterRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/operations': {
       id: '/admin/operations'
       path: '/operations'
@@ -1402,6 +1421,7 @@ interface AdminRouteChildren {
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNewsRoute: typeof AdminNewsRoute
   AdminOperationsRoute: typeof AdminOperationsRoute
+  AdminPilotCenterRoute: typeof AdminPilotCenterRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
@@ -1445,6 +1465,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNewsRoute: AdminNewsRoute,
   AdminOperationsRoute: AdminOperationsRoute,
+  AdminPilotCenterRoute: AdminPilotCenterRoute,
   AdminProgramsRoute: AdminProgramsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,
