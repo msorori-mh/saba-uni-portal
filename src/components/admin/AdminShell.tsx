@@ -146,6 +146,7 @@ const groups: NavGroup[] = [
       { to: "/admin/users", label: "المستخدمون والصلاحيات", icon: UserCog },
       { to: "/admin/security-status", label: "حالة التأمين", icon: Lock },
       { to: "/admin/operations", label: "مركز العمليات", icon: Activity },
+      { to: "/admin/pilot-center", label: "إدارة التشغيل التجريبي", icon: Rocket },
       { to: "/admin/backup-status", label: "النسخ الاحتياطي", icon: Database },
       { to: "/admin/system-readiness", label: "جاهزية النظام", icon: ShieldCheck },
     ],
