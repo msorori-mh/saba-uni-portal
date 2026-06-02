@@ -718,6 +718,7 @@ async function runChecks(): Promise<Section[]> {
     communicationsSection,
     executiveSection,
     automationSection,
+    pilotSection,
     opsSection, siteSection,
   ];
 
