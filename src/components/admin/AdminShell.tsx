@@ -37,6 +37,14 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    id: "executive",
+    label: "القيادة التنفيذية",
+    icon: BarChart3,
+    items: [
+      { to: "/admin/executive-dashboard", label: "لوحة القيادة التنفيذية", icon: BarChart3 },
+    ],
+  },
+  {
     id: "academic",
     label: "الشؤون الأكاديمية",
     icon: GradCap,
