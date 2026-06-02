@@ -952,7 +952,7 @@ function TimetableViewsTab() {
       filename: `admin_schedule_${viewType}_${safe(yearName)}_${safe(semName)}.xlsx`,
       sheetName: "الجدول",
       header: [
-        ["جامعة سبأ", "كلية الإدارة والعلوم الإنسانية"],
+        [identity.university, identity.college],
         ["نوع العرض", VIEW_OPTIONS.find((v) => v.code === viewType)?.label ?? viewType],
         ["السنة الأكاديمية", yearName],
         ["الفصل", semName],
