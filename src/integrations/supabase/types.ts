@@ -104,6 +104,89 @@ export type Database = {
         }
         Relationships: []
       }
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      announcements: {
+        Row: {
+          announcement_type: string
+          content_ar: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          is_archived: boolean
+          publish_at: string
+          target_audience: string
+          target_department_ids: string[]
+          target_level_ids: string[]
+          target_program_ids: string[]
+          title_ar: string
+          updated_at: string
+        }
+        Insert: {
+          announcement_type?: string
+          content_ar: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_archived?: boolean
+          publish_at?: string
+          target_audience?: string
+          target_department_ids?: string[]
+          target_level_ids?: string[]
+          target_program_ids?: string[]
+          title_ar: string
+          updated_at?: string
+        }
+        Update: {
+          announcement_type?: string
+          content_ar?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          is_archived?: boolean
+          publish_at?: string
+          target_audience?: string
+          target_department_ids?: string[]
+          target_level_ids?: string[]
+          target_program_ids?: string[]
+          title_ar?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action_type: string
@@ -1189,6 +1272,39 @@ export type Database = {
           rows_success?: number
           rows_total?: number
           status?: string
+        }
+        Relationships: []
+      }
+      internal_messages: {
+        Row: {
+          id: string
+          is_read: boolean
+          message_body: string
+          read_at: string | null
+          recipient_user_id: string
+          sender_user_id: string
+          sent_at: string
+          subject: string
+        }
+        Insert: {
+          id?: string
+          is_read?: boolean
+          message_body: string
+          read_at?: string | null
+          recipient_user_id: string
+          sender_user_id: string
+          sent_at?: string
+          subject: string
+        }
+        Update: {
+          id?: string
+          is_read?: boolean
+          message_body?: string
+          read_at?: string | null
+          recipient_user_id?: string
+          sender_user_id?: string
+          sent_at?: string
+          subject?: string
         }
         Relationships: []
       }
@@ -3019,6 +3135,10 @@ export type Database = {
         Args: { _study_plan_id: string; _user_id: string }
         Returns: boolean
       }
+      can_send_internal_message: {
+        Args: { _recipient: string; _sender: string }
+        Returns: boolean
+      }
       cancel_official_document: {
         Args: { _document_id: string; _reason?: string }
         Returns: undefined
@@ -3114,6 +3234,10 @@ export type Database = {
       revert_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
+      }
+      user_can_see_announcement: {
+        Args: { _ann_id: string; _uid: string }
+        Returns: boolean
       }
       validate_financial_transaction: {
         Args: {

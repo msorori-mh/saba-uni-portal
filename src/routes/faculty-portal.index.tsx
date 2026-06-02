@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import collegeLogo from "@/assets/college-logo.jpg";
+import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 
 type FacultyProfileRow = {
   id: string;
@@ -154,8 +155,12 @@ function FacultyDashboard() {
               </div>
             </Link>
 
+            <div className="mt-6">
+              <AnnouncementsWidget limit={5} />
+            </div>
 
             <div className="mt-6">
+
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-gold" /> جدولي التدريسي
               </h2>

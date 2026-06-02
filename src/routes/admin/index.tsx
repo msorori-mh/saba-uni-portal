@@ -7,11 +7,12 @@ import {
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
   Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers, CalendarClock, DoorOpen,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
-  BarChart3, TrendingUp, Activity, HardDrive,
+  BarChart3, TrendingUp, Activity, HardDrive, Megaphone, MailOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
+import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -37,6 +38,12 @@ function AdminDashboard() {
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
   const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
+  const fetchCommStats = useServerFn(getCommunicationsDashboardStats);
+  const { data: commStats } = useQuery({
+    queryKey: ["admin-comm-stats"],
+    queryFn: () => fetchCommStats(),
+    staleTime: 60_000,
+  });
   const { data: progressKpis } = useQuery({
     queryKey: ["admin-progress-kpis"],
     queryFn: () => fetchProgressKpis(),
@@ -301,6 +308,15 @@ function AdminDashboard() {
       cards: [
         { label: "أعضاء هيئة التدريس", value: counts.faculty, icon: Users },
         { label: "الموظفون", value: counts.staff, icon: UserCog },
+      ],
+    },
+    {
+      title: "الاتصالات",
+      cards: [
+        { label: "إعلانات اليوم", value: commStats?.announcements_today ?? 0, icon: Megaphone, to: "/admin/communications" },
+        { label: "إعلانات نشطة", value: commStats?.active_announcements ?? 0, icon: Megaphone, to: "/admin/communications" },
+        { label: "إعلانات غير مقروءة", value: commStats?.unread_announcements ?? 0, icon: Bell, to: "/admin/communications" },
+        { label: "رسائل غير مقروءة", value: commStats?.unread_messages ?? 0, icon: MailOpen, to: "/messages" },
       ],
     },
     {

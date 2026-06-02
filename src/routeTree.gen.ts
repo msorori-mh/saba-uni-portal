@@ -16,6 +16,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as EventsRouteImport } from './routes/events'
@@ -69,6 +70,7 @@ import { Route as AdminDocumentsRouteImport } from './routes/admin/documents'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
+import { Route as AdminCommunicationsRouteImport } from './routes/admin/communications'
 import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-status'
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
@@ -109,6 +111,11 @@ const PortalLoginRoute = PortalLoginRouteImport.update({
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FacultyPortalRoute = FacultyPortalRouteImport.update({
@@ -378,6 +385,11 @@ const AdminContactsRoute = AdminContactsRouteImport.update({
   path: '/contacts',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminCommunicationsRoute = AdminCommunicationsRouteImport.update({
+  id: '/communications',
+  path: '/communications',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminBackupStatusRoute = AdminBackupStatusRouteImport.update({
   id: '/backup-status',
   path: '/backup-status',
@@ -419,6 +431,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
+  '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
@@ -431,6 +444,7 @@ export interface FileRoutesByFullPath {
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
+  '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -485,6 +499,7 @@ export interface FileRoutesByTo {
   '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
+  '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
@@ -495,6 +510,7 @@ export interface FileRoutesByTo {
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
+  '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -552,6 +568,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
+  '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
@@ -564,6 +581,7 @@ export interface FileRoutesById {
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
+  '/admin/communications': typeof AdminCommunicationsRoute
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -622,6 +640,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/faculty-portal'
+    | '/messages'
     | '/news'
     | '/portal-login'
     | '/research'
@@ -634,6 +653,7 @@ export interface FileRouteTypes {
     | '/admin/at-risk-students'
     | '/admin/audit-log'
     | '/admin/backup-status'
+    | '/admin/communications'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -688,6 +708,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/events'
     | '/faculty'
+    | '/messages'
     | '/news'
     | '/portal-login'
     | '/research'
@@ -698,6 +719,7 @@ export interface FileRouteTypes {
     | '/admin/at-risk-students'
     | '/admin/audit-log'
     | '/admin/backup-status'
+    | '/admin/communications'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -754,6 +776,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/faculty-portal'
+    | '/messages'
     | '/news'
     | '/portal-login'
     | '/research'
@@ -766,6 +789,7 @@ export interface FileRouteTypes {
     | '/admin/at-risk-students'
     | '/admin/audit-log'
     | '/admin/backup-status'
+    | '/admin/communications'
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
@@ -823,6 +847,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   FacultyRoute: typeof FacultyRoute
   FacultyPortalRoute: typeof FacultyPortalRouteWithChildren
+  MessagesRoute: typeof MessagesRoute
   NewsRoute: typeof NewsRouteWithChildren
   PortalLoginRoute: typeof PortalLoginRoute
   ResearchRoute: typeof ResearchRoute
@@ -882,6 +907,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faculty-portal': {
@@ -1255,6 +1287,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminContactsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/communications': {
+      id: '/admin/communications'
+      path: '/communications'
+      fullPath: '/admin/communications'
+      preLoaderRoute: typeof AdminCommunicationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/backup-status': {
       id: '/admin/backup-status'
       path: '/backup-status'
@@ -1306,6 +1345,7 @@ interface AdminRouteChildren {
   AdminAtRiskStudentsRoute: typeof AdminAtRiskStudentsRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
   AdminBackupStatusRoute: typeof AdminBackupStatusRoute
+  AdminCommunicationsRoute: typeof AdminCommunicationsRoute
   AdminContactsRoute: typeof AdminContactsRoute
   AdminCourseOfferingsRoute: typeof AdminCourseOfferingsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
@@ -1346,6 +1386,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAtRiskStudentsRoute: AdminAtRiskStudentsRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
   AdminBackupStatusRoute: AdminBackupStatusRoute,
+  AdminCommunicationsRoute: AdminCommunicationsRoute,
   AdminContactsRoute: AdminContactsRoute,
   AdminCourseOfferingsRoute: AdminCourseOfferingsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
@@ -1463,6 +1504,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   FacultyRoute: FacultyRoute,
   FacultyPortalRoute: FacultyPortalRouteWithChildren,
+  MessagesRoute: MessagesRoute,
   NewsRoute: NewsRouteWithChildren,
   PortalLoginRoute: PortalLoginRoute,
   ResearchRoute: ResearchRoute,
@@ -1475,13 +1517,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

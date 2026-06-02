@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { LogOut, User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
+import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 
 type StaffProfileRow = {
   employee_number: string | null;
@@ -97,6 +98,10 @@ function StaffDashboard() {
               <InfoCard icon={BadgeCheck} label="الحالة" value={statusLabel[profile.status] ?? profile.status} />
               <InfoCard icon={Briefcase} label="الوظيفة" value={profile.job_title} />
               <InfoCard icon={ShieldCheck} label="الدور" value={ROLE_LABEL[profile.role_type] ?? profile.role_type} />
+            </div>
+
+            <div className="mt-6">
+              <AnnouncementsWidget limit={5} />
             </div>
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">

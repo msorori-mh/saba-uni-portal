@@ -7,6 +7,7 @@ import {
   CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
   FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe, Wallet,
   ShieldCheck, ScrollText, Lock, Database, FileBadge, Upload, BarChart3, Activity, CalendarClock, TrendingUp, AlertCircle,
+  Megaphone,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -88,6 +89,15 @@ const groups: NavGroup[] = [
     icon: FileBadge,
     items: [
       { to: "/admin/documents", label: "جميع الوثائق", icon: FileText },
+    ],
+  },
+  {
+    id: "communications",
+    label: "الاتصالات",
+    icon: Megaphone,
+    items: [
+      { to: "/admin/communications", label: "مركز الاتصالات", icon: Megaphone },
+      { to: "/messages", label: "صندوق الرسائل", icon: MessageSquare },
     ],
   },
   {

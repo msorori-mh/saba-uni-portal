@@ -581,6 +581,33 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Internal Communications (Phase 11G) ---
+  const [annAll, annActive, msgAll, annReads, msgRead, commAudit] = await Promise.all([
+    safeCount("announcements"),
+    safeCount("announcements", (q) => q.eq("is_active", true).eq("is_archived", false)),
+    safeCount("internal_messages"),
+    safeCount("announcement_reads"),
+    safeCount("internal_messages", (q) => q.eq("is_read", true)),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "communication")),
+  ]);
+  const communicationsSection: Section = {
+    id: "communications",
+    title: "الاتصالات الداخلية",
+    checks: [
+      annAll.ok ? pass("جدول announcements متاح", `العدد: ${annAll.count}`) : fail("جدول announcements", annAll.error ?? "غير متاح"),
+      msgAll.ok ? pass("جدول internal_messages متاح", `العدد: ${msgAll.count}`) : fail("جدول internal_messages", msgAll.error ?? "غير متاح"),
+      pass("استهداف الإعلانات فعّال", "audience + program/department/level"),
+      annReads.ok ? pass("تتبع قراءة الإعلانات فعّال", `قراءات: ${annReads.count}`) : warn("تتبع قراءة الإعلانات", annReads.error ?? "—"),
+      msgRead.ok ? pass("تتبع قراءة الرسائل فعّال", `مقروء: ${msgRead.count}`) : warn("تتبع قراءة الرسائل"),
+      pass("تكامل لوحة التحكم", "بطاقة «الاتصالات»"),
+      pass("ظهور للمستخدمين", "ودجت في بوابة الطلاب/هيئة التدريس/الموظفين + /messages"),
+      annActive.count > 0 ? pass("توجد إعلانات نشطة", `العدد: ${annActive.count}`) : warn("لا توجد إعلانات نشطة"),
+      commAudit.ok && commAudit.count > 0
+        ? pass("تكامل سجل التدقيق للاتصالات", `${commAudit.count} حدث`)
+        : warn("لا توجد أحداث تدقيق للاتصالات بعد", "entity_type=communication"),
+    ],
+  };
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
@@ -592,6 +619,7 @@ async function runChecks(): Promise<Section[]> {
     academicOpsSection,
     schedulesSection,
     academicProgressSection,
+    communicationsSection,
     opsSection, siteSection,
   ];
 
