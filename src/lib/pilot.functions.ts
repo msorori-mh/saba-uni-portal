@@ -270,12 +270,13 @@ export const getPilotChecklist = createServerFn({ method: "POST" })
       sb.from("pilot_checklist_runs").select("item_id, completed, completed_at").eq("run_date", today),
     ]);
     if (items.error) throw new Error(items.error.message);
-    const rmap = new Map((runs.data ?? []).map((r: any) => [r.item_id, r]));
-    return (items.data ?? []).map((i: any) => ({
-      ...i,
-      completed_today: !!rmap.get(i.id)?.completed,
-      completed_at: rmap.get(i.id)?.completed_at ?? null,
-    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rmap = new Map<string, any>((runs.data ?? []).map((r: any) => [r.item_id, r]));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (items.data ?? []).map((i: any) => {
+      const r = rmap.get(i.id);
+      return { ...i, completed_today: !!r?.completed, completed_at: r?.completed_at ?? null };
+    });
   });
 
 export const togglePilotChecklist = createServerFn({ method: "POST" })
