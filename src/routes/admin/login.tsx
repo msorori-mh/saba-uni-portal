@@ -106,7 +106,7 @@ function AdminLoginPage() {
                       passwordRef.current?.focus();
                     }
                   }}
-                  className="pr-10 text-right"
+                  className="pr-10 text-right placeholder:text-muted-foreground/40"
                   autoComplete="email"
                   aria-label="البريد الإلكتروني"
                 />
