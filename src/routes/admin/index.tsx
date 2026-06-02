@@ -311,6 +311,15 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "الاتصالات",
+      cards: [
+        { label: "إعلانات اليوم", value: commStats?.announcements_today ?? 0, icon: Megaphone, to: "/admin/communications" },
+        { label: "إعلانات نشطة", value: commStats?.active_announcements ?? 0, icon: Megaphone, to: "/admin/communications" },
+        { label: "إعلانات غير مقروءة", value: commStats?.unread_announcements ?? 0, icon: Bell, to: "/admin/communications" },
+        { label: "رسائل غير مقروءة", value: commStats?.unread_messages ?? 0, icon: MailOpen, to: "/messages" },
+      ],
+    },
+    {
       title: "الخدمات",
       cards: [
         { label: "طلبات جديدة", value: counts.newReq, icon: FileWarning },
