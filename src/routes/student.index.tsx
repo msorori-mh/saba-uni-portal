@@ -7,6 +7,7 @@ import { StudentRequestsSection } from "@/components/portal/StudentRequestsSecti
 import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection";
 import { StudentDocumentsSection } from "@/components/portal/StudentDocumentsSection";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
+import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import collegeLogo from "@/assets/college-logo.jpg";
 
 type StudentRow = {
@@ -321,6 +322,8 @@ function StudentDashboard() {
               </h2>
               <UnofficialTranscript studentProfileId={profile.id} />
             </div>
+
+            <AnnouncementsWidget limit={5} />
 
             <StudentRequestsSection studentProfileId={profile.id} />
 

@@ -154,8 +154,12 @@ function FacultyDashboard() {
               </div>
             </Link>
 
+            <div className="mt-6">
+              <AnnouncementsWidget limit={5} />
+            </div>
 
             <div className="mt-6">
+
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-gold" /> جدولي التدريسي
               </h2>
