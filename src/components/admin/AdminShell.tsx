@@ -54,6 +54,7 @@ const groups: NavGroup[] = [
     label: "شؤون الطلاب",
     icon: FileWarning,
     items: [
+      { to: "/admin/students", label: "إدارة الطلاب", icon: GraduationCap },
       { to: "/admin/student-requests", label: "طلبات الطلاب", icon: FileWarning },
       { to: "/admin/request-types", label: "أنواع الطلبات", icon: ListChecks },
     ],

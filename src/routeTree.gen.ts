@@ -39,6 +39,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
 import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
+import { Route as AdminStudentsRouteImport } from './routes/admin/students'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
@@ -215,6 +216,11 @@ const AdminStudyPlansRoute = AdminStudyPlansRouteImport.update({
   path: '/study-plans',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminStudentsRoute = AdminStudentsRouteImport.update({
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminStudentRequestsRoute = AdminStudentRequestsRouteImport.update({
   id: '/student-requests',
   path: '/student-requests',
@@ -376,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
+  '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
@@ -428,6 +435,7 @@ export interface FileRoutesByTo {
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
+  '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
@@ -485,6 +493,7 @@ export interface FileRoutesById {
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
+  '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/transcripts': typeof AdminTranscriptsRoute
@@ -543,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/student-requests'
+    | '/admin/students'
     | '/admin/study-plans'
     | '/admin/system-readiness'
     | '/admin/transcripts'
@@ -595,6 +605,7 @@ export interface FileRouteTypes {
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/student-requests'
+    | '/admin/students'
     | '/admin/study-plans'
     | '/admin/system-readiness'
     | '/admin/transcripts'
@@ -651,6 +662,7 @@ export interface FileRouteTypes {
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/student-requests'
+    | '/admin/students'
     | '/admin/study-plans'
     | '/admin/system-readiness'
     | '/admin/transcripts'
@@ -899,6 +911,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudyPlansRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/students': {
+      id: '/admin/students'
+      path: '/students'
+      fullPath: '/admin/students'
+      preLoaderRoute: typeof AdminStudentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/student-requests': {
       id: '/admin/student-requests'
       path: '/student-requests'
@@ -1095,6 +1114,7 @@ interface AdminRouteChildren {
   AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
+  AdminStudentsRoute: typeof AdminStudentsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
   AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
   AdminTranscriptsRoute: typeof AdminTranscriptsRoute
@@ -1127,6 +1147,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSecurityStatusRoute: AdminSecurityStatusRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,
+  AdminStudentsRoute: AdminStudentsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,
   AdminSystemReadinessRoute: AdminSystemReadinessRoute,
   AdminTranscriptsRoute: AdminTranscriptsRoute,
