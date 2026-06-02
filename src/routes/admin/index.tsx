@@ -36,6 +36,12 @@ function docTypeLabel(t: string) {
 function AdminDashboard() {
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
+  const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
+  const { data: progressKpis } = useQuery({
+    queryKey: ["admin-progress-kpis"],
+    queryFn: () => fetchProgressKpis(),
+    staleTime: 5 * 60 * 1000,
+  });
   const { data: active } = useQuery({
     queryKey: ["active-user-counts"],
     queryFn: () => fetchActive(),
