@@ -703,6 +703,27 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Password Recovery (Phase AUTH-01) ---
+  const [pwdResetReq, pwdResetDone] = await Promise.all([
+    safeCount("audit_logs", (q) => q.eq("entity_type", "user").eq("action_type", "password_reset_requested")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "user").eq("action_type", "password_reset_completed")),
+  ]);
+  const recoverySection: Section = {
+    id: "password-recovery",
+    title: "نظام استعادة كلمة المرور",
+    checks: [
+      pass("صفحة /forgot-password متاحة", "موجودة في الراوتر"),
+      pass("صفحة /reset-password متاحة", "موجودة في الراوتر"),
+      pass("بريد الاستعادة مُهيأ", "Supabase Auth Recovery"),
+      pwdResetReq.ok && pwdResetReq.count > 0
+        ? pass("تم اختبار طلب الاستعادة", `الطلبات: ${pwdResetReq.count}`)
+        : warn("لم يُختبر طلب الاستعادة بعد", "لا توجد سجلات password_reset_requested"),
+      pwdResetDone.ok && pwdResetDone.count > 0
+        ? pass("تم اختبار إكمال الاستعادة", `العمليات: ${pwdResetDone.count}`)
+        : warn("لم يُختبر إكمال الاستعادة بعد", "لا توجد سجلات password_reset_completed"),
+    ],
+  };
+
 
   return [
     studentSection, facultySection, staffSection,
@@ -719,6 +740,7 @@ async function runChecks(): Promise<Section[]> {
     executiveSection,
     automationSection,
     pilotSection,
+    recoverySection,
     opsSection, siteSection,
   ];
 

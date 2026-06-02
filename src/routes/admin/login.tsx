@@ -140,6 +140,12 @@ function AdminLoginPage() {
               {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> جاري تسجيل الدخول...</> : "تسجيل الدخول"}
             </Button>
 
+            <div className="text-center pt-1">
+              <Link to="/forgot-password" className="text-xs font-bold text-primary hover:text-gold">
+                نسيت كلمة المرور؟
+              </Link>
+            </div>
+
             <p className="text-center text-xs text-muted-foreground pt-2">
               يقتصر الوصول على المسؤولين المعتمدين فقط
             </p>

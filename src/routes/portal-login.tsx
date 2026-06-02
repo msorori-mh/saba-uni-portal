@@ -250,6 +250,12 @@ function PortalLoginPage() {
                 )}
               </button>
 
+              <div className="text-center text-xs pt-2">
+                <Link to="/forgot-password" className="text-primary hover:text-gold font-bold">
+                  نسيت كلمة المرور؟
+                </Link>
+              </div>
+
               <div className="text-center text-xs text-muted-foreground border-t border-border pt-3">
                 <a href="mailto:support@it.saba.edu.ye" className="text-primary hover:text-gold font-bold">الدعم الفني</a>
               </div>
