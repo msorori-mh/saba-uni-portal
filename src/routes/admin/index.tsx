@@ -114,6 +114,21 @@ function AdminDashboard() {
     },
   });
 
+  const { data: scheduleStats } = useQuery({
+    queryKey: ["admin-schedule-stats"],
+    queryFn: async () => {
+      const [rooms, slots, published, sectionsAll, scheduledSectionRows] = await Promise.all([
+        tableCount("rooms", (q) => q.eq("is_active", true)),
+        tableCount("time_slots", (q) => q.eq("is_active", true)),
+        tableCount("class_schedule", (q) => q.eq("status", "published")),
+        tableCount("course_sections", (q) => q.eq("status", "active")),
+        supabase.from("class_schedule").select("course_section_id").in("status", ["draft", "published"]),
+      ]);
+      const scheduledIds = new Set(((scheduledSectionRows.data ?? []) as Array<{ course_section_id: string }>).map((r) => r.course_section_id));
+      return { rooms, slots, published, unscheduled: Math.max(0, sectionsAll - scheduledIds.size) };
+    },
+  });
+
   const { data: recentDocs } = useQuery({
     queryKey: ["admin-recent-documents"],
     queryFn: async () => {
