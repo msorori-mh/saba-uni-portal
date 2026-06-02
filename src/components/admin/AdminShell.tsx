@@ -48,6 +48,7 @@ const groups: NavGroup[] = [
       { to: "/admin/grades", label: "الدرجات", icon: ClipboardCheck },
       { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
       { to: "/admin/imports", label: "الاستيراد الجماعي", icon: Upload },
+      { to: "/admin/schedules", label: "الجداول الدراسية", icon: CalendarClock },
     ],
   },
   {
