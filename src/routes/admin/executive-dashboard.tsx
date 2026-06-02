@@ -128,8 +128,8 @@ function ExecutiveDashboardPage() {
       }
       return {
         students, activeStudents, faculty, sections,
-        currentYearName: (currentYear.data as { name_ar?: string } | null)?.name_ar ?? "غير محددة",
-        currentSemName: (currentSem.data as { name_ar?: string } | null)?.name_ar ?? "غير محدد",
+        currentYearName: (currentYear.data as { name?: string } | null)?.name ?? "غير محددة",
+        currentSemName: (currentSem.data as { name?: string } | null)?.name ?? "غير محدد",
         currentYearOk: !!currentYear.data,
         currentSemOk: !!currentSem.data,
         collectionRate, totalFees, paidFees, outstanding,
