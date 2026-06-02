@@ -272,17 +272,30 @@ function StudentDashboard() {
               <InfoCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} />
             </div>
 
-            <Link to="/student/schedule" className="mt-4 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
-              <div className="flex items-center gap-3">
-                <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                  <CalendarClock className="h-5 w-5" />
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <Link to="/student/schedule" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <CalendarClock className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-primary">جدولي الدراسي الأسبوعي</div>
+                    <div className="text-xs text-muted-foreground">المحاضرات المعتمدة هذا الفصل.</div>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-primary">جدولي الدراسي الأسبوعي</div>
-                  <div className="text-xs text-muted-foreground">عرض المحاضرات المعتمدة للمقررات المسجّلة هذا الفصل.</div>
+              </Link>
+              <Link to="/student/progress" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <GraduationCap className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-primary">تقدمي الأكاديمي</div>
+                    <div className="text-xs text-muted-foreground">الإنجاز، المعدل، وأهلية التخرج.</div>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            </div>
 
             <div className="mt-6">
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
