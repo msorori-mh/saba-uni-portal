@@ -122,10 +122,11 @@ export function Header() {
         <div className="lg:hidden border-t border-border bg-background">
           <nav className="container mx-auto flex flex-col px-4 py-3">
             <div className="grid grid-cols-1 gap-2 pb-3 border-b border-border">
-              {portalButtons.map(({ label, Icon, tone }) => (
+              {portalButtons.map(({ label, Icon, tone, type }) => (
                 <Link
                   key={label}
                   to="/portal-login"
+                  search={{ type }}
                   onClick={() => setOpen(false)}
                   className={
                     tone === "gold"
