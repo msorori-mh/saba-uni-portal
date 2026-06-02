@@ -17,9 +17,9 @@ const navItems = [
 ] as const;
 
 const portalButtons = [
-  { label: "دخول الطالب", Icon: GraduationCap, tone: "gold" as const },
-  { label: "دخول الأكاديمي", Icon: BookOpen, tone: "light" as const },
-  { label: "دخول الموظف", Icon: Briefcase, tone: "light" as const },
+  { label: "دخول الطالب", Icon: GraduationCap, tone: "gold" as const, type: "student" as const },
+  { label: "دخول الأكاديمي", Icon: BookOpen, tone: "light" as const, type: "faculty" as const },
+  { label: "دخول الموظف", Icon: Briefcase, tone: "light" as const, type: "staff" as const },
 ];
 
 export function Header() {
