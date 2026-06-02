@@ -477,7 +477,8 @@ function PortalAccessCard({ card }: { card: PortalCard }) {
 
   return (
     <Link
-      to={card.to}
+      to={card.to as any}
+      search={(card.search as any) ?? undefined}
       className={`group relative flex flex-col rounded-2xl border-2 bg-card p-4 md:p-5 shadow-elegant transition-all hover:-translate-y-1 ${s.ring}`}
     >
       <div className="flex items-center gap-3">
