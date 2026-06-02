@@ -17,7 +17,7 @@ export const Route = createFileRoute("/admin")({
       throw redirect({ to: "/admin/login" });
     }
     const { data: role } = await supabase
-      .from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
+      .from("user_roles").select("role").eq("user_id", data.user.id).in("role", ["admin", "system_admin"]).maybeSingle();
     if (!role) {
       await supabase.auth.signOut();
       throw redirect({ to: "/admin/login" });
