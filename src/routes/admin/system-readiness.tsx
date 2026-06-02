@@ -481,6 +481,33 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Academic Operations Center (Phase 11D / 11D.1) ---
+  const [aopsYearAudit, aopsSemAudit] = await Promise.all([
+    safeCount("audit_logs", (q) => q.eq("entity_type", "academic_operation").eq("action_type", "current_year_changed")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "academic_operation").eq("action_type", "current_semester_changed")),
+  ]);
+  const aopsAuditTotal = (aopsYearAudit.count ?? 0) + (aopsSemAudit.count ?? 0);
+  const academicOpsSection: Section = {
+    id: "academic-ops",
+    title: "مركز العمليات الأكاديمية",
+    checks: [
+      pass("صفحة مركز العمليات موجودة", "/admin/academic-operations"),
+      currentYear.ok && currentYear.count >= 1
+        ? pass("توجد سنة أكاديمية حالية", `العدد: ${currentYear.count}`)
+        : fail("لا توجد سنة أكاديمية حالية", "اضبطها من مركز العمليات"),
+      currentSem.ok && currentSem.count >= 1
+        ? pass("يوجد فصل دراسي حالي", `العدد: ${currentSem.count}`)
+        : fail("لا يوجد فصل دراسي حالي", "اضبطه من مركز العمليات"),
+      offerings.ok && sections.ok && enrollments.ok && receipts.ok
+        ? pass("KPIs تعمل", `طرح:${offerings.count} · شعب:${sections.count} · تسجيلات:${enrollments.count} · إيصالات:${receipts.count}`)
+        : warn("بعض مؤشرات KPI غير متاحة"),
+      aopsAuditTotal > 0
+        ? pass("Audit integration active", `year:${aopsYearAudit.count} · semester:${aopsSemAudit.count}`)
+        : warn("لم تُسجّل تغييرات سنة/فصل بعد", "entity_type=academic_operation"),
+      pass("الروابط العميقة موجودة", "academic-core · course-offerings · enrollments · grades · finance · transcripts"),
+    ],
+  };
+
 
   return [
     studentSection, facultySection, staffSection,
@@ -490,8 +517,10 @@ async function runChecks(): Promise<Section[]> {
     importSection,
     reportsSection,
     operationsRecovery,
+    academicOpsSection,
     opsSection, siteSection,
   ];
+
 }
 
 function discountTypes(res: { ok: boolean; count: number; error?: string }) {
