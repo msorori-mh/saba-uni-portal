@@ -285,6 +285,33 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
   );
 }
 
+function DemoHint({ accountType, onFill }: { accountType: AccountType; onFill: () => void }) {
+  const demo = DEMO_CREDENTIALS[accountType];
+  const label = accountType === "student" ? "حساب طالب تجريبي" : accountType === "faculty" ? "حساب مدرّس تجريبي" : "حساب موظف تجريبي";
+  return (
+    <div className="mt-4 rounded-2xl border border-gold/30 bg-white/[0.96] text-foreground p-4 shadow-card">
+      <div className="flex items-center gap-2 text-xs font-extrabold text-primary">
+        <Sparkles className="h-3.5 w-3.5 text-gold" /> {label}
+      </div>
+      <dl className="mt-3 grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-xs">
+        <dt className="text-muted-foreground">المعرّف:</dt>
+        <dd dir="ltr" className="font-mono font-bold text-primary text-left">{demo.identifier}</dd>
+        <dt className="text-muted-foreground">كلمة المرور:</dt>
+        <dd dir="ltr" className="font-mono font-bold text-primary text-left">{demo.password}</dd>
+      </dl>
+      <button
+        type="button"
+        onClick={onFill}
+        className="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-colors"
+      >
+        تعبئة تلقائية
+      </button>
+    </div>
+  );
+}
+
+
+
 async function resolveDestinationForUser(userId: string): Promise<string | null> {
   const [{ data: s }, { data: f }, { data: st }] = await Promise.all([
     supabase.from("student_profiles").select("user_id").eq("user_id", userId).maybeSingle(),
