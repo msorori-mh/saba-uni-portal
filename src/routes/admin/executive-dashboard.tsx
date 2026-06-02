@@ -1,13 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Users, GraduationCap, AlertCircle, UserCog, Layers, Wallet, Activity,
   CalendarClock, TrendingUp, BarChart3, ShieldCheck, CheckCircle2,
   AlertTriangle, XCircle, Info, ChevronLeft, FileBadge, FileWarning,
-  Crown,
+  Crown, FileDown, ArrowUpRight, ArrowDownRight, Minus,
 } from "lucide-react";
+import {
+  BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+} from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
@@ -16,6 +20,11 @@ import {
   logExecutiveDashboardViewed,
   getExecutiveScope,
 } from "@/lib/executive-dashboard.functions";
+import {
+  getExecutiveAnalytics,
+  logExecutiveExport,
+} from "@/lib/executive-analytics.functions";
+import { exportXlsx } from "@/lib/reports/export";
 
 export const Route = createFileRoute("/admin/executive-dashboard")({
   component: ExecutiveDashboardPage,
@@ -37,11 +46,72 @@ function SeverityIcon({ s }: { s: Severity }) {
   return <Info className="h-4 w-4 text-sky-600" />;
 }
 
+const CHART_COLORS = [
+  "oklch(0.55 0.18 255)", "oklch(0.65 0.18 145)", "oklch(0.7 0.18 60)",
+  "oklch(0.6 0.22 25)", "oklch(0.55 0.18 295)", "oklch(0.7 0.15 195)",
+  "oklch(0.6 0.18 340)", "oklch(0.5 0.12 220)",
+];
+
+function EmptyState({ label = "لا توجد بيانات كافية للتحليل" }: { label?: string }) {
+  return (
+    <div className="grid h-48 place-items-center text-xs text-muted-foreground">{label}</div>
+  );
+}
+
+function MiniBar({ data, dataKey = "value", nameKey = "label" }: { data: Array<{ label: string; value: number }>; dataKey?: string; nameKey?: string }) {
+  if (!data || data.length === 0) return <EmptyState />;
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.02 255)" />
+        <XAxis dataKey={nameKey} tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={50} />
+        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+        <Tooltip contentStyle={{ fontSize: 12, direction: "rtl" }} />
+        <Bar dataKey={dataKey} fill="oklch(0.55 0.18 255)" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function MiniPie({ data }: { data: Array<{ label: string; value: number }> }) {
+  if (!data || data.length === 0 || data.every((d) => d.value === 0)) return <EmptyState />;
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <PieChart>
+        <Pie data={data} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={(e: any) => `${e.label}: ${e.value}`}>
+          {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+        </Pie>
+        <Tooltip contentStyle={{ fontSize: 12, direction: "rtl" }} />
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+function TrendDelta({ current, previous, hasHistory, unit = "" }: { current: number; previous: number; hasHistory: boolean; unit?: string }) {
+  if (!hasHistory) return <div className="text-[11px] text-muted-foreground">لا توجد بيانات تاريخية كافية</div>;
+  const diff = current - previous;
+  const pct = previous > 0 ? Math.round((diff / previous) * 100) : (current > 0 ? 100 : 0);
+  const Icon = diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus;
+  const color = diff > 0 ? "text-emerald-600" : diff < 0 ? "text-destructive" : "text-muted-foreground";
+  return (
+    <div className="flex items-baseline gap-2">
+      <div className="font-display text-2xl font-extrabold text-primary">{current.toLocaleString()}{unit}</div>
+      <div className={cn("inline-flex items-center gap-0.5 text-xs font-bold", color)}>
+        <Icon className="h-3.5 w-3.5" /> {Math.abs(pct)}%
+      </div>
+      <div className="text-[11px] text-muted-foreground">سابق: {previous.toLocaleString()}{unit}</div>
+    </div>
+  );
+}
+
 function ExecutiveDashboardPage() {
   const logView = useServerFn(logExecutiveDashboardViewed);
   const fetchScope = useServerFn(getExecutiveScope);
   const fetchProgress = useServerFn(getProgressDashboardKpis);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
+  const fetchAnalytics = useServerFn(getExecutiveAnalytics);
+  const logExport = useServerFn(logExecutiveExport);
 
   useEffect(() => {
     logView().catch(() => {});
@@ -64,6 +134,12 @@ function ExecutiveDashboardPage() {
     queryFn: () => fetchAdminCounts(),
   });
 
+  const { data: analytics } = useQuery({
+    queryKey: ["exec-analytics"],
+    queryFn: () => fetchAnalytics(),
+    staleTime: 2 * 60 * 1000,
+  });
+
   const { data: core } = useQuery({
     queryKey: ["exec-core-kpis"],
     queryFn: async () => {
@@ -77,10 +153,10 @@ function ExecutiveDashboardPage() {
       ] = await Promise.all([
         tableCount("student_profiles"),
         tableCount("student_profiles", (q) => q.eq("status", "active")),
-        tableCount("faculty_profiles", (q) => q.eq("is_active", true)),
+        tableCount("faculty_profiles", (q) => q.eq("status", "active")),
         tableCount("course_sections", (q) => q.eq("status", "active")),
-        supabase.from("academic_years").select("name_ar, name_en").eq("is_current", true).maybeSingle(),
-        supabase.from("semesters").select("name_ar, name_en").eq("is_current", true).maybeSingle(),
+        supabase.from("academic_years").select("name").eq("is_current", true).maybeSingle(),
+        supabase.from("semesters").select("name").eq("is_current", true).maybeSingle(),
         supabase.from("student_fees").select("amount"),
         supabase.from("student_fees").select("amount").eq("status", "paid"),
         tableCount("student_profiles", (q) => q.is("program_id", null)),
@@ -119,8 +195,8 @@ function ExecutiveDashboardPage() {
       }
       return {
         students, activeStudents, faculty, sections,
-        currentYearName: (currentYear.data as { name_ar?: string } | null)?.name_ar ?? "غير محددة",
-        currentSemName: (currentSem.data as { name_ar?: string } | null)?.name_ar ?? "غير محدد",
+        currentYearName: (currentYear.data as { name?: string } | null)?.name ?? "غير محددة",
+        currentSemName: (currentSem.data as { name?: string } | null)?.name ?? "غير محدد",
         currentYearOk: !!currentYear.data,
         currentSemOk: !!currentSem.data,
         collectionRate, totalFees, paidFees, outstanding,
@@ -170,6 +246,92 @@ function ExecutiveDashboardPage() {
     { to: "/admin/reports", label: "مركز التقارير", icon: BarChart3 },
     { to: "/admin/operations", label: "مركز العمليات", icon: ShieldCheck },
   ];
+
+  // Derived analytics summary numbers
+  const studentTotals = analytics?.students.total ?? 0;
+  const studentRatios = useMemo(() => {
+    if (!analytics || studentTotals === 0) {
+      return { activeRatio: 0, gradReadiness: 0, atRiskRatio: 0 };
+    }
+    return {
+      activeRatio: Math.round((analytics.students.active / studentTotals) * 100),
+      gradReadiness: Math.round(((progress?.gradCandidates ?? 0) / studentTotals) * 100),
+      atRiskRatio: Math.round(((progress?.atRisk ?? 0) / studentTotals) * 100),
+    };
+  }, [analytics, studentTotals, progress]);
+
+  // Export helpers
+  async function doExport(section: "students" | "academic" | "faculty" | "financial" | "summary") {
+    if (!analytics) return;
+    let rows: Array<Record<string, string | number>> = [];
+    let name = "executive";
+    if (section === "students") {
+      name = "تحليل_الطلاب";
+      rows = [
+        ...analytics.students.byProgram.map((r) => ({ النوع: "حسب البرنامج", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byDepartment.map((r) => ({ النوع: "حسب القسم", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byLevel.map((r) => ({ النوع: "حسب المستوى", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byStatus.map((r) => ({ النوع: "حسب الحالة", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byAcademicStatus.map((r) => ({ النوع: "الحالة الأكاديمية", التصنيف: r.label, العدد: r.value })),
+      ];
+    } else if (section === "academic") {
+      name = "الأداء_الأكاديمي";
+      rows = [
+        { المؤشر: "متوسط GPA", القيمة: progress?.avgGpa ?? 0 },
+        { المؤشر: "الطلاب المتعثرون", القيمة: progress?.atRisk ?? 0 },
+        { المؤشر: "مرشحو التخرج", القيمة: progress?.gradCandidates ?? 0 },
+        { المؤشر: "قرب التخرج", القيمة: progress?.nearCompletion ?? 0 },
+        { المؤشر: "العيّنة", القيمة: progress?.sampled ?? 0 },
+      ];
+    } else if (section === "faculty") {
+      name = "تحليل_هيئة_التدريس";
+      rows = [
+        { المؤشر: "إجمالي", القيمة: analytics.faculty.total },
+        { المؤشر: "النشطون", القيمة: analytics.faculty.active },
+        { المؤشر: "متوسط الحمل", القيمة: analytics.faculty.avgLoad },
+        { المؤشر: "شعب بدون أستاذ", القيمة: analytics.faculty.unassignedSections },
+        ...analytics.faculty.byDepartment.map((r) => ({ المؤشر: `قسم: ${r.label}`, القيمة: r.value })),
+        ...analytics.faculty.loadDistribution.map((r) => ({ المؤشر: `حمل ${r.label}`, القيمة: r.value })),
+      ];
+    } else if (section === "financial") {
+      name = "المؤشرات_المالية";
+      rows = [
+        { المؤشر: "إجمالي الرسوم", القيمة: analytics.finance.totalFees },
+        { المؤشر: "المحصّل", القيمة: analytics.finance.paidAmount },
+        { المؤشر: "المتبقي", القيمة: analytics.finance.outstanding },
+        { المؤشر: "نسبة التحصيل %", القيمة: analytics.finance.collectionRate },
+        { المؤشر: "طلاب عليهم رصيد", القيمة: analytics.finance.studentsWithBalance },
+        ...analytics.finance.outstandingByProgram.map((r) => ({ المؤشر: `متبقي - ${r.label}`, القيمة: r.value })),
+      ];
+    } else {
+      name = "ملخص_تنفيذي";
+      rows = [
+        { القسم: "طلاب", المؤشر: "الإجمالي", القيمة: analytics.students.total },
+        { القسم: "طلاب", المؤشر: "النشطون", القيمة: analytics.students.active },
+        { القسم: "أكاديمي", المؤشر: "متوسط GPA", القيمة: progress?.avgGpa ?? 0 },
+        { القسم: "أكاديمي", المؤشر: "مرشحو التخرج", القيمة: progress?.gradCandidates ?? 0 },
+        { القسم: "أكاديمي", المؤشر: "متعثرون", القيمة: progress?.atRisk ?? 0 },
+        { القسم: "هيئة تدريس", المؤشر: "النشطون", القيمة: analytics.faculty.active },
+        { القسم: "هيئة تدريس", المؤشر: "متوسط الحمل", القيمة: analytics.faculty.avgLoad },
+        { القسم: "مالي", المؤشر: "نسبة التحصيل %", القيمة: analytics.finance.collectionRate },
+        { القسم: "مالي", المؤشر: "المتبقي", القيمة: analytics.finance.outstanding },
+      ];
+    }
+    await exportXlsx(name, rows);
+    try { await logExport({ data: { section, rowCount: rows.length, format: "xlsx" } }); } catch { /* best-effort */ }
+  }
+
+  function ExportBtn({ section, label }: { section: "students" | "academic" | "faculty" | "financial" | "summary"; label?: string }) {
+    return (
+      <button
+        type="button"
+        onClick={() => doExport(section)}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-secondary"
+      >
+        <FileDown className="h-3 w-3" /> {label ?? "Excel"}
+      </button>
+    );
+  }
 
   return (
     <div dir="rtl" className="space-y-8">
@@ -292,6 +454,203 @@ function ExecutiveDashboardPage() {
         </div>
       </section>
 
+      {/* Phase 11H.1B — Student Analytics */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">تحليل الطلاب</h2>
+          <ExportBtn section="students" />
+        </div>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : analytics.students.total === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">إجمالي الطلاب</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{analytics.students.total}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">نسبة النشطين</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-emerald-600">{studentRatios.activeRatio}%</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">جاهزية التخرج</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-sky-600">{studentRatios.gradReadiness}%</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">نسبة المتعثرين</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-destructive">{studentRatios.atRiskRatio}%</div>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب البرنامج</div>
+                <MiniBar data={analytics.students.byProgram} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب القسم</div>
+                <MiniBar data={analytics.students.byDepartment} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب المستوى</div>
+                <MiniBar data={analytics.students.byLevel} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب الحالة الأكاديمية</div>
+                <MiniPie data={analytics.students.byAcademicStatus} />
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Academic Performance */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">الأداء الأكاديمي</h2>
+          <ExportBtn section="academic" />
+        </div>
+        {!progress ? <EmptyState label="جاري التحميل..." /> : (progress.sampled ?? 0) === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">متوسط GPA</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{progress.avgGpa.toFixed(2)}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">المتعثرون</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-destructive">{progress.atRisk}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">قرب التخرج</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-amber-600">{progress.nearCompletion}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">مرشحو التخرج</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-emerald-600">{progress.gradCandidates}</div>
+              </div>
+            </div>
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              العيّنة: {progress.sampled} طالب — يعتمد على محرّك التقدم الأكاديمي (academic-status engine).
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Faculty Analytics */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">تحليل أعضاء هيئة التدريس</h2>
+          <ExportBtn section="faculty" />
+        </div>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : analytics.faculty.total === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">الإجمالي</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{analytics.faculty.total}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">النشطون</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-emerald-600">{analytics.faculty.active}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">متوسط الحمل</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{analytics.faculty.avgLoad}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">شعب بدون أستاذ</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-destructive">{analytics.faculty.unassignedSections}</div>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">هيئة التدريس حسب القسم</div>
+                <MiniBar data={analytics.faculty.byDepartment} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">توزيع الحمل التدريسي</div>
+                <MiniBar data={analytics.faculty.loadDistribution} />
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Financial Analytics */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">المؤشرات المالية</h2>
+          <ExportBtn section="financial" />
+        </div>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : analytics.finance.totalFees === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-6">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">إجمالي الرسوم</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-primary">{analytics.finance.totalFees.toLocaleString()}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">المحصّل</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-emerald-600">{analytics.finance.paidAmount.toLocaleString()}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">المتبقي</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-destructive">{analytics.finance.outstanding.toLocaleString()}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">نسبة التحصيل</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-primary">{analytics.finance.collectionRate}%</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">طلاب عليهم رصيد</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-amber-600">{analytics.finance.studentsWithBalance}</div>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">المدفوع مقابل المتبقي</div>
+                <MiniPie data={[
+                  { label: "محصّل", value: analytics.finance.paidAmount },
+                  { label: "متبقي", value: analytics.finance.outstanding },
+                ]} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">المتبقي حسب البرنامج</div>
+                <MiniBar data={analytics.finance.outstandingByProgram} />
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Trends */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <h2 className="font-display text-base font-bold text-primary mb-4">الاتجاهات (الفصل الحالي vs السابق)</h2>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">التسجيلات</div>
+              <TrendDelta {...analytics.trends.enrollments} />
+            </div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">الإيرادات</div>
+              <TrendDelta {...analytics.trends.revenue} />
+            </div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">طلبات الطلاب</div>
+              <TrendDelta {...analytics.trends.requests} />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Executive summary export */}
+      <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-card flex items-center justify-between gap-3">
+        <div className="text-sm font-bold text-primary inline-flex items-center gap-2">
+          <FileDown className="h-4 w-4" /> تصدير ملخص تنفيذي شامل
+        </div>
+        <ExportBtn section="summary" label="تنزيل Excel" />
+      </section>
+
       {/* Quick Links */}
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
         <h2 className="font-display text-base font-bold text-primary mb-4">وصول سريع</h2>
@@ -315,7 +674,7 @@ function ExecutiveDashboardPage() {
 
       <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
         <FileWarning className="h-3.5 w-3.5" />
-        هذه اللوحة للقراءة فقط — لا تتضمن أي إجراءات تشغيلية. الرسوم البيانية والتحليلات المتقدمة ضمن Phase 11H.1B.
+        هذه اللوحة للقراءة فقط — تشمل KPIs، تنبيهات، تحليلات بيانية، اتجاهات، وتصدير Excel. لا تتضمن أي إجراءات تشغيلية.
       </div>
     </div>
   );
