@@ -97,7 +97,7 @@ function AdminLoginPage() {
                   type="email"
                   required
                   dir="ltr"
-                  placeholder="admin@usr.edu.ye"
+                  placeholder="name@usr.edu.ye"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   onKeyDown={(e) => {
