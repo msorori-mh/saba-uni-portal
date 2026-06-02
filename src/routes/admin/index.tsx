@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
 import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
+import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
