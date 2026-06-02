@@ -147,8 +147,8 @@ function ExecutiveDashboardPage() {
     alerts.push({ id: "grads", severity: "info", title: "مرشحون للتخرج", detail: `${progress.gradCandidates}`, href: "/admin/graduation-candidates" });
   }
   if (adminCounts) {
-    if ((adminCounts.admins ?? 0) < 2) alerts.push({ id: "admin-low", severity: "critical", title: "عدد المدراء أقل من 2", detail: `الحالي: ${adminCounts.admins ?? 0}`, href: "/admin/users" });
-    if ((adminCounts.systemAdmins ?? 0) === 0) alerts.push({ id: "sa-zero", severity: "critical", title: "لا يوجد مدير نظام", href: "/admin/users" });
+    if ((adminCounts.admin ?? 0) < 2) alerts.push({ id: "admin-low", severity: "critical", title: "عدد المدراء أقل من 2", detail: `الحالي: ${adminCounts.admin ?? 0}`, href: "/admin/users" });
+    if ((adminCounts.system_admin ?? 0) === 0) alerts.push({ id: "sa-zero", severity: "critical", title: "لا يوجد مدير نظام", href: "/admin/users" });
   }
 
   const kpis = [
