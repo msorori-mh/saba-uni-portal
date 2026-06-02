@@ -21,6 +21,7 @@ type StudentInfo = {
   full_name_ar: string;
   academic_number: string;
   program?: string | null;
+  level?: string | null;
   year?: string | null;
   semester?: string | null;
 };
@@ -35,14 +36,27 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | n
   if (!sp?.id) return { rows: [], info: null };
 
   const [{ data: cy }, { data: cs }] = await Promise.all([
-    supabase.from("academic_years").select("name").eq("is_current", true).maybeSingle(),
-    supabase.from("semesters").select("name").eq("is_current", true).maybeSingle(),
+    supabase.from("academic_years").select("id, name").eq("is_current", true).maybeSingle(),
+    supabase.from("semesters").select("id, name").eq("is_current", true).maybeSingle(),
   ]);
+
+  let levelName: string | null = null;
+  if (cy?.id && cs?.id) {
+    const { data: sas } = await supabase
+      .from("student_academic_status")
+      .select("level:academic_levels(name)")
+      .eq("student_profile_id", (sp as any).id)
+      .eq("academic_year_id", cy.id)
+      .eq("semester_id", cs.id)
+      .maybeSingle();
+    levelName = (sas as any)?.level?.name ?? null;
+  }
 
   const info: StudentInfo = {
     full_name_ar: (sp as any).full_name_ar,
     academic_number: (sp as any).academic_number,
     program: (sp as any).program?.name_ar ?? null,
+    level: levelName,
     year: cy?.name ?? null,
     semester: cs?.name ?? null,
   };
