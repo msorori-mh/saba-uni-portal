@@ -17,6 +17,7 @@ import { Route as ResearchRouteImport } from './routes/research'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as EventsRouteImport } from './routes/events'
@@ -119,6 +120,11 @@ const NewsRoute = NewsRouteImport.update({
 const MessagesRoute = MessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FacultyPortalRoute = FacultyPortalRouteImport.update({
@@ -449,6 +455,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
@@ -520,6 +527,7 @@ export interface FileRoutesByTo {
   '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
@@ -592,6 +600,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
@@ -667,6 +676,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/faculty-portal'
+    | '/forgot-password'
     | '/messages'
     | '/news'
     | '/portal-login'
@@ -738,6 +748,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/events'
     | '/faculty'
+    | '/forgot-password'
     | '/messages'
     | '/news'
     | '/portal-login'
@@ -809,6 +820,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/faculty-portal'
+    | '/forgot-password'
     | '/messages'
     | '/news'
     | '/portal-login'
@@ -883,6 +895,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   FacultyRoute: typeof FacultyRoute
   FacultyPortalRoute: typeof FacultyPortalRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   MessagesRoute: typeof MessagesRoute
   NewsRoute: typeof NewsRouteWithChildren
   PortalLoginRoute: typeof PortalLoginRoute
@@ -950,6 +963,13 @@ declare module '@tanstack/react-router' {
       path: '/messages'
       fullPath: '/messages'
       preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faculty-portal': {
@@ -1567,6 +1587,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   FacultyRoute: FacultyRoute,
   FacultyPortalRoute: FacultyPortalRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   MessagesRoute: MessagesRoute,
   NewsRoute: NewsRouteWithChildren,
   PortalLoginRoute: PortalLoginRoute,
