@@ -142,6 +142,19 @@ function FacultyDashboard() {
               <InfoCard icon={BookOpen} label="الصفة/المنصب" value={profile.position_title ?? "—"} />
             </div>
 
+            <Link to="/faculty-portal/schedule" className="mt-4 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                  <CalendarClock className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-primary">جدول التدريس الأسبوعي</div>
+                  <div className="text-xs text-muted-foreground">عرض الفترات الزمنية والقاعات والمحاضرات المسندة إليك.</div>
+                </div>
+              </div>
+            </Link>
+
+
             <div className="mt-6">
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-gold" /> جدولي التدريسي
