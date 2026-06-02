@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { loadXLSX } from "@/lib/xlsx-loader";
 import { supabase } from "@/integrations/supabase/client";
 
 export const DAYS: Array<{ code: string; label: string }> = [
@@ -31,13 +31,14 @@ export type ScheduleRow = {
 };
 
 /** Build & download an xlsx for a schedule list. */
-export function exportScheduleXlsx(opts: {
+export async function exportScheduleXlsx(opts: {
   filename: string;
   sheetName?: string;
   header: Array<[string, string]>; // [label, value]
   rows: ScheduleRow[];
   includeFaculty?: boolean;
 }) {
+  const XLSX = await loadXLSX();
   const wb = XLSX.utils.book_new();
   const aoa: any[][] = [];
   for (const [k, v] of opts.header) aoa.push([k, v]);

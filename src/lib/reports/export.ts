@@ -1,5 +1,6 @@
 // Phase 10B: client-side export utilities for reports (CSV + XLSX).
-import * as XLSX from "xlsx";
+// Phase PERF-01: xlsx is lazy-loaded on demand.
+import { loadXLSX } from "@/lib/xlsx-loader";
 import { logReportEvent } from "./report-audit.functions";
 
 export type ExportRow = Record<string, string | number | null | undefined>;
@@ -27,6 +28,7 @@ export async function logReportView(reportName: string) {
 }
 
 export async function exportCsv(reportName: string, rows: ExportRow[]) {
+  const XLSX = await loadXLSX();
   const ws = XLSX.utils.json_to_sheet(rows);
   const csv = XLSX.utils.sheet_to_csv(ws);
   // BOM for Excel to detect UTF-8 (Arabic)
@@ -36,6 +38,7 @@ export async function exportCsv(reportName: string, rows: ExportRow[]) {
 }
 
 export async function exportXlsx(reportName: string, rows: ExportRow[]) {
+  const XLSX = await loadXLSX();
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Report");

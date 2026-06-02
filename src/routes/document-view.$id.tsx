@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import QRCode from "qrcode";
+// QRCode is lazy-loaded (Phase PERF-01) — pulled in only when a document renders.
 import { Loader2, Printer, ArrowRight, XCircle, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { logDocumentAction } from "@/lib/document-audit.functions";
@@ -112,14 +112,17 @@ function DocumentViewPage() {
     },
   });
 
-  // Generate QR code data URL pointing to verification page
+  // Generate QR code data URL pointing to verification page (lazy-loaded qrcode lib)
   useEffect(() => {
     if (!data?.doc?.verification_code) return;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const url = `${origin}/verify-document?code=${encodeURIComponent(data.doc.verification_code)}`;
-    QRCode.toDataURL(url, { width: 240, margin: 1, errorCorrectionLevel: "M" })
-      .then((u) => setQrDataUrl(u))
-      .catch(() => setQrDataUrl(null));
+    let cancelled = false;
+    import("qrcode")
+      .then((mod) => mod.default.toDataURL(url, { width: 240, margin: 1, errorCorrectionLevel: "M" }))
+      .then((u) => { if (!cancelled) setQrDataUrl(u); })
+      .catch(() => { if (!cancelled) setQrDataUrl(null); });
+    return () => { cancelled = true; };
   }, [data?.doc?.verification_code]);
 
   // Best-effort: log print event (browser fires beforeprint on Ctrl+P too)

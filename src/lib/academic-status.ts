@@ -20,11 +20,11 @@ export async function logAcademicAudit(action: AcademicAuditAction, notes: strin
   } catch { /* ignore */ }
 }
 
-import * as XLSX from "xlsx";
+import { loadXLSX } from "@/lib/xlsx-loader";
 
 export type ExportRow = Record<string, string | number>;
 
-export function exportProgressXlsx({
+export async function exportProgressXlsx({
   filename, sheetName, header, rows,
 }: {
   filename: string;
@@ -32,6 +32,7 @@ export function exportProgressXlsx({
   header: Array<[string, string]>;
   rows: ExportRow[];
 }) {
+  const XLSX = await loadXLSX();
   const wb = XLSX.utils.book_new();
   const headerAoA = header.map(([k, v]) => [k, v]);
   const empty = [[""]];

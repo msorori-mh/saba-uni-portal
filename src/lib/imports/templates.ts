@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { loadXLSX } from "@/lib/xlsx-loader";
 import type { ImportType } from "./types";
 
 type TemplateDef = {
@@ -67,7 +67,8 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
 };
 
-export function downloadTemplate(type: ImportType) {
+export async function downloadTemplate(type: ImportType) {
+  const XLSX = await loadXLSX();
   const def = TEMPLATES[type];
   const wb = XLSX.utils.book_new();
   const wsData = [def.headers, def.sample];
@@ -86,8 +87,9 @@ export function downloadTemplate(type: ImportType) {
 export function parseExcel(file: File): Promise<Record<string, unknown>[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        const XLSX = await loadXLSX();
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: "array" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
