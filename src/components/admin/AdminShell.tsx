@@ -6,7 +6,7 @@ import {
   MessageSquare, Settings, LogOut, Menu, GraduationCap, ChevronLeft, ChevronDown,
   CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
   FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe, Wallet,
-  ShieldCheck, ScrollText, Lock, Database, FileBadge, Upload, BarChart3, Activity,
+  ShieldCheck, ScrollText, Lock, Database, FileBadge, Upload, BarChart3, Activity, CalendarClock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
