@@ -608,9 +608,12 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
-  // --- Executive Dashboard (Phase 11H.1A) ---
+  // --- Executive Dashboard (Phase 11H.1A + 11H.1B) ---
   const execAuditViews = await safeCount("audit_logs", (q) =>
     q.eq("entity_type", "executive_dashboard").eq("action_type", "executive_dashboard_viewed"),
+  );
+  const execAuditExports = await safeCount("audit_logs", (q) =>
+    q.eq("entity_type", "executive_dashboard").eq("action_type", "executive_analytics_exported"),
   );
   const executiveSection: Section = {
     id: "executive",
@@ -620,9 +623,18 @@ async function runChecks(): Promise<Section[]> {
       pass("محرّك مؤشرات KPI فعّال", "يستخدم محركات موجودة (academic-status + counts)"),
       pass("محرّك التنبيهات التنفيذية فعّال", "critical/warning/info"),
       pass("تكامل مركز العمليات فعّال", "السنة/الفصل + آخر نشاط + جاهزية"),
+      pass("محرّك تحليلات الطلاب فعّال", "by program/department/level/status/academic"),
+      pass("محرّك تحليلات الأداء الأكاديمي فعّال", "reuses academic-status engine"),
+      pass("محرّك تحليلات هيئة التدريس فعّال", "by department + load distribution"),
+      pass("محرّك التحليلات المالية فعّال", "collection rate + outstanding by program"),
+      pass("محرّك الاتجاهات فعّال", "current vs previous semester"),
+      pass("محرّك تصدير Excel فعّال", "5 أقسام (students/academic/faculty/financial/summary)"),
       execAuditViews.ok && execAuditViews.count > 0
-        ? pass("تكامل سجل التدقيق التنفيذي", `زيارات: ${execAuditViews.count}`)
+        ? pass("تكامل سجل التدقيق التنفيذي - عرض", `زيارات: ${execAuditViews.count}`)
         : warn("لم تُسجّل زيارات للوحة التنفيذية بعد", "entity_type=executive_dashboard"),
+      execAuditExports.ok && execAuditExports.count > 0
+        ? pass("تكامل سجل التدقيق التنفيذي - تصدير", `عمليات: ${execAuditExports.count}`)
+        : warn("لم تُسجّل عمليات تصدير بعد", "action_type=executive_analytics_exported"),
     ],
   };
 
