@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
-import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList } from "@/components/schedule/ScheduleView";
+import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList, useSiteIdentity } from "@/components/schedule/ScheduleView";
 
 export const Route = createFileRoute("/admin/schedules")({
   head: () => ({ meta: [{ title: "الجداول الدراسية — لوحة الإدارة" }] }),
