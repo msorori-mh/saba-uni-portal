@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CalendarClock, Loader2, ArrowRight, Printer, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
-import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList } from "@/components/schedule/ScheduleView";
+import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList, useSiteIdentity } from "@/components/schedule/ScheduleView";
 
 export const Route = createFileRoute("/faculty-portal/schedule")({
   head: () => ({
