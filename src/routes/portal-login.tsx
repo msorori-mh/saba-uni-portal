@@ -263,6 +263,19 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
             </form>
           </div>
 
+          <DemoHint
+            accountType={accountType}
+            onFill={() => {
+              const demo = DEMO_CREDENTIALS[accountType];
+              setIdentifier(demo.identifier);
+              setPassword(demo.password);
+              setError(null);
+              passwordRef.current?.focus();
+            }}
+          />
+
+
+
           <Link to="/" className="mt-4 block text-center text-sm text-primary-foreground/70 hover:text-gold">
             ← العودة إلى الموقع الرئيسي
           </Link>
