@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
+import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
