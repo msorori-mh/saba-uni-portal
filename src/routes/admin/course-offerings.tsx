@@ -36,10 +36,6 @@ type Section = {
   id: string; course_offering_id: string; section_code: string;
   faculty_profile_id: string | null; capacity: number | null; status: string;
 };
-type Schedule = {
-  id: string; course_section_id: string; day_of_week: string;
-  start_time: string; end_time: string; room: string | null; schedule_type: string;
-};
 
 const DAYS = [
   { code: "saturday", label: "السبت" },
