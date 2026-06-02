@@ -216,7 +216,6 @@ export const getExecutiveAnalytics = createServerFn({ method: "POST" })
         outstandingByProgram,
       },
       trends,
-      currentSemId,
     };
   });
 
