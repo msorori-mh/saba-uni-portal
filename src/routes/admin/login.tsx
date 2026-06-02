@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { GraduationCap, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { GraduationCap, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { friendlyAuthError } from "@/components/auth/IdentifierInput";
 
 export const Route = createFileRoute("/admin/login")({
   head: () => ({
