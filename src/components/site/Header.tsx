@@ -74,10 +74,11 @@ export function Header() {
 
         {/* Portal buttons — desktop */}
         <div className="hidden lg:flex items-center gap-1.5">
-          {portalButtons.map(({ label, Icon, tone }) => (
+          {portalButtons.map(({ label, Icon, tone, type }) => (
             <Link
               key={label}
               to="/portal-login"
+              search={{ type }}
               className={
                 tone === "gold"
                   ? "inline-flex items-center gap-1.5 rounded-md bg-gold-gradient px-3.5 py-2 text-[12px] font-extrabold text-primary-deep transition-all hover:-translate-y-0.5 shadow-gold"
