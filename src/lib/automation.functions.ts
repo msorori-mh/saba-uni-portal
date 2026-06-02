@@ -149,34 +149,24 @@ export const getAutomationPreview = createServerFn({ method: "POST" })
       }
     }
 
-    // ---- Progression preview (academic standing distribution) ----
-    const standingCounts: Record<string, number> = {
-      good_standing: 0,
-      warning: 0,
-      probation: 0,
-      suspended: 0,
-      graduated: 0,
-    };
-    const { data: standings } = await sb
-      .from("student_academic_status")
-      .select("standing");
-    for (const s of standings ?? []) {
-      const k = (s as { standing: string }).standing;
-      if (k in standingCounts) standingCounts[k] += 1;
-    }
+    // ---- Progression preview (by student_profiles.status) ----
+    const profileStatuses = ["active", "warning", "probation", "suspended", "graduated", "withdrawn"];
+    const standingCounts: Record<string, number> = Object.fromEntries(profileStatuses.map((s) => [s, 0]));
+    const statusResults = await Promise.all(
+      profileStatuses.map((status) =>
+        sb.from("student_profiles").select("id", { count: "exact", head: true }).eq("status", status),
+      ),
+    );
+    profileStatuses.forEach((s, i) => {
+      standingCounts[s] = statusResults[i].count ?? 0;
+    });
 
-    // ---- Graduation preview ----
-    const { count: gradEligibleCount } = await sb
-      .from("student_academic_status")
-      .select("id", { count: "exact", head: true })
-      .eq("standing", "good_standing")
-      .gte("completion_percentage", 95);
-
-    const { count: nearGradCount } = await sb
-      .from("student_academic_status")
-      .select("id", { count: "exact", head: true })
-      .gte("completion_percentage", 80)
-      .lt("completion_percentage", 95);
+    // ---- Graduation preview (already-graduated + active as near-graduation proxy) ----
+    // True eligibility requires the academic-status engine (heavy); preview shows
+    // recorded graduates and current active students as the upper bound. Detailed
+    // candidate lists live in /admin/graduation-candidates.
+    const gradEligibleCount = standingCounts.graduated;
+    const nearGradCount = standingCounts.active;
 
     // ---- Finance preview ----
     const { count: feesPending } = await sb
