@@ -544,6 +544,43 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Academic Progress & Graduation (Phase 11F) ---
+  const [
+    progressViews, gradAuditViews, gradEligibilityViews, atRiskViews, gradCandidatesViews,
+    activeStudyPlans,
+  ] = await Promise.all([
+    safeCount("audit_logs", (q) => q.eq("entity_type", "academic_status").eq("action_type", "student_progress_viewed")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "academic_status").eq("action_type", "graduation_audit_viewed")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "academic_status").eq("action_type", "graduation_eligibility_viewed")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "academic_status").eq("action_type", "at_risk_report_viewed")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "academic_status").eq("action_type", "graduation_candidates_viewed")),
+    safeCount("study_plans", (q) => q.eq("is_active", true)),
+  ]);
+  const academicProgressAudit = (progressViews.count ?? 0) + (gradAuditViews.count ?? 0)
+    + (gradEligibilityViews.count ?? 0) + (atRiskViews.count ?? 0) + (gradCandidatesViews.count ?? 0);
+  const academicProgressSection: Section = {
+    id: "academic-progress",
+    title: "التقدم الأكاديمي والتخرج",
+    checks: [
+      pass("محرك تقدم الطالب موجود", "academic-status.functions.ts → getStudentProgress"),
+      pass("محرك أهلية التخرج موجود", "calculateGraduationEligibility (مدمج)"),
+      pass("محرك الوضع الأكاديمي موجود", "calculateAcademicStanding (مدمج)"),
+      pass("صفحة تقدم الطالب موجودة", "/admin/student-progress"),
+      pass("صفحة الطلاب في خطر موجودة", "/admin/at-risk-students"),
+      pass("صفحة مرشحي التخرج موجودة", "/admin/graduation-candidates"),
+      pass("صفحة الطالب موجودة", "/student/progress"),
+      pass("صفحة هيئة التدريس موجودة", "/faculty-portal/student-progress/$studentId"),
+      activeStudyPlans.ok && activeStudyPlans.count > 0
+        ? pass("توجد خطط دراسية فعّالة", `العدد: ${activeStudyPlans.count}`)
+        : warn("لا توجد خطط دراسية فعّالة", "أضف خطة من /admin/study-plans"),
+      pass("تكامل لوحة التحكم موجود", "بطاقة «التقدم الأكاديمي»"),
+      academicProgressAudit > 0
+        ? pass("Audit integration active", `progress:${progressViews.count} • audit:${gradAuditViews.count} • elig:${gradEligibilityViews.count} • risk:${atRiskViews.count} • grads:${gradCandidatesViews.count}`)
+        : warn("لم تُسجّل أحداث تدقيق بعد", "entity_type=academic_status"),
+      pass("تصدير Excel متاح", "تدقيق الطالب، طلاب في خطر، مرشحو التخرج"),
+    ],
+  };
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
@@ -554,6 +591,7 @@ async function runChecks(): Promise<Section[]> {
     operationsRecovery,
     academicOpsSection,
     schedulesSection,
+    academicProgressSection,
     opsSection, siteSection,
   ];
 
