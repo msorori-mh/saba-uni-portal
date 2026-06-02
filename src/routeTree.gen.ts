@@ -54,6 +54,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminImportsRouteImport } from './routes/admin/imports'
 import { Route as AdminGradesRouteImport } from './routes/admin/grades'
 import { Route as AdminFinanceRouteImport } from './routes/admin/finance'
+import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
 import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments'
@@ -291,6 +292,11 @@ const AdminFinanceRoute = AdminFinanceRouteImport.update({
   path: '/finance',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminFacultyManagementRoute = AdminFacultyManagementRouteImport.update({
+  id: '/faculty-management',
+  path: '/faculty-management',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminFacultyRoute = AdminFacultyRouteImport.update({
   id: '/faculty',
   path: '/faculty',
@@ -368,6 +374,7 @@ export interface FileRoutesByFullPath {
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
+  '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
   '/admin/imports': typeof AdminImportsRoute
@@ -421,6 +428,7 @@ export interface FileRoutesByTo {
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
+  '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
   '/admin/imports': typeof AdminImportsRoute
@@ -479,6 +487,7 @@ export interface FileRoutesById {
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
   '/admin/faculty': typeof AdminFacultyRoute
+  '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
   '/admin/imports': typeof AdminImportsRoute
@@ -538,6 +547,7 @@ export interface FileRouteTypes {
     | '/admin/enrollments'
     | '/admin/events'
     | '/admin/faculty'
+    | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
     | '/admin/imports'
@@ -591,6 +601,7 @@ export interface FileRouteTypes {
     | '/admin/enrollments'
     | '/admin/events'
     | '/admin/faculty'
+    | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
     | '/admin/imports'
@@ -648,6 +659,7 @@ export interface FileRouteTypes {
     | '/admin/enrollments'
     | '/admin/events'
     | '/admin/faculty'
+    | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
     | '/admin/imports'
@@ -1016,6 +1028,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFinanceRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/faculty-management': {
+      id: '/admin/faculty-management'
+      path: '/faculty-management'
+      fullPath: '/admin/faculty-management'
+      preLoaderRoute: typeof AdminFacultyManagementRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/faculty': {
       id: '/admin/faculty'
       path: '/faculty'
@@ -1100,6 +1119,7 @@ interface AdminRouteChildren {
   AdminEnrollmentsRoute: typeof AdminEnrollmentsRoute
   AdminEventsRoute: typeof AdminEventsRoute
   AdminFacultyRoute: typeof AdminFacultyRoute
+  AdminFacultyManagementRoute: typeof AdminFacultyManagementRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminGradesRoute: typeof AdminGradesRoute
   AdminImportsRoute: typeof AdminImportsRoute
@@ -1133,6 +1153,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminEnrollmentsRoute: AdminEnrollmentsRoute,
   AdminEventsRoute: AdminEventsRoute,
   AdminFacultyRoute: AdminFacultyRoute,
+  AdminFacultyManagementRoute: AdminFacultyManagementRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminGradesRoute: AdminGradesRoute,
   AdminImportsRoute: AdminImportsRoute,
