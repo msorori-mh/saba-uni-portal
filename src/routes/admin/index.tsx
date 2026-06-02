@@ -59,6 +59,12 @@ function AdminDashboard() {
     },
     staleTime: 60_000,
   });
+  const fetchPilot = useServerFn(getPilotOverview);
+  const { data: pilot } = useQuery({
+    queryKey: ["admin-pilot-overview"],
+    queryFn: () => fetchPilot(),
+    staleTime: 60_000,
+  });
   const { data: progressKpis } = useQuery({
     queryKey: ["admin-progress-kpis"],
     queryFn: () => fetchProgressKpis(),
