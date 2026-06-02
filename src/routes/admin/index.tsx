@@ -7,11 +7,12 @@ import {
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
   Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers, CalendarClock, DoorOpen,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
-  BarChart3, TrendingUp, Activity, HardDrive,
+  BarChart3, TrendingUp, Activity, HardDrive, Megaphone, MailOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
+import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
