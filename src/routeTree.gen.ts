@@ -57,6 +57,7 @@ import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminImportsRouteImport } from './routes/admin/imports'
+import { Route as AdminGraduationCandidatesRouteImport } from './routes/admin/graduation-candidates'
 import { Route as AdminGradesRouteImport } from './routes/admin/grades'
 import { Route as AdminFinanceRouteImport } from './routes/admin/finance'
 import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
@@ -314,6 +315,12 @@ const AdminImportsRoute = AdminImportsRouteImport.update({
   path: '/imports',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminGraduationCandidatesRoute =
+  AdminGraduationCandidatesRouteImport.update({
+    id: '/graduation-candidates',
+    path: '/graduation-candidates',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminGradesRoute = AdminGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
@@ -421,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
+  '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -482,6 +490,7 @@ export interface FileRoutesByTo {
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
+  '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -548,6 +557,7 @@ export interface FileRoutesById {
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
+  '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -615,6 +625,7 @@ export interface FileRouteTypes {
     | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
+    | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
     | '/admin/messages'
@@ -676,6 +687,7 @@ export interface FileRouteTypes {
     | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
+    | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
     | '/admin/messages'
@@ -741,6 +753,7 @@ export interface FileRouteTypes {
     | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
+    | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
     | '/admin/messages'
@@ -1133,6 +1146,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminImportsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/graduation-candidates': {
+      id: '/admin/graduation-candidates'
+      path: '/graduation-candidates'
+      fullPath: '/admin/graduation-candidates'
+      preLoaderRoute: typeof AdminGraduationCandidatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/grades': {
       id: '/admin/grades'
       path: '/grades'
@@ -1257,6 +1277,7 @@ interface AdminRouteChildren {
   AdminFacultyManagementRoute: typeof AdminFacultyManagementRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminGradesRoute: typeof AdminGradesRoute
+  AdminGraduationCandidatesRoute: typeof AdminGraduationCandidatesRoute
   AdminImportsRoute: typeof AdminImportsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
@@ -1296,6 +1317,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFacultyManagementRoute: AdminFacultyManagementRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminGradesRoute: AdminGradesRoute,
+  AdminGraduationCandidatesRoute: AdminGraduationCandidatesRoute,
   AdminImportsRoute: AdminImportsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMessagesRoute: AdminMessagesRoute,
