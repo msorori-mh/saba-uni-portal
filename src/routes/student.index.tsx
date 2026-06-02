@@ -140,12 +140,12 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
   if (offeringIds.length === 0) return [];
   const { data: sections, error: sErr } = await supabase
     .from("course_sections")
-    .select("id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .select("id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))")
     .in("course_offering_id", offeringIds)
     .eq("status", "active");
   if (sErr) throw sErr;
   type RawOff = { id: string; course: { code: string; name_ar: string } | null };
-  type RawSec = { id: string; section_code: string; course_offering_id: string; faculty: { full_name_ar: string } | null; schedule: ScheduleSlot[] };
+  type RawSec = { id: string; section_code: string; course_offering_id: string; faculty: { full_name_ar: string } | null; schedule: RawSched[] | null };
   const offMap = new Map((offerings as unknown as RawOff[]).map((o) => [o.id, o.course]));
   return ((sections ?? []) as unknown as RawSec[]).map((s) => {
     const c = offMap.get(s.course_offering_id);
@@ -153,10 +153,11 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
       section_id: s.id, section_code: s.section_code,
       course_code: c?.code ?? "—", course_name: c?.name_ar ?? "—",
       faculty_name: s.faculty?.full_name_ar ?? null,
-      slots: s.schedule ?? [],
+      slots: flattenSched(s.schedule),
     };
   });
 }
+
 
 async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
   const { data: plan, error: pErr } = await supabase
