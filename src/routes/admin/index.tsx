@@ -5,8 +5,9 @@ import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
-  Wallet, AlertCircle, Lock, Database, ShieldAlert,
+  Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
+  BarChart3, TrendingUp, Activity, HardDrive,
   BarChart3, TrendingUp, Activity, HardDrive,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
