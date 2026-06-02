@@ -16,6 +16,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
+import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as EventsRouteImport } from './routes/events'
@@ -110,6 +111,11 @@ const PortalLoginRoute = PortalLoginRouteImport.update({
 const NewsRoute = NewsRouteImport.update({
   id: '/news',
   path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FacultyPortalRoute = FacultyPortalRouteImport.update({
@@ -425,6 +431,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
+  '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
@@ -492,6 +499,7 @@ export interface FileRoutesByTo {
   '/departments': typeof DepartmentsRouteWithChildren
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
+  '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
@@ -560,6 +568,7 @@ export interface FileRoutesById {
   '/events': typeof EventsRoute
   '/faculty': typeof FacultyRoute
   '/faculty-portal': typeof FacultyPortalRouteWithChildren
+  '/messages': typeof MessagesRoute
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
@@ -631,6 +640,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/faculty-portal'
+    | '/messages'
     | '/news'
     | '/portal-login'
     | '/research'
@@ -698,6 +708,7 @@ export interface FileRouteTypes {
     | '/departments'
     | '/events'
     | '/faculty'
+    | '/messages'
     | '/news'
     | '/portal-login'
     | '/research'
@@ -765,6 +776,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/faculty'
     | '/faculty-portal'
+    | '/messages'
     | '/news'
     | '/portal-login'
     | '/research'
@@ -835,6 +847,7 @@ export interface RootRouteChildren {
   EventsRoute: typeof EventsRoute
   FacultyRoute: typeof FacultyRoute
   FacultyPortalRoute: typeof FacultyPortalRouteWithChildren
+  MessagesRoute: typeof MessagesRoute
   NewsRoute: typeof NewsRouteWithChildren
   PortalLoginRoute: typeof PortalLoginRoute
   ResearchRoute: typeof ResearchRoute
@@ -894,6 +907,13 @@ declare module '@tanstack/react-router' {
       path: '/news'
       fullPath: '/news'
       preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faculty-portal': {
@@ -1484,6 +1504,7 @@ const rootRouteChildren: RootRouteChildren = {
   EventsRoute: EventsRoute,
   FacultyRoute: FacultyRoute,
   FacultyPortalRoute: FacultyPortalRouteWithChildren,
+  MessagesRoute: MessagesRoute,
   NewsRoute: NewsRouteWithChildren,
   PortalLoginRoute: PortalLoginRoute,
   ResearchRoute: ResearchRoute,
