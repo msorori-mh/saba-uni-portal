@@ -28,6 +28,7 @@ import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
@@ -162,6 +163,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const StudentScheduleRoute = StudentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => StudentRoute,
 } as any)
 const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
   id: '/notifications',
@@ -415,6 +421,7 @@ export interface FileRoutesByFullPath {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -471,6 +478,7 @@ export interface FileRoutesByTo {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/schedule': typeof StudentScheduleRoute
   '/admin': typeof AdminIndexRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
   '/staff': typeof StaffIndexRoute
@@ -532,6 +540,7 @@ export interface FileRoutesById {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -594,6 +603,7 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
@@ -650,6 +660,7 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/schedule'
     | '/admin'
     | '/faculty-portal'
     | '/staff'
@@ -710,6 +721,7 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
@@ -869,6 +881,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/student/schedule': {
+      id: '/student/schedule'
+      path: '/schedule'
+      fullPath: '/student/schedule'
+      preLoaderRoute: typeof StudentScheduleRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/student/notifications': {
       id: '/student/notifications'
@@ -1271,12 +1290,14 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 interface StudentRouteChildren {
   StudentChangePasswordRoute: typeof StudentChangePasswordRoute
   StudentNotificationsRoute: typeof StudentNotificationsRoute
+  StudentScheduleRoute: typeof StudentScheduleRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
   StudentChangePasswordRoute: StudentChangePasswordRoute,
   StudentNotificationsRoute: StudentNotificationsRoute,
+  StudentScheduleRoute: StudentScheduleRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
 
