@@ -150,8 +150,8 @@ export const getExecutiveAnalytics = createServerFn({ method: "POST" })
       const prev = semList.find((s) => s.id !== curr?.id);
       if (curr && prev) {
         // enrollment counts via course_offerings semester filter
-        const currOfferingIds = enrollPrev.filter((o) => String(o.semester_id) === String(curr.id)).map((o) => String(o.id));
-        const prevOfferingIds = enrollPrev.filter((o) => String(o.semester_id) === String(prev.id)).map((o) => String(o.id));
+        const currOfferingIds = offerings.filter((o) => String(o.semester_id) === String(curr.id)).map((o) => String(o.id));
+        const prevOfferingIds = offerings.filter((o) => String(o.semester_id) === String(prev.id)).map((o) => String(o.id));
         const [currEnr, prevEnr] = await Promise.all([
           currOfferingIds.length
             ? sb.from("student_enrollments").select("id", { count: "exact", head: true }).in("course_section_id",
