@@ -26,6 +26,12 @@ const COPY: Record<AccountType, { title: string; idLabel: string; idPlaceholder:
   staff:   { title: "دخول بوابة الموظفين",     idLabel: "رقم الموظف",     idPlaceholder: "S0001",     subtitle: "بوابة الموظفين الإداريين", Icon: Briefcase },
 };
 
+const DEMO_CREDENTIALS: Record<AccountType, { identifier: string; password: string }> = {
+  student: { identifier: "DEMO2024", password: "Demo@2024" },
+  faculty: { identifier: "DEMO-FAC", password: "Demo@2024" },
+  staff:   { identifier: "DEMO-STF", password: "Demo@2024" },
+};
+
 export const Route = createFileRoute("/portal-login")({
   validateSearch: (s: Record<string, unknown>): { type?: AccountType } => {
     const t = s.type;
