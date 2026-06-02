@@ -337,7 +337,7 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
   }
 
   // GPAs
-  const gpaPoints = (attempts: Attempt[], filter: (a: Attempt) => boolean) => {
+  const gpaPoints = (filter: (a: Attempt) => boolean) => {
     let pts = 0, hrs = 0;
     for (const [cid, list] of attemptsByCourse) {
       const ch = coursesById.get(cid)?.credit_hours ?? 0;
@@ -354,8 +354,8 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
     }
     return hrs > 0 ? Math.round((pts / hrs) * 100) / 100 : 0;
   };
-  const cumulativeGpa = gpaPoints([], () => true);
-  const currentGpa = gpaPoints([], (a) => a.isCurrent);
+  const cumulativeGpa = gpaPoints(() => true);
+  const currentGpa = gpaPoints((a) => a.isCurrent);
 
   // Eligibility — missing required/electives
   const missingRequired: StudentProgressDTO["eligibility"]["missing_required_courses"] = [];
