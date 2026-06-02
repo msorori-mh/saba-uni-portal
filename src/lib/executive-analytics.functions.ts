@@ -176,7 +176,7 @@ export const getExecutiveAnalytics = createServerFn({ method: "POST" })
         }
         // requests by submitted_at within semester range
         let currReq = 0, prevReq = 0;
-        for (const r of requestsCurr) {
+        for (const r of requests) {
           const d = r.submitted_at as string | null;
           if (!d) continue;
           const dt = new Date(d).getTime();
