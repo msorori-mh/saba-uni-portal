@@ -64,6 +64,7 @@ import { Route as AdminGradesRouteImport } from './routes/admin/grades'
 import { Route as AdminFinanceRouteImport } from './routes/admin/finance'
 import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
 import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
+import { Route as AdminExecutiveDashboardRouteImport } from './routes/admin/executive-dashboard'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments'
 import { Route as AdminDocumentsRouteImport } from './routes/admin/documents'
@@ -355,6 +356,11 @@ const AdminFacultyRoute = AdminFacultyRouteImport.update({
   path: '/faculty',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminExecutiveDashboardRoute = AdminExecutiveDashboardRouteImport.update({
+  id: '/executive-dashboard',
+  path: '/executive-dashboard',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminEventsRoute = AdminEventsRouteImport.update({
   id: '/events',
   path: '/events',
@@ -451,6 +457,7 @@ export interface FileRoutesByFullPath {
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/executive-dashboard': typeof AdminExecutiveDashboardRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
@@ -517,6 +524,7 @@ export interface FileRoutesByTo {
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/executive-dashboard': typeof AdminExecutiveDashboardRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
@@ -588,6 +596,7 @@ export interface FileRoutesById {
   '/admin/documents': typeof AdminDocumentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
+  '/admin/executive-dashboard': typeof AdminExecutiveDashboardRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
@@ -660,6 +669,7 @@ export interface FileRouteTypes {
     | '/admin/documents'
     | '/admin/enrollments'
     | '/admin/events'
+    | '/admin/executive-dashboard'
     | '/admin/faculty'
     | '/admin/faculty-management'
     | '/admin/finance'
@@ -726,6 +736,7 @@ export interface FileRouteTypes {
     | '/admin/documents'
     | '/admin/enrollments'
     | '/admin/events'
+    | '/admin/executive-dashboard'
     | '/admin/faculty'
     | '/admin/faculty-management'
     | '/admin/finance'
@@ -796,6 +807,7 @@ export interface FileRouteTypes {
     | '/admin/documents'
     | '/admin/enrollments'
     | '/admin/events'
+    | '/admin/executive-dashboard'
     | '/admin/faculty'
     | '/admin/faculty-management'
     | '/admin/finance'
@@ -1245,6 +1257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFacultyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/executive-dashboard': {
+      id: '/admin/executive-dashboard'
+      path: '/executive-dashboard'
+      fullPath: '/admin/executive-dashboard'
+      preLoaderRoute: typeof AdminExecutiveDashboardRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/events': {
       id: '/admin/events'
       path: '/events'
@@ -1352,6 +1371,7 @@ interface AdminRouteChildren {
   AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminEnrollmentsRoute: typeof AdminEnrollmentsRoute
   AdminEventsRoute: typeof AdminEventsRoute
+  AdminExecutiveDashboardRoute: typeof AdminExecutiveDashboardRoute
   AdminFacultyRoute: typeof AdminFacultyRoute
   AdminFacultyManagementRoute: typeof AdminFacultyManagementRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
@@ -1393,6 +1413,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDocumentsRoute: AdminDocumentsRoute,
   AdminEnrollmentsRoute: AdminEnrollmentsRoute,
   AdminEventsRoute: AdminEventsRoute,
+  AdminExecutiveDashboardRoute: AdminExecutiveDashboardRoute,
   AdminFacultyRoute: AdminFacultyRoute,
   AdminFacultyManagementRoute: AdminFacultyManagementRoute,
   AdminFinanceRoute: AdminFinanceRoute,
