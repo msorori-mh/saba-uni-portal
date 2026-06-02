@@ -13,6 +13,7 @@ import { Route as VerifyDocumentRouteImport } from './routes/verify-document'
 import { Route as StudentRouteImport } from './routes/student'
 import { Route as StaffRouteImport } from './routes/staff'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ResearchRouteImport } from './routes/research'
 import { Route as PortalLoginRouteImport } from './routes/portal-login'
 import { Route as NewsRouteImport } from './routes/news'
@@ -100,6 +101,11 @@ const StaffRoute = StaffRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResearchRoute = ResearchRouteImport.update({
@@ -460,6 +466,7 @@ export interface FileRoutesByFullPath {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
@@ -532,6 +539,7 @@ export interface FileRoutesByTo {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
@@ -605,6 +613,7 @@ export interface FileRoutesById {
   '/news': typeof NewsRouteWithChildren
   '/portal-login': typeof PortalLoginRoute
   '/research': typeof ResearchRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
@@ -681,6 +690,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/reset-password'
     | '/sitemap.xml'
     | '/staff'
     | '/student'
@@ -753,6 +763,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/reset-password'
     | '/sitemap.xml'
     | '/verify-document'
     | '/admin/academic-core'
@@ -825,6 +836,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/portal-login'
     | '/research'
+    | '/reset-password'
     | '/sitemap.xml'
     | '/staff'
     | '/student'
@@ -900,6 +912,7 @@ export interface RootRouteChildren {
   NewsRoute: typeof NewsRouteWithChildren
   PortalLoginRoute: typeof PortalLoginRoute
   ResearchRoute: typeof ResearchRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StaffRoute: typeof StaffRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
@@ -935,6 +948,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/research': {
@@ -1592,6 +1612,7 @@ const rootRouteChildren: RootRouteChildren = {
   NewsRoute: NewsRouteWithChildren,
   PortalLoginRoute: PortalLoginRoute,
   ResearchRoute: ResearchRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StaffRoute: StaffRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
