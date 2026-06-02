@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CalendarClock, Loader2, ArrowRight, Printer, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
-import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList } from "@/components/schedule/ScheduleView";
+import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList, useSiteIdentity } from "@/components/schedule/ScheduleView";
 
 export const Route = createFileRoute("/faculty-portal/schedule")({
   head: () => ({
@@ -78,6 +78,7 @@ function FacultySchedulePage() {
   const { data, isLoading } = useQuery({ queryKey: ["faculty-schedule-v2"], queryFn: fetchData });
   const rows = data?.rows ?? [];
   const info = data?.info;
+  const identity = useSiteIdentity();
 
   useEffect(() => {
     if (!isLoading) logScheduleAudit("timetable_viewed", "faculty");
@@ -95,7 +96,7 @@ function FacultySchedulePage() {
       filename: `faculty_schedule_${yearFile}_${semFile || "term"}.xlsx`,
       sheetName: "جدول التدريس",
       header: [
-        ["جامعة سبأ", "كلية الإدارة والعلوم الإنسانية"],
+        [identity.university, identity.college],
         ["اسم عضو هيئة التدريس", info.full_name_ar],
         ["الرقم الوظيفي", info.employee_number ?? "—"],
         ["القسم", info.department ?? "—"],
@@ -108,6 +109,7 @@ function FacultySchedulePage() {
     });
     logScheduleAudit("timetable_exported", "faculty");
   };
+
 
   return (
     <div dir="rtl" className="container mx-auto px-4 py-6 max-w-5xl space-y-5 print-page">

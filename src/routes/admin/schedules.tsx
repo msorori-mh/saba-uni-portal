@@ -16,7 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
-import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList } from "@/components/schedule/ScheduleView";
+import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList, useSiteIdentity } from "@/components/schedule/ScheduleView";
 
 export const Route = createFileRoute("/admin/schedules")({
   head: () => ({ meta: [{ title: "الجداول الدراسية — لوحة الإدارة" }] }),
@@ -444,8 +444,8 @@ function TimeSlotDialog({ open, onOpenChange, editing, onSaved }: {
 // ====================== Class Schedule ======================
 type Year = { id: string; name: string; is_current: boolean };
 type Semester = { id: string; academic_year_id: string; name: string; is_current: boolean };
-type Program = { id: string; name_ar: string };
-type Offering = { id: string; course_id: string; program_id: string; academic_year_id: string; semester_id: string };
+type Program = { id: string; name_ar: string; department_id: string | null };
+type Offering = { id: string; course_id: string; program_id: string; academic_year_id: string; semester_id: string; level_id: string };
 type Course = { id: string; code: string; name_ar: string };
 type Section = { id: string; course_offering_id: string; section_code: string; faculty_profile_id: string | null };
 type Faculty = { id: string; full_name_ar: string };
@@ -562,11 +562,11 @@ function useScheduleLookups() {
     if (error) throw error; return (data ?? []) as Semester[];
   }});
   const programs = useQuery({ queryKey: ["lk-programs"], queryFn: async () => {
-    const { data, error } = await supabase.from("programs").select("id, name_ar").eq("is_active", true);
+    const { data, error } = await supabase.from("programs").select("id, name_ar, department_id").eq("is_active", true);
     if (error) throw error; return (data ?? []) as Program[];
   }});
   const offerings = useQuery({ queryKey: ["lk-offerings"], queryFn: async () => {
-    const { data, error } = await supabase.from("course_offerings").select("id, course_id, program_id, academic_year_id, semester_id");
+    const { data, error } = await supabase.from("course_offerings").select("id, course_id, program_id, academic_year_id, semester_id, level_id");
     if (error) throw error; return (data ?? []) as Offering[];
   }});
   const courses = useQuery({ queryKey: ["lk-courses"], queryFn: async () => {
@@ -854,6 +854,7 @@ function TimetableViewsTab() {
   const [roomId, setRoomId] = useState<string>("");
   const [facultyId, setFacultyId] = useState<string>("");
   const [status, setStatus] = useState<string>("published");
+  const identity = useSiteIdentity();
 
   // Defaults to current year/semester
   useMemo(() => {
@@ -911,13 +912,17 @@ function TimetableViewsTab() {
       const off = lookups.offerings.find((o) => o.id === sec.course_offering_id); if (!off) continue;
       if (off.academic_year_id !== yearId || off.semester_id !== semId) continue;
       if (programId && off.program_id !== programId) continue;
+      if (levelId && off.level_id !== levelId) continue;
+      if (departmentId) {
+        const prog = lookups.programs.find((p) => p.id === off.program_id);
+        if (!prog || prog.department_id !== departmentId) continue;
+      }
       const course = lookups.courses.find((c) => c.id === off.course_id);
       const slot = lookups.slots.find((t) => t.id === s.time_slot_id); if (!slot) continue;
       const room = lookups.rooms.find((r) => r.id === s.room_id);
       const fac = s.faculty_profile_id ? lookups.faculty.find((f) => f.id === s.faculty_profile_id) : null;
       if (roomId && s.room_id !== roomId) continue;
       if (facultyId && s.faculty_profile_id !== facultyId) continue;
-      // department/level filters need joins not in lookups — skip for now (program covers most)
       out.push({
         id: s.id,
         course_code: course?.code ?? "—",
@@ -947,7 +952,7 @@ function TimetableViewsTab() {
       filename: `admin_schedule_${viewType}_${safe(yearName)}_${safe(semName)}.xlsx`,
       sheetName: "الجدول",
       header: [
-        ["جامعة سبأ", "كلية الإدارة والعلوم الإنسانية"],
+        [identity.university, identity.college],
         ["نوع العرض", VIEW_OPTIONS.find((v) => v.code === viewType)?.label ?? viewType],
         ["السنة الأكاديمية", yearName],
         ["الفصل", semName],

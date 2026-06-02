@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CalendarClock, Loader2, ArrowRight, Printer, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
-import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList } from "@/components/schedule/ScheduleView";
+import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList, useSiteIdentity } from "@/components/schedule/ScheduleView";
 
 export const Route = createFileRoute("/student/schedule")({
   head: () => ({
@@ -21,6 +21,7 @@ type StudentInfo = {
   full_name_ar: string;
   academic_number: string;
   program?: string | null;
+  level?: string | null;
   year?: string | null;
   semester?: string | null;
 };
@@ -35,14 +36,27 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | n
   if (!sp?.id) return { rows: [], info: null };
 
   const [{ data: cy }, { data: cs }] = await Promise.all([
-    supabase.from("academic_years").select("name").eq("is_current", true).maybeSingle(),
-    supabase.from("semesters").select("name").eq("is_current", true).maybeSingle(),
+    supabase.from("academic_years").select("id, name").eq("is_current", true).maybeSingle(),
+    supabase.from("semesters").select("id, name").eq("is_current", true).maybeSingle(),
   ]);
+
+  let levelName: string | null = null;
+  if (cy?.id && cs?.id) {
+    const { data: sas } = await supabase
+      .from("student_academic_status")
+      .select("level:academic_levels(name)")
+      .eq("student_profile_id", (sp as any).id)
+      .eq("academic_year_id", cy.id)
+      .eq("semester_id", cs.id)
+      .maybeSingle();
+    levelName = (sas as any)?.level?.name ?? null;
+  }
 
   const info: StudentInfo = {
     full_name_ar: (sp as any).full_name_ar,
     academic_number: (sp as any).academic_number,
     program: (sp as any).program?.name_ar ?? null,
+    level: levelName,
     year: cy?.name ?? null,
     semester: cs?.name ?? null,
   };
@@ -85,6 +99,7 @@ function StudentSchedulePage() {
   const { data, isLoading } = useQuery({ queryKey: ["student-schedule-v2"], queryFn: fetchData });
   const rows = data?.rows ?? [];
   const info = data?.info;
+  const identity = useSiteIdentity();
 
   useEffect(() => {
     if (!isLoading) logScheduleAudit("timetable_viewed", "student");
@@ -102,10 +117,11 @@ function StudentSchedulePage() {
       filename: `student_schedule_${yearFile}_${semFile || "term"}.xlsx`,
       sheetName: "جدولي",
       header: [
-        ["جامعة سبأ", "كلية الإدارة والعلوم الإنسانية"],
+        [identity.university, identity.college],
         ["اسم الطالب", info.full_name_ar],
         ["الرقم الأكاديمي", info.academic_number],
         ["البرنامج", info.program ?? "—"],
+        ["المستوى", info.level ?? "غير محدد"],
         ["السنة الأكاديمية", info.year ?? "—"],
         ["الفصل", info.semester ?? "—"],
         ["تاريخ الإصدار", todayLabel()],
@@ -150,12 +166,14 @@ function StudentSchedulePage() {
             ["اسم الطالب", info.full_name_ar],
             ["الرقم الأكاديمي", info.academic_number],
             ["البرنامج", info.program ?? "—"],
+            ["المستوى", info.level ?? "غير محدد"],
             ["السنة الأكاديمية", info.year ?? "—"],
             ["الفصل", info.semester ?? "—"],
             ["تاريخ الإصدار", todayLabel()],
           ]}
         />
       )}
+
 
       {isLoading ? (
         <div className="grid place-items-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
