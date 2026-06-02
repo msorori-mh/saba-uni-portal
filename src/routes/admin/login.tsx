@@ -32,7 +32,7 @@ function AdminLoginPage() {
       const { data } = await supabase.auth.getUser();
       if (cancelled || !data.user) return;
       const { data: roles } = await supabase
-        .from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
+        .from("user_roles").select("role").eq("user_id", data.user.id).in("role", ["admin", "system_admin"]).maybeSingle();
       if (!cancelled && roles) navigate({ to: "/admin", replace: true });
     })();
     return () => { cancelled = true; };
@@ -53,7 +53,7 @@ function AdminLoginPage() {
       if (signInError) throw signInError;
       if (!data.user) throw new Error("invalid");
       const { data: role } = await supabase
-        .from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
+        .from("user_roles").select("role").eq("user_id", data.user.id).in("role", ["admin", "system_admin"]).maybeSingle();
       if (!role) {
         await supabase.auth.signOut();
         throw new Error("forbidden");
