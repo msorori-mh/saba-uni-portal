@@ -260,6 +260,15 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "الجداول الدراسية",
+      cards: [
+        { label: "عدد القاعات", value: scheduleStats?.rooms ?? 0, icon: DoorOpen, to: "/admin/schedules" },
+        { label: "الفترات الزمنية", value: scheduleStats?.slots ?? 0, icon: CalendarClock, to: "/admin/schedules" },
+        { label: "الجداول المنشورة", value: scheduleStats?.published ?? 0, icon: CalendarDays, to: "/admin/schedules" },
+        { label: "الشعب غير المجدولة", value: scheduleStats?.unscheduled ?? 0, icon: AlertCircle, to: "/admin/schedules" },
+      ],
+    },
+    {
       title: "الموارد البشرية",
       cards: [
         { label: "أعضاء هيئة التدريس", value: counts.faculty, icon: Users },
