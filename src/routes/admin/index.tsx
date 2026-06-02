@@ -291,7 +291,7 @@ function AdminDashboard() {
       cards: [
         { label: "البرامج", value: counts.programs, icon: GraduationCap },
         { label: "المقررات", value: counts.courses, icon: BookOpen },
-        { label: "الشعب", value: counts.sections, icon: CalendarDays },
+        { label: "المجموعات الدراسية", value: counts.sections, icon: CalendarDays },
         { label: "الطلاب", value: counts.students, icon: ClipboardList },
       ],
     },
@@ -299,7 +299,7 @@ function AdminDashboard() {
       title: "العمليات الأكاديمية",
       cards: [
         { label: "المقررات المطروحة", value: aops?.activeOfferings ?? 0, icon: CalendarDays, to: "/admin/academic-operations" },
-        { label: "الشعب النشطة", value: aops?.activeSections ?? 0, icon: Layers, to: "/admin/academic-operations" },
+        { label: "المجموعات الدراسية النشطة", value: aops?.activeSections ?? 0, icon: Layers, to: "/admin/academic-operations" },
         { label: "التسجيلات النشطة", value: aops?.activeEnrollments ?? 0, icon: ClipboardList, to: "/admin/academic-operations" },
         { label: "إيصالات قيد المراجعة", value: aops?.pendingReceipts ?? 0, icon: Receipt, to: "/admin/academic-operations" },
       ],
@@ -309,7 +309,7 @@ function AdminDashboard() {
       cards: [
         { label: "الجداول المنشورة", value: scheduleStats?.published ?? 0, icon: CalendarDays, to: "/admin/schedules" },
         { label: "منشورة اليوم", value: scheduleStats?.publishedToday ?? 0, icon: CalendarClock, to: "/admin/schedules" },
-        { label: "الشعب غير المجدولة", value: scheduleStats?.unscheduled ?? 0, icon: AlertCircle, to: "/admin/schedules" },
+        { label: "المجموعات الدراسية غير المجدولة", value: scheduleStats?.unscheduled ?? 0, icon: AlertCircle, to: "/admin/schedules" },
         { label: "القاعات المستخدمة", value: scheduleStats?.roomsUsed ?? 0, icon: DoorOpen, to: "/admin/schedules" },
         { label: "أعضاء لديهم جداول", value: scheduleStats?.facultyWithSchedules ?? 0, icon: Users, to: "/admin/schedules" },
         { label: "إجمالي القاعات", value: scheduleStats?.rooms ?? 0, icon: DoorOpen, to: "/admin/schedules" },
@@ -420,7 +420,7 @@ function AdminDashboard() {
   const quickActions = [
     { to: "/admin/study-plans", label: "إضافة مقرر", icon: BookOpen },
     { to: "/admin/study-plans", label: "إنشاء خطة دراسية", icon: ListTree },
-    { to: "/admin/course-offerings", label: "إنشاء شعبة", icon: CalendarDays },
+    { to: "/admin/course-offerings", label: "إنشاء مجموعة دراسية", icon: CalendarDays },
     { to: "/admin/enrollments", label: "تسجيل طالب", icon: ClipboardList },
     { to: "/admin/grades", label: "إدخال درجات", icon: ClipboardCheck },
     { to: "/admin/student-requests", label: "مراجعة الطلبات", icon: FileWarning },

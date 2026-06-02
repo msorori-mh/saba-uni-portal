@@ -386,7 +386,7 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
           <Row label="البرنامج / القسم" value={`${req.student?.program?.name_ar ?? "—"} • ${req.student?.department?.name_ar ?? "—"}`} />
           {req.absence_details && (
             <>
-              <Row label="المقرر" value={`${req.absence_details.section?.offering?.course?.code ?? "—"} — ${req.absence_details.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.absence_details.section?.section_code ?? "—"})`} />
+              <Row label="المقرر" value={`${req.absence_details.section?.offering?.course?.code ?? "—"} — ${req.absence_details.section?.offering?.course?.name_ar ?? "—"} (مجموعة دراسية ${req.absence_details.section?.section_code ?? "—"})`} />
               <Row label="تاريخ الغياب" value={req.absence_details.absence_date} />
               <Row label="نوع العذر" value={REASON_LABEL[req.absence_details.reason_type ?? "other"]} />
             </>

@@ -214,7 +214,7 @@ function ExecutiveDashboardPage() {
     if (!core.currentYearOk) alerts.push({ id: "no-year", severity: "critical", title: "لا توجد سنة أكاديمية حالية", href: "/admin/academic-operations" });
     if (!core.currentSemOk) alerts.push({ id: "no-sem", severity: "critical", title: "لا يوجد فصل دراسي حالي", href: "/admin/academic-operations" });
     if (core.studentsNoProgram > 0) alerts.push({ id: "no-prog", severity: "warning", title: "طلاب بدون برنامج", detail: `${core.studentsNoProgram} طالب`, href: "/admin/students" });
-    if (core.unassignedSections > 0) alerts.push({ id: "no-faculty", severity: "warning", title: "شعب بدون عضو هيئة تدريس", detail: `${core.unassignedSections} شعبة`, href: "/admin/schedules" });
+    if (core.unassignedSections > 0) alerts.push({ id: "no-faculty", severity: "warning", title: "شعب بدون عضو هيئة تدريس", detail: `${core.unassignedSections} مجموعة دراسية`, href: "/admin/schedules" });
     if (core.outstanding > 0) alerts.push({ id: "outstanding", severity: "warning", title: "رسوم غير محصّلة", detail: `${core.outstanding.toLocaleString()} ر.ي`, href: "/admin/finance" });
     if (core.newRequestsPending > 0) alerts.push({ id: "req", severity: "info", title: "طلبات طلابية بانتظار المراجعة", detail: `${core.newRequestsPending}`, href: "/admin/student-requests" });
     if (core.newDocsToday > 0) alerts.push({ id: "docs", severity: "info", title: "وثائق صادرة اليوم", detail: `${core.newDocsToday}`, href: "/admin/documents" });
@@ -233,7 +233,7 @@ function ExecutiveDashboardPage() {
     { label: "المرشحون للتخرج", value: progress?.gradCandidates ?? "—", icon: FileBadge, href: "/admin/graduation-candidates" },
     { label: "الطلاب المتعثرون", value: progress?.atRisk ?? "—", icon: AlertCircle, href: "/admin/at-risk-students" },
     { label: "أعضاء هيئة التدريس", value: core?.faculty ?? "—", icon: UserCog, href: "/admin/faculty-management" },
-    { label: "الشعب الدراسية", value: core?.sections ?? "—", icon: Layers, href: "/admin/course-offerings" },
+    { label: "المجموعات الدراسية", value: core?.sections ?? "—", icon: Layers, href: "/admin/course-offerings" },
     { label: "نسبة التحصيل المالي", value: core ? `${core.collectionRate}%` : "—", icon: Wallet, href: "/admin/finance" },
     { label: "حالة النظام", value: core?.lastAudit ? "نشط" : "—", icon: ShieldCheck, href: "/admin/system-readiness" },
   ];

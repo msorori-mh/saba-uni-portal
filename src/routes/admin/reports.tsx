@@ -301,7 +301,7 @@ function AcademicTab() {
         <StatCard label="الطلاب الموقوفون" value={d?.suspendedStudents ?? 0} icon={FileWarning} />
         <StatCard label="إجمالي البرامج" value={d?.programs ?? 0} icon={GraduationCap} />
         <StatCard label="إجمالي المقررات" value={d?.courses ?? 0} icon={BookOpen} />
-        <StatCard label="إجمالي الشعب" value={d?.sections ?? 0} icon={CalendarDays} />
+        <StatCard label="إجمالي المجموعات الدراسية" value={d?.sections ?? 0} icon={CalendarDays} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <ReportTable
@@ -520,11 +520,11 @@ function EnrollmentTab() {
           rows={data?.courseRows ?? []}
         />
         <ReportTable
-          title="التسجيلات حسب الشعبة"
+          title="التسجيلات حسب المجموعات الدراسيةة"
           reportName="enrollments_by_section"
           loading={isLoading}
           columns={[
-            { key: "section_code", label: "كود الشعبة" },
+            { key: "section_code", label: "كود المجموعات الدراسيةة" },
             { key: "course", label: "المقرر" },
             { key: "count", label: "عدد التسجيلات", numeric: true },
           ]}
@@ -603,14 +603,14 @@ function FacultyTab() {
   return (
     <div className="space-y-4">
       <ReportTable
-        title="العبء التدريسي وعدد الشعب لكل عضو هيئة تدريس"
+        title="العبء التدريسي وعدد المجموعات الدراسية لكل عضو هيئة تدريس"
         reportName="faculty_teaching_load"
         loading={isLoading}
         columns={[
           { key: "name", label: "العضو" },
           { key: "rank", label: "الرتبة" },
           { key: "department", label: "القسم" },
-          { key: "sections", label: "عدد الشعب", numeric: true },
+          { key: "sections", label: "عدد المجموعات الدراسية", numeric: true },
           { key: "students", label: "عدد الطلاب", numeric: true },
           { key: "status", label: "الحالة" },
         ]}

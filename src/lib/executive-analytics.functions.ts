@@ -96,7 +96,7 @@ export const getExecutiveAnalytics = createServerFn({ method: "POST" })
     const avgLoad = loadValues.length ? +(loadValues.reduce((a, b) => a + b, 0) / loadValues.length).toFixed(2) : 0;
     // Distribution bins
     const loadDistribution: GroupRow[] = [
-      { key: "0", label: "0 شعبة", value: facultyActive.length - sectionsPerFaculty.size },
+      { key: "0", label: "0 مجموعة دراسية", value: facultyActive.length - sectionsPerFaculty.size },
       { key: "1-2", label: "1-2", value: loadValues.filter((v) => v >= 1 && v <= 2).length },
       { key: "3-4", label: "3-4", value: loadValues.filter((v) => v >= 3 && v <= 4).length },
       { key: "5+", label: "5+", value: loadValues.filter((v) => v >= 5).length },

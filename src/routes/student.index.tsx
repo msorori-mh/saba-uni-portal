@@ -334,7 +334,7 @@ function StudentDashboard() {
 
 
             <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
-              قسم «الجدول الدراسي العام» يعرض جميع شعب البرنامج للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط الشعب التي سُجلت فيها فعلياً.
+              قسم «الجدول الدراسي العام» يعرض جميع مجموعات البرنامج الدراسية للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط المجموعات الدراسية التي سُجلت فيها فعلياً.
             </div>
 
             <ScheduleSection rows={schedule} />
@@ -468,7 +468,7 @@ function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{it.course}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        شعبة {it.section}{it.faculty && <> • {it.faculty}</>}{it.room && <> • {it.room}</>}
+                        مجموعة دراسية {it.section}{it.faculty && <> • {it.faculty}</>}{it.room && <> • {it.room}</>}
                       </div>
                     </div>
                     <span className="text-[10px] border bg-muted/40 px-1.5 py-0.5 rounded shrink-0">{TYPE_LABELS[it.type] ?? it.type}</span>
@@ -496,7 +496,7 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
       </h2>
       {rows.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
-          لم يتم تسجيلك في أي شعبة بعد. تواصل مع شؤون الطلاب.
+          لم يتم تسجيلك في أي مجموعة دراسية بعد. تواصل مع شؤون الطلاب.
         </div>
       ) : (
         <div className="space-y-2">
@@ -513,7 +513,7 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span className="bg-muted px-1.5 py-0.5 rounded">شعبة {r.section_code}</span>
+                  <span className="bg-muted px-1.5 py-0.5 rounded">مجموعة دراسية {r.section_code}</span>
                   {r.faculty_name && <span>• {r.faculty_name}</span>}
                 </div>
                 {r.slots.length > 0 && (
@@ -608,7 +608,7 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
                   <span className="mx-2 text-muted-foreground">—</span>
                   <span className="font-semibold text-sm">{r.courseName}</span>
                 </div>
-                <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">شعبة {r.sectionCode}</span>
+                <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">مجموعة دراسية {r.sectionCode}</span>
               </div>
               <div className="mt-2 flex items-center gap-3 text-sm">
                 <span className="font-mono font-extrabold text-primary">{r.total}/{r.totalMax}</span>

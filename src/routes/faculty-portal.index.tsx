@@ -247,7 +247,7 @@ function SectionCard({
           <span className="mx-2 text-muted-foreground">—</span>
           <span className="font-semibold text-sm">{courseName}</span>
         </div>
-        <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">شعبة {sectionCode}</span>
+        <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">مجموعة دراسية {sectionCode}</span>
       </div>
       {schedule.length === 0 ? (
         <div className="text-[11px] text-muted-foreground mt-2">لا يوجد جدول بعد</div>

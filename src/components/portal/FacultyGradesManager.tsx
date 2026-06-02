@@ -124,9 +124,9 @@ export function FacultyGradesManager({ facultyProfileId, sections }: { facultyPr
   return (
     <div className="rounded-lg border bg-card p-3 space-y-3">
       <select className="w-full border rounded px-2 py-2 text-sm bg-background" value={sectionId} onChange={(e) => { setSectionId(e.target.value); setEdits({}); }}>
-        <option value="">اختر شعبة لإدارة درجاتها</option>
+        <option value="">اختر مجموعة دراسية لإدارة درجاتها</option>
         {sectionsOptions.map((s) => (
-          <option key={s.id} value={s.id}>{s.course_code} — {s.course_name} • شعبة {s.section_code}</option>
+          <option key={s.id} value={s.id}>{s.course_code} — {s.course_name} • مجموعة دراسية {s.section_code}</option>
         ))}
       </select>
 

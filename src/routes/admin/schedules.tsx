@@ -468,7 +468,7 @@ function ScheduleTab() {
     const s = lookups.sections.find((x) => x.id === id); if (!s) return "—";
     const o = lookups.offerings.find((x) => x.id === s.course_offering_id);
     const c = lookups.courses.find((x) => x.id === o?.course_id);
-    return `${c?.code ?? ""} — شعبة ${s.section_code}`;
+    return `${c?.code ?? ""} — مجموعة دراسية ${s.section_code}`;
   };
   const slotLabel = (id: string) => {
     const s = lookups.slots.find((x) => x.id === id); if (!s) return "—";
@@ -493,7 +493,7 @@ function ScheduleTab() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button onClick={() => { setEdit(null); setOpen(true); }} disabled={!lookups.ready}>
-          <Plus className="h-4 w-4 ml-1" /> جدولة شعبة
+          <Plus className="h-4 w-4 ml-1" /> جدولة مجموعة دراسية
         </Button>
       </div>
       {schedules.isLoading ? (
@@ -506,7 +506,7 @@ function ScheduleTab() {
             <table className="w-full text-sm">
               <thead className="bg-muted/40 text-xs">
                 <tr>
-                  <th className="px-3 py-2 text-right">الشعبة</th>
+                  <th className="px-3 py-2 text-right">المجموعات الدراسيةة</th>
                   <th className="px-3 py-2 text-right">الفترة</th>
                   <th className="px-3 py-2 text-right">القاعة</th>
                   <th className="px-3 py-2 text-right">المُدرّس</th>
@@ -640,7 +640,7 @@ function ScheduleDialog({ open, onOpenChange, editing, lookups, onSaved }: {
 
   const save = async () => {
     if (!form.course_section_id || !form.room_id || !form.time_slot_id) {
-      return toast.error("الشعبة والقاعة والفترة الزمنية مطلوبة");
+      return toast.error("المجموعات الدراسيةة والقاعة والفترة الزمنية مطلوبة");
     }
     setSaving(true);
     const payload = {
@@ -676,7 +676,7 @@ function ScheduleDialog({ open, onOpenChange, editing, lookups, onSaved }: {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl" className="max-w-2xl">
-        <DialogHeader><DialogTitle>{editing ? "تعديل جدول" : "جدولة شعبة"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? "تعديل جدول" : "جدولة مجموعة دراسية"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div><Label>السنة الأكاديمية</Label>
             <Select value={yearId} onValueChange={(v) => { setYearId(v); setSemId(""); setOfferingId(""); }}>
@@ -699,7 +699,7 @@ function ScheduleDialog({ open, onOpenChange, editing, lookups, onSaved }: {
               </SelectContent>
             </Select>
           </div>
-          <div><Label>المقرر (الطرح)</Label>
+          <div><Label>المقرر (الإسناد)</Label>
             <Select value={offeringId} onValueChange={(v) => { setOfferingId(v); setForm({ ...form, course_section_id: undefined }); }} disabled={!semId}>
               <SelectTrigger><SelectValue placeholder="اختر المقرر" /></SelectTrigger>
               <SelectContent>
@@ -710,10 +710,10 @@ function ScheduleDialog({ open, onOpenChange, editing, lookups, onSaved }: {
               </SelectContent>
             </Select>
           </div>
-          <div><Label>الشعبة *</Label>
+          <div><Label>المجموعات الدراسيةة *</Label>
             <Select value={form.course_section_id ?? ""} onValueChange={onSectionPick} disabled={!offeringId}>
-              <SelectTrigger><SelectValue placeholder="اختر الشعبة" /></SelectTrigger>
-              <SelectContent>{sectionsForOffering.map((s) => <SelectItem key={s.id} value={s.id}>شعبة {s.section_code}</SelectItem>)}</SelectContent>
+              <SelectTrigger><SelectValue placeholder="اختر المجموعات الدراسيةة" /></SelectTrigger>
+              <SelectContent>{sectionsForOffering.map((s) => <SelectItem key={s.id} value={s.id}>مجموعة دراسية {s.section_code}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div><Label>عضو هيئة التدريس</Label>
@@ -802,14 +802,14 @@ function ConflictsTab() {
           <CheckCircle2 className="h-6 w-6 text-emerald-600" />
           <div>
             <div className="font-bold text-emerald-900">لا توجد تعارضات حالية</div>
-            <div className="text-xs text-emerald-700">حماية قاعدة البيانات نشطة (تعارض القاعة/الأستاذ/الشعبة).</div>
+            <div className="text-xs text-emerald-700">حماية قاعدة البيانات نشطة (تعارض القاعة/الأستاذ/المجموعات الدراسيةة).</div>
           </div>
         </div>
       ) : (
         <>
           <ConflictGroup title="تعارضات القاعات" groups={conflicts.room} />
           <ConflictGroup title="تعارضات أعضاء هيئة التدريس" groups={conflicts.fac} />
-          <ConflictGroup title="تعارضات الشعب" groups={conflicts.sec} />
+          <ConflictGroup title="تعارضات المجموعات الدراسية" groups={conflicts.sec} />
         </>
       )}
     </div>

@@ -52,7 +52,7 @@ const groups: NavGroup[] = [
       { to: "/admin/academic-operations", label: "مركز العمليات الأكاديمية", icon: Activity },
       { to: "/admin/academic-core", label: "البنية الأكاديمية", icon: CalendarRange },
       { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
-      { to: "/admin/course-offerings", label: "الطرح والشعب", icon: CalendarDays },
+      { to: "/admin/course-offerings", label: "إسناد المقررات والمجموعات الدراسية", icon: CalendarDays },
       { to: "/admin/enrollments", label: "تسجيل الطلاب", icon: ClipboardList },
       { to: "/admin/grades", label: "الدرجات", icon: ClipboardCheck },
       { to: "/admin/transcripts", label: "السجلات الأكاديمية", icon: FileText },
