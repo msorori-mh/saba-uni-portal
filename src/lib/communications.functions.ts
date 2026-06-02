@@ -223,7 +223,7 @@ export const getAnnouncementStats = createServerFn({ method: "POST" })
     }
     if (t === "admins") {
       const { count } = await supabaseAdmin.from("user_roles").select("user_id", { count: "exact", head: true })
-        .in("role", ["admin","system_admin","dean","registrar","student_affairs","finance_officer","hr_officer"]);
+        .in("role", ["admin","system_admin","dean","registrar","student_affairs","finance_officer"]);
       recipients += count ?? 0;
     }
 
