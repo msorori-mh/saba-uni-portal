@@ -247,6 +247,92 @@ function ExecutiveDashboardPage() {
     { to: "/admin/operations", label: "مركز العمليات", icon: ShieldCheck },
   ];
 
+  // Derived analytics summary numbers
+  const studentTotals = analytics?.students.total ?? 0;
+  const studentRatios = useMemo(() => {
+    if (!analytics || studentTotals === 0) {
+      return { activeRatio: 0, gradReadiness: 0, atRiskRatio: 0 };
+    }
+    return {
+      activeRatio: Math.round((analytics.students.active / studentTotals) * 100),
+      gradReadiness: Math.round(((progress?.gradCandidates ?? 0) / studentTotals) * 100),
+      atRiskRatio: Math.round(((progress?.atRisk ?? 0) / studentTotals) * 100),
+    };
+  }, [analytics, studentTotals, progress]);
+
+  // Export helpers
+  async function doExport(section: "students" | "academic" | "faculty" | "financial" | "summary") {
+    if (!analytics) return;
+    let rows: Array<Record<string, string | number>> = [];
+    let name = "executive";
+    if (section === "students") {
+      name = "تحليل_الطلاب";
+      rows = [
+        ...analytics.students.byProgram.map((r) => ({ النوع: "حسب البرنامج", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byDepartment.map((r) => ({ النوع: "حسب القسم", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byLevel.map((r) => ({ النوع: "حسب المستوى", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byStatus.map((r) => ({ النوع: "حسب الحالة", التصنيف: r.label, العدد: r.value })),
+        ...analytics.students.byAcademicStatus.map((r) => ({ النوع: "الحالة الأكاديمية", التصنيف: r.label, العدد: r.value })),
+      ];
+    } else if (section === "academic") {
+      name = "الأداء_الأكاديمي";
+      rows = [
+        { المؤشر: "متوسط GPA", القيمة: progress?.avgGpa ?? 0 },
+        { المؤشر: "الطلاب المتعثرون", القيمة: progress?.atRisk ?? 0 },
+        { المؤشر: "مرشحو التخرج", القيمة: progress?.gradCandidates ?? 0 },
+        { المؤشر: "قرب التخرج", القيمة: progress?.nearCompletion ?? 0 },
+        { المؤشر: "العيّنة", القيمة: progress?.sampled ?? 0 },
+      ];
+    } else if (section === "faculty") {
+      name = "تحليل_هيئة_التدريس";
+      rows = [
+        { المؤشر: "إجمالي", القيمة: analytics.faculty.total },
+        { المؤشر: "النشطون", القيمة: analytics.faculty.active },
+        { المؤشر: "متوسط الحمل", القيمة: analytics.faculty.avgLoad },
+        { المؤشر: "شعب بدون أستاذ", القيمة: analytics.faculty.unassignedSections },
+        ...analytics.faculty.byDepartment.map((r) => ({ المؤشر: `قسم: ${r.label}`, القيمة: r.value })),
+        ...analytics.faculty.loadDistribution.map((r) => ({ المؤشر: `حمل ${r.label}`, القيمة: r.value })),
+      ];
+    } else if (section === "financial") {
+      name = "المؤشرات_المالية";
+      rows = [
+        { المؤشر: "إجمالي الرسوم", القيمة: analytics.finance.totalFees },
+        { المؤشر: "المحصّل", القيمة: analytics.finance.paidAmount },
+        { المؤشر: "المتبقي", القيمة: analytics.finance.outstanding },
+        { المؤشر: "نسبة التحصيل %", القيمة: analytics.finance.collectionRate },
+        { المؤشر: "طلاب عليهم رصيد", القيمة: analytics.finance.studentsWithBalance },
+        ...analytics.finance.outstandingByProgram.map((r) => ({ المؤشر: `متبقي - ${r.label}`, القيمة: r.value })),
+      ];
+    } else {
+      name = "ملخص_تنفيذي";
+      rows = [
+        { القسم: "طلاب", المؤشر: "الإجمالي", القيمة: analytics.students.total },
+        { القسم: "طلاب", المؤشر: "النشطون", القيمة: analytics.students.active },
+        { القسم: "أكاديمي", المؤشر: "متوسط GPA", القيمة: progress?.avgGpa ?? 0 },
+        { القسم: "أكاديمي", المؤشر: "مرشحو التخرج", القيمة: progress?.gradCandidates ?? 0 },
+        { القسم: "أكاديمي", المؤشر: "متعثرون", القيمة: progress?.atRisk ?? 0 },
+        { القسم: "هيئة تدريس", المؤشر: "النشطون", القيمة: analytics.faculty.active },
+        { القسم: "هيئة تدريس", المؤشر: "متوسط الحمل", القيمة: analytics.faculty.avgLoad },
+        { القسم: "مالي", المؤشر: "نسبة التحصيل %", القيمة: analytics.finance.collectionRate },
+        { القسم: "مالي", المؤشر: "المتبقي", القيمة: analytics.finance.outstanding },
+      ];
+    }
+    await exportXlsx(name, rows);
+    try { await logExport({ data: { section, rowCount: rows.length, format: "xlsx" } }); } catch { /* best-effort */ }
+  }
+
+  function ExportBtn({ section, label }: { section: "students" | "academic" | "faculty" | "financial" | "summary"; label?: string }) {
+    return (
+      <button
+        type="button"
+        onClick={() => doExport(section)}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-secondary"
+      >
+        <FileDown className="h-3 w-3" /> {label ?? "Excel"}
+      </button>
+    );
+  }
+
   return (
     <div dir="rtl" className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
