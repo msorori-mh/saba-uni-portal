@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
-import universityLogo from "@/assets/university-logo.png.asset.json";
+import universityLogo from "@/assets/university-logo.jpeg.asset.json";
 
 export function Footer() {
   const { data: s = {} } = useQuery(settingsQuery);

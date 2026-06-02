@@ -6,7 +6,7 @@ import {
   ScrollText, Shield, ShieldCheck, Sparkles, Wallet, Briefcase, Users2, ClipboardList,
 } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
-import universityLogo from "@/assets/university-logo.png.asset.json";
+import universityLogo from "@/assets/university-logo.jpeg.asset.json";
 import techPattern from "@/assets/tech-pattern.jpg";
 import { eventsQuery, liveCountsQuery, newsQuery, programsQuery, settingsQuery } from "@/lib/queries";
 

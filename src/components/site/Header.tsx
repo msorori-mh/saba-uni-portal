@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu, X, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
-import universityLogo from "@/assets/university-logo.png.asset.json";
+import universityLogo from "@/assets/university-logo.jpeg.asset.json";
 
 const navItems = [
   { to: "/", label: "الرئيسية" },
