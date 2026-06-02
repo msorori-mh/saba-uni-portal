@@ -46,6 +46,65 @@ function SeverityIcon({ s }: { s: Severity }) {
   return <Info className="h-4 w-4 text-sky-600" />;
 }
 
+const CHART_COLORS = [
+  "oklch(0.55 0.18 255)", "oklch(0.65 0.18 145)", "oklch(0.7 0.18 60)",
+  "oklch(0.6 0.22 25)", "oklch(0.55 0.18 295)", "oklch(0.7 0.15 195)",
+  "oklch(0.6 0.18 340)", "oklch(0.5 0.12 220)",
+];
+
+function EmptyState({ label = "لا توجد بيانات كافية للتحليل" }: { label?: string }) {
+  return (
+    <div className="grid h-48 place-items-center text-xs text-muted-foreground">{label}</div>
+  );
+}
+
+function MiniBar({ data, dataKey = "value", nameKey = "label" }: { data: Array<{ label: string; value: number }>; dataKey?: string; nameKey?: string }) {
+  if (!data || data.length === 0) return <EmptyState />;
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.9 0.02 255)" />
+        <XAxis dataKey={nameKey} tick={{ fontSize: 11 }} interval={0} angle={-15} textAnchor="end" height={50} />
+        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+        <Tooltip contentStyle={{ fontSize: 12, direction: "rtl" }} />
+        <Bar dataKey={dataKey} fill="oklch(0.55 0.18 255)" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function MiniPie({ data }: { data: Array<{ label: string; value: number }> }) {
+  if (!data || data.length === 0 || data.every((d) => d.value === 0)) return <EmptyState />;
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <PieChart>
+        <Pie data={data} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={70} label={(e: any) => `${e.label}: ${e.value}`}>
+          {data.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+        </Pie>
+        <Tooltip contentStyle={{ fontSize: 12, direction: "rtl" }} />
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+function TrendDelta({ current, previous, hasHistory, unit = "" }: { current: number; previous: number; hasHistory: boolean; unit?: string }) {
+  if (!hasHistory) return <div className="text-[11px] text-muted-foreground">لا توجد بيانات تاريخية كافية</div>;
+  const diff = current - previous;
+  const pct = previous > 0 ? Math.round((diff / previous) * 100) : (current > 0 ? 100 : 0);
+  const Icon = diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus;
+  const color = diff > 0 ? "text-emerald-600" : diff < 0 ? "text-destructive" : "text-muted-foreground";
+  return (
+    <div className="flex items-baseline gap-2">
+      <div className="font-display text-2xl font-extrabold text-primary">{current.toLocaleString()}{unit}</div>
+      <div className={cn("inline-flex items-center gap-0.5 text-xs font-bold", color)}>
+        <Icon className="h-3.5 w-3.5" /> {Math.abs(pct)}%
+      </div>
+      <div className="text-[11px] text-muted-foreground">سابق: {previous.toLocaleString()}{unit}</div>
+    </div>
+  );
+}
+
 function ExecutiveDashboardPage() {
   const logView = useServerFn(logExecutiveDashboardViewed);
   const fetchScope = useServerFn(getExecutiveScope);
