@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+import { loadXLSX } from "@/lib/xlsx-loader";
 import type { ImportType, ValidationResult, ValidatedRow, ImportReport } from "./types";
 
 const TYPE_LABEL: Record<ImportType, string> = {
@@ -12,11 +12,12 @@ const TYPE_LABEL: Record<ImportType, string> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = ValidatedRow<any>;
 
-export function downloadValidationReport(
+export async function downloadValidationReport(
   type: ImportType,
   fileName: string,
   validation: ValidationResult<unknown>,
 ) {
+  const XLSX = await loadXLSX();
   const rows: Array<Record<string, string | number>> = [];
   for (const r of validation.rows as Row[]) {
     if (r.errors.length === 0) {
@@ -57,11 +58,12 @@ export function downloadValidationReport(
   XLSX.writeFile(wb, `validation_${TYPE_LABEL[type]}_${base}.xlsx`);
 }
 
-export function downloadImportReport(
+export async function downloadImportReport(
   type: ImportType,
   fileName: string,
   report: ImportReport,
 ) {
+  const XLSX = await loadXLSX();
   const wb = XLSX.utils.book_new();
   const summary = [
     ["تقرير تنفيذ الاستيراد"],
