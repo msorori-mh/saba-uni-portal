@@ -454,6 +454,203 @@ function ExecutiveDashboardPage() {
         </div>
       </section>
 
+      {/* Phase 11H.1B — Student Analytics */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">تحليل الطلاب</h2>
+          <ExportBtn section="students" />
+        </div>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : analytics.students.total === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">إجمالي الطلاب</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{analytics.students.total}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">نسبة النشطين</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-emerald-600">{studentRatios.activeRatio}%</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">جاهزية التخرج</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-sky-600">{studentRatios.gradReadiness}%</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">نسبة المتعثرين</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-destructive">{studentRatios.atRiskRatio}%</div>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب البرنامج</div>
+                <MiniBar data={analytics.students.byProgram} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب القسم</div>
+                <MiniBar data={analytics.students.byDepartment} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب المستوى</div>
+                <MiniBar data={analytics.students.byLevel} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">الطلاب حسب الحالة الأكاديمية</div>
+                <MiniPie data={analytics.students.byAcademicStatus} />
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Academic Performance */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">الأداء الأكاديمي</h2>
+          <ExportBtn section="academic" />
+        </div>
+        {!progress ? <EmptyState label="جاري التحميل..." /> : (progress.sampled ?? 0) === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">متوسط GPA</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{progress.avgGpa.toFixed(2)}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">المتعثرون</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-destructive">{progress.atRisk}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">قرب التخرج</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-amber-600">{progress.nearCompletion}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">مرشحو التخرج</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-emerald-600">{progress.gradCandidates}</div>
+              </div>
+            </div>
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              العيّنة: {progress.sampled} طالب — يعتمد على محرّك التقدم الأكاديمي (academic-status engine).
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Faculty Analytics */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">تحليل أعضاء هيئة التدريس</h2>
+          <ExportBtn section="faculty" />
+        </div>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : analytics.faculty.total === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">الإجمالي</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{analytics.faculty.total}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">النشطون</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-emerald-600">{analytics.faculty.active}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">متوسط الحمل</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-primary">{analytics.faculty.avgLoad}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">شعب بدون أستاذ</div>
+                <div className="mt-1 font-display text-2xl font-extrabold text-destructive">{analytics.faculty.unassignedSections}</div>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">هيئة التدريس حسب القسم</div>
+                <MiniBar data={analytics.faculty.byDepartment} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">توزيع الحمل التدريسي</div>
+                <MiniBar data={analytics.faculty.loadDistribution} />
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Financial Analytics */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-base font-bold text-primary">المؤشرات المالية</h2>
+          <ExportBtn section="financial" />
+        </div>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : analytics.finance.totalFees === 0 ? <EmptyState /> : (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5 mb-6">
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">إجمالي الرسوم</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-primary">{analytics.finance.totalFees.toLocaleString()}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">المحصّل</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-emerald-600">{analytics.finance.paidAmount.toLocaleString()}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">المتبقي</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-destructive">{analytics.finance.outstanding.toLocaleString()}</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">نسبة التحصيل</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-primary">{analytics.finance.collectionRate}%</div>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-[11px] font-bold text-muted-foreground">طلاب عليهم رصيد</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-amber-600">{analytics.finance.studentsWithBalance}</div>
+              </div>
+            </div>
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">المدفوع مقابل المتبقي</div>
+                <MiniPie data={[
+                  { label: "محصّل", value: analytics.finance.paidAmount },
+                  { label: "متبقي", value: analytics.finance.outstanding },
+                ]} />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-primary mb-2">المتبقي حسب البرنامج</div>
+                <MiniBar data={analytics.finance.outstandingByProgram} />
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+
+      {/* Trends */}
+      <section className="rounded-xl border border-border bg-card p-6 shadow-card">
+        <h2 className="font-display text-base font-bold text-primary mb-4">الاتجاهات (الفصل الحالي vs السابق)</h2>
+        {!analytics ? <EmptyState label="جاري التحميل..." /> : (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">التسجيلات</div>
+              <TrendDelta {...analytics.trends.enrollments} />
+            </div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">الإيرادات</div>
+              <TrendDelta {...analytics.trends.revenue} />
+            </div>
+            <div className="rounded-lg border border-border p-4">
+              <div className="text-[11px] font-bold text-muted-foreground mb-1">طلبات الطلاب</div>
+              <TrendDelta {...analytics.trends.requests} />
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Executive summary export */}
+      <section className="rounded-xl border border-primary/20 bg-card p-4 shadow-card flex items-center justify-between gap-3">
+        <div className="text-sm font-bold text-primary inline-flex items-center gap-2">
+          <FileDown className="h-4 w-4" /> تصدير ملخص تنفيذي شامل
+        </div>
+        <ExportBtn section="summary" label="تنزيل Excel" />
+      </section>
+
       {/* Quick Links */}
       <section className="rounded-xl border border-border bg-card p-6 shadow-card">
         <h2 className="font-display text-base font-bold text-primary mb-4">وصول سريع</h2>
