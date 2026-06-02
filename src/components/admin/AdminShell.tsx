@@ -92,6 +92,15 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    id: "communications",
+    label: "الاتصالات",
+    icon: Megaphone,
+    items: [
+      { to: "/admin/communications", label: "مركز الاتصالات", icon: Megaphone },
+      { to: "/messages", label: "صندوق الرسائل", icon: MessageSquare },
+    ],
+  },
+  {
     id: "reports",
     label: "التقارير والتحليلات",
     icon: BarChart3,
