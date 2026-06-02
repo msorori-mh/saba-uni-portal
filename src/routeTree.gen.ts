@@ -28,10 +28,12 @@ import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
+import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
@@ -44,6 +46,7 @@ import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student
 import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
+import { Route as AdminSchedulesRouteImport } from './routes/admin/schedules'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
@@ -163,6 +166,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const StudentScheduleRoute = StudentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => StudentRoute,
+} as any)
 const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -182,6 +190,11 @@ const NewsSlugRoute = NewsSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => NewsRoute,
+} as any)
+const FacultyPortalScheduleRoute = FacultyPortalScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => FacultyPortalRoute,
 } as any)
 const FacultyPortalChangePasswordRoute =
   FacultyPortalChangePasswordRouteImport.update({
@@ -242,6 +255,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const AdminSecurityStatusRoute = AdminSecurityStatusRouteImport.update({
   id: '/security-status',
   path: '/security-status',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSchedulesRoute = AdminSchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminResearchRoute = AdminResearchRouteImport.update({
@@ -399,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
@@ -411,10 +430,12 @@ export interface FileRoutesByFullPath {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -455,6 +476,7 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
@@ -467,10 +489,12 @@ export interface FileRoutesByTo {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/schedule': typeof StudentScheduleRoute
   '/admin': typeof AdminIndexRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
   '/staff': typeof StaffIndexRoute
@@ -516,6 +540,7 @@ export interface FileRoutesById {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
@@ -528,10 +553,12 @@ export interface FileRoutesById {
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/news/$slug': typeof NewsSlugRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
@@ -578,6 +605,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
@@ -590,10 +618,12 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/document-view/$id'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/schedule'
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
@@ -634,6 +664,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
@@ -646,10 +677,12 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/document-view/$id'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/schedule'
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/schedule'
     | '/admin'
     | '/faculty-portal'
     | '/staff'
@@ -694,6 +727,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
@@ -706,10 +740,12 @@ export interface FileRouteTypes {
     | '/departments/$code'
     | '/document-view/$id'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/schedule'
     | '/news/$slug'
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
@@ -870,6 +906,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/student/schedule': {
+      id: '/student/schedule'
+      path: '/schedule'
+      fullPath: '/student/schedule'
+      preLoaderRoute: typeof StudentScheduleRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/student/notifications': {
       id: '/student/notifications'
       path: '/notifications'
@@ -897,6 +940,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/news/$slug'
       preLoaderRoute: typeof NewsSlugRouteImport
       parentRoute: typeof NewsRoute
+    }
+    '/faculty-portal/schedule': {
+      id: '/faculty-portal/schedule'
+      path: '/schedule'
+      fullPath: '/faculty-portal/schedule'
+      preLoaderRoute: typeof FacultyPortalScheduleRouteImport
+      parentRoute: typeof FacultyPortalRoute
     }
     '/faculty-portal/change-password': {
       id: '/faculty-portal/change-password'
@@ -980,6 +1030,13 @@ declare module '@tanstack/react-router' {
       path: '/security-status'
       fullPath: '/admin/security-status'
       preLoaderRoute: typeof AdminSecurityStatusRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/schedules': {
+      id: '/admin/schedules'
+      path: '/schedules'
+      fullPath: '/admin/schedules'
+      preLoaderRoute: typeof AdminSchedulesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/research': {
@@ -1170,6 +1227,7 @@ interface AdminRouteChildren {
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
   AdminResearchRoute: typeof AdminResearchRoute
+  AdminSchedulesRoute: typeof AdminSchedulesRoute
   AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStaffManagementRoute: typeof AdminStaffManagementRoute
@@ -1206,6 +1264,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminReportsRoute: AdminReportsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,
   AdminResearchRoute: AdminResearchRoute,
+  AdminSchedulesRoute: AdminSchedulesRoute,
   AdminSecurityStatusRoute: AdminSecurityStatusRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStaffManagementRoute: AdminStaffManagementRoute,
@@ -1234,11 +1293,13 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
 
 interface FacultyPortalRouteChildren {
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
+  FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
 }
 
 const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
+  FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
 }
 
@@ -1271,12 +1332,14 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 interface StudentRouteChildren {
   StudentChangePasswordRoute: typeof StudentChangePasswordRoute
   StudentNotificationsRoute: typeof StudentNotificationsRoute
+  StudentScheduleRoute: typeof StudentScheduleRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
 
 const StudentRouteChildren: StudentRouteChildren = {
   StudentChangePasswordRoute: StudentChangePasswordRoute,
   StudentNotificationsRoute: StudentNotificationsRoute,
+  StudentScheduleRoute: StudentScheduleRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
 

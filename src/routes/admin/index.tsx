@@ -5,7 +5,7 @@ import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
-  Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers,
+  Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers, CalendarClock, DoorOpen,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
   BarChart3, TrendingUp, Activity, HardDrive,
 } from "lucide-react";
@@ -111,6 +111,21 @@ function AdminDashboard() {
         docsActive, docsCancelled, docsThisMonth,
         importsTotal, importsToday, importsCompleted, importsFailed, importsRate,
       };
+    },
+  });
+
+  const { data: scheduleStats } = useQuery({
+    queryKey: ["admin-schedule-stats"],
+    queryFn: async () => {
+      const [rooms, slots, published, sectionsAll, scheduledSectionRows] = await Promise.all([
+        tableCount("rooms", (q) => q.eq("is_active", true)),
+        tableCount("time_slots", (q) => q.eq("is_active", true)),
+        tableCount("class_schedule", (q) => q.eq("status", "published")),
+        tableCount("course_sections", (q) => q.eq("status", "active")),
+        supabase.from("class_schedule").select("course_section_id").in("status", ["draft", "published"]),
+      ]);
+      const scheduledIds = new Set(((scheduledSectionRows.data ?? []) as Array<{ course_section_id: string }>).map((r) => r.course_section_id));
+      return { rooms, slots, published, unscheduled: Math.max(0, sectionsAll - scheduledIds.size) };
     },
   });
 
@@ -242,6 +257,15 @@ function AdminDashboard() {
         { label: "الشعب النشطة", value: aops?.activeSections ?? 0, icon: Layers, to: "/admin/academic-operations" },
         { label: "التسجيلات النشطة", value: aops?.activeEnrollments ?? 0, icon: ClipboardList, to: "/admin/academic-operations" },
         { label: "إيصالات قيد المراجعة", value: aops?.pendingReceipts ?? 0, icon: Receipt, to: "/admin/academic-operations" },
+      ],
+    },
+    {
+      title: "الجداول الدراسية",
+      cards: [
+        { label: "عدد القاعات", value: scheduleStats?.rooms ?? 0, icon: DoorOpen, to: "/admin/schedules" },
+        { label: "الفترات الزمنية", value: scheduleStats?.slots ?? 0, icon: CalendarClock, to: "/admin/schedules" },
+        { label: "الجداول المنشورة", value: scheduleStats?.published ?? 0, icon: CalendarDays, to: "/admin/schedules" },
+        { label: "الشعب غير المجدولة", value: scheduleStats?.unscheduled ?? 0, icon: AlertCircle, to: "/admin/schedules" },
       ],
     },
     {

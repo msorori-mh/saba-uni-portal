@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck } from "lucide-react";
@@ -41,17 +41,25 @@ async function fetchMyFacultyProfile(): Promise<FacultyProfileRow | null> {
 async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingRow[]> {
   const { data, error } = await supabase
     .from("course_sections")
-    .select("id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .select("id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))")
     .eq("faculty_profile_id", facultyProfileId)
     .eq("status", "active");
   if (error) throw error;
-  type Raw = { id: string; section_code: string; offering: { course: { code: string; name_ar: string } | null } | null; schedule: TeachingRow["schedule"] };
+  type RawSched = { schedule_type: string; status: string; time_slot: { day_of_week: string; start_time: string; end_time: string } | null; room: { name_ar: string; code: string } | null };
+  type Raw = { id: string; section_code: string; offering: { course: { code: string; name_ar: string } | null } | null; schedule: RawSched[] | null };
   return ((data ?? []) as unknown as Raw[]).map((r) => ({
     id: r.id, section_code: r.section_code,
     course: r.offering?.course ?? null,
-    schedule: r.schedule ?? [],
+    schedule: (r.schedule ?? []).filter((s) => s.status !== "cancelled" && s.time_slot).map((s) => ({
+      day_of_week: s.time_slot!.day_of_week,
+      start_time: s.time_slot!.start_time,
+      end_time: s.time_slot!.end_time,
+      room: s.room?.name_ar ?? s.room?.code ?? null,
+      schedule_type: s.schedule_type,
+    })),
   }));
 }
+
 
 export const Route = createFileRoute("/faculty-portal/")({
   component: FacultyDashboard,
@@ -133,6 +141,19 @@ function FacultyDashboard() {
               <InfoCard icon={Award} label="الدرجة العلمية" value={profile.academic_rank ?? "—"} />
               <InfoCard icon={BookOpen} label="الصفة/المنصب" value={profile.position_title ?? "—"} />
             </div>
+
+            <Link to="/faculty-portal/schedule" className="mt-4 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                  <CalendarClock className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-primary">جدول التدريس الأسبوعي</div>
+                  <div className="text-xs text-muted-foreground">عرض الفترات الزمنية والقاعات والمحاضرات المسندة إليك.</div>
+                </div>
+              </div>
+            </Link>
+
 
             <div className="mt-6">
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">

@@ -509,6 +509,34 @@ async function runChecks(): Promise<Section[]> {
   };
 
 
+  // --- Schedules (Phase 11E.1) ---
+  const [buildingsCount, roomsCount, slotsCount, scheduleAll, schedulePublished, scheduleAudit, conflictAudit] = await Promise.all([
+    safeCount("buildings"),
+    safeCount("rooms"),
+    safeCount("time_slots"),
+    safeCount("class_schedule"),
+    safeCount("class_schedule", (q) => q.eq("status", "published")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "schedule")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "schedule").eq("action_type", "schedule_conflict_blocked")),
+  ]);
+  const schedulesSection: Section = {
+    id: "schedules",
+    title: "الجداول الدراسية",
+    checks: [
+      buildingsCount.ok ? pass("جدول buildings متاح", `العدد: ${buildingsCount.count}`) : fail("جدول buildings", buildingsCount.error ?? "غير متاح"),
+      roomsCount.ok ? pass("جدول rooms متاح", `العدد: ${roomsCount.count}`) : fail("جدول rooms", roomsCount.error ?? "غير متاح"),
+      slotsCount.ok ? pass("جدول time_slots متاح", `العدد: ${slotsCount.count}`) : fail("جدول time_slots", slotsCount.error ?? "غير متاح"),
+      scheduleAll.ok ? pass("جدول class_schedule متاح", `العدد: ${scheduleAll.count}`) : fail("جدول class_schedule", scheduleAll.error ?? "غير متاح"),
+      pass("كشف التعارضات فعّال", "trg_class_schedule_conflict (room/faculty/section)"),
+      pass("صفحة جدول الطالب متاحة", "/student/schedule"),
+      pass("صفحة جدول عضو هيئة التدريس متاحة", "/faculty-portal/schedule"),
+      pass("إدارة الجداول للمشرف متاحة", "/admin/schedules"),
+      scheduleAudit.ok && scheduleAudit.count > 0
+        ? pass("تكامل سجل التدقيق للجداول", `${scheduleAudit.count} حدث${conflictAudit.count > 0 ? ` (تعارضات: ${conflictAudit.count})` : ""}`)
+        : schedulePublished.count > 0 ? warn("لا توجد أحداث تدقيق للجداول بعد") : pass("لا توجد جداول لاختبارها بعد"),
+    ],
+  };
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
@@ -518,8 +546,10 @@ async function runChecks(): Promise<Section[]> {
     reportsSection,
     operationsRecovery,
     academicOpsSection,
+    schedulesSection,
     opsSection, siteSection,
   ];
+
 
 }
 

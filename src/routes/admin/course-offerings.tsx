@@ -36,10 +36,6 @@ type Section = {
   id: string; course_offering_id: string; section_code: string;
   faculty_profile_id: string | null; capacity: number | null; status: string;
 };
-type Schedule = {
-  id: string; course_section_id: string; day_of_week: string;
-  start_time: string; end_time: string; room: string | null; schedule_type: string;
-};
 
 const DAYS = [
   { code: "saturday", label: "السبت" },
@@ -580,251 +576,22 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
   );
 }
 
-// ============ Schedule Tab ============
+// ============ Schedule Tab (moved) ============
 function ScheduleTab() {
-  const qc = useQueryClient();
-  const lk = useLookups();
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Schedule | null>(null);
-  const [confirmDel, setConfirmDel] = useState<Schedule | null>(null);
-
-  const { data: sections = [] } = useQuery({
-    queryKey: ["admin-sections"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("course_sections").select("*");
-      if (error) throw error; return data as Section[];
-    },
-  });
-  const { data: offerings = [] } = useQuery({
-    queryKey: ["admin-offerings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("course_offerings").select("*");
-      if (error) throw error; return data as Offering[];
-    },
-  });
-  const { data: schedules = [], isLoading } = useQuery({
-    queryKey: ["admin-schedule"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("class_schedule").select("*").order("day_of_week");
-      if (error) throw error; return data as Schedule[];
-    },
-  });
-
-  const sectionLabel = (id: string) => {
-    const s = sections.find((x) => x.id === id); if (!s) return "—";
-    const o = offerings.find((x) => x.id === s.course_offering_id);
-    const c = lk.courses.find((x) => x.id === o?.course_id);
-    return `${c?.code ?? ""} (${s.section_code})`;
-  };
-  const facultyForSection = (id: string) => {
-    const s = sections.find((x) => x.id === id);
-    return s?.faculty_profile_id ? lk.faculty.find((f) => f.id === s.faculty_profile_id)?.full_name_ar : null;
-  };
-
-  const handleDelete = async () => {
-    if (!confirmDel) return;
-    const { error } = await supabase.from("class_schedule").delete().eq("id", confirmDel.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف الموعد");
-    setConfirmDel(null);
-    qc.invalidateQueries({ queryKey: ["admin-schedule"] });
-  };
-
-  // Group by day
-  const grouped = useMemo(() => {
-    const m = new Map<string, Schedule[]>();
-    for (const d of DAYS) m.set(d.code, []);
-    for (const s of schedules) m.get(s.day_of_week)?.push(s);
-    return m;
-  }, [schedules]);
-
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus className="h-4 w-4 ml-1" /> موعد جديد
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : schedules.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد مواعيد.</div>
-      ) : (
-        <div className="space-y-3">
-          {DAYS.map((d) => {
-            const items = grouped.get(d.code) ?? [];
-            if (items.length === 0) return null;
-            return (
-              <div key={d.code} className="rounded-lg border bg-card overflow-hidden">
-                <div className="px-3 py-2 bg-muted/40 text-sm font-bold text-primary border-b">{d.label}</div>
-                <div className="divide-y">
-                  {items.sort((a, b) => a.start_time.localeCompare(b.start_time)).map((sch) => (
-                    <div key={sch.id} className="p-3 flex items-center gap-3 text-sm">
-                      <div className="font-mono text-xs bg-muted px-2 py-1 rounded">
-                        {sch.start_time.slice(0, 5)} - {sch.end_time.slice(0, 5)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold">{sectionLabel(sch.course_section_id)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {facultyForSection(sch.course_section_id) ?? "—"}
-                          {sch.room && <> • {sch.room}</>}
-                        </div>
-                      </div>
-                      <Badge variant="outline">{typeLabel(sch.schedule_type)}</Badge>
-                      <Button size="icon" variant="ghost" onClick={() => { setEditing(sch); setOpen(true); }}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => setConfirmDel(sch)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <ScheduleFormDialog open={open} onOpenChange={setOpen} editing={editing}
-        sections={sections} offerings={offerings} schedules={schedules} lk={lk}
-        onSaved={() => qc.invalidateQueries({ queryKey: ["admin-schedule"] })} />
-
-      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
-        <AlertDialogContent dir="rtl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>حذف الموعد</AlertDialogTitle>
-            <AlertDialogDescription>سيتم حذف هذا الموعد. لا يمكن التراجع.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>إلغاء</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive">حذف</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+    <div className="rounded-lg border border-dashed p-8 text-center space-y-3">
+      <Clock className="mx-auto h-8 w-8 text-muted-foreground" />
+      <div className="font-bold text-primary">انتقلت إدارة الجداول الدراسية إلى صفحة مستقلة</div>
+      <p className="text-sm text-muted-foreground">
+        أصبحت إدارة المباني والقاعات والفترات الزمنية والجداول الدراسية مع كشف التعارضات في صفحة موحّدة.
+      </p>
+      <a
+        href="/admin/schedules"
+        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+      >
+        فتح إدارة الجداول
+      </a>
     </div>
   );
 }
 
-function ScheduleFormDialog({ open, onOpenChange, editing, sections, offerings, schedules, lk, onSaved }: {
-  open: boolean; onOpenChange: (v: boolean) => void; editing: Schedule | null;
-  sections: Section[]; offerings: Offering[]; schedules: Schedule[];
-  lk: ReturnType<typeof useLookups>; onSaved: () => void;
-}) {
-  const [form, setForm] = useState<Partial<Schedule>>({});
-  const [saving, setSaving] = useState(false);
-
-  useMemo(() => {
-    if (open) setForm(editing ?? { day_of_week: "saturday", schedule_type: "lecture", start_time: "08:00", end_time: "10:00" });
-  }, [open, editing]);
-
-  const findCourse = (id: string) => lk.courses.find((c) => c.id === id);
-
-  // Client-side conflict check
-  const checkConflicts = (): string | null => {
-    if (!form.course_section_id || !form.day_of_week || !form.start_time || !form.end_time) return null;
-    const newSection = sections.find((s) => s.id === form.course_section_id);
-    if (!newSection) return null;
-    const newStart = form.start_time;
-    const newEnd = form.end_time;
-    for (const sch of schedules) {
-      if (editing && sch.id === editing.id) continue;
-      if (sch.day_of_week !== form.day_of_week) continue;
-      const overlaps = sch.start_time < newEnd && sch.end_time > newStart;
-      if (!overlaps) continue;
-      // Same room
-      if (form.room && sch.room && form.room.trim().toLowerCase() === sch.room.trim().toLowerCase()) {
-        return `تعارض في القاعة "${sch.room}" مع موعد آخر في نفس اليوم`;
-      }
-      // Same faculty
-      const otherSection = sections.find((s) => s.id === sch.course_section_id);
-      if (newSection.faculty_profile_id && otherSection?.faculty_profile_id === newSection.faculty_profile_id) {
-        return "تعارض في الوقت مع موعد آخر لنفس عضو هيئة التدريس";
-      }
-    }
-    return null;
-  };
-
-  const save = async () => {
-    if (!form.course_section_id || !form.day_of_week || !form.start_time || !form.end_time) {
-      toast.error("جميع الحقول الأساسية مطلوبة"); return;
-    }
-    if (form.end_time <= form.start_time) { toast.error("وقت النهاية يجب أن يكون بعد البداية"); return; }
-    const conflict = checkConflicts();
-    if (conflict) { toast.error(conflict); return; }
-    setSaving(true);
-    const payload = {
-      course_section_id: form.course_section_id,
-      day_of_week: form.day_of_week,
-      start_time: form.start_time, end_time: form.end_time,
-      room: form.room ?? null, schedule_type: form.schedule_type ?? "lecture",
-    };
-    const { error } = editing
-      ? await supabase.from("class_schedule").update(payload).eq("id", editing.id)
-      : await supabase.from("class_schedule").insert(payload);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(editing ? "تم التحديث" : "تم إضافة الموعد");
-    onOpenChange(false); onSaved();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-xl">
-        <DialogHeader><DialogTitle>{editing ? "تعديل موعد" : "موعد جديد"}</DialogTitle></DialogHeader>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <Label>الشعبة *</Label>
-            <Select value={form.course_section_id ?? ""} onValueChange={(v) => setForm({ ...form, course_section_id: v })}>
-              <SelectTrigger><SelectValue placeholder="اختر الشعبة" /></SelectTrigger>
-              <SelectContent>
-                {sections.map((s) => {
-                  const o = offerings.find((x) => x.id === s.course_offering_id);
-                  const c = findCourse(o?.course_id ?? "");
-                  return (
-                    <SelectItem key={s.id} value={s.id}>{c?.code} — شعبة {s.section_code}</SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>اليوم *</Label>
-            <Select value={form.day_of_week ?? ""} onValueChange={(v) => setForm({ ...form, day_of_week: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {DAYS.map((d) => <SelectItem key={d.code} value={d.code}>{d.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>النوع</Label>
-            <Select value={form.schedule_type ?? "lecture"} onValueChange={(v) => setForm({ ...form, schedule_type: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TYPES.map((t) => <SelectItem key={t.code} value={t.code}>{t.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>وقت البداية *</Label>
-            <Input type="time" value={form.start_time?.slice(0, 5) ?? ""} onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
-          </div>
-          <div>
-            <Label>وقت النهاية *</Label>
-            <Input type="time" value={form.end_time?.slice(0, 5) ?? ""} onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
-          </div>
-          <div className="col-span-2">
-            <Label>القاعة</Label>
-            <Input value={form.room ?? ""} onChange={(e) => setForm({ ...form, room: e.target.value })} placeholder="Lab-1 / Room-2" />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "حفظ"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}

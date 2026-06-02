@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,10 +62,23 @@ type MyEnrollmentRow = {
   slots: ScheduleSlot[];
 };
 
+type RawSched = { schedule_type: string; status: string; time_slot: { day_of_week: string; start_time: string; end_time: string } | null; room: { name_ar: string; code: string } | null };
+function flattenSched(raws: RawSched[] | null | undefined): ScheduleSlot[] {
+  return (raws ?? [])
+    .filter((s) => s.status !== "cancelled" && s.time_slot)
+    .map((s) => ({
+      day_of_week: s.time_slot!.day_of_week,
+      start_time: s.time_slot!.start_time,
+      end_time: s.time_slot!.end_time,
+      room: s.room?.name_ar ?? s.room?.code ?? null,
+      schedule_type: s.schedule_type,
+    }));
+}
+
 async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]> {
   const { data, error } = await supabase
     .from("student_enrollments")
-    .select("id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type))")
+    .select("id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code)))")
     .eq("student_profile_id", studentId);
   if (error) throw error;
   type Raw = {
@@ -74,7 +87,7 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
       section_code: string;
       faculty: { full_name_ar: string } | null;
       offering: { course: { code: string; name_ar: string } | null } | null;
-      schedule: ScheduleSlot[];
+      schedule: RawSched[] | null;
     } | null;
   };
   return ((data ?? []) as unknown as Raw[]).map((r) => ({
@@ -84,9 +97,10 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
     course_code: r.section?.offering?.course?.code ?? "—",
     course_name: r.section?.offering?.course?.name_ar ?? "—",
     faculty_name: r.section?.faculty?.full_name_ar ?? null,
-    slots: r.section?.schedule ?? [],
+    slots: flattenSched(r.section?.schedule),
   }));
 }
+
 
 async function fetchMyProfile(): Promise<StudentRow | null> {
   const { data: auth } = await supabase.auth.getUser();
@@ -126,12 +140,12 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
   if (offeringIds.length === 0) return [];
   const { data: sections, error: sErr } = await supabase
     .from("course_sections")
-    .select("id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .select("id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))")
     .in("course_offering_id", offeringIds)
     .eq("status", "active");
   if (sErr) throw sErr;
   type RawOff = { id: string; course: { code: string; name_ar: string } | null };
-  type RawSec = { id: string; section_code: string; course_offering_id: string; faculty: { full_name_ar: string } | null; schedule: ScheduleSlot[] };
+  type RawSec = { id: string; section_code: string; course_offering_id: string; faculty: { full_name_ar: string } | null; schedule: RawSched[] | null };
   const offMap = new Map((offerings as unknown as RawOff[]).map((o) => [o.id, o.course]));
   return ((sections ?? []) as unknown as RawSec[]).map((s) => {
     const c = offMap.get(s.course_offering_id);
@@ -139,10 +153,11 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
       section_id: s.id, section_code: s.section_code,
       course_code: c?.code ?? "—", course_name: c?.name_ar ?? "—",
       faculty_name: s.faculty?.full_name_ar ?? null,
-      slots: s.schedule ?? [],
+      slots: flattenSched(s.schedule),
     };
   });
 }
+
 
 async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
   const { data: plan, error: pErr } = await supabase
@@ -256,6 +271,18 @@ function StudentDashboard() {
               <InfoCard icon={Building2} label="القسم" value={profile.department?.name_ar ?? "—"} />
               <InfoCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} />
             </div>
+
+            <Link to="/student/schedule" className="mt-4 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                  <CalendarClock className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-primary">جدولي الدراسي الأسبوعي</div>
+                  <div className="text-xs text-muted-foreground">عرض المحاضرات المعتمدة للمقررات المسجّلة هذا الفصل.</div>
+                </div>
+              </div>
+            </Link>
 
             <div className="mt-6">
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
