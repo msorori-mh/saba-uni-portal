@@ -40,9 +40,21 @@ function AdminDashboard() {
   const fetchAdminCounts = useServerFn(adminAccountCounts);
   const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
   const fetchCommStats = useServerFn(getCommunicationsDashboardStats);
+  const fetchAutomationSettings = useServerFn(getAutomationSettings);
+  const fetchAutomationPreview = useServerFn(getAutomationPreview);
   const { data: commStats } = useQuery({
     queryKey: ["admin-comm-stats"],
     queryFn: () => fetchCommStats(),
+    staleTime: 60_000,
+  });
+  const { data: automation } = useQuery({
+    queryKey: ["admin-automation-status"],
+    queryFn: async () => {
+      const [s, p] = await Promise.all([fetchAutomationSettings(), fetchAutomationPreview()]);
+      const enabled_count = s.settings.filter((x) => x.enabled).length;
+      const disabled_count = s.settings.length - enabled_count;
+      return { enabled_count, disabled_count, upcoming_action: p.registration.upcoming_action };
+    },
     staleTime: 60_000,
   });
   const { data: progressKpis } = useQuery({
