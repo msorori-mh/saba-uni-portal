@@ -65,6 +65,7 @@ import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-status'
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
+import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
@@ -348,6 +349,11 @@ const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
   path: '/audit-log',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAcademicOperationsRoute = AdminAcademicOperationsRouteImport.update({
+  id: '/academic-operations',
+  path: '/academic-operations',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   id: '/academic-core',
   path: '/academic-core',
@@ -371,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/student': typeof StudentRouteWithChildren
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -426,6 +433,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -486,6 +494,7 @@ export interface FileRoutesById {
   '/student': typeof StudentRouteWithChildren
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -547,6 +556,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/verify-document'
     | '/admin/academic-core'
+    | '/admin/academic-operations'
     | '/admin/audit-log'
     | '/admin/backup-status'
     | '/admin/contacts'
@@ -602,6 +612,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/verify-document'
     | '/admin/academic-core'
+    | '/admin/academic-operations'
     | '/admin/audit-log'
     | '/admin/backup-status'
     | '/admin/contacts'
@@ -661,6 +672,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/verify-document'
     | '/admin/academic-core'
+    | '/admin/academic-operations'
     | '/admin/audit-log'
     | '/admin/backup-status'
     | '/admin/contacts'
@@ -1117,6 +1129,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditLogRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/academic-operations': {
+      id: '/admin/academic-operations'
+      path: '/academic-operations'
+      fullPath: '/admin/academic-operations'
+      preLoaderRoute: typeof AdminAcademicOperationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/academic-core': {
       id: '/admin/academic-core'
       path: '/academic-core'
@@ -1129,6 +1148,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
+  AdminAcademicOperationsRoute: typeof AdminAcademicOperationsRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
   AdminBackupStatusRoute: typeof AdminBackupStatusRoute
   AdminContactsRoute: typeof AdminContactsRoute
@@ -1164,6 +1184,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAcademicCoreRoute: AdminAcademicCoreRoute,
+  AdminAcademicOperationsRoute: AdminAcademicOperationsRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
   AdminBackupStatusRoute: AdminBackupStatusRoute,
   AdminContactsRoute: AdminContactsRoute,
@@ -1283,13 +1304,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
