@@ -73,13 +73,15 @@ function SchedulesPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="rooms">
-        <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2 h-auto">
+      <Tabs defaultValue="views">
+        <TabsList className="grid grid-cols-2 md:grid-cols-5 gap-2 h-auto">
+          <TabsTrigger value="views"><LayoutGrid className="h-4 w-4 ml-2" />عرض الجداول</TabsTrigger>
           <TabsTrigger value="rooms"><Building2 className="h-4 w-4 ml-2" />المباني والقاعات</TabsTrigger>
           <TabsTrigger value="slots"><Clock className="h-4 w-4 ml-2" />الفترات الزمنية</TabsTrigger>
           <TabsTrigger value="schedule"><CalendarDays className="h-4 w-4 ml-2" />الجدول الدراسي</TabsTrigger>
           <TabsTrigger value="conflicts"><AlertTriangle className="h-4 w-4 ml-2" />التعارضات</TabsTrigger>
         </TabsList>
+        <TabsContent value="views" className="mt-5"><TimetableViewsTab /></TabsContent>
         <TabsContent value="rooms" className="mt-5"><BuildingsRoomsTab /></TabsContent>
         <TabsContent value="slots" className="mt-5"><TimeSlotsTab /></TabsContent>
         <TabsContent value="schedule" className="mt-5"><ScheduleTab /></TabsContent>
