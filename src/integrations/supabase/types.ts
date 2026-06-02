@@ -232,6 +232,33 @@ export type Database = {
         }
         Relationships: []
       }
+      automation_settings: {
+        Row: {
+          config: Json
+          created_at: string
+          enabled: boolean
+          key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          enabled?: boolean
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       buildings: {
         Row: {
           code: string
