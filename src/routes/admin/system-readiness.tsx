@@ -608,6 +608,24 @@ async function runChecks(): Promise<Section[]> {
     ],
   };
 
+  // --- Executive Dashboard (Phase 11H.1A) ---
+  const execAuditViews = await safeCount("audit_logs", (q) =>
+    q.eq("entity_type", "executive_dashboard").eq("action_type", "executive_dashboard_viewed"),
+  );
+  const executiveSection: Section = {
+    id: "executive",
+    title: "القيادة التنفيذية",
+    checks: [
+      pass("صفحة لوحة القيادة التنفيذية متاحة", "/admin/executive-dashboard"),
+      pass("محرّك مؤشرات KPI فعّال", "يستخدم محركات موجودة (academic-status + counts)"),
+      pass("محرّك التنبيهات التنفيذية فعّال", "critical/warning/info"),
+      pass("تكامل مركز العمليات فعّال", "السنة/الفصل + آخر نشاط + جاهزية"),
+      execAuditViews.ok && execAuditViews.count > 0
+        ? pass("تكامل سجل التدقيق التنفيذي", `زيارات: ${execAuditViews.count}`)
+        : warn("لم تُسجّل زيارات للوحة التنفيذية بعد", "entity_type=executive_dashboard"),
+    ],
+  };
+
   return [
     studentSection, facultySection, staffSection,
     academicSection, financeSection, securitySection,
@@ -620,6 +638,7 @@ async function runChecks(): Promise<Section[]> {
     schedulesSection,
     academicProgressSection,
     communicationsSection,
+    executiveSection,
     opsSection, siteSection,
   ];
 
