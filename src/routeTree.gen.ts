@@ -29,6 +29,7 @@ import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
+import { Route as StudentProgressRouteImport } from './routes/student.progress'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
@@ -73,6 +74,7 @@ import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
 import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
+import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
 
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
   id: '/verify-document',
@@ -172,6 +174,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const StudentScheduleRoute = StudentScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentProgressRoute = StudentProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
   getParentRoute: () => StudentRoute,
 } as any)
 const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
@@ -396,6 +403,12 @@ const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   path: '/academic-core',
   getParentRoute: () => AdminRoute,
 } as any)
+const FacultyPortalStudentProgressStudentIdRoute =
+  FacultyPortalStudentProgressStudentIdRouteImport.update({
+    id: '/student-progress/$studentId',
+    path: '/student-progress/$studentId',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -457,11 +470,13 @@ export interface FileRoutesByFullPath {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -519,11 +534,13 @@ export interface FileRoutesByTo {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
   '/admin': typeof AdminIndexRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
+  '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -586,11 +603,13 @@ export interface FileRoutesById {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -654,11 +673,13 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/progress'
     | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
+    | '/faculty-portal/student-progress/$studentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -716,11 +737,13 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/progress'
     | '/student/schedule'
     | '/admin'
     | '/faculty-portal'
     | '/staff'
     | '/student'
+    | '/faculty-portal/student-progress/$studentId'
   id:
     | '__root__'
     | '/'
@@ -782,11 +805,13 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/progress'
     | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
+    | '/faculty-portal/student-progress/$studentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -948,6 +973,13 @@ declare module '@tanstack/react-router' {
       path: '/schedule'
       fullPath: '/student/schedule'
       preLoaderRoute: typeof StudentScheduleRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/progress': {
+      id: '/student/progress'
+      path: '/progress'
+      fullPath: '/student/progress'
+      preLoaderRoute: typeof StudentProgressRouteImport
       parentRoute: typeof StudentRoute
     }
     '/student/notifications': {
@@ -1258,6 +1290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAcademicCoreRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/faculty-portal/student-progress/$studentId': {
+      id: '/faculty-portal/student-progress/$studentId'
+      path: '/student-progress/$studentId'
+      fullPath: '/faculty-portal/student-progress/$studentId'
+      preLoaderRoute: typeof FacultyPortalStudentProgressStudentIdRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
   }
 }
 
@@ -1359,12 +1398,15 @@ interface FacultyPortalRouteChildren {
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
   FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
+  FacultyPortalStudentProgressStudentIdRoute: typeof FacultyPortalStudentProgressStudentIdRoute
 }
 
 const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
   FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
+  FacultyPortalStudentProgressStudentIdRoute:
+    FacultyPortalStudentProgressStudentIdRoute,
 }
 
 const FacultyPortalRouteWithChildren = FacultyPortalRoute._addFileChildren(
@@ -1396,6 +1438,7 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 interface StudentRouteChildren {
   StudentChangePasswordRoute: typeof StudentChangePasswordRoute
   StudentNotificationsRoute: typeof StudentNotificationsRoute
+  StudentProgressRoute: typeof StudentProgressRoute
   StudentScheduleRoute: typeof StudentScheduleRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
@@ -1403,6 +1446,7 @@ interface StudentRouteChildren {
 const StudentRouteChildren: StudentRouteChildren = {
   StudentChangePasswordRoute: StudentChangePasswordRoute,
   StudentNotificationsRoute: StudentNotificationsRoute,
+  StudentProgressRoute: StudentProgressRoute,
   StudentScheduleRoute: StudentScheduleRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
@@ -1431,3 +1475,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
