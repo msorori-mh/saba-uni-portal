@@ -1,10 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { GraduationCap, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { GraduationCap, Loader2, Mail, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { friendlyAuthError } from "@/components/auth/IdentifierInput";
 
 export const Route = createFileRoute("/admin/login")({
   head: () => ({
@@ -36,13 +38,20 @@ function AdminLoginPage() {
     return () => { cancelled = true; };
   }, [navigate]);
 
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { emailRef.current?.focus(); }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError(null);
     setLoading(true);
     try {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError || !data.user) throw new Error("invalid");
+      if (signInError) throw signInError;
+      if (!data.user) throw new Error("invalid");
       const { data: role } = await supabase
         .from("user_roles").select("role").eq("user_id", data.user.id).eq("role", "admin").maybeSingle();
       if (!role) {
@@ -51,10 +60,7 @@ function AdminLoginPage() {
       }
       navigate({ to: "/admin", replace: true });
     } catch (err) {
-      const msg = err instanceof Error && err.message === "forbidden"
-        ? "هذا الحساب لا يملك صلاحية الدخول إلى لوحة الإدارة"
-        : "بيانات الدخول غير صحيحة";
-      setError(msg);
+      setError(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -80,42 +86,48 @@ function AdminLoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-semibold">البريد الإلكتروني</Label>
               <div className="relative">
                 <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <Input
                   id="email"
+                  ref={emailRef}
                   type="email"
                   required
                   dir="ltr"
                   placeholder="admin@usr.edu.ye"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      passwordRef.current?.focus();
+                    }
+                  }}
                   className="pr-10 text-right"
                   autoComplete="email"
+                  aria-label="البريد الإلكتروني"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password" className="text-sm font-semibold">كلمة المرور</Label>
-              <div className="relative">
-                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10"
-                  autoComplete="current-password"
-                />
-              </div>
+              <PasswordInput
+                id="password"
+                ref={passwordRef}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                aria-label="كلمة المرور"
+                required
+              />
             </div>
 
             {error && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">
+              <div role="alert" aria-live="polite" className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm font-semibold text-destructive">
                 {error}
               </div>
             )}
@@ -125,7 +137,7 @@ function AdminLoginPage() {
               disabled={loading}
               className="w-full h-12 bg-gold-gradient text-primary-deep font-extrabold text-base shadow-gold hover:opacity-95 hover:translate-y-0"
             >
-              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "تسجيل الدخول"}
+              {loading ? <><Loader2 className="h-5 w-5 animate-spin" /> جاري تسجيل الدخول...</> : "تسجيل الدخول"}
             </Button>
 
             <p className="text-center text-xs text-muted-foreground pt-2">

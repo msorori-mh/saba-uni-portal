@@ -1,8 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, type FormEvent } from "react";
-import { Lock, ShieldCheck, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ShieldCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
+import { PasswordInput } from "@/components/auth/PasswordInput";
 
 export const Route = createFileRoute("/student/change-password")({
   component: ChangePasswordPage,
@@ -14,6 +15,9 @@ function ChangePasswordPage() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pwdRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { pwdRef.current?.focus(); }, []);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -64,25 +68,32 @@ function ChangePasswordPage() {
             )}
 
             <div>
-              <label className="block text-sm font-semibold mb-2">كلمة المرور الجديدة</label>
-              <div className="relative">
-                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="password" value={pwd} onChange={(e) => setPwd(e.target.value)} required minLength={8}
-                  className="w-full rounded-md border border-input bg-background pr-10 pl-4 py-3 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-                />
-              </div>
+              <label htmlFor="new-pwd" className="block text-sm font-semibold mb-2">كلمة المرور الجديدة</label>
+              <PasswordInput
+                id="new-pwd"
+                ref={pwdRef}
+                value={pwd}
+                onChange={(e) => setPwd(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirmRef.current?.focus(); } }}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                aria-label="كلمة المرور الجديدة"
+              />
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2">تأكيد كلمة المرور</label>
-              <div className="relative">
-                <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required minLength={8}
-                  className="w-full rounded-md border border-input bg-background pr-10 pl-4 py-3 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-                />
-              </div>
+              <label htmlFor="confirm-pwd" className="block text-sm font-semibold mb-2">تأكيد كلمة المرور</label>
+              <PasswordInput
+                id="confirm-pwd"
+                ref={confirmRef}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                aria-label="تأكيد كلمة المرور"
+              />
             </div>
 
             <button

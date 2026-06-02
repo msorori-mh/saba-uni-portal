@@ -1,8 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
-import { Lock, User, ArrowLeft, ShieldCheck, GraduationCap, BookOpen, Briefcase } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, ShieldCheck, GraduationCap, BookOpen, Briefcase, Loader2, User } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { IdentifierInput, friendlyAuthError } from "@/components/auth/IdentifierInput";
 
 type AccountType = "student" | "faculty" | "staff";
 
@@ -19,10 +21,12 @@ const REDIRECT_AFTER_LOGIN: Record<AccountType, string> = {
 };
 
 const COPY: Record<AccountType, { title: string; idLabel: string; idPlaceholder: string; subtitle: string; Icon: typeof User }> = {
-  student: { title: "تسجيل دخول الطالب",    idLabel: "الرقم الأكاديمي", idPlaceholder: "مثال: 2024010012", subtitle: "بوابة الطالب الإلكترونية", Icon: GraduationCap },
-  faculty: { title: "تسجيل دخول عضو هيئة التدريس", idLabel: "رقم الموظف",     idPlaceholder: "مثال: F0001",      subtitle: "بوابة أعضاء هيئة التدريس", Icon: BookOpen },
-  staff:   { title: "تسجيل دخول الموظف",     idLabel: "رقم الموظف",     idPlaceholder: "مثال: S0001",      subtitle: "بوابة الموظفين الإداريين", Icon: Briefcase },
+  student: { title: "تسجيل دخول الطالب",    idLabel: "الرقم الأكاديمي", idPlaceholder: "20230001", subtitle: "بوابة الطالب الإلكترونية", Icon: GraduationCap },
+  faculty: { title: "تسجيل دخول عضو هيئة التدريس", idLabel: "رقم الموظف",     idPlaceholder: "F0001",     subtitle: "بوابة أعضاء هيئة التدريس", Icon: BookOpen },
+  staff:   { title: "تسجيل دخول الموظف",     idLabel: "رقم الموظف",     idPlaceholder: "S0001",     subtitle: "بوابة الموظفين الإداريين", Icon: Briefcase },
 };
+
+const LAST_TAB_KEY = "portal-login:last-account-type";
 
 export const Route = createFileRoute("/portal-login")({
   head: () => ({
@@ -42,8 +46,31 @@ function PortalLoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const identifierRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
-  // If already signed in, route to the appropriate portal based on which profile exists
+  // Restore last tab from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LAST_TAB_KEY);
+      if (saved === "student" || saved === "faculty" || saved === "staff") {
+        setAccountType(saved);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Persist tab + focus first field when tab changes
+  useEffect(() => {
+    try { localStorage.setItem(LAST_TAB_KEY, accountType); } catch { /* ignore */ }
+    identifierRef.current?.focus();
+  }, [accountType]);
+
+  // Auto-focus on mount
+  useEffect(() => {
+    identifierRef.current?.focus();
+  }, []);
+
+  // If already signed in, route to the appropriate portal
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -57,15 +84,16 @@ function PortalLoginPage() {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     if (!identifier.trim() || !password) return;
     setError(null);
     setLoading(true);
     try {
       const email = `${identifier.trim().toLowerCase()}@${DOMAIN[accountType]}`;
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError || !data.user) throw new Error("invalid");
+      if (signInError) throw signInError;
+      if (!data.user) throw new Error("invalid");
 
-      // Verify the account actually matches the chosen type
       const dest = await resolveDestinationForUser(data.user.id);
       if (!dest || dest !== REDIRECT_AFTER_LOGIN[accountType]) {
         await supabase.auth.signOut();
@@ -73,10 +101,7 @@ function PortalLoginPage() {
       }
       navigate({ to: dest, replace: true });
     } catch (err) {
-      const msg = err instanceof Error && err.message === "mismatch"
-        ? "هذا الحساب لا يطابق نوع الدخول المختار"
-        : "البيانات المدخلة غير صحيحة";
-      setError(msg);
+      setError(friendlyAuthError(err));
       setLoading(false);
     }
   };
@@ -85,7 +110,7 @@ function PortalLoginPage() {
   const Icon = cfg.Icon;
 
   return (
-    <section className="relative min-h-[calc(100vh-200px)] bg-hero-gradient text-primary-foreground overflow-hidden flex items-center">
+    <section dir="rtl" className="relative min-h-[calc(100vh-200px)] bg-hero-gradient text-primary-foreground overflow-hidden flex items-center">
       <div className="absolute inset-0 bg-overlay-gradient" />
       <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
       <div className="absolute -right-32 -bottom-32 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />
@@ -105,7 +130,7 @@ function PortalLoginPage() {
             اختر نوع حسابك ثم سجّل الدخول للوصول إلى خدماتك الإلكترونية.
           </p>
 
-          <div className="mt-10 space-y-3">
+          <div className="mt-10 space-y-3" role="tablist" aria-label="نوع الحساب">
             {(["student", "faculty", "staff"] as const).map((k) => {
               const c = COPY[k];
               const C = c.Icon;
@@ -114,6 +139,8 @@ function PortalLoginPage() {
                 <button
                   key={k}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setAccountType(k)}
                   className={`w-full flex items-center gap-3 rounded-lg border px-4 py-3 text-right transition-colors ${
                     active ? "border-gold bg-white/10 text-gold" : "border-white/10 bg-white/5 text-primary-foreground/75 hover:bg-white/10"
@@ -135,7 +162,7 @@ function PortalLoginPage() {
         {/* Right — form */}
         <div className="mx-auto w-full max-w-md">
           {/* Mobile type tabs */}
-          <div className="lg:hidden mb-4 grid grid-cols-3 gap-2 rounded-xl bg-white/10 p-1.5 border border-white/15">
+          <div className="lg:hidden mb-4 grid grid-cols-3 gap-2 rounded-xl bg-white/10 p-1.5 border border-white/15" role="tablist" aria-label="نوع الحساب">
             {(["student", "faculty", "staff"] as const).map((k) => {
               const C = COPY[k].Icon;
               const active = k === accountType;
@@ -143,6 +170,8 @@ function PortalLoginPage() {
                 <button
                   key={k}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setAccountType(k)}
                   className={`flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-bold transition-colors ${
                     active ? "bg-gold text-primary-deep" : "text-primary-foreground/80 hover:bg-white/10"
@@ -168,48 +197,57 @@ function PortalLoginPage() {
               </div>
             </div>
 
-            <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate>
               {error && (
-                <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive">
+                <div role="alert" aria-live="polite" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive">
                   {error}
                 </div>
               )}
               <div>
-                <label className="block text-sm font-semibold mb-2">{cfg.idLabel}</label>
-                <div className="relative">
-                  <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    type="text"
-                    placeholder={cfg.idPlaceholder}
-                    className="w-full rounded-md border border-input bg-background pr-10 pl-4 py-3 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-                    required
-                  />
-                </div>
+                <label htmlFor="portal-identifier" className="block text-sm font-semibold mb-2">{cfg.idLabel}</label>
+                <IdentifierInput
+                  id="portal-identifier"
+                  ref={identifierRef}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  onClear={() => { setIdentifier(""); identifierRef.current?.focus(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      passwordRef.current?.focus();
+                    }
+                  }}
+                  placeholder={cfg.idPlaceholder}
+                  aria-label={cfg.idLabel}
+                  autoComplete="username"
+                  required
+                />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">كلمة المرور</label>
-                <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    type="password"
-                    placeholder="••••••••"
-                    className="w-full rounded-md border border-input bg-background pr-10 pl-4 py-3 text-sm outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
-                    required
-                  />
-                </div>
+                <label htmlFor="portal-password" className="block text-sm font-semibold mb-2">كلمة المرور</label>
+                <PasswordInput
+                  id="portal-password"
+                  ref={passwordRef}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  aria-label="كلمة المرور"
+                  autoComplete="current-password"
+                  required
+                />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground shadow-elegant hover:bg-primary-deep transition-colors disabled:opacity-60"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary px-6 py-3 text-sm font-extrabold text-primary-foreground shadow-elegant hover:bg-primary-deep transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {loading ? "جاري الدخول..." : <>دخول البوابة <ArrowLeft className="h-4 w-4" /></>}
+                {loading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> جاري تسجيل الدخول...</>
+                ) : (
+                  <>دخول البوابة <ArrowLeft className="h-4 w-4" /></>
+                )}
               </button>
 
               <div className="text-center text-xs text-muted-foreground border-t border-border pt-3">
@@ -228,7 +266,6 @@ function PortalLoginPage() {
 }
 
 async function resolveDestinationForUser(userId: string): Promise<string | null> {
-  // Try each profile table — first hit wins
   const [{ data: s }, { data: f }, { data: st }] = await Promise.all([
     supabase.from("student_profiles").select("user_id").eq("user_id", userId).maybeSingle(),
     supabase.from("faculty_profiles").select("user_id").eq("user_id", userId).maybeSingle(),
