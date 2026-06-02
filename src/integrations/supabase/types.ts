@@ -1635,6 +1635,280 @@ export type Database = {
           },
         ]
       }
+      pilot_checklist_items: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          label: string
+          order_index: number
+          period: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          label: string
+          order_index?: number
+          period: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          label?: string
+          order_index?: number
+          period?: string
+        }
+        Relationships: []
+      }
+      pilot_checklist_runs: {
+        Row: {
+          completed: boolean
+          completed_at: string
+          completed_by: string | null
+          id: string
+          item_id: string
+          notes: string | null
+          run_date: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          item_id: string
+          notes?: string | null
+          run_date?: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string
+          completed_by?: string | null
+          id?: string
+          item_id?: string
+          notes?: string | null
+          run_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_checklist_runs_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "pilot_checklist_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pilot_config: {
+        Row: {
+          created_at: string
+          id: number
+          launch_date: string | null
+          notes: string | null
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          launch_date?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          launch_date?: string | null
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      pilot_feedback: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          message: string
+          recorded_by: string | null
+          subject: string | null
+          subject_user_id: string | null
+          type: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          message: string
+          recorded_by?: string | null
+          subject?: string | null
+          subject_user_id?: string | null
+          type: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          message?: string
+          recorded_by?: string | null
+          subject?: string | null
+          subject_user_id?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      pilot_issues: {
+        Row: {
+          assigned_to: string | null
+          category: string
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          category: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pilot_participants: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          role: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          role: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      pilot_test_results: {
+        Row: {
+          notes: string | null
+          result: string
+          scenario_id: string
+          tested_at: string | null
+          tested_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          notes?: string | null
+          result?: string
+          scenario_id: string
+          tested_at?: string | null
+          tested_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          notes?: string | null
+          result?: string
+          scenario_id?: string
+          tested_at?: string | null
+          tested_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pilot_test_results_scenario_id_fkey"
+            columns: ["scenario_id"]
+            isOneToOne: true
+            referencedRelation: "pilot_test_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pilot_test_scenarios: {
+        Row: {
+          category: string
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          order_index: number
+        }
+        Insert: {
+          category: string
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          order_index?: number
+        }
+        Update: {
+          category?: string
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          order_index?: number
+        }
+        Relationships: []
+      }
       programs: {
         Row: {
           admission_requirements: string | null
