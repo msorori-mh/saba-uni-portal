@@ -51,6 +51,8 @@ function ExecutiveDashboardPage() {
   const fetchScope = useServerFn(getExecutiveScope);
   const fetchProgress = useServerFn(getProgressDashboardKpis);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
+  const fetchAnalytics = useServerFn(getExecutiveAnalytics);
+  const logExport = useServerFn(logExecutiveExport);
 
   useEffect(() => {
     logView().catch(() => {});
@@ -71,6 +73,12 @@ function ExecutiveDashboardPage() {
   const { data: adminCounts } = useQuery({
     queryKey: ["exec-admin-counts"],
     queryFn: () => fetchAdminCounts(),
+  });
+
+  const { data: analytics } = useQuery({
+    queryKey: ["exec-analytics"],
+    queryFn: () => fetchAnalytics(),
+    staleTime: 2 * 60 * 1000,
   });
 
   const { data: core } = useQuery({
