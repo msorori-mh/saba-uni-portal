@@ -61,7 +61,7 @@ function PortalLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const email = `${identifier.trim()}@${DOMAIN[accountType]}`;
+      const email = `${identifier.trim().toLowerCase()}@${DOMAIN[accountType]}`;
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError || !data.user) throw new Error("invalid");
 
