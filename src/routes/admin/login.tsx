@@ -141,7 +141,7 @@ function AdminLoginPage() {
             </Button>
 
             <div className="text-center pt-1">
-              <Link to="/forgot-password" className="text-xs font-bold text-primary hover:text-gold">
+              <Link to="/forgot-password" search={{ ctx: "admin" }} className="text-xs font-bold text-primary hover:text-gold">
                 نسيت كلمة المرور؟
               </Link>
             </div>

@@ -1,12 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowRight, KeyRound, Loader2, Mail, CheckCircle2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ArrowRight, KeyRound, Loader2, Mail, CheckCircle2, ShieldCheck, GraduationCap, BookOpen, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+type Ctx = "admin" | "student" | "faculty" | "staff";
+
 export const Route = createFileRoute("/forgot-password")({
+  validateSearch: (s: Record<string, unknown>): { ctx?: Ctx } => {
+    const c = s.ctx;
+    if (c === "admin" || c === "student" || c === "faculty" || c === "staff") return { ctx: c };
+    return {};
+  },
   head: () => ({
     meta: [
       { title: "نسيت كلمة المرور؟ — كلية تكنولوجيا المعلومات" },
@@ -16,7 +23,56 @@ export const Route = createFileRoute("/forgot-password")({
   component: ForgotPasswordPage,
 });
 
+const COPY: Record<Ctx, {
+  title: string;
+  description: string;
+  hint?: { label: string; sample?: string };
+  Icon: typeof KeyRound;
+  backTo: "/admin/login" | "/portal-login";
+  backLabel: string;
+  placeholder: string;
+}> = {
+  admin: {
+    title: "استعادة كلمة مرور المسؤول",
+    description: "أدخل البريد الإلكتروني المرتبط بحساب الإدارة وسنرسل لك رابط إعادة تعيين كلمة المرور.",
+    Icon: ShieldCheck,
+    backTo: "/admin/login",
+    backLabel: "العودة لتسجيل دخول المسؤول",
+    placeholder: "admin@usr.edu.ye",
+  },
+  student: {
+    title: "استعادة كلمة مرور الطالب",
+    description: "أدخل بريدك الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
+    hint: { label: "للطلاب: استخدم بريد", sample: "رقم_أكاديمي@students.usr.edu.ye" },
+    Icon: GraduationCap,
+    backTo: "/portal-login",
+    backLabel: "العودة لبوابة الطالب",
+    placeholder: "20230001@students.usr.edu.ye",
+  },
+  faculty: {
+    title: "استعادة كلمة مرور عضو هيئة التدريس",
+    description: "أدخل بريدك الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
+    hint: { label: "لأعضاء هيئة التدريس: استخدم بريد", sample: "رقم_الموظف@faculty.usr.edu.ye" },
+    Icon: BookOpen,
+    backTo: "/portal-login",
+    backLabel: "العودة لبوابة أعضاء هيئة التدريس",
+    placeholder: "F0001@faculty.usr.edu.ye",
+  },
+  staff: {
+    title: "استعادة كلمة مرور الموظف",
+    description: "أدخل بريدك الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
+    hint: { label: "للموظفين: استخدم بريد", sample: "رقم_الموظف@staff.usr.edu.ye" },
+    Icon: Briefcase,
+    backTo: "/portal-login",
+    backLabel: "العودة لبوابة الموظفين",
+    placeholder: "S0001@staff.usr.edu.ye",
+  },
+};
+
 function ForgotPasswordPage() {
+  const { ctx } = Route.useSearch();
+  const cfg = useMemo(() => COPY[(ctx ?? "admin") as Ctx], [ctx]);
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,14 +96,13 @@ function ForgotPasswordPage() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (resetErr) throw resetErr;
-      // best-effort audit (will silently no-op if not allowed)
       try {
         await (supabase.rpc as any)("log_audit", {
           _entity_type: "user",
           _entity_id: null,
           _action_type: "password_reset_requested",
           _old: null,
-          _new: { email: trimmed },
+          _new: { email: trimmed, ctx: ctx ?? "admin" },
           _notes: null,
         });
       } catch { /* ignore */ }
@@ -59,6 +114,8 @@ function ForgotPasswordPage() {
     }
   };
 
+  const Icon = cfg.Icon;
+
   return (
     <div dir="rtl" className="min-h-screen w-full bg-primary-deep relative overflow-hidden grid place-items-center px-4 py-10">
       <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
@@ -68,12 +125,10 @@ function ForgotPasswordPage() {
         <div className="rounded-2xl border-2 border-gold/40 bg-card shadow-elegant overflow-hidden">
           <div className="bg-gold-gradient px-8 py-6 text-center">
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-primary-deep text-gold shadow-elegant">
-              <KeyRound className="h-7 w-7" />
+              <Icon className="h-7 w-7" />
             </div>
-            <h1 className="mt-4 font-display text-2xl font-extrabold text-primary-deep">استعادة كلمة المرور</h1>
-            <p className="mt-1 text-sm text-primary-deep/75">
-              أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين.
-            </p>
+            <h1 className="mt-4 font-display text-2xl font-extrabold text-primary-deep">{cfg.title}</h1>
+            <p className="mt-1 text-sm text-primary-deep/75">{cfg.description}</p>
           </div>
 
           {sent ? (
@@ -87,12 +142,9 @@ function ForgotPasswordPage() {
               <p className="text-xs text-muted-foreground">
                 إن لم يصلك البريد خلال دقائق، تحقق من مجلد البريد المزعج (Spam).
               </p>
-              <div className="pt-4 flex flex-col gap-2">
-                <Link to="/admin/login" className="text-sm font-bold text-primary hover:text-gold">
-                  العودة لتسجيل دخول المسؤول
-                </Link>
-                <Link to="/portal-login" className="text-sm font-bold text-primary hover:text-gold">
-                  العودة لبوابة المستخدمين
+              <div className="pt-4">
+                <Link to={cfg.backTo} className="text-sm font-bold text-primary hover:text-gold">
+                  {cfg.backLabel}
                 </Link>
               </div>
             </div>
@@ -108,16 +160,18 @@ function ForgotPasswordPage() {
                     type="email"
                     required
                     dir="ltr"
-                    placeholder="name@usr.edu.ye"
+                    placeholder={cfg.placeholder}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pr-10 text-right"
                     autoComplete="email"
                   />
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  للطلاب: استخدم بريد <span dir="ltr">رقم_أكاديمي@students.usr.edu.ye</span>
-                </p>
+                {cfg.hint && (
+                  <p className="text-[11px] text-muted-foreground">
+                    {cfg.hint.label}{cfg.hint.sample ? <> <span dir="ltr">{cfg.hint.sample}</span></> : null}
+                  </p>
+                )}
               </div>
 
               {error && (
@@ -138,12 +192,9 @@ function ForgotPasswordPage() {
                 )}
               </Button>
 
-              <div className="flex justify-between text-xs pt-2">
-                <Link to="/admin/login" className="text-primary hover:text-gold font-bold inline-flex items-center gap-1">
-                  <ArrowRight className="h-3 w-3" /> دخول المسؤول
-                </Link>
-                <Link to="/portal-login" className="text-primary hover:text-gold font-bold inline-flex items-center gap-1">
-                  <ArrowRight className="h-3 w-3" /> دخول البوابة
+              <div className="text-xs pt-2">
+                <Link to={cfg.backTo} className="text-primary hover:text-gold font-bold inline-flex items-center gap-1">
+                  <ArrowRight className="h-3 w-3" /> {cfg.backLabel}
                 </Link>
               </div>
             </form>
