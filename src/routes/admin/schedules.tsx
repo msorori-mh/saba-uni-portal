@@ -216,7 +216,7 @@ function BuildingDialog({ open, onOpenChange, editing, onSaved }: {
       // best-effort audit
       try {
         await supabase.rpc("log_audit" as any, {
-          _entity_type: "schedule", _entity_id: editing?.id ?? "00000000-0000-0000-0000-000000000000",
+          _entity_type: "schedule", _entity_id: "00000000-0000-0000-0000-000000000000",
           _action_type: "building_created", _old: null, _new: payload, _notes: null,
         });
       } catch {/* ignore */}
@@ -266,7 +266,7 @@ function RoomDialog({ open, onOpenChange, editing, buildings, onSaved }: {
     if (!editing) {
       try {
         await supabase.rpc("log_audit" as any, {
-          _entity_type: "schedule", _entity_id: editing?.id ?? "00000000-0000-0000-0000-000000000000",
+          _entity_type: "schedule", _entity_id: "00000000-0000-0000-0000-000000000000",
           _action_type: "room_created", _old: null, _new: payload, _notes: null,
         });
       } catch {/* ignore */}
@@ -397,7 +397,7 @@ function TimeSlotDialog({ open, onOpenChange, editing, onSaved }: {
     if (!editing) {
       try {
         await supabase.rpc("log_audit" as any, {
-          _entity_type: "schedule", _entity_id: editing?.id ?? "00000000-0000-0000-0000-000000000000",
+          _entity_type: "schedule", _entity_id: "00000000-0000-0000-0000-000000000000",
           _action_type: "time_slot_created", _old: null, _new: payload, _notes: null,
         });
       } catch {/* ignore */}
@@ -657,7 +657,7 @@ function ScheduleDialog({ open, onOpenChange, editing, lookups, onSaved }: {
         try {
           await supabase.rpc("log_audit" as any, {
             _entity_type: "schedule",
-            _entity_id: editing?.id ?? "00000000-0000-0000-0000-000000000000",
+            _entity_id: "00000000-0000-0000-0000-000000000000",
             _action_type: "schedule_conflict_blocked",
             _old: null, _new: payload, _notes: error.message,
           });

@@ -46,6 +46,7 @@ import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student
 import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
+import { Route as AdminSchedulesRouteImport } from './routes/admin/schedules'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
@@ -256,6 +257,11 @@ const AdminSecurityStatusRoute = AdminSecurityStatusRouteImport.update({
   path: '/security-status',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminSchedulesRoute = AdminSchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminResearchRoute = AdminResearchRouteImport.update({
   id: '/research',
   path: '/research',
@@ -411,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
@@ -469,6 +476,7 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
@@ -532,6 +540,7 @@ export interface FileRoutesById {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
@@ -596,6 +605,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
@@ -654,6 +664,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
@@ -716,6 +727,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
@@ -1020,6 +1032,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSecurityStatusRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/schedules': {
+      id: '/admin/schedules'
+      path: '/schedules'
+      fullPath: '/admin/schedules'
+      preLoaderRoute: typeof AdminSchedulesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/research': {
       id: '/admin/research'
       path: '/research'
@@ -1208,6 +1227,7 @@ interface AdminRouteChildren {
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
   AdminResearchRoute: typeof AdminResearchRoute
+  AdminSchedulesRoute: typeof AdminSchedulesRoute
   AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStaffManagementRoute: typeof AdminStaffManagementRoute
@@ -1244,6 +1264,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminReportsRoute: AdminReportsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,
   AdminResearchRoute: AdminResearchRoute,
+  AdminSchedulesRoute: AdminSchedulesRoute,
   AdminSecurityStatusRoute: AdminSecurityStatusRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStaffManagementRoute: AdminStaffManagementRoute,
