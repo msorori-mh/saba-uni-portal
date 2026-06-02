@@ -1,7 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { CalendarClock, Loader2, ArrowRight } from "lucide-react";
+import { CalendarClock, Loader2, ArrowRight, Printer, FileSpreadsheet } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
+import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList } from "@/components/schedule/ScheduleView";
 
 export const Route = createFileRoute("/student/schedule")({
   head: () => ({
@@ -13,63 +17,49 @@ export const Route = createFileRoute("/student/schedule")({
   component: StudentSchedulePage,
 });
 
-const DAYS: Array<{ code: string; label: string }> = [
-  { code: "saturday", label: "السبت" },
-  { code: "sunday", label: "الأحد" },
-  { code: "monday", label: "الإثنين" },
-  { code: "tuesday", label: "الثلاثاء" },
-  { code: "wednesday", label: "الأربعاء" },
-  { code: "thursday", label: "الخميس" },
-  { code: "friday", label: "الجمعة" },
-];
-
-const TYPE_LABELS: Record<string, string> = {
-  lecture: "محاضرة", lab: "عملي", tutorial: "تمارين", exam: "امتحان",
+type StudentInfo = {
+  full_name_ar: string;
+  academic_number: string;
+  program?: string | null;
+  year?: string | null;
+  semester?: string | null;
 };
 
-type Row = {
-  id: string;
-  course_code: string;
-  course_name: string;
-  section_code: string;
-  faculty: string | null;
-  room: string | null;
-  schedule_type: string;
-  day_of_week: string;
-  start_time: string;
-  end_time: string;
-};
-
-async function fetchSchedule(): Promise<Row[]> {
+async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | null }> {
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return [];
+  if (!auth.user) return { rows: [], info: null };
   const { data: sp } = await supabase
-    .from("student_profiles").select("id").eq("user_id", auth.user.id).maybeSingle();
-  if (!sp?.id) return [];
+    .from("student_profiles")
+    .select("id, full_name_ar, academic_number, program:programs(name_ar)")
+    .eq("user_id", auth.user.id).maybeSingle();
+  if (!sp?.id) return { rows: [], info: null };
+
+  const [{ data: cy }, { data: cs }] = await Promise.all([
+    supabase.from("academic_years").select("name").eq("is_current", true).maybeSingle(),
+    supabase.from("semesters").select("name").eq("is_current", true).maybeSingle(),
+  ]);
+
+  const info: StudentInfo = {
+    full_name_ar: (sp as any).full_name_ar,
+    academic_number: (sp as any).academic_number,
+    program: (sp as any).program?.name_ar ?? null,
+    year: cy?.name ?? null,
+    semester: cs?.name ?? null,
+  };
 
   const { data, error } = await supabase
     .from("student_enrollments")
     .select("id, enrollment_status, section:course_sections(id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty:faculty_profiles(full_name_ar)))")
-    .eq("student_profile_id", sp.id)
+    .eq("student_profile_id", (sp as any).id)
     .eq("enrollment_status", "enrolled");
   if (error) throw error;
 
-  type Raw = {
-    id: string;
-    section: {
-      section_code: string;
-      offering: { course: { code: string; name_ar: string } | null } | null;
-      schedule: Array<{
-        id: string;
-        schedule_type: string;
-        status: string;
+  type Raw = { id: string; section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null;
+      schedule: Array<{ id: string; schedule_type: string; status: string;
         time_slot: { day_of_week: string; start_time: string; end_time: string } | null;
         room: { name_ar: string; code: string } | null;
-        faculty: { full_name_ar: string } | null;
-      }> | null;
-    } | null;
-  };
-  const rows: Row[] = [];
+        faculty: { full_name_ar: string } | null; }> | null; } | null; };
+  const rows: ScheduleRow[] = [];
   for (const e of (data ?? []) as unknown as Raw[]) {
     const sec = e.section; if (!sec) continue;
     for (const s of sec.schedule ?? []) {
@@ -88,22 +78,49 @@ async function fetchSchedule(): Promise<Row[]> {
       });
     }
   }
-  return rows;
+  return { rows, info };
 }
 
 function StudentSchedulePage() {
-  const { data: rows = [], isLoading } = useQuery({ queryKey: ["student-schedule"], queryFn: fetchSchedule });
+  const { data, isLoading } = useQuery({ queryKey: ["student-schedule-v2"], queryFn: fetchData });
+  const rows = data?.rows ?? [];
+  const info = data?.info;
 
-  const grouped = new Map<string, Row[]>();
-  for (const d of DAYS) grouped.set(d.code, []);
-  for (const r of rows) grouped.get(r.day_of_week)?.push(r);
-  for (const k of grouped.keys()) {
-    grouped.get(k)!.sort((a, b) => a.start_time.localeCompare(b.start_time));
-  }
+  useEffect(() => {
+    if (!isLoading) logScheduleAudit("timetable_viewed", "student");
+  }, [isLoading]);
+
+  const handlePrint = () => {
+    logScheduleAudit("timetable_printed", "student");
+    window.print();
+  };
+  const handleExport = () => {
+    if (!rows.length || !info) return;
+    const yearFile = (info.year ?? "current").replace(/[^\dA-Za-z]+/g, "_");
+    const semFile = (info.semester ?? "").replace(/[^\dA-Za-z\u0600-\u06FF]+/g, "_");
+    exportScheduleXlsx({
+      filename: `student_schedule_${yearFile}_${semFile || "term"}.xlsx`,
+      sheetName: "جدولي",
+      header: [
+        ["جامعة سبأ", "كلية الإدارة والعلوم الإنسانية"],
+        ["اسم الطالب", info.full_name_ar],
+        ["الرقم الأكاديمي", info.academic_number],
+        ["البرنامج", info.program ?? "—"],
+        ["السنة الأكاديمية", info.year ?? "—"],
+        ["الفصل", info.semester ?? "—"],
+        ["تاريخ الإصدار", todayLabel()],
+      ],
+      rows,
+      includeFaculty: true,
+    });
+    logScheduleAudit("timetable_exported", "student");
+  };
 
   return (
-    <div dir="rtl" className="container mx-auto px-4 py-6 max-w-4xl space-y-5">
-      <div className="flex items-center justify-between">
+    <div dir="rtl" className="container mx-auto px-4 py-6 max-w-5xl space-y-5 print-page">
+      <style>{PRINT_CSS}</style>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 no-print">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep">
             <CalendarClock className="h-5 w-5" />
@@ -113,51 +130,44 @@ function StudentSchedulePage() {
             <p className="text-xs text-muted-foreground">المحاضرات المعتمدة للمقررات المسجّلة هذا الفصل.</p>
           </div>
         </div>
-        <Link to="/student" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-gold">
-          <ArrowRight className="h-4 w-4" /> الرجوع للبوابة
-        </Link>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handlePrint} disabled={!rows.length}>
+            <Printer className="h-4 w-4 ml-1" /> طباعة
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleExport} disabled={!rows.length}>
+            <FileSpreadsheet className="h-4 w-4 ml-1" /> تصدير Excel
+          </Button>
+          <Link to="/student" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-gold">
+            <ArrowRight className="h-4 w-4" /> الرجوع
+          </Link>
+        </div>
       </div>
+
+      {info && (
+        <PrintHeader
+          title="الجدول الدراسي الأسبوعي للطالب"
+          lines={[
+            ["اسم الطالب", info.full_name_ar],
+            ["الرقم الأكاديمي", info.academic_number],
+            ["البرنامج", info.program ?? "—"],
+            ["السنة الأكاديمية", info.year ?? "—"],
+            ["الفصل", info.semester ?? "—"],
+            ["تاريخ الإصدار", todayLabel()],
+          ]}
+        />
+      )}
 
       {isLoading ? (
         <div className="grid place-items-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          لا توجد محاضرات مجدولة بعد لمقرراتك.
+          لا يوجد جدول دراسي منشور حالياً.
         </div>
       ) : (
-        <div className="space-y-3">
-          {DAYS.map((d) => {
-            const items = grouped.get(d.code) ?? [];
-            if (items.length === 0) return null;
-            return (
-              <div key={d.code} className="rounded-lg border bg-card overflow-hidden">
-                <div className="px-3 py-2 bg-muted/40 text-sm font-bold text-primary border-b">{d.label}</div>
-                <div className="divide-y">
-                  {items.map((r) => (
-                    <div key={r.id} className="p-3 flex flex-wrap items-center gap-3 text-sm">
-                      <div className="font-mono text-xs bg-muted px-2 py-1 rounded shrink-0">
-                        {r.start_time.slice(0, 5)} - {r.end_time.slice(0, 5)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold">
-                          <span className="font-mono">{r.course_code}</span> — {r.course_name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          شعبة {r.section_code}
-                          {r.faculty && <> • {r.faculty}</>}
-                          {r.room && <> • {r.room}</>}
-                        </div>
-                      </div>
-                      <span className="text-[10px] bg-card border px-2 py-0.5 rounded font-bold">
-                        {TYPE_LABELS[r.schedule_type] ?? r.schedule_type}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <div className="hidden md:block"><WeeklyGrid rows={rows} /></div>
+          <div className="md:hidden"><DayList rows={rows} /></div>
+        </>
       )}
     </div>
   );
