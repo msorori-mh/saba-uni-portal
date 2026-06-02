@@ -149,38 +149,68 @@ export type Database = {
         }
         Relationships: []
       }
+      buildings: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       class_schedule: {
         Row: {
           course_section_id: string
           created_at: string
-          day_of_week: string
-          end_time: string
+          faculty_profile_id: string | null
           id: string
-          room: string | null
-          schedule_type: string
-          start_time: string
+          room_id: string
+          schedule_type: Database["public"]["Enums"]["schedule_type"]
+          status: Database["public"]["Enums"]["schedule_status"]
+          time_slot_id: string
           updated_at: string
         }
         Insert: {
           course_section_id: string
           created_at?: string
-          day_of_week: string
-          end_time: string
+          faculty_profile_id?: string | null
           id?: string
-          room?: string | null
-          schedule_type?: string
-          start_time: string
+          room_id: string
+          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          status?: Database["public"]["Enums"]["schedule_status"]
+          time_slot_id: string
           updated_at?: string
         }
         Update: {
           course_section_id?: string
           created_at?: string
-          day_of_week?: string
-          end_time?: string
+          faculty_profile_id?: string | null
           id?: string
-          room?: string | null
-          schedule_type?: string
-          start_time?: string
+          room_id?: string
+          schedule_type?: Database["public"]["Enums"]["schedule_type"]
+          status?: Database["public"]["Enums"]["schedule_status"]
+          time_slot_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -197,6 +227,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_course_grade_summary"
             referencedColumns: ["course_section_id"]
+          },
+          {
+            foreignKeyName: "class_schedule_faculty_profile_id_fkey"
+            columns: ["faculty_profile_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_schedule_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_schedule_time_slot_id_fkey"
+            columns: ["time_slot_id"]
+            isOneToOne: false
+            referencedRelation: "time_slots"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1646,6 +1697,53 @@ export type Database = {
           },
         ]
       }
+      rooms: {
+        Row: {
+          building_id: string
+          capacity: number
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          room_type: Database["public"]["Enums"]["room_type"]
+          updated_at: string
+        }
+        Insert: {
+          building_id: string
+          capacity?: number
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          room_type?: Database["public"]["Enums"]["room_type"]
+          updated_at?: string
+        }
+        Update: {
+          building_id?: string
+          capacity?: number
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          room_type?: Database["public"]["Enums"]["room_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       semesters: {
         Row: {
           academic_year_id: string
@@ -2678,6 +2776,39 @@ export type Database = {
           },
         ]
       }
+      time_slots: {
+        Row: {
+          created_at: string
+          day_of_week: Database["public"]["Enums"]["day_of_week"]
+          end_time: string
+          id: string
+          is_active: boolean
+          name_ar: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: Database["public"]["Enums"]["day_of_week"]
+          end_time: string
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: Database["public"]["Enums"]["day_of_week"]
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       transfer_request_details: {
         Row: {
           created_at: string
@@ -3009,6 +3140,17 @@ export type Database = {
         | "faculty_member"
         | "student"
         | "graduate"
+      day_of_week:
+        | "saturday"
+        | "sunday"
+        | "monday"
+        | "tuesday"
+        | "wednesday"
+        | "thursday"
+        | "friday"
+      room_type: "lecture" | "lab" | "office" | "hall"
+      schedule_status: "draft" | "published" | "cancelled"
+      schedule_type: "lecture" | "lab" | "tutorial" | "exam"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3150,6 +3292,18 @@ export const Constants = {
         "student",
         "graduate",
       ],
+      day_of_week: [
+        "saturday",
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+      ],
+      room_type: ["lecture", "lab", "office", "hall"],
+      schedule_status: ["draft", "published", "cancelled"],
+      schedule_type: ["lecture", "lab", "tutorial", "exam"],
     },
   },
 } as const
