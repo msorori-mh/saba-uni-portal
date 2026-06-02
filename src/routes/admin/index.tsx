@@ -117,15 +117,25 @@ function AdminDashboard() {
   const { data: scheduleStats } = useQuery({
     queryKey: ["admin-schedule-stats"],
     queryFn: async () => {
-      const [rooms, slots, published, sectionsAll, scheduledSectionRows] = await Promise.all([
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      const [rooms, slots, published, sectionsAll, scheduledSectionRows, publishedToday, scheduleAll] = await Promise.all([
         tableCount("rooms", (q) => q.eq("is_active", true)),
         tableCount("time_slots", (q) => q.eq("is_active", true)),
         tableCount("class_schedule", (q) => q.eq("status", "published")),
         tableCount("course_sections", (q) => q.eq("status", "active")),
-        supabase.from("class_schedule").select("course_section_id").in("status", ["draft", "published"]),
+        supabase.from("class_schedule").select("course_section_id, room_id, faculty_profile_id").in("status", ["draft", "published"]),
+        tableCount("class_schedule", (q) => q.eq("status", "published").gte("updated_at", todayStart.toISOString())),
+        supabase.from("class_schedule").select("room_id, faculty_profile_id").eq("status", "published"),
       ]);
       const scheduledIds = new Set(((scheduledSectionRows.data ?? []) as Array<{ course_section_id: string }>).map((r) => r.course_section_id));
-      return { rooms, slots, published, unscheduled: Math.max(0, sectionsAll - scheduledIds.size) };
+      const pubRows = (scheduleAll.data ?? []) as Array<{ room_id: string | null; faculty_profile_id: string | null }>;
+      const roomsUsed = new Set(pubRows.map((r) => r.room_id).filter(Boolean)).size;
+      const facultyWithSchedules = new Set(pubRows.map((r) => r.faculty_profile_id).filter(Boolean)).size;
+      return {
+        rooms, slots, published,
+        unscheduled: Math.max(0, sectionsAll - scheduledIds.size),
+        publishedToday, roomsUsed, facultyWithSchedules,
+      };
     },
   });
 
