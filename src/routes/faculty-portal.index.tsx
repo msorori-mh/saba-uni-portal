@@ -41,17 +41,25 @@ async function fetchMyFacultyProfile(): Promise<FacultyProfileRow | null> {
 async function fetchMyTeaching(facultyProfileId: string): Promise<TeachingRow[]> {
   const { data, error } = await supabase
     .from("course_sections")
-    .select("id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(day_of_week, start_time, end_time, room, schedule_type)")
+    .select("id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))")
     .eq("faculty_profile_id", facultyProfileId)
     .eq("status", "active");
   if (error) throw error;
-  type Raw = { id: string; section_code: string; offering: { course: { code: string; name_ar: string } | null } | null; schedule: TeachingRow["schedule"] };
+  type RawSched = { schedule_type: string; status: string; time_slot: { day_of_week: string; start_time: string; end_time: string } | null; room: { name_ar: string; code: string } | null };
+  type Raw = { id: string; section_code: string; offering: { course: { code: string; name_ar: string } | null } | null; schedule: RawSched[] | null };
   return ((data ?? []) as unknown as Raw[]).map((r) => ({
     id: r.id, section_code: r.section_code,
     course: r.offering?.course ?? null,
-    schedule: r.schedule ?? [],
+    schedule: (r.schedule ?? []).filter((s) => s.status !== "cancelled" && s.time_slot).map((s) => ({
+      day_of_week: s.time_slot!.day_of_week,
+      start_time: s.time_slot!.start_time,
+      end_time: s.time_slot!.end_time,
+      room: s.room?.name_ar ?? s.room?.code ?? null,
+      schedule_type: s.schedule_type,
+    })),
   }));
 }
+
 
 export const Route = createFileRoute("/faculty-portal/")({
   component: FacultyDashboard,
