@@ -29,6 +29,7 @@ import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
+import { Route as StudentProgressRouteImport } from './routes/student.progress'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
@@ -43,6 +44,7 @@ import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
 import { Route as AdminStudentsRouteImport } from './routes/admin/students'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
+import { Route as AdminStudentProgressRouteImport } from './routes/admin/student-progress'
 import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
@@ -56,6 +58,7 @@ import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminImportsRouteImport } from './routes/admin/imports'
+import { Route as AdminGraduationCandidatesRouteImport } from './routes/admin/graduation-candidates'
 import { Route as AdminGradesRouteImport } from './routes/admin/grades'
 import { Route as AdminFinanceRouteImport } from './routes/admin/finance'
 import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
@@ -68,8 +71,10 @@ import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
 import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-status'
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
+import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
 import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
+import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
 
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
   id: '/verify-document',
@@ -171,6 +176,11 @@ const StudentScheduleRoute = StudentScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => StudentRoute,
 } as any)
+const StudentProgressRoute = StudentProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => StudentRoute,
+} as any)
 const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -242,6 +252,11 @@ const AdminStudentRequestsRoute = AdminStudentRequestsRouteImport.update({
   path: '/student-requests',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminStudentProgressRoute = AdminStudentProgressRouteImport.update({
+  id: '/student-progress',
+  path: '/student-progress',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminStaffManagementRoute = AdminStaffManagementRouteImport.update({
   id: '/staff-management',
   path: '/staff-management',
@@ -307,6 +322,12 @@ const AdminImportsRoute = AdminImportsRouteImport.update({
   path: '/imports',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminGraduationCandidatesRoute =
+  AdminGraduationCandidatesRouteImport.update({
+    id: '/graduation-candidates',
+    path: '/graduation-candidates',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminGradesRoute = AdminGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
@@ -367,6 +388,11 @@ const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
   path: '/audit-log',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAtRiskStudentsRoute = AdminAtRiskStudentsRouteImport.update({
+  id: '/at-risk-students',
+  path: '/at-risk-students',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAcademicOperationsRoute = AdminAcademicOperationsRouteImport.update({
   id: '/academic-operations',
   path: '/academic-operations',
@@ -377,6 +403,12 @@ const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   path: '/academic-core',
   getParentRoute: () => AdminRoute,
 } as any)
+const FacultyPortalStudentProgressStudentIdRoute =
+  FacultyPortalStudentProgressStudentIdRouteImport.update({
+    id: '/student-progress/$studentId',
+    path: '/student-progress/$studentId',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -396,6 +428,7 @@ export interface FileRoutesByFullPath {
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
+  '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -408,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
+  '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -421,6 +455,7 @@ export interface FileRoutesByFullPath {
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
+  '/admin/student-progress': typeof AdminStudentProgressRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -435,11 +470,13 @@ export interface FileRoutesByFullPath {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -455,6 +492,7 @@ export interface FileRoutesByTo {
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
+  '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -467,6 +505,7 @@ export interface FileRoutesByTo {
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
+  '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -480,6 +519,7 @@ export interface FileRoutesByTo {
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
+  '/admin/student-progress': typeof AdminStudentProgressRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -494,11 +534,13 @@ export interface FileRoutesByTo {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
   '/admin': typeof AdminIndexRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
+  '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -519,6 +561,7 @@ export interface FileRoutesById {
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
+  '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/backup-status': typeof AdminBackupStatusRoute
   '/admin/contacts': typeof AdminContactsRoute
@@ -531,6 +574,7 @@ export interface FileRoutesById {
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
   '/admin/finance': typeof AdminFinanceRoute
   '/admin/grades': typeof AdminGradesRoute
+  '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/messages': typeof AdminMessagesRoute
@@ -544,6 +588,7 @@ export interface FileRoutesById {
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
+  '/admin/student-progress': typeof AdminStudentProgressRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -558,11 +603,13 @@ export interface FileRoutesById {
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
+  '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/': typeof AdminIndexRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -584,6 +631,7 @@ export interface FileRouteTypes {
     | '/verify-document'
     | '/admin/academic-core'
     | '/admin/academic-operations'
+    | '/admin/at-risk-students'
     | '/admin/audit-log'
     | '/admin/backup-status'
     | '/admin/contacts'
@@ -596,6 +644,7 @@ export interface FileRouteTypes {
     | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
+    | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
     | '/admin/messages'
@@ -609,6 +658,7 @@ export interface FileRouteTypes {
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
+    | '/admin/student-progress'
     | '/admin/student-requests'
     | '/admin/students'
     | '/admin/study-plans'
@@ -623,11 +673,13 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/progress'
     | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
+    | '/faculty-portal/student-progress/$studentId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -643,6 +695,7 @@ export interface FileRouteTypes {
     | '/verify-document'
     | '/admin/academic-core'
     | '/admin/academic-operations'
+    | '/admin/at-risk-students'
     | '/admin/audit-log'
     | '/admin/backup-status'
     | '/admin/contacts'
@@ -655,6 +708,7 @@ export interface FileRouteTypes {
     | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
+    | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
     | '/admin/messages'
@@ -668,6 +722,7 @@ export interface FileRouteTypes {
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
+    | '/admin/student-progress'
     | '/admin/student-requests'
     | '/admin/students'
     | '/admin/study-plans'
@@ -682,11 +737,13 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/progress'
     | '/student/schedule'
     | '/admin'
     | '/faculty-portal'
     | '/staff'
     | '/student'
+    | '/faculty-portal/student-progress/$studentId'
   id:
     | '__root__'
     | '/'
@@ -706,6 +763,7 @@ export interface FileRouteTypes {
     | '/verify-document'
     | '/admin/academic-core'
     | '/admin/academic-operations'
+    | '/admin/at-risk-students'
     | '/admin/audit-log'
     | '/admin/backup-status'
     | '/admin/contacts'
@@ -718,6 +776,7 @@ export interface FileRouteTypes {
     | '/admin/faculty-management'
     | '/admin/finance'
     | '/admin/grades'
+    | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
     | '/admin/messages'
@@ -731,6 +790,7 @@ export interface FileRouteTypes {
     | '/admin/security-status'
     | '/admin/settings'
     | '/admin/staff-management'
+    | '/admin/student-progress'
     | '/admin/student-requests'
     | '/admin/students'
     | '/admin/study-plans'
@@ -745,11 +805,13 @@ export interface FileRouteTypes {
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
+    | '/student/progress'
     | '/student/schedule'
     | '/admin/'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
+    | '/faculty-portal/student-progress/$studentId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -913,6 +975,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentScheduleRouteImport
       parentRoute: typeof StudentRoute
     }
+    '/student/progress': {
+      id: '/student/progress'
+      path: '/progress'
+      fullPath: '/student/progress'
+      preLoaderRoute: typeof StudentProgressRouteImport
+      parentRoute: typeof StudentRoute
+    }
     '/student/notifications': {
       id: '/student/notifications'
       path: '/notifications'
@@ -1011,6 +1080,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudentRequestsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/student-progress': {
+      id: '/admin/student-progress'
+      path: '/student-progress'
+      fullPath: '/admin/student-progress'
+      preLoaderRoute: typeof AdminStudentProgressRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/staff-management': {
       id: '/admin/staff-management'
       path: '/staff-management'
@@ -1102,6 +1178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminImportsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/graduation-candidates': {
+      id: '/admin/graduation-candidates'
+      path: '/graduation-candidates'
+      fullPath: '/admin/graduation-candidates'
+      preLoaderRoute: typeof AdminGraduationCandidatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/grades': {
       id: '/admin/grades'
       path: '/grades'
@@ -1186,6 +1269,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditLogRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/at-risk-students': {
+      id: '/admin/at-risk-students'
+      path: '/at-risk-students'
+      fullPath: '/admin/at-risk-students'
+      preLoaderRoute: typeof AdminAtRiskStudentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/academic-operations': {
       id: '/admin/academic-operations'
       path: '/academic-operations'
@@ -1200,12 +1290,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAcademicCoreRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/faculty-portal/student-progress/$studentId': {
+      id: '/faculty-portal/student-progress/$studentId'
+      path: '/student-progress/$studentId'
+      fullPath: '/faculty-portal/student-progress/$studentId'
+      preLoaderRoute: typeof FacultyPortalStudentProgressStudentIdRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
   }
 }
 
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
   AdminAcademicOperationsRoute: typeof AdminAcademicOperationsRoute
+  AdminAtRiskStudentsRoute: typeof AdminAtRiskStudentsRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
   AdminBackupStatusRoute: typeof AdminBackupStatusRoute
   AdminContactsRoute: typeof AdminContactsRoute
@@ -1218,6 +1316,7 @@ interface AdminRouteChildren {
   AdminFacultyManagementRoute: typeof AdminFacultyManagementRoute
   AdminFinanceRoute: typeof AdminFinanceRoute
   AdminGradesRoute: typeof AdminGradesRoute
+  AdminGraduationCandidatesRoute: typeof AdminGraduationCandidatesRoute
   AdminImportsRoute: typeof AdminImportsRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMessagesRoute: typeof AdminMessagesRoute
@@ -1231,6 +1330,7 @@ interface AdminRouteChildren {
   AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStaffManagementRoute: typeof AdminStaffManagementRoute
+  AdminStudentProgressRoute: typeof AdminStudentProgressRoute
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
@@ -1243,6 +1343,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAcademicCoreRoute: AdminAcademicCoreRoute,
   AdminAcademicOperationsRoute: AdminAcademicOperationsRoute,
+  AdminAtRiskStudentsRoute: AdminAtRiskStudentsRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
   AdminBackupStatusRoute: AdminBackupStatusRoute,
   AdminContactsRoute: AdminContactsRoute,
@@ -1255,6 +1356,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFacultyManagementRoute: AdminFacultyManagementRoute,
   AdminFinanceRoute: AdminFinanceRoute,
   AdminGradesRoute: AdminGradesRoute,
+  AdminGraduationCandidatesRoute: AdminGraduationCandidatesRoute,
   AdminImportsRoute: AdminImportsRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMessagesRoute: AdminMessagesRoute,
@@ -1268,6 +1370,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSecurityStatusRoute: AdminSecurityStatusRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStaffManagementRoute: AdminStaffManagementRoute,
+  AdminStudentProgressRoute: AdminStudentProgressRoute,
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,
@@ -1295,12 +1398,15 @@ interface FacultyPortalRouteChildren {
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
   FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
+  FacultyPortalStudentProgressStudentIdRoute: typeof FacultyPortalStudentProgressStudentIdRoute
 }
 
 const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
   FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
+  FacultyPortalStudentProgressStudentIdRoute:
+    FacultyPortalStudentProgressStudentIdRoute,
 }
 
 const FacultyPortalRouteWithChildren = FacultyPortalRoute._addFileChildren(
@@ -1332,6 +1438,7 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 interface StudentRouteChildren {
   StudentChangePasswordRoute: typeof StudentChangePasswordRoute
   StudentNotificationsRoute: typeof StudentNotificationsRoute
+  StudentProgressRoute: typeof StudentProgressRoute
   StudentScheduleRoute: typeof StudentScheduleRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
@@ -1339,6 +1446,7 @@ interface StudentRouteChildren {
 const StudentRouteChildren: StudentRouteChildren = {
   StudentChangePasswordRoute: StudentChangePasswordRoute,
   StudentNotificationsRoute: StudentNotificationsRoute,
+  StudentProgressRoute: StudentProgressRoute,
   StudentScheduleRoute: StudentScheduleRoute,
   StudentIndexRoute: StudentIndexRoute,
 }

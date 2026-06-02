@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
+import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -35,6 +36,12 @@ function docTypeLabel(t: string) {
 function AdminDashboard() {
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
+  const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
+  const { data: progressKpis } = useQuery({
+    queryKey: ["admin-progress-kpis"],
+    queryFn: () => fetchProgressKpis(),
+    staleTime: 5 * 60 * 1000,
+  });
   const { data: active } = useQuery({
     queryKey: ["active-user-counts"],
     queryFn: () => fetchActive(),
@@ -278,6 +285,15 @@ function AdminDashboard() {
         { label: "القاعات المستخدمة", value: scheduleStats?.roomsUsed ?? 0, icon: DoorOpen, to: "/admin/schedules" },
         { label: "أعضاء لديهم جداول", value: scheduleStats?.facultyWithSchedules ?? 0, icon: Users, to: "/admin/schedules" },
         { label: "إجمالي القاعات", value: scheduleStats?.rooms ?? 0, icon: DoorOpen, to: "/admin/schedules" },
+      ],
+    },
+    {
+      title: "التقدم الأكاديمي",
+      cards: [
+        { label: "متوسط المعدل التراكمي", value: progressKpis?.avgGpa ?? 0, icon: TrendingUp, to: "/admin/student-progress" },
+        { label: "طلاب في خطر", value: progressKpis?.atRisk ?? 0, icon: AlertCircle, to: "/admin/at-risk-students" },
+        { label: "مرشحو التخرج", value: progressKpis?.gradCandidates ?? 0, icon: GraduationCap, to: "/admin/graduation-candidates" },
+        { label: "قريبون من الإكمال (>80%)", value: progressKpis?.nearCompletion ?? 0, icon: ClipboardCheck, to: "/admin/student-progress" },
       ],
     },
     {
