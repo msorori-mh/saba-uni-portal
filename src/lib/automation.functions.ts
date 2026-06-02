@@ -197,7 +197,7 @@ export const getAutomationPreview = createServerFn({ method: "POST" })
         eligible_for_warning: standingCounts.warning,
         eligible_for_probation: standingCounts.probation,
         eligible_for_suspension: standingCounts.suspended,
-        eligible_for_promotion: standingCounts.good_standing,
+        eligible_for_promotion: standingCounts.active,
       },
       graduation: {
         eligible: gradEligibleCount ?? 0,
