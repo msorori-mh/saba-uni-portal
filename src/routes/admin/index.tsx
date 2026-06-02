@@ -14,6 +14,8 @@ import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.function
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
 import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
 import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.functions";
+import { getPilotOverview } from "@/lib/pilot.functions";
+import { Rocket } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
