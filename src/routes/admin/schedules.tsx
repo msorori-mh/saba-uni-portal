@@ -911,13 +911,17 @@ function TimetableViewsTab() {
       const off = lookups.offerings.find((o) => o.id === sec.course_offering_id); if (!off) continue;
       if (off.academic_year_id !== yearId || off.semester_id !== semId) continue;
       if (programId && off.program_id !== programId) continue;
+      if (levelId && off.level_id !== levelId) continue;
+      if (departmentId) {
+        const prog = lookups.programs.find((p) => p.id === off.program_id);
+        if (!prog || prog.department_id !== departmentId) continue;
+      }
       const course = lookups.courses.find((c) => c.id === off.course_id);
       const slot = lookups.slots.find((t) => t.id === s.time_slot_id); if (!slot) continue;
       const room = lookups.rooms.find((r) => r.id === s.room_id);
       const fac = s.faculty_profile_id ? lookups.faculty.find((f) => f.id === s.faculty_profile_id) : null;
       if (roomId && s.room_id !== roomId) continue;
       if (facultyId && s.faculty_profile_id !== facultyId) continue;
-      // department/level filters need joins not in lookups — skip for now (program covers most)
       out.push({
         id: s.id,
         course_code: course?.code ?? "—",
