@@ -45,24 +45,18 @@ export const getExecutiveAnalytics = createServerFn({ method: "POST" })
     const programMap = new Map(programs.map((p) => [String(p.id), String(p.name_ar ?? p.code ?? "")]));
     const deptMap = new Map(departments.map((d) => [String(d.id), String(d.name_ar ?? "")]));
     const levelMap = new Map(levels.map((l) => [String(l.id), String(l.name ?? `المستوى ${l.level_number ?? ""}`)]));
-
-    const currentSemId = (currentSem.data as { id?: string } | null)?.id ?? null;
+    void currentSem;
 
     // Students aggregations — minimal projections only
-    const [students, sas, faculty, sections, fees, payments, enrollPrev, enrollCurr, paymentsCurr, paymentsPrev, requestsCurr, requestsPrev] = await Promise.all([
+    const [students, sas, faculty, sections, fees, payments, offerings, requests] = await Promise.all([
       safeSelect(sb, "student_profiles", "id, program_id, department_id, status"),
       safeSelect(sb, "student_academic_status", "student_profile_id, level_id, enrollment_status, semester_id"),
       safeSelect(sb, "faculty_profiles", "id, department_id, status"),
       safeSelect(sb, "course_sections", "id, faculty_profile_id, status"),
       safeSelect(sb, "student_fees", "id, amount, status, student_profile_id"),
       safeSelect(sb, "student_payments", "id, amount, payment_date"),
-      // For trends, semester-grouped: enrollments by semester via course_offerings
       safeSelect(sb, "course_offerings", "id, semester_id"),
-      Promise.resolve([]) as Promise<Array<Record<string, unknown>>>,
-      Promise.resolve([]) as Promise<Array<Record<string, unknown>>>,
-      Promise.resolve([]) as Promise<Array<Record<string, unknown>>>,
       safeSelect(sb, "student_requests", "id, submitted_at, status"),
-      Promise.resolve([]) as Promise<Array<Record<string, unknown>>>,
     ]);
 
     // Students by program/department/status
