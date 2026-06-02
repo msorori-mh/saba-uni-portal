@@ -1,13 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Users, GraduationCap, AlertCircle, UserCog, Layers, Wallet, Activity,
   CalendarClock, TrendingUp, BarChart3, ShieldCheck, CheckCircle2,
   AlertTriangle, XCircle, Info, ChevronLeft, FileBadge, FileWarning,
-  Crown,
+  Crown, FileDown, ArrowUpRight, ArrowDownRight, Minus,
 } from "lucide-react";
+import {
+  BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer,
+  XAxis, YAxis, Tooltip, CartesianGrid, Legend,
+} from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
@@ -16,6 +20,11 @@ import {
   logExecutiveDashboardViewed,
   getExecutiveScope,
 } from "@/lib/executive-dashboard.functions";
+import {
+  getExecutiveAnalytics,
+  logExecutiveExport,
+} from "@/lib/executive-analytics.functions";
+import { exportXlsx } from "@/lib/reports/export";
 
 export const Route = createFileRoute("/admin/executive-dashboard")({
   component: ExecutiveDashboardPage,
