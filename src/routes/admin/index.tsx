@@ -236,6 +236,15 @@ function AdminDashboard() {
       ],
     },
     {
+      title: "العمليات الأكاديمية",
+      cards: [
+        { label: "المقررات المطروحة", value: aops?.activeOfferings ?? 0, icon: CalendarDays, to: "/admin/academic-operations" },
+        { label: "الشعب النشطة", value: aops?.activeSections ?? 0, icon: Layers, to: "/admin/academic-operations" },
+        { label: "التسجيلات النشطة", value: aops?.activeEnrollments ?? 0, icon: ClipboardList, to: "/admin/academic-operations" },
+        { label: "إيصالات قيد المراجعة", value: aops?.pendingReceipts ?? 0, icon: Receipt, to: "/admin/academic-operations" },
+      ],
+    },
+    {
       title: "الموارد البشرية",
       cards: [
         { label: "أعضاء هيئة التدريس", value: counts.faculty, icon: Users },
