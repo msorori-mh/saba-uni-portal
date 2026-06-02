@@ -200,16 +200,16 @@ function AdminGradesPage() {
           {sems.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <select className="border rounded px-2 py-2 text-sm bg-background" value={sectionId} onChange={(e) => setSectionId(e.target.value)}>
-          <option value="">اختر شعبة</option>
+          <option value="">اختر مجموعة دراسية</option>
           {secLoading ? <option>...</option> : sections.map((s) => (
-            <option key={s.id} value={s.id}>{s.course_code} — {s.course_name} • شعبة {s.section_code}</option>
+            <option key={s.id} value={s.id}>{s.course_code} — {s.course_name} • مجموعة دراسية {s.section_code}</option>
           ))}
         </select>
       </div>
 
       {!sectionId ? (
         <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
-          اختر شعبة لعرض درجاتها
+          اختر مجموعة دراسية لعرض درجاتها
         </div>
       ) : (
         <>
@@ -243,7 +243,7 @@ function AdminGradesPage() {
             {gradesLoading ? (
               <div className="p-8 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></div>
             ) : rows.length === 0 ? (
-              <div className="p-8 text-center text-sm text-muted-foreground">لا يوجد طلاب مسجلون في هذه الشعبة</div>
+              <div className="p-8 text-center text-sm text-muted-foreground">لا يوجد طلاب مسجلون في هذه المجموعات الدراسيةة</div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 text-xs">

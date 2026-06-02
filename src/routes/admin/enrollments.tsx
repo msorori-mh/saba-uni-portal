@@ -193,8 +193,8 @@ function EnrollmentsPage() {
           <ClipboardList className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="font-display text-xl font-extrabold text-primary">تسجيل الطلاب في الشعب</h1>
-          <p className="text-xs text-muted-foreground">إدارة تسجيل الطلاب يدوياً في الشعب الدراسية المتاحة</p>
+          <h1 className="font-display text-xl font-extrabold text-primary">تسجيل الطلاب في المجموعات الدراسية</h1>
+          <p className="text-xs text-muted-foreground">إدارة تسجيل الطلاب يدوياً في المجموعات الدراسية المتاحة</p>
         </div>
       </div>
 
@@ -237,13 +237,13 @@ function EnrollmentsPage() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">الشعبة</Label>
+          <Label className="text-xs">المجموعات الدراسيةة</Label>
           <Select value={sectionId} onValueChange={setSectionId} disabled={sectionsWithCourse.length === 0}>
             <SelectTrigger><SelectValue placeholder={sectionsWithCourse.length === 0 ? "لا توجد شعب" : "اختر..."} /></SelectTrigger>
             <SelectContent>
               {sectionsWithCourse.map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.course?.code} — شعبة {s.section_code}
+                  {s.course?.code} — مجموعة دراسية {s.section_code}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -253,7 +253,7 @@ function EnrollmentsPage() {
 
       {!sectionId ? (
         <div className="rounded-lg border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
-          اختر السنة والفصل والبرنامج والمستوى ثم الشعبة لعرض التسجيلات.
+          اختر السنة والفصل والبرنامج والمستوى ثم المجموعات الدراسيةة لعرض التسجيلات.
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
@@ -266,7 +266,7 @@ function EnrollmentsPage() {
             {eligibleStudents.isLoading ? (
               <div className="p-6 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></div>
             ) : (eligibleStudents.data ?? []).length === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">لا يوجد طلاب مطابقون لهذه الشعبة</div>
+              <div className="p-6 text-center text-xs text-muted-foreground">لا يوجد طلاب مطابقون لهذه المجموعات الدراسيةة</div>
             ) : (
               <ul className="divide-y">
                 {(eligibleStudents.data ?? []).map((s) => (
@@ -287,7 +287,7 @@ function EnrollmentsPage() {
           {/* Enrolled */}
           <div className="rounded-lg border bg-card overflow-hidden">
             <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
-              <div className="text-sm font-bold text-primary">الطلاب المسجلون في الشعبة</div>
+              <div className="text-sm font-bold text-primary">الطلاب المسجلون في المجموعات الدراسيةة</div>
               <Badge variant="secondary">{enrollments.data?.length ?? 0}</Badge>
             </div>
             {enrollments.isLoading ? (
@@ -327,7 +327,7 @@ function EnrollmentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>حذف التسجيل</AlertDialogTitle>
             <AlertDialogDescription>
-              هل تريد حذف تسجيل الطالب «{toRemove?.student?.full_name_ar}» من هذه الشعبة؟
+              هل تريد حذف تسجيل الطالب «{toRemove?.student?.full_name_ar}» من هذه المجموعات الدراسيةة؟
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -252,9 +252,9 @@ function AcademicOpsPage() {
           loading={kpis.isLoading}
         />
         <KpiCard
-          label="الشعب النشطة"
+          label="المجموعات الدراسية النشطة"
           value={kpis.data?.sectionsActive}
-          sub={kpis.data ? `من ${kpis.data.sectionsTotal} شعبة` : undefined}
+          sub={kpis.data ? `من ${kpis.data.sectionsTotal} مجموعة دراسية` : undefined}
           icon={Layers}
           to="/admin/course-offerings"
           loading={kpis.isLoading}
@@ -314,8 +314,8 @@ function AcademicOpsPage() {
         <div className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <QuickLink to="/admin/academic-core" icon={CalendarRange} label="البنية الأكاديمية" desc="السنوات والفصول والمستويات" />
           <QuickLink to="/admin/study-plans" icon={BookMarked} label="الخطط والمقررات" desc="إدارة المقررات والخطط الدراسية" />
-          <QuickLink to="/admin/course-offerings" icon={CalendarDays} label="الطرح والشعب" desc="فتح/إغلاق الشعب وتعيين الأساتذة" />
-          <QuickLink to="/admin/enrollments" icon={ClipboardList} label="تسجيل الطلاب" desc="تسجيل الطلاب في الشعب" />
+          <QuickLink to="/admin/course-offerings" icon={CalendarDays} label="إسناد المقررات والمجموعات الدراسية" desc="فتح/إغلاق المجموعات الدراسية وتعيين الأساتذة" />
+          <QuickLink to="/admin/enrollments" icon={ClipboardList} label="تسجيل الطلاب" desc="تسجيل الطلاب في المجموعات الدراسية" />
           <QuickLink to="/admin/grades" icon={ClipboardCheck} label="الدرجات" desc="رصد وإدارة الدرجات" />
           <QuickLink to="/admin/transcripts" icon={FileText} label="السجلات الأكاديمية" desc="إصدار سجلات الطلاب" />
           <QuickLink to="/admin/imports" icon={ClipboardList} label="الاستيراد الجماعي" desc="استيراد البيانات من ملفات Excel" />

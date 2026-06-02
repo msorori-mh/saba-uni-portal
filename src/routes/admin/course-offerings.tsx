@@ -110,14 +110,14 @@ function CourseOfferingsPage() {
   return (
     <div dir="rtl" className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-extrabold text-primary">الطرح والشعب</h1>
-        <p className="text-sm text-muted-foreground mt-1">إدارة طرح المقررات والشعب والجداول الدراسية</p>
+        <h1 className="font-display text-2xl font-extrabold text-primary">إسناد المقررات والمجموعات الدراسية</h1>
+        <p className="text-sm text-muted-foreground mt-1">إدارة إسناد المقررات والمجموعات الدراسية والجداول الدراسية</p>
       </div>
 
       <Tabs defaultValue="offerings" className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-2xl">
-          <TabsTrigger value="offerings"><CalendarDays className="h-4 w-4 ml-2" />الطرح الدراسي</TabsTrigger>
-          <TabsTrigger value="sections"><Users2 className="h-4 w-4 ml-2" />الشعب</TabsTrigger>
+          <TabsTrigger value="offerings"><CalendarDays className="h-4 w-4 ml-2" />إسناد المقررات</TabsTrigger>
+          <TabsTrigger value="sections"><Users2 className="h-4 w-4 ml-2" />المجموعات الدراسية</TabsTrigger>
           <TabsTrigger value="schedule"><Clock className="h-4 w-4 ml-2" />الجدول</TabsTrigger>
         </TabsList>
 
@@ -156,7 +156,7 @@ function OfferingsTab() {
     if (!confirmDel) return;
     const { error } = await supabase.from("course_offerings").delete().eq("id", confirmDel.id);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف الطرح");
+    toast.success("تم حذف إسناد المقررات");
     setConfirmDel(null);
     qc.invalidateQueries({ queryKey: ["admin-offerings"] });
   };
@@ -250,8 +250,8 @@ function OfferingsTab() {
       <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف الطرح</AlertDialogTitle>
-            <AlertDialogDescription>سيتم حذف الطرح وجميع شعبه وجداوله. لا يمكن التراجع.</AlertDialogDescription>
+            <AlertDialogTitle>حذف إسناد المقررات</AlertDialogTitle>
+            <AlertDialogDescription>سيتم حذف إسناد المقررات وجميع مجموعاته الدراسية وجداوله. لا يمكن التراجع.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
@@ -293,7 +293,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
       else toast.error(error.message);
       return;
     }
-    toast.success(editing ? "تم التحديث" : "تم إضافة الطرح");
+    toast.success(editing ? "تم التحديث" : "تم إضافة إسناد المقررات");
     onOpenChange(false); onSaved();
   };
 
@@ -408,7 +408,7 @@ function SectionsTab() {
     if (!confirmDel) return;
     const { error } = await supabase.from("course_sections").delete().eq("id", confirmDel.id);
     if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف الشعبة");
+    toast.success("تم حذف المجموعات الدراسيةة");
     setConfirmDel(null);
     qc.invalidateQueries({ queryKey: ["admin-sections"] });
   };
@@ -417,7 +417,7 @@ function SectionsTab() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Button onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus className="h-4 w-4 ml-1" /> شعبة جديدة
+          <Plus className="h-4 w-4 ml-1" /> مجموعة دراسية جديدة
         </Button>
       </div>
 
@@ -433,7 +433,7 @@ function SectionsTab() {
                 <div className="min-w-0">
                   <div className="font-display font-bold text-primary">{offeringLabel(s.course_offering_id)}</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    شعبة <span className="font-bold font-mono">{s.section_code}</span>
+                    مجموعة دراسية <span className="font-bold font-mono">{s.section_code}</span>
                     {s.capacity != null && <> • السعة {s.capacity}</>}
                   </div>
                   <div className="text-xs mt-1">
@@ -465,8 +465,8 @@ function SectionsTab() {
       <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader>
-            <AlertDialogTitle>حذف الشعبة</AlertDialogTitle>
-            <AlertDialogDescription>سيتم حذف الشعبة وجدولها. لا يمكن التراجع.</AlertDialogDescription>
+            <AlertDialogTitle>حذف المجموعات الدراسيةة</AlertDialogTitle>
+            <AlertDialogDescription>سيتم حذف المجموعات الدراسيةة وجدولها. لا يمكن التراجع.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>إلغاء</AlertDialogCancel>
@@ -493,7 +493,7 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
   const findSem = (id: string) => lk.semesters.find((s) => s.id === id);
 
   const save = async () => {
-    if (!form.course_offering_id || !form.section_code) { toast.error("الطرح ورمز الشعبة مطلوبان"); return; }
+    if (!form.course_offering_id || !form.section_code) { toast.error("إسناد المقررات ورمز المجموعات الدراسيةة مطلوبان"); return; }
     setSaving(true);
     const payload = {
       course_offering_id: form.course_offering_id,
@@ -507,23 +507,23 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
       : await supabase.from("course_sections").insert(payload);
     setSaving(false);
     if (error) {
-      if (error.message.includes("uq_section_code")) toast.error("رمز الشعبة موجود لهذا الطرح");
+      if (error.message.includes("uq_section_code")) toast.error("رمز المجموعات الدراسيةة موجود لهذا إسناد المقررات");
       else toast.error(error.message);
       return;
     }
-    toast.success(editing ? "تم التحديث" : "تم إضافة الشعبة");
+    toast.success(editing ? "تم التحديث" : "تم إضافة المجموعات الدراسيةة");
     onOpenChange(false); onSaved();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl" className="max-w-xl">
-        <DialogHeader><DialogTitle>{editing ? "تعديل شعبة" : "شعبة جديدة"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? "تعديل مجموعة دراسية" : "مجموعة دراسية جديدة"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <Label>الطرح الدراسي *</Label>
+            <Label>إسناد المقررات *</Label>
             <Select value={form.course_offering_id ?? ""} onValueChange={(v) => setForm({ ...form, course_offering_id: v })}>
-              <SelectTrigger><SelectValue placeholder="اختر الطرح" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="اختر الإسناد" /></SelectTrigger>
               <SelectContent>
                 {offerings.map((o) => {
                   const c = findCourse(o.course_id);
@@ -537,7 +537,7 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
             </Select>
           </div>
           <div>
-            <Label>رمز الشعبة *</Label>
+            <Label>رمز المجموعات الدراسيةة *</Label>
             <Input value={form.section_code ?? ""} onChange={(e) => setForm({ ...form, section_code: e.target.value })} placeholder="A / B / C" />
           </div>
           <div>

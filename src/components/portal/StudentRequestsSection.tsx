@@ -484,11 +484,11 @@ function AbsenceModal({
       ) : (
         <div className="space-y-3 text-sm">
           <div>
-            <Label>المقرر / الشعبة</Label>
+            <Label>المقرر / المجموعات الدراسيةة</Label>
             <select value={sectionId} onChange={(e) => setSectionId(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm">
               {enrollments.map((e) => (
                 <option key={e.course_section_id} value={e.course_section_id}>
-                  {e.course_code} — {e.course_name} (شعبة {e.section_code})
+                  {e.course_code} — {e.course_name} (مجموعة دراسية {e.section_code})
                 </option>
               ))}
             </select>

@@ -42,7 +42,7 @@ export function exportScheduleXlsx(opts: {
   const aoa: any[][] = [];
   for (const [k, v] of opts.header) aoa.push([k, v]);
   aoa.push([]);
-  const cols = ["اليوم", "من", "إلى", "رمز المقرر", "اسم المقرر", "الشعبة", "القاعة", "النوع"];
+  const cols = ["اليوم", "من", "إلى", "رمز المقرر", "اسم المقرر", "المجموعات الدراسيةة", "القاعة", "النوع"];
   if (opts.includeFaculty) cols.push("عضو هيئة التدريس");
   aoa.push(cols);
   const sorted = [...opts.rows].sort((a, b) => {
