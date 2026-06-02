@@ -319,7 +319,7 @@ function AdminDashboard() {
       title: "التقدم الأكاديمي",
       cards: [
         { label: "متوسط المعدل التراكمي", value: progressKpis?.avgGpa ?? 0, icon: TrendingUp, to: "/admin/student-progress" },
-        { label: "طلاب في خطر", value: progressKpis?.atRisk ?? 0, icon: AlertCircle, to: "/admin/at-risk-students" },
+        { label: "الطلاب المتعثرون أكاديمياً", value: progressKpis?.atRisk ?? 0, icon: AlertCircle, to: "/admin/at-risk-students" },
         { label: "مرشحو التخرج", value: progressKpis?.gradCandidates ?? 0, icon: GraduationCap, to: "/admin/graduation-candidates" },
         { label: "قريبون من الإكمال (>80%)", value: progressKpis?.nearCompletion ?? 0, icon: ClipboardCheck, to: "/admin/student-progress" },
       ],

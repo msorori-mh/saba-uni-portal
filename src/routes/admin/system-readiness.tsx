@@ -566,7 +566,7 @@ async function runChecks(): Promise<Section[]> {
       pass("محرك أهلية التخرج موجود", "calculateGraduationEligibility (مدمج)"),
       pass("محرك الوضع الأكاديمي موجود", "calculateAcademicStanding (مدمج)"),
       pass("صفحة تقدم الطالب موجودة", "/admin/student-progress"),
-      pass("صفحة الطلاب في خطر موجودة", "/admin/at-risk-students"),
+      pass("صفحة الطلاب المتعثرون أكاديمياً موجودة", "/admin/at-risk-students"),
       pass("صفحة مرشحي التخرج موجودة", "/admin/graduation-candidates"),
       pass("صفحة الطالب موجودة", "/student/progress"),
       pass("صفحة هيئة التدريس موجودة", "/faculty-portal/student-progress/$studentId"),
@@ -577,7 +577,7 @@ async function runChecks(): Promise<Section[]> {
       academicProgressAudit > 0
         ? pass("Audit integration active", `progress:${progressViews.count} • audit:${gradAuditViews.count} • elig:${gradEligibilityViews.count} • risk:${atRiskViews.count} • grads:${gradCandidatesViews.count}`)
         : warn("لم تُسجّل أحداث تدقيق بعد", "entity_type=academic_status"),
-      pass("تصدير Excel متاح", "تدقيق الطالب، طلاب في خطر، مرشحو التخرج"),
+      pass("تصدير Excel متاح", "تدقيق الطالب، الطلاب المتعثرين أكاديمياً، مرشحو التخرج"),
     ],
   };
 

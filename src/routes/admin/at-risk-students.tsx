@@ -60,8 +60,8 @@ function AtRiskStudentsPage() {
     }));
     exportProgressXlsx({
       filename: `at_risk_students_${new Date().toISOString().slice(0, 10)}.xlsx`,
-      sheetName: "طلاب في خطر",
-      header: [["التقرير", "الطلاب المعرضون للخطر الأكاديمي"], ["التاريخ", new Date().toLocaleDateString("ar-EG-u-nu-latn")], ["العدد", rows.length.toString()]],
+      sheetName: "الطلاب المتعثرين أكاديمياً",
+      header: [["التقرير", "الطلاب المتعثرون أكاديمياً"], ["التاريخ", new Date().toLocaleDateString("ar-EG-u-nu-latn")], ["العدد", rows.length.toString()]],
       rows,
     });
     await logAcademicAudit("at_risk_report_viewed", `exported count=${rows.length}`);
@@ -74,7 +74,7 @@ function AtRiskStudentsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-extrabold text-primary flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-amber-600" /> الطلاب في خطر أكاديمي
+            <AlertTriangle className="h-6 w-6 text-amber-600" /> الطلاب المتعثرون أكاديمياً
           </h1>
           <p className="text-sm text-muted-foreground">طلاب بمعدلات منخفضة أو تعثر متكرر — للمتابعة من قِبل الإدارة الأكاديمية.</p>
         </div>
