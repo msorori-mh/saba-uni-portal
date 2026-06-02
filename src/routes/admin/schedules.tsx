@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   CalendarClock, Building2, DoorOpen, Clock, CalendarDays, AlertTriangle,
-  Plus, Pencil, Loader2, CheckCircle2,
+  Plus, Pencil, Loader2, CheckCircle2, LayoutGrid, Printer, FileSpreadsheet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
+import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList } from "@/components/schedule/ScheduleView";
 
 export const Route = createFileRoute("/admin/schedules")({
   head: () => ({ meta: [{ title: "الجداول الدراسية — لوحة الإدارة" }] }),
