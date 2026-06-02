@@ -215,13 +215,18 @@ export const listPilotScenarios = createServerFn({ method: "POST" })
       sb.from("pilot_test_results").select("scenario_id, result, notes, tested_at, tested_by"),
     ]);
     if (scens.error) throw new Error(scens.error.message);
-    const rmap = new Map((results.data ?? []).map((r: any) => [r.scenario_id, r]));
-    return (scens.data ?? []).map((s: any) => ({
-      ...s,
-      result: rmap.get(s.id)?.result ?? "not_tested",
-      notes: rmap.get(s.id)?.notes ?? null,
-      tested_at: rmap.get(s.id)?.tested_at ?? null,
-    }));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rmap = new Map<string, any>((results.data ?? []).map((r: any) => [r.scenario_id, r]));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (scens.data ?? []).map((s: any) => {
+      const r = rmap.get(s.id);
+      return {
+        ...s,
+        result: r?.result ?? "not_tested",
+        notes: r?.notes ?? null,
+        tested_at: r?.tested_at ?? null,
+      };
+    });
   });
 
 export const setPilotScenarioResult = createServerFn({ method: "POST" })
