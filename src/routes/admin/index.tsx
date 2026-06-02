@@ -5,7 +5,7 @@ import {
   Newspaper, Users, FlaskConical, Calendar, MessageSquare, Plus,
   GraduationCap, BookOpen, CalendarDays, ClipboardList, ClipboardCheck,
   FileWarning, UserCog, FileText, ListTree, ScrollText, Bell, ShieldCheck,
-  Wallet, AlertCircle, Lock, Database, ShieldAlert,
+  Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
   BarChart3, TrendingUp, Activity, HardDrive,
 } from "lucide-react";
@@ -152,6 +152,47 @@ function AdminDashboard() {
     },
   });
 
+  const { data: aops } = useQuery({
+    queryKey: ["admin-academic-ops-kpis"],
+    queryFn: async () => {
+      const yearQ = await supabase.from("academic_years").select("id").eq("is_current", true).maybeSingle();
+      const semQ = await supabase.from("semesters").select("id").eq("is_current", true).maybeSingle();
+      const yearId = yearQ.data?.id as string | undefined;
+      const semId = semQ.data?.id as string | undefined;
+      if (!yearId || !semId) {
+        return { activeOfferings: 0, activeSections: 0, activeEnrollments: 0, pendingReceipts: 0 };
+      }
+      const offerings = await supabase
+        .from("course_offerings")
+        .select("id, status")
+        .eq("academic_year_id", yearId)
+        .eq("semester_id", semId);
+      const offeringIds = (offerings.data ?? []).map((o: any) => o.id);
+      const activeOfferings = (offerings.data ?? []).filter((o: any) => o.status === "active").length;
+      let activeSections = 0;
+      let sectionIds: string[] = [];
+      if (offeringIds.length) {
+        const secs = await supabase.from("course_sections").select("id, status").in("course_offering_id", offeringIds);
+        sectionIds = (secs.data ?? []).map((s: any) => s.id);
+        activeSections = (secs.data ?? []).filter((s: any) => s.status === "active").length;
+      }
+      let activeEnrollments = 0;
+      if (sectionIds.length) {
+        const en = await supabase
+          .from("student_enrollments")
+          .select("id", { count: "exact", head: true })
+          .in("course_section_id", sectionIds)
+          .eq("enrollment_status", "enrolled");
+        activeEnrollments = en.count ?? 0;
+      }
+      const pr = await supabase
+        .from("payment_receipts")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "submitted");
+      return { activeOfferings, activeSections, activeEnrollments, pendingReceipts: pr.count ?? 0 };
+    },
+  });
+
   const counts = s ?? {
     programs: 0, courses: 0, sections: 0, students: 0,
     faculty: 0, staff: 0, newReq: 0, reviewReq: 0,
@@ -192,6 +233,15 @@ function AdminDashboard() {
         { label: "المقررات", value: counts.courses, icon: BookOpen },
         { label: "الشعب", value: counts.sections, icon: CalendarDays },
         { label: "الطلاب", value: counts.students, icon: ClipboardList },
+      ],
+    },
+    {
+      title: "العمليات الأكاديمية",
+      cards: [
+        { label: "المقررات المطروحة", value: aops?.activeOfferings ?? 0, icon: CalendarDays, to: "/admin/academic-operations" },
+        { label: "الشعب النشطة", value: aops?.activeSections ?? 0, icon: Layers, to: "/admin/academic-operations" },
+        { label: "التسجيلات النشطة", value: aops?.activeEnrollments ?? 0, icon: ClipboardList, to: "/admin/academic-operations" },
+        { label: "إيصالات قيد المراجعة", value: aops?.pendingReceipts ?? 0, icon: Receipt, to: "/admin/academic-operations" },
       ],
     },
     {

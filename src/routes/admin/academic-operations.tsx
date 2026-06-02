@@ -126,12 +126,30 @@ function AcademicOpsPage() {
     },
   });
 
+  const logAuditOp = async (action: "current_year_changed" | "current_semester_changed", entityId: string, oldId: string | null, newId: string, oldName: string | null, newName: string) => {
+    try {
+      await supabase.rpc("log_audit" as any, {
+        _entity_type: "academic_operation",
+        _entity_id: entityId,
+        _action_type: action,
+        _old: oldId ? { id: oldId, name: oldName } : null,
+        _new: { id: newId, name: newName },
+        _notes: action === "current_year_changed" ? "تغيير السنة الأكاديمية الحالية من مركز العمليات" : "تغيير الفصل الدراسي الحالي من مركز العمليات",
+      });
+    } catch (e) {
+      console.warn("audit log failed", e);
+    }
+  };
+
   const setCurrentYear = async (id: string) => {
     if (id === currentYear?.id) return;
+    const target = (years.data ?? []).find((y) => y.id === id);
+    const prev = currentYear;
     const { error: e1 } = await supabase.from("academic_years").update({ is_current: false }).neq("id", id);
     if (e1) return toast.error(e1.message);
     const { error: e2 } = await supabase.from("academic_years").update({ is_current: true }).eq("id", id);
     if (e2) return toast.error(e2.message);
+    await logAuditOp("current_year_changed", id, prev?.id ?? null, id, prev?.name ?? null, target?.name ?? id);
     toast.success("تم تعيين السنة الحالية");
     qc.invalidateQueries({ queryKey: ["aops-years"] });
     qc.invalidateQueries({ queryKey: ["aops-kpis"] });
@@ -140,7 +158,7 @@ function AcademicOpsPage() {
   const setCurrentSemester = async (id: string) => {
     const target = (semesters.data ?? []).find((s) => s.id === id);
     if (!target || id === currentSem?.id) return;
-    // Clear is_current within the same year scope, then set this one
+    const prev = currentSem;
     const { error: e1 } = await supabase
       .from("semesters")
       .update({ is_current: false })
@@ -148,10 +166,12 @@ function AcademicOpsPage() {
     if (e1) return toast.error(e1.message);
     const { error: e2 } = await supabase.from("semesters").update({ is_current: true }).eq("id", id);
     if (e2) return toast.error(e2.message);
+    await logAuditOp("current_semester_changed", id, prev?.id ?? null, id, prev?.name ?? null, target.name);
     toast.success("تم تعيين الفصل الحالي");
     qc.invalidateQueries({ queryKey: ["aops-semesters"] });
     qc.invalidateQueries({ queryKey: ["aops-kpis"] });
   };
+
 
   const semsInYear = (semesters.data ?? []).filter((s) => s.academic_year_id === currentYear?.id);
 
