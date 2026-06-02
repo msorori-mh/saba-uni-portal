@@ -86,23 +86,6 @@ function AdminLoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="px-8 py-8 space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-semibold">البريد الإلكتروني</Label>
-              <div className="relative">
-                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  dir="ltr"
-                  placeholder="admin@usr.edu.ye"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pr-10 text-right"
-                  autoComplete="email"
-                />
-              </div>
-            </div>
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-semibold">البريد الإلكتروني</Label>
