@@ -41,6 +41,7 @@ import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-
 import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
 import { Route as AdminStudentsRouteImport } from './routes/admin/students'
 import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
+import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
@@ -227,6 +228,11 @@ const AdminStudentRequestsRoute = AdminStudentRequestsRouteImport.update({
   path: '/student-requests',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminStaffManagementRoute = AdminStaffManagementRouteImport.update({
+  id: '/staff-management',
+  path: '/staff-management',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -388,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/admin/research': typeof AdminResearchRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -442,6 +449,7 @@ export interface FileRoutesByTo {
   '/admin/research': typeof AdminResearchRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -501,6 +509,7 @@ export interface FileRoutesById {
   '/admin/research': typeof AdminResearchRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
+  '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-requests': typeof AdminStudentRequestsRoute
   '/admin/students': typeof AdminStudentsRoute
   '/admin/study-plans': typeof AdminStudyPlansRoute
@@ -561,6 +570,7 @@ export interface FileRouteTypes {
     | '/admin/research'
     | '/admin/security-status'
     | '/admin/settings'
+    | '/admin/staff-management'
     | '/admin/student-requests'
     | '/admin/students'
     | '/admin/study-plans'
@@ -615,6 +625,7 @@ export interface FileRouteTypes {
     | '/admin/research'
     | '/admin/security-status'
     | '/admin/settings'
+    | '/admin/staff-management'
     | '/admin/student-requests'
     | '/admin/students'
     | '/admin/study-plans'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '/admin/research'
     | '/admin/security-status'
     | '/admin/settings'
+    | '/admin/staff-management'
     | '/admin/student-requests'
     | '/admin/students'
     | '/admin/study-plans'
@@ -937,6 +949,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudentRequestsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/staff-management': {
+      id: '/admin/staff-management'
+      path: '/staff-management'
+      fullPath: '/admin/staff-management'
+      preLoaderRoute: typeof AdminStaffManagementRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/settings': {
       id: '/admin/settings'
       path: '/settings'
@@ -1133,6 +1152,7 @@ interface AdminRouteChildren {
   AdminResearchRoute: typeof AdminResearchRoute
   AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminStaffManagementRoute: typeof AdminStaffManagementRoute
   AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
   AdminStudentsRoute: typeof AdminStudentsRoute
   AdminStudyPlansRoute: typeof AdminStudyPlansRoute
@@ -1167,6 +1187,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminResearchRoute: AdminResearchRoute,
   AdminSecurityStatusRoute: AdminSecurityStatusRoute,
   AdminSettingsRoute: AdminSettingsRoute,
+  AdminStaffManagementRoute: AdminStaffManagementRoute,
   AdminStudentRequestsRoute: AdminStudentRequestsRoute,
   AdminStudentsRoute: AdminStudentsRoute,
   AdminStudyPlansRoute: AdminStudyPlansRoute,

@@ -64,7 +64,9 @@ const groups: NavGroup[] = [
     label: "الموارد البشرية",
     icon: UserCog,
     items: [
-      { to: "/admin/faculty", label: "أعضاء هيئة التدريس", icon: Users },
+      { to: "/admin/faculty-management", label: "إدارة أعضاء هيئة التدريس", icon: Users },
+      { to: "/admin/staff-management", label: "إدارة الموظفين", icon: UserCog },
+      { to: "/admin/faculty", label: "صفحة هيئة التدريس بالموقع", icon: Globe },
     ],
   },
   {
