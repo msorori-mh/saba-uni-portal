@@ -7,7 +7,7 @@ import {
   CalendarRange, ListTree, CalendarDays, ClipboardList, ClipboardCheck, FileText,
   FileWarning, ListChecks, GraduationCap as GradCap, UserCog, Globe, Wallet,
   ShieldCheck, ScrollText, Lock, Database, FileBadge, Upload, BarChart3, Activity, CalendarClock, TrendingUp, AlertCircle,
-  Megaphone,
+  Megaphone, Rocket,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
