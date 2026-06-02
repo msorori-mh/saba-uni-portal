@@ -8,7 +8,6 @@ import {
   Wallet, AlertCircle, Lock, Database, ShieldAlert, Layers,
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
   BarChart3, TrendingUp, Activity, HardDrive,
-  BarChart3, TrendingUp, Activity, HardDrive,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
