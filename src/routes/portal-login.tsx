@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, ShieldCheck, GraduationCap, BookOpen, Briefcase, Loader2, User } from "lucide-react";
+import { ArrowLeft, ShieldCheck, GraduationCap, BookOpen, Briefcase, Loader2, User, Sparkles } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordInput } from "@/components/auth/PasswordInput";
