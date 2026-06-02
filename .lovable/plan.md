@@ -1,93 +1,84 @@
+# Phase 11C — People Management System
 
-## نطاق العمل
+Build three operational admin pages (students, faculty management, staff management) that wrap existing tables and server functions, plus dashboard/readiness/audit integration. No schema changes, no changes to auth, portals, academics, finance, requests, or imports.
 
-استبدال البيانات الافتراضية في الصفحات العامة وقاعدة البيانات بمحتوى كلية تكنولوجيا المعلومات وعلوم الحاسوب – جامعة إقليم سبأ، مع تنظيف المحتوى غير المتعلق بالكلية.
+## Scope summary
 
-ملاحظات قبل البدء:
-- لا توجد حاليًا صفحات منفصلة لـ "قيادة الكلية" أو "الهيكل التنظيمي" أو "إدارة المعامل/شؤون الطلاب" — سيتم إضافة الأقسام المطلوبة داخل صفحة `/about` بدل إنشاء صفحات جديدة (لتجنّب تضخيم نطاق المهمة).
-- الخبر الافتراضي عن السفير الروسي غير موجود أصلًا في جدول `news`، لا حاجة لحذفه.
-- لا تغييرات على بوابة الطالب أو نظام الأدوار في هذه المرحلة.
+Three new admin routes:
+- `/admin/students`
+- `/admin/faculty-management`
+- `/admin/staff-management`
 
-## 1) تحديث جدول `site_settings`
+Each page: list + search + filters + table + row actions (view, edit, create account, reset password, activate/deactivate, print credentials) + "إضافة" dialog + link to bulk import.
 
-تحديث القيم (UPDATE/UPSERT) للمفاتيح التالية:
-- `site_name_ar` = "كلية تكنولوجيا المعلومات وعلوم الحاسوب"
-- `university_name_ar` = "جامعة إقليم سبأ"
-- `contact_email` = "itandcs@usr.edu.ye"
-- `contact_phone` = "6302008 / 6301274 / 77963595"
-- `dean_name` = "أ.م.د. مقبول قايد الكامل"
-- `dean_title` = "عميد كلية تكنولوجيا المعلومات وعلوم الحاسوب"
-- `dean_message` = النص الكامل لكلمة العميد من الملف (الصفحات 3–4)
-- `vision` = "كلية متميزة محلياً وإقليمياً في التعليم والإنتاج البحثي والتحول الرقمي والشراكة المجتمعية"
-- `mission` = النص الكامل من الملف
-- إضافة مفاتيح جديدة: `values` (JSON أو نص متعدد الأسطر) و`goals` (نفس الفكرة) — أو ستُعرض كنصوص ثابتة داخل `about.tsx` (الخيار الأبسط، سنعتمده).
+Existing `/admin/users` and `/admin/faculty` (public site faculty content) stay untouched. Sidebar labels updated to disambiguate.
 
-## 2) قاعدة البيانات – جدول `departments`
+## Discovery first (read-only)
 
-استبدال القسم الافتراضي الواحد بثلاثة أقسام (UPDATE القائم + INSERT اثنين):
-1. قسم تكنولوجيا المعلومات والاتصالات (مع وصف الملف الكامل)
-2. قسم علوم الحاسوب
-3. قسم نظم المعلومات الحاسوبية (مع بيانات التأسيس 2017/2018 و132 ساعة معتمدة)
+Before writing code I will read:
+- `src/routes/admin/*` tree to understand existing layout, sidebar, and `/admin/users`, `/admin/faculty` shapes
+- `src/lib/admin-users.functions.ts` (and similar) for `createAccount`, `resetPassword`, `setActive`, `addRole`, `removeRole` signatures
+- `src/integrations/supabase/types.ts` for exact columns of `student_profiles`, `student_academic_status`, `faculty_profiles`, `staff_profiles`
+- Existing audit_logs usage pattern
+- Dashboard + readiness modules to know where to inject
 
-## 3) قاعدة البيانات – جدول `programs`
+If a needed server fn (e.g. list students with filters) doesn't exist, I'll add it in a `*.functions.ts` file beside existing ones — reusing `requireSupabaseAuth` and `has_any_role` patterns. No DB migration unless a required column is genuinely missing.
 
-تعديل البرامج الخمسة الحالية وربطها بالأقسام الصحيحة:
-- علوم الحاسوب → قسم علوم الحاسوب
-- تكنولوجيا المعلومات والاتصالات (تحديث الاسم من "تكنولوجيا المعلومات") → قسم ICT
-- نظم المعلومات الحاسوبية → قسم CIS
-- الأمن السيبراني → قسم ICT
-- الذكاء الاصطناعي (مع ملاحظة "سيُدشَّن 2026-2027") → قسم علوم الحاسوب
+## Implementation plan
 
-إضافة برنامجين جديدين:
-- ماجستير علوم الحاسوب (`degree_type=ماجستير`)
-- ماجستير تكنولوجيا المعلومات (قيد التدشين 2026-2027) (`degree_type=ماجستير`, `is_active=false` أو علامة بدء قريبًا في الوصف)
+### 1. Server functions (new file `src/lib/people-management.functions.ts`)
+Authenticated, role-gated via `has_any_role`:
+- `listStudents({ search, department_id, program_id, level_id, status, has_account })`
+- `getStudent(id)`
+- `createStudent(payload)` → inserts `student_profiles` + `student_academic_status` + optional account creation (delegates to existing `createAccount`)
+- `updateStudent(id, patch)`
+- `listFacultyProfiles(filters)` / `createFacultyProfile` / `updateFacultyProfile`
+- `listStaffProfiles(filters)` / `createStaffProfile` / `updateStaffProfile`
+- All mutations write to `audit_logs` with the action names in PART 12
 
-## 4) قاعدة البيانات – جدول `faculty`
+Reuse existing `createAccount`, `resetPassword`, `setActive`, `addRole`, `removeRole` from `admin-users.functions.ts` — do not duplicate.
 
-إدراج 4 سجلات (إذا كانت غير موجودة):
-- بشير حيدر — معيد — قسم نظم المعلومات
-- غالب عبدالله مبارك عبار — معيد — قسم علوم الحاسوب
-- عمار القديمي — سكرتير الكلية
-- محمد أمين — مراسل الكلية
+### 2. Shared UI components (`src/components/admin/people/`)
+- `PeopleTable.tsx` — generic table with sort, status badge, account badge, action menu
+- `PeopleFilters.tsx` — search + select filters
+- `CredentialPrintDialog.tsx` — print-friendly card (name, identifier, username, temp password, portal URL, change-password notice). Uses `window.print()` with a print-only stylesheet block.
+- `AccountActionsMenu.tsx` — dropdown wiring createAccount/resetPassword/setActive
 
-(لن تُحذف أي بيانات قديمة لأن الجدول فارغ حاليًا.)
+### 3. Pages
+- `src/routes/admin/students.tsx` — list + filters + "إضافة طالب" dialog + edit dialog + link to `/admin/imports?tab=students`
+- `src/routes/admin/faculty-management.tsx` — same shape for faculty
+- `src/routes/admin/staff-management.tsx` — same shape for staff (role_type select limited to registrar/student_affairs/finance_officer/hr_officer)
 
-## 5) تحديثات الكود (`src/routes/`)
+All routes under `_authenticated` layout. Each route's loader checks role via existing pattern and redirects unauthorized users.
 
-**`src/routes/about.tsx`**:
-- استبدال مصفوفة `goals` الثابتة بالأهداف الأربعة من الملف.
-- إضافة قسم **القيم** (6 قيم من الملف) قبل قسم الأهداف.
-- استبدال مصفوفة `milestones` بمسيرة واقعية (اعتمادًا على ما يذكره الملف فقط: 2017/2018 تأسيس قسم CIS، 2022 تولي العميد، تخريج 5 دفعات، 2026-2027 تدشين برامج جديدة).
-- إضافة قسم **قيادة الكلية** (الفترة 2022–2026، أ.م.د. مقبول الكامل، الرتبة، التخصص).
-- إضافة قسم **إدارة المعامل والمختبرات** بالنص العام الذي ذكره المستخدم (بدل النص الطبي غير المناسب).
-- إضافة قسم **الهيكل التنظيمي** برسالة: "سيتم نشر الهيكل التنظيمي للكلية قريبًا."
+### 4. Add-person dialogs
+Use `react-hook-form` + `zod` (matching existing forms). On submit:
+1. Insert profile rows
+2. If "إنشاء حساب دخول" checked → call `createAccount` with computed email (`{number}@students.usr.edu.ye` / `@faculty.usr.edu.ye` / `@staff.usr.edu.ye`) and temp password = number, role assigned, `must_change_password = true`
+3. Show success dialog with credentials + "طباعة"
 
-**`src/routes/index.tsx`**:
-- تحديث نص الـ subtitle/Hero والـ "Why us" ليعكس برامج الماجستير وعدد الأقسام (3 أقسام / 5 برامج بكالوريوس + ماجستير).
-- النص الافتراضي لكلمة العميد يُسحب من `site_settings` تلقائيًا (لا تغيير في الكود لازم لذلك).
+### 5. Sidebar
+Update `src/components/admin/AdminSidebar.tsx` (or equivalent):
+- Rename existing "إدارة أعضاء هيئة التدريس" (the `/admin/faculty` public content page) label → "صفحة أعضاء هيئة التدريس بالموقع"
+- Add new group "إدارة الأفراد" with: إدارة الطلاب, إدارة أعضاء هيئة التدريس, إدارة الموظفين
 
-**`src/routes/contact.tsx`**:
-- التحقق من أن الصفحة تقرأ من `site_settings` (إن لم تكن، ربطها). عرض ثلاثة أرقام الهاتف بدل رقم واحد.
+### 6. Dashboard integration
+Add "إدارة الأفراد" card group to admin dashboard with counts (students, faculty, staff, inactive accounts, profiles without accounts). Each card → links to the respective management page. New server fn `getPeopleStats()`.
 
-**`src/routes/departments.$code.tsx`** و**`/departments.tsx`**:
-- لا تغيير منطقي — البيانات تأتي من `programs`. ستظهر تلقائيًا بعد تحديث الجدول.
+### 7. Readiness integration
+Add "إدارة الأفراد" category to existing system readiness module with the seven checks listed in PART 15.
 
-## 6) تنظيف / استبعاد
+### 8. Audit logging
+Every create/update/account/reset/activate/deactivate writes one row to `audit_logs` with `entity_type`, `action_type`, `actor_id` (auth.uid), `target_id`, identifier in metadata, and a `changes` JSON diff.
 
-- الخبر السياسي عن السفير الروسي: غير موجود في DB → لا إجراء.
-- نص "المهارات السريرية" الطبي: لن يُدخل في DB ولن يظهر في الكود.
-- الإصدارات: تظهر بحالة فارغة طبيعيًا (لا توجد سجلات).
+### 9. Permissions
+Server-side gate every fn with `has_any_role(auth.uid(), ARRAY[...])` matching PART 13. Client-side: hide nav items the user can't access using existing role hook.
 
-## 7) التقرير النهائي
+## Out of scope (explicit)
+- No DB migrations (assuming `must_change_password`, `is_active`, audit_logs schema already support this — verified in discovery first; if a column genuinely missing I'll stop and ask)
+- No changes to imports engine, just deep-link to `/admin/imports`
+- Department-head read-only scope is "if easy to support" — I'll include it only if the existing role system already exposes a department_head→department mapping; otherwise note as known limitation
+- No `gender` field on students (skipped previously and not in this spec)
 
-بعد التنفيذ سيتم تقديم تقرير يتضمن:
-- الصفحات المعدّلة (`index`, `about`, `contact`)
-- الجداول المعدّلة (`site_settings`, `departments`, `programs`, `faculty`)
-- البيانات المستبعدة (السفير الروسي، نص المعامل الطبية) ولماذا
-- الصفحات/البيانات التي تبقى ناقصة (صور الأعضاء، السير الذاتية، الهيكل التنظيمي الرسومي، الإصدارات، التواريخ الدقيقة للمحطات)
-
-## تقنيًا
-
-- جميع تحديثات البيانات ستتم عبر `supabase--insert` (UPDATE/INSERT).
-- لا حاجة لميجريشن جديدة (لا تغييرات سكيمة).
-- الحفاظ على RTL وسيمانتك التوكنز الحالية.
+## Delivery
+Single batch with all files. Final message will include the PART 17 report (pages, flows, integrations, build status, known limitations).
