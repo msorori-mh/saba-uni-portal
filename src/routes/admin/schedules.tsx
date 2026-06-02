@@ -562,11 +562,11 @@ function useScheduleLookups() {
     if (error) throw error; return (data ?? []) as Semester[];
   }});
   const programs = useQuery({ queryKey: ["lk-programs"], queryFn: async () => {
-    const { data, error } = await supabase.from("programs").select("id, name_ar").eq("is_active", true);
+    const { data, error } = await supabase.from("programs").select("id, name_ar, department_id").eq("is_active", true);
     if (error) throw error; return (data ?? []) as Program[];
   }});
   const offerings = useQuery({ queryKey: ["lk-offerings"], queryFn: async () => {
-    const { data, error } = await supabase.from("course_offerings").select("id, course_id, program_id, academic_year_id, semester_id");
+    const { data, error } = await supabase.from("course_offerings").select("id, course_id, program_id, academic_year_id, semester_id, level_id");
     if (error) throw error; return (data ?? []) as Offering[];
   }});
   const courses = useQuery({ queryKey: ["lk-courses"], queryFn: async () => {
