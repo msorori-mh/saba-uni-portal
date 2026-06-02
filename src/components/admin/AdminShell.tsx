@@ -40,6 +40,7 @@ const groups: NavGroup[] = [
     label: "الشؤون الأكاديمية",
     icon: GradCap,
     items: [
+      { to: "/admin/academic-operations", label: "مركز العمليات الأكاديمية", icon: Activity },
       { to: "/admin/academic-core", label: "البنية الأكاديمية", icon: CalendarRange },
       { to: "/admin/study-plans", label: "الخطط والمقررات", icon: ListTree },
       { to: "/admin/course-offerings", label: "الطرح والشعب", icon: CalendarDays },
