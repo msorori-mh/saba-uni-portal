@@ -510,7 +510,7 @@ async function runChecks(): Promise<Section[]> {
 
 
   // --- Schedules (Phase 11E.1) ---
-  const [buildingsCount, roomsCount, slotsCount, scheduleAll, schedulePublished, scheduleAudit, conflictAudit] = await Promise.all([
+  const [buildingsCount, roomsCount, slotsCount, scheduleAll, schedulePublished, scheduleAudit, conflictAudit, ttPrintAudit, ttExportAudit, ttViewAudit] = await Promise.all([
     safeCount("buildings"),
     safeCount("rooms"),
     safeCount("time_slots"),
@@ -518,6 +518,9 @@ async function runChecks(): Promise<Section[]> {
     safeCount("class_schedule", (q) => q.eq("status", "published")),
     safeCount("audit_logs", (q) => q.eq("entity_type", "schedule")),
     safeCount("audit_logs", (q) => q.eq("entity_type", "schedule").eq("action_type", "schedule_conflict_blocked")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "schedule").eq("action_type", "timetable_printed")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "schedule").eq("action_type", "timetable_exported")),
+    safeCount("audit_logs", (q) => q.eq("entity_type", "schedule").eq("action_type", "timetable_viewed")),
   ]);
   const schedulesSection: Section = {
     id: "schedules",
@@ -528,12 +531,16 @@ async function runChecks(): Promise<Section[]> {
       slotsCount.ok ? pass("جدول time_slots متاح", `العدد: ${slotsCount.count}`) : fail("جدول time_slots", slotsCount.error ?? "غير متاح"),
       scheduleAll.ok ? pass("جدول class_schedule متاح", `العدد: ${scheduleAll.count}`) : fail("جدول class_schedule", scheduleAll.error ?? "غير متاح"),
       pass("كشف التعارضات فعّال", "trg_class_schedule_conflict (room/faculty/section)"),
-      pass("صفحة جدول الطالب متاحة", "/student/schedule"),
-      pass("صفحة جدول عضو هيئة التدريس متاحة", "/faculty-portal/schedule"),
-      pass("إدارة الجداول للمشرف متاحة", "/admin/schedules"),
+      pass("صفحة طباعة جدول الطالب", "/student/schedule (طباعة + Excel)"),
+      pass("صفحة طباعة جدول عضو هيئة التدريس", "/faculty-portal/schedule (طباعة + Excel)"),
+      pass("عرض الجداول للمشرف", "/admin/schedules — تبويب «عرض الجداول» بفلاتر"),
+      pass("تصدير Excel متاح", "طلاب/أعضاء/برامج/قاعات (xlsx)"),
       scheduleAudit.ok && scheduleAudit.count > 0
         ? pass("تكامل سجل التدقيق للجداول", `${scheduleAudit.count} حدث${conflictAudit.count > 0 ? ` (تعارضات: ${conflictAudit.count})` : ""}`)
         : schedulePublished.count > 0 ? warn("لا توجد أحداث تدقيق للجداول بعد") : pass("لا توجد جداول لاختبارها بعد"),
+      (ttPrintAudit.count + ttExportAudit.count + ttViewAudit.count) > 0
+        ? pass("تكامل تدقيق الطباعة/التصدير", `طباعة:${ttPrintAudit.count} • تصدير:${ttExportAudit.count} • عرض:${ttViewAudit.count}`)
+        : warn("لم تُسجّل أحداث طباعة/تصدير بعد", "ستظهر بعد أول استخدام للطباعة أو التصدير"),
     ],
   };
 
