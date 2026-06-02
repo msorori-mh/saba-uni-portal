@@ -99,6 +99,7 @@ function StudentSchedulePage() {
   const { data, isLoading } = useQuery({ queryKey: ["student-schedule-v2"], queryFn: fetchData });
   const rows = data?.rows ?? [];
   const info = data?.info;
+  const identity = useSiteIdentity();
 
   useEffect(() => {
     if (!isLoading) logScheduleAudit("timetable_viewed", "student");
@@ -116,10 +117,11 @@ function StudentSchedulePage() {
       filename: `student_schedule_${yearFile}_${semFile || "term"}.xlsx`,
       sheetName: "جدولي",
       header: [
-        ["جامعة سبأ", "كلية الإدارة والعلوم الإنسانية"],
+        [identity.university, identity.college],
         ["اسم الطالب", info.full_name_ar],
         ["الرقم الأكاديمي", info.academic_number],
         ["البرنامج", info.program ?? "—"],
+        ["المستوى", info.level ?? "غير محدد"],
         ["السنة الأكاديمية", info.year ?? "—"],
         ["الفصل", info.semester ?? "—"],
         ["تاريخ الإصدار", todayLabel()],
@@ -164,12 +166,14 @@ function StudentSchedulePage() {
             ["اسم الطالب", info.full_name_ar],
             ["الرقم الأكاديمي", info.academic_number],
             ["البرنامج", info.program ?? "—"],
+            ["المستوى", info.level ?? "غير محدد"],
             ["السنة الأكاديمية", info.year ?? "—"],
             ["الفصل", info.semester ?? "—"],
             ["تاريخ الإصدار", todayLabel()],
           ]}
         />
       )}
+
 
       {isLoading ? (
         <div className="grid place-items-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
