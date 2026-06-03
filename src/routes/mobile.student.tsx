@@ -4,13 +4,24 @@ import { useEffect } from "react";
 import { Home, CalendarClock, ClipboardList, FileText, User, LogOut, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
+import { registerStudentMobileSW } from "@/lib/pwa/register-student-sw";
 
 export const Route = createFileRoute("/mobile/student")({
   head: () => ({
     meta: [
-      { title: "تطبيق الطالب" },
+      { title: "بوابة الطالب — كلية تكنولوجيا المعلومات وعلوم الحاسوب" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "robots", content: "noindex, nofollow" },
+      { name: "theme-color", content: "#0f172a" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "بوابة الطالب" },
+      { name: "application-name", content: "بوابة الطالب" },
+    ],
+    links: [
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/icon-192.png" },
     ],
   }),
   beforeLoad: async () => {
