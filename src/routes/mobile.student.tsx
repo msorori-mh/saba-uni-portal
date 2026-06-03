@@ -62,6 +62,7 @@ function MobileStudentLayout() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    registerStudentMobileSW();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) navigate({ to: "/mobile/student-login", replace: true });
     });
