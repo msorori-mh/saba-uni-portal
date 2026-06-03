@@ -147,7 +147,7 @@ function AdminRequestsPage() {
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details")
           .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
           .in("request_id", ids),
@@ -166,6 +166,9 @@ function AdminRequestsPage() {
         sb.from("equivalency_courses")
           .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
           .in("equivalency_request_id", ids),
+        sb.from("grade_appeal_details")
+          .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+          .in("request_id", ids),
         sb.from("student_request_attachments")
           .select("id, request_id, file_url, file_name")
           .in("request_id", ids),
@@ -180,6 +183,8 @@ function AdminRequestsPage() {
       const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eqdMap = new Map((eqdRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const gaMap = new Map((gaRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eqcMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,6 +208,7 @@ function AdminRequestsPage() {
         transfer_details: trMap.get(r.id) ?? null,
         equivalency_details: eqdMap.get(r.id) ?? null,
         equivalency_courses: eqcMap.get(r.id) ?? [],
+        grade_appeal_details: gaMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
 
