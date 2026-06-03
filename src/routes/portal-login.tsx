@@ -299,14 +299,11 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
 
           <DemoHint
             accountType={accountType}
-            onFill={() => {
-              const demo = DEMO_CREDENTIALS[accountType];
-              setIdentifier(demo.identifier);
-              setPassword(demo.password);
-              setError(null);
-              passwordRef.current?.focus();
-            }}
+            loading={loading}
+            onFill={fillDemo}
+            onOneClick={oneClickDemo}
           />
+
 
 
 
