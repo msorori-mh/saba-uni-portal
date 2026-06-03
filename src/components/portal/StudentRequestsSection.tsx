@@ -152,7 +152,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id").in("request_id", ids),
         sb.from("enrollment_suspension_details")
           .select("request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
@@ -169,6 +169,9 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         sb.from("equivalency_courses")
           .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
           .in("equivalency_request_id", ids),
+        sb.from("grade_appeal_details")
+          .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+          .in("request_id", ids),
         sb.from("student_request_attachments").select("id, request_id, file_name, file_url").in("request_id", ids),
       ]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
