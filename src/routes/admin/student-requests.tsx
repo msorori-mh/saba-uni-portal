@@ -72,6 +72,16 @@ type EquivalencyCourse = {
   target_course: { code: string; name_ar: string } | null;
 };
 
+type GradeAppealDetails = {
+  reason: string;
+  notes: string | null;
+  current_grade_total: number | null;
+  current_grade_status: string | null;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+  section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
@@ -91,6 +101,7 @@ type AdminReq = {
   transfer_details: TransferDetails | null;
   equivalency_details: EquivalencyDetails | null;
   equivalency_courses: EquivalencyCourse[];
+  grade_appeal_details: GradeAppealDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
