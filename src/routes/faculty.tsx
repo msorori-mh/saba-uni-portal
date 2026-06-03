@@ -23,8 +23,6 @@ type FacultyRow = {
   rank: string | null;
   degree: string | null;
   specialization: string | null;
-  email: string | null;
-  phone: string | null;
   photo: string | null;
   bio_ar: string | null;
   bio_en: string | null;
@@ -186,26 +184,6 @@ function FacultyPage() {
                   </Section>
                 )}
 
-                <Section title="معلومات التواصل">
-                  <div className="space-y-2">
-                    {selected.email && (
-                      <a
-                        href={`mailto:${selected.email}`}
-                        className="flex items-center gap-2 text-sm text-primary hover:text-gold"
-                      >
-                        <Mail className="h-4 w-4" /> {selected.email}
-                      </a>
-                    )}
-                    {selected.phone && (
-                      <div className="flex items-center gap-2 text-sm text-foreground/80">
-                        <Phone className="h-4 w-4" /> {selected.phone}
-                      </div>
-                    )}
-                    {!selected.email && !selected.phone && (
-                      <p className="text-sm text-muted-foreground">لا توجد معلومات تواصل متاحة حالياً.</p>
-                    )}
-                  </div>
-                </Section>
               </div>
 
               <div className="flex justify-end pt-4 border-t mt-4">
