@@ -1105,5 +1105,232 @@ function EquivalencyModal({
   );
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// GradeAppealModal — student selects: Academic Year → Semester → Course (with grade)
+// Only enrollments that already have grades recorded are shown.
+// ──────────────────────────────────────────────────────────────────────────────
 
+type AppealEnrollment = {
+  enrollment_id: string;
+  course_section_id: string;
+  section_code: string;
+  course_code: string;
+  course_name: string;
+  semester_id: string;
+  semester_name: string;
+  academic_year_id: string;
+  academic_year_name: string;
+  total_score: number;
+  grade_status: string;
+};
+
+function GradeAppealModal({
+  studentProfileId, onClose, onSaved,
+}: {
+  studentProfileId: string; onClose: () => void; onSaved: () => void;
+}) {
+  // Load all enrollments for student with semester + course info + grades aggregated
+  const { data: graded = [], isLoading } = useQuery({
+    queryKey: ["my-graded-enrollments", studentProfileId],
+    queryFn: async (): Promise<AppealEnrollment[]> => {
+      const { data: enrs, error } = await supabase
+        .from("student_enrollments")
+        .select(`
+          id, course_section_id,
+          section:course_sections(
+            section_code,
+            offering:course_offerings(
+              course:courses(code, name_ar),
+              semester:semesters(id, name, academic_year_id, academic_year:academic_years(id, name))
+            )
+          )
+        `)
+        .eq("student_profile_id", studentProfileId)
+        .eq("enrollment_status", "enrolled");
+      if (error) throw error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list = ((enrs ?? []) as any[]).map((e) => ({
+        enrollment_id: e.id as string,
+        course_section_id: e.course_section_id as string,
+        section_code: e.section?.section_code ?? "—",
+        course_code: e.section?.offering?.course?.code ?? "—",
+        course_name: e.section?.offering?.course?.name_ar ?? "—",
+        semester_id: e.section?.offering?.semester?.id ?? "",
+        semester_name: e.section?.offering?.semester?.name ?? "—",
+        academic_year_id: e.section?.offering?.semester?.academic_year?.id ?? "",
+        academic_year_name: e.section?.offering?.semester?.academic_year?.name ?? "—",
+      }));
+      if (list.length === 0) return [];
+
+      // Fetch grades for these enrollments (only approved/submitted are "recorded")
+      const enrollmentIds = list.map((l) => l.enrollment_id);
+      const { data: grades, error: gErr } = await sb
+        .from("student_grades")
+        .select("student_enrollment_id, score, status")
+        .in("student_enrollment_id", enrollmentIds)
+        .in("status", ["submitted", "approved"]);
+      if (gErr) throw gErr;
+
+      const agg = new Map<string, { total: number; status: string }>();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const g of ((grades ?? []) as any[])) {
+        const cur = agg.get(g.student_enrollment_id) ?? { total: 0, status: "submitted" };
+        cur.total += Number(g.score ?? 0);
+        // approved wins over submitted
+        if (g.status === "approved") cur.status = "approved";
+        agg.set(g.student_enrollment_id, cur);
+      }
+
+      return list
+        .filter((l) => l.academic_year_id && l.semester_id && agg.has(l.enrollment_id))
+        .map((l) => ({
+          ...l,
+          total_score: agg.get(l.enrollment_id)!.total,
+          grade_status: agg.get(l.enrollment_id)!.status,
+        }));
+    },
+  });
+
+  const [yearId, setYearId] = useState<string>("");
+  const [semId, setSemId] = useState<string>("");
+  const [enrollmentId, setEnrollmentId] = useState<string>("");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  // Unique years from graded enrollments
+  const years = Array.from(
+    new Map(graded.map((g) => [g.academic_year_id, { id: g.academic_year_id, name: g.academic_year_name }])).values()
+  );
+  const semesters = Array.from(
+    new Map(
+      graded.filter((g) => g.academic_year_id === yearId)
+        .map((g) => [g.semester_id, { id: g.semester_id, name: g.semester_name }])
+    ).values()
+  );
+  const courses = graded.filter((g) => g.academic_year_id === yearId && g.semester_id === semId);
+  const selected = courses.find((c) => c.enrollment_id === enrollmentId) ?? null;
+
+  // Reset cascade
+  const onYearChange = (v: string) => { setYearId(v); setSemId(""); setEnrollmentId(""); };
+  const onSemChange = (v: string) => { setSemId(v); setEnrollmentId(""); };
+
+  const save = async (submit: boolean) => {
+    if (!yearId) { toast.error("اختر السنة الأكاديمية"); return; }
+    if (!semId) { toast.error("اختر الفصل الدراسي"); return; }
+    if (!enrollmentId || !selected) { toast.error("اختر المقرر"); return; }
+    if (!reason.trim() || reason.trim().length < 10) { toast.error("اكتب سبب التظلم (10 أحرف على الأقل)"); return; }
+    setBusy(true);
+    try {
+      const title = `تظلم درجات — ${selected.course_code}`;
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "grade_appeal",
+        title,
+        description: notes || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("grade_appeal_details").insert({
+        request_id: created.id,
+        student_profile_id: studentProfileId,
+        academic_year_id: yearId,
+        semester_id: semId,
+        course_section_id: selected.course_section_id,
+        student_enrollment_id: selected.enrollment_id,
+        current_grade_total: selected.total_score,
+        current_grade_status: selected.grade_status,
+        reason: reason.trim(),
+        notes: notes || null,
+      });
+      if (e2) {
+        // Roll back the request if details insert fails (e.g. duplicate appeal trigger)
+        await sb.from("student_requests").delete().eq("id", created.id);
+        throw e2;
+      }
+
+      if (file) await uploadAttachment(created.id, file);
+      toast.success(submit ? "تم إرسال التظلم" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب تظلم درجات" onClose={onClose}>
+      {isLoading ? (
+        <div className="text-xs text-center p-4"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+      ) : graded.length === 0 ? (
+        <div className="text-xs text-muted-foreground p-4 text-center border border-dashed rounded">
+          لا توجد مقررات بدرجات مسجلة لتقديم تظلم عليها.
+        </div>
+      ) : (
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label>السنة الأكاديمية <span className="text-rose-600">*</span></Label>
+              <select value={yearId} onChange={(e) => onYearChange(e.target.value)} className="w-full h-9 rounded border bg-background px-2 text-sm">
+                <option value="">اختر...</option>
+                {years.map((y) => <option key={y.id} value={y.id}>{y.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <Label>الفصل الدراسي <span className="text-rose-600">*</span></Label>
+              <select value={semId} onChange={(e) => onSemChange(e.target.value)} disabled={!yearId} className="w-full h-9 rounded border bg-background px-2 text-sm disabled:opacity-60">
+                <option value="">اختر...</option>
+                {semesters.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <Label>المقرر <span className="text-rose-600">*</span></Label>
+            <select
+              value={enrollmentId}
+              onChange={(e) => setEnrollmentId(e.target.value)}
+              disabled={!semId}
+              className="w-full h-9 rounded border bg-background px-2 text-sm disabled:opacity-60"
+            >
+              <option value="">اختر مقرراً...</option>
+              {courses.map((c) => (
+                <option key={c.enrollment_id} value={c.enrollment_id}>
+                  {c.course_code} — {c.course_name} (شعبة {c.section_code})
+                </option>
+              ))}
+            </select>
+            {semId && courses.length === 0 && (
+              <div className="mt-1 text-[11px] text-amber-700">لا توجد مقررات بدرجات مسجلة في هذا الفصل.</div>
+            )}
+          </div>
+
+          {selected && (
+            <div className="rounded border bg-muted/30 p-2 text-xs space-y-0.5">
+              <div className="flex justify-between"><span className="text-muted-foreground">المقرر:</span><b>{selected.course_code} — {selected.course_name}</b></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">الدرجة الحالية:</span><b>{selected.total_score.toFixed(2)}</b></div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">حالة الدرجة:</span>
+                <b>{selected.grade_status === "approved" ? "معتمدة" : "قيد الاعتماد"}</b>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <Label>سبب التظلم <span className="text-rose-600">*</span></Label>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} className="w-full rounded border bg-background px-2 py-1.5 text-sm" placeholder="اشرح سبب التظلم بالتفصيل..." />
+          </div>
+          <div>
+            <Label>ملاحظات إضافية</Label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+          </div>
+          <FilePicker file={file} setFile={setFile} />
+          <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+        </div>
+      )}
+    </ModalShell>
+  );
+}
 
