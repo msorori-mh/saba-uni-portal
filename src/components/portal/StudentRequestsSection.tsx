@@ -185,6 +185,8 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eqdMap = new Map((eqdRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const gaMap = new Map((gaRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eqcMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const c of (eqcRes.data ?? []) as any[]) {
@@ -207,6 +209,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         transfer_details: trMap.get(r.id) ?? null,
         equivalency_details: eqdMap.get(r.id) ?? null,
         equivalency_courses: eqcMap.get(r.id) ?? [],
+        grade_appeal_details: gaMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
     },
