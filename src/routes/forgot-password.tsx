@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 type Ctx = "admin" | "student" | "faculty" | "staff";
 
 export const Route = createFileRoute("/forgot-password")({
-  validateSearch: (s: Record<string, unknown>): { ctx?: Ctx } => {
-    const c = s.ctx;
-    if (c === "admin" || c === "student" || c === "faculty" || c === "staff") return { ctx: c };
+  validateSearch: (s: Record<string, unknown>): { type?: Ctx } => {
+    const c = s.type ?? s.ctx;
+    if (c === "admin" || c === "student" || c === "faculty" || c === "staff") return { type: c };
     return {};
   },
   head: () => ({
@@ -70,8 +70,8 @@ const COPY: Record<Ctx, {
 };
 
 function ForgotPasswordPage() {
-  const { ctx } = Route.useSearch();
-  const cfg = useMemo(() => COPY[(ctx ?? "admin") as Ctx], [ctx]);
+  const { type } = Route.useSearch();
+  const cfg = useMemo(() => COPY[(type ?? "admin") as Ctx], [type]);
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -102,7 +102,7 @@ function ForgotPasswordPage() {
           _entity_id: null,
           _action_type: "password_reset_requested",
           _old: null,
-          _new: { email: trimmed, ctx: ctx ?? "admin" },
+          _new: { email: trimmed, ctx: type ?? "admin" },
           _notes: null,
         });
       } catch { /* ignore */ }
