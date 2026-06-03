@@ -46,8 +46,8 @@ type DashboardCard = {
 const CARDS: DashboardCard[] = [
   { label: "الجدول الدراسي", icon: CalendarClock, enabled: true, to: "/mobile/student/schedule" },
   { label: "الرسوم والمدفوعات", icon: Wallet, enabled: true, to: "/mobile/student/finance" },
-  { label: "الطلبات", icon: ClipboardList, enabled: false },
-  { label: "الوثائق الرسمية", icon: FileText, enabled: false },
+  { label: "الطلبات", icon: ClipboardList, enabled: true, to: "/mobile/student/requests" },
+  { label: "الوثائق الرسمية", icon: FileText, enabled: true, to: "/mobile/student/documents" },
   { label: "الدرجات", icon: Award, enabled: true, to: "/mobile/student/grades" },
   { label: "السجل الأكاديمي", icon: BookOpen, enabled: true, to: "/mobile/student/academic-record" },
   { label: "التقدم الأكاديمي", icon: TrendingUp, enabled: false },

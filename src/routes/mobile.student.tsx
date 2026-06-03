@@ -131,8 +131,8 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { label: "الرئيسية", icon: Home, to: "/mobile/student" },
   { label: "الجدول", icon: CalendarClock, to: "/mobile/student/schedule" },
-  { label: "الطلبات", icon: ClipboardList, to: null },
-  { label: "الوثائق", icon: FileText, to: null },
+  { label: "الطلبات", icon: ClipboardList, to: "/mobile/student/requests" },
+  { label: "الوثائق", icon: FileText, to: "/mobile/student/documents" },
   { label: "الحساب", icon: User, to: null },
 ];
 
