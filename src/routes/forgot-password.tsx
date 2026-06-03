@@ -10,7 +10,7 @@ type Ctx = "admin" | "student" | "faculty" | "staff";
 
 export const Route = createFileRoute("/forgot-password")({
   validateSearch: (s: Record<string, unknown>): { ctx?: Ctx } => {
-    const c = s.ctx;
+    const c = s.type ?? s.ctx;
     if (c === "admin" || c === "student" || c === "faculty" || c === "staff") return { ctx: c };
     return {};
   },
