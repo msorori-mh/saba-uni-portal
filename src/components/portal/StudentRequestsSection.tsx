@@ -435,6 +435,13 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
           onSaved={() => { setOpenType(null); refresh(); }}
         />
       )}
+      {openType === "grade_appeal" && (
+        <GradeAppealModal
+          studentProfileId={studentProfileId}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
     </div>
   );
 }
