@@ -451,6 +451,26 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <EquivalencyCoursesReview requestId={req.id} courses={req.equivalency_courses} />
             </>
           )}
+          {req.grade_appeal_details && (
+            <>
+              <Row label="السنة الأكاديمية" value={req.grade_appeal_details.academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.grade_appeal_details.semester?.name ?? "—"} />
+              <Row
+                label="المقرر"
+                value={`${req.grade_appeal_details.section?.offering?.course?.code ?? "—"} — ${req.grade_appeal_details.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.grade_appeal_details.section?.section_code ?? "—"})`}
+              />
+              <Row
+                label="الدرجة الحالية"
+                value={
+                  req.grade_appeal_details.current_grade_total != null
+                    ? `${Number(req.grade_appeal_details.current_grade_total).toFixed(2)} (${req.grade_appeal_details.current_grade_status === "approved" ? "معتمدة" : "قيد الاعتماد"})`
+                    : "—"
+                }
+              />
+              <Row label="سبب التظلم" value={req.grade_appeal_details.reason} />
+              {req.grade_appeal_details.notes && <Row label="ملاحظات" value={req.grade_appeal_details.notes} />}
+            </>
+          )}
 
           <Row label="الحالة" value={<span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>} />
           <Row label="تاريخ الإنشاء" value={new Date(req.created_at).toLocaleString("ar-EG")} />
