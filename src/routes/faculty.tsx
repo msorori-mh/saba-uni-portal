@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Mail, Phone, GraduationCap, Search, FileText, ArrowRight, Crown, BookOpen, Users } from "lucide-react";
+import { GraduationCap, Search, FileText, ArrowRight, Crown, BookOpen, Users } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
 import { facultyQuery } from "@/lib/queries";
 import { Input } from "@/components/ui/input";
