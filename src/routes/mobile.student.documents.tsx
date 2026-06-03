@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/mobile/student/documents")({
   head: () => ({ meta: [{ title: "الوثائق الرسمية" }] }),
-  component: MobileStudentDocuments;
+  component: MobileStudentDocuments,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
