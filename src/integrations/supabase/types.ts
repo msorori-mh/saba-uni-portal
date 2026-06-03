@@ -1230,6 +1230,139 @@ export type Database = {
         }
         Relationships: []
       }
+      grade_appeal_details: {
+        Row: {
+          academic_year_id: string
+          course_section_id: string
+          created_at: string
+          current_grade_status: string | null
+          current_grade_total: number | null
+          id: string
+          notes: string | null
+          reason: string
+          request_id: string
+          semester_id: string
+          student_enrollment_id: string | null
+          student_profile_id: string
+          updated_at: string
+        }
+        Insert: {
+          academic_year_id: string
+          course_section_id: string
+          created_at?: string
+          current_grade_status?: string | null
+          current_grade_total?: number | null
+          id?: string
+          notes?: string | null
+          reason: string
+          request_id: string
+          semester_id: string
+          student_enrollment_id?: string | null
+          student_profile_id: string
+          updated_at?: string
+        }
+        Update: {
+          academic_year_id?: string
+          course_section_id?: string
+          created_at?: string
+          current_grade_status?: string | null
+          current_grade_total?: number | null
+          id?: string
+          notes?: string | null
+          reason?: string
+          request_id?: string
+          semester_id?: string
+          student_enrollment_id?: string | null
+          student_profile_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grade_appeal_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "course_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_section_id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_student_enrollment_id_fkey"
+            columns: ["student_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["enrollment_id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_student_enrollment_id_fkey"
+            columns: ["student_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "student_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grade_appeal_details_student_enrollment_id_fkey"
+            columns: ["student_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["enrollment_id"]
+          },
+        ]
+      }
       grade_components: {
         Row: {
           course_section_id: string
