@@ -102,7 +102,7 @@ function ForgotPasswordPage() {
           _entity_id: null,
           _action_type: "password_reset_requested",
           _old: null,
-          _new: { email: trimmed, ctx: ctx ?? "admin" },
+          _new: { email: trimmed, ctx: type ?? "admin" },
           _notes: null,
         });
       } catch { /* ignore */ }
