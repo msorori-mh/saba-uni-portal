@@ -338,6 +338,21 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     </div>
                   </div>
                 )}
+                {r.grade_appeal_details && (
+                  <div className="mt-1 text-[11px] text-muted-foreground flex flex-wrap gap-2">
+                    <span>السنة: <b>{r.grade_appeal_details.academic_year?.name ?? "—"}</b></span>
+                    <span>• الفصل: <b>{r.grade_appeal_details.semester?.name ?? "—"}</b></span>
+                    <span>• المقرر: <b>{r.grade_appeal_details.section?.offering?.course?.code ?? "—"} — {r.grade_appeal_details.section?.offering?.course?.name_ar ?? "—"}</b></span>
+                    {r.grade_appeal_details.current_grade_total != null && (
+                      <span>• الدرجة الحالية: <b>{Number(r.grade_appeal_details.current_grade_total).toFixed(2)}</b></span>
+                    )}
+                  </div>
+                )}
+                {r.grade_appeal_details?.reason && (
+                  <div className="mt-1.5 text-xs">
+                    <span className="text-muted-foreground">سبب التظلم: </span>{r.grade_appeal_details.reason}
+                  </div>
+                )}
                 {r.description && <div className="mt-1.5 text-xs">{r.description}</div>}
                 {r.suspension_details?.suspension_reason && (
                   <div className="mt-1.5 text-xs">
