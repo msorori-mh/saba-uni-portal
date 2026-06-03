@@ -45,7 +45,7 @@ type DashboardCard = {
 
 const CARDS: DashboardCard[] = [
   { label: "الجدول الدراسي", icon: CalendarClock, enabled: true, to: "/mobile/student/schedule" },
-  { label: "الرسوم والمدفوعات", icon: Wallet, enabled: false },
+  { label: "الرسوم والمدفوعات", icon: Wallet, enabled: true, to: "/mobile/student/finance" },
   { label: "الطلبات", icon: ClipboardList, enabled: false },
   { label: "الوثائق الرسمية", icon: FileText, enabled: false },
   { label: "الدرجات", icon: Award, enabled: true, to: "/mobile/student/grades" },
