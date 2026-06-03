@@ -85,6 +85,7 @@ import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/acad
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 import { Route as MobileStudentIndexRouteImport } from './routes/mobile.student.index'
 import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
+import { Route as MobileStudentGradesRouteImport } from './routes/mobile.student.grades'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
 
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
@@ -469,6 +470,11 @@ const MobileStudentScheduleRoute = MobileStudentScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => MobileStudentRoute,
 } as any)
+const MobileStudentGradesRoute = MobileStudentGradesRouteImport.update({
+  id: '/grades',
+  path: '/grades',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
 const FacultyPortalStudentProgressStudentIdRoute =
   FacultyPortalStudentProgressStudentIdRouteImport.update({
     id: '/student-progress/$studentId',
@@ -552,6 +558,7 @@ export interface FileRoutesByFullPath {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
+  '/mobile/student/grades': typeof MobileStudentGradesRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
 }
@@ -626,6 +633,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
+  '/mobile/student/grades': typeof MobileStudentGradesRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/mobile/student': typeof MobileStudentIndexRoute
 }
@@ -706,6 +714,7 @@ export interface FileRoutesById {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
+  '/mobile/student/grades': typeof MobileStudentGradesRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
 }
@@ -787,6 +796,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/faculty-portal/student-progress/$studentId'
+    | '/mobile/student/grades'
     | '/mobile/student/schedule'
     | '/mobile/student/'
   fileRoutesByTo: FileRoutesByTo
@@ -861,6 +871,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/faculty-portal/student-progress/$studentId'
+    | '/mobile/student/grades'
     | '/mobile/student/schedule'
     | '/mobile/student'
   id:
@@ -940,6 +951,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/faculty-portal/student-progress/$studentId'
+    | '/mobile/student/grades'
     | '/mobile/student/schedule'
     | '/mobile/student/'
   fileRoutesById: FileRoutesById
@@ -1502,6 +1514,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentScheduleRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/mobile/student/grades': {
+      id: '/mobile/student/grades'
+      path: '/grades'
+      fullPath: '/mobile/student/grades'
+      preLoaderRoute: typeof MobileStudentGradesRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
     '/faculty-portal/student-progress/$studentId': {
       id: '/faculty-portal/student-progress/$studentId'
       path: '/student-progress/$studentId'
@@ -1675,11 +1694,13 @@ const StudentRouteWithChildren =
   StudentRoute._addFileChildren(StudentRouteChildren)
 
 interface MobileStudentRouteChildren {
+  MobileStudentGradesRoute: typeof MobileStudentGradesRoute
   MobileStudentScheduleRoute: typeof MobileStudentScheduleRoute
   MobileStudentIndexRoute: typeof MobileStudentIndexRoute
 }
 
 const MobileStudentRouteChildren: MobileStudentRouteChildren = {
+  MobileStudentGradesRoute: MobileStudentGradesRoute,
   MobileStudentScheduleRoute: MobileStudentScheduleRoute,
   MobileStudentIndexRoute: MobileStudentIndexRoute,
 }
