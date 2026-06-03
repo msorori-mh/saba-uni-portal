@@ -329,6 +329,12 @@ function AdminRequestsPage() {
                         {r.equivalency_details.previous_university_name} • {r.equivalency_details.previous_program_name} • {r.equivalency_courses.length} مادة
                       </>
                     )}
+                    {r.grade_appeal_details && (
+                      <>
+                        {r.grade_appeal_details.academic_year?.name ?? "—"} • {r.grade_appeal_details.semester?.name ?? "—"} • {r.grade_appeal_details.section?.offering?.course?.code ?? "—"} — {r.grade_appeal_details.section?.offering?.course?.name_ar ?? "—"}
+                        {r.grade_appeal_details.current_grade_total != null && <> • الدرجة: <b>{Number(r.grade_appeal_details.current_grade_total).toFixed(2)}</b></>}
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
