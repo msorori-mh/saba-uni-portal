@@ -109,6 +109,7 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorIsCreds, setErrorIsCreds] = useState(false);
   const identifierRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
@@ -125,15 +126,23 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
     return () => { cancelled = true; };
   }, [navigate]);
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (loading) return;
-    if (!identifier.trim() || !password) return;
+  const fillDemo = () => {
+    const demo = DEMO_CREDENTIALS[accountType];
+    setIdentifier(demo.identifier);
+    setPassword(demo.password);
     setError(null);
+    setErrorIsCreds(false);
+  };
+
+  const doLogin = async (idValue: string, pwValue: string) => {
+    if (loading) return;
+    if (!idValue.trim() || !pwValue) return;
+    setError(null);
+    setErrorIsCreds(false);
     setLoading(true);
     try {
-      const email = `${identifier.trim().toLowerCase()}@${DOMAIN[accountType]}`;
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const email = `${idValue.trim().toLowerCase()}@${DOMAIN[accountType]}`;
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password: pwValue });
       if (signInError) throw signInError;
       if (!data.user) throw new Error("invalid");
 
@@ -146,9 +155,24 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
       }
       navigate({ to: dest, replace: true });
     } catch (err) {
-      setError(friendlyAuthError(err));
+      const msg = friendlyAuthError(err);
+      const isCreds = /credentials|كلمة المرور|بيانات/i.test(msg);
+      setErrorIsCreds(isCreds);
+      setError(msg);
       setLoading(false);
     }
+  };
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    void doLogin(identifier, password);
+  };
+
+  const oneClickDemo = async () => {
+    const demo = DEMO_CREDENTIALS[accountType];
+    setIdentifier(demo.identifier);
+    setPassword(demo.password);
+    await doLogin(demo.identifier, demo.password);
   };
 
   const cfg = COPY[accountType];
