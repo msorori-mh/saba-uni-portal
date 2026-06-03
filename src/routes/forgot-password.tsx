@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 type Ctx = "admin" | "student" | "faculty" | "staff";
 
 export const Route = createFileRoute("/forgot-password")({
-  validateSearch: (s: Record<string, unknown>): { ctx?: Ctx } => {
+  validateSearch: (s: Record<string, unknown>): { type?: Ctx } => {
     const c = s.type ?? s.ctx;
-    if (c === "admin" || c === "student" || c === "faculty" || c === "staff") return { ctx: c };
+    if (c === "admin" || c === "student" || c === "faculty" || c === "staff") return { type: c };
     return {};
   },
   head: () => ({
