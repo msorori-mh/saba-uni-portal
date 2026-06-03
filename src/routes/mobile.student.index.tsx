@@ -40,10 +40,11 @@ type DashboardCard = {
   label: string;
   icon: LucideIcon;
   enabled: boolean;
+  to?: string;
 };
 
 const CARDS: DashboardCard[] = [
-  { label: "الجدول الدراسي", icon: CalendarClock, enabled: false },
+  { label: "الجدول الدراسي", icon: CalendarClock, enabled: true, to: "/mobile/student/schedule" },
   { label: "الرسوم والمدفوعات", icon: Wallet, enabled: false },
   { label: "الطلبات", icon: ClipboardList, enabled: false },
   { label: "الوثائق الرسمية", icon: FileText, enabled: false },
