@@ -280,7 +280,7 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
               </button>
 
               <div className="text-center text-xs pt-2">
-                <Link to="/forgot-password" search={{ ctx: accountType }} className="text-primary hover:text-gold font-bold">
+                <Link to="/forgot-password" search={{ type: accountType }} className="text-primary hover:text-gold font-bold">
                   نسيت كلمة المرور؟
                 </Link>
               </div>
