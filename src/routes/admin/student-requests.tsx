@@ -72,6 +72,16 @@ type EquivalencyCourse = {
   target_course: { code: string; name_ar: string } | null;
 };
 
+type GradeAppealDetails = {
+  reason: string;
+  notes: string | null;
+  current_grade_total: number | null;
+  current_grade_status: string | null;
+  academic_year: { name: string } | null;
+  semester: { name: string } | null;
+  section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
@@ -91,6 +101,7 @@ type AdminReq = {
   transfer_details: TransferDetails | null;
   equivalency_details: EquivalencyDetails | null;
   equivalency_courses: EquivalencyCourse[];
+  grade_appeal_details: GradeAppealDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
 };
 
@@ -136,7 +147,7 @@ function AdminRequestsPage() {
       if (error) throw error;
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, attRes] = await Promise.all([
+      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details")
           .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
           .in("request_id", ids),
@@ -155,6 +166,9 @@ function AdminRequestsPage() {
         sb.from("equivalency_courses")
           .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
           .in("equivalency_request_id", ids),
+        sb.from("grade_appeal_details")
+          .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+          .in("request_id", ids),
         sb.from("student_request_attachments")
           .select("id, request_id, file_url, file_name")
           .in("request_id", ids),
@@ -169,6 +183,8 @@ function AdminRequestsPage() {
       const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eqdMap = new Map((eqdRes.data ?? []).map((d: any) => [d.request_id, d]));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const gaMap = new Map((gaRes.data ?? []).map((d: any) => [d.request_id, d]));
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const eqcMap = new Map<string, any[]>();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,6 +208,7 @@ function AdminRequestsPage() {
         transfer_details: trMap.get(r.id) ?? null,
         equivalency_details: eqdMap.get(r.id) ?? null,
         equivalency_courses: eqcMap.get(r.id) ?? [],
+        grade_appeal_details: gaMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
 
@@ -312,6 +329,12 @@ function AdminRequestsPage() {
                         {r.equivalency_details.previous_university_name} • {r.equivalency_details.previous_program_name} • {r.equivalency_courses.length} مادة
                       </>
                     )}
+                    {r.grade_appeal_details && (
+                      <>
+                        {r.grade_appeal_details.academic_year?.name ?? "—"} • {r.grade_appeal_details.semester?.name ?? "—"} • {r.grade_appeal_details.section?.offering?.course?.code ?? "—"} — {r.grade_appeal_details.section?.offering?.course?.name_ar ?? "—"}
+                        {r.grade_appeal_details.current_grade_total != null && <> • الدرجة: <b>{Number(r.grade_appeal_details.current_grade_total).toFixed(2)}</b></>}
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-0.5 text-[10px] text-muted-foreground">
@@ -426,6 +449,26 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               {req.equivalency_details.transfer_reference && <Row label="مرجع التحويل" value={req.equivalency_details.transfer_reference} />}
               {req.equivalency_details.notes && <Row label="ملاحظات" value={req.equivalency_details.notes} />}
               <EquivalencyCoursesReview requestId={req.id} courses={req.equivalency_courses} />
+            </>
+          )}
+          {req.grade_appeal_details && (
+            <>
+              <Row label="السنة الأكاديمية" value={req.grade_appeal_details.academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.grade_appeal_details.semester?.name ?? "—"} />
+              <Row
+                label="المقرر"
+                value={`${req.grade_appeal_details.section?.offering?.course?.code ?? "—"} — ${req.grade_appeal_details.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.grade_appeal_details.section?.section_code ?? "—"})`}
+              />
+              <Row
+                label="الدرجة الحالية"
+                value={
+                  req.grade_appeal_details.current_grade_total != null
+                    ? `${Number(req.grade_appeal_details.current_grade_total).toFixed(2)} (${req.grade_appeal_details.current_grade_status === "approved" ? "معتمدة" : "قيد الاعتماد"})`
+                    : "—"
+                }
+              />
+              <Row label="سبب التظلم" value={req.grade_appeal_details.reason} />
+              {req.grade_appeal_details.notes && <Row label="ملاحظات" value={req.grade_appeal_details.notes} />}
             </>
           )}
 
