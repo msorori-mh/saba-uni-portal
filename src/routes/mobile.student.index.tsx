@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -40,10 +40,11 @@ type DashboardCard = {
   label: string;
   icon: LucideIcon;
   enabled: boolean;
+  to?: string;
 };
 
 const CARDS: DashboardCard[] = [
-  { label: "الجدول الدراسي", icon: CalendarClock, enabled: false },
+  { label: "الجدول الدراسي", icon: CalendarClock, enabled: true, to: "/mobile/student/schedule" },
   { label: "الرسوم والمدفوعات", icon: Wallet, enabled: false },
   { label: "الطلبات", icon: ClipboardList, enabled: false },
   { label: "الوثائق الرسمية", icon: FileText, enabled: false },
@@ -112,14 +113,13 @@ function MobileStudentHome() {
         <div className="grid grid-cols-2 gap-3">
           {CARDS.map((card) => {
             const Icon = card.icon;
-            return (
+            const inner = (
               <div
-                key={card.label}
                 aria-disabled={!card.enabled}
                 className={[
-                  "relative rounded-2xl border bg-card p-3.5 shadow-card transition-all",
+                  "relative h-full rounded-2xl border bg-card p-3.5 shadow-card transition-all",
                   card.enabled
-                    ? "border-gold/40 hover:border-gold"
+                    ? "border-gold/40 hover:border-gold active:scale-[0.98]"
                     : "border-border opacity-70",
                 ].join(" ")}
               >
@@ -142,6 +142,13 @@ function MobileStudentHome() {
                   </span>
                 )}
               </div>
+            );
+            return card.enabled && card.to ? (
+              <Link key={card.label} to={card.to} className="block">
+                {inner}
+              </Link>
+            ) : (
+              <div key={card.label}>{inner}</div>
             );
           })}
         </div>

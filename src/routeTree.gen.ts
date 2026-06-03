@@ -84,6 +84,7 @@ import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-
 import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 import { Route as MobileStudentIndexRouteImport } from './routes/mobile.student.index'
+import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
 
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
@@ -463,6 +464,11 @@ const MobileStudentIndexRoute = MobileStudentIndexRouteImport.update({
   path: '/',
   getParentRoute: () => MobileStudentRoute,
 } as any)
+const MobileStudentScheduleRoute = MobileStudentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
 const FacultyPortalStudentProgressStudentIdRoute =
   FacultyPortalStudentProgressStudentIdRouteImport.update({
     id: '/student-progress/$studentId',
@@ -546,6 +552,7 @@ export interface FileRoutesByFullPath {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
+  '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
 }
 export interface FileRoutesByTo {
@@ -619,6 +626,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
+  '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/mobile/student': typeof MobileStudentIndexRoute
 }
 export interface FileRoutesById {
@@ -698,6 +706,7 @@ export interface FileRoutesById {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
+  '/mobile/student/schedule': typeof MobileStudentScheduleRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
 }
 export interface FileRouteTypes {
@@ -778,6 +787,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/faculty-portal/student-progress/$studentId'
+    | '/mobile/student/schedule'
     | '/mobile/student/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -851,6 +861,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/faculty-portal/student-progress/$studentId'
+    | '/mobile/student/schedule'
     | '/mobile/student'
   id:
     | '__root__'
@@ -929,6 +940,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/faculty-portal/student-progress/$studentId'
+    | '/mobile/student/schedule'
     | '/mobile/student/'
   fileRoutesById: FileRoutesById
 }
@@ -1483,6 +1495,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentIndexRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/mobile/student/schedule': {
+      id: '/mobile/student/schedule'
+      path: '/schedule'
+      fullPath: '/mobile/student/schedule'
+      preLoaderRoute: typeof MobileStudentScheduleRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
     '/faculty-portal/student-progress/$studentId': {
       id: '/faculty-portal/student-progress/$studentId'
       path: '/student-progress/$studentId'
@@ -1656,10 +1675,12 @@ const StudentRouteWithChildren =
   StudentRoute._addFileChildren(StudentRouteChildren)
 
 interface MobileStudentRouteChildren {
+  MobileStudentScheduleRoute: typeof MobileStudentScheduleRoute
   MobileStudentIndexRoute: typeof MobileStudentIndexRoute
 }
 
 const MobileStudentRouteChildren: MobileStudentRouteChildren = {
+  MobileStudentScheduleRoute: MobileStudentScheduleRoute,
   MobileStudentIndexRoute: MobileStudentIndexRoute,
 }
 
@@ -1693,13 +1714,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
