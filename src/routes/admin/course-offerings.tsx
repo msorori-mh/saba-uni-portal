@@ -188,7 +188,7 @@ function OfferingsTab() {
         </Select>
         <div className="flex-1" />
         <Button onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus className="h-4 w-4 ml-1" /> طرح جديد
+          <Plus className="h-4 w-4 ml-1" /> إسناد جديد
         </Button>
       </div>
 
