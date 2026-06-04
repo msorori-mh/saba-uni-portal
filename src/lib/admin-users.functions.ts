@@ -190,15 +190,42 @@ export const createAccount = createServerFn({ method: "POST" })
     const email = emailFor(data.kind, identifier);
     const password = identifier;
 
-    const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: { full_name_ar: (profile as any).full_name_ar, kind: data.kind },
-    });
-    if (cErr || !created.user) throw new Error(cErr?.message ?? "تعذّر إنشاء الحساب");
+    // ─── FACULTY-ACCOUNT-REPAIR-01: تحقق من وجود حساب Auth بنفس البريد قبل الإنشاء ───
+    // يمنع رسالة "A user with this email address has already been registered"
+    let newUserId: string | null = null;
+    let linkedExisting = false;
 
-    const newUserId = created.user.id;
+    const { data: existingList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+    const existing = existingList?.users?.find(
+      (u: any) => (u.email ?? "").toLowerCase() === email.toLowerCase(),
+    );
+
+    if (existing) {
+      const { data: linkedProfile } = await supabaseAdmin
+        .from(table)
+        .select("id")
+        .eq("user_id", existing.id)
+        .maybeSingle();
+
+      if (linkedProfile && (linkedProfile as any).id === data.profile_id) {
+        throw new Error("الحساب موجود ومربوط مسبقاً بهذا الملف");
+      }
+      if (linkedProfile && (linkedProfile as any).id !== data.profile_id) {
+        throw new Error("البريد الإلكتروني مستخدم بحساب آخر — لا يمكن الربط");
+      }
+      // Auth موجود لكن غير مربوط → استخدمه للربط بدلاً من الإنشاء
+      newUserId = existing.id;
+      linkedExisting = true;
+    } else {
+      const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name_ar: (profile as any).full_name_ar, kind: data.kind },
+      });
+      if (cErr || !created.user) throw new Error(cErr?.message ?? "تعذّر إنشاء الحساب");
+      newUserId = created.user.id;
+    }
 
     // Link profile
     const { error: uErr } = await supabaseAdmin
@@ -206,26 +233,38 @@ export const createAccount = createServerFn({ method: "POST" })
       .update({ user_id: newUserId, must_change_password: true, status: "active" } as any)
       .eq("id", data.profile_id);
     if (uErr) {
-      await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      if (!linkedExisting && newUserId) {
+        await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      }
       throw new Error(uErr.message);
     }
 
-    // Assign role
+    // Assign role (idempotent)
     const role =
       data.kind === "student" ? "student"
       : data.kind === "faculty" ? "faculty_member"
       : staffRoleFor((profile as any).role_type);
-    await supabaseAdmin.from("user_roles").insert({ user_id: newUserId, role: role as any });
+    const { data: existingRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", newUserId!)
+      .eq("role", role as any)
+      .maybeSingle();
+    if (!existingRole) {
+      await supabaseAdmin.from("user_roles").insert({ user_id: newUserId!, role: role as any });
+    }
 
     await logAudit({
       actor_user_id: context.userId,
-      action_type: "user_created",
+      action_type: linkedExisting ? "user_linked_existing_auth" : "user_created",
       entity_id: newUserId,
-      notes: `إنشاء حساب ${data.kind} للمستخدم ${email}`,
-      new_values: { email, kind: data.kind, profile_id: data.profile_id, role },
+      notes: linkedExisting
+        ? `ربط ملف ${data.kind} بحساب Auth موجود مسبقاً: ${email}`
+        : `إنشاء حساب ${data.kind} للمستخدم ${email}`,
+      new_values: { email, kind: data.kind, profile_id: data.profile_id, role, linked_existing: linkedExisting },
     });
 
-    return { user_id: newUserId, email };
+    return { user_id: newUserId, email, linked_existing: linkedExisting };
   });
 
 // ------------ Reset Password ------------
