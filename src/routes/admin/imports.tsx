@@ -27,12 +27,15 @@ export const Route = createFileRoute("/admin/imports")({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
 
-const TABS: { id: ImportType; label: string }[] = [
+type TabId = ImportType | "faculty_accounts";
+
+const TABS: { id: TabId; label: string }[] = [
   { id: "students", label: "الطلاب" },
   { id: "faculty", label: "أعضاء هيئة التدريس" },
   { id: "staff", label: "الموظفون" },
   { id: "courses", label: "المقررات" },
   { id: "study_plans", label: "الخطط الدراسية" },
+  { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
 
 const TYPE_LABEL: Record<ImportType, string> = {
