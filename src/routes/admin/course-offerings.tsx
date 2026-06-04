@@ -195,7 +195,7 @@ function OfferingsTab() {
       {isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا يوجد طرح دراسي.</div>
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا يوجد إسناد دراسي.</div>
       ) : (
         <div className="overflow-x-auto rounded-md border bg-card">
           <table className="w-full text-sm">
