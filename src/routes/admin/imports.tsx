@@ -388,7 +388,7 @@ function FacultyAccountsImportPanel() {
                 </tr>
               </thead>
               <tbody>
-                {result.results.slice(0, 500).map((r) => (
+                {result.results.slice(0, 500).map((r: FacultyImportRow) => (
                   <tr key={r.row_number} className="border-t border-border/60">
                     <td className="px-2 py-1 font-mono">{r.row_number}</td>
                     <td className="px-2 py-1 font-mono">{r.employee_number}</td>
