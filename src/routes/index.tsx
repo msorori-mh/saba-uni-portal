@@ -13,7 +13,7 @@ import { eventsQuery, liveCountsQuery, newsQuery, programsQuery, settingsQuery }
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "البوابة الإلكترونية — كلية تكنولوجيا المعلومات وعلوم الحاسوب | جامعة إقليم سبأ" },
+      { title: "بوابة كلية تكنولوجيا المعلومات — جامعة إقليم سبأ" },
       { name: "description", content: "البوابة الإلكترونية الرسمية لكلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ. الدخول إلى بوابات الطلاب وأعضاء هيئة التدريس والموظفين." },
       { property: "og:title", content: "البوابة الإلكترونية — كلية تكنولوجيا المعلومات وعلوم الحاسوب" },
       { property: "og:description", content: "منصة رقمية متكاملة للخدمات الأكاديمية والإدارية." },

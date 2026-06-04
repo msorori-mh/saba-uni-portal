@@ -183,9 +183,9 @@ function ContactPage() {
                 <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep shadow-gold shrink-0">
                   <c.icon className="h-5 w-5" />
                 </div>
-                <h3 className="font-display text-base font-extrabold text-primary">
+                <h2 className="font-display text-base font-extrabold text-primary">
                   {c.title}
-                </h3>
+                </h2>
               </div>
               <div className="mt-2.5 space-y-0.5 text-xs text-muted-foreground leading-6">
                 {c.lines.map((l, i) => <div key={i}>{l}</div>)}

@@ -227,9 +227,9 @@ function ResearchPage() {
                       )}
                     </div>
 
-                    <h3 className="font-display text-xl font-bold text-primary leading-snug">
+                    <h2 className="font-display text-xl font-bold text-primary leading-snug">
                       {p.title_ar}
-                    </h3>
+                    </h2>
                     {p.title_en && (
                       <p className="text-sm text-muted-foreground mt-1" dir="ltr">{p.title_en}</p>
                     )}

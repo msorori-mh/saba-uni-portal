@@ -10,12 +10,37 @@ export const Route = createFileRoute("/departments/$code")({
     if (!data) throw notFound();
     return data;
   },
-  head: ({ loaderData }) => ({
-    meta: [
-      { title: `${loaderData?.name_ar ?? "برنامج"} — كلية تكنولوجيا المعلومات` },
-      { name: "description", content: loaderData?.description_ar ?? "" },
-    ],
-  }),
+  head: ({ loaderData, params }) => {
+    const title = `${loaderData?.name_ar ?? "برنامج"} — كلية تكنولوجيا المعلومات`;
+    const description = loaderData?.description_ar ?? "";
+    const url = `https://quboolye.com/departments/${params.code}`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:url", content: url },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [{
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "EducationalOccupationalProgram",
+          name: loaderData?.name_ar,
+          description,
+          programType: loaderData?.degree_type ?? "بكالوريوس",
+          educationalCredentialAwarded: loaderData?.degree_type ?? "بكالوريوس",
+          provider: {
+            "@type": "EducationalOrganization",
+            name: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ",
+            url: "https://quboolye.com",
+          },
+        }),
+      }],
+    };
+  },
   component: ProgramDetail,
   errorComponent: ({ error }) => (
     <div className="container mx-auto px-4 py-20 text-center">
