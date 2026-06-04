@@ -8,6 +8,7 @@ import {
 import {
   listFacultyAccounts, facultyAccountStats,
   createFacultyAccountManual, linkFacultyAccountByEmail, resetFacultyPasswordManual,
+  auditFacultyAccountExport,
 } from "@/lib/faculty-accounts.functions";
 import { getPeopleLookups } from "@/lib/admin-people.functions";
 
