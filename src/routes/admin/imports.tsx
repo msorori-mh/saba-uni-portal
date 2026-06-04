@@ -168,10 +168,13 @@ function ImportsPage() {
         ))}
       </nav>
 
+      {tab === "faculty_accounts" ? (
+        <FacultyAccountsImportPanel />
+      ) : (
       <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => downloadTemplate(tab)}
+            onClick={() => downloadTemplate(tab as ImportType)}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold"
           >
             <Download className="h-4 w-4" /> تنزيل القالب
@@ -196,7 +199,7 @@ function ImportsPage() {
 
           {validation && (
             <button
-              onClick={() => downloadValidationReport(tab, file?.name ?? "file.xlsx", validation)}
+              onClick={() => downloadValidationReport(tab as ImportType, file?.name ?? "file.xlsx", validation)}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold"
             >
               <FileDown className="h-3.5 w-3.5" /> تقرير التحقق
@@ -241,13 +244,14 @@ function ImportsPage() {
         {report && (
           <ReportBlock
             report={report}
-            type={tab}
+            type={tab as ImportType}
             dryRun={dryRun}
             durationMs={perfMs}
-            onDownload={() => downloadImportReport(tab, file?.name ?? "file.xlsx", report)}
+            onDownload={() => downloadImportReport(tab as ImportType, file?.name ?? "file.xlsx", report)}
           />
         )}
       </section>
+      )}
 
       <ImportHistory />
     </div>
