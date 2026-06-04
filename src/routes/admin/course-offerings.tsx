@@ -188,14 +188,14 @@ function OfferingsTab() {
         </Select>
         <div className="flex-1" />
         <Button onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus className="h-4 w-4 ml-1" /> طرح جديد
+          <Plus className="h-4 w-4 ml-1" /> إسناد جديد
         </Button>
       </div>
 
       {isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا يوجد طرح دراسي.</div>
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا يوجد إسناد دراسي.</div>
       ) : (
         <div className="overflow-x-auto rounded-md border bg-card">
           <table className="w-full text-sm">
@@ -302,7 +302,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl" className="max-w-xl">
-        <DialogHeader><DialogTitle>{editing ? "تعديل طرح" : "طرح مقرر جديد"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? "تعديل إسناد" : "إسناد مقرر جديد"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <Label>المقرر *</Label>
