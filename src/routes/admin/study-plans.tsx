@@ -236,14 +236,18 @@ function CourseFormDialog({
     }
   }, [open, editing]);
 
+  const theory = Number(form.theory_hours) || 0;
+  const practical = Number(form.practical_hours) || 0;
+  const computedCredits = theory + Math.ceil(practical / 2);
+
   const save = async () => {
     if (!form.code || !form.name_ar) { toast.error("الكود والاسم العربي مطلوبان"); return; }
     setSaving(true);
     const payload = {
       code: form.code!, name_ar: form.name_ar!, name_en: form.name_en ?? null,
-      credit_hours: Number(form.credit_hours) || 0,
-      theory_hours: Number(form.theory_hours) || 0,
-      practical_hours: Number(form.practical_hours) || 0,
+      credit_hours: computedCredits,
+      theory_hours: theory,
+      practical_hours: practical,
       department_id: form.department_id ?? null,
       status: form.status ?? "active",
     };
