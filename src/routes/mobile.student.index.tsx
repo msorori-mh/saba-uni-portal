@@ -66,6 +66,9 @@ function MobileStudentHome() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["mobile-student", "summary"],
     queryFn: fetchSummary,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   if (isLoading) {

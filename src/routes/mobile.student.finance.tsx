@@ -132,7 +132,9 @@ function MobileStudentFinance() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["mobile-student", "finance"],
     queryFn: fetchFinance,
-    staleTime: 60_000,
+    staleTime: 90_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   if (isLoading) return <FinanceSkeleton />;
