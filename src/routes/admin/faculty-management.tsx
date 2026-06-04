@@ -72,6 +72,12 @@ function FacultyManagementPage() {
         </div>
         <div className="flex gap-2">
           <Link
+            to="/admin/faculty-accounts"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm font-bold text-primary hover:bg-primary/10"
+          >
+            <Users className="h-4 w-4" /> إدارة الحسابات
+          </Link>
+          <Link
             to="/admin/imports"
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary"
           >
