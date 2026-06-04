@@ -4,13 +4,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX,
-  Users, Upload,
+  Users, Upload, FileSpreadsheet, FileText,
 } from "lucide-react";
 import { listUsers, createAccount, resetPassword, setActive } from "@/lib/admin-users.functions";
 import {
   getPeopleLookups, createFacultyMember, updateFacultyMember, getFacultyMember,
 } from "@/lib/admin-people.functions";
 import { CredentialsSlip, Section, Field, useBusyError, type CredentialsSlipData } from "@/components/admin/people/shared";
+import { buildFilename, exportToExcel } from "@/lib/export/excel";
+import { exportToPdf } from "@/lib/export/pdf";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/faculty-management")({
   head: () => ({ meta: [{ title: "إدارة أعضاء هيئة التدريس — لوحة الإدارة" }] }),
