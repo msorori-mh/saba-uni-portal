@@ -109,28 +109,30 @@ function ImportsPage() {
 
   const runImport = async () => {
     if (!validation || !file) return;
+    if (tab === "faculty_accounts") return;
+    const t = tab as ImportType;
     setImporting(true);
     setReport(null);
     setPerfMs(null);
     const t0 = performance.now();
     try {
-      void auditImportStarted(tab, file.name, validation.totalRows, dryRun);
+      void auditImportStarted(t, file.name, validation.totalRows, dryRun);
       let rep = emptyReport();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const vrows = validation.rows as ValidatedRow<any>[];
-      if (tab === "students") rep = await importStudents(vrows, dryRun);
-      else if (tab === "faculty") rep = await importFaculty(vrows, dryRun);
-      else if (tab === "staff") rep = await importStaff(vrows, dryRun);
-      else if (tab === "courses") rep = await importCourses(vrows, dryRun);
+      if (t === "students") rep = await importStudents(vrows, dryRun);
+      else if (t === "faculty") rep = await importFaculty(vrows, dryRun);
+      else if (t === "staff") rep = await importStaff(vrows, dryRun);
+      else if (t === "courses") rep = await importCourses(vrows, dryRun);
       else rep = await importStudyPlans(vrows, dryRun);
       const duration = Math.round(performance.now() - t0);
       setPerfMs(duration);
-      await finalizeImport({ type: tab, fileName: file.name, report: rep, dryRun, durationMs: duration });
+      await finalizeImport({ type: t, fileName: file.name, report: rep, dryRun, durationMs: duration });
       setReport(rep);
       qc.invalidateQueries({ queryKey: ["import-history"] });
       qc.invalidateQueries({ queryKey: ["import-stats"] });
     } catch (e) {
-      void auditImportFailed(tab, file.name, (e as Error).message);
+      void auditImportFailed(t, file.name, (e as Error).message);
       alert("فشل الاستيراد: " + (e as Error).message);
     } finally {
       setImporting(false);
