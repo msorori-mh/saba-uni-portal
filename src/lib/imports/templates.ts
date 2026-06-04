@@ -49,8 +49,9 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
     headers: ["code","name_ar","name_en","credit_hours","theory_hours","practical_hours","department_code","status"],
     sample: ["CS101","مقدمة في البرمجة","Intro to Programming",3,2,2,"قسم علوم الحاسوب","active"],
     instructions: [
-      "code و name_ar و credit_hours حقول مطلوبة",
-      "credit_hours/theory_hours/practical_hours أرقام >= 0",
+      "code و name_ar حقول مطلوبة",
+      "theory_hours و practical_hours أرقام >= 0",
+      "⚠️ credit_hours تُحسب تلقائيًا من: نظري + ⌈عملي ÷ 2⌉ — أي قيمة مدخلة في العمود سيتم تجاهلها",
       "department_code = اسم القسم بالعربية",
     ],
   },
