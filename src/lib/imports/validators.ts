@@ -281,13 +281,12 @@ export async function validateCourses(
     const name_ar = str(raw.name_ar);
     if (!name_ar) errors.push({ row: rowNumber, column: "name_ar", message: "الاسم بالعربية مطلوب" });
 
-    const credit_hours = num(raw.credit_hours);
     const theory_hours = Number.isFinite(num(raw.theory_hours)) ? num(raw.theory_hours) : 0;
     const practical_hours = Number.isFinite(num(raw.practical_hours)) ? num(raw.practical_hours) : 0;
-    if (!Number.isFinite(credit_hours) || credit_hours < 0)
-      errors.push({ row: rowNumber, column: "credit_hours", message: "ساعات معتمدة غير صالحة" });
     if (theory_hours < 0) errors.push({ row: rowNumber, column: "theory_hours", message: "قيمة سالبة" });
     if (practical_hours < 0) errors.push({ row: rowNumber, column: "practical_hours", message: "قيمة سالبة" });
+    // credit_hours is ALWAYS derived: theory + ceil(practical/2). Any uploaded value is ignored.
+    const credit_hours = theory_hours + Math.ceil(practical_hours / 2);
 
     const depKey = normKey(str(raw.department_code));
     const dep_id = depKey ? lookups.departmentsByName.get(depKey) ?? null : null;
