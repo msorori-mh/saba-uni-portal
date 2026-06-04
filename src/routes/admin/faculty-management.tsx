@@ -151,7 +151,23 @@ function FacultyManagementPage() {
             إضافة الأعضاء، تعديل البيانات، إنشاء حسابات الدخول، وإعادة تعيين كلمات المرور.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting !== null || filtered.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+          >
+            {exporting === "xlsx" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+            تصدير Excel
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting !== null || filtered.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+            تصدير PDF
+          </button>
           <Link
             to="/admin/imports"
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary"
@@ -166,6 +182,7 @@ function FacultyManagementPage() {
           </button>
         </div>
       </div>
+
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 text-destructive px-4 py-3 text-sm flex items-center justify-between">
