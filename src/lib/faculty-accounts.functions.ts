@@ -45,7 +45,7 @@ async function linkProfileToAuth(profile_id: string, user_id: string, forceChang
   });
   if (error) throw new Error(error.message);
   if (forceChange) {
-    await supabaseAdmin.rpc("set_config" as any, { setting_name: "app.bypass_faculty_lock", new_value: "1", is_local: true } as any).catch(() => {});
+    try { await (supabaseAdmin.rpc as any)("set_config", { setting_name: "app.bypass_faculty_lock", new_value: "1", is_local: true }); } catch {/* ignore */}
     await supabaseAdmin.from("faculty_profiles").update({ must_change_password: true } as any).eq("id", profile_id);
   }
   // ensure faculty_member role
