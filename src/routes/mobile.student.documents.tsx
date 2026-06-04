@@ -63,7 +63,9 @@ function MobileStudentDocuments() {
   const { data: docs = [], isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["mobile-student", "documents"],
     queryFn: fetchDocs,
-    staleTime: 60_000,
+    staleTime: 2 * 60_000,
+    gcTime: 10 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   if (isLoading) {
