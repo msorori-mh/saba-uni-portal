@@ -292,3 +292,225 @@ export const resetFacultyPasswordManual = createServerFn({ method: "POST" })
       `إعادة تعيين كلمة المرور لـ ${(profile as any).employee_number}`);
     return { ok: true, password };
   });
+
+// ---------- FACULTY-ACCOUNT-IMPORT-EXPORT-02 ----------
+// Bulk import faculty accounts from Excel rows.
+const ImportRowSchema = z.object({
+  row_number: z.number().int().min(1),
+  employee_number: z.string().trim().min(1).max(40),
+  email: z.string().trim().email().max(160),
+  initial_password: z.string().min(8).max(72),
+  full_name_ar: z.string().trim().max(160).optional().nullable(),
+  role: z.string().trim().max(40).optional().nullable(),
+  force_password_change: z.union([z.boolean(), z.string()]).optional().nullable(),
+});
+
+type ImportRowInput = z.infer<typeof ImportRowSchema>;
+
+function parseBool(v: unknown, def: boolean): boolean {
+  if (v === null || v === undefined || v === "") return def;
+  if (typeof v === "boolean") return v;
+  const s = String(v).trim().toLowerCase();
+  if (["true", "1", "yes", "y", "نعم", "صحيح"].includes(s)) return true;
+  if (["false", "0", "no", "n", "لا", "خطأ"].includes(s)) return false;
+  return def;
+}
+
+export const importFacultyAccountsRows = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { rows: unknown[] }) =>
+    z.object({ rows: z.array(z.any()).max(2000) }).parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+
+    const results: Array<{
+      row_number: number;
+      employee_number: string;
+      full_name_ar: string | null;
+      email: string;
+      status: "created" | "linked" | "already_linked" | "failed";
+      reason?: string;
+    }> = [];
+    let created = 0, linked = 0, already = 0, failed = 0;
+
+    for (let i = 0; i < data.rows.length; i++) {
+      const raw = data.rows[i] as Record<string, unknown>;
+      const rowNum = Number(raw?.row_number ?? i + 2);
+
+      // Normalize
+      const normalized: any = {
+        row_number: rowNum,
+        employee_number: String(raw?.employee_number ?? "").trim(),
+        email: String(raw?.email ?? "").trim().toLowerCase(),
+        initial_password: String(raw?.initial_password ?? ""),
+        full_name_ar: raw?.full_name_ar ? String(raw.full_name_ar).trim() : null,
+        role: raw?.role ? String(raw.role).trim() : null,
+        force_password_change: raw?.force_password_change,
+      };
+
+      let parsed: ImportRowInput;
+      try {
+        parsed = ImportRowSchema.parse(normalized);
+      } catch (e: any) {
+        failed++;
+        results.push({
+          row_number: rowNum,
+          employee_number: normalized.employee_number || "",
+          full_name_ar: normalized.full_name_ar,
+          email: normalized.email || "",
+          status: "failed",
+          reason: e?.errors?.[0]?.message ?? "بيانات غير صالحة",
+        });
+        continue;
+      }
+
+      const forceChange = parseBool(parsed.force_password_change, true);
+      const role = (parsed.role && parsed.role.length > 0) ? parsed.role : "faculty_member";
+
+      try {
+        // 1. Find profile by employee_number
+        const { data: profile } = await supabaseAdmin
+          .from("faculty_profiles")
+          .select("id, user_id, employee_number, full_name_ar, status")
+          .eq("employee_number", parsed.employee_number)
+          .maybeSingle();
+
+        if (!profile) {
+          failed++;
+          results.push({
+            row_number: rowNum, employee_number: parsed.employee_number,
+            full_name_ar: parsed.full_name_ar ?? null, email: parsed.email,
+            status: "failed", reason: "لا يوجد عضو هيئة تدريس بهذا الرقم الوظيفي",
+          });
+          continue;
+        }
+
+        const profileName = (profile as any).full_name_ar as string;
+
+        // 2. Already linked?
+        if ((profile as any).user_id) {
+          already++;
+          results.push({
+            row_number: rowNum, employee_number: parsed.employee_number,
+            full_name_ar: profileName, email: parsed.email,
+            status: "already_linked", reason: "العضو لديه حساب مرتبط مسبقاً",
+          });
+          continue;
+        }
+
+        // 3. Look up auth by email
+        const existing = await findAuthByEmail(parsed.email);
+
+        if (existing) {
+          // Is the existing auth linked to another profile?
+          const { data: linkedTo } = await supabaseAdmin
+            .from("faculty_profiles").select("id, employee_number")
+            .eq("user_id", existing.id).maybeSingle();
+          if (linkedTo) {
+            failed++;
+            results.push({
+              row_number: rowNum, employee_number: parsed.employee_number,
+              full_name_ar: profileName, email: parsed.email,
+              status: "failed",
+              reason: `البريد مرتبط بعضو آخر (${(linkedTo as any).employee_number})`,
+            });
+            continue;
+          }
+          // Link existing
+          await linkProfileToAuth((profile as any).id, existing.id, forceChange);
+          if (role && role !== "faculty_member") {
+            try {
+              const { data: hasRole } = await supabaseAdmin
+                .from("user_roles").select("id").eq("user_id", existing.id).eq("role", role as any).maybeSingle();
+              if (!hasRole) await supabaseAdmin.from("user_roles").insert({ user_id: existing.id, role: role as any });
+            } catch {/* ignore extra role failure */}
+          }
+          await logAudit(context.userId, "link_faculty_account", existing.id,
+            `استيراد: ربط ${parsed.employee_number} بحساب ${parsed.email}`,
+            { email: parsed.email, employee_number: parsed.employee_number, row: rowNum });
+          linked++;
+          results.push({
+            row_number: rowNum, employee_number: parsed.employee_number,
+            full_name_ar: profileName, email: parsed.email, status: "linked",
+          });
+          continue;
+        }
+
+        // 4. Create new auth
+        const { data: createdUser, error: cErr } = await supabaseAdmin.auth.admin.createUser({
+          email: parsed.email,
+          password: parsed.initial_password,
+          email_confirm: true,
+          user_metadata: { full_name_ar: profileName, kind: "faculty" },
+        });
+        if (cErr || !createdUser.user) {
+          failed++;
+          results.push({
+            row_number: rowNum, employee_number: parsed.employee_number,
+            full_name_ar: profileName, email: parsed.email,
+            status: "failed", reason: cErr?.message ?? "تعذّر إنشاء الحساب",
+          });
+          continue;
+        }
+
+        try {
+          await linkProfileToAuth((profile as any).id, createdUser.user.id, forceChange);
+          if (role && role !== "faculty_member") {
+            try {
+              await supabaseAdmin.from("user_roles").insert({ user_id: createdUser.user.id, role: role as any });
+            } catch {/* ignore */}
+          }
+        } catch (linkErr: any) {
+          await supabaseAdmin.auth.admin.deleteUser(createdUser.user.id);
+          failed++;
+          results.push({
+            row_number: rowNum, employee_number: parsed.employee_number,
+            full_name_ar: profileName, email: parsed.email,
+            status: "failed", reason: linkErr?.message ?? "فشل ربط الحساب",
+          });
+          continue;
+        }
+
+        await logAudit(context.userId, "create_faculty_account", createdUser.user.id,
+          `استيراد: إنشاء حساب ${parsed.employee_number} ببريد ${parsed.email}`,
+          { email: parsed.email, employee_number: parsed.employee_number, row: rowNum });
+        created++;
+        results.push({
+          row_number: rowNum, employee_number: parsed.employee_number,
+          full_name_ar: profileName, email: parsed.email, status: "created",
+        });
+      } catch (err: any) {
+        failed++;
+        results.push({
+          row_number: rowNum, employee_number: parsed.employee_number,
+          full_name_ar: parsed.full_name_ar ?? null, email: parsed.email,
+          status: "failed", reason: err?.message ?? "خطأ غير متوقع",
+        });
+      }
+    }
+
+    await logAudit(context.userId, "import_faculty_accounts", null,
+      `استيراد حسابات: إنشاء=${created}، ربط=${linked}، مربوط مسبقاً=${already}، فشل=${failed}`,
+      { totals: { created, linked, already_linked: already, failed, total: data.rows.length } });
+
+    return {
+      totals: { total: data.rows.length, created, linked, already_linked: already, failed },
+      results,
+    };
+  });
+
+// Audit-only logger for export actions (called from server)
+export const auditFacultyAccountExport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { kind: "status" | "without_accounts"; count: number }) =>
+    z.object({ kind: z.enum(["status", "without_accounts"]), count: z.number().int().min(0) }).parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const action = data.kind === "status" ? "export_faculty_accounts_status" : "export_faculty_without_accounts";
+    await logAudit(context.userId, action, null,
+      `تصدير ${data.kind === "status" ? "حالة الحسابات" : "بدون حسابات"} — عدد الصفوف: ${data.count}`,
+      { count: data.count });
+    return { ok: true };
+  });
