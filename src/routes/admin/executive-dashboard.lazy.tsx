@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -26,7 +26,7 @@ import {
 } from "@/lib/executive-analytics.functions";
 import { exportXlsx } from "@/lib/reports/export";
 
-export const Route = createFileRoute("/admin/executive-dashboard")({
+export const Route = createLazyFileRoute("/admin/executive-dashboard")({
   component: ExecutiveDashboardPage,
 });
 

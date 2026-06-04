@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loader2, Search, FileText, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 
-export const Route = createFileRoute("/admin/transcripts")({
+export const Route = createLazyFileRoute("/admin/transcripts")({
   component: AdminTranscriptsPage,
 });
 

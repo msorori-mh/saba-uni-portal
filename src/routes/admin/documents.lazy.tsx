@@ -1,11 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search, FileText, Plus, Eye, XCircle, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { sendNotificationEmail } from "@/lib/email.functions";
 
-export const Route = createFileRoute("/admin/documents")({
+export const Route = createLazyFileRoute("/admin/documents")({
   component: AdminDocumentsPage,
 });
 

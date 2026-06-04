@@ -8,6 +8,8 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyDocumentRouteImport } from './routes/verify-document'
 import { Route as StudentRouteImport } from './routes/student'
@@ -30,7 +32,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentProgressRouteImport } from './routes/student.progress'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
@@ -44,11 +45,7 @@ import { Route as FacultyPortalChangePasswordRouteImport } from './routes/facult
 import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminTranscriptsRouteImport } from './routes/admin/transcripts'
 import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
-import { Route as AdminStudyPlansRouteImport } from './routes/admin/study-plans'
-import { Route as AdminStudentsRouteImport } from './routes/admin/students'
-import { Route as AdminStudentRequestsRouteImport } from './routes/admin/student-requests'
 import { Route as AdminStudentProgressRouteImport } from './routes/admin/student-progress'
 import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -65,14 +62,10 @@ import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminImportsRouteImport } from './routes/admin/imports'
 import { Route as AdminGraduationCandidatesRouteImport } from './routes/admin/graduation-candidates'
-import { Route as AdminGradesRouteImport } from './routes/admin/grades'
-import { Route as AdminFinanceRouteImport } from './routes/admin/finance'
 import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
 import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
-import { Route as AdminExecutiveDashboardRouteImport } from './routes/admin/executive-dashboard'
 import { Route as AdminEventsRouteImport } from './routes/admin/events'
 import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments'
-import { Route as AdminDocumentsRouteImport } from './routes/admin/documents'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
 import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
@@ -91,6 +84,20 @@ import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.studen
 import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.student.documents'
 import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile.student.academic-record'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
+
+const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
+const AdminTranscriptsLazyRouteImport = createFileRoute('/admin/transcripts')()
+const AdminStudyPlansLazyRouteImport = createFileRoute('/admin/study-plans')()
+const AdminStudentsLazyRouteImport = createFileRoute('/admin/students')()
+const AdminStudentRequestsLazyRouteImport = createFileRoute(
+  '/admin/student-requests',
+)()
+const AdminGradesLazyRouteImport = createFileRoute('/admin/grades')()
+const AdminFinanceLazyRouteImport = createFileRoute('/admin/finance')()
+const AdminExecutiveDashboardLazyRouteImport = createFileRoute(
+  '/admin/executive-dashboard',
+)()
+const AdminDocumentsLazyRouteImport = createFileRoute('/admin/documents')()
 
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
   id: '/verify-document',
@@ -182,6 +189,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexLazyRoute = AdminIndexLazyRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin/index.lazy').then((d) => d.Route))
 const StudentIndexRoute = StudentIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -197,11 +209,60 @@ const FacultyPortalIndexRoute = FacultyPortalIndexRouteImport.update({
   path: '/',
   getParentRoute: () => FacultyPortalRoute,
 } as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AdminTranscriptsLazyRoute = AdminTranscriptsLazyRouteImport.update({
+  id: '/transcripts',
+  path: '/transcripts',
   getParentRoute: () => AdminRoute,
-} as any)
+} as any).lazy(() =>
+  import('./routes/admin/transcripts.lazy').then((d) => d.Route),
+)
+const AdminStudyPlansLazyRoute = AdminStudyPlansLazyRouteImport.update({
+  id: '/study-plans',
+  path: '/study-plans',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin/study-plans.lazy').then((d) => d.Route),
+)
+const AdminStudentsLazyRoute = AdminStudentsLazyRouteImport.update({
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin/students.lazy').then((d) => d.Route),
+)
+const AdminStudentRequestsLazyRoute =
+  AdminStudentRequestsLazyRouteImport.update({
+    id: '/student-requests',
+    path: '/student-requests',
+    getParentRoute: () => AdminRoute,
+  } as any).lazy(() =>
+    import('./routes/admin/student-requests.lazy').then((d) => d.Route),
+  )
+const AdminGradesLazyRoute = AdminGradesLazyRouteImport.update({
+  id: '/grades',
+  path: '/grades',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin/grades.lazy').then((d) => d.Route))
+const AdminFinanceLazyRoute = AdminFinanceLazyRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin/finance.lazy').then((d) => d.Route))
+const AdminExecutiveDashboardLazyRoute =
+  AdminExecutiveDashboardLazyRouteImport.update({
+    id: '/executive-dashboard',
+    path: '/executive-dashboard',
+    getParentRoute: () => AdminRoute,
+  } as any).lazy(() =>
+    import('./routes/admin/executive-dashboard.lazy').then((d) => d.Route),
+  )
+const AdminDocumentsLazyRoute = AdminDocumentsLazyRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin/documents.lazy').then((d) => d.Route),
+)
 const StudentScheduleRoute = StudentScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
@@ -268,29 +329,9 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminTranscriptsRoute = AdminTranscriptsRouteImport.update({
-  id: '/transcripts',
-  path: '/transcripts',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
   id: '/system-readiness',
   path: '/system-readiness',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudyPlansRoute = AdminStudyPlansRouteImport.update({
-  id: '/study-plans',
-  path: '/study-plans',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudentsRoute = AdminStudentsRouteImport.update({
-  id: '/students',
-  path: '/students',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudentRequestsRoute = AdminStudentRequestsRouteImport.update({
-  id: '/student-requests',
-  path: '/student-requests',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminStudentProgressRoute = AdminStudentProgressRouteImport.update({
@@ -374,16 +415,6 @@ const AdminGraduationCandidatesRoute =
     path: '/graduation-candidates',
     getParentRoute: () => AdminRoute,
   } as any)
-const AdminGradesRoute = AdminGradesRouteImport.update({
-  id: '/grades',
-  path: '/grades',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminFinanceRoute = AdminFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminFacultyManagementRoute = AdminFacultyManagementRouteImport.update({
   id: '/faculty-management',
   path: '/faculty-management',
@@ -394,11 +425,6 @@ const AdminFacultyRoute = AdminFacultyRouteImport.update({
   path: '/faculty',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminExecutiveDashboardRoute = AdminExecutiveDashboardRouteImport.update({
-  id: '/executive-dashboard',
-  path: '/executive-dashboard',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminEventsRoute = AdminEventsRouteImport.update({
   id: '/events',
   path: '/events',
@@ -407,11 +433,6 @@ const AdminEventsRoute = AdminEventsRouteImport.update({
 const AdminEnrollmentsRoute = AdminEnrollmentsRouteImport.update({
   id: '/enrollments',
   path: '/enrollments',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDocumentsRoute = AdminDocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
@@ -536,14 +557,10 @@ export interface FileRoutesByFullPath {
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
-  '/admin/documents': typeof AdminDocumentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
-  '/admin/executive-dashboard': typeof AdminExecutiveDashboardRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
-  '/admin/finance': typeof AdminFinanceRoute
-  '/admin/grades': typeof AdminGradesRoute
   '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
@@ -560,11 +577,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
-  '/admin/student-requests': typeof AdminStudentRequestsRoute
-  '/admin/students': typeof AdminStudentsRoute
-  '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
-  '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
@@ -578,10 +591,18 @@ export interface FileRoutesByFullPath {
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
-  '/admin/': typeof AdminIndexRoute
+  '/admin/documents': typeof AdminDocumentsLazyRoute
+  '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
+  '/admin/finance': typeof AdminFinanceLazyRoute
+  '/admin/grades': typeof AdminGradesLazyRoute
+  '/admin/student-requests': typeof AdminStudentRequestsLazyRoute
+  '/admin/students': typeof AdminStudentsLazyRoute
+  '/admin/study-plans': typeof AdminStudyPlansLazyRoute
+  '/admin/transcripts': typeof AdminTranscriptsLazyRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/admin/': typeof AdminIndexLazyRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
@@ -616,14 +637,10 @@ export interface FileRoutesByTo {
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
-  '/admin/documents': typeof AdminDocumentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
-  '/admin/executive-dashboard': typeof AdminExecutiveDashboardRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
-  '/admin/finance': typeof AdminFinanceRoute
-  '/admin/grades': typeof AdminGradesRoute
   '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
@@ -640,11 +657,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
-  '/admin/student-requests': typeof AdminStudentRequestsRoute
-  '/admin/students': typeof AdminStudentsRoute
-  '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
-  '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
@@ -657,10 +670,18 @@ export interface FileRoutesByTo {
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
-  '/admin': typeof AdminIndexRoute
+  '/admin/documents': typeof AdminDocumentsLazyRoute
+  '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
+  '/admin/finance': typeof AdminFinanceLazyRoute
+  '/admin/grades': typeof AdminGradesLazyRoute
+  '/admin/student-requests': typeof AdminStudentRequestsLazyRoute
+  '/admin/students': typeof AdminStudentsLazyRoute
+  '/admin/study-plans': typeof AdminStudyPlansLazyRoute
+  '/admin/transcripts': typeof AdminTranscriptsLazyRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
+  '/admin': typeof AdminIndexLazyRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
@@ -700,14 +721,10 @@ export interface FileRoutesById {
   '/admin/contacts': typeof AdminContactsRoute
   '/admin/course-offerings': typeof AdminCourseOfferingsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
-  '/admin/documents': typeof AdminDocumentsRoute
   '/admin/enrollments': typeof AdminEnrollmentsRoute
   '/admin/events': typeof AdminEventsRoute
-  '/admin/executive-dashboard': typeof AdminExecutiveDashboardRoute
   '/admin/faculty': typeof AdminFacultyRoute
   '/admin/faculty-management': typeof AdminFacultyManagementRoute
-  '/admin/finance': typeof AdminFinanceRoute
-  '/admin/grades': typeof AdminGradesRoute
   '/admin/graduation-candidates': typeof AdminGraduationCandidatesRoute
   '/admin/imports': typeof AdminImportsRoute
   '/admin/login': typeof AdminLoginRoute
@@ -724,11 +741,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
-  '/admin/student-requests': typeof AdminStudentRequestsRoute
-  '/admin/students': typeof AdminStudentsRoute
-  '/admin/study-plans': typeof AdminStudyPlansRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
-  '/admin/transcripts': typeof AdminTranscriptsRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
@@ -742,10 +755,18 @@ export interface FileRoutesById {
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
-  '/admin/': typeof AdminIndexRoute
+  '/admin/documents': typeof AdminDocumentsLazyRoute
+  '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
+  '/admin/finance': typeof AdminFinanceLazyRoute
+  '/admin/grades': typeof AdminGradesLazyRoute
+  '/admin/student-requests': typeof AdminStudentRequestsLazyRoute
+  '/admin/students': typeof AdminStudentsLazyRoute
+  '/admin/study-plans': typeof AdminStudyPlansLazyRoute
+  '/admin/transcripts': typeof AdminTranscriptsLazyRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
+  '/admin/': typeof AdminIndexLazyRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
   '/mobile/student/academic-record': typeof MobileStudentAcademicRecordRoute
   '/mobile/student/documents': typeof MobileStudentDocumentsRoute
@@ -786,14 +807,10 @@ export interface FileRouteTypes {
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
-    | '/admin/documents'
     | '/admin/enrollments'
     | '/admin/events'
-    | '/admin/executive-dashboard'
     | '/admin/faculty'
     | '/admin/faculty-management'
-    | '/admin/finance'
-    | '/admin/grades'
     | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
@@ -810,11 +827,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/staff-management'
     | '/admin/student-progress'
-    | '/admin/student-requests'
-    | '/admin/students'
-    | '/admin/study-plans'
     | '/admin/system-readiness'
-    | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
@@ -828,10 +841,18 @@ export interface FileRouteTypes {
     | '/student/notifications'
     | '/student/progress'
     | '/student/schedule'
-    | '/admin/'
+    | '/admin/documents'
+    | '/admin/executive-dashboard'
+    | '/admin/finance'
+    | '/admin/grades'
+    | '/admin/student-requests'
+    | '/admin/students'
+    | '/admin/study-plans'
+    | '/admin/transcripts'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
+    | '/admin/'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
     | '/mobile/student/documents'
@@ -866,14 +887,10 @@ export interface FileRouteTypes {
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
-    | '/admin/documents'
     | '/admin/enrollments'
     | '/admin/events'
-    | '/admin/executive-dashboard'
     | '/admin/faculty'
     | '/admin/faculty-management'
-    | '/admin/finance'
-    | '/admin/grades'
     | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
@@ -890,11 +907,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/staff-management'
     | '/admin/student-progress'
-    | '/admin/student-requests'
-    | '/admin/students'
-    | '/admin/study-plans'
     | '/admin/system-readiness'
-    | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
@@ -907,10 +920,18 @@ export interface FileRouteTypes {
     | '/student/notifications'
     | '/student/progress'
     | '/student/schedule'
-    | '/admin'
+    | '/admin/documents'
+    | '/admin/executive-dashboard'
+    | '/admin/finance'
+    | '/admin/grades'
+    | '/admin/student-requests'
+    | '/admin/students'
+    | '/admin/study-plans'
+    | '/admin/transcripts'
     | '/faculty-portal'
     | '/staff'
     | '/student'
+    | '/admin'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
     | '/mobile/student/documents'
@@ -949,14 +970,10 @@ export interface FileRouteTypes {
     | '/admin/contacts'
     | '/admin/course-offerings'
     | '/admin/departments'
-    | '/admin/documents'
     | '/admin/enrollments'
     | '/admin/events'
-    | '/admin/executive-dashboard'
     | '/admin/faculty'
     | '/admin/faculty-management'
-    | '/admin/finance'
-    | '/admin/grades'
     | '/admin/graduation-candidates'
     | '/admin/imports'
     | '/admin/login'
@@ -973,11 +990,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/staff-management'
     | '/admin/student-progress'
-    | '/admin/student-requests'
-    | '/admin/students'
-    | '/admin/study-plans'
     | '/admin/system-readiness'
-    | '/admin/transcripts'
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
@@ -991,10 +1004,18 @@ export interface FileRouteTypes {
     | '/student/notifications'
     | '/student/progress'
     | '/student/schedule'
-    | '/admin/'
+    | '/admin/documents'
+    | '/admin/executive-dashboard'
+    | '/admin/finance'
+    | '/admin/grades'
+    | '/admin/student-requests'
+    | '/admin/students'
+    | '/admin/study-plans'
+    | '/admin/transcripts'
     | '/faculty-portal/'
     | '/staff/'
     | '/student/'
+    | '/admin/'
     | '/faculty-portal/student-progress/$studentId'
     | '/mobile/student/academic-record'
     | '/mobile/student/documents'
@@ -1157,6 +1178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/student/': {
       id: '/student/'
       path: '/'
@@ -1178,11 +1206,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalIndexRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
+    '/admin/transcripts': {
+      id: '/admin/transcripts'
+      path: '/transcripts'
+      fullPath: '/admin/transcripts'
+      preLoaderRoute: typeof AdminTranscriptsLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/study-plans': {
+      id: '/admin/study-plans'
+      path: '/study-plans'
+      fullPath: '/admin/study-plans'
+      preLoaderRoute: typeof AdminStudyPlansLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/students': {
+      id: '/admin/students'
+      path: '/students'
+      fullPath: '/admin/students'
+      preLoaderRoute: typeof AdminStudentsLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/student-requests': {
+      id: '/admin/student-requests'
+      path: '/student-requests'
+      fullPath: '/admin/student-requests'
+      preLoaderRoute: typeof AdminStudentRequestsLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/grades': {
+      id: '/admin/grades'
+      path: '/grades'
+      fullPath: '/admin/grades'
+      preLoaderRoute: typeof AdminGradesLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/finance': {
+      id: '/admin/finance'
+      path: '/finance'
+      fullPath: '/admin/finance'
+      preLoaderRoute: typeof AdminFinanceLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/executive-dashboard': {
+      id: '/admin/executive-dashboard'
+      path: '/executive-dashboard'
+      fullPath: '/admin/executive-dashboard'
+      preLoaderRoute: typeof AdminExecutiveDashboardLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/documents': {
+      id: '/admin/documents'
+      path: '/documents'
+      fullPath: '/admin/documents'
+      preLoaderRoute: typeof AdminDocumentsLazyRouteImport
       parentRoute: typeof AdminRoute
     }
     '/student/schedule': {
@@ -1276,39 +1353,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/transcripts': {
-      id: '/admin/transcripts'
-      path: '/transcripts'
-      fullPath: '/admin/transcripts'
-      preLoaderRoute: typeof AdminTranscriptsRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/system-readiness': {
       id: '/admin/system-readiness'
       path: '/system-readiness'
       fullPath: '/admin/system-readiness'
       preLoaderRoute: typeof AdminSystemReadinessRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/study-plans': {
-      id: '/admin/study-plans'
-      path: '/study-plans'
-      fullPath: '/admin/study-plans'
-      preLoaderRoute: typeof AdminStudyPlansRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/students': {
-      id: '/admin/students'
-      path: '/students'
-      fullPath: '/admin/students'
-      preLoaderRoute: typeof AdminStudentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/student-requests': {
-      id: '/admin/student-requests'
-      path: '/student-requests'
-      fullPath: '/admin/student-requests'
-      preLoaderRoute: typeof AdminStudentRequestsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/student-progress': {
@@ -1423,20 +1472,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminGraduationCandidatesRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/grades': {
-      id: '/admin/grades'
-      path: '/grades'
-      fullPath: '/admin/grades'
-      preLoaderRoute: typeof AdminGradesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/finance': {
-      id: '/admin/finance'
-      path: '/finance'
-      fullPath: '/admin/finance'
-      preLoaderRoute: typeof AdminFinanceRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/faculty-management': {
       id: '/admin/faculty-management'
       path: '/faculty-management'
@@ -1451,13 +1486,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFacultyRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/executive-dashboard': {
-      id: '/admin/executive-dashboard'
-      path: '/executive-dashboard'
-      fullPath: '/admin/executive-dashboard'
-      preLoaderRoute: typeof AdminExecutiveDashboardRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/events': {
       id: '/admin/events'
       path: '/events'
@@ -1470,13 +1498,6 @@ declare module '@tanstack/react-router' {
       path: '/enrollments'
       fullPath: '/admin/enrollments'
       preLoaderRoute: typeof AdminEnrollmentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/documents': {
-      id: '/admin/documents'
-      path: '/documents'
-      fullPath: '/admin/documents'
-      preLoaderRoute: typeof AdminDocumentsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/departments': {
@@ -1619,14 +1640,10 @@ interface AdminRouteChildren {
   AdminContactsRoute: typeof AdminContactsRoute
   AdminCourseOfferingsRoute: typeof AdminCourseOfferingsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
-  AdminDocumentsRoute: typeof AdminDocumentsRoute
   AdminEnrollmentsRoute: typeof AdminEnrollmentsRoute
   AdminEventsRoute: typeof AdminEventsRoute
-  AdminExecutiveDashboardRoute: typeof AdminExecutiveDashboardRoute
   AdminFacultyRoute: typeof AdminFacultyRoute
   AdminFacultyManagementRoute: typeof AdminFacultyManagementRoute
-  AdminFinanceRoute: typeof AdminFinanceRoute
-  AdminGradesRoute: typeof AdminGradesRoute
   AdminGraduationCandidatesRoute: typeof AdminGraduationCandidatesRoute
   AdminImportsRoute: typeof AdminImportsRoute
   AdminLoginRoute: typeof AdminLoginRoute
@@ -1643,13 +1660,17 @@ interface AdminRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStaffManagementRoute: typeof AdminStaffManagementRoute
   AdminStudentProgressRoute: typeof AdminStudentProgressRoute
-  AdminStudentRequestsRoute: typeof AdminStudentRequestsRoute
-  AdminStudentsRoute: typeof AdminStudentsRoute
-  AdminStudyPlansRoute: typeof AdminStudyPlansRoute
   AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
-  AdminTranscriptsRoute: typeof AdminTranscriptsRoute
   AdminUsersRoute: typeof AdminUsersRoute
-  AdminIndexRoute: typeof AdminIndexRoute
+  AdminDocumentsLazyRoute: typeof AdminDocumentsLazyRoute
+  AdminExecutiveDashboardLazyRoute: typeof AdminExecutiveDashboardLazyRoute
+  AdminFinanceLazyRoute: typeof AdminFinanceLazyRoute
+  AdminGradesLazyRoute: typeof AdminGradesLazyRoute
+  AdminStudentRequestsLazyRoute: typeof AdminStudentRequestsLazyRoute
+  AdminStudentsLazyRoute: typeof AdminStudentsLazyRoute
+  AdminStudyPlansLazyRoute: typeof AdminStudyPlansLazyRoute
+  AdminTranscriptsLazyRoute: typeof AdminTranscriptsLazyRoute
+  AdminIndexLazyRoute: typeof AdminIndexLazyRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -1663,14 +1684,10 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminContactsRoute: AdminContactsRoute,
   AdminCourseOfferingsRoute: AdminCourseOfferingsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
-  AdminDocumentsRoute: AdminDocumentsRoute,
   AdminEnrollmentsRoute: AdminEnrollmentsRoute,
   AdminEventsRoute: AdminEventsRoute,
-  AdminExecutiveDashboardRoute: AdminExecutiveDashboardRoute,
   AdminFacultyRoute: AdminFacultyRoute,
   AdminFacultyManagementRoute: AdminFacultyManagementRoute,
-  AdminFinanceRoute: AdminFinanceRoute,
-  AdminGradesRoute: AdminGradesRoute,
   AdminGraduationCandidatesRoute: AdminGraduationCandidatesRoute,
   AdminImportsRoute: AdminImportsRoute,
   AdminLoginRoute: AdminLoginRoute,
@@ -1687,13 +1704,17 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStaffManagementRoute: AdminStaffManagementRoute,
   AdminStudentProgressRoute: AdminStudentProgressRoute,
-  AdminStudentRequestsRoute: AdminStudentRequestsRoute,
-  AdminStudentsRoute: AdminStudentsRoute,
-  AdminStudyPlansRoute: AdminStudyPlansRoute,
   AdminSystemReadinessRoute: AdminSystemReadinessRoute,
-  AdminTranscriptsRoute: AdminTranscriptsRoute,
   AdminUsersRoute: AdminUsersRoute,
-  AdminIndexRoute: AdminIndexRoute,
+  AdminDocumentsLazyRoute: AdminDocumentsLazyRoute,
+  AdminExecutiveDashboardLazyRoute: AdminExecutiveDashboardLazyRoute,
+  AdminFinanceLazyRoute: AdminFinanceLazyRoute,
+  AdminGradesLazyRoute: AdminGradesLazyRoute,
+  AdminStudentRequestsLazyRoute: AdminStudentRequestsLazyRoute,
+  AdminStudentsLazyRoute: AdminStudentsLazyRoute,
+  AdminStudyPlansLazyRoute: AdminStudyPlansLazyRoute,
+  AdminTranscriptsLazyRoute: AdminTranscriptsLazyRoute,
+  AdminIndexLazyRoute: AdminIndexLazyRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)

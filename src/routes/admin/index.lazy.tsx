@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -17,7 +17,7 @@ import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.fu
 import { getPilotOverview } from "@/lib/pilot.functions";
 import { Rocket } from "lucide-react";
 
-export const Route = createFileRoute("/admin/")({
+export const Route = createLazyFileRoute("/admin/")({
   component: AdminDashboard,
 });
 
