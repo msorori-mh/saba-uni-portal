@@ -317,7 +317,7 @@ function FacultyAccountsImportPanel() {
     const STATUS_AR: Record<string, string> = {
       created: "تم الإنشاء", linked: "تم الربط", already_linked: "مربوط مسبقاً", failed: "فشل",
     };
-    const data = result.results.map((r) => ({
+    const data = result.results.map((r: FacultyImportRow) => ({
       row: r.row_number,
       employee_number: r.employee_number,
       full_name_ar: r.full_name_ar ?? "",
