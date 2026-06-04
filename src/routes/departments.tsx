@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 export const Route = createFileRoute("/departments")({
   head: () => ({
     meta: [
-      { title: "الأقسام والبرامج الدراسية — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
+      { title: "الأقسام والبرامج — كلية تكنولوجيا المعلومات" },
       { name: "description", content: "الأقسام والبرامج الأكاديمية الأربعة في كلية تكنولوجيا المعلومات وعلوم الحاسوب: علوم الحاسوب، نظم المعلومات الحاسوبية، الأمن السيبراني، والذكاء الاصطناعي." },
       { property: "og:title", content: "الأقسام والبرامج الدراسية" },
       { property: "og:url", content: "/departments" },
@@ -193,18 +193,18 @@ function DepartmentsPage() {
                     <AccordionContent className="pb-6 pt-2">
                       <div className="grid gap-5 md:grid-cols-2">
                         <div>
-                          <h4 className="font-display font-bold text-primary mb-2">الوصف</h4>
+                          <h3 className="font-display font-bold text-primary mb-2">الوصف</h3>
                           <p className="text-sm text-muted-foreground leading-7">{p.description_ar}</p>
                         </div>
                         {p.admission_requirements && (
                           <div>
-                            <h4 className="font-display font-bold text-primary mb-2">شروط القبول</h4>
+                            <h3 className="font-display font-bold text-primary mb-2">شروط القبول</h3>
                             <p className="text-sm text-muted-foreground leading-7 whitespace-pre-line">{p.admission_requirements}</p>
                           </div>
                         )}
                         {p.career_opportunities && (
                           <div className="md:col-span-2">
-                            <h4 className="font-display font-bold text-primary mb-2">فرص العمل</h4>
+                            <h3 className="font-display font-bold text-primary mb-2">فرص العمل</h3>
                             <p className="text-sm text-muted-foreground leading-7 whitespace-pre-line">{p.career_opportunities}</p>
                           </div>
                         )}

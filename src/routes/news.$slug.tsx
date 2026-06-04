@@ -13,22 +13,40 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/news/$slug")({
-  head: ({ loaderData }) => {
-    const data = loaderData as { title_ar?: string; excerpt_ar?: string } | undefined;
+  head: ({ loaderData, params }) => {
+    const data = loaderData as { title_ar?: string; excerpt_ar?: string; featured_image?: string; published_at?: string } | undefined;
+    const title = data?.title_ar
+      ? `${data.title_ar} — كلية تكنولوجيا المعلومات`
+      : "خبر — كلية تكنولوجيا المعلومات";
+    const description = data?.excerpt_ar ?? "خبر من كلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.";
+    const url = `https://quboolye.com/news/${params.slug}`;
     return {
       meta: [
-        {
-          title: data?.title_ar
-            ? `${data.title_ar} — كلية تكنولوجيا المعلومات`
-            : "خبر — كلية تكنولوجيا المعلومات",
-        },
-        {
-          name: "description",
-          content:
-            data?.excerpt_ar ??
-            "خبر من كلية تكنولوجيا المعلومات وعلوم الحاسوب بجامعة إقليم سبأ.",
-        },
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "article" },
+        { property: "og:url", content: url },
+        ...(data?.featured_image ? [{ property: "og:image", content: data.featured_image } as const] : []),
       ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [{
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: data?.title_ar,
+          description: data?.excerpt_ar,
+          image: data?.featured_image,
+          datePublished: data?.published_at,
+          mainEntityOfPage: url,
+          publisher: {
+            "@type": "EducationalOrganization",
+            name: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ",
+          },
+        }),
+      }],
     };
   },
   loader: async ({ context, params }) => {

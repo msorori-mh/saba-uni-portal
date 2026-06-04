@@ -35,16 +35,20 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export const Route = createFileRoute("/news")({
-  head: () => ({
-    meta: [
-      { title: "الأخبار والفعاليات — كلية تكنولوجيا المعلومات | جامعة إقليم سبأ" },
-      {
-        name: "description",
-        content:
-          "آخر الأخبار والإعلانات والفعاليات في كلية تكنولوجيا المعلومات وعلوم الحاسوب.",
-      },
-    ],
-  }),
+  head: () => {
+    const title = "الأخبار والفعاليات — كلية تكنولوجيا المعلومات";
+    const description = "آخر الأخبار والإعلانات والفعاليات في كلية تكنولوجيا المعلومات وعلوم الحاسوب.";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:url", content: "https://quboolye.com/news" },
+      ],
+      links: [{ rel: "canonical", href: "https://quboolye.com/news" }],
+    };
+  },
   loader: ({ context }) => {
     context.queryClient.ensureQueryData(newsQuery());
     context.queryClient.ensureQueryData(eventsQuery());
