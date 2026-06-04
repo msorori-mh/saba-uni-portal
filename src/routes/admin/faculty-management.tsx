@@ -4,13 +4,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX,
-  Users, Upload,
+  Users, Upload, FileSpreadsheet, FileText,
 } from "lucide-react";
 import { listUsers, createAccount, resetPassword, setActive } from "@/lib/admin-users.functions";
 import {
   getPeopleLookups, createFacultyMember, updateFacultyMember, getFacultyMember,
 } from "@/lib/admin-people.functions";
 import { CredentialsSlip, Section, Field, useBusyError, type CredentialsSlipData } from "@/components/admin/people/shared";
+import { buildFilename, exportToExcel } from "@/lib/export/excel";
+import { exportToPdf } from "@/lib/export/pdf";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/faculty-management")({
   head: () => ({ meta: [{ title: "إدارة أعضاء هيئة التدريس — لوحة الإدارة" }] }),
@@ -59,6 +62,84 @@ function FacultyManagementPage() {
     return true;
   });
 
+  const [exporting, setExporting] = useState<"xlsx" | "pdf" | null>(null);
+
+  const buildExportRows = () => {
+    const deptMap = new Map((lookups?.departments ?? []).map((d: any) => [d.id, d.name_ar]));
+    const progMap = new Map((lookups?.programs ?? []).map((p: any) => [p.id, p.name_ar]));
+    return filtered.map((r: any) => ({
+      employee_number: r.employee_number ?? "",
+      full_name_ar: r.full_name_ar ?? "",
+      full_name_en: r.full_name_en ?? "",
+      department: r.department_id ? (deptMap.get(r.department_id) ?? "") : "",
+      program: r.program_id ? (progMap.get(r.program_id) ?? "") : "",
+      academic_rank: r.academic_rank ?? "",
+      position_title: r.position_title ?? "",
+      email: r.email ?? "",
+      phone: r.phone ?? "",
+      status: r.status === "active" ? "نشط" : "معطّل",
+    }));
+  };
+
+  const columns = [
+    { key: "employee_number", header: "الرقم الوظيفي", width: 14 },
+    { key: "full_name_ar", header: "الاسم بالعربية", width: 28 },
+    { key: "full_name_en", header: "الاسم بالإنجليزية", width: 28 },
+    { key: "department", header: "القسم", width: 22 },
+    { key: "program", header: "البرنامج", width: 22 },
+    { key: "academic_rank", header: "الرتبة العلمية", width: 16 },
+    { key: "position_title", header: "المنصب", width: 18 },
+    { key: "email", header: "البريد الإلكتروني", width: 28 },
+    { key: "phone", header: "الهاتف", width: 14 },
+    { key: "status", header: "الحالة", width: 10 },
+  ] as const;
+
+  const handleExportExcel = async () => {
+    setExporting("xlsx");
+    try {
+      const data = buildExportRows();
+      await exportToExcel({
+        filename: buildFilename("faculty_members_export", "xlsx").replace(/\.xlsx$/, ""),
+        sheetName: "أعضاء هيئة التدريس",
+        columns: columns.map((c) => ({
+          header: c.header,
+          accessor: (r: any) => r[c.key],
+          width: c.width,
+        })),
+        rows: data,
+      });
+    } catch (e: any) {
+      setError(e?.message ?? "تعذّر تصدير Excel");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setExporting("pdf");
+    try {
+      const data = buildExportRows();
+      const { data: userData } = await supabase.auth.getUser();
+      await exportToPdf({
+        filename: buildFilename("faculty_members_export", "pdf").replace(/\.pdf$/, ""),
+        title: "قائمة أعضاء هيئة التدريس",
+        subtitle: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ",
+        exportedBy: userData.user?.email ?? null,
+        logoUrl: "/favicon.ico",
+        columns: columns.map((c) => ({
+          header: c.header,
+          accessor: (r: any) => r[c.key],
+        })),
+        rows: data,
+      });
+    } catch (e: any) {
+      setError(e?.message ?? "تعذّر تصدير PDF");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -70,7 +151,23 @@ function FacultyManagementPage() {
             إضافة الأعضاء، تعديل البيانات، إنشاء حسابات الدخول، وإعادة تعيين كلمات المرور.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting !== null || filtered.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+          >
+            {exporting === "xlsx" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
+            تصدير Excel
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting !== null || filtered.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            {exporting === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+            تصدير PDF
+          </button>
           <Link
             to="/admin/imports"
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary"
@@ -85,6 +182,7 @@ function FacultyManagementPage() {
           </button>
         </div>
       </div>
+
 
       {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 text-destructive px-4 py-3 text-sm flex items-center justify-between">

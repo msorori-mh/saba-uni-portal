@@ -111,7 +111,7 @@ export const listUsers = createServerFn({ method: "POST" })
     if (data.kind === "faculty") {
       let q = supabaseAdmin
         .from("faculty_profiles")
-        .select("id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank")
+        .select("id, user_id, employee_number, full_name_ar, full_name_en, status, must_change_password, department_id, program_id, academic_rank, position_title")
         .order("employee_number");
       if (data.search) {
         q = q.or(`employee_number.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
