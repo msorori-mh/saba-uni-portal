@@ -52,7 +52,7 @@ const STEPS = [
 ] as const;
 
 function ImportsPage() {
-  const [tab, setTab] = useState<ImportType>("students");
+  const [tab, setTab] = useState<TabId>("students");
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -68,7 +68,7 @@ function ImportsPage() {
     setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
   };
 
-  const onTabChange = (t: ImportType) => { setTab(t); reset(); };
+  const onTabChange = (t: TabId) => { setTab(t); reset(); };
 
   // Determine current step (0..5)
   const step = useMemo(() => {
