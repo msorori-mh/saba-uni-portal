@@ -415,11 +415,8 @@ function FacultyAccountsImportPanel() {
   );
 }
 
-// Helper hook: get the typed serverFn caller for importFacultyAccountsRows
-function useServerFnLazy() {
-  // Imported lazily at module level below; using useServerFn directly here.
-  return useServerFn(importFacultyAccountsRows);
-}
+
+
 
 
 
