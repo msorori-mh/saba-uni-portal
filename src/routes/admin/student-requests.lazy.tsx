@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Loader2, FileWarning, Paperclip, CheckCircle2, XCircle, Eye, ArrowRight, Clock } from "lucide-react";
@@ -10,7 +10,7 @@ import { sendNotificationEmail } from "@/lib/email.functions";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as unknown as { from: (t: string) => any };
 
-export const Route = createFileRoute("/admin/student-requests")({
+export const Route = createLazyFileRoute("/admin/student-requests")({
   component: AdminRequestsPage,
 });
 
