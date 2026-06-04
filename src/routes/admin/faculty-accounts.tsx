@@ -50,6 +50,8 @@ function FacultyAccountsPage() {
   const { data: stats } = useQuery({ queryKey: ["faculty-account-stats"], queryFn: () => statsFn() });
   const { data: lookups } = useQuery({ queryKey: ["admin-people-lookups"], queryFn: () => lookupsFn() });
 
+  const auditExportFn = useServerFn(auditFacultyAccountExport);
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["faculty-accounts"] });
     qc.invalidateQueries({ queryKey: ["faculty-account-stats"] });
