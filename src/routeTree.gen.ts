@@ -46,7 +46,6 @@ import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
-import { Route as AdminStudentsRouteImport } from './routes/admin/students'
 import { Route as AdminStudentProgressRouteImport } from './routes/admin/student-progress'
 import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
@@ -89,6 +88,7 @@ import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './rou
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
 const AdminTranscriptsLazyRouteImport = createFileRoute('/admin/transcripts')()
 const AdminStudyPlansLazyRouteImport = createFileRoute('/admin/study-plans')()
+const AdminStudentsLazyRouteImport = createFileRoute('/admin/students')()
 const AdminStudentRequestsLazyRouteImport = createFileRoute(
   '/admin/student-requests',
 )()
@@ -223,6 +223,13 @@ const AdminStudyPlansLazyRoute = AdminStudyPlansLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/admin/study-plans.lazy').then((d) => d.Route),
 )
+const AdminStudentsLazyRoute = AdminStudentsLazyRouteImport.update({
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin/students.lazy').then((d) => d.Route),
+)
 const AdminStudentRequestsLazyRoute =
   AdminStudentRequestsLazyRouteImport.update({
     id: '/student-requests',
@@ -325,11 +332,6 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
   id: '/system-readiness',
   path: '/system-readiness',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudentsRoute = AdminStudentsRouteImport.update({
-  id: '/students',
-  path: '/students',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminStudentProgressRoute = AdminStudentProgressRouteImport.update({
@@ -575,7 +577,6 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
-  '/admin/students': typeof AdminStudentsRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -595,6 +596,7 @@ export interface FileRoutesByFullPath {
   '/admin/finance': typeof AdminFinanceLazyRoute
   '/admin/grades': typeof AdminGradesLazyRoute
   '/admin/student-requests': typeof AdminStudentRequestsLazyRoute
+  '/admin/students': typeof AdminStudentsLazyRoute
   '/admin/study-plans': typeof AdminStudyPlansLazyRoute
   '/admin/transcripts': typeof AdminTranscriptsLazyRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
@@ -655,7 +657,6 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
-  '/admin/students': typeof AdminStudentsRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -674,6 +675,7 @@ export interface FileRoutesByTo {
   '/admin/finance': typeof AdminFinanceLazyRoute
   '/admin/grades': typeof AdminGradesLazyRoute
   '/admin/student-requests': typeof AdminStudentRequestsLazyRoute
+  '/admin/students': typeof AdminStudentsLazyRoute
   '/admin/study-plans': typeof AdminStudyPlansLazyRoute
   '/admin/transcripts': typeof AdminTranscriptsLazyRoute
   '/faculty-portal': typeof FacultyPortalIndexRoute
@@ -739,7 +741,6 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
-  '/admin/students': typeof AdminStudentsRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
@@ -759,6 +760,7 @@ export interface FileRoutesById {
   '/admin/finance': typeof AdminFinanceLazyRoute
   '/admin/grades': typeof AdminGradesLazyRoute
   '/admin/student-requests': typeof AdminStudentRequestsLazyRoute
+  '/admin/students': typeof AdminStudentsLazyRoute
   '/admin/study-plans': typeof AdminStudyPlansLazyRoute
   '/admin/transcripts': typeof AdminTranscriptsLazyRoute
   '/faculty-portal/': typeof FacultyPortalIndexRoute
@@ -825,7 +827,6 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/staff-management'
     | '/admin/student-progress'
-    | '/admin/students'
     | '/admin/system-readiness'
     | '/admin/users'
     | '/departments/$code'
@@ -845,6 +846,7 @@ export interface FileRouteTypes {
     | '/admin/finance'
     | '/admin/grades'
     | '/admin/student-requests'
+    | '/admin/students'
     | '/admin/study-plans'
     | '/admin/transcripts'
     | '/faculty-portal/'
@@ -905,7 +907,6 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/staff-management'
     | '/admin/student-progress'
-    | '/admin/students'
     | '/admin/system-readiness'
     | '/admin/users'
     | '/departments/$code'
@@ -924,6 +925,7 @@ export interface FileRouteTypes {
     | '/admin/finance'
     | '/admin/grades'
     | '/admin/student-requests'
+    | '/admin/students'
     | '/admin/study-plans'
     | '/admin/transcripts'
     | '/faculty-portal'
@@ -988,7 +990,6 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/staff-management'
     | '/admin/student-progress'
-    | '/admin/students'
     | '/admin/system-readiness'
     | '/admin/users'
     | '/departments/$code'
@@ -1008,6 +1009,7 @@ export interface FileRouteTypes {
     | '/admin/finance'
     | '/admin/grades'
     | '/admin/student-requests'
+    | '/admin/students'
     | '/admin/study-plans'
     | '/admin/transcripts'
     | '/faculty-portal/'
@@ -1218,6 +1220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudyPlansLazyRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/students': {
+      id: '/admin/students'
+      path: '/students'
+      fullPath: '/admin/students'
+      preLoaderRoute: typeof AdminStudentsLazyRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/student-requests': {
       id: '/admin/student-requests'
       path: '/student-requests'
@@ -1349,13 +1358,6 @@ declare module '@tanstack/react-router' {
       path: '/system-readiness'
       fullPath: '/admin/system-readiness'
       preLoaderRoute: typeof AdminSystemReadinessRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/students': {
-      id: '/admin/students'
-      path: '/students'
-      fullPath: '/admin/students'
-      preLoaderRoute: typeof AdminStudentsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/student-progress': {
@@ -1658,7 +1660,6 @@ interface AdminRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminStaffManagementRoute: typeof AdminStaffManagementRoute
   AdminStudentProgressRoute: typeof AdminStudentProgressRoute
-  AdminStudentsRoute: typeof AdminStudentsRoute
   AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminDocumentsLazyRoute: typeof AdminDocumentsLazyRoute
@@ -1666,6 +1667,7 @@ interface AdminRouteChildren {
   AdminFinanceLazyRoute: typeof AdminFinanceLazyRoute
   AdminGradesLazyRoute: typeof AdminGradesLazyRoute
   AdminStudentRequestsLazyRoute: typeof AdminStudentRequestsLazyRoute
+  AdminStudentsLazyRoute: typeof AdminStudentsLazyRoute
   AdminStudyPlansLazyRoute: typeof AdminStudyPlansLazyRoute
   AdminTranscriptsLazyRoute: typeof AdminTranscriptsLazyRoute
   AdminIndexLazyRoute: typeof AdminIndexLazyRoute
@@ -1702,7 +1704,6 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminStaffManagementRoute: AdminStaffManagementRoute,
   AdminStudentProgressRoute: AdminStudentProgressRoute,
-  AdminStudentsRoute: AdminStudentsRoute,
   AdminSystemReadinessRoute: AdminSystemReadinessRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminDocumentsLazyRoute: AdminDocumentsLazyRoute,
@@ -1710,6 +1711,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminFinanceLazyRoute: AdminFinanceLazyRoute,
   AdminGradesLazyRoute: AdminGradesLazyRoute,
   AdminStudentRequestsLazyRoute: AdminStudentRequestsLazyRoute,
+  AdminStudentsLazyRoute: AdminStudentsLazyRoute,
   AdminStudyPlansLazyRoute: AdminStudyPlansLazyRoute,
   AdminTranscriptsLazyRoute: AdminTranscriptsLazyRoute,
   AdminIndexLazyRoute: AdminIndexLazyRoute,
