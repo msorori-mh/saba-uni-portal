@@ -261,13 +261,15 @@ function ImportsPage() {
 }
 
 // ===== FACULTY-ACCOUNT-IMPORT-EXPORT-02 — accounts panel =====
+type FacultyImportResult = Awaited<ReturnType<typeof importFacultyAccountsRows>>;
+type FacultyImportRow = FacultyImportResult["results"][number];
+
 function FacultyAccountsImportPanel() {
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Awaited<ReturnType<typeof importAccountsFn>> | null>(null);
+  const [result, setResult] = useState<FacultyImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const importAccountsFnRef = useServerFnLazy();
-  const importAccountsFn = importAccountsFnRef;
+  const importAccountsFn = useServerFn(importFacultyAccountsRows);
 
   const downloadAccountsTemplate = async () => {
     const { loadXLSX } = await import("@/lib/xlsx-loader");
