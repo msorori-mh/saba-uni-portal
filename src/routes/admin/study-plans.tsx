@@ -236,14 +236,18 @@ function CourseFormDialog({
     }
   }, [open, editing]);
 
+  const theory = Number(form.theory_hours) || 0;
+  const practical = Number(form.practical_hours) || 0;
+  const computedCredits = theory + Math.ceil(practical / 2);
+
   const save = async () => {
     if (!form.code || !form.name_ar) { toast.error("الكود والاسم العربي مطلوبان"); return; }
     setSaving(true);
     const payload = {
       code: form.code!, name_ar: form.name_ar!, name_en: form.name_en ?? null,
-      credit_hours: Number(form.credit_hours) || 0,
-      theory_hours: Number(form.theory_hours) || 0,
-      practical_hours: Number(form.practical_hours) || 0,
+      credit_hours: computedCredits,
+      theory_hours: theory,
+      practical_hours: practical,
       department_id: form.department_id ?? null,
       status: form.status ?? "active",
     };
@@ -275,9 +279,13 @@ function CourseFormDialog({
           </div>
           <div className="col-span-2"><Label>الاسم (عربي) *</Label><Input value={form.name_ar ?? ""} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} /></div>
           <div className="col-span-2"><Label>الاسم (إنجليزي)</Label><Input dir="ltr" value={form.name_en ?? ""} onChange={(e) => setForm({ ...form, name_en: e.target.value })} /></div>
-          <div><Label>الساعات المعتمدة</Label><Input type="number" value={form.credit_hours ?? 0} onChange={(e) => setForm({ ...form, credit_hours: Number(e.target.value) })} /></div>
-          <div><Label>نظري</Label><Input type="number" value={form.theory_hours ?? 0} onChange={(e) => setForm({ ...form, theory_hours: Number(e.target.value) })} /></div>
-          <div><Label>عملي</Label><Input type="number" value={form.practical_hours ?? 0} onChange={(e) => setForm({ ...form, practical_hours: Number(e.target.value) })} /></div>
+          <div><Label>نظري</Label><Input type="number" min={0} value={form.theory_hours ?? 0} onChange={(e) => setForm({ ...form, theory_hours: Number(e.target.value) })} /></div>
+          <div><Label>عملي</Label><Input type="number" min={0} value={form.practical_hours ?? 0} onChange={(e) => setForm({ ...form, practical_hours: Number(e.target.value) })} /></div>
+          <div className="col-span-2">
+            <Label>الساعات المعتمدة (محسوبة تلقائيًا)</Label>
+            <Input type="number" value={computedCredits} readOnly disabled />
+            <p className="text-xs text-muted-foreground mt-1">القاعدة: نظري + ⌈عملي ÷ 2⌉</p>
+          </div>
           <div>
             <Label>الحالة</Label>
             <Select value={form.status ?? "active"} onValueChange={(v) => setForm({ ...form, status: v })}>
