@@ -279,9 +279,13 @@ function CourseFormDialog({
           </div>
           <div className="col-span-2"><Label>الاسم (عربي) *</Label><Input value={form.name_ar ?? ""} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} /></div>
           <div className="col-span-2"><Label>الاسم (إنجليزي)</Label><Input dir="ltr" value={form.name_en ?? ""} onChange={(e) => setForm({ ...form, name_en: e.target.value })} /></div>
-          <div><Label>الساعات المعتمدة</Label><Input type="number" value={form.credit_hours ?? 0} onChange={(e) => setForm({ ...form, credit_hours: Number(e.target.value) })} /></div>
-          <div><Label>نظري</Label><Input type="number" value={form.theory_hours ?? 0} onChange={(e) => setForm({ ...form, theory_hours: Number(e.target.value) })} /></div>
-          <div><Label>عملي</Label><Input type="number" value={form.practical_hours ?? 0} onChange={(e) => setForm({ ...form, practical_hours: Number(e.target.value) })} /></div>
+          <div><Label>نظري</Label><Input type="number" min={0} value={form.theory_hours ?? 0} onChange={(e) => setForm({ ...form, theory_hours: Number(e.target.value) })} /></div>
+          <div><Label>عملي</Label><Input type="number" min={0} value={form.practical_hours ?? 0} onChange={(e) => setForm({ ...form, practical_hours: Number(e.target.value) })} /></div>
+          <div className="col-span-2">
+            <Label>الساعات المعتمدة (محسوبة تلقائيًا)</Label>
+            <Input type="number" value={computedCredits} readOnly disabled />
+            <p className="text-xs text-muted-foreground mt-1">القاعدة: نظري + ⌈عملي ÷ 2⌉</p>
+          </div>
           <div>
             <Label>الحالة</Label>
             <Select value={form.status ?? "active"} onValueChange={(v) => setForm({ ...form, status: v })}>
