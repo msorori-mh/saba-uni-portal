@@ -258,6 +258,167 @@ function ImportsPage() {
   );
 }
 
+// ===== FACULTY-ACCOUNT-IMPORT-EXPORT-02 — accounts panel =====
+function FacultyAccountsImportPanel() {
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof importAccountsFn>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const importAccountsFnRef = useServerFnLazy();
+  const importAccountsFn = importAccountsFnRef;
+
+  const downloadAccountsTemplate = async () => {
+    const { loadXLSX } = await import("@/lib/xlsx-loader");
+    const XLSX = await loadXLSX();
+    const headers = ["employee_number","email","initial_password","full_name_ar","department_name","academic_rank","role","force_password_change"];
+    const sample = ["F2025001","faculty@example.com","TempPass!23","د. أحمد","قسم علوم الحاسوب","Assistant Professor","faculty_member","true"];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    ws["!cols"] = headers.map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Faculty Accounts");
+    const inst = [["التعليمات"],
+      ["الأعمدة المطلوبة: employee_number, email, initial_password"],
+      ["الأعمدة الاختيارية: full_name_ar, department_name, academic_rank, role, force_password_change, status"],
+      ["role فارغ = faculty_member"],
+      ["force_password_change فارغ = true"],
+      ["الربط يتم عبر employee_number فقط"],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(inst), "تعليمات");
+    XLSX.writeFile(wb, "template_faculty_accounts.xlsx");
+  };
+
+  const onFile = async (f: File) => {
+    setFile(f); setResult(null); setError(null);
+  };
+
+  const runImport = async () => {
+    if (!file) return;
+    setBusy(true); setError(null); setResult(null);
+    try {
+      const parsed = await parseExcel(file);
+      const rows = parsed.map((r, idx) => ({ ...r, row_number: idx + 2 }));
+      const res = await importAccountsFn({ data: { rows } });
+      setResult(res);
+    } catch (e: any) {
+      setError(e?.message ?? "فشل الاستيراد");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadResultReport = async () => {
+    if (!result) return;
+    const { loadXLSX } = await import("@/lib/xlsx-loader");
+    const XLSX = await loadXLSX();
+    const STATUS_AR: Record<string, string> = {
+      created: "تم الإنشاء", linked: "تم الربط", already_linked: "مربوط مسبقاً", failed: "فشل",
+    };
+    const data = result.results.map((r) => ({
+      row: r.row_number,
+      employee_number: r.employee_number,
+      full_name_ar: r.full_name_ar ?? "",
+      email: r.email,
+      status: STATUS_AR[r.status] ?? r.status,
+      reason: r.reason ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Import Report");
+    XLSX.writeFile(wb, `faculty_accounts_import_report_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
+      <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+        نوع استيراد خاص لربط/إنشاء حسابات أعضاء هيئة التدريس عبر البريد الإلكتروني الرسمي. لا يتم توليد أي بريد افتراضي.
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={downloadAccountsTemplate}
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold">
+          <Download className="h-4 w-4" /> تنزيل القالب
+        </button>
+        <label className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground cursor-pointer hover:opacity-90">
+          <Upload className="h-4 w-4" /> رفع ملف Excel
+          <input type="file" accept=".xlsx,.xls" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+        </label>
+        {file && <span className="text-xs text-muted-foreground">الملف: <span className="font-mono">{file.name}</span></span>}
+        {file && !result && (
+          <button onClick={runImport} disabled={busy}
+            className="ml-auto inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            تنفيذ الاستيراد
+          </button>
+        )}
+        {result && (
+          <button onClick={downloadResultReport}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold">
+            <FileDown className="h-3.5 w-3.5" /> تصدير التقرير Excel
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>
+      )}
+
+      {result && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Stat label="إجمالي" value={result.totals.total} tone="neutral" />
+            <Stat label="إنشاء" value={result.totals.created} tone="ok" />
+            <Stat label="ربط" value={result.totals.linked} tone="ok" />
+            <Stat label="مربوط مسبقاً" value={result.totals.already_linked} tone="neutral" />
+            <Stat label="فشل" value={result.totals.failed} tone="bad" />
+          </div>
+          <div className="rounded-lg border border-border bg-background overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary/40">
+                <tr>
+                  <th className="px-2 py-1 text-right">الصف</th>
+                  <th className="px-2 py-1 text-right">الرقم الوظيفي</th>
+                  <th className="px-2 py-1 text-right">الاسم</th>
+                  <th className="px-2 py-1 text-right">البريد</th>
+                  <th className="px-2 py-1 text-right">الحالة</th>
+                  <th className="px-2 py-1 text-right">السبب</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.results.slice(0, 500).map((r) => (
+                  <tr key={r.row_number} className="border-t border-border/60">
+                    <td className="px-2 py-1 font-mono">{r.row_number}</td>
+                    <td className="px-2 py-1 font-mono">{r.employee_number}</td>
+                    <td className="px-2 py-1">{r.full_name_ar ?? "—"}</td>
+                    <td className="px-2 py-1 font-mono">{r.email}</td>
+                    <td className={`px-2 py-1 font-bold ${
+                      r.status === "created" || r.status === "linked" ? "text-emerald-700" :
+                      r.status === "already_linked" ? "text-amber-700" : "text-destructive"
+                    }`}>
+                      {r.status === "created" ? "تم الإنشاء"
+                        : r.status === "linked" ? "تم الربط"
+                        : r.status === "already_linked" ? "مربوط مسبقاً"
+                        : "فشل"}
+                    </td>
+                    <td className="px-2 py-1 text-muted-foreground">{r.reason ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// Helper hook: get the typed serverFn caller for importFacultyAccountsRows
+function useServerFnLazy() {
+  // Imported lazily at module level below; using useServerFn directly here.
+  return useServerFn(importFacultyAccountsRows);
+}
+
+
+
 function Stepper({ current }: { current: number }) {
   return (
     <ol className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-card">
