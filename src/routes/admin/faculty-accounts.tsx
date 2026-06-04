@@ -164,6 +164,15 @@ function FacultyAccountsPage() {
           <button onClick={exportTemplate} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
             <FileDown className="h-4 w-4" /> تصدير قالب الحسابات
           </button>
+          <button onClick={exportWithoutAccounts} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
+            <FileDown className="h-4 w-4" /> تصدير بدون حسابات
+          </button>
+          <button onClick={exportAccountsStatus} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
+            <FileDown className="h-4 w-4" /> تصدير حالة الحسابات
+          </button>
+          <Link to="/admin/imports" className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-bold hover:opacity-90">
+            <FileDown className="h-4 w-4" /> استيراد من Excel
+          </Link>
         </div>
       </div>
 
