@@ -3650,6 +3650,10 @@ export type Database = {
         }
         Returns: Json
       }
+      link_faculty_profile_account: {
+        Args: { p_auth_user_id: string; p_profile_id: string }
+        Returns: undefined
+      }
       log_audit: {
         Args: {
           _action_type: string
