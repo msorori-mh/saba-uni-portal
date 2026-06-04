@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,8 +11,7 @@ import {
   getStudentLookups, createStudent, updateStudent, getStudent,
 } from "@/lib/admin-students.functions";
 
-export const Route = createFileRoute("/admin/students")({
-  head: () => ({ meta: [{ title: "إدارة الطلاب — لوحة الإدارة" }] }),
+export const Route = createLazyFileRoute("/admin/students")({
   component: StudentsPage,
 });
 
