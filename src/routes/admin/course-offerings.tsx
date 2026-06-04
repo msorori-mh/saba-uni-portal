@@ -302,7 +302,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl" className="max-w-xl">
-        <DialogHeader><DialogTitle>{editing ? "تعديل طرح" : "طرح مقرر جديد"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? "تعديل إسناد" : "إسناد مقرر جديد"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2">
             <Label>المقرر *</Label>
