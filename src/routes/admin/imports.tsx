@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { importFacultyAccountsRows } from "@/lib/faculty-accounts.functions";
 import {
   Upload, Download, CheckCircle2, XCircle, Loader2, FileSpreadsheet,
   AlertTriangle, History, FileDown, FlaskConical, BarChart3, ChevronDown, ChevronUp,
@@ -27,12 +29,15 @@ export const Route = createFileRoute("/admin/imports")({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
 
-const TABS: { id: ImportType; label: string }[] = [
+type TabId = ImportType | "faculty_accounts";
+
+const TABS: { id: TabId; label: string }[] = [
   { id: "students", label: "الطلاب" },
   { id: "faculty", label: "أعضاء هيئة التدريس" },
   { id: "staff", label: "الموظفون" },
   { id: "courses", label: "المقررات" },
   { id: "study_plans", label: "الخطط الدراسية" },
+  { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
 
 const TYPE_LABEL: Record<ImportType, string> = {
@@ -49,7 +54,7 @@ const STEPS = [
 ] as const;
 
 function ImportsPage() {
-  const [tab, setTab] = useState<ImportType>("students");
+  const [tab, setTab] = useState<TabId>("students");
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,7 +70,7 @@ function ImportsPage() {
     setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
   };
 
-  const onTabChange = (t: ImportType) => { setTab(t); reset(); };
+  const onTabChange = (t: TabId) => { setTab(t); reset(); };
 
   // Determine current step (0..5)
   const step = useMemo(() => {
@@ -78,6 +83,8 @@ function ImportsPage() {
   }, [report, importing, validation, rows, file]);
 
   const onFile = async (f: File) => {
+    if (tab === "faculty_accounts") return;
+    const t = tab as ImportType;
     setFile(f); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
     setValidating(true);
     try {
@@ -85,17 +92,17 @@ function ImportsPage() {
       setRows(parsed);
       const lookups = await loadLookups();
       let res: ValidationResult<unknown>;
-      if (tab === "students") res = await validateStudents(parsed, lookups);
-      else if (tab === "faculty") res = await validateFaculty(parsed, lookups);
-      else if (tab === "staff") res = await validateStaff(parsed, lookups);
-      else if (tab === "courses") res = await validateCourses(parsed, lookups);
+      if (t === "students") res = await validateStudents(parsed, lookups);
+      else if (t === "faculty") res = await validateFaculty(parsed, lookups);
+      else if (t === "staff") res = await validateStaff(parsed, lookups);
+      else if (t === "courses") res = await validateCourses(parsed, lookups);
       else res = await validateStudyPlans(parsed, lookups);
       setValidation(res);
-      void auditImportValidated(tab, f.name, {
+      void auditImportValidated(t, f.name, {
         total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
       });
     } catch (e) {
-      void auditImportFailed(tab, f.name, (e as Error).message);
+      void auditImportFailed(t, f.name, (e as Error).message);
       alert("تعذر قراءة الملف: " + (e as Error).message);
     } finally {
       setValidating(false);
@@ -104,28 +111,30 @@ function ImportsPage() {
 
   const runImport = async () => {
     if (!validation || !file) return;
+    if (tab === "faculty_accounts") return;
+    const t = tab as ImportType;
     setImporting(true);
     setReport(null);
     setPerfMs(null);
     const t0 = performance.now();
     try {
-      void auditImportStarted(tab, file.name, validation.totalRows, dryRun);
+      void auditImportStarted(t, file.name, validation.totalRows, dryRun);
       let rep = emptyReport();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const vrows = validation.rows as ValidatedRow<any>[];
-      if (tab === "students") rep = await importStudents(vrows, dryRun);
-      else if (tab === "faculty") rep = await importFaculty(vrows, dryRun);
-      else if (tab === "staff") rep = await importStaff(vrows, dryRun);
-      else if (tab === "courses") rep = await importCourses(vrows, dryRun);
+      if (t === "students") rep = await importStudents(vrows, dryRun);
+      else if (t === "faculty") rep = await importFaculty(vrows, dryRun);
+      else if (t === "staff") rep = await importStaff(vrows, dryRun);
+      else if (t === "courses") rep = await importCourses(vrows, dryRun);
       else rep = await importStudyPlans(vrows, dryRun);
       const duration = Math.round(performance.now() - t0);
       setPerfMs(duration);
-      await finalizeImport({ type: tab, fileName: file.name, report: rep, dryRun, durationMs: duration });
+      await finalizeImport({ type: t, fileName: file.name, report: rep, dryRun, durationMs: duration });
       setReport(rep);
       qc.invalidateQueries({ queryKey: ["import-history"] });
       qc.invalidateQueries({ queryKey: ["import-stats"] });
     } catch (e) {
-      void auditImportFailed(tab, file.name, (e as Error).message);
+      void auditImportFailed(t, file.name, (e as Error).message);
       alert("فشل الاستيراد: " + (e as Error).message);
     } finally {
       setImporting(false);
@@ -161,10 +170,13 @@ function ImportsPage() {
         ))}
       </nav>
 
+      {tab === "faculty_accounts" ? (
+        <FacultyAccountsImportPanel />
+      ) : (
       <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={() => downloadTemplate(tab)}
+            onClick={() => downloadTemplate(tab as ImportType)}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold"
           >
             <Download className="h-4 w-4" /> تنزيل القالب
@@ -189,7 +201,7 @@ function ImportsPage() {
 
           {validation && (
             <button
-              onClick={() => downloadValidationReport(tab, file?.name ?? "file.xlsx", validation)}
+              onClick={() => downloadValidationReport(tab as ImportType, file?.name ?? "file.xlsx", validation)}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold"
             >
               <FileDown className="h-3.5 w-3.5" /> تقرير التحقق
@@ -234,18 +246,179 @@ function ImportsPage() {
         {report && (
           <ReportBlock
             report={report}
-            type={tab}
+            type={tab as ImportType}
             dryRun={dryRun}
             durationMs={perfMs}
-            onDownload={() => downloadImportReport(tab, file?.name ?? "file.xlsx", report)}
+            onDownload={() => downloadImportReport(tab as ImportType, file?.name ?? "file.xlsx", report)}
           />
         )}
       </section>
+      )}
 
       <ImportHistory />
     </div>
   );
 }
+
+// ===== FACULTY-ACCOUNT-IMPORT-EXPORT-02 — accounts panel =====
+type FacultyImportResult = Awaited<ReturnType<typeof importFacultyAccountsRows>>;
+type FacultyImportRow = FacultyImportResult["results"][number];
+
+function FacultyAccountsImportPanel() {
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<FacultyImportResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const importAccountsFn = useServerFn(importFacultyAccountsRows);
+
+  const downloadAccountsTemplate = async () => {
+    const { loadXLSX } = await import("@/lib/xlsx-loader");
+    const XLSX = await loadXLSX();
+    const headers = ["employee_number","email","initial_password","full_name_ar","department_name","academic_rank","role","force_password_change"];
+    const sample = ["F2025001","faculty@example.com","TempPass!23","د. أحمد","قسم علوم الحاسوب","Assistant Professor","faculty_member","true"];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    ws["!cols"] = headers.map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Faculty Accounts");
+    const inst = [["التعليمات"],
+      ["الأعمدة المطلوبة: employee_number, email, initial_password"],
+      ["الأعمدة الاختيارية: full_name_ar, department_name, academic_rank, role, force_password_change, status"],
+      ["role فارغ = faculty_member"],
+      ["force_password_change فارغ = true"],
+      ["الربط يتم عبر employee_number فقط"],
+    ];
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(inst), "تعليمات");
+    XLSX.writeFile(wb, "template_faculty_accounts.xlsx");
+  };
+
+  const onFile = async (f: File) => {
+    setFile(f); setResult(null); setError(null);
+  };
+
+  const runImport = async () => {
+    if (!file) return;
+    setBusy(true); setError(null); setResult(null);
+    try {
+      const parsed = await parseExcel(file);
+      const rows = parsed.map((r, idx) => ({ ...r, row_number: idx + 2 }));
+      const res = await importAccountsFn({ data: { rows } });
+      setResult(res);
+    } catch (e: any) {
+      setError(e?.message ?? "فشل الاستيراد");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const downloadResultReport = async () => {
+    if (!result) return;
+    const { loadXLSX } = await import("@/lib/xlsx-loader");
+    const XLSX = await loadXLSX();
+    const STATUS_AR: Record<string, string> = {
+      created: "تم الإنشاء", linked: "تم الربط", already_linked: "مربوط مسبقاً", failed: "فشل",
+    };
+    const data = result.results.map((r: FacultyImportRow) => ({
+      row: r.row_number,
+      employee_number: r.employee_number,
+      full_name_ar: r.full_name_ar ?? "",
+      email: r.email,
+      status: STATUS_AR[r.status] ?? r.status,
+      reason: r.reason ?? "",
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Import Report");
+    XLSX.writeFile(wb, `faculty_accounts_import_report_${new Date().toISOString().slice(0,10)}.xlsx`);
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
+      <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+        نوع استيراد خاص لربط/إنشاء حسابات أعضاء هيئة التدريس عبر البريد الإلكتروني الرسمي. لا يتم توليد أي بريد افتراضي.
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button onClick={downloadAccountsTemplate}
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold">
+          <Download className="h-4 w-4" /> تنزيل القالب
+        </button>
+        <label className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground cursor-pointer hover:opacity-90">
+          <Upload className="h-4 w-4" /> رفع ملف Excel
+          <input type="file" accept=".xlsx,.xls" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+        </label>
+        {file && <span className="text-xs text-muted-foreground">الملف: <span className="font-mono">{file.name}</span></span>}
+        {file && !result && (
+          <button onClick={runImport} disabled={busy}
+            className="ml-auto inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            تنفيذ الاستيراد
+          </button>
+        )}
+        {result && (
+          <button onClick={downloadResultReport}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold">
+            <FileDown className="h-3.5 w-3.5" /> تصدير التقرير Excel
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>
+      )}
+
+      {result && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Stat label="إجمالي" value={result.totals.total} tone="neutral" />
+            <Stat label="إنشاء" value={result.totals.created} tone="ok" />
+            <Stat label="ربط" value={result.totals.linked} tone="ok" />
+            <Stat label="مربوط مسبقاً" value={result.totals.already_linked} tone="neutral" />
+            <Stat label="فشل" value={result.totals.failed} tone="bad" />
+          </div>
+          <div className="rounded-lg border border-border bg-background overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary/40">
+                <tr>
+                  <th className="px-2 py-1 text-right">الصف</th>
+                  <th className="px-2 py-1 text-right">الرقم الوظيفي</th>
+                  <th className="px-2 py-1 text-right">الاسم</th>
+                  <th className="px-2 py-1 text-right">البريد</th>
+                  <th className="px-2 py-1 text-right">الحالة</th>
+                  <th className="px-2 py-1 text-right">السبب</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.results.slice(0, 500).map((r: FacultyImportRow) => (
+                  <tr key={r.row_number} className="border-t border-border/60">
+                    <td className="px-2 py-1 font-mono">{r.row_number}</td>
+                    <td className="px-2 py-1 font-mono">{r.employee_number}</td>
+                    <td className="px-2 py-1">{r.full_name_ar ?? "—"}</td>
+                    <td className="px-2 py-1 font-mono">{r.email}</td>
+                    <td className={`px-2 py-1 font-bold ${
+                      r.status === "created" || r.status === "linked" ? "text-emerald-700" :
+                      r.status === "already_linked" ? "text-amber-700" : "text-destructive"
+                    }`}>
+                      {r.status === "created" ? "تم الإنشاء"
+                        : r.status === "linked" ? "تم الربط"
+                        : r.status === "already_linked" ? "مربوط مسبقاً"
+                        : "فشل"}
+                    </td>
+                    <td className="px-2 py-1 text-muted-foreground">{r.reason ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+
+
+
+
 
 function Stepper({ current }: { current: number }) {
   return (

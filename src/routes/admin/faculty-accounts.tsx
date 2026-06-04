@@ -8,6 +8,7 @@ import {
 import {
   listFacultyAccounts, facultyAccountStats,
   createFacultyAccountManual, linkFacultyAccountByEmail, resetFacultyPasswordManual,
+  auditFacultyAccountExport,
 } from "@/lib/faculty-accounts.functions";
 import { getPeopleLookups } from "@/lib/admin-people.functions";
 
@@ -49,6 +50,8 @@ function FacultyAccountsPage() {
   const { data: stats } = useQuery({ queryKey: ["faculty-account-stats"], queryFn: () => statsFn() });
   const { data: lookups } = useQuery({ queryKey: ["admin-people-lookups"], queryFn: () => lookupsFn() });
 
+  const auditExportFn = useServerFn(auditFacultyAccountExport);
+
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["faculty-accounts"] });
     qc.invalidateQueries({ queryKey: ["faculty-account-stats"] });
@@ -83,6 +86,58 @@ function FacultyAccountsPage() {
     }
   };
 
+  async function downloadXlsx(rowsToWrite: Record<string, any>[], filename: string, sheetName: string) {
+    const { loadXLSX } = await import("@/lib/xlsx-loader");
+    const XLSX = await loadXLSX();
+    const ws = XLSX.utils.json_to_sheet(rowsToWrite);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    const buf = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([buf], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const exportWithoutAccounts = async () => {
+    setError(null);
+    try {
+      const all = await listFn({ data: { status: "active", hasAccount: "no" } });
+      const data = all.map((r) => ({
+        employee_number: r.employee_number,
+        full_name_ar: r.full_name_ar,
+        department_name: r.department_name ?? "",
+        academic_rank: r.academic_rank ?? "",
+        email: "",
+        initial_password: "",
+      }));
+      await downloadXlsx(data, `faculty_without_accounts_${new Date().toISOString().slice(0,10)}.xlsx`, "Without Accounts");
+      try { await auditExportFn({ data: { kind: "without_accounts", count: data.length } }); } catch {/* ignore */}
+      setSuccess(`تم تصدير ${data.length} عضواً بدون حسابات`);
+    } catch (e: any) { setError(e.message ?? "فشل التصدير"); }
+  };
+
+  const exportAccountsStatus = async () => {
+    setError(null);
+    try {
+      const all = await listFn({ data: { status: "active", hasAccount: "all" } });
+      const data = all.map((r) => ({
+        employee_number: r.employee_number,
+        full_name_ar: r.full_name_ar,
+        department_name: r.department_name ?? "",
+        academic_rank: r.academic_rank ?? "",
+        email: r.email ?? "",
+        has_account: r.user_id ? "نعم" : "لا",
+        account_status: STATE_LABEL[r.account_state].text,
+        last_sign_in_at: r.last_sign_in_at ?? "",
+      }));
+      await downloadXlsx(data, `faculty_accounts_status_${new Date().toISOString().slice(0,10)}.xlsx`, "Accounts Status");
+      try { await auditExportFn({ data: { kind: "status", count: data.length } }); } catch {/* ignore */}
+      setSuccess(`تم تصدير حالة ${data.length} حساباً`);
+    } catch (e: any) { setError(e.message ?? "فشل التصدير"); }
+  };
+
   const kpis = [
     { label: "إجمالي أعضاء هيئة التدريس", value: stats?.total ?? "—" },
     { label: "لديهم حساب", value: stats?.withAccount ?? "—" },
@@ -109,6 +164,15 @@ function FacultyAccountsPage() {
           <button onClick={exportTemplate} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
             <FileDown className="h-4 w-4" /> تصدير قالب الحسابات
           </button>
+          <button onClick={exportWithoutAccounts} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
+            <FileDown className="h-4 w-4" /> تصدير بدون حسابات
+          </button>
+          <button onClick={exportAccountsStatus} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
+            <FileDown className="h-4 w-4" /> تصدير حالة الحسابات
+          </button>
+          <Link to="/admin/imports" className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-bold hover:opacity-90">
+            <FileDown className="h-4 w-4" /> استيراد من Excel
+          </Link>
         </div>
       </div>
 
