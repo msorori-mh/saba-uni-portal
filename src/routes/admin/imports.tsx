@@ -81,6 +81,8 @@ function ImportsPage() {
   }, [report, importing, validation, rows, file]);
 
   const onFile = async (f: File) => {
+    if (tab === "faculty_accounts") return;
+    const t = tab as ImportType;
     setFile(f); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
     setValidating(true);
     try {
@@ -88,17 +90,17 @@ function ImportsPage() {
       setRows(parsed);
       const lookups = await loadLookups();
       let res: ValidationResult<unknown>;
-      if (tab === "students") res = await validateStudents(parsed, lookups);
-      else if (tab === "faculty") res = await validateFaculty(parsed, lookups);
-      else if (tab === "staff") res = await validateStaff(parsed, lookups);
-      else if (tab === "courses") res = await validateCourses(parsed, lookups);
+      if (t === "students") res = await validateStudents(parsed, lookups);
+      else if (t === "faculty") res = await validateFaculty(parsed, lookups);
+      else if (t === "staff") res = await validateStaff(parsed, lookups);
+      else if (t === "courses") res = await validateCourses(parsed, lookups);
       else res = await validateStudyPlans(parsed, lookups);
       setValidation(res);
-      void auditImportValidated(tab, f.name, {
+      void auditImportValidated(t, f.name, {
         total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
       });
     } catch (e) {
-      void auditImportFailed(tab, f.name, (e as Error).message);
+      void auditImportFailed(t, f.name, (e as Error).message);
       alert("تعذر قراءة الملف: " + (e as Error).message);
     } finally {
       setValidating(false);
