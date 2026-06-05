@@ -5,163 +5,121 @@
 | الحقل | القيمة |
 |---|---|
 | App Name | بوابة الطالب |
-| Full Name | بوابة الطالب - كلية تكنولوجيا المعلومات وعلوم الحاسوب |
 | Package / appId | `usr.student` |
 | Min SDK | 23 (Android 6.0) |
 | Target SDK | 35 (Android 15) |
-| Mode | Remote shell → `https://saba-uni-portal.lovable.app` |
-| Auth | نفس نظام Supabase الحالي (لا تغيير) |
-| RLS | بدون تغيير |
-| API | لا يوجد API جديد |
+| Mode | Remote shell → `https://saba-uni-portal.lovable.app/mobile/student-login` |
+| HTTPS | إجباري (`cleartext = false`) |
+| Auth / RLS / API | بدون تغيير — نفس Supabase الحالي |
 
 ---
 
-## ⚠️ لماذا لا يُبنى APK داخل Lovable؟
+## 🚀 البناء التلقائي عبر GitHub Actions (الطريقة الموصى بها)
 
-بيئة Lovable السحابية لا تحتوي على **Android SDK / Gradle / JDK 17**. لإنتاج APK/AAB يجب البناء على جهاز محلي عبر **Android Studio**.
+ملف الـ Workflow: `.github/workflows/android-build.yml`
+
+### كيف يعمل
+
+- يعمل **يدوياً** من تبويب Actions على GitHub (`workflow_dispatch`).
+- يعمل **تلقائياً** عند كل push على فرع `main` يمسّ كود الواجهة أو `capacitor.config.ts`.
+- يبني Debug APK + Release APK (unsigned) + Release AAB (unsigned).
+- إذا لم يوجد مجلد `android/` فإن الـ Workflow يستدعي `npx cap add android` تلقائياً.
+
+### تشغيل البناء يدوياً
+
+1. افتح GitHub repo → **Actions**.
+2. اختر workflow باسم **Android Build — بوابة الطالب**.
+3. اضغط **Run workflow** → اختر الفرع (عادة `main`) → **Run workflow**.
+4. انتظر اكتمال البناء (تقريباً 5–10 دقائق).
+
+### تحميل ملفات APK / AAB
+
+بعد نجاح الـ Workflow:
+
+1. ادخل صفحة الـ Run.
+2. انزل إلى قسم **Artifacts** في الأسفل.
+3. حمّل أحد الملفات:
+
+| Artifact | الملف | الاستخدام |
+|---|---|---|
+| `app-debug-apk` | `app-debug.apk` | تثبيت مباشر للاختبار الداخلي |
+| `app-release-unsigned-apk` | `app-release-unsigned.apk` | يحتاج توقيع قبل التوزيع |
+| `app-release-unsigned-aab` | `app-release.aab` | للنشر على Google Play (بعد التوقيع) |
+
+> Artifacts تُحفظ لمدة 30 يوماً ثم تُحذف تلقائياً.
+
+### تثبيت Debug APK على جهاز Android
+
+1. حمّل `app-debug.apk` من Artifacts على هاتفك.
+2. فعّل **Install from Unknown Sources** للمتصفح الذي حمّلت منه.
+3. افتح الملف وثبّته.
+4. عند الفتح يجب أن تظهر **شاشة دخول الطالب** مباشرة.
+
+أو عبر USB ADB من الكمبيوتر:
+
+```bash
+adb install -r app-debug.apk
+```
 
 ---
 
-## خطوات البناء (محلياً)
+## 🔐 ملاحظات التوقيع والنشر
 
-### 1) تجهيز البيئة
+- Release APK / AAB من الـ Workflow تخرج **بدون توقيع** لأن الـ keystore لم يُضف إلى GitHub Secrets بعد.
+- لا يفشل الـ Workflow عند غياب الـ keystore — يكمل بناء Debug ويرفع Release كـ unsigned.
 
-- ثبّت [Android Studio](https://developer.android.com/studio) (Hedgehog أو أحدث).
-- ثبّت **JDK 17**.
-- ثبّت Node.js 20+ و npm/bun.
+### إضافة التوقيع لاحقاً (للنشر على Google Play)
 
-### 2) سحب المشروع
-
-```bash
-# بعد Export to GitHub من Lovable
-git clone <repo-url>
-cd <project>
-npm install      # أو: bun install
-```
-
-### 3) إضافة منصّة Android (أول مرة فقط)
-
-```bash
-npx cap add android
-npx cap sync android
-```
-
-سيتم إنشاء مجلد `android/` بإعدادات `usr.student`.
-
-### 4) إعداد الأيقونة وSplash
-
-```bash
-# باستخدام @capacitor/assets (مرة واحدة)
-npm install -D @capacitor/assets
-mkdir -p resources
-# ضع: resources/icon.png (1024x1024) + resources/splash.png (2732x2732)
-npx capacitor-assets generate --android
-```
-
-شعار الكلية المتوفر: `src/assets/college-logo.jpg`
-
-### 5) إعداد Deep Links (App Links)
-
-عدّل `android/app/src/main/AndroidManifest.xml` داخل `<activity android:name=".MainActivity">`:
-
-```xml
-<intent-filter android:autoVerify="true">
-  <action android:name="android.intent.action.VIEW" />
-  <category android:name="android.intent.category.DEFAULT" />
-  <category android:name="android.intent.category.BROWSABLE" />
-  <data android:scheme="https"
-        android:host="saba-uni-portal.lovable.app"
-        android:pathPrefix="/mobile/student" />
-</intent-filter>
-```
-
-المسارات المدعومة:
-
-- `/mobile/student`
-- `/mobile/student/grades`
-- `/mobile/student/academic-record`
-- `/mobile/student/finance`
-- `/mobile/student/requests`
-- `/mobile/student/documents`
-
-> لتفعيل App Links موثّقة (بدون شاشة اختيار) يلزم رفع ملف `assetlinks.json` على `https://saba-uni-portal.lovable.app/.well-known/assetlinks.json` يحوي SHA-256 لشهادة التوقيع.
-
-### 6) بناء النسخ
-
-#### Debug APK
-
-```bash
-npx cap sync android
-cd android
-./gradlew assembleDebug
-# الناتج: android/app/build/outputs/apk/debug/app-debug.apk
-```
-
-#### Release APK (unsigned)
-
-```bash
-cd android
-./gradlew assembleRelease
-# android/app/build/outputs/apk/release/app-release-unsigned.apk
-```
-
-#### Release AAB (للنشر على Play Store)
-
-```bash
-cd android
-./gradlew bundleRelease
-# android/app/build/outputs/bundle/release/app-release.aab
-```
-
-#### توقيع Release (مطلوب للنشر)
+1. أنشئ keystore محلياً:
 
 ```bash
 keytool -genkey -v -keystore saba-student.keystore \
   -alias saba -keyalg RSA -keysize 2048 -validity 10000
-
-# ثم في android/app/build.gradle ضمن signingConfigs
 ```
 
-### 7) فتح في Android Studio (للاختبار البصري)
+2. ارفع الملف + كلمات السر إلى **GitHub Secrets**:
+   - `ANDROID_KEYSTORE_BASE64` (محتوى الـ keystore مُشفّر base64)
+   - `ANDROID_KEYSTORE_PASSWORD`
+   - `ANDROID_KEY_ALIAS`
+   - `ANDROID_KEY_PASSWORD`
+
+3. عدّل `android/app/build.gradle` لاستخدام `signingConfigs` تقرأ من متغيرات البيئة، وأضف خطوة في الـ Workflow تكتب الـ keystore من Secret إلى ملف قبل `assembleRelease`.
+
+> هذه الخطوات خارج نطاق المرحلة الحالية — تُضاف في مرحلة لاحقة عند جاهزية النشر على Play Store.
+
+---
+
+## 🖥️ البناء محلياً (بديل اختياري)
+
+يتطلب: Android Studio + JDK 17 + Node.js 20.
 
 ```bash
-npx cap open android
+npm install
+npm run build
+npx cap add android      # أول مرة فقط
+npx cap sync android
+cd android
+./gradlew assembleDebug     # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew assembleRelease   # → app-release-unsigned.apk
+./gradlew bundleRelease     # → bundle/release/app-release.aab
 ```
 
 ---
 
 ## أحجام تقديرية
 
-| النوع | الحجم المتوقع |
+| النوع | الحجم |
 |---|---|
-| Debug APK | ~6–8 MB (WebView shell فقط) |
+| Debug APK | ~6–8 MB |
 | Release APK | ~4–6 MB |
 | AAB | ~3–5 MB |
 
-الحجم صغير لأن الواجهة تُحمَّل من السيرفر (Remote shell).
+الحجم صغير لأن الواجهة تُحمَّل من السيرفر (Remote shell)، أي تحديث ويب يظهر فوراً دون إعادة بناء.
 
 ---
 
-## نطاق هذا الإصدار (v1)
+## نطاق الإصدار v1
 
-✅ مُدرج:
-- Login، Dashboard، Grades، Academic Record، Finance، Requests، Documents
-- Splash Screen
-- Deep Links (HTTPS)
-- نفس مصادقة Supabase
+✅ يشمل: Login، Dashboard، Grades، Academic Record، Finance، Requests، Documents، Schedule، Splash، Deep Links.
 
-❌ مؤجّل للإصدار الثاني:
-- Push Notifications
-- Offline Sync
-- رفع السندات
-- تقديم الطلبات من التطبيق
-- خدمات جديدة
-
----
-
-## ملاحظات
-
-- لا يوجد API جديد. لا يوجد Auth جديد. لا تغيير على RLS.
-- التطبيق shell نحيف يفتح الموقع المنشور، أي تحديث ويب ينعكس فوراً دون إعادة بناء APK.
-- HTTPS only — `cleartext = false`.
-- جميع روابط الويب التي تُفتح خارج النطاقات المسموحة (`allowNavigation`) ستفتح في المتصفح الخارجي.
+❌ مؤجّل: Push Notifications، Offline Sync، رفع السندات، تقديم الطلبات من التطبيق.
