@@ -4,12 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Arabic fonts: Cairo (body), Tajawal (display/headings) */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap');
+/* Arabic fonts loaded via <link> in __root.tsx (Tailwind v4 + Lightning CSS forbids remote @import). */
 
 @theme inline {
-  --font-sans: "Cairo", system-ui, sans-serif;
-  --font-display: "Tajawal", "Cairo", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans Arabic", "Noto Sans Arabic", system-ui, sans-serif;
+  --font-display: "Cairo", "IBM Plex Sans Arabic", "Noto Sans Arabic", sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
