@@ -1,0 +1,113 @@
+name: Android Build — بوابة الطالب
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "public/**"
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "bun.lockb"
+      - ".github/workflows/android-build.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    name: Build Debug + Release APK + AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Setup JDK 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build web assets (Vite)
+        run: npm run build
+
+      - name: Add Android platform (if missing)
+        run: |
+          if [ ! -d "android" ] || [ ! -f "android/build.gradle" ]; then
+            echo "android/ not present — running cap add android"
+            npx --yes cap add android
+          else
+            echo "android/ already exists — skipping add"
+          fi
+
+      - name: Capacitor sync
+        run: npx --yes cap sync android
+
+      - name: Grant gradlew execute permission
+        run: chmod +x android/gradlew
+
+      - name: Build Debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Build Release APK (unsigned — keystore not configured)
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        continue-on-error: true
+
+      - name: Build Release AAB (unsigned)
+        working-directory: android
+        run: ./gradlew bundleRelease --no-daemon --stacktrace
+        continue-on-error: true
+
+      - name: List build outputs
+        run: |
+          echo "=== APK outputs ==="
+          find android/app/build/outputs -type f \( -name "*.apk" -o -name "*.aab" \) -print -exec ls -lh {} \; || true
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Release APK (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-unsigned-apk
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Release AAB (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-unsigned-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: warn
+          retention-days: 30
