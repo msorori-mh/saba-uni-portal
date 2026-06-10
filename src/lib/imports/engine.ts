@@ -337,5 +337,134 @@ export async function finalizeImport(opts: {
 }
 
 export function emptyReport(): ImportReport {
-  return { rows_total: 0, rows_success: 0, rows_failed: 0, errors: [] };
+  return { rows_total: 0, rows_success: 0, rows_failed: 0, rows_created: 0, rows_updated: 0, errors: [] };
 }
+
+// ============================================================
+// ACADEMIC-STRUCTURE-IMPORTS-01 — departments, programs, levels
+// Support both Insert and Update Existing modes. Never stops at first error.
+// ============================================================
+
+function emptyStructReport(total: number): ImportReport {
+  return { rows_total: total, rows_success: 0, rows_failed: 0, rows_created: 0, rows_updated: 0, errors: [] };
+}
+
+function structDryRun<T extends { _existingId: string | null }>(
+  rows: ValidatedRow<T>[],
+  updateExisting: boolean,
+): ImportReport {
+  const r = emptyStructReport(rows.length);
+  for (const row of rows) {
+    if (row.parsed === null) {
+      r.rows_failed += 1;
+      row.errors.forEach((e) => r.errors.push(e));
+    } else {
+      r.rows_success += 1;
+      if (row.parsed._existingId) {
+        if (updateExisting) r.rows_updated! += 1;
+      } else {
+        r.rows_created! += 1;
+      }
+    }
+  }
+  return r;
+}
+
+export async function importDepartments(
+  rows: ValidatedRow<DepartmentRow>[],
+  dryRun = false,
+  updateExisting = false,
+): Promise<ImportReport> {
+  if (dryRun) return structDryRun(rows, updateExisting);
+  const report = emptyStructReport(rows.length);
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+    const p = r.parsed;
+    const payload = {
+      name_ar: p.name_ar,
+      name_en: p.name_en,
+      description_ar: p.description_ar,
+      is_active: p.is_active,
+    };
+    if (p._existingId) {
+      const { error } = await sb.from("departments").update(payload).eq("id", p._existingId);
+      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
+      else { report.rows_success += 1; report.rows_updated! += 1; }
+    } else {
+      const { error } = await sb.from("departments").insert(payload);
+      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
+      else { report.rows_success += 1; report.rows_created! += 1; }
+    }
+  }
+  return report;
+}
+
+export async function importPrograms(
+  rows: ValidatedRow<ProgramRow>[],
+  dryRun = false,
+  updateExisting = false,
+): Promise<ImportReport> {
+  if (dryRun) return structDryRun(rows, updateExisting);
+  const report = emptyStructReport(rows.length);
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+    const p = r.parsed;
+    const payload = {
+      code: p.code,
+      name_ar: p.name_ar,
+      name_en: p.name_en,
+      department_id: p.department_id,
+      degree_type: p.degree_type,
+      years: p.years,
+      is_active: p.is_active,
+      status: p.is_active ? "active" : "inactive",
+    };
+    if (p._existingId) {
+      const { error } = await sb.from("programs").update(payload).eq("id", p._existingId);
+      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
+      else { report.rows_success += 1; report.rows_updated! += 1; }
+    } else {
+      const { error } = await sb.from("programs").insert(payload);
+      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
+      else { report.rows_success += 1; report.rows_created! += 1; }
+    }
+  }
+  return report;
+}
+
+export async function importLevels(
+  rows: ValidatedRow<LevelRow>[],
+  dryRun = false,
+  updateExisting = false,
+): Promise<ImportReport> {
+  if (dryRun) return structDryRun(rows, updateExisting);
+  const report = emptyStructReport(rows.length);
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+    const p = r.parsed;
+    const payload = { name: p.name, level_number: p.level_number };
+    if (p._existingId) {
+      const { error } = await sb.from("academic_levels").update(payload).eq("id", p._existingId);
+      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
+      else { report.rows_success += 1; report.rows_updated! += 1; }
+    } else {
+      const { error } = await sb.from("academic_levels").insert(payload);
+      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
+      else { report.rows_success += 1; report.rows_created! += 1; }
+    }
+  }
+  return report;
+}
+
