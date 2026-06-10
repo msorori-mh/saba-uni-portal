@@ -568,7 +568,7 @@ export async function validateLevels(
   return summarize(out);
 }
 
-
+function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {
     rows,
