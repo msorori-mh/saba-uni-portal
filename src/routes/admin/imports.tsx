@@ -255,6 +255,8 @@ function ImportsPage() {
       </section>
       )}
 
+      <MasterTemplatesLibrary />
+
       <ImportHistory />
     </div>
   );
