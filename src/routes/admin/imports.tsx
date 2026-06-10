@@ -597,10 +597,12 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload }: {
           <FileDown className="h-3.5 w-3.5" /> تنزيل التقرير
         </button>
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Stat label="إجمالي" value={report.rows_total} tone="neutral" />
         <Stat label="نجح" value={report.rows_success} tone="ok" />
         <Stat label="فشل" value={report.rows_failed} tone="bad" />
+        <Stat label="مضافة" value={report.rows_created ?? 0} tone="ok" />
+        <Stat label="محدثة" value={report.rows_updated ?? 0} tone="neutral" />
         <Stat label="الزمن (ms)" value={durationMs ?? 0} tone="neutral" />
       </div>
       {report.errors.length > 0 && (
