@@ -316,6 +316,9 @@ export async function finalizeImport(opts: {
     staff: "staff_imported",
     courses: "courses_imported",
     study_plans: "study_plans_imported",
+    departments: "import_departments",
+    programs: "import_programs",
+    levels: "import_levels",
   };
 
   const payload = {
