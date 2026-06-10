@@ -249,7 +249,18 @@ function ImportsPage() {
           )}
 
           {validation && !report && (
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex flex-wrap items-center gap-3">
+              {isStructureTab && (
+                <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-gold"
+                    checked={updateExisting}
+                    onChange={(e) => onToggleUpdateExisting(e.target.checked)}
+                  />
+                  تحديث القائم (Update Existing)
+                </label>
+              )}
               <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
                 <input
                   type="checkbox"
@@ -272,6 +283,8 @@ function ImportsPage() {
             </div>
           )}
         </div>
+
+
 
         {validating && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
