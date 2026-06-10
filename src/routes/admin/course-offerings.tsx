@@ -424,7 +424,7 @@ function SectionsTab() {
       {isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : sections.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد شعب.</div>
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد مجموعات.</div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {sections.map((s) => (

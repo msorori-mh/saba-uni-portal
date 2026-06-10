@@ -120,7 +120,7 @@ async function runChecks(): Promise<Section[]> {
       c("وجود بيانات طلاب", students, "must"),
       c("وجود الطالب التجريبي 20230001", testStudent, "must"),
       c("الخطط الدراسية النشطة", activePlans, "must"),
-      c("وجود شعب مطروحة", sections, "must"),
+      c("وجود مجموعات مطروحة", sections, "must"),
       c("وجود تسجيلات للطلاب", enrollments, "must"),
       c("وجود درجات معتمدة (السجل الأكاديمي)", gradesApproved, "should"),
       c("وجود رسوم مرتبطة بالطلاب", fees, "must"),
@@ -139,7 +139,7 @@ async function runChecks(): Promise<Section[]> {
     checks: [
       c("وجود أعضاء هيئة تدريس", faculty, "must"),
       c("وجود العضو التجريبي F0001", testFaculty, "must"),
-      c("وجود شعب مسندة لأعضاء", sections, "must"),
+      c("وجود مجموعات مسندة لأعضاء", sections, "must"),
       c("إدخال درجات (أي حالة)", grades, "should"),
       grades.count > 0 && gradesPending.count === 0 && gradesApproved.count > 0
         ? pass("اعتماد الدرجات يعمل", `معتمد: ${gradesApproved.count}`)
@@ -499,7 +499,7 @@ async function runChecks(): Promise<Section[]> {
         ? pass("يوجد فصل دراسي حالي", `العدد: ${currentSem.count}`)
         : fail("لا يوجد فصل دراسي حالي", "اضبطه من مركز العمليات"),
       offerings.ok && sections.ok && enrollments.ok && receipts.ok
-        ? pass("KPIs تعمل", `طرح:${offerings.count} · شعب:${sections.count} · تسجيلات:${enrollments.count} · إيصالات:${receipts.count}`)
+        ? pass("KPIs تعمل", `طرح:${offerings.count} · مجموعات:${sections.count} · تسجيلات:${enrollments.count} · إيصالات:${receipts.count}`)
         : warn("بعض مؤشرات KPI غير متاحة"),
       aopsAuditTotal > 0
         ? pass("Audit integration active", `year:${aopsYearAudit.count} · semester:${aopsSemAudit.count}`)

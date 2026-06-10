@@ -457,7 +457,7 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <Row label="الفصل" value={req.grade_appeal_details.semester?.name ?? "—"} />
               <Row
                 label="المقرر"
-                value={`${req.grade_appeal_details.section?.offering?.course?.code ?? "—"} — ${req.grade_appeal_details.section?.offering?.course?.name_ar ?? "—"} (شعبة ${req.grade_appeal_details.section?.section_code ?? "—"})`}
+                value={`${req.grade_appeal_details.section?.offering?.course?.code ?? "—"} — ${req.grade_appeal_details.section?.offering?.course?.name_ar ?? "—"} (مجموعة ${req.grade_appeal_details.section?.section_code ?? "—"})`}
               />
               <Row
                 label="الدرجة الحالية"

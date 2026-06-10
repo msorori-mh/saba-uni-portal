@@ -166,7 +166,7 @@ function FacultyDashboard() {
               </h2>
               {teaching.length === 0 ? (
                 <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
-                  لا توجد شعب مرتبطة بك حالياً.
+                  لا توجد مجموعات مرتبطة بك حالياً.
                 </div>
               ) : (
                 <div className="space-y-2">

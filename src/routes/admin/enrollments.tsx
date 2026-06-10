@@ -239,7 +239,7 @@ function EnrollmentsPage() {
         <div>
           <Label className="text-xs">المجموعات الدراسيةة</Label>
           <Select value={sectionId} onValueChange={setSectionId} disabled={sectionsWithCourse.length === 0}>
-            <SelectTrigger><SelectValue placeholder={sectionsWithCourse.length === 0 ? "لا توجد شعب" : "اختر..."} /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={sectionsWithCourse.length === 0 ? "لا توجد مجموعات" : "اختر..."} /></SelectTrigger>
             <SelectContent>
               {sectionsWithCourse.map((s) => (
                 <SelectItem key={s.id} value={s.id}>

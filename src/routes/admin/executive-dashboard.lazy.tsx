@@ -214,7 +214,7 @@ function ExecutiveDashboardPage() {
     if (!core.currentYearOk) alerts.push({ id: "no-year", severity: "critical", title: "لا توجد سنة أكاديمية حالية", href: "/admin/academic-operations" });
     if (!core.currentSemOk) alerts.push({ id: "no-sem", severity: "critical", title: "لا يوجد فصل دراسي حالي", href: "/admin/academic-operations" });
     if (core.studentsNoProgram > 0) alerts.push({ id: "no-prog", severity: "warning", title: "طلاب بدون برنامج", detail: `${core.studentsNoProgram} طالب`, href: "/admin/students" });
-    if (core.unassignedSections > 0) alerts.push({ id: "no-faculty", severity: "warning", title: "شعب بدون عضو هيئة تدريس", detail: `${core.unassignedSections} مجموعة دراسية`, href: "/admin/schedules" });
+    if (core.unassignedSections > 0) alerts.push({ id: "no-faculty", severity: "warning", title: "مجموعات بدون عضو هيئة تدريس", detail: `${core.unassignedSections} مجموعة دراسية`, href: "/admin/schedules" });
     if (core.outstanding > 0) alerts.push({ id: "outstanding", severity: "warning", title: "رسوم غير محصّلة", detail: `${core.outstanding.toLocaleString()} ر.ي`, href: "/admin/finance" });
     if (core.newRequestsPending > 0) alerts.push({ id: "req", severity: "info", title: "طلبات طلابية بانتظار المراجعة", detail: `${core.newRequestsPending}`, href: "/admin/student-requests" });
     if (core.newDocsToday > 0) alerts.push({ id: "docs", severity: "info", title: "وثائق صادرة اليوم", detail: `${core.newDocsToday}`, href: "/admin/documents" });
@@ -289,7 +289,7 @@ function ExecutiveDashboardPage() {
         { المؤشر: "إجمالي", القيمة: analytics.faculty.total },
         { المؤشر: "النشطون", القيمة: analytics.faculty.active },
         { المؤشر: "متوسط الحمل", القيمة: analytics.faculty.avgLoad },
-        { المؤشر: "شعب بدون أستاذ", القيمة: analytics.faculty.unassignedSections },
+        { المؤشر: "مجموعات بدون أستاذ", القيمة: analytics.faculty.unassignedSections },
         ...analytics.faculty.byDepartment.map((r) => ({ المؤشر: `قسم: ${r.label}`, القيمة: r.value })),
         ...analytics.faculty.loadDistribution.map((r) => ({ المؤشر: `حمل ${r.label}`, القيمة: r.value })),
       ];
@@ -557,7 +557,7 @@ function ExecutiveDashboardPage() {
                 <div className="mt-1 font-display text-2xl font-extrabold text-primary">{analytics.faculty.avgLoad}</div>
               </div>
               <div className="rounded-lg border border-border p-3">
-                <div className="text-[11px] font-bold text-muted-foreground">شعب بدون أستاذ</div>
+                <div className="text-[11px] font-bold text-muted-foreground">مجموعات بدون أستاذ</div>
                 <div className="mt-1 font-display text-2xl font-extrabold text-destructive">{analytics.faculty.unassignedSections}</div>
               </div>
             </div>

@@ -1298,7 +1298,7 @@ function GradeAppealModal({
               <option value="">اختر مقرراً...</option>
               {courses.map((c) => (
                 <option key={c.enrollment_id} value={c.enrollment_id}>
-                  {c.course_code} — {c.course_name} (شعبة {c.section_code})
+                  {c.course_code} — {c.course_name} (مجموعة {c.section_code})
                 </option>
               ))}
             </select>
