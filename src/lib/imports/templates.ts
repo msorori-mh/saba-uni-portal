@@ -66,6 +66,38 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "prerequisite_course_code اختياري — يجب أن يكون موجوداً إن تم إدخاله",
     ],
   },
+  departments: {
+    sheetName: "Departments",
+    headers: ["department_code","department_name_ar","department_name_en","description","is_active"],
+    sample: ["IT","قسم تكنولوجيا المعلومات والاتصالات","Information Technology","قسم تقني","true"],
+    instructions: [
+      "department_code و department_name_ar حقول مطلوبة",
+      "department_code يُستخدم كمعرّف فريد للقسم (يُطابق name_ar داخل النظام)",
+      "is_active = true / false (افتراضي true)",
+      "عند تفعيل (تحديث القائم) يتم تحديث القسم الموجود بنفس الكود",
+    ],
+  },
+  programs: {
+    sheetName: "Programs",
+    headers: ["program_code","program_name_ar","program_name_en","department_code","degree_type","duration_years","is_active"],
+    sample: ["IT","تكنولوجيا المعلومات","Information Technology","قسم تكنولوجيا المعلومات والاتصالات","bachelor",4,"true"],
+    instructions: [
+      "program_code, program_name_ar, department_code, degree_type حقول مطلوبة",
+      "department_code = اسم القسم بالعربية كما هو مسجل",
+      "duration_years رقم صحيح موجب",
+      "is_active = true / false",
+    ],
+  },
+  levels: {
+    sheetName: "Levels",
+    headers: ["level_code","level_name","level_number"],
+    sample: ["L1","المستوى الأول",1],
+    instructions: [
+      "level_code, level_name, level_number حقول مطلوبة",
+      "level_number رقم صحيح فريد",
+      "level_code يُستخدم للتمييز داخل الملف فقط",
+    ],
+  },
 };
 
 export async function downloadTemplate(type: ImportType) {

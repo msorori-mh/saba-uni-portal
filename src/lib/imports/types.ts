@@ -1,4 +1,12 @@
-export type ImportType = "students" | "faculty" | "staff" | "courses" | "study_plans";
+export type ImportType =
+  | "students"
+  | "faculty"
+  | "staff"
+  | "courses"
+  | "study_plans"
+  | "departments"
+  | "programs"
+  | "levels";
 
 export type RowError = { row: number; column?: string; message: string };
 
@@ -20,6 +28,8 @@ export type ImportReport = {
   rows_total: number;
   rows_success: number;
   rows_failed: number;
+  rows_created?: number;
+  rows_updated?: number;
   errors: RowError[];
 };
 

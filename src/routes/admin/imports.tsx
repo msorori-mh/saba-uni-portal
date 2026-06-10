@@ -12,9 +12,11 @@ import { loadLookups } from "@/lib/imports/lookups";
 import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
 import {
   validateStudents, validateFaculty, validateStaff, validateCourses, validateStudyPlans,
+  validateDepartments, validatePrograms, validateLevels,
 } from "@/lib/imports/validators";
 import {
   importStudents, importFaculty, importStaff, importCourses, importStudyPlans,
+  importDepartments, importPrograms, importLevels,
   finalizeImport, emptyReport,
   auditImportStarted, auditImportValidated, auditImportFailed,
 } from "@/lib/imports/engine";
@@ -38,12 +40,18 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "staff", label: "الموظفون" },
   { id: "courses", label: "المقررات" },
   { id: "study_plans", label: "الخطط الدراسية" },
+  { id: "departments", label: "الأقسام" },
+  { id: "programs", label: "البرامج" },
+  { id: "levels", label: "المستويات الدراسية" },
   { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
 
 const TYPE_LABEL: Record<ImportType, string> = {
   students: "طلاب", faculty: "أعضاء هيئة تدريس", staff: "موظفون", courses: "مقررات", study_plans: "خطط دراسية",
+  departments: "أقسام", programs: "برامج", levels: "مستويات دراسية",
 };
+
+const STRUCTURE_TYPES = new Set<ImportType>(["departments", "programs", "levels"]);
 
 const STEPS = [
   "تنزيل القالب",
@@ -64,6 +72,7 @@ function ImportsPage() {
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [dryRun, setDryRun] = useState(false);
+  const [updateExisting, setUpdateExisting] = useState(false);
   const [perfMs, setPerfMs] = useState<number | null>(null);
   const qc = useQueryClient();
 
@@ -71,7 +80,7 @@ function ImportsPage() {
     setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
   };
 
-  const onTabChange = (t: TabId) => { setTab(t); reset(); };
+  const onTabChange = (t: TabId) => { setTab(t); reset(); setUpdateExisting(false); };
 
   // Determine current step (0..5)
   const step = useMemo(() => {
@@ -83,6 +92,21 @@ function ImportsPage() {
     return 0;
   }, [report, importing, validation, rows, file]);
 
+  const isStructureTab = tab !== "faculty_accounts" && STRUCTURE_TYPES.has(tab as ImportType);
+
+  const runValidation = async (parsed: Record<string, unknown>[]) => {
+    const t = tab as ImportType;
+    const lookups = await loadLookups();
+    if (t === "students") return validateStudents(parsed, lookups);
+    if (t === "faculty") return validateFaculty(parsed, lookups);
+    if (t === "staff") return validateStaff(parsed, lookups);
+    if (t === "courses") return validateCourses(parsed, lookups);
+    if (t === "study_plans") return validateStudyPlans(parsed, lookups);
+    if (t === "departments") return validateDepartments(parsed, lookups, updateExisting);
+    if (t === "programs") return validatePrograms(parsed, lookups, updateExisting);
+    return validateLevels(parsed, lookups, updateExisting);
+  };
+
   const onFile = async (f: File) => {
     if (tab === "faculty_accounts") return;
     const t = tab as ImportType;
@@ -91,13 +115,7 @@ function ImportsPage() {
     try {
       const parsed = await parseExcel(f);
       setRows(parsed);
-      const lookups = await loadLookups();
-      let res: ValidationResult<unknown>;
-      if (t === "students") res = await validateStudents(parsed, lookups);
-      else if (t === "faculty") res = await validateFaculty(parsed, lookups);
-      else if (t === "staff") res = await validateStaff(parsed, lookups);
-      else if (t === "courses") res = await validateCourses(parsed, lookups);
-      else res = await validateStudyPlans(parsed, lookups);
+      const res = await runValidation(parsed);
       setValidation(res);
       void auditImportValidated(t, f.name, {
         total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
@@ -105,6 +123,24 @@ function ImportsPage() {
     } catch (e) {
       void auditImportFailed(t, f.name, (e as Error).message);
       alert("تعذر قراءة الملف: " + (e as Error).message);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  // Re-run validation when toggling Update Existing on structure tabs
+  const onToggleUpdateExisting = async (next: boolean) => {
+    setUpdateExisting(next);
+    if (!rows || !isStructureTab) return;
+    setValidating(true);
+    try {
+      const t = tab as ImportType;
+      const lookups = await loadLookups();
+      let res: ValidationResult<unknown>;
+      if (t === "departments") res = await validateDepartments(rows, lookups, next);
+      else if (t === "programs") res = await validatePrograms(rows, lookups, next);
+      else res = await validateLevels(rows, lookups, next);
+      setValidation(res);
     } finally {
       setValidating(false);
     }
@@ -127,7 +163,10 @@ function ImportsPage() {
       else if (t === "faculty") rep = await importFaculty(vrows, dryRun);
       else if (t === "staff") rep = await importStaff(vrows, dryRun);
       else if (t === "courses") rep = await importCourses(vrows, dryRun);
-      else rep = await importStudyPlans(vrows, dryRun);
+      else if (t === "study_plans") rep = await importStudyPlans(vrows, dryRun);
+      else if (t === "departments") rep = await importDepartments(vrows, dryRun, updateExisting);
+      else if (t === "programs") rep = await importPrograms(vrows, dryRun, updateExisting);
+      else rep = await importLevels(vrows, dryRun, updateExisting);
       const duration = Math.round(performance.now() - t0);
       setPerfMs(duration);
       await finalizeImport({ type: t, fileName: file.name, report: rep, dryRun, durationMs: duration });
@@ -210,7 +249,18 @@ function ImportsPage() {
           )}
 
           {validation && !report && (
-            <div className="ml-auto flex items-center gap-3">
+            <div className="ml-auto flex flex-wrap items-center gap-3">
+              {isStructureTab && (
+                <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-gold"
+                    checked={updateExisting}
+                    onChange={(e) => onToggleUpdateExisting(e.target.checked)}
+                  />
+                  تحديث القائم (Update Existing)
+                </label>
+              )}
               <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
                 <input
                   type="checkbox"
@@ -233,6 +283,8 @@ function ImportsPage() {
             </div>
           )}
         </div>
+
+
 
         {validating && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -545,10 +597,12 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload }: {
           <FileDown className="h-3.5 w-3.5" /> تنزيل التقرير
         </button>
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Stat label="إجمالي" value={report.rows_total} tone="neutral" />
         <Stat label="نجح" value={report.rows_success} tone="ok" />
         <Stat label="فشل" value={report.rows_failed} tone="bad" />
+        <Stat label="مضافة" value={report.rows_created ?? 0} tone="ok" />
+        <Stat label="محدثة" value={report.rows_updated ?? 0} tone="neutral" />
         <Stat label="الزمن (ms)" value={durationMs ?? 0} tone="neutral" />
       </div>
       {report.errors.length > 0 && (
