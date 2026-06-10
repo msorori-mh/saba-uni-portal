@@ -12,9 +12,11 @@ import { loadLookups } from "@/lib/imports/lookups";
 import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
 import {
   validateStudents, validateFaculty, validateStaff, validateCourses, validateStudyPlans,
+  validateDepartments, validatePrograms, validateLevels,
 } from "@/lib/imports/validators";
 import {
   importStudents, importFaculty, importStaff, importCourses, importStudyPlans,
+  importDepartments, importPrograms, importLevels,
   finalizeImport, emptyReport,
   auditImportStarted, auditImportValidated, auditImportFailed,
 } from "@/lib/imports/engine";
@@ -38,12 +40,18 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "staff", label: "الموظفون" },
   { id: "courses", label: "المقررات" },
   { id: "study_plans", label: "الخطط الدراسية" },
+  { id: "departments", label: "الأقسام" },
+  { id: "programs", label: "البرامج" },
+  { id: "levels", label: "المستويات الدراسية" },
   { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
 
 const TYPE_LABEL: Record<ImportType, string> = {
   students: "طلاب", faculty: "أعضاء هيئة تدريس", staff: "موظفون", courses: "مقررات", study_plans: "خطط دراسية",
+  departments: "أقسام", programs: "برامج", levels: "مستويات دراسية",
 };
+
+const STRUCTURE_TYPES = new Set<ImportType>(["departments", "programs", "levels"]);
 
 const STEPS = [
   "تنزيل القالب",
