@@ -1,6 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
-import type { CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow } from "./validators";
+import type {
+  CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
+  DepartmentRow, ProgramRow, LevelRow,
+} from "./validators";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
