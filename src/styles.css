@@ -4,8 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Arabic fonts: Cairo (body), Tajawal (display/headings) */
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap');
+/* Arabic fonts loaded via <link> in src/routes/__root.tsx */
 
 @theme inline {
   --font-sans: "Cairo", system-ui, sans-serif;
