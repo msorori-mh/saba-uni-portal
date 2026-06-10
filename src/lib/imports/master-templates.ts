@@ -32,7 +32,7 @@ export type MasterTemplate = {
   description: string;
   category: MasterTemplateCategory;
   /** Linked existing importer key in imports page (if any) */
-  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts";
+  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
