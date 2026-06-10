@@ -72,6 +72,7 @@ function ImportsPage() {
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [dryRun, setDryRun] = useState(false);
+  const [updateExisting, setUpdateExisting] = useState(false);
   const [perfMs, setPerfMs] = useState<number | null>(null);
   const qc = useQueryClient();
 
@@ -79,7 +80,7 @@ function ImportsPage() {
     setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
   };
 
-  const onTabChange = (t: TabId) => { setTab(t); reset(); };
+  const onTabChange = (t: TabId) => { setTab(t); reset(); setUpdateExisting(false); };
 
   // Determine current step (0..5)
   const step = useMemo(() => {
@@ -91,6 +92,21 @@ function ImportsPage() {
     return 0;
   }, [report, importing, validation, rows, file]);
 
+  const isStructureTab = tab !== "faculty_accounts" && STRUCTURE_TYPES.has(tab as ImportType);
+
+  const runValidation = async (parsed: Record<string, unknown>[]) => {
+    const t = tab as ImportType;
+    const lookups = await loadLookups();
+    if (t === "students") return validateStudents(parsed, lookups);
+    if (t === "faculty") return validateFaculty(parsed, lookups);
+    if (t === "staff") return validateStaff(parsed, lookups);
+    if (t === "courses") return validateCourses(parsed, lookups);
+    if (t === "study_plans") return validateStudyPlans(parsed, lookups);
+    if (t === "departments") return validateDepartments(parsed, lookups, updateExisting);
+    if (t === "programs") return validatePrograms(parsed, lookups, updateExisting);
+    return validateLevels(parsed, lookups, updateExisting);
+  };
+
   const onFile = async (f: File) => {
     if (tab === "faculty_accounts") return;
     const t = tab as ImportType;
@@ -99,13 +115,7 @@ function ImportsPage() {
     try {
       const parsed = await parseExcel(f);
       setRows(parsed);
-      const lookups = await loadLookups();
-      let res: ValidationResult<unknown>;
-      if (t === "students") res = await validateStudents(parsed, lookups);
-      else if (t === "faculty") res = await validateFaculty(parsed, lookups);
-      else if (t === "staff") res = await validateStaff(parsed, lookups);
-      else if (t === "courses") res = await validateCourses(parsed, lookups);
-      else res = await validateStudyPlans(parsed, lookups);
+      const res = await runValidation(parsed);
       setValidation(res);
       void auditImportValidated(t, f.name, {
         total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
@@ -113,6 +123,24 @@ function ImportsPage() {
     } catch (e) {
       void auditImportFailed(t, f.name, (e as Error).message);
       alert("تعذر قراءة الملف: " + (e as Error).message);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  // Re-run validation when toggling Update Existing on structure tabs
+  const onToggleUpdateExisting = async (next: boolean) => {
+    setUpdateExisting(next);
+    if (!rows || !isStructureTab) return;
+    setValidating(true);
+    try {
+      const t = tab as ImportType;
+      const lookups = await loadLookups();
+      let res: ValidationResult<unknown>;
+      if (t === "departments") res = await validateDepartments(rows, lookups, next);
+      else if (t === "programs") res = await validatePrograms(rows, lookups, next);
+      else res = await validateLevels(rows, lookups, next);
+      setValidation(res);
     } finally {
       setValidating(false);
     }
@@ -135,7 +163,10 @@ function ImportsPage() {
       else if (t === "faculty") rep = await importFaculty(vrows, dryRun);
       else if (t === "staff") rep = await importStaff(vrows, dryRun);
       else if (t === "courses") rep = await importCourses(vrows, dryRun);
-      else rep = await importStudyPlans(vrows, dryRun);
+      else if (t === "study_plans") rep = await importStudyPlans(vrows, dryRun);
+      else if (t === "departments") rep = await importDepartments(vrows, dryRun, updateExisting);
+      else if (t === "programs") rep = await importPrograms(vrows, dryRun, updateExisting);
+      else rep = await importLevels(vrows, dryRun, updateExisting);
       const duration = Math.round(performance.now() - t0);
       setPerfMs(duration);
       await finalizeImport({ type: t, fileName: file.name, report: rep, dryRun, durationMs: duration });
