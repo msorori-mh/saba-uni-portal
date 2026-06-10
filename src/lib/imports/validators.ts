@@ -377,7 +377,198 @@ export async function validateStudyPlans(
   return summarize(out);
 }
 
-function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
+// =========================
+// Departments
+// =========================
+export type DepartmentRow = {
+  department_code: string; // matched to name_ar
+  name_ar: string;
+  name_en: string | null;
+  description_ar: string | null;
+  is_active: boolean;
+  _existingId: string | null;
+};
+
+const truthy = (v: unknown) => {
+  const s = str(v).toLowerCase();
+  if (!s) return true;
+  return ["true", "1", "yes", "نعم", "active", "مفعل"].includes(s);
+};
+
+export async function validateDepartments(
+  rows: Record<string, unknown>[],
+  _lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<DepartmentRow>> {
+  // Fetch existing departments by name_ar (treated as the "code")
+  const { data: existing } = await sb.from("departments").select("id, name_ar");
+  const existMap = new Map<string, string>();
+  (existing ?? []).forEach((d: { id: string; name_ar: string }) => existMap.set(normKey(d.name_ar), d.id));
+
+  const seen = new Set<string>();
+  const out: ValidatedRow<DepartmentRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+    const code = str(raw.department_code) || str(raw.name_ar) || str(raw.department_name_ar);
+    if (!code) errors.push({ row: rowNumber, column: "department_code", message: "كود القسم مطلوب" });
+    const name_ar = str(raw.department_name_ar) || str(raw.name_ar) || code;
+    if (!name_ar) errors.push({ row: rowNumber, column: "department_name_ar", message: "اسم القسم بالعربية مطلوب" });
+    if (code && seen.has(normKey(code))) errors.push({ row: rowNumber, column: "department_code", message: "كود مكرر في الملف" });
+    const existingId = code ? existMap.get(normKey(code)) ?? null : null;
+    if (code && existingId && !updateExisting) {
+      errors.push({ row: rowNumber, column: "department_code", message: "القسم موجود مسبقاً (فعّل تحديث القائم)" });
+    }
+    if (code) seen.add(normKey(code));
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        department_code: code,
+        name_ar,
+        name_en: str(raw.department_name_en) || str(raw.name_en) || null,
+        description_ar: str(raw.description) || str(raw.description_ar) || null,
+        is_active: truthy(raw.is_active),
+        _existingId: existingId,
+      },
+    });
+  });
+  return summarize(out);
+}
+
+// =========================
+// Programs
+// =========================
+export type ProgramRow = {
+  code: string;
+  name_ar: string;
+  name_en: string | null;
+  department_id: string;
+  degree_type: string;
+  years: number;
+  is_active: boolean;
+  _existingId: string | null;
+};
+
+const VALID_DEGREES = new Set(["bachelor", "master", "phd", "diploma", "بكالوريوس", "ماجستير", "دكتوراه", "دبلوم"]);
+
+export async function validatePrograms(
+  rows: Record<string, unknown>[],
+  lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<ProgramRow>> {
+  const { data: existing } = await sb.from("programs").select("id, code");
+  const existMap = new Map<string, string>();
+  (existing ?? []).forEach((p: { id: string; code: string }) => existMap.set(normKey(p.code), p.id));
+
+  const seen = new Set<string>();
+  const out: ValidatedRow<ProgramRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+    const code = str(raw.program_code) || str(raw.code);
+    if (!code) errors.push({ row: rowNumber, column: "program_code", message: "كود البرنامج مطلوب" });
+    const name_ar = str(raw.program_name_ar) || str(raw.name_ar);
+    if (!name_ar) errors.push({ row: rowNumber, column: "program_name_ar", message: "اسم البرنامج بالعربية مطلوب" });
+    if (code && seen.has(normKey(code))) errors.push({ row: rowNumber, column: "program_code", message: "كود مكرر في الملف" });
+
+    const depKey = normKey(str(raw.department_code));
+    const dep_id = depKey ? lookups.departmentsByName.get(depKey) ?? null : null;
+    if (!dep_id) errors.push({ row: rowNumber, column: "department_code", message: "القسم غير موجود" });
+
+    const degree_type = str(raw.degree_type).toLowerCase();
+    if (!degree_type) errors.push({ row: rowNumber, column: "degree_type", message: "نوع الدرجة مطلوب" });
+    else if (!VALID_DEGREES.has(degree_type)) errors.push({ row: rowNumber, column: "degree_type", message: "نوع الدرجة غير صحيح" });
+
+    const yearsN = num(raw.duration_years);
+    if (!Number.isFinite(yearsN) || yearsN <= 0 || !Number.isInteger(yearsN))
+      errors.push({ row: rowNumber, column: "duration_years", message: "عدد السنوات يجب أن يكون رقماً صحيحاً موجباً" });
+
+    const existingId = code ? existMap.get(normKey(code)) ?? null : null;
+    if (code && existingId && !updateExisting)
+      errors.push({ row: rowNumber, column: "program_code", message: "البرنامج موجود مسبقاً (فعّل تحديث القائم)" });
+
+    if (code) seen.add(normKey(code));
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        code,
+        name_ar,
+        name_en: str(raw.program_name_en) || str(raw.name_en) || null,
+        department_id: dep_id!,
+        degree_type,
+        years: yearsN,
+        is_active: truthy(raw.is_active),
+        _existingId: existingId,
+      },
+    });
+  });
+  return summarize(out);
+}
+
+// =========================
+// Academic Levels
+// =========================
+export type LevelRow = {
+  level_code: string;
+  name: string;
+  level_number: number;
+  _existingId: string | null;
+};
+
+export async function validateLevels(
+  rows: Record<string, unknown>[],
+  _lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<LevelRow>> {
+  const { data: existing } = await sb.from("academic_levels").select("id, level_number, name");
+  const existByNumber = new Map<string, string>();
+  (existing ?? []).forEach((l: { id: string; level_number: number }) =>
+    existByNumber.set(String(l.level_number), l.id));
+
+  const seenCode = new Set<string>();
+  const seenNum = new Set<string>();
+  const out: ValidatedRow<LevelRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+    const code = str(raw.level_code);
+    if (!code) errors.push({ row: rowNumber, column: "level_code", message: "كود المستوى مطلوب" });
+    const name = str(raw.level_name);
+    if (!name) errors.push({ row: rowNumber, column: "level_name", message: "اسم المستوى مطلوب" });
+    const numN = num(raw.level_number);
+    if (!Number.isFinite(numN) || !Number.isInteger(numN) || numN <= 0)
+      errors.push({ row: rowNumber, column: "level_number", message: "رقم المستوى يجب أن يكون رقماً صحيحاً موجباً" });
+
+    if (code && seenCode.has(normKey(code))) errors.push({ row: rowNumber, column: "level_code", message: "كود مكرر في الملف" });
+    const numKey = String(numN);
+    if (Number.isFinite(numN) && seenNum.has(numKey)) errors.push({ row: rowNumber, column: "level_number", message: "رقم مستوى مكرر في الملف" });
+
+    const existingId = Number.isFinite(numN) ? existByNumber.get(numKey) ?? null : null;
+    if (existingId && !updateExisting)
+      errors.push({ row: rowNumber, column: "level_number", message: "المستوى موجود مسبقاً (فعّل تحديث القائم)" });
+
+    if (code) seenCode.add(normKey(code));
+    if (Number.isFinite(numN)) seenNum.add(numKey);
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        level_code: code,
+        name,
+        level_number: numN,
+        _existingId: existingId,
+      },
+    });
+  });
+  return summarize(out);
+}
+
+
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {
     rows,
