@@ -28,6 +28,8 @@ export type ImportReport = {
   rows_total: number;
   rows_success: number;
   rows_failed: number;
+  rows_created?: number;
+  rows_updated?: number;
   errors: RowError[];
 };
 
