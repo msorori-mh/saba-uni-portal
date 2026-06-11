@@ -51,6 +51,7 @@ import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-m
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
 import { Route as AdminSchedulesRouteImport } from './routes/admin/schedules'
+import { Route as AdminRolesRouteImport } from './routes/admin/roles'
 import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
@@ -360,6 +361,11 @@ const AdminSchedulesRoute = AdminSchedulesRouteImport.update({
   path: '/schedules',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminResearchRoute = AdminResearchRouteImport.update({
   id: '/research',
   path: '/research',
@@ -579,6 +585,7 @@ export interface FileRoutesByFullPath {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -660,6 +667,7 @@ export interface FileRoutesByTo {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -745,6 +753,7 @@ export interface FileRoutesById {
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
+  '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
   '/admin/security-status': typeof AdminSecurityStatusRoute
   '/admin/settings': typeof AdminSettingsRoute
@@ -832,6 +841,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/roles'
     | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
@@ -913,6 +923,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/roles'
     | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
@@ -997,6 +1008,7 @@ export interface FileRouteTypes {
     | '/admin/reports'
     | '/admin/request-types'
     | '/admin/research'
+    | '/admin/roles'
     | '/admin/schedules'
     | '/admin/security-status'
     | '/admin/settings'
@@ -1407,6 +1419,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSchedulesRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/research': {
       id: '/admin/research'
       path: '/research'
@@ -1675,6 +1694,7 @@ interface AdminRouteChildren {
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
   AdminResearchRoute: typeof AdminResearchRoute
+  AdminRolesRoute: typeof AdminRolesRoute
   AdminSchedulesRoute: typeof AdminSchedulesRoute
   AdminSecurityStatusRoute: typeof AdminSecurityStatusRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
@@ -1720,6 +1740,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminReportsRoute: AdminReportsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,
   AdminResearchRoute: AdminResearchRoute,
+  AdminRolesRoute: AdminRolesRoute,
   AdminSchedulesRoute: AdminSchedulesRoute,
   AdminSecurityStatusRoute: AdminSecurityStatusRoute,
   AdminSettingsRoute: AdminSettingsRoute,
