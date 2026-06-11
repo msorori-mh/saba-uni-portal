@@ -459,11 +459,16 @@ function AttachmentLink({ path, name }: { path: string; name: string }) {
 }
 
 async function uploadAttachment(requestId: string, file: File) {
+  const { validateUpload, safeFileName } = await import("@/lib/storage-validation");
+  const check = validateUpload(file, "student_attachment");
+  if (!check.ok) throw new Error(check.message);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const safeName = safeFileName(file.name);
   const path = `${user.id}/${requestId}/${Date.now()}-${safeName}`;
-  const { error: upErr } = await supabase.storage.from("student-request-attachments").upload(path, file);
+  const { error: upErr } = await supabase.storage
+    .from("student-request-attachments")
+    .upload(path, file, { contentType: file.type, upsert: false });
   if (upErr) throw upErr;
   const { error: attErr } = await sb.from("student_request_attachments").insert({
     request_id: requestId, file_url: path, file_name: file.name, file_type: file.type, uploaded_by: user.id,
