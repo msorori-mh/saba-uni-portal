@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.check_and_record_rate_limit(text, text, int, int, int) TO anon;
