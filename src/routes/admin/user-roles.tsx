@@ -155,6 +155,11 @@ function UserRolesPage() {
                     <div>
                       <div className="font-medium">{r.name_ar}</div>
                       <div className="text-xs text-muted-foreground font-mono">{r.code}</div>
+                      {r.app_role_mapping ? (
+                        <div className="text-[11px] text-emerald-700 mt-0.5">دور تشغيلي مرتبط: {r.app_role_mapping}</div>
+                      ) : (
+                        <div className="text-[11px] text-amber-700 mt-0.5">وصفي فقط — لن يمنح صلاحيات</div>
+                      )}
                     </div>
                     {has && <span className="text-xs text-emerald-600">مُسند</span>}
                   </button>
