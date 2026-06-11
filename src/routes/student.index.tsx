@@ -372,7 +372,6 @@ function InfoCard({
 const SEMESTER_LABELS: Record<string, string> = {
   first: "الفصل الأول",
   second: "الفصل الثاني",
-  summer: "الفصل الصيفي",
 };
 
 function StudyPlanSection({ rows }: { rows: PlanCourseRow[] }) {

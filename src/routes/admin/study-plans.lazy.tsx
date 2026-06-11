@@ -42,7 +42,6 @@ type PlanCourse = {
 const SEMESTERS = [
   { code: "first", label: "الفصل الأول" },
   { code: "second", label: "الفصل الثاني" },
-  { code: "summer", label: "الفصل الصيفي" },
 ];
 
 function StudyPlansPage() {

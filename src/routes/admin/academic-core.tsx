@@ -342,7 +342,6 @@ function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: 
               <SelectContent>
                 <SelectItem value="first">first - الأول</SelectItem>
                 <SelectItem value="second">second - الثاني</SelectItem>
-                <SelectItem value="summer">summer - الصيفي</SelectItem>
               </SelectContent>
             </Select>
           </div>
