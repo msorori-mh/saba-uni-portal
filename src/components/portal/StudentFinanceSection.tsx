@@ -328,13 +328,16 @@ function ReceiptUploadModal({ studentProfileId, fees, onClose, onDone }: {
     if (!feeId || !amount || !file) return toast.error("الرجاء تعبئة الحقول المطلوبة ورفع الملف");
     const amt = Number(amount);
     if (!(amt > 0)) return toast.error("المبلغ غير صالح");
+    const { validateUpload, getExt } = await import("@/lib/storage-validation");
+    const check = validateUpload(file, "payment_receipt");
+    if (!check.ok) return toast.error(check.message);
     setBusy(true);
     try {
       const { data: u } = await sb.auth.getUser();
       const uid = u?.user?.id;
       if (!uid) throw new Error("غير مسجل الدخول");
       const receiptId = crypto.randomUUID();
-      const ext = file.name.split(".").pop() || "bin";
+      const ext = getExt(file.name) || "bin";
       const path = `${uid}/${receiptId}/receipt.${ext}`;
       const up = await sb.storage.from("payment-receipts").upload(path, file, { upsert: false, contentType: file.type });
       if (up.error) throw up.error;
