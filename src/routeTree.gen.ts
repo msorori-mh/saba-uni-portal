@@ -45,6 +45,7 @@ import { Route as FacultyPortalChangePasswordRouteImport } from './routes/facult
 import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminUserRolesRouteImport } from './routes/admin/user-roles'
 import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
 import { Route as AdminStudentProgressRouteImport } from './routes/admin/student-progress'
 import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
@@ -331,6 +332,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminUserRolesRoute = AdminUserRolesRouteImport.update({
+  id: '/user-roles',
+  path: '/user-roles',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
   id: '/system-readiness',
   path: '/system-readiness',
@@ -592,6 +598,7 @@ export interface FileRoutesByFullPath {
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
+  '/admin/user-roles': typeof AdminUserRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
@@ -674,6 +681,7 @@ export interface FileRoutesByTo {
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
+  '/admin/user-roles': typeof AdminUserRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
@@ -760,6 +768,7 @@ export interface FileRoutesById {
   '/admin/staff-management': typeof AdminStaffManagementRoute
   '/admin/student-progress': typeof AdminStudentProgressRoute
   '/admin/system-readiness': typeof AdminSystemReadinessRoute
+  '/admin/user-roles': typeof AdminUserRolesRoute
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
@@ -848,6 +857,7 @@ export interface FileRouteTypes {
     | '/admin/staff-management'
     | '/admin/student-progress'
     | '/admin/system-readiness'
+    | '/admin/user-roles'
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
@@ -930,6 +940,7 @@ export interface FileRouteTypes {
     | '/admin/staff-management'
     | '/admin/student-progress'
     | '/admin/system-readiness'
+    | '/admin/user-roles'
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
@@ -1015,6 +1026,7 @@ export interface FileRouteTypes {
     | '/admin/staff-management'
     | '/admin/student-progress'
     | '/admin/system-readiness'
+    | '/admin/user-roles'
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
@@ -1377,6 +1389,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/user-roles': {
+      id: '/admin/user-roles'
+      path: '/user-roles'
+      fullPath: '/admin/user-roles'
+      preLoaderRoute: typeof AdminUserRolesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/system-readiness': {
       id: '/admin/system-readiness'
       path: '/system-readiness'
@@ -1701,6 +1720,7 @@ interface AdminRouteChildren {
   AdminStaffManagementRoute: typeof AdminStaffManagementRoute
   AdminStudentProgressRoute: typeof AdminStudentProgressRoute
   AdminSystemReadinessRoute: typeof AdminSystemReadinessRoute
+  AdminUserRolesRoute: typeof AdminUserRolesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminDocumentsLazyRoute: typeof AdminDocumentsLazyRoute
   AdminExecutiveDashboardLazyRoute: typeof AdminExecutiveDashboardLazyRoute
@@ -1747,6 +1767,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStaffManagementRoute: AdminStaffManagementRoute,
   AdminStudentProgressRoute: AdminStudentProgressRoute,
   AdminSystemReadinessRoute: AdminSystemReadinessRoute,
+  AdminUserRolesRoute: AdminUserRolesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminDocumentsLazyRoute: AdminDocumentsLazyRoute,
   AdminExecutiveDashboardLazyRoute: AdminExecutiveDashboardLazyRoute,
