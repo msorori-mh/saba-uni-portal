@@ -18,7 +18,7 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "department_code = اسم القسم بالعربية كما هو مسجل في النظام",
       "program_code = كود البرنامج (مثل IT, CS, AI)",
       "academic_year = اسم السنة الأكاديمية (مثل 2025-2026)",
-      "semester = first / second / summer أو اسم الفصل",
+      "semester = first / second أو اسم الفصل",
       "level = رقم المستوى (1-4) أو اسم المستوى",
       "status = active / suspended / graduated / withdrawn / transferred",
     ],
