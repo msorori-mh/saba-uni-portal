@@ -2249,6 +2249,7 @@ export type Database = {
       }
       roles_catalog: {
         Row: {
+          app_role_mapping: Database["public"]["Enums"]["app_role"] | null
           code: string
           created_at: string
           description: string | null
@@ -2259,6 +2260,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          app_role_mapping?: Database["public"]["Enums"]["app_role"] | null
           code: string
           created_at?: string
           description?: string | null
@@ -2269,6 +2271,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          app_role_mapping?: Database["public"]["Enums"]["app_role"] | null
           code?: string
           created_at?: string
           description?: string | null

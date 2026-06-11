@@ -92,9 +92,15 @@ function UserRolesPage() {
                       {u.roles.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
                       {u.roles.map((rc: string) => {
                         const r = (roles ?? []).find((x: any) => x.code === rc);
+                        const mapping = r?.app_role_mapping as string | null | undefined;
                         return (
                           <span key={rc} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded bg-primary/10 text-primary">
                             {r?.name_ar ?? rc}
+                            {mapping ? (
+                              <span className="text-[10px] px-1 rounded bg-emerald-100 text-emerald-700" title="الدور التشغيلي المرتبط">→ {mapping}</span>
+                            ) : (
+                              <span className="text-[10px] px-1 rounded bg-amber-100 text-amber-700" title="لا يوجد دور تشغيلي مرتبط">وصفي فقط</span>
+                            )}
                             <button
                               disabled={busy === `${u.user_id}-${rc}`}
                               onClick={() => run(`${u.user_id}-${rc}`, () => unassign({ data: { user_id: u.user_id, role_code: rc } }))}
@@ -149,6 +155,11 @@ function UserRolesPage() {
                     <div>
                       <div className="font-medium">{r.name_ar}</div>
                       <div className="text-xs text-muted-foreground font-mono">{r.code}</div>
+                      {r.app_role_mapping ? (
+                        <div className="text-[11px] text-emerald-700 mt-0.5">دور تشغيلي مرتبط: {r.app_role_mapping}</div>
+                      ) : (
+                        <div className="text-[11px] text-amber-700 mt-0.5">وصفي فقط — لن يمنح صلاحيات</div>
+                      )}
                     </div>
                     {has && <span className="text-xs text-emerald-600">مُسند</span>}
                   </button>
