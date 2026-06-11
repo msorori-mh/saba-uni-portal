@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { checkRateLimit, RATE_LIMIT_POLICIES, RATE_LIMIT_MESSAGE, describeBlockedFor } from "@/lib/rate-limit";
 
 type Ctx = "admin" | "student" | "faculty" | "staff";
 
@@ -92,6 +93,14 @@ function ForgotPasswordPage() {
     }
     setLoading(true);
     try {
+      // Rate limit: 3 / 30min per email, then block 30min.
+      const rl = await checkRateLimit(`forgot:${trimmed}`, RATE_LIMIT_POLICIES.forgotPassword);
+      if (!rl.allowed) {
+        const tail = describeBlockedFor(rl.blocked_until);
+        setError(tail ? `${RATE_LIMIT_MESSAGE} ${tail}.` : RATE_LIMIT_MESSAGE);
+        setLoading(false);
+        return;
+      }
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(trimmed, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
