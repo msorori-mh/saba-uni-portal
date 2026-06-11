@@ -192,7 +192,10 @@ export const assignUserRole = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
     const { data: cat } = await supabaseAdmin
-      .from("roles_catalog").select("code, is_active").eq("code", data.role_code).maybeSingle();
+      .from("roles_catalog")
+      .select("code, is_active, app_role_mapping")
+      .eq("code", data.role_code)
+      .maybeSingle();
     if (!cat) throw new Error("الدور غير موجود في الكتالوج");
     if (!(cat as any).is_active) throw new Error("الدور معطل ولا يمكن إسناده");
 
@@ -206,12 +209,38 @@ export const assignUserRole = createServerFn({ method: "POST" })
 
     await logAudit({
       actor_user_id: context.userId,
-      action_type: "user_role_added",
+      action_type: "user_catalog_role_added",
       entity_id: data.user_id,
-      notes: `إسناد دور ${data.role_code}`,
+      notes: `إسناد دور كتالوجي ${data.role_code}`,
       new_values: { role_code: data.role_code },
     });
-    return { ok: true };
+
+    // Sync operational role if mapping exists
+    const mapped = (cat as any).app_role_mapping as string | null;
+    if (mapped) {
+      const { data: existing } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", data.user_id)
+        .eq("role", mapped as any)
+        .maybeSingle();
+      if (!existing) {
+        const { error: rErr } = await supabaseAdmin
+          .from("user_roles")
+          .insert({ user_id: data.user_id, role: mapped as any });
+        if (!rErr) {
+          await logAudit({
+            actor_user_id: context.userId,
+            action_type: "user_operational_role_synced",
+            entity_id: data.user_id,
+            notes: `مزامنة الدور التشغيلي ${mapped} (من ${data.role_code})`,
+            new_values: { app_role: mapped, from_catalog: data.role_code },
+          });
+        }
+      }
+    }
+
+    return { ok: true, synced_app_role: mapped };
   });
 
 export const unassignUserRole = createServerFn({ method: "POST" })
@@ -220,18 +249,61 @@ export const unassignUserRole = createServerFn({ method: "POST" })
     z.object({ user_id: z.string().uuid(), role_code: z.string().min(1) }).parse(input))
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+
+    // Get mapping of role being removed
+    const { data: cat } = await supabaseAdmin
+      .from("roles_catalog")
+      .select("app_role_mapping")
+      .eq("code", data.role_code)
+      .maybeSingle();
+    const mapped = (cat as any)?.app_role_mapping as string | null;
+
     const { error } = await supabaseAdmin
       .from("user_role_assignments")
       .delete()
       .eq("user_id", data.user_id)
       .eq("role_code", data.role_code);
     if (error) throw new Error(error.message);
+
     await logAudit({
       actor_user_id: context.userId,
-      action_type: "user_role_removed",
+      action_type: "user_catalog_role_removed",
       entity_id: data.user_id,
-      notes: `إزالة دور ${data.role_code}`,
+      notes: `إزالة دور كتالوجي ${data.role_code}`,
       old_values: { role_code: data.role_code },
     });
+
+    // Conditionally remove operational role: only if no other catalog role
+    // assigned to this user still maps to it.
+    if (mapped) {
+      const { data: others } = await supabaseAdmin
+        .from("user_role_assignments")
+        .select("role_code, roles_catalog!inner(app_role_mapping)")
+        .eq("user_id", data.user_id);
+      const stillMapped = (others ?? []).some(
+        (r: any) => r.roles_catalog?.app_role_mapping === mapped,
+      );
+      if (!stillMapped) {
+        // Safety: never auto-remove admin/system_admin operational role
+        if (mapped !== "admin" && mapped !== "system_admin") {
+          const { error: dErr } = await supabaseAdmin
+            .from("user_roles")
+            .delete()
+            .eq("user_id", data.user_id)
+            .eq("role", mapped as any);
+          if (!dErr) {
+            await logAudit({
+              actor_user_id: context.userId,
+              action_type: "user_operational_role_removed_if_unused",
+              entity_id: data.user_id,
+              notes: `إزالة الدور التشغيلي ${mapped} لعدم وجود دور كتالوجي آخر يربطه`,
+              old_values: { app_role: mapped, via_catalog: data.role_code },
+            });
+          }
+        }
+      }
+    }
+
     return { ok: true };
   });
+
