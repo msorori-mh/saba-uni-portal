@@ -2120,6 +2120,45 @@ export type Database = {
           },
         ]
       }
+      rate_limit_attempts: {
+        Row: {
+          action: string
+          actor_identifier: string | null
+          blocked_until: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          ip_hash: string | null
+          key: string
+          metadata: Json
+          user_agent_hash: string | null
+        }
+        Insert: {
+          action: string
+          actor_identifier?: string | null
+          blocked_until?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          key: string
+          metadata?: Json
+          user_agent_hash?: string | null
+        }
+        Update: {
+          action?: string
+          actor_identifier?: string | null
+          blocked_until?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          key?: string
+          metadata?: Json
+          user_agent_hash?: string | null
+        }
+        Relationships: []
+      }
       request_types: {
         Row: {
           code: string
@@ -3648,6 +3687,17 @@ export type Database = {
         Args: { _document_id: string; _reason?: string }
         Returns: undefined
       }
+      check_and_record_rate_limit: {
+        Args: {
+          p_action: string
+          p_block_minutes?: number
+          p_key: string
+          p_max_attempts: number
+          p_window_minutes: number
+        }
+        Returns: Json
+      }
+      cleanup_rate_limit_attempts: { Args: never; Returns: number }
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }

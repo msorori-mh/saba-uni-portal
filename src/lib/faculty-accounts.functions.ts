@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
 
 async function assertAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -179,6 +180,7 @@ export const createFacultyAccountManual = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountCreation);
     const email = data.email.toLowerCase().trim();
 
     const { data: profile } = await supabaseAdmin
@@ -234,6 +236,7 @@ export const linkFacultyAccountByEmail = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountCreation);
     const email = data.email.toLowerCase().trim();
 
     const { data: profile } = await supabaseAdmin
@@ -272,6 +275,7 @@ export const resetFacultyPasswordManual = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountCreation);
     const { data: profile } = await supabaseAdmin
       .from("faculty_profiles").select("id, user_id, employee_number").eq("id", data.profile_id).maybeSingle();
     if (!profile || !(profile as any).user_id) throw new Error("الحساب غير موجود");
@@ -323,6 +327,7 @@ export const importFacultyAccountsRows = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountImport);
 
     const results: Array<{
       row_number: number;

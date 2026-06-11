@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { friendlyAuthError } from "@/components/auth/IdentifierInput";
+import { checkRateLimit, RATE_LIMIT_POLICIES, RATE_LIMIT_MESSAGE, describeBlockedFor } from "@/lib/rate-limit";
 
 export const Route = createFileRoute("/admin/login")({
   head: () => ({
@@ -49,7 +50,17 @@ function AdminLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      const trimmed = email.trim().toLowerCase();
+      // Client-side rate limit: 5 attempts / 10min per email then block 15min.
+      // Note: protects only via our UI; direct Auth API calls are NOT blocked
+      // without Cloudflare/WAF in front.
+      const rl = await checkRateLimit(`login:admin:${trimmed}`, RATE_LIMIT_POLICIES.loginAttempt);
+      if (!rl.allowed) {
+        const tail = describeBlockedFor(rl.blocked_until);
+        setError(tail ? `${RATE_LIMIT_MESSAGE} ${tail}.` : RATE_LIMIT_MESSAGE);
+        return;
+      }
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: trimmed, password });
       if (signInError) throw signInError;
       if (!data.user) throw new Error("invalid");
       const { data: role } = await supabase
