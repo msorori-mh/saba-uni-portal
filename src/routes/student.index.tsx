@@ -201,26 +201,37 @@ function StudentDashboard() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
+    staleTime: STALE_LONG,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const { data: acad } = useQuery({
     queryKey: ["student", "academic-status", profile?.id],
     queryFn: () => fetchMyAcademicStatus(profile!.id),
     enabled: !!profile?.id,
+    staleTime: STALE_LONG,
+    refetchOnWindowFocus: false,
   });
   const { data: planCourses = [] } = useQuery({
     queryKey: ["student", "study-plan", profile?.program_id],
     queryFn: () => fetchMyStudyPlan(profile!.program_id!),
     enabled: !!profile?.program_id,
+    staleTime: STALE_LONG,
+    refetchOnWindowFocus: false,
   });
   const { data: schedule = [] } = useQuery({
     queryKey: ["student", "schedule", profile?.program_id, acad?.academic_year_id, acad?.semester_id, acad?.level_id],
     queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
     enabled: !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
+    staleTime: STALE_MED,
+    refetchOnWindowFocus: false,
   });
   const { data: myEnrollments = [] } = useQuery({
     queryKey: ["student", "my-enrollments", profile?.id],
     queryFn: () => fetchMyEnrollments(profile!.id),
     enabled: !!profile?.id,
+    staleTime: STALE_MED,
+    refetchOnWindowFocus: false,
   });
 
   const handleLogout = async () => {
