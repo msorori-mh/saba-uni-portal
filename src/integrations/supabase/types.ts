@@ -1668,6 +1668,48 @@ export type Database = {
           },
         ]
       }
+      organizational_positions: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          notes: string | null
+          parent_code: string | null
+          sort_order: number
+          unit_type: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          notes?: string | null
+          parent_code?: string | null
+          sort_order?: number
+          unit_type?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          notes?: string | null
+          parent_code?: string | null
+          sort_order?: number
+          unit_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_receipts: {
         Row: {
           amount: number
@@ -2041,6 +2083,95 @@ export type Database = {
           order_index?: number
         }
         Relationships: []
+      }
+      position_assignments: {
+        Row: {
+          assigned_from: string
+          assigned_to: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          position_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assigned_from?: string
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          position_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assigned_from?: string
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          position_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_assignments_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "organizational_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      position_role_mapping: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          position_id: string
+          role_code: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          position_id: string
+          role_code: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          position_id?: string
+          role_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_role_mapping_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "organizational_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "position_role_mapping_role_code_fkey"
+            columns: ["role_code"]
+            isOneToOne: false
+            referencedRelation: "roles_catalog"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       programs: {
         Row: {
