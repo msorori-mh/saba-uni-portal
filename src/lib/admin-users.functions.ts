@@ -382,10 +382,12 @@ export const setActive = createServerFn({ method: "POST" })
       .eq("id", data.profile_id);
 
     if (targetUserId) {
-      await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+      const { error: banErr } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
         ban_duration: data.active ? "none" : "876000h", // ~100 years
       } as any);
+      if (banErr) throw new Error(`تعذّر تحديث حالة الحساب — ${banErr.message}`);
     }
+
 
     await logAudit({
       actor_user_id: context.userId,
