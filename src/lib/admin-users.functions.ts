@@ -209,8 +209,9 @@ export const createAccount = createServerFn({ method: "POST" })
     let newUserId: string | null = null;
     let linkedExisting = false;
 
-    const { data: existingId, error: lookupErr } = await supabaseAdmin
+    const { data: existingId, error: lookupErr } = await (supabaseAdmin as any)
       .rpc("find_auth_user_id_by_email", { p_email: email });
+
     if (lookupErr) {
       throw new Error(`تعذّر التحقق من حساب الدخول — ${lookupErr.message}`);
     }
