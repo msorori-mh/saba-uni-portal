@@ -140,22 +140,8 @@ function AdminFacultyPage() {
     [programs],
   );
 
-  const filtered = useMemo(() => {
-    let list = faculty;
-    if (search.trim()) {
-      const s = search.trim().toLowerCase();
-      list = list.filter(
-        (f) =>
-          f.full_name_ar.toLowerCase().includes(s) ||
-          (f.full_name_en || "").toLowerCase().includes(s) ||
-          (f.email || "").toLowerCase().includes(s),
-      );
-    }
-    if (programFilter !== "all")
-      list = list.filter((f) => f.program_id === programFilter);
-    if (rankFilter !== "all") list = list.filter((f) => f.rank === rankFilter);
-    return list;
-  }, [faculty, search, programFilter, rankFilter]);
+  // Filters are applied server-side now; this stays as a no-op alias to minimize churn below.
+  const filtered = faculty;
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
