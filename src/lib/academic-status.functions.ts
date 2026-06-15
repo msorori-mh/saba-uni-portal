@@ -620,3 +620,30 @@ export const getProgressDashboardKpis = createServerFn({ method: "POST" })
     const near = summaries.filter((s) => s.progress.completion_percentage >= NEAR_COMPLETION_PCT).length;
     return { avgGpa, atRisk, gradCandidates: grads, nearCompletion: near, sampled: summaries.length };
   });
+
+/**
+ * PERFORMANCE-FIX-02B
+ * Set-based replacement for `getProgressDashboardKpis` used by /admin dashboard.
+ * Calls the SQL function `public.get_admin_progress_kpis` once instead of running
+ * `computeStudentProgress` per-student (~7 round-trips × N students).
+ * The detailed `computeStudentProgress` is left untouched for single-student views.
+ */
+export const getAdminProgressKpisFast = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (!(await hasPriv(context.userId))) throw new Error("Forbidden");
+    const { data, error } = await context.supabase.rpc("get_admin_progress_kpis" as never, { _limit: 500 } as never);
+    if (error) throw new Error(error.message);
+    const k = (data ?? {}) as {
+      avgGpa?: number; atRisk?: number; gradCandidates?: number;
+      nearCompletion?: number; sampled?: number;
+    };
+    return {
+      avgGpa: Number(k.avgGpa ?? 0),
+      atRisk: Number(k.atRisk ?? 0),
+      gradCandidates: Number(k.gradCandidates ?? 0),
+      nearCompletion: Number(k.nearCompletion ?? 0),
+      sampled: Number(k.sampled ?? 0),
+    };
+  });
+
