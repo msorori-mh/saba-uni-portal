@@ -91,9 +91,8 @@ export const Route = createFileRoute("/faculty")({
       },
     ],
   }),
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(facultyQuery);
-  },
+  loader: ({ context }) => context.queryClient.ensureQueryData(facultyQuery),
+
   component: FacultyPage,
 });
 
