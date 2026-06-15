@@ -104,6 +104,7 @@ type AdminReq = {
   equivalency_courses: EquivalencyCourse[];
   grade_appeal_details: GradeAppealDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
+  _detailsLoaded?: boolean;
 };
 
 
