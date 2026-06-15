@@ -250,11 +250,24 @@ export const createAccount = createServerFn({ method: "POST" })
     }
 
 
-    // Link profile
-    const { error: uErr } = await supabaseAdmin
-      .from(table)
-      .update({ user_id: newUserId, must_change_password: true, status: "active" } as any)
-      .eq("id", data.profile_id);
+    // Link profile. For students, use the SECURITY DEFINER RPC so the
+    // protect_student_sensitive_fields trigger does not silently revert user_id
+    // (service_role has no auth.uid()). Call as the authenticated admin so the
+    // RPC's internal role check passes.
+    let uErr: { message: string } | null = null;
+    if (data.kind === "student") {
+      const { error } = await (context.supabase as any).rpc(
+        "link_student_user_account",
+        { _profile_id: data.profile_id, _target_user_id: newUserId }
+      );
+      uErr = error ? { message: error.message } : null;
+    } else {
+      const { error } = await supabaseAdmin
+        .from(table)
+        .update({ user_id: newUserId, must_change_password: true, status: "active" } as any)
+        .eq("id", data.profile_id);
+      uErr = error ? { message: error.message } : null;
+    }
     if (uErr) {
       if (!linkedExisting && newUserId) {
         await supabaseAdmin.auth.admin.deleteUser(newUserId);
