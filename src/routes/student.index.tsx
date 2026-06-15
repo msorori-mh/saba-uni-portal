@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -185,6 +186,7 @@ export const Route = createFileRoute("/student/")({
 });
 
 function StudentDashboard() {
+  usePagePerf("/student");
   const navigate = useNavigate();
   const { data: profile, isLoading } = useQuery({
     queryKey: ["student", "me"],

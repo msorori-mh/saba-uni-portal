@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -63,6 +64,7 @@ const STEPS = [
 ] as const;
 
 function ImportsPage() {
+  usePagePerf("/admin/imports");
   const [tab, setTab] = useState<TabId>("students");
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);

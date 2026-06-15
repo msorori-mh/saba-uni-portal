@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,6 +81,7 @@ const RANKS = [
 ];
 
 function AdminFacultyPage() {
+  usePagePerf("/admin/faculty");
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [programFilter, setProgramFilter] = useState("all");

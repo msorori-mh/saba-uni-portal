@@ -1,4 +1,5 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Wallet, Plus, X, Receipt, Tag, Users, Percent, FileText } from "lucide-react";
@@ -42,6 +43,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
 const METHOD_LABEL: Record<string, string> = { cash: "نقداً", bank_transfer: "تحويل بنكي", other: "أخرى" };
 
 function AdminFinancePage() {
+  usePagePerf("/admin/finance");
   const [tab, setTab] = useState<"types" | "fees" | "payments" | "discounts" | "receipts">("types");
 
   return (
