@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
-import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
+import { getAdminProgressKpisFast } from "@/lib/academic-status.functions";
 import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
 import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.functions";
 import { getPilotOverview } from "@/lib/pilot.functions";
