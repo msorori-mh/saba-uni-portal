@@ -126,8 +126,13 @@ function FacultyDashboard() {
 
       <main className="container mx-auto px-4 py-10 max-w-4xl">
         {isLoading || !profile ? (
-          <div className="grid place-items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-5">
+            <div className="h-20 rounded-xl bg-muted animate-pulse" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
+              ))}
+            </div>
           </div>
         ) : (
           <>
