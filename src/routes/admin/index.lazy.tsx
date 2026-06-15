@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
-import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
+import { getAdminProgressKpisFast } from "@/lib/academic-status.functions";
 import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
 import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.functions";
 import { getPilotOverview } from "@/lib/pilot.functions";
@@ -42,7 +42,7 @@ function AdminDashboard() {
   usePagePerf("/admin");
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
-  const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
+  const fetchProgressKpis = useServerFn(getAdminProgressKpisFast);
   const fetchCommStats = useServerFn(getCommunicationsDashboardStats);
   const fetchAutomationSettings = useServerFn(getAutomationSettings);
   const fetchAutomationPreview = useServerFn(getAutomationPreview);
