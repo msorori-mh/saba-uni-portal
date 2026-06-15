@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/student")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "بوابة الطالب — كلية تكنولوجيا المعلومات" },

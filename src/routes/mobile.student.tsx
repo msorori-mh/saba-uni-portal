@@ -7,6 +7,7 @@ import collegeLogo from "@/assets/college-logo.jpg";
 import { registerStudentMobileSW } from "@/lib/pwa/register-student-sw";
 
 export const Route = createFileRoute("/mobile/student")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "بوابة الطالب — كلية تكنولوجيا المعلومات وعلوم الحاسوب" },

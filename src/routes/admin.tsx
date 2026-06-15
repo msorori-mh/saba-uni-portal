@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/admin/AdminShell";
 
 export const Route = createFileRoute("/admin")({
+  ssr: false,
   head: () => ({
     meta: [{ title: "لوحة الإدارة — كلية تكنولوجيا المعلومات" }, { name: "robots", content: "noindex, nofollow" }],
   }),
