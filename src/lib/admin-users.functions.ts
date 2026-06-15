@@ -203,21 +203,26 @@ export const createAccount = createServerFn({ method: "POST" })
     const email = emailFor(data.kind, identifier);
     const password = identifier;
 
-    // ─── FACULTY-ACCOUNT-REPAIR-01: تحقق من وجود حساب Auth بنفس البريد قبل الإنشاء ───
-    // يمنع رسالة "A user with this email address has already been registered"
+    // ─── FACULTY-ACCOUNT-REPAIR-02: استعلام مباشر على auth.users بدل listUsers ───
+    // listUsers({perPage:200}) يحمّل كل سجلات auth دفعة واحدة وقد يفشل بالكامل
+    // بخطأ "Database error loading user" إذا كان أحد السجلات فاسداً.
     let newUserId: string | null = null;
     let linkedExisting = false;
 
-    const { data: existingList } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    const existing = existingList?.users?.find(
-      (u: any) => (u.email ?? "").toLowerCase() === email.toLowerCase(),
-    );
+    const { data: existingId, error: lookupErr } = await (supabaseAdmin as any)
+      .rpc("find_auth_user_id_by_email", { p_email: email });
+
+    if (lookupErr) {
+      throw new Error(`تعذّر التحقق من حساب الدخول — ${lookupErr.message}`);
+    }
+    const existing = existingId ? { id: existingId as string } : null;
+
 
     if (existing) {
       const { data: linkedProfile } = await supabaseAdmin
         .from(table)
         .select("id")
-        .eq("user_id", existing.id)
+        .eq("user_id", (existing as any).id)
         .maybeSingle();
 
       if (linkedProfile && (linkedProfile as any).id === data.profile_id) {
@@ -227,7 +232,7 @@ export const createAccount = createServerFn({ method: "POST" })
         throw new Error("البريد الإلكتروني مستخدم بحساب آخر — لا يمكن الربط");
       }
       // Auth موجود لكن غير مربوط → استخدمه للربط بدلاً من الإنشاء
-      newUserId = existing.id;
+      newUserId = (existing as any).id;
       linkedExisting = true;
     } else {
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
@@ -236,9 +241,14 @@ export const createAccount = createServerFn({ method: "POST" })
         email_confirm: true,
         user_metadata: { full_name_ar: (profile as any).full_name_ar, kind: data.kind },
       });
-      if (cErr || !created.user) throw new Error(cErr?.message ?? "تعذّر إنشاء الحساب");
+      if (cErr || !created.user) {
+        throw new Error(
+          `تعذّر إنشاء حساب الدخول — ${cErr?.message ?? "خطأ غير معروف"}`,
+        );
+      }
       newUserId = created.user.id;
     }
+
 
     // Link profile
     const { error: uErr } = await supabaseAdmin
@@ -312,7 +322,8 @@ export const resetPassword = createServerFn({ method: "POST" })
       (profile as any).user_id,
       { password }
     );
-    if (aErr) throw new Error(aErr.message);
+    if (aErr) throw new Error(`تعذّر إعادة تعيين كلمة المرور — ${aErr.message}`);
+
 
     await supabaseAdmin
       .from(table)
@@ -370,10 +381,12 @@ export const setActive = createServerFn({ method: "POST" })
       .eq("id", data.profile_id);
 
     if (targetUserId) {
-      await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+      const { error: banErr } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
         ban_duration: data.active ? "none" : "876000h", // ~100 years
       } as any);
+      if (banErr) throw new Error(`تعذّر تحديث حالة الحساب — ${banErr.message}`);
     }
+
 
     await logAudit({
       actor_user_id: context.userId,
