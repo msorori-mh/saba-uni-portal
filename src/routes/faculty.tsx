@@ -33,11 +33,20 @@ type FacultyRow = {
 
 type CategoryDef = { key: string; title: string; subtitle: string; Icon: typeof Crown };
 
-const CATEGORIES: CategoryDef[] = [
-  { key: "leadership", title: "قيادة الكلية", subtitle: "العميد ونوّاب العميد", Icon: Crown },
-  { key: "phd_faculty", title: "أعضاء هيئة التدريس", subtitle: "حملة درجة الدكتوراه", Icon: BookOpen },
-  { key: "assistant_staff", title: "الهيئة المساعدة", subtitle: "المعيدون والمحاضرون المساعدون", Icon: Users },
-];
+const CATEGORY_MAP: Record<string, Omit<CategoryDef, "key">> = {
+  leadership: { title: "قيادة الكلية", subtitle: "العميد ونوّاب العميد", Icon: Crown },
+  phd_faculty: { title: "أعضاء هيئة التدريس", subtitle: "حملة درجة الدكتوراه", Icon: BookOpen },
+  faculty: { title: "أعضاء هيئة التدريس", subtitle: "الكادر الأكاديمي للكلية", Icon: GraduationCap },
+  assistant_staff: { title: "الهيئة المساعدة", subtitle: "المعيدون والمحاضرون المساعدون", Icon: Users },
+};
+
+const CATEGORY_ORDER = ["leadership", "phd_faculty", "faculty", "assistant_staff"];
+
+const FALLBACK_CATEGORY: Omit<CategoryDef, "key"> = {
+  title: "أعضاء آخرون",
+  subtitle: "أعضاء من الكادر الأكاديمي",
+  Icon: Users,
+};
 
 export const Route = createFileRoute("/faculty")({
   head: () => ({
