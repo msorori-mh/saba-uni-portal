@@ -8,6 +8,7 @@ import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
+import { LazyMount } from "@/components/util/LazyMount";
 
 type FacultyProfileRow = {
   id: string;
