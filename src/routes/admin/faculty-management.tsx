@@ -464,7 +464,19 @@ function EditFacultyModal({
     e.preventDefault();
     setBusy(true); setErr(null);
     try {
-      await updateFn({ data: { id: memberId, ...form } });
+      const payload = {
+        id: memberId,
+        full_name_ar: form.full_name_ar,
+        full_name_en: form.full_name_en?.trim() || null,
+        department_id: form.department_id,
+        program_id: form.program_id?.trim() || null,
+        academic_rank: form.academic_rank,
+        position_title: form.position_title?.trim() || null,
+        email: form.email?.trim() || null,
+        phone: form.phone?.trim() || null,
+        status: form.status,
+      };
+      await updateFn({ data: payload });
       onSaved();
     } catch (e: any) {
       setErr(e?.message ?? "تعذّر التحديث");
