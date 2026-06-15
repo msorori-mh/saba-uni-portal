@@ -80,11 +80,16 @@ function FacultyDashboard() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["faculty", "me"],
     queryFn: fetchMyFacultyProfile,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const { data: teaching = [] } = useQuery({
     queryKey: ["faculty", "teaching", profile?.id],
     queryFn: () => fetchMyTeaching(profile!.id),
     enabled: !!profile?.id,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const handleLogout = async () => {
