@@ -149,7 +149,9 @@ export const createStudent = createServerFn({ method: "POST" })
       const newUserId = created.user.id;
       // Use SECURITY DEFINER RPC to bypass protect_student_sensitive_fields trigger
       // (service_role has no auth.uid(), so a direct UPDATE would be reverted silently).
-      const { error: linkErr } = await (supabaseAdmin as any).rpc(
+      // Use SECURITY DEFINER RPC (called as the authenticated admin so the role
+      // check inside the RPC passes) to bypass protect_student_sensitive_fields.
+      const { error: linkErr } = await (context.supabase as any).rpc(
         "link_student_user_account",
         { _profile_id: profile.id, _target_user_id: newUserId }
       );
