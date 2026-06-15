@@ -626,6 +626,8 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
         })
         .filter(Boolean) as Array<{ enrollmentId: string; courseCode: string; courseName: string; sectionCode: string; total: number; totalMax: number; percentage: number; details: { name: string; max: number; score: number }[] }>;
     },
+    staleTime: STALE_SHORT,
+    refetchOnWindowFocus: false,
   });
 
   return (
