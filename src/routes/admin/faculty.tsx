@@ -92,18 +92,35 @@ function AdminFacultyPage() {
   const [viewing, setViewing] = useState<Faculty | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Faculty | null>(null);
 
-  const { data: faculty = [], isLoading } = useQuery({
-    queryKey: ["admin", "faculty"],
+  // PERFORMANCE-FIX-02A: server-side pagination
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [search, programFilter, rankFilter]);
+
+  const { data: facultyPage, isLoading } = useQuery({
+    queryKey: ["admin", "faculty", { search, programFilter, rankFilter, page }],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("faculty")
-        .select("*")
+        .select("*", { count: "exact" })
         .order("sort_order")
         .order("full_name_ar");
+      if (search.trim()) {
+        const s = search.trim();
+        q = q.or(`full_name_ar.ilike.%${s}%,full_name_en.ilike.%${s}%,email.ilike.%${s}%`);
+      }
+      if (programFilter !== "all") q = q.eq("program_id", programFilter);
+      if (rankFilter !== "all") q = q.eq("rank", rankFilter);
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, count, error } = await q.range(from, to);
       if (error) throw error;
-      return data as Faculty[];
+      return { rows: (data ?? []) as Faculty[], total: count ?? 0 };
     },
   });
+  const faculty: Faculty[] = facultyPage?.rows ?? [];
+  const total = facultyPage?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin", "programs", "list"],
@@ -115,6 +132,7 @@ function AdminFacultyPage() {
       if (error) throw error;
       return data as Program[];
     },
+    staleTime: Infinity,
   });
 
   const programMap = useMemo(
