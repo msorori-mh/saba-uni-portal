@@ -58,6 +58,7 @@ import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-ty
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
 import { Route as AdminPilotCenterRouteImport } from './routes/admin/pilot-center'
+import { Route as AdminOrganizationalStructureRouteImport } from './routes/admin/organizational-structure'
 import { Route as AdminOperationsRouteImport } from './routes/admin/operations'
 import { Route as AdminNewsRouteImport } from './routes/admin/news'
 import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
@@ -397,6 +398,12 @@ const AdminPilotCenterRoute = AdminPilotCenterRouteImport.update({
   path: '/pilot-center',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminOrganizationalStructureRoute =
+  AdminOrganizationalStructureRouteImport.update({
+    id: '/organizational-structure',
+    path: '/organizational-structure',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminOperationsRoute = AdminOperationsRouteImport.update({
   id: '/operations',
   path: '/operations',
@@ -586,6 +593,7 @@ export interface FileRoutesByFullPath {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/organizational-structure': typeof AdminOrganizationalStructureRoute
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -669,6 +677,7 @@ export interface FileRoutesByTo {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/organizational-structure': typeof AdminOrganizationalStructureRoute
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -756,6 +765,7 @@ export interface FileRoutesById {
   '/admin/messages': typeof AdminMessagesRoute
   '/admin/news': typeof AdminNewsRoute
   '/admin/operations': typeof AdminOperationsRoute
+  '/admin/organizational-structure': typeof AdminOrganizationalStructureRoute
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
@@ -845,6 +855,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/operations'
+    | '/admin/organizational-structure'
     | '/admin/pilot-center'
     | '/admin/programs'
     | '/admin/reports'
@@ -928,6 +939,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/operations'
+    | '/admin/organizational-structure'
     | '/admin/pilot-center'
     | '/admin/programs'
     | '/admin/reports'
@@ -1014,6 +1026,7 @@ export interface FileRouteTypes {
     | '/admin/messages'
     | '/admin/news'
     | '/admin/operations'
+    | '/admin/organizational-structure'
     | '/admin/pilot-center'
     | '/admin/programs'
     | '/admin/reports'
@@ -1480,6 +1493,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPilotCenterRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/organizational-structure': {
+      id: '/admin/organizational-structure'
+      path: '/organizational-structure'
+      fullPath: '/admin/organizational-structure'
+      preLoaderRoute: typeof AdminOrganizationalStructureRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/operations': {
       id: '/admin/operations'
       path: '/operations'
@@ -1708,6 +1728,7 @@ interface AdminRouteChildren {
   AdminMessagesRoute: typeof AdminMessagesRoute
   AdminNewsRoute: typeof AdminNewsRoute
   AdminOperationsRoute: typeof AdminOperationsRoute
+  AdminOrganizationalStructureRoute: typeof AdminOrganizationalStructureRoute
   AdminPilotCenterRoute: typeof AdminPilotCenterRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminReportsRoute: typeof AdminReportsRoute
@@ -1755,6 +1776,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminMessagesRoute: AdminMessagesRoute,
   AdminNewsRoute: AdminNewsRoute,
   AdminOperationsRoute: AdminOperationsRoute,
+  AdminOrganizationalStructureRoute: AdminOrganizationalStructureRoute,
   AdminPilotCenterRoute: AdminPilotCenterRoute,
   AdminProgramsRoute: AdminProgramsRoute,
   AdminReportsRoute: AdminReportsRoute,
