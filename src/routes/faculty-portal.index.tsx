@@ -253,6 +253,8 @@ function SectionCard({
       type Raw = { id: string; enrollment_status: string; student: { academic_number: string; full_name_ar: string } | null };
       return ((data ?? []) as unknown as Raw[]);
     },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
   const statusLabel: Record<string, string> = { enrolled: "مُسجَّل", dropped: "محذوف", completed: "مكتمل" };
 
