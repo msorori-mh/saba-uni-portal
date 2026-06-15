@@ -96,10 +96,11 @@ export const listUsers = createServerFn({ method: "POST" })
       table: "student_profiles" | "faculty_profiles" | "staff_profiles",
       columns: string,
       identCol: "academic_number" | "employee_number",
-    ) => {
+    ): any => {
       let q = supabaseAdmin
         .from(table)
-        .select(columns, { count: "exact" })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .select(columns as any, { count: "exact" })
         .order(identCol);
       if (data.search) q = q.or(`${identCol}.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
       if (data.status && data.status !== "all") q = q.eq("status", data.status);
