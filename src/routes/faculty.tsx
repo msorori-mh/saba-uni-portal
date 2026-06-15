@@ -149,15 +149,36 @@ function FacultyPage() {
         ) : (
           <div className="space-y-16">
             {(() => {
-              const present = Array.from(new Set(filtered.map((f) => f.category)));
+              const leaders = filtered
+                .filter((f) => !!f.admin_position)
+                .sort(
+                  (a, b) =>
+                    (a.admin_position_order ?? 999) - (b.admin_position_order ?? 999),
+                );
+              const rest = filtered.filter((f) => !f.admin_position);
+              const present = Array.from(new Set(rest.map((f) => f.category)));
               const ordered = [
                 ...CATEGORY_ORDER.filter((k) => present.includes(k)),
                 ...present.filter((k) => !CATEGORY_ORDER.includes(k)),
               ];
-              return ordered.map((key) => {
-                const members = filtered.filter((f) => f.category === key);
-                if (members.length === 0) return null;
-                const def = CATEGORY_MAP[key] ?? FALLBACK_CATEGORY;
+
+              const sections: Array<{ key: string; def: SectionDef; members: FacultyRow[] }> = [];
+              if (leaders.length > 0) {
+                sections.push({ key: "__leadership", def: LEADERSHIP_SECTION, members: leaders });
+              }
+              for (const key of ordered) {
+                const members = rest
+                  .filter((f) => f.category === key)
+                  .sort((a, b) => {
+                    const ra = RANK_ORDER[displayRank(a.rank) ?? ""] ?? 99;
+                    const rb = RANK_ORDER[displayRank(b.rank) ?? ""] ?? 99;
+                    return ra - rb;
+                  });
+                if (members.length === 0) continue;
+                sections.push({ key, def: CATEGORY_MAP[key] ?? FALLBACK_SECTION, members });
+              }
+
+              return sections.map(({ key, def, members }) => {
                 const Icon = def.Icon;
                 return (
                   <div key={key}>
@@ -181,6 +202,7 @@ function FacultyPage() {
               });
             })()}
           </div>
+
 
         )}
       </section>
