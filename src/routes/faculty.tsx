@@ -228,15 +228,22 @@ function FacultyPage() {
                       {selected.full_name_ar}
                     </DialogTitle>
                     <div className="mt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
+                      {selected.admin_position && (
+                        <Badge className="bg-gold/15 text-gold border border-gold/40">
+                          <Crown className="h-3 w-3 ml-1" />
+                          {selected.admin_position}
+                        </Badge>
+                      )}
                       {selected.rank && (
-                        <Badge className="bg-gold/15 text-gold border border-gold/30">
-                          {selected.rank}
+                        <Badge className="bg-primary/10 text-primary border border-primary/20">
+                          {displayRank(selected.rank)}
                         </Badge>
                       )}
                       {selected.degree && (
                         <Badge variant="outline">{selected.degree}</Badge>
                       )}
                     </div>
+
                     {selected.start_year && (
                       <DialogDescription className="mt-2">
                         ملتحق منذ عام {selected.start_year}
