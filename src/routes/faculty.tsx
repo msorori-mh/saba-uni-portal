@@ -33,11 +33,20 @@ type FacultyRow = {
 
 type CategoryDef = { key: string; title: string; subtitle: string; Icon: typeof Crown };
 
-const CATEGORIES: CategoryDef[] = [
-  { key: "leadership", title: "قيادة الكلية", subtitle: "العميد ونوّاب العميد", Icon: Crown },
-  { key: "phd_faculty", title: "أعضاء هيئة التدريس", subtitle: "حملة درجة الدكتوراه", Icon: BookOpen },
-  { key: "assistant_staff", title: "الهيئة المساعدة", subtitle: "المعيدون والمحاضرون المساعدون", Icon: Users },
-];
+const CATEGORY_MAP: Record<string, Omit<CategoryDef, "key">> = {
+  leadership: { title: "قيادة الكلية", subtitle: "العميد ونوّاب العميد", Icon: Crown },
+  phd_faculty: { title: "أعضاء هيئة التدريس", subtitle: "حملة درجة الدكتوراه", Icon: BookOpen },
+  faculty: { title: "أعضاء هيئة التدريس", subtitle: "الكادر الأكاديمي للكلية", Icon: GraduationCap },
+  assistant_staff: { title: "الهيئة المساعدة", subtitle: "المعيدون والمحاضرون المساعدون", Icon: Users },
+};
+
+const CATEGORY_ORDER = ["leadership", "phd_faculty", "faculty", "assistant_staff"];
+
+const FALLBACK_CATEGORY: Omit<CategoryDef, "key"> = {
+  title: "أعضاء آخرون",
+  subtitle: "أعضاء من الكادر الأكاديمي",
+  Icon: Users,
+};
 
 export const Route = createFileRoute("/faculty")({
   head: () => ({
@@ -107,32 +116,40 @@ function FacultyPage() {
           </div>
         ) : (
           <div className="space-y-16">
-            {CATEGORIES.map((cat) => {
-              const members = filtered.filter((f) => f.category === cat.key);
-              if (members.length === 0) return null;
-              const Icon = cat.Icon;
-              return (
-                <div key={cat.key}>
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="grid h-12 w-12 place-items-center rounded-xl bg-gold/15 text-gold ring-1 ring-gold/30">
-                      <Icon className="h-6 w-6" />
+            {(() => {
+              const present = Array.from(new Set(filtered.map((f) => f.category)));
+              const ordered = [
+                ...CATEGORY_ORDER.filter((k) => present.includes(k)),
+                ...present.filter((k) => !CATEGORY_ORDER.includes(k)),
+              ];
+              return ordered.map((key) => {
+                const members = filtered.filter((f) => f.category === key);
+                if (members.length === 0) return null;
+                const def = CATEGORY_MAP[key] ?? FALLBACK_CATEGORY;
+                const Icon = def.Icon;
+                return (
+                  <div key={key}>
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="grid h-12 w-12 place-items-center rounded-xl bg-gold/15 text-gold ring-1 ring-gold/30">
+                        <Icon className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <h2 className="font-display text-2xl font-extrabold text-primary">{def.title}</h2>
+                        <p className="text-sm text-muted-foreground">{def.subtitle} — {members.length} عضو</p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="font-display text-2xl font-extrabold text-primary">{cat.title}</h2>
-                      <p className="text-sm text-muted-foreground">{cat.subtitle} — {members.length} عضو</p>
+                    <div className="divider-gold mb-8" />
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {members.map((f) => (
+                        <FacultyCard key={f.id} f={f} onSelect={setSelected} />
+                      ))}
                     </div>
                   </div>
-                  <div className="divider-gold mb-8" />
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {members.map((f) => (
-                      <FacultyCard key={f.id} f={f} onSelect={setSelected} />
-                    ))}
-                  </div>
-
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
+
         )}
       </section>
 
