@@ -36,9 +36,10 @@ export const facultyQuery = queryOptions({
     const { data, error } = await supabase
       .from("faculty")
       .select(
-        "id, employee_id, full_name_ar, full_name_en, degree, specialization, program_id, rank, photo, bio_ar, bio_en, sort_order, is_active, category, start_year, programs(code, name_ar)"
+        "id, employee_id, full_name_ar, full_name_en, degree, specialization, program_id, rank, photo, bio_ar, bio_en, sort_order, is_active, category, start_year, admin_position, admin_position_order, programs(code, name_ar)"
       )
       .eq("is_active", true)
+      .order("admin_position_order", { ascending: true, nullsFirst: false })
       .order("sort_order");
     if (error) throw error;
     return data;
