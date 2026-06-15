@@ -109,7 +109,9 @@ export const statsQuery = queryOptions({
     if (error) throw error;
     return data;
   },
-  staleTime: 1000 * 60 * 10,
+  // lookup-like; rarely changes
+  staleTime: Infinity,
+  gcTime: Infinity,
 });
 
 export const liveCountsQuery = queryOptions({
@@ -142,7 +144,9 @@ export const settingsQuery = queryOptions({
     for (const row of data ?? []) map[row.setting_key] = row.setting_value ?? "";
     return map;
   },
-  staleTime: 1000 * 60 * 10,
+  // settings rarely change during a session
+  staleTime: Infinity,
+  gcTime: Infinity,
 });
 
 export const pageBySlugQuery = (slug: string) =>
