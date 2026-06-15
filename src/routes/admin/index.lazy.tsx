@@ -42,7 +42,7 @@ function AdminDashboard() {
   usePagePerf("/admin");
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
-  const fetchProgressKpis = useServerFn(getProgressDashboardKpis);
+  const fetchProgressKpis = useServerFn(getAdminProgressKpisFast);
   const fetchCommStats = useServerFn(getCommunicationsDashboardStats);
   const fetchAutomationSettings = useServerFn(getAutomationSettings);
   const fetchAutomationPreview = useServerFn(getAutomationPreview);
