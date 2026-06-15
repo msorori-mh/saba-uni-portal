@@ -73,12 +73,23 @@ type Faculty = {
 type Program = { id: string; name_ar: string };
 
 const RANKS = [
-  { value: "أستاذ", label: "أستاذ" },
-  { value: "أستاذ مشارك", label: "أستاذ مشارك" },
-  { value: "أستاذ مساعد", label: "أستاذ مساعد" },
-  { value: "محاضر", label: "محاضر" },
-  { value: "معيد", label: "معيد" },
+  { value: "Associate Professor", label: "أستاذ مشارك" },
+  { value: "Assistant Professor", label: "أستاذ مساعد" },
+  { value: "Assistant Lecturer", label: "مدرس" },
+  { value: "Lecturer", label: "محاضر" },
+  { value: "Teaching Assistant", label: "معيد" },
 ];
+
+function displayRank(rank: string | null): string {
+  if (!rank) return "—";
+  const normalized = rank.trim().toLowerCase();
+  if (normalized === "associate professor") return "أستاذ مشارك";
+  if (normalized === "assistant professor") return "أستاذ مساعد";
+  if (normalized === "assistant lecturer" || normalized === "lecturer assistant") return "مدرس";
+  if (normalized === "lecturer") return "محاضر";
+  if (normalized === "teaching assistant") return "معيد";
+  return rank;
+}
 
 function AdminFacultyPage() {
   usePagePerf("/admin/faculty");
@@ -267,7 +278,7 @@ function AdminFacultyPage() {
                   <td className="p-3 text-muted-foreground">
                     {f.program_id ? programMap[f.program_id] || "—" : "—"}
                   </td>
-                  <td className="p-3 text-muted-foreground">{f.rank || "—"}</td>
+                  <td className="p-3 text-muted-foreground">{displayRank(f.rank)}</td>
                   <td className="p-3 text-muted-foreground text-xs" dir="ltr">
                     {f.email || "—"}
                   </td>
@@ -305,10 +316,10 @@ function AdminFacultyPage() {
             <FacultyAvatar f={f} size={56} />
             <div className="flex-1 min-w-0">
               <div className="font-bold text-primary">{f.full_name_ar}</div>
-              <div className="text-xs text-muted-foreground">
-                {f.rank || "—"} ·{" "}
-                {f.program_id ? programMap[f.program_id] || "—" : "—"}
-              </div>
+                <div className="text-xs text-muted-foreground">
+                  {displayRank(f.rank)} ·{" "}
+                  {f.program_id ? programMap[f.program_id] || "—" : "—"}
+                </div>
               {f.email && (
                 <div
                   className="text-xs text-muted-foreground mt-1 truncate"
@@ -510,7 +521,7 @@ function FacultyDetailDialog({
                 <div className="mt-2 flex flex-wrap gap-2 text-xs">
                   {faculty.rank && (
                     <span className="px-2 py-1 rounded-full bg-gold-gradient text-primary font-bold">
-                      {faculty.rank}
+                      {displayRank(faculty.rank)}
                     </span>
                   )}
                   {programName && (
