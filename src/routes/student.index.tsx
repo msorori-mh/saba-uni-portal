@@ -9,7 +9,17 @@ import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection
 import { StudentDocumentsSection } from "@/components/portal/StudentDocumentsSection";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
+import { LazyMount } from "@/components/util/LazyMount";
+import { Skeleton } from "@/components/ui/skeleton";
 import collegeLogo from "@/assets/college-logo.jpg";
+
+const STALE_LONG = 5 * 60 * 1000; // 5min — semi-static (profile, study plan, academic status)
+const STALE_MED = 60 * 1000; // 1min — schedule/enrollments
+const STALE_SHORT = 30 * 1000; // 30s — grades (changes more often)
+
+function SectionSkeleton({ h = 120 }: { h?: number }) {
+  return <Skeleton className="w-full rounded-lg" style={{ height: h }} />;
+}
 
 type StudentRow = {
   id: string;
@@ -191,26 +201,37 @@ function StudentDashboard() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
+    staleTime: STALE_LONG,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const { data: acad } = useQuery({
     queryKey: ["student", "academic-status", profile?.id],
     queryFn: () => fetchMyAcademicStatus(profile!.id),
     enabled: !!profile?.id,
+    staleTime: STALE_LONG,
+    refetchOnWindowFocus: false,
   });
   const { data: planCourses = [] } = useQuery({
     queryKey: ["student", "study-plan", profile?.program_id],
     queryFn: () => fetchMyStudyPlan(profile!.program_id!),
     enabled: !!profile?.program_id,
+    staleTime: STALE_LONG,
+    refetchOnWindowFocus: false,
   });
   const { data: schedule = [] } = useQuery({
     queryKey: ["student", "schedule", profile?.program_id, acad?.academic_year_id, acad?.semester_id, acad?.level_id],
     queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
     enabled: !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
+    staleTime: STALE_MED,
+    refetchOnWindowFocus: false,
   });
   const { data: myEnrollments = [] } = useQuery({
     queryKey: ["student", "my-enrollments", profile?.id],
     queryFn: () => fetchMyEnrollments(profile!.id),
     enabled: !!profile?.id,
+    staleTime: STALE_MED,
+    refetchOnWindowFocus: false,
   });
 
   const handleLogout = async () => {
@@ -252,9 +273,15 @@ function StudentDashboard() {
 
       <main className="container mx-auto px-4 py-10 max-w-4xl">
         {isLoading || !profile ? (
-          <div className="grid place-items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <>
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+            </div>
+          </>
         ) : (
           <>
             <div className="rounded-xl bg-gold-gradient text-primary-deep p-4 shadow-elegant flex items-center gap-3">
@@ -312,41 +339,54 @@ function StudentDashboard() {
               </div>
             </div>
 
-            <StudyPlanSection rows={planCourses} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+              <StudyPlanSection rows={planCourses} />
+            </LazyMount>
 
-            <MyEnrollmentsSection rows={myEnrollments} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <MyEnrollmentsSection rows={myEnrollments} />
+            </LazyMount>
 
-            <MyGradesSection studentProfileId={profile.id} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <MyGradesSection studentProfileId={profile.id} />
+            </LazyMount>
 
-            <div className="mt-6">
-              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
-              </h2>
-              <UnofficialTranscript studentProfileId={profile.id} />
-            </div>
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+              <div className="mt-6">
+                <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
+                </h2>
+                <UnofficialTranscript studentProfileId={profile.id} />
+              </div>
+            </LazyMount>
 
-            <AnnouncementsWidget limit={5} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={120} /></div>}>
+              <AnnouncementsWidget limit={5} />
+            </LazyMount>
 
-            <StudentRequestsSection studentProfileId={profile.id} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <StudentRequestsSection studentProfileId={profile.id} />
+            </LazyMount>
 
-            <StudentFinanceSection studentProfileId={profile.id} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <StudentFinanceSection studentProfileId={profile.id} />
+            </LazyMount>
 
-            <StudentDocumentsSection studentProfileId={profile.id} />
-
-
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <StudentDocumentsSection studentProfileId={profile.id} />
+            </LazyMount>
 
             <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
               قسم «الجدول الدراسي العام» يعرض جميع مجموعات البرنامج الدراسية للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط المجموعات الدراسية التي سُجلت فيها فعلياً.
             </div>
 
-            <ScheduleSection rows={schedule} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+              <ScheduleSection rows={schedule} />
+            </LazyMount>
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
-
-
-
           </>
         )}
       </main>
@@ -586,6 +626,8 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
         })
         .filter(Boolean) as Array<{ enrollmentId: string; courseCode: string; courseName: string; sectionCode: string; total: number; totalMax: number; percentage: number; details: { name: string; max: number; score: number }[] }>;
     },
+    staleTime: STALE_SHORT,
+    refetchOnWindowFocus: false,
   });
 
   return (

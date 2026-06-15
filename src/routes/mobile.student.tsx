@@ -73,6 +73,9 @@ function MobileStudentLayout() {
   const { data: profile } = useQuery({
     queryKey: ["mobile-student", "short-profile"],
     queryFn: fetchShortProfile,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const handleLogout = async () => {

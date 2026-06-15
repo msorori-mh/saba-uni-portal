@@ -16,6 +16,8 @@ function StudentProgressPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-progress"],
     queryFn: () => fetchMine(),
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   return (

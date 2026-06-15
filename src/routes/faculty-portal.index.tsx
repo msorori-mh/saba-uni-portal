@@ -8,6 +8,7 @@ import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
+import { LazyMount } from "@/components/util/LazyMount";
 
 type FacultyProfileRow = {
   id: string;
@@ -79,11 +80,16 @@ function FacultyDashboard() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["faculty", "me"],
     queryFn: fetchMyFacultyProfile,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const { data: teaching = [] } = useQuery({
     queryKey: ["faculty", "teaching", profile?.id],
     queryFn: () => fetchMyTeaching(profile!.id),
     enabled: !!profile?.id,
+    staleTime: 2 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const handleLogout = async () => {
@@ -120,8 +126,13 @@ function FacultyDashboard() {
 
       <main className="container mx-auto px-4 py-10 max-w-4xl">
         {isLoading || !profile ? (
-          <div className="grid place-items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-5">
+            <div className="h-20 rounded-xl bg-muted animate-pulse" />
+            <div className="grid gap-3 sm:grid-cols-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-20 rounded-lg bg-muted animate-pulse" />
+              ))}
+            </div>
           </div>
         ) : (
           <>
@@ -157,9 +168,11 @@ function FacultyDashboard() {
               </div>
             </Link>
 
-            <div className="mt-6">
-              <AnnouncementsWidget limit={5} />
-            </div>
+            <LazyMount fallback={<div className="mt-6 h-32 rounded-lg bg-muted animate-pulse" />}>
+              <div className="mt-6">
+                <AnnouncementsWidget limit={5} />
+              </div>
+            </LazyMount>
 
             <div className="mt-6">
 
@@ -179,20 +192,22 @@ function FacultyDashboard() {
               )}
             </div>
 
-            <div className="mt-6">
-              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4 text-gold" /> إدارة الدرجات
-              </h2>
-              <FacultyGradesManager
-                facultyProfileId={profile.id}
-                sections={teaching.map((t) => ({
-                  id: t.id,
-                  section_code: t.section_code,
-                  course_code: t.course?.code ?? "—",
-                  course_name: t.course?.name_ar ?? "—",
-                }))}
-              />
-            </div>
+            <LazyMount fallback={<div className="mt-6 h-40 rounded-lg bg-muted animate-pulse" />}>
+              <div className="mt-6">
+                <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4 text-gold" /> إدارة الدرجات
+                </h2>
+                <FacultyGradesManager
+                  facultyProfileId={profile.id}
+                  sections={teaching.map((t) => ({
+                    id: t.id,
+                    section_code: t.section_code,
+                    course_code: t.course?.code ?? "—",
+                    course_name: t.course?.name_ar ?? "—",
+                  }))}
+                />
+              </div>
+            </LazyMount>
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية الأخرى (الحضور، التقارير) في المراحل القادمة.
@@ -238,6 +253,8 @@ function SectionCard({
       type Raw = { id: string; enrollment_status: string; student: { academic_number: string; full_name_ar: string } | null };
       return ((data ?? []) as unknown as Raw[]);
     },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
   const statusLabel: Record<string, string> = { enrolled: "مُسجَّل", dropped: "محذوف", completed: "مكتمل" };
 
