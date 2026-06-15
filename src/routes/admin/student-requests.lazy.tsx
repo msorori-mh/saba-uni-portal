@@ -140,82 +140,92 @@ function AdminRequestsPage() {
     },
   });
 
+  // PERFORMANCE-FIX-02A: list query no longer fetches per-type details upfront.
+  // Details are loaded on demand when the user opens a request (see useEffect below).
   const { data: requests = [], isLoading } = useQuery({
-    queryKey: ["admin-requests"],
+    queryKey: ["admin-requests-overview"],
     queryFn: async (): Promise<AdminReq[]> => {
       const { data: reqs, error } = await sb.from("student_requests")
         .select("id, title, description, status, submitted_at, created_at, rejection_reason, student_profile_id, request_type, student:student_profiles(academic_number, full_name_ar, program_id, department_id, program:programs(name_ar), department:departments(name_ar))")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const ids = (reqs ?? []).map((r: { id: string }) => r.id);
-      if (ids.length === 0) return [];
-      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
-        sb.from("absence_excuse_details")
-          .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
-          .in("request_id", ids),
-        sb.from("enrollment_suspension_details")
-          .select("request_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
-          .in("request_id", ids),
-        sb.from("extra_chance_details")
-          .select("request_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
-          .in("request_id", ids),
-        sb.from("transfer_request_details")
-          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
-          .in("request_id", ids),
-        sb.from("equivalency_request_details")
-          .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes")
-          .in("request_id", ids),
-        sb.from("equivalency_courses")
-          .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
-          .in("equivalency_request_id", ids),
-        sb.from("grade_appeal_details")
-          .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
-          .in("request_id", ids),
-        sb.from("student_request_attachments")
-          .select("id, request_id, file_url, file_name")
-          .in("request_id", ids),
-      ]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const absMap = new Map((absRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const eqdMap = new Map((eqdRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const gaMap = new Map((gaRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const eqcMap = new Map<string, any[]>();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const c of (eqcRes.data ?? []) as any[]) {
-        if (!eqcMap.has(c.equivalency_request_id)) eqcMap.set(c.equivalency_request_id, []);
-        eqcMap.get(c.equivalency_request_id)!.push(c);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const attMap = new Map<string, any[]>();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const a of (attRes.data ?? []) as any[]) {
-        if (!attMap.has(a.request_id)) attMap.set(a.request_id, []);
-        attMap.get(a.request_id)!.push(a);
-      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (reqs as any[]).map((r) => ({
         ...r,
-        absence_details: absMap.get(r.id) ?? null,
-        suspension_details: suspMap.get(r.id) ?? null,
-        extra_chance_details: ecMap.get(r.id) ?? null,
-        transfer_details: trMap.get(r.id) ?? null,
-        equivalency_details: eqdMap.get(r.id) ?? null,
-        equivalency_courses: eqcMap.get(r.id) ?? [],
-        grade_appeal_details: gaMap.get(r.id) ?? null,
-        attachments: attMap.get(r.id) ?? [],
+        absence_details: null,
+        suspension_details: null,
+        extra_chance_details: null,
+        transfer_details: null,
+        equivalency_details: null,
+        equivalency_courses: [],
+        grade_appeal_details: null,
+        attachments: [],
+        _detailsLoaded: false,
       }));
-
     },
   });
+
+  // Lazy-load deep details only when a request is selected
+  useEffect(() => {
+    if (!selected || (selected as AdminReq & { _detailsLoaded?: boolean })._detailsLoaded) return;
+    const id = selected.id;
+    let cancelled = false;
+    (async () => {
+      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
+        sb.from("absence_excuse_details")
+          .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+          .eq("request_id", id).maybeSingle(),
+        sb.from("enrollment_suspension_details")
+          .select("request_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .eq("request_id", id).maybeSingle(),
+        sb.from("extra_chance_details")
+          .select("request_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .eq("request_id", id).maybeSingle(),
+        sb.from("transfer_request_details")
+          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
+          .eq("request_id", id).maybeSingle(),
+        sb.from("equivalency_request_details")
+          .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes")
+          .eq("request_id", id).maybeSingle(),
+        sb.from("equivalency_courses")
+          .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
+          .eq("equivalency_request_id", id),
+        sb.from("grade_appeal_details")
+          .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+          .eq("request_id", id).maybeSingle(),
+        sb.from("student_request_attachments")
+          .select("id, request_id, file_url, file_name")
+          .eq("request_id", id),
+      ]);
+      if (cancelled) return;
+      setSelected((prev) =>
+        prev && prev.id === id
+          ? {
+              ...prev,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              absence_details: (absRes.data as any) ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              suspension_details: (suspRes.data as any) ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              extra_chance_details: (ecRes.data as any) ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              transfer_details: (trRes.data as any) ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              equivalency_details: (eqdRes.data as any) ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              equivalency_courses: ((eqcRes.data as any[]) ?? []),
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              grade_appeal_details: (gaRes.data as any) ?? null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              attachments: ((attRes.data as any[]) ?? []),
+              _detailsLoaded: true,
+            } as AdminReq
+          : prev,
+      );
+    })();
+    return () => { cancelled = true; };
+  }, [selected]);
+
 
   const filtered = useMemo(() => requests.filter((r) =>
     (!statusFilter || r.status === statusFilter)
