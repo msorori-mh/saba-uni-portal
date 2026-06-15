@@ -323,7 +323,8 @@ export const resetPassword = createServerFn({ method: "POST" })
       (profile as any).user_id,
       { password }
     );
-    if (aErr) throw new Error(aErr.message);
+    if (aErr) throw new Error(`تعذّر إعادة تعيين كلمة المرور — ${aErr.message}`);
+
 
     await supabaseAdmin
       .from(table)
