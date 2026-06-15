@@ -114,11 +114,11 @@ export const listUsers = createServerFn({ method: "POST" })
         "academic_number",
       );
       if (error) throw new Error(error.message);
-      const userIds = (rows ?? []).filter((r) => r.user_id).map((r) => r.user_id as string);
+      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r) => r.user_id as string);
       const { data: roles } = userIds.length
         ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
         : { data: [] as any[] };
-      const mapped = (rows ?? []).map((r) => ({
+      const mapped = (rows ?? []).map((r: any) => ({
         ...r,
         identifier: r.academic_number,
         email: r.user_id ? emailFor("student", r.academic_number) : null,
@@ -134,11 +134,11 @@ export const listUsers = createServerFn({ method: "POST" })
         "employee_number",
       );
       if (error) throw new Error(error.message);
-      const userIds = (rows ?? []).filter((r) => r.user_id).map((r) => r.user_id as string);
+      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r) => r.user_id as string);
       const { data: roles } = userIds.length
         ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
         : { data: [] as any[] };
-      const mapped = (rows ?? []).map((r) => ({
+      const mapped = (rows ?? []).map((r: any) => ({
         ...r,
         identifier: r.employee_number ?? "",
         email: r.user_id && r.employee_number ? emailFor("faculty", r.employee_number) : null,
@@ -154,11 +154,11 @@ export const listUsers = createServerFn({ method: "POST" })
       "employee_number",
     );
     if (error) throw new Error(error.message);
-    const userIds = (rows ?? []).filter((r) => r.user_id).map((r) => r.user_id as string);
+    const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r) => r.user_id as string);
     const { data: roles } = userIds.length
       ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
       : { data: [] as any[] };
-    const mapped = (rows ?? []).map((r) => ({
+    const mapped = (rows ?? []).map((r: any) => ({
       ...r,
       identifier: r.employee_number ?? "",
       email: r.user_id && r.employee_number ? emailFor("staff", r.employee_number) : null,
