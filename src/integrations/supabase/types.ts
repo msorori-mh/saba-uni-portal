@@ -1031,6 +1031,8 @@ export type Database = {
       }
       faculty: {
         Row: {
+          admin_position: string | null
+          admin_position_order: number | null
           bio_ar: string | null
           bio_en: string | null
           category: string
@@ -1052,6 +1054,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_position?: string | null
+          admin_position_order?: number | null
           bio_ar?: string | null
           bio_en?: string | null
           category?: string
@@ -1073,6 +1077,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_position?: string | null
+          admin_position_order?: number | null
           bio_ar?: string | null
           bio_en?: string | null
           category?: string

@@ -28,24 +28,56 @@ type FacultyRow = {
   bio_en: string | null;
   category: string;
   start_year: number | null;
+  admin_position: string | null;
+  admin_position_order: number | null;
   programs: { code: string; name_ar: string } | null;
 };
 
-type CategoryDef = { key: string; title: string; subtitle: string; Icon: typeof Crown };
+type SectionDef = { title: string; subtitle: string; Icon: typeof Crown };
 
-const CATEGORY_MAP: Record<string, Omit<CategoryDef, "key">> = {
-  leadership: { title: "قيادة الكلية", subtitle: "العميد ونوّاب العميد", Icon: Crown },
+const LEADERSHIP_SECTION: SectionDef = {
+  title: "قيادة الكلية",
+  subtitle: "العميد والنواب ورؤساء الأقسام",
+  Icon: Crown,
+};
+
+const CATEGORY_MAP: Record<string, SectionDef> = {
   phd_faculty: { title: "أعضاء هيئة التدريس", subtitle: "حملة درجة الدكتوراه", Icon: BookOpen },
   faculty: { title: "أعضاء هيئة التدريس", subtitle: "الكادر الأكاديمي للكلية", Icon: GraduationCap },
   assistant_staff: { title: "الهيئة المساعدة", subtitle: "المعيدون والمحاضرون المساعدون", Icon: Users },
 };
 
-const CATEGORY_ORDER = ["leadership", "phd_faculty", "faculty", "assistant_staff"];
+const CATEGORY_ORDER = ["phd_faculty", "faculty", "assistant_staff"];
 
-const FALLBACK_CATEGORY: Omit<CategoryDef, "key"> = {
+const FALLBACK_SECTION: SectionDef = {
   title: "أعضاء آخرون",
   subtitle: "أعضاء من الكادر الأكاديمي",
   Icon: Users,
+};
+
+// ترجمة الرتب الأكاديمية إلى العربية للعرض الموحّد
+const RANK_AR: Record<string, string> = {
+  "Professor": "أستاذ",
+  "Associate Professor": "أستاذ مشارك",
+  "Assistant Professor": "أستاذ مساعد",
+  "Lecturer": "محاضر",
+  "Lecturer Assistant": "محاضر مساعد",
+  "Teaching Assistant": "معيد",
+};
+
+function displayRank(rank: string | null): string | null {
+  if (!rank) return null;
+  return RANK_AR[rank.trim()] ?? rank;
+}
+
+// ترتيب الرتب الأكاديمية للأعضاء غير الإداريين
+const RANK_ORDER: Record<string, number> = {
+  "أستاذ": 1,
+  "أستاذ مشارك": 2,
+  "أستاذ مساعد": 3,
+  "محاضر": 4,
+  "محاضر مساعد": 5,
+  "معيد": 6,
 };
 
 export const Route = createFileRoute("/faculty")({
@@ -59,9 +91,8 @@ export const Route = createFileRoute("/faculty")({
       },
     ],
   }),
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(facultyQuery);
-  },
+  loader: ({ context }) => context.queryClient.ensureQueryData(facultyQuery),
+
   component: FacultyPage,
 });
 
@@ -117,15 +148,36 @@ function FacultyPage() {
         ) : (
           <div className="space-y-16">
             {(() => {
-              const present = Array.from(new Set(filtered.map((f) => f.category)));
+              const leaders = filtered
+                .filter((f) => !!f.admin_position)
+                .sort(
+                  (a, b) =>
+                    (a.admin_position_order ?? 999) - (b.admin_position_order ?? 999),
+                );
+              const rest = filtered.filter((f) => !f.admin_position);
+              const present = Array.from(new Set(rest.map((f) => f.category)));
               const ordered = [
                 ...CATEGORY_ORDER.filter((k) => present.includes(k)),
                 ...present.filter((k) => !CATEGORY_ORDER.includes(k)),
               ];
-              return ordered.map((key) => {
-                const members = filtered.filter((f) => f.category === key);
-                if (members.length === 0) return null;
-                const def = CATEGORY_MAP[key] ?? FALLBACK_CATEGORY;
+
+              const sections: Array<{ key: string; def: SectionDef; members: FacultyRow[] }> = [];
+              if (leaders.length > 0) {
+                sections.push({ key: "__leadership", def: LEADERSHIP_SECTION, members: leaders });
+              }
+              for (const key of ordered) {
+                const members = rest
+                  .filter((f) => f.category === key)
+                  .sort((a, b) => {
+                    const ra = RANK_ORDER[displayRank(a.rank) ?? ""] ?? 99;
+                    const rb = RANK_ORDER[displayRank(b.rank) ?? ""] ?? 99;
+                    return ra - rb;
+                  });
+                if (members.length === 0) continue;
+                sections.push({ key, def: CATEGORY_MAP[key] ?? FALLBACK_SECTION, members });
+              }
+
+              return sections.map(({ key, def, members }) => {
                 const Icon = def.Icon;
                 return (
                   <div key={key}>
@@ -149,6 +201,7 @@ function FacultyPage() {
               });
             })()}
           </div>
+
 
         )}
       </section>
@@ -174,15 +227,22 @@ function FacultyPage() {
                       {selected.full_name_ar}
                     </DialogTitle>
                     <div className="mt-2 flex flex-wrap gap-2 justify-center sm:justify-start">
+                      {selected.admin_position && (
+                        <Badge className="bg-gold/15 text-gold border border-gold/40">
+                          <Crown className="h-3 w-3 ml-1" />
+                          {selected.admin_position}
+                        </Badge>
+                      )}
                       {selected.rank && (
-                        <Badge className="bg-gold/15 text-gold border border-gold/30">
-                          {selected.rank}
+                        <Badge className="bg-primary/10 text-primary border border-primary/20">
+                          {displayRank(selected.rank)}
                         </Badge>
                       )}
                       {selected.degree && (
                         <Badge variant="outline">{selected.degree}</Badge>
                       )}
                     </div>
+
                     {selected.start_year && (
                       <DialogDescription className="mt-2">
                         ملتحق منذ عام {selected.start_year}
@@ -237,10 +297,16 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
           <h3 className="font-display text-sm font-bold text-primary leading-snug line-clamp-2">
             {f.full_name_ar}
           </h3>
+          {f.admin_position && (
+            <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-gold/15 text-gold border border-gold/40 px-2 py-0.5 text-[11px] font-bold">
+              <Crown className="h-3 w-3" />
+              {f.admin_position}
+            </div>
+          )}
           <div className="mt-1.5 flex flex-wrap gap-1">
             {f.rank && (
-              <Badge className="bg-gold/15 text-gold border border-gold/30 hover:bg-gold/20 text-[10px] px-1.5 py-0">
-                {f.rank}
+              <Badge className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15 text-[10px] px-1.5 py-0">
+                {displayRank(f.rank)}
               </Badge>
             )}
             {f.degree && (
@@ -251,6 +317,7 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
             <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{f.specialization}</div>
           )}
         </div>
+
       </div>
 
       <div className="mt-3 pt-3 flex items-center justify-end border-t border-border/60">
