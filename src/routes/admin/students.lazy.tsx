@@ -234,6 +234,30 @@ function StudentsPage() {
         )}
       </div>
 
+      {/* Pagination */}
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <div className="text-muted-foreground">
+            عرض {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} من {total}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded border border-border px-3 py-1 disabled:opacity-40 hover:bg-secondary"
+            >السابق</button>
+            <span className="px-2 font-mono text-xs text-muted-foreground">{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded border border-border px-3 py-1 disabled:opacity-40 hover:bg-secondary"
+            >التالي</button>
+          </div>
+        </div>
+      )}
+
+
+
       {showAdd && lookups && (
         <AddStudentModal
           lookups={lookups}
