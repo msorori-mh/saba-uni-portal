@@ -273,9 +273,15 @@ function StudentDashboard() {
 
       <main className="container mx-auto px-4 py-10 max-w-4xl">
         {isLoading || !profile ? (
-          <div className="grid place-items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <>
+            <Skeleton className="h-20 w-full rounded-xl" />
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+              <Skeleton className="h-20 rounded-lg" />
+            </div>
+          </>
         ) : (
           <>
             <div className="rounded-xl bg-gold-gradient text-primary-deep p-4 shadow-elegant flex items-center gap-3">
@@ -333,41 +339,54 @@ function StudentDashboard() {
               </div>
             </div>
 
-            <StudyPlanSection rows={planCourses} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+              <StudyPlanSection rows={planCourses} />
+            </LazyMount>
 
-            <MyEnrollmentsSection rows={myEnrollments} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <MyEnrollmentsSection rows={myEnrollments} />
+            </LazyMount>
 
-            <MyGradesSection studentProfileId={profile.id} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <MyGradesSection studentProfileId={profile.id} />
+            </LazyMount>
 
-            <div className="mt-6">
-              <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
-              </h2>
-              <UnofficialTranscript studentProfileId={profile.id} />
-            </div>
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+              <div className="mt-6">
+                <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
+                </h2>
+                <UnofficialTranscript studentProfileId={profile.id} />
+              </div>
+            </LazyMount>
 
-            <AnnouncementsWidget limit={5} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={120} /></div>}>
+              <AnnouncementsWidget limit={5} />
+            </LazyMount>
 
-            <StudentRequestsSection studentProfileId={profile.id} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <StudentRequestsSection studentProfileId={profile.id} />
+            </LazyMount>
 
-            <StudentFinanceSection studentProfileId={profile.id} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <StudentFinanceSection studentProfileId={profile.id} />
+            </LazyMount>
 
-            <StudentDocumentsSection studentProfileId={profile.id} />
-
-
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <StudentDocumentsSection studentProfileId={profile.id} />
+            </LazyMount>
 
             <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
               قسم «الجدول الدراسي العام» يعرض جميع مجموعات البرنامج الدراسية للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط المجموعات الدراسية التي سُجلت فيها فعلياً.
             </div>
 
-            <ScheduleSection rows={schedule} />
+            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+              <ScheduleSection rows={schedule} />
+            </LazyMount>
 
             <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
               ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الرسوم، الطلبات) في المراحل القادمة.
             </div>
-
-
-
           </>
         )}
       </main>
