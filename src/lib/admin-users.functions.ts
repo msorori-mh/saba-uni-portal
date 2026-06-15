@@ -209,15 +209,13 @@ export const createAccount = createServerFn({ method: "POST" })
     let newUserId: string | null = null;
     let linkedExisting = false;
 
-    const { data: existing, error: lookupErr } = await supabaseAdmin
-      .schema("auth" as any)
-      .from("users")
-      .select("id, email")
-      .ilike("email", email)
-      .maybeSingle();
+    const { data: existingId, error: lookupErr } = await supabaseAdmin
+      .rpc("find_auth_user_id_by_email", { p_email: email });
     if (lookupErr) {
       throw new Error(`تعذّر التحقق من حساب الدخول — ${lookupErr.message}`);
     }
+    const existing = existingId ? { id: existingId as string } : null;
+
 
     if (existing) {
       const { data: linkedProfile } = await supabaseAdmin
