@@ -96,7 +96,7 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | n
 }
 
 function StudentSchedulePage() {
-  const { data, isLoading } = useQuery({ queryKey: ["student-schedule-v2"], queryFn: fetchData });
+  const { data, isLoading } = useQuery({ queryKey: ["student-schedule-v2"], queryFn: fetchData, staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false });
   const rows = data?.rows ?? [];
   const info = data?.info;
   const identity = useSiteIdentity();
