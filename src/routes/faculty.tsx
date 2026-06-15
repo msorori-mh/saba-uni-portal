@@ -41,26 +41,13 @@ const LEADERSHIP_SECTION: SectionDef = {
   Icon: Crown,
 };
 
-const CATEGORY_MAP: Record<string, SectionDef> = {
-  phd_faculty: { title: "أعضاء هيئة التدريس", subtitle: "حملة درجة الدكتوراه", Icon: BookOpen },
-  faculty: { title: "أعضاء هيئة التدريس", subtitle: "الكادر الأكاديمي للكلية", Icon: GraduationCap },
-  assistant_staff: { title: "الهيئة المساعدة", subtitle: "المعيدون والمحاضرون المساعدون", Icon: Users },
-};
-
-const CATEGORY_ORDER = ["phd_faculty", "faculty", "assistant_staff"];
-
-const FALLBACK_SECTION: SectionDef = {
-  title: "أعضاء آخرون",
-  subtitle: "أعضاء من الكادر الأكاديمي",
-  Icon: Users,
-};
-
 // ترجمة الرتب الأكاديمية إلى العربية للعرض الموحّد
 const RANK_AR: Record<string, string> = {
   "Professor": "أستاذ",
   "Associate Professor": "أستاذ مشارك",
   "Assistant Professor": "أستاذ مساعد",
-  "Lecturer": "محاضر",
+  "Lecturer": "مدرّس",
+  "محاضر": "مدرّس",
   "Lecturer Assistant": "محاضر مساعد",
   "Teaching Assistant": "معيد",
 };
@@ -70,15 +57,20 @@ function displayRank(rank: string | null): string | null {
   return RANK_AR[rank.trim()] ?? rank;
 }
 
-// ترتيب الرتب الأكاديمية للأعضاء غير الإداريين
-const RANK_ORDER: Record<string, number> = {
-  "أستاذ": 1,
-  "أستاذ مشارك": 2,
-  "أستاذ مساعد": 3,
-  "محاضر": 4,
-  "محاضر مساعد": 5,
-  "معيد": 6,
+// أقسام الرتب بالترتيب المطلوب بعد قسم القيادة
+const RANK_SECTIONS: Array<{ key: string; title: string; subtitle: string; ranks: string[]; Icon: typeof Crown }> = [
+  { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", ranks: ["Associate Professor", "أستاذ مشارك"], Icon: BookOpen },
+  { key: "assistant", title: "الأساتذة المساعدون", subtitle: "برتبة أستاذ مساعد", ranks: ["Assistant Professor", "أستاذ مساعد"], Icon: GraduationCap },
+  { key: "lecturer",  title: "المدرّسون", subtitle: "برتبة مدرّس (محاضر)", ranks: ["Lecturer", "محاضر", "مدرّس", "مدرس"], Icon: GraduationCap },
+  { key: "teaching",  title: "المعيدون", subtitle: "برتبة معيد", ranks: ["Teaching Assistant", "معيد"], Icon: Users },
+];
+
+const OTHERS_SECTION: SectionDef = {
+  title: "أعضاء آخرون",
+  subtitle: "أعضاء من الكادر الأكاديمي",
+  Icon: Users,
 };
+
 
 export const Route = createFileRoute("/faculty")({
   head: () => ({
@@ -155,27 +147,34 @@ function FacultyPage() {
                     (a.admin_position_order ?? 999) - (b.admin_position_order ?? 999),
                 );
               const rest = filtered.filter((f) => !f.admin_position);
-              const present = Array.from(new Set(rest.map((f) => f.category)));
-              const ordered = [
-                ...CATEGORY_ORDER.filter((k) => present.includes(k)),
-                ...present.filter((k) => !CATEGORY_ORDER.includes(k)),
-              ];
 
               const sections: Array<{ key: string; def: SectionDef; members: FacultyRow[] }> = [];
               if (leaders.length > 0) {
                 sections.push({ key: "__leadership", def: LEADERSHIP_SECTION, members: leaders });
               }
-              for (const key of ordered) {
+
+              const used = new Set<string>();
+              const byName = (a: FacultyRow, b: FacultyRow) =>
+                a.full_name_ar.localeCompare(b.full_name_ar, "ar");
+
+              for (const sec of RANK_SECTIONS) {
                 const members = rest
-                  .filter((f) => f.category === key)
-                  .sort((a, b) => {
-                    const ra = RANK_ORDER[displayRank(a.rank) ?? ""] ?? 99;
-                    const rb = RANK_ORDER[displayRank(b.rank) ?? ""] ?? 99;
-                    return ra - rb;
-                  });
+                  .filter((f) => f.rank && sec.ranks.includes(f.rank.trim()))
+                  .sort(byName);
                 if (members.length === 0) continue;
-                sections.push({ key, def: CATEGORY_MAP[key] ?? FALLBACK_SECTION, members });
+                members.forEach((m) => used.add(m.id));
+                sections.push({
+                  key: sec.key,
+                  def: { title: sec.title, subtitle: sec.subtitle, Icon: sec.Icon },
+                  members,
+                });
               }
+
+              const others = rest.filter((f) => !used.has(f.id)).sort(byName);
+              if (others.length > 0) {
+                sections.push({ key: "__others", def: OTHERS_SECTION, members: others });
+              }
+
 
               return sections.map(({ key, def, members }) => {
                 const Icon = def.Icon;
