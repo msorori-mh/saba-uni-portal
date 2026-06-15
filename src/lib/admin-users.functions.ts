@@ -337,11 +337,22 @@ export const resetPassword = createServerFn({ method: "POST" })
     );
     if (aErr) throw new Error(`تعذّر إعادة تعيين كلمة المرور — ${aErr.message}`);
 
-
-    await supabaseAdmin
-      .from(table)
-      .update({ must_change_password: true } as any)
-      .eq("id", data.profile_id);
+    if (data.kind === "student") {
+      // Use SECURITY DEFINER RPC to bypass protect_student_sensitive_fields trigger
+      // (service_role has no auth.uid(), so a direct UPDATE would be silently reverted).
+      const { error: rErr } = await (context.supabase as any).rpc(
+        "admin_mark_student_password_reset",
+        { _profile_id: data.profile_id }
+      );
+      if (rErr) {
+        throw new Error(`تم تحديث كلمة المرور لكن تعذّر ضبط must_change_password — ${rErr.message}`);
+      }
+    } else {
+      await supabaseAdmin
+        .from(table)
+        .update({ must_change_password: true } as any)
+        .eq("id", data.profile_id);
+    }
 
     await logAudit({
       actor_user_id: context.userId,
@@ -352,6 +363,7 @@ export const resetPassword = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
 
 // ------------ Activate / Deactivate ------------
 
@@ -388,17 +400,38 @@ export const setActive = createServerFn({ method: "POST" })
       }
     }
 
-    await supabaseAdmin
-      .from(table)
-      .update({ status: data.active ? "active" : "inactive" } as any)
-      .eq("id", data.profile_id);
-
+    // Update auth.users first (ban/unban) — works on auth schema, unaffected by trigger
     if (targetUserId) {
       const { error: banErr } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
         ban_duration: data.active ? "none" : "876000h", // ~100 years
       } as any);
       if (banErr) throw new Error(`تعذّر تحديث حالة الحساب — ${banErr.message}`);
     }
+
+    // Then update profile status. For students, use SECURITY DEFINER RPC to bypass
+    // protect_student_sensitive_fields (service_role has no auth.uid()).
+    if (data.kind === "student") {
+      const { error: sErr } = await (context.supabase as any).rpc(
+        "admin_set_student_status",
+        { _profile_id: data.profile_id, _active: data.active }
+      );
+      if (sErr) {
+        // Roll back the auth ban so state stays consistent
+        if (targetUserId) {
+          await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+            ban_duration: data.active ? "876000h" : "none",
+          } as any);
+        }
+        throw new Error(`تعذّر تحديث حالة الملف — ${sErr.message}`);
+      }
+    } else {
+      const { error: uErr } = await supabaseAdmin
+        .from(table)
+        .update({ status: data.active ? "active" : "inactive" } as any)
+        .eq("id", data.profile_id);
+      if (uErr) throw new Error(`تعذّر تحديث حالة الملف — ${uErr.message}`);
+    }
+
 
 
     await logAudit({

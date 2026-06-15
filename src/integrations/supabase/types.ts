@@ -3807,6 +3807,22 @@ export type Database = {
       }
     }
     Functions: {
+      admin_mark_student_password_reset: {
+        Args: { _profile_id: string }
+        Returns: {
+          must_change_password: boolean
+          profile_id: string
+          user_id: string
+        }[]
+      }
+      admin_set_student_status: {
+        Args: { _active: boolean; _profile_id: string }
+        Returns: {
+          profile_id: string
+          status: string
+          user_id: string
+        }[]
+      }
       apply_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
