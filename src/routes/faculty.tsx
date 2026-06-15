@@ -291,10 +291,16 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
           <h3 className="font-display text-sm font-bold text-primary leading-snug line-clamp-2">
             {f.full_name_ar}
           </h3>
+          {f.admin_position && (
+            <div className="mt-1 inline-flex items-center gap-1 rounded-md bg-gold/15 text-gold border border-gold/40 px-2 py-0.5 text-[11px] font-bold">
+              <Crown className="h-3 w-3" />
+              {f.admin_position}
+            </div>
+          )}
           <div className="mt-1.5 flex flex-wrap gap-1">
             {f.rank && (
-              <Badge className="bg-gold/15 text-gold border border-gold/30 hover:bg-gold/20 text-[10px] px-1.5 py-0">
-                {f.rank}
+              <Badge className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15 text-[10px] px-1.5 py-0">
+                {displayRank(f.rank)}
               </Badge>
             )}
             {f.degree && (
@@ -305,6 +311,7 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
             <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{f.specialization}</div>
           )}
         </div>
+
       </div>
 
       <div className="mt-3 pt-3 flex items-center justify-end border-t border-border/60">
