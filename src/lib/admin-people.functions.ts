@@ -181,16 +181,17 @@ export const createFacultyMember = createServerFn({ method: "POST" })
     };
   });
 
+const emptyToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
 const updateFacultySchema = z.object({
   id: z.string().uuid(),
   full_name_ar: z.string().trim().min(2).max(160),
-  full_name_en: z.string().trim().max(160).optional().nullable(),
+  full_name_en: z.preprocess(emptyToNull, z.string().trim().max(160).nullable().optional()),
   department_id: z.string().uuid(),
-  program_id: z.string().uuid().optional().nullable(),
+  program_id: z.preprocess(emptyToNull, z.string().uuid().nullable().optional()),
   academic_rank: z.string().trim().min(1).max(80),
-  position_title: z.string().trim().max(120).optional().nullable(),
-  email: z.string().trim().email().max(160).optional().or(z.literal("")).nullable(),
-  phone: z.string().trim().max(32).optional().nullable(),
+  position_title: z.preprocess(emptyToNull, z.string().trim().max(120).nullable().optional()),
+  email: z.preprocess(emptyToNull, z.string().trim().email().max(160).nullable().optional()),
+  phone: z.preprocess(emptyToNull, z.string().trim().max(32).nullable().optional()),
   status: z.enum(["active", "inactive"]),
 });
 
