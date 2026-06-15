@@ -9,7 +9,17 @@ import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection
 import { StudentDocumentsSection } from "@/components/portal/StudentDocumentsSection";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
+import { LazyMount } from "@/components/util/LazyMount";
+import { Skeleton } from "@/components/ui/skeleton";
 import collegeLogo from "@/assets/college-logo.jpg";
+
+const STALE_LONG = 5 * 60 * 1000; // 5min — semi-static (profile, study plan, academic status)
+const STALE_MED = 60 * 1000; // 1min — schedule/enrollments
+const STALE_SHORT = 30 * 1000; // 30s — grades (changes more often)
+
+function SectionSkeleton({ h = 120 }: { h?: number }) {
+  return <Skeleton className="w-full rounded-lg" style={{ height: h }} />;
+}
 
 type StudentRow = {
   id: string;
