@@ -114,7 +114,7 @@ export const listUsers = createServerFn({ method: "POST" })
         "academic_number",
       );
       if (error) throw new Error(error.message);
-      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r) => r.user_id as string);
+      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
       const { data: roles } = userIds.length
         ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
         : { data: [] as any[] };
@@ -134,7 +134,7 @@ export const listUsers = createServerFn({ method: "POST" })
         "employee_number",
       );
       if (error) throw new Error(error.message);
-      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r) => r.user_id as string);
+      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
       const { data: roles } = userIds.length
         ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
         : { data: [] as any[] };
@@ -154,7 +154,7 @@ export const listUsers = createServerFn({ method: "POST" })
       "employee_number",
     );
     if (error) throw new Error(error.message);
-    const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r) => r.user_id as string);
+    const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
     const { data: roles } = userIds.length
       ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
       : { data: [] as any[] };

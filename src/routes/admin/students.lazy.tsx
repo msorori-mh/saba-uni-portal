@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
