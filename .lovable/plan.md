@@ -1,42 +1,70 @@
 ## المشكلة
-عند الضغط على "حفظ التغييرات" في نافذة تعديل عضو هيئة التدريس لا يحدث شيء لأن:
-1. الحقول الاختيارية (`program_id`, `full_name_en`, `phone`, `position_title`) تُرسل كسلسلة فارغة `""`، ومخطط Zod يرفضها — خصوصًا `program_id` الذي يتطلب UUID صالحًا، فيُرفض الطلب على الفور.
-2. الخطأ يحدث داخل `inputValidator` على العميل قبل الوصول للسيرفر، ولا يصل دائمًا إلى حالة `err` بصورة واضحة للمستخدم.
-3. حقل "المنصب" (`position_title`) لا يُحدَّث فعليًا في قاعدة البيانات لأنه غير مُمرَّر ضمن `update({...})` في الدالة `updateFacultyMember`.
 
-## الإصلاح (أقل تغيير ممكن)
+في صفحة `/admin/faculty-management` تظهر رسالة خطأ حمراء أعلى الجدول:
+> Database error loading user
 
-### 1) `src/routes/admin/faculty-management.tsx` — `EditFacultyModal.submit`
-قبل إرسال البيانات، تحويل السلاسل الفارغة في الحقول الاختيارية إلى `null`:
-- `program_id`, `full_name_en`, `phone`, `position_title`, `email` → `value || null`
-- إبقاء الحقول المطلوبة كما هي (`full_name_ar`, `department_id`, `academic_rank`, `status`).
-- إضافة استدعاء `onSaved()` فقط بعد نجاح فعلي، مع إغلاق النافذة (موجود مسبقًا).
-- إظهار رسالة الخطأ في حال فشل Zod (بدلاً من رسالة عامة) بقراءة `e?.message`.
+هذا النص ليس نصاً من تطبيقنا — بل هو رسالة قياسية ترجعها خدمة المصادقة (GoTrue) عندما تفشل عملية قراءة سجل المستخدم من `auth.users`. الرسالة تُعرض عبر `useBusyError().error` الذي لا يُملأ إلا عند تنفيذ أحد إجراءات الأزرار: «إنشاء حساب» أو «إعادة تعيين» أو «تعطيل/تفعيل» أو حفظ تعديل من المودال — أي أنها رسالة فشل لإجراء، وليست رسالة فشل تحميل القائمة.
 
-### 2) `src/lib/admin-people.functions.ts` — `updateFacultyMember`
-إضافة `position_title` ضمن جملة التحديث:
+## ما لاحظته من الفحص
+
+- لا توجد triggers على `auth.users` تسبّب الخطأ.
+- جدول `auth.users` يحتوي على المستخدمين بشكل طبيعي.
+- الإجراءات التي تستدعي GoTrue Admin API في هذه الصفحة:
+  - `createAccount` → `supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 })` ثم `createUser`.
+  - `resetPassword` → `auth.admin.updateUserById(...)`.
+  - `setActive` → `auth.admin.updateUserById(...)`.
+- `listUsers({ perPage: 200 })` تُرجِع 200 سجل دفعة واحدة، وفي حال وجود سجل `auth.users` واحد فاسد (مثلاً `raw_user_meta_data` بقيمة غير صالحة، أو `identities` معطوبة، أو رقم مستخدم بلا `aud/role`)، يرجع GoTrue الخطأ النصي **"Database error loading user"** ويفشل الاستدعاء بالكامل — وهو الأكثر احتمالاً هنا.
+
+## خطة التنفيذ (بدون تعديل RLS أو منطق الصلاحيات)
+
+### 1. تشخيص حقيقي عبر Playwright + سجلات GoTrue
+
+- تشغيل سكربت Playwright يدخل لصفحة `/admin/faculty-management` ويضغط «إنشاء حساب» على عضو بدون حساب، ويلتقط:
+  - رد server-fn الفعلي (الـ JSON الخام).
+  - رسالة الخطأ من شبكة المتصفح.
+- قراءة سجلات GoTrue من `auth_logs` خلال نافذة التنفيذ لتأكيد أن المصدر هو `listUsers`/`createUser`/`updateUserById` وأي مستخدم تحديداً يفشل.
+
+### 2. إزالة الاعتماد على `auth.admin.listUsers` في `createAccount`
+
+`createAccount` يستخدم `auth.admin.listUsers({ perPage: 200 })` فقط للتحقق من وجود حساب بنفس البريد قبل الإنشاء. هذا الاستدعاء:
+- يجلب 200 سجلاً في كل مرة وقد يفشل كلياً بسبب سجل فاسد واحد.
+- لا يغطي الحالة إذا تجاوز عدد المستخدمين 200.
+
+البديل الآمن: استعلام مباشر على `auth.users` بالبريد عبر `supabaseAdmin` (Service Role يستطيع القراءة من `auth`):
+
 ```ts
-.update({
-  ...,
-  position_title: data.position_title || null,
-  ...
-})
+const { data: existing } = await supabaseAdmin
+  .schema("auth")
+  .from("users")
+  .select("id, email")
+  .ilike("email", email)
+  .maybeSingle();
 ```
-لا تغيير على RLS أو الصلاحيات أو منطق التحقق من الأدوار.
 
-### 3) (اختياري ضمن نفس الملف) تشديد مخطط Zod
-قبول السلسلة الفارغة لـ `program_id` بتحويلها إلى `null` عبر `z.preprocess` لضمان عدم تكرار المشكلة:
-```ts
-program_id: z.preprocess(v => (v === "" ? null : v),
-  z.string().uuid().nullable().optional())
+هذا يحل مشكلة "Database error loading user" في زر «إنشاء حساب» نهائياً ويُسرّع الاستدعاء.
+
+### 3. تحسين رسالة الخطأ للمستخدم
+
+في `createAccount` / `resetPassword` / `setActive`، عند فشل أي استدعاء `auth.admin.*` نلتقط الرسالة الأصلية ونُعيدها بصيغة مفيدة بالعربية بدلاً من تمرير نص GoTrue الخام:
+
 ```
-نفس الأسلوب يُطبّق على `full_name_en`, `phone`, `position_title` احتياطًا.
+"تعذّر إتمام العملية على حساب الدخول (auth) — السبب التقني: <message>"
+```
 
-## التحقق بعد التنفيذ
-- فتح `/admin/faculty-management`، تعديل عضو بدون اختيار برنامج → الضغط على "حفظ" يغلق النافذة ويحدّث القائمة.
-- تعديل حقل "المنصب" وحفظه → يظهر التغيير بعد إعادة الفتح وفي الصفحة العامة `/faculty`.
-- إن حدث خطأ سيرفر، تظهر رسالة واضحة داخل النافذة.
+دون كتم الخطأ — فقط تغليفه ليفهم المستخدم أنه ليس خطأً في بياناته.
 
-## ممنوع
-- تعديل RLS أو صلاحيات `faculty` / `faculty_profiles`.
-- تغيير شكل الواجهة أو حقولها.
+### 4. (في حال أكدت السجلات وجود سجل auth فاسد)
+
+نفحص `auth.users` لاكتشاف أي سطر بـ `raw_user_meta_data` غير صالح أو `identities` معطلة، ثم نُصلحه عبر migration (مثل ضبط `raw_user_meta_data = '{}'::jsonb` للسطر المُتأثر). لن نُنفّذ هذه الخطوة قبل تأكيد التشخيص من السجلات.
+
+### 5. التحقق
+
+- تشغيل Playwright مرة أخرى على نفس السيناريو والتحقق من اختفاء الرسالة.
+- التأكد أن «إنشاء حساب» و«إعادة تعيين» و«تعطيل/تفعيل» تعمل لعضو واحد على الأقل.
+
+## ممنوع في هذا التنفيذ
+
+- تعديل أي RLS policy.
+- تغيير منطق الصلاحيات/الأدوار.
+- لمس schema الـ `auth` بأي تعديل بنيوي.
+- حذف/تعطيل أي وظيفة قائمة.
