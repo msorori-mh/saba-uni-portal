@@ -3852,6 +3852,7 @@ export type Database = {
       }
       generate_document_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
+      get_admin_dashboard_kpis: { Args: never; Returns: Json }
       get_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
       get_hardening_status: { Args: never; Returns: Json }
       has_any_role: {
