@@ -26,6 +26,9 @@ function StudentsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // PERFORMANCE-FIX-02A: server-side pagination
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
   const [credentialsSlip, setCredentialsSlip] = useState<{
     full_name_ar: string;
     academic_number: string;
@@ -40,13 +43,18 @@ function StudentsPage() {
   const lookupsFn = useServerFn(getStudentLookups);
 
   const qc = useQueryClient();
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [search, status]);
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["admin-students", search, status],
-    queryFn: () => list({ data: { kind: "student", search: search || undefined, status } }),
+    queryKey: ["admin-students", search, status, page],
+    queryFn: () => list({ data: { kind: "student", search: search || undefined, status, page, pageSize: PAGE_SIZE } }),
   });
+  const total = (rows as any)?.__total ?? rows?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const { data: lookups } = useQuery({
     queryKey: ["admin-student-lookups"],
     queryFn: () => lookupsFn(),
+    staleTime: Infinity,
   });
 
   const refresh = () => {
