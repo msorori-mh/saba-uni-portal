@@ -81,77 +81,90 @@ function staffRoleFor(roleType: string | null | undefined): string {
 
 export const listUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { kind: AccountKind; search?: string; status?: string }) => input)
+  .inputValidator((input: { kind: AccountKind; search?: string; status?: string; page?: number; pageSize?: number }) => input)
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
 
-    if (data.kind === "student") {
+    // PERFORMANCE-FIX-02A: server-side pagination
+    // Backward-compatible: when page/pageSize are omitted, behave as before (one page, up to 500).
+    const pageSize = Math.min(Math.max(data.pageSize ?? 500, 1), 500);
+    const page = Math.max(data.page ?? 1, 1);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    const buildSelect = (
+      table: "student_profiles" | "faculty_profiles" | "staff_profiles",
+      columns: string,
+      identCol: "academic_number" | "employee_number",
+    ): any => {
       let q = supabaseAdmin
-        .from("student_profiles")
-        .select("id, user_id, academic_number, full_name_ar, status, must_change_password, department_id")
-        .order("academic_number");
-      if (data.search) {
-        q = q.or(`academic_number.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
-      }
+        .from(table)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .select(columns as any, { count: "exact" })
+        .order(identCol);
+      if (data.search) q = q.or(`${identCol}.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
       if (data.status && data.status !== "all") q = q.eq("status", data.status);
-      const { data: rows, error } = await q.limit(500);
+      return q.range(from, to);
+    };
+
+    if (data.kind === "student") {
+      const { data: rows, count, error } = await buildSelect(
+        "student_profiles",
+        "id, user_id, academic_number, full_name_ar, status, must_change_password, department_id",
+        "academic_number",
+      );
       if (error) throw new Error(error.message);
-      const userIds = (rows ?? []).filter((r) => r.user_id).map((r) => r.user_id as string);
+      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
       const { data: roles } = userIds.length
         ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
         : { data: [] as any[] };
-      return (rows ?? []).map((r) => ({
+      const mapped = (rows ?? []).map((r: any) => ({
         ...r,
         identifier: r.academic_number,
         email: r.user_id ? emailFor("student", r.academic_number) : null,
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       }));
+      return Object.assign(mapped, { __total: count ?? mapped.length, __page: page, __pageSize: pageSize });
     }
 
     if (data.kind === "faculty") {
-      let q = supabaseAdmin
-        .from("faculty_profiles")
-        .select("id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank")
-        .order("employee_number");
-      if (data.search) {
-        q = q.or(`employee_number.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
-      }
-      if (data.status && data.status !== "all") q = q.eq("status", data.status);
-      const { data: rows, error } = await q.limit(500);
+      const { data: rows, count, error } = await buildSelect(
+        "faculty_profiles",
+        "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank",
+        "employee_number",
+      );
       if (error) throw new Error(error.message);
-      const userIds = (rows ?? []).filter((r) => r.user_id).map((r) => r.user_id as string);
+      const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
       const { data: roles } = userIds.length
         ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
         : { data: [] as any[] };
-      return (rows ?? []).map((r) => ({
+      const mapped = (rows ?? []).map((r: any) => ({
         ...r,
         identifier: r.employee_number ?? "",
         email: r.user_id && r.employee_number ? emailFor("faculty", r.employee_number) : null,
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       }));
+      return Object.assign(mapped, { __total: count ?? mapped.length, __page: page, __pageSize: pageSize });
     }
 
     // staff
-    let q = supabaseAdmin
-      .from("staff_profiles")
-      .select("id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, role_type, job_title")
-      .order("employee_number");
-    if (data.search) {
-      q = q.or(`employee_number.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
-    }
-    if (data.status && data.status !== "all") q = q.eq("status", data.status);
-    const { data: rows, error } = await q.limit(500);
+    const { data: rows, count, error } = await buildSelect(
+      "staff_profiles",
+      "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, role_type, job_title",
+      "employee_number",
+    );
     if (error) throw new Error(error.message);
-    const userIds = (rows ?? []).filter((r) => r.user_id).map((r) => r.user_id as string);
+    const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
     const { data: roles } = userIds.length
       ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
       : { data: [] as any[] };
-    return (rows ?? []).map((r) => ({
+    const mapped = (rows ?? []).map((r: any) => ({
       ...r,
       identifier: r.employee_number ?? "",
       email: r.user_id && r.employee_number ? emailFor("staff", r.employee_number) : null,
       roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
     }));
+    return Object.assign(mapped, { __total: count ?? mapped.length, __page: page, __pageSize: pageSize });
   });
 
 // ------------ Create Account ------------

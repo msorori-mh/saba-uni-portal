@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,9 @@ function StudentsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // PERFORMANCE-FIX-02A: server-side pagination
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
   const [credentialsSlip, setCredentialsSlip] = useState<{
     full_name_ar: string;
     academic_number: string;
@@ -40,13 +44,18 @@ function StudentsPage() {
   const lookupsFn = useServerFn(getStudentLookups);
 
   const qc = useQueryClient();
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [search, status]);
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["admin-students", search, status],
-    queryFn: () => list({ data: { kind: "student", search: search || undefined, status } }),
+    queryKey: ["admin-students", search, status, page],
+    queryFn: () => list({ data: { kind: "student", search: search || undefined, status, page, pageSize: PAGE_SIZE } }),
   });
+  const total = (rows as any)?.__total ?? rows?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const { data: lookups } = useQuery({
     queryKey: ["admin-student-lookups"],
     queryFn: () => lookupsFn(),
+    staleTime: Infinity,
   });
 
   const refresh = () => {
@@ -224,6 +233,30 @@ function StudentsPage() {
           </div>
         )}
       </div>
+
+      {/* Pagination */}
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <div className="text-muted-foreground">
+            عرض {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} من {total}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded border border-border px-3 py-1 disabled:opacity-40 hover:bg-secondary"
+            >السابق</button>
+            <span className="px-2 font-mono text-xs text-muted-foreground">{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded border border-border px-3 py-1 disabled:opacity-40 hover:bg-secondary"
+            >التالي</button>
+          </div>
+        </div>
+      )}
+
+
 
       {showAdd && lookups && (
         <AddStudentModal

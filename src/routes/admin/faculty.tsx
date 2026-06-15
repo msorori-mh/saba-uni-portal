@@ -92,18 +92,35 @@ function AdminFacultyPage() {
   const [viewing, setViewing] = useState<Faculty | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Faculty | null>(null);
 
-  const { data: faculty = [], isLoading } = useQuery({
-    queryKey: ["admin", "faculty"],
+  // PERFORMANCE-FIX-02A: server-side pagination
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState(1);
+  useEffect(() => { setPage(1); }, [search, programFilter, rankFilter]);
+
+  const { data: facultyPage, isLoading } = useQuery({
+    queryKey: ["admin", "faculty", { search, programFilter, rankFilter, page }],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("faculty")
-        .select("*")
+        .select("*", { count: "exact" })
         .order("sort_order")
         .order("full_name_ar");
+      if (search.trim()) {
+        const s = search.trim();
+        q = q.or(`full_name_ar.ilike.%${s}%,full_name_en.ilike.%${s}%,email.ilike.%${s}%`);
+      }
+      if (programFilter !== "all") q = q.eq("program_id", programFilter);
+      if (rankFilter !== "all") q = q.eq("rank", rankFilter);
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+      const { data, count, error } = await q.range(from, to);
       if (error) throw error;
-      return data as Faculty[];
+      return { rows: (data ?? []) as Faculty[], total: count ?? 0 };
     },
   });
+  const faculty: Faculty[] = facultyPage?.rows ?? [];
+  const total = facultyPage?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin", "programs", "list"],
@@ -115,6 +132,7 @@ function AdminFacultyPage() {
       if (error) throw error;
       return data as Program[];
     },
+    staleTime: Infinity,
   });
 
   const programMap = useMemo(
@@ -122,22 +140,8 @@ function AdminFacultyPage() {
     [programs],
   );
 
-  const filtered = useMemo(() => {
-    let list = faculty;
-    if (search.trim()) {
-      const s = search.trim().toLowerCase();
-      list = list.filter(
-        (f) =>
-          f.full_name_ar.toLowerCase().includes(s) ||
-          (f.full_name_en || "").toLowerCase().includes(s) ||
-          (f.email || "").toLowerCase().includes(s),
-      );
-    }
-    if (programFilter !== "all")
-      list = list.filter((f) => f.program_id === programFilter);
-    if (rankFilter !== "all") list = list.filter((f) => f.rank === rankFilter);
-    return list;
-  }, [faculty, search, programFilter, rankFilter]);
+  // Filters are applied server-side now; this stays as a no-op alias to minimize churn below.
+  const filtered = faculty;
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -328,6 +332,29 @@ function AdminFacultyPage() {
           </div>
         ))}
       </div>
+
+      {/* Pagination */}
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-2 text-sm">
+          <div className="text-muted-foreground">
+            عرض {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} من {total}
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="rounded border border-border px-3 py-1 disabled:opacity-40 hover:bg-secondary"
+            >السابق</button>
+            <span className="px-2 font-mono text-xs text-muted-foreground">{page} / {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="rounded border border-border px-3 py-1 disabled:opacity-40 hover:bg-secondary"
+            >التالي</button>
+          </div>
+        </div>
+      )}
+
 
       <FacultyFormDialog
         open={formOpen}
