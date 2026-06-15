@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -38,6 +39,7 @@ function docTypeLabel(t: string) {
 }
 
 function AdminDashboard() {
+  usePagePerf("/admin");
   const fetchActive = useServerFn(activeUserCounts);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
   const fetchProgressKpis = useServerFn(getProgressDashboardKpis);

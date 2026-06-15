@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,6 +19,7 @@ export const Route = createLazyFileRoute("/admin/students")({
 type LookupData = Awaited<ReturnType<typeof getStudentLookups>>;
 
 function StudentsPage() {
+  usePagePerf("/admin/students");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [showAdd, setShowAdd] = useState(false);

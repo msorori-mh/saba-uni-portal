@@ -1,4 +1,5 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Loader2, CheckCircle2, RotateCcw, ClipboardCheck } from "lucide-react";
@@ -53,6 +54,7 @@ async function fetchSections(filters: { yearId?: string; semId?: string }): Prom
 }
 
 function AdminGradesPage() {
+  usePagePerf("/admin/grades");
   const qc = useQueryClient();
   const [sectionId, setSectionId] = useState<string>("");
   const [yearId, setYearId] = useState<string>("");

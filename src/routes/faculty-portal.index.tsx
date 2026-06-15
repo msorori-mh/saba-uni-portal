@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck } from "lucide-react";
@@ -73,6 +74,7 @@ const DAY_LABELS: Record<string, string> = {
 const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
 
 function FacultyDashboard() {
+  usePagePerf("/faculty-portal");
   const navigate = useNavigate();
   const { data: profile, isLoading } = useQuery({
     queryKey: ["faculty", "me"],

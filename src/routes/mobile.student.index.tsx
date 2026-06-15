@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -63,6 +64,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 function MobileStudentHome() {
+  usePagePerf("/mobile/student");
   const { data: profile, isLoading } = useQuery({
     queryKey: ["mobile-student", "summary"],
     queryFn: fetchSummary,

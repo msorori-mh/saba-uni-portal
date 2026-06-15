@@ -1,4 +1,5 @@
 import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { usePagePerf } from "@/lib/perf-probe";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search, FileText, Plus, Eye, XCircle, ShieldCheck } from "lucide-react";
@@ -22,6 +23,7 @@ const TYPE_LABEL: Record<string, string> = {
 const TYPES = Object.keys(TYPE_LABEL);
 
 function AdminDocumentsPage() {
+  usePagePerf("/admin/documents");
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
