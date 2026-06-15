@@ -41,26 +41,13 @@ const LEADERSHIP_SECTION: SectionDef = {
   Icon: Crown,
 };
 
-const CATEGORY_MAP: Record<string, SectionDef> = {
-  phd_faculty: { title: "أعضاء هيئة التدريس", subtitle: "حملة درجة الدكتوراه", Icon: BookOpen },
-  faculty: { title: "أعضاء هيئة التدريس", subtitle: "الكادر الأكاديمي للكلية", Icon: GraduationCap },
-  assistant_staff: { title: "الهيئة المساعدة", subtitle: "المعيدون والمحاضرون المساعدون", Icon: Users },
-};
-
-const CATEGORY_ORDER = ["phd_faculty", "faculty", "assistant_staff"];
-
-const FALLBACK_SECTION: SectionDef = {
-  title: "أعضاء آخرون",
-  subtitle: "أعضاء من الكادر الأكاديمي",
-  Icon: Users,
-};
-
 // ترجمة الرتب الأكاديمية إلى العربية للعرض الموحّد
 const RANK_AR: Record<string, string> = {
   "Professor": "أستاذ",
   "Associate Professor": "أستاذ مشارك",
   "Assistant Professor": "أستاذ مساعد",
-  "Lecturer": "محاضر",
+  "Lecturer": "مدرّس",
+  "محاضر": "مدرّس",
   "Lecturer Assistant": "محاضر مساعد",
   "Teaching Assistant": "معيد",
 };
@@ -70,15 +57,20 @@ function displayRank(rank: string | null): string | null {
   return RANK_AR[rank.trim()] ?? rank;
 }
 
-// ترتيب الرتب الأكاديمية للأعضاء غير الإداريين
-const RANK_ORDER: Record<string, number> = {
-  "أستاذ": 1,
-  "أستاذ مشارك": 2,
-  "أستاذ مساعد": 3,
-  "محاضر": 4,
-  "محاضر مساعد": 5,
-  "معيد": 6,
+// أقسام الرتب بالترتيب المطلوب بعد قسم القيادة
+const RANK_SECTIONS: Array<{ key: string; title: string; subtitle: string; ranks: string[]; Icon: typeof Crown }> = [
+  { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", ranks: ["Associate Professor", "أستاذ مشارك"], Icon: BookOpen },
+  { key: "assistant", title: "الأساتذة المساعدون", subtitle: "برتبة أستاذ مساعد", ranks: ["Assistant Professor", "أستاذ مساعد"], Icon: GraduationCap },
+  { key: "lecturer",  title: "المدرّسون", subtitle: "برتبة مدرّس (محاضر)", ranks: ["Lecturer", "محاضر", "مدرّس", "مدرس"], Icon: GraduationCap },
+  { key: "teaching",  title: "المعيدون", subtitle: "برتبة معيد", ranks: ["Teaching Assistant", "معيد"], Icon: Users },
+];
+
+const OTHERS_SECTION: SectionDef = {
+  title: "أعضاء آخرون",
+  subtitle: "أعضاء من الكادر الأكاديمي",
+  Icon: Users,
 };
+
 
 export const Route = createFileRoute("/faculty")({
   head: () => ({
