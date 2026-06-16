@@ -53,17 +53,23 @@ jobs:
       - name: Build web assets (Vite)
         run: bun run build
 
+      - name: Verify toolchain versions
+        run: |
+          node --version
+          bun --version
+          ./node_modules/.bin/cap --version
+
       - name: Add Android platform (if missing)
         run: |
           if [ ! -d "android" ] || [ ! -f "android/build.gradle" ]; then
             echo "android/ not present — running cap add android"
-            bunx cap add android
+            ./node_modules/.bin/cap add android
           else
             echo "android/ already exists — skipping add"
           fi
 
       - name: Capacitor sync
-        run: bunx cap sync android
+        run: ./node_modules/.bin/cap sync android
 
       - name: Grant gradlew execute permission
         run: chmod +x android/gradlew
