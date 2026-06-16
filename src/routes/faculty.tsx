@@ -458,7 +458,7 @@ function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow
         )}
         {f.degree && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{f.degree}</Badge>}
       </div>
-      <div className="mt-4 pt-3 border-t border-border/60 flex justify-center">
+      <div className="mt-auto pt-3 border-t border-border/60 flex justify-center">
         <Button
           size="sm"
           variant="outline"
