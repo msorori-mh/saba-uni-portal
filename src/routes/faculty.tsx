@@ -260,14 +260,17 @@ function FacultyPage() {
               </DialogHeader>
 
               <div className="space-y-5 mt-2">
-                {selected.bio_ar && (
-                  <Section title="نبذة">
+                <Section title="السيرة الذاتية">
+                  {selected.bio_ar ? (
                     <p className="text-foreground/80 leading-relaxed whitespace-pre-line">
                       {selected.bio_ar}
                     </p>
-                  </Section>
-                )}
-
+                  ) : (
+                    <p className="text-muted-foreground leading-relaxed">
+                      لا توجد سيرة ذاتية مضافة حالياً.
+                    </p>
+                  )}
+                </Section>
               </div>
 
               <div className="flex justify-end pt-4 border-t mt-4">
