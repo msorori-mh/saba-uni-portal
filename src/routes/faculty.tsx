@@ -435,7 +435,7 @@ function DeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) =>
 
 function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
   return (
-    <article className="relative rounded-xl border border-border border-t-4 border-t-gold/70 bg-card p-6 pt-5 text-center shadow-lg hover:shadow-elegant hover:-translate-y-0.5 transition-all duration-300">
+    <article className="relative h-full flex flex-col rounded-xl border border-border border-t-4 border-t-gold/70 bg-card p-6 pt-5 text-center shadow-lg hover:shadow-elegant hover:-translate-y-0.5 transition-all duration-300">
       <div className="mb-4 mx-auto flex items-center justify-center gap-1.5 rounded-full bg-gold text-primary-foreground px-4 py-1.5 text-xs font-bold shadow-md max-w-[90%]">
         <Crown className="h-3.5 w-3.5 shrink-0" />
         <span className="line-clamp-2">{f.admin_position}</span>
