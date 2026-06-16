@@ -373,14 +373,14 @@ function LeadershipGroup({ members, onSelect }: { members: FacultyRow[]; onSelec
         </div>
       )}
       {tier2.length > 0 && (
-        <div className="grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto w-full">
+        <div className="grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto w-full auto-rows-fr">
           {tier2.map((f) => (
             <ViceDeanCard key={f.id} f={f} onSelect={onSelect} />
           ))}
         </div>
       )}
       {tier3.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
           {tier3.map((f) => (
             <DepartmentHeadCard key={f.id} f={f} onSelect={onSelect} />
           ))}
