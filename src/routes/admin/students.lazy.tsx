@@ -687,7 +687,7 @@ function CredentialsSlip({
             <SlipRow label="الرقم الأكاديمي" value={slip.academic_number} mono onCopy={() => copy(slip.academic_number)} />
             <SlipRow label="اسم الدخول" value={slip.academic_number} mono onCopy={() => copy(slip.academic_number)} />
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
-            <SlipRow label="البريد" value={slip.email} mono onCopy={() => copy(slip.email)} />
+            
           </div>
           <p className="text-xs text-muted-foreground">سيُطلب من الطالب تغيير كلمة المرور عند أول دخول.</p>
         </div>
