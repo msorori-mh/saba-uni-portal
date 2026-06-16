@@ -783,12 +783,14 @@ function FacultyFormDialog({
                   }}
                 />
               </label>
+              <p className="text-[11px] text-muted-foreground">JPG، PNG، WebP — حتى 2MB.</p>
               {photo && (
                 <button
+                  type="button"
                   onClick={() => setPhoto(null)}
                   className="block text-xs text-destructive hover:underline"
                 >
-                  إزالة الصورة
+                  حذف الصورة
                 </button>
               )}
             </div>
