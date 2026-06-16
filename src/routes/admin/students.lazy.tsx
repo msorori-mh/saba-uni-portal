@@ -662,7 +662,6 @@ function CredentialsSlip({
         <div class="row"><span class="k">الرقم الأكاديمي:</span><span class="v">${slip.academic_number}</span></div>
         <div class="row"><span class="k">اسم الدخول:</span><span class="v">${slip.academic_number}</span></div>
         <div class="row"><span class="k">كلمة المرور المؤقتة:</span><span class="v">${slip.password}</span></div>
-        <div class="row"><span class="k">البريد:</span><span class="v">${slip.email}</span></div>
       </div>
       <p class="note">
         • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong> واختيار «طالب».<br>
