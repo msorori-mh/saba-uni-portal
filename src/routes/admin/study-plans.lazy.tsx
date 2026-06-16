@@ -747,7 +747,13 @@ function PlanCoursesTab() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-[180px]">
           <Label className="text-xs">القسم</Label>
-          <Select value={deptId} onValueChange={(v) => { setDeptId(v); setProgramId(""); setPlanId(""); }}>
+          <Select value={deptId} onValueChange={(v) => {
+            setDeptId(v);
+            if (v !== "all" && programId) {
+              const prog = programs.find((p) => p.id === programId);
+              if (!prog || prog.department_id !== v) { setProgramId(""); setPlanId(""); }
+            }
+          }}>
             <SelectTrigger><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">كل الأقسام</SelectItem>
