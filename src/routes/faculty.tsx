@@ -197,7 +197,7 @@ function FacultyPage() {
                     {key === "__leadership" ? (
                       <LeadershipGroup members={members} onSelect={setSelected} />
                     ) : (
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
                         {members.map((f) => (
                           <FacultyCard key={f.id} f={f} onSelect={setSelected} />
                         ))}
