@@ -194,6 +194,7 @@ const updateFacultySchema = z.object({
   phone: z.preprocess(emptyToNull, z.string().trim().max(32).nullable().optional()),
   status: z.enum(["active", "inactive"]),
   photo: z.preprocess(emptyToNull, z.string().trim().url().max(1024).nullable().optional()),
+  bio_ar: z.preprocess(emptyToNull, z.string().trim().max(4000).nullable().optional()),
 });
 
 export const updateFacultyMember = createServerFn({ method: "POST" })
