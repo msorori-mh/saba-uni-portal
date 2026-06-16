@@ -145,23 +145,26 @@ export function Header() {
       {open && (
         <div className="lg:hidden border-t border-border bg-background">
           <nav className="container mx-auto flex flex-col px-4 py-3">
-            <div className="grid grid-cols-1 gap-2 pb-3 border-b border-border">
-              {portalButtons.map(({ label, Icon, tone, type }) => (
-                <Link
-                  key={label}
-                  to="/portal-login"
-                  search={{ type }}
-                  onClick={() => setOpen(false)}
-                  className={
-                    tone === "gold"
-                      ? "inline-flex items-center justify-center gap-2 rounded-md bg-gold-gradient px-5 py-3 text-sm font-extrabold text-primary-deep shadow-gold"
-                      : "inline-flex items-center justify-center gap-2 rounded-md border border-primary/20 bg-secondary px-5 py-3 text-sm font-bold text-primary"
-                  }
-                >
-                  <Icon className="h-4 w-4" /> {label}
-                </Link>
-              ))}
-            </div>
+            {!isAuthed && (
+              <div className="grid grid-cols-1 gap-2 pb-3 border-b border-border">
+                {portalButtons.map(({ label, Icon, tone, type }) => (
+                  <Link
+                    key={label}
+                    to="/portal-login"
+                    search={{ type }}
+                    onClick={() => setOpen(false)}
+                    className={
+                      tone === "gold"
+                        ? "inline-flex items-center justify-center gap-2 rounded-md bg-gold-gradient px-5 py-3 text-sm font-extrabold text-primary-deep shadow-gold"
+                        : "inline-flex items-center justify-center gap-2 rounded-md border border-primary/20 bg-secondary px-5 py-3 text-sm font-bold text-primary"
+                    }
+                  >
+                    <Icon className="h-4 w-4" /> {label}
+                  </Link>
+                ))}
+              </div>
+            )}
+
             {navItems.map((item) => (
               <Link
                 key={item.to}
