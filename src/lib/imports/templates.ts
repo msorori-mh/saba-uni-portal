@@ -11,16 +11,31 @@ type TemplateDef = {
 const TEMPLATES: Record<ImportType, TemplateDef> = {
   students: {
     sheetName: "Students",
-    headers: ["academic_number","full_name_ar","full_name_en","national_id","phone","email","department_code","program_code","academic_year","semester","level","status"],
-    sample: ["2025001","أحمد محمد علي","Ahmed Mohammed","12345678901","777000111","ahmed@example.com","قسم تكنولوجيا المعلومات والاتصالات","IT","2025-2026","first","1","active"],
+    headers: [
+      "academic_number","full_name_ar","full_name_en",
+      "department_code","program_code","academic_level","academic_year","semester",
+      "status","phone","gender","national_id",
+      "create_login","must_change_password","notes",
+    ],
+    sample: [
+      "20251001","أحمد محمد علي","Ahmed Mohammed",
+      "قسم تكنولوجيا المعلومات والاتصالات","IT","1","2025-2026","first",
+      "active","777000111","male","12345678901",
+      "true","true","ملاحظة اختيارية",
+    ],
     instructions: [
-      "الحقول المطلوبة: academic_number, full_name_ar, department_code, program_code, academic_year, semester, level",
+      "الحقول المطلوبة: academic_number, full_name_ar, department_code, program_code, academic_level, academic_year, semester",
+      "لا تُدخل: email أو username أو password أو user_id أو role — يتم إنشاؤها داخلياً.",
       "department_code = اسم القسم بالعربية كما هو مسجل في النظام",
       "program_code = كود البرنامج (مثل IT, CS, AI)",
+      "academic_level = رقم المستوى (1-4) أو اسم المستوى",
       "academic_year = اسم السنة الأكاديمية (مثل 2025-2026)",
       "semester = first / second أو اسم الفصل",
-      "level = رقم المستوى (1-4) أو اسم المستوى",
-      "status = active / suspended / graduated / withdrawn / transferred",
+      "status = active / suspended / graduated / withdrawn / transferred (افتراضي active)",
+      "gender = male / female أو ذكر / أنثى (اختياري)",
+      "create_login = true/false — عند true يُنشأ حساب دخول داخلي تلقائياً باسم المستخدم = academic_number وكلمة المرور الأولية = academic_number",
+      "must_change_password = true/false — افتراضي true عند create_login=true لإجبار تغيير كلمة المرور عند أول دخول",
+      "notes = ملاحظات حرة (لن تُخزَّن مع الملف، تُسجَّل في سجل التدقيق)",
     ],
   },
   faculty: {
