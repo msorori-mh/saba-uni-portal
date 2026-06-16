@@ -661,22 +661,62 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
   );
 }
 
-// ============ Schedule Tab (moved) ============
+// ============ Schedule Tab — Import-only (university scheduling system is the source of truth) ============
 function ScheduleTab() {
+  const { data: stats } = useQuery({
+    queryKey: ["class-schedule-stats"],
+    queryFn: async () => {
+      const [{ count: total }, { count: published }] = await Promise.all([
+        supabase.from("class_schedule").select("id", { count: "exact", head: true }),
+        supabase.from("class_schedule").select("id", { count: "exact", head: true }).eq("status", "published"),
+      ]);
+      return { total: total ?? 0, published: published ?? 0 };
+    },
+  });
+
   return (
-    <div className="rounded-lg border border-dashed p-8 text-center space-y-3">
-      <Clock className="mx-auto h-8 w-8 text-muted-foreground" />
-      <div className="font-bold text-primary">انتقلت إدارة الجداول الدراسية إلى صفحة مستقلة</div>
-      <p className="text-sm text-muted-foreground">
-        أصبحت إدارة المباني والقاعات والفترات الزمنية والجداول الدراسية مع كشف التعارضات في صفحة موحّدة.
-      </p>
-      <a
-        href="/admin/schedules"
-        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
-      >
-        فتح إدارة الجداول
-      </a>
+    <div className="space-y-4">
+      <div className="rounded-lg border bg-card p-5 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
+            <Clock className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="font-display text-lg font-extrabold text-primary">استيراد الجداول الدراسية</h2>
+            <p className="text-xs text-muted-foreground">
+              المصدر الرسمي للجداول هو نظام إدارة الجداول الجامعية. تستورد البوابة الجداول فقط ولا تنشئها محلياً.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="rounded-md border bg-muted/30 p-3">
+            <div className="text-[11px] text-muted-foreground">إجمالي السجلات المستوردة</div>
+            <div className="font-mono text-2xl font-extrabold text-primary">{stats?.total ?? "—"}</div>
+          </div>
+          <div className="rounded-md border bg-muted/30 p-3">
+            <div className="text-[11px] text-muted-foreground">المنشورة</div>
+            <div className="font-mono text-2xl font-extrabold text-primary">{stats?.published ?? "—"}</div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-2">
+          <a
+            href="/admin/imports"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+          >
+            فتح صفحة الاستيراد (قالب class_schedule)
+          </a>
+        </div>
+
+        <ul className="text-xs text-muted-foreground list-disc pr-5 space-y-1 pt-2">
+          <li>استخدم القالب المعتمد لاستيراد الجداول لكل فصل دراسي.</li>
+          <li>تظهر الجداول المستوردة تلقائياً في بوابة الطالب وبوابة عضو هيئة التدريس.</li>
+          <li>لا تتوفر داخل بوابة الكلية أدوات إنشاء أو تعديل أو كشف تعارضات الجداول.</li>
+        </ul>
+      </div>
     </div>
   );
 }
+
 
