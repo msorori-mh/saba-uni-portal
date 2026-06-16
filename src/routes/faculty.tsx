@@ -136,14 +136,7 @@ function FacultyPage() {
           </div>
         </div>
 
-        {isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-32 rounded-xl" />
-            ))}
-          </div>
-
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="text-center py-20">
             <GraduationCap className="mx-auto h-16 w-16 text-muted-foreground/30" />
             <p className="mt-4 text-muted-foreground">لا يوجد أعضاء مطابقون للبحث.</p>
