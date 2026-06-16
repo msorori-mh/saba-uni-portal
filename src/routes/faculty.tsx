@@ -291,9 +291,9 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
   const initials = f.full_name_ar.trim().split(/\s+/).slice(0, 2).map((s) => s.charAt(0)).join("");
   return (
     <article
-      className="group rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col"
+      className="group h-full rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 flex-1 min-w-0">
         <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-hero-gradient grid place-items-center ring-2 ring-gold/20 group-hover:ring-gold/50 transition-all">
           {f.photo ? (
             <img src={f.photo} alt={f.full_name_ar} className="w-full h-full object-cover" />
@@ -324,10 +324,9 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
             )}
           </div>
           {f.specialization && (
-            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{f.specialization}</div>
+            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">{f.specialization}</div>
           )}
         </div>
-
       </div>
 
       <div className="mt-3 pt-3 flex items-center justify-end border-t border-border/60">
