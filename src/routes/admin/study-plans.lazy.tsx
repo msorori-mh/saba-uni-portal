@@ -462,7 +462,13 @@ function PlansTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v); setProgramFilter("all"); }}>
+        <Select value={deptFilter} onValueChange={(v) => {
+          setDeptFilter(v);
+          if (v !== "all" && programFilter !== "all") {
+            const prog = programs.find((p) => p.id === programFilter);
+            if (!prog || prog.department_id !== v) setProgramFilter("all");
+          }
+        }}>
           <SelectTrigger className="w-[200px]"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الأقسام</SelectItem>
