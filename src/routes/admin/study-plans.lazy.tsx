@@ -395,6 +395,17 @@ function PlansTab() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Plan | null>(null);
   const [confirmDel, setConfirmDel] = useState<Plan | null>(null);
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [programFilter, setProgramFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const { data: depts = [] } = useQuery({
+    queryKey: ["admin-depts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("id, name_ar").order("sort_order");
+      if (error) throw error; return data as Department[];
+    },
+  });
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin-programs"],
@@ -412,6 +423,27 @@ function PlansTab() {
     },
   });
 
+  const programsInDept = useMemo(
+    () => deptFilter === "all" ? programs : programs.filter((p) => p.department_id === deptFilter),
+    [programs, deptFilter],
+  );
+  const programIdsInDept = useMemo(() => new Set(programsInDept.map((p) => p.id)), [programsInDept]);
+
+  const filteredPlans = useMemo(() => {
+    return plans.filter((p) => {
+      if (deptFilter !== "all" && !programIdsInDept.has(p.program_id)) return false;
+      if (programFilter !== "all" && p.program_id !== programFilter) return false;
+      if (statusFilter === "active" && !p.is_active) return false;
+      if (statusFilter === "inactive" && p.is_active) return false;
+      if (statusFilter === "archived" && p.status !== "archived") return false;
+      return true;
+    });
+  }, [plans, deptFilter, programFilter, statusFilter, programIdsInDept]);
+
+  const resetFilters = () => {
+    setDeptFilter("all"); setProgramFilter("all"); setStatusFilter("all");
+  };
+
   const handleDelete = async () => {
     if (!confirmDel) return;
     const { error } = await supabase.from("study_plans").delete().eq("id", confirmDel.id);
@@ -423,7 +455,34 @@ function PlansTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v); setProgramFilter("all"); }}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الأقسام</SelectItem>
+            {depts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name_ar}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={programFilter} onValueChange={setProgramFilter}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="كل البرامج" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل البرامج</SelectItem>
+            {programsInDept.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="كل الحالات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الحالات</SelectItem>
+            <SelectItem value="active">نشطة</SelectItem>
+            <SelectItem value="inactive">معطلة</SelectItem>
+            <SelectItem value="archived">مؤرشفة</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={resetFilters}>
+          <RotateCcw className="h-3.5 w-3.5 ml-1" /> إعادة تعيين
+        </Button>
+        <div className="flex-1" />
         <Button onClick={() => { setEditing(null); setOpenForm(true); }}>
           <Plus className="h-4 w-4 ml-1" /> خطة جديدة
         </Button>
@@ -431,11 +490,11 @@ function PlansTab() {
 
       {isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : plans.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد خطط دراسية.</div>
+      ) : filteredPlans.length === 0 ? (
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد خطط دراسية مطابقة.</div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {plans.map((p) => {
+          {filteredPlans.map((p) => {
             const prog = programs.find((x) => x.id === p.program_id);
             return (
               <div key={p.id} className="rounded-lg border bg-card p-4 shadow-card">
@@ -463,6 +522,7 @@ function PlansTab() {
           })}
         </div>
       )}
+
 
       <PlanFormDialog
         open={openForm} onOpenChange={setOpenForm}
