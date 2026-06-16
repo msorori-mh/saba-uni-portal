@@ -337,21 +337,17 @@ export const resetPassword = createServerFn({ method: "POST" })
     );
     if (aErr) throw new Error(`تعذّر إعادة تعيين كلمة المرور — ${aErr.message}`);
 
-    if (data.kind === "student") {
-      // Use SECURITY DEFINER RPC to bypass protect_student_sensitive_fields trigger
-      // (service_role has no auth.uid(), so a direct UPDATE would be silently reverted).
-      const { error: rErr } = await (context.supabase as any).rpc(
-        "admin_mark_student_password_reset",
-        { _profile_id: data.profile_id }
-      );
-      if (rErr) {
-        throw new Error(`تم تحديث كلمة المرور لكن تعذّر ضبط must_change_password — ${rErr.message}`);
-      }
-    } else {
-      await supabaseAdmin
-        .from(table)
-        .update({ must_change_password: true } as any)
-        .eq("id", data.profile_id);
+    // Use SECURITY DEFINER RPCs to bypass protect_*_sensitive_fields triggers
+    // (service_role has no auth.uid(), so a direct UPDATE is silently reverted).
+    const rpcName =
+      data.kind === "student" ? "admin_mark_student_password_reset"
+      : data.kind === "faculty" ? "admin_mark_faculty_password_reset"
+      : "admin_mark_staff_password_reset";
+    const { error: rErr } = await (context.supabase as any).rpc(
+      rpcName, { _profile_id: data.profile_id }
+    );
+    if (rErr) {
+      throw new Error(`تم تحديث كلمة المرور لكن تعذّر ضبط must_change_password — ${rErr.message}`);
     }
 
     await logAudit({
