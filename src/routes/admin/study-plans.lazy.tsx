@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Loader2, BookOpen, GraduationCap, ListTree, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, BookOpen, GraduationCap, ListTree, Search, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,6 +73,9 @@ function CoursesTab() {
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [programFilter, setProgramFilter] = useState<string>("all");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [semesterFilter, setSemesterFilter] = useState<string>("all");
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Course | null>(null);
   const [confirmDel, setConfirmDel] = useState<Course | null>(null);
@@ -85,6 +88,22 @@ function CoursesTab() {
     },
   });
 
+  const { data: programs = [] } = useQuery({
+    queryKey: ["admin-programs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("programs").select("id, name_ar, code, department_id").order("sort_order");
+      if (error) throw error; return data as Program[];
+    },
+  });
+
+  const { data: levels = [] } = useQuery({
+    queryKey: ["admin-levels"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("academic_levels").select("id, name, level_number").order("level_number");
+      if (error) throw error; return data as Level[];
+    },
+  });
+
   const { data: courses = [], isLoading } = useQuery({
     queryKey: ["admin-courses"],
     queryFn: async () => {
@@ -93,15 +112,55 @@ function CoursesTab() {
     },
   });
 
+  // Plan-course mapping: course → set of (program_id, level_id, semester_code)
+  const { data: planLinks = [] } = useQuery({
+    queryKey: ["admin-course-plan-links"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("study_plan_courses")
+        .select("course_id, level_id, semester_code, study_plans(program_id)");
+      if (error) throw error;
+      return (data as Array<{
+        course_id: string; level_id: string; semester_code: string;
+        study_plans: { program_id: string } | null;
+      }>);
+    },
+  });
+
+  const programsInDept = useMemo(
+    () => deptFilter === "all" ? programs : programs.filter((p) => p.department_id === deptFilter),
+    [programs, deptFilter],
+  );
+
+  const useCurriculumFilter = programFilter !== "all" || levelFilter !== "all" || semesterFilter !== "all";
+
+  const courseIdsMatchingCurriculum = useMemo(() => {
+    if (!useCurriculumFilter) return null;
+    const set = new Set<string>();
+    for (const link of planLinks) {
+      if (programFilter !== "all" && link.study_plans?.program_id !== programFilter) continue;
+      if (levelFilter !== "all" && link.level_id !== levelFilter) continue;
+      if (semesterFilter !== "all" && link.semester_code !== semesterFilter) continue;
+      set.add(link.course_id);
+    }
+    return set;
+  }, [planLinks, programFilter, levelFilter, semesterFilter, useCurriculumFilter]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return courses.filter((c) => {
       if (deptFilter !== "all" && c.department_id !== deptFilter) return false;
       if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      if (courseIdsMatchingCurriculum && !courseIdsMatchingCurriculum.has(c.id)) return false;
       if (q && !`${c.code} ${c.name_ar} ${c.name_en ?? ""}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [courses, search, deptFilter, statusFilter]);
+  }, [courses, search, deptFilter, statusFilter, courseIdsMatchingCurriculum]);
+
+  const resetFilters = () => {
+    setSearch(""); setDeptFilter("all"); setStatusFilter("all");
+    setProgramFilter("all"); setLevelFilter("all"); setSemesterFilter("all");
+  };
 
   const handleDelete = async () => {
     if (!confirmDel) return;
@@ -119,25 +178,50 @@ function CoursesTab() {
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث بالكود أو الاسم" className="pr-9" />
         </div>
-        <Select value={deptFilter} onValueChange={setDeptFilter}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
+        <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v); setProgramFilter("all"); }}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الأقسام</SelectItem>
             {depts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name_ar}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={programFilter} onValueChange={setProgramFilter}>
+          <SelectTrigger className="w-[180px]"><SelectValue placeholder="كل البرامج" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل البرامج</SelectItem>
+            {programsInDept.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={levelFilter} onValueChange={setLevelFilter}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="كل المستويات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل المستويات</SelectItem>
+            {levels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={semesterFilter} onValueChange={setSemesterFilter}>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="كل الفصول" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الفصول</SelectItem>
+            {SEMESTERS.map((s) => <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[130px]"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الحالات</SelectItem>
             <SelectItem value="active">نشط</SelectItem>
             <SelectItem value="inactive">معطل</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" onClick={resetFilters}>
+          <RotateCcw className="h-3.5 w-3.5 ml-1" /> إعادة تعيين
+        </Button>
         <Button onClick={() => { setEditing(null); setOpenForm(true); }}>
           <Plus className="h-4 w-4 ml-1" /> إضافة مقرر
         </Button>
       </div>
+
 
       {isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
@@ -311,6 +395,17 @@ function PlansTab() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Plan | null>(null);
   const [confirmDel, setConfirmDel] = useState<Plan | null>(null);
+  const [deptFilter, setDeptFilter] = useState<string>("all");
+  const [programFilter, setProgramFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const { data: depts = [] } = useQuery({
+    queryKey: ["admin-depts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("id, name_ar").order("sort_order");
+      if (error) throw error; return data as Department[];
+    },
+  });
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin-programs"],
@@ -328,6 +423,27 @@ function PlansTab() {
     },
   });
 
+  const programsInDept = useMemo(
+    () => deptFilter === "all" ? programs : programs.filter((p) => p.department_id === deptFilter),
+    [programs, deptFilter],
+  );
+  const programIdsInDept = useMemo(() => new Set(programsInDept.map((p) => p.id)), [programsInDept]);
+
+  const filteredPlans = useMemo(() => {
+    return plans.filter((p) => {
+      if (deptFilter !== "all" && !programIdsInDept.has(p.program_id)) return false;
+      if (programFilter !== "all" && p.program_id !== programFilter) return false;
+      if (statusFilter === "active" && !p.is_active) return false;
+      if (statusFilter === "inactive" && p.is_active) return false;
+      if (statusFilter === "archived" && p.status !== "archived") return false;
+      return true;
+    });
+  }, [plans, deptFilter, programFilter, statusFilter, programIdsInDept]);
+
+  const resetFilters = () => {
+    setDeptFilter("all"); setProgramFilter("all"); setStatusFilter("all");
+  };
+
   const handleDelete = async () => {
     if (!confirmDel) return;
     const { error } = await supabase.from("study_plans").delete().eq("id", confirmDel.id);
@@ -339,7 +455,34 @@ function PlansTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v); setProgramFilter("all"); }}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الأقسام</SelectItem>
+            {depts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name_ar}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={programFilter} onValueChange={setProgramFilter}>
+          <SelectTrigger className="w-[200px]"><SelectValue placeholder="كل البرامج" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل البرامج</SelectItem>
+            {programsInDept.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[150px]"><SelectValue placeholder="كل الحالات" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">كل الحالات</SelectItem>
+            <SelectItem value="active">نشطة</SelectItem>
+            <SelectItem value="inactive">معطلة</SelectItem>
+            <SelectItem value="archived">مؤرشفة</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={resetFilters}>
+          <RotateCcw className="h-3.5 w-3.5 ml-1" /> إعادة تعيين
+        </Button>
+        <div className="flex-1" />
         <Button onClick={() => { setEditing(null); setOpenForm(true); }}>
           <Plus className="h-4 w-4 ml-1" /> خطة جديدة
         </Button>
@@ -347,11 +490,11 @@ function PlansTab() {
 
       {isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : plans.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد خطط دراسية.</div>
+      ) : filteredPlans.length === 0 ? (
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد خطط دراسية مطابقة.</div>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
-          {plans.map((p) => {
+          {filteredPlans.map((p) => {
             const prog = programs.find((x) => x.id === p.program_id);
             return (
               <div key={p.id} className="rounded-lg border bg-card p-4 shadow-card">
@@ -379,6 +522,7 @@ function PlansTab() {
           })}
         </div>
       )}
+
 
       <PlanFormDialog
         open={openForm} onOpenChange={setOpenForm}
@@ -488,11 +632,22 @@ function PlanFormDialog({
 /* ====================== PLAN COURSES TAB ====================== */
 function PlanCoursesTab() {
   const qc = useQueryClient();
+  const [deptId, setDeptId] = useState<string>("all");
   const [programId, setProgramId] = useState<string>("");
   const [planId, setPlanId] = useState<string>("");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [semesterFilter, setSemesterFilter] = useState<string>("all");
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<PlanCourse | null>(null);
   const [confirmDel, setConfirmDel] = useState<PlanCourse | null>(null);
+
+  const { data: depts = [] } = useQuery({
+    queryKey: ["admin-depts"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("id, name_ar").order("sort_order");
+      if (error) throw error; return data as Department[];
+    },
+  });
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin-programs"],
@@ -501,6 +656,11 @@ function PlanCoursesTab() {
       if (error) throw error; return data as Program[];
     },
   });
+
+  const programsInDept = useMemo(
+    () => deptId === "all" ? programs : programs.filter((p) => p.department_id === deptId),
+    [programs, deptId],
+  );
 
   const { data: plans = [] } = useQuery({
     queryKey: ["admin-plans-by-prog", programId],
@@ -538,15 +698,28 @@ function PlanCoursesTab() {
     enabled: !!planId,
   });
 
+  const filteredPlanCourses = useMemo(() => {
+    return planCourses.filter((pc) => {
+      if (levelFilter !== "all" && pc.level_id !== levelFilter) return false;
+      if (semesterFilter !== "all" && pc.semester_code !== semesterFilter) return false;
+      return true;
+    });
+  }, [planCourses, levelFilter, semesterFilter]);
+
   const grouped = useMemo(() => {
     const map = new Map<string, PlanCourse[]>();
-    for (const pc of planCourses) {
+    for (const pc of filteredPlanCourses) {
       const key = `${pc.level_id}|${pc.semester_code}`;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(pc);
     }
     return map;
-  }, [planCourses]);
+  }, [filteredPlanCourses]);
+
+  const resetFilters = () => {
+    setDeptId("all"); setProgramId(""); setPlanId("");
+    setLevelFilter("all"); setSemesterFilter("all");
+  };
 
   const handleDelete = async () => {
     if (!confirmDel) return;
@@ -560,17 +733,27 @@ function PlanCoursesTab() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-[220px]">
+        <div className="min-w-[180px]">
+          <Label className="text-xs">القسم</Label>
+          <Select value={deptId} onValueChange={(v) => { setDeptId(v); setProgramId(""); setPlanId(""); }}>
+            <SelectTrigger><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الأقسام</SelectItem>
+              {depts.map((d) => <SelectItem key={d.id} value={d.id}>{d.name_ar}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[200px]">
           <Label className="text-xs">البرنامج</Label>
           <Select value={programId} onValueChange={(v) => { setProgramId(v); setPlanId(""); }}>
             <SelectTrigger><SelectValue placeholder="اختر البرنامج" /></SelectTrigger>
             <SelectContent>
-              {programs.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+              {programsInDept.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-[220px]">
-          <Label className="text-xs">الخطة</Label>
+        <div className="min-w-[200px]">
+          <Label className="text-xs">الخطة الدراسية</Label>
           <Select value={planId} onValueChange={setPlanId} disabled={!programId}>
             <SelectTrigger><SelectValue placeholder="اختر الخطة" /></SelectTrigger>
             <SelectContent>
@@ -578,6 +761,29 @@ function PlanCoursesTab() {
             </SelectContent>
           </Select>
         </div>
+        <div className="min-w-[140px]">
+          <Label className="text-xs">المستوى</Label>
+          <Select value={levelFilter} onValueChange={setLevelFilter} disabled={!planId}>
+            <SelectTrigger><SelectValue placeholder="كل المستويات" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل المستويات</SelectItem>
+              {levels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[140px]">
+          <Label className="text-xs">الفصل</Label>
+          <Select value={semesterFilter} onValueChange={setSemesterFilter} disabled={!planId}>
+            <SelectTrigger><SelectValue placeholder="كل الفصول" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">كل الفصول</SelectItem>
+              {SEMESTERS.map((s) => <SelectItem key={s.code} value={s.code}>{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" size="sm" onClick={resetFilters}>
+          <RotateCcw className="h-3.5 w-3.5 ml-1" /> إعادة تعيين
+        </Button>
         <div className="flex-1" />
         <Button onClick={() => { setEditing(null); setOpenForm(true); }} disabled={!planId}>
           <Plus className="h-4 w-4 ml-1" /> إضافة مقرر للخطة
@@ -590,14 +796,15 @@ function PlanCoursesTab() {
         </div>
       ) : isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-      ) : planCourses.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد مقررات في هذه الخطة.</div>
+      ) : filteredPlanCourses.length === 0 ? (
+        <div className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد مقررات مطابقة في هذه الخطة.</div>
       ) : (
         <div className="space-y-4">
           {levels.map((lvl) => {
             const lvlHas = SEMESTERS.some((s) => (grouped.get(`${lvl.id}|${s.code}`)?.length ?? 0) > 0);
             if (!lvlHas) return null;
             return (
+
               <div key={lvl.id} className="rounded-lg border bg-card">
                 <div className="px-4 py-2 border-b bg-muted/30 font-bold text-primary text-sm">{lvl.name}</div>
                 <div className="grid md:grid-cols-3 gap-px bg-border">
