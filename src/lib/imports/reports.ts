@@ -68,7 +68,7 @@ export async function downloadImportReport(
 ) {
   const XLSX = await loadXLSX();
   const wb = XLSX.utils.book_new();
-  const summary = [
+  const summary: (string | number)[][] = [
     ["تقرير تنفيذ الاستيراد"],
     ["نوع الاستيراد", TYPE_LABEL[type]],
     ["اسم الملف", fileName],
@@ -77,8 +77,15 @@ export async function downloadImportReport(
     ["نجح", report.rows_success],
     ["فشل", report.rows_failed],
   ];
+  if (type === "students") {
+    summary.push(["حسابات ستُنشأ / تم إنشاؤها", report.rows_created ?? 0]);
+    summary.push(["طلاب بدون حساب", report.rows_updated ?? 0]);
+  } else {
+    summary.push(["مضافة", report.rows_created ?? 0]);
+    summary.push(["محدثة", report.rows_updated ?? 0]);
+  }
   const wsSummary = XLSX.utils.aoa_to_sheet(summary);
-  wsSummary["!cols"] = [{ wch: 22 }, { wch: 40 }];
+  wsSummary["!cols"] = [{ wch: 28 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, wsSummary, "Summary");
 
   const errRows = report.errors.map((e) => ({
