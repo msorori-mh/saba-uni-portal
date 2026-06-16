@@ -338,7 +338,7 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3 w-3 ml-1" />
-          التفاصيل
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
@@ -427,7 +427,7 @@ function DeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) =>
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3.5 w-3.5 ml-1" />
-          عرض السيرة
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
@@ -467,7 +467,7 @@ function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3 w-3 ml-1" />
-          التفاصيل
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
@@ -522,7 +522,7 @@ function DepartmentHeadCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: Facu
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3 w-3 ml-1" />
-          التفاصيل
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
