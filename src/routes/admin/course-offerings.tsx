@@ -295,10 +295,13 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
 
   const curriculumReady = Boolean(form.academic_year_id && form.semester_id && form.program_id && form.level_id);
 
-  // Curriculum-aware course query: only from active study_plan for selected program & level
+  // Curriculum-aware course query: only courses from the active study_plan
+  // matching the selected program, level AND semester.
+  const selectedSemester = lk.semesters.find((s) => s.id === form.semester_id);
+  const semesterCode = selectedSemester?.code ?? null;
   const planCoursesQ = useQuery({
-    queryKey: ["plan-courses", form.program_id, form.level_id],
-    enabled: Boolean(form.program_id && form.level_id),
+    queryKey: ["plan-courses", form.program_id, form.level_id, semesterCode],
+    enabled: Boolean(form.program_id && form.level_id && semesterCode),
     queryFn: async () => {
       // Find active study plan(s) for program
       const { data: plans, error: pErr } = await supabase
@@ -316,6 +319,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
         .select("course_id, sort_order")
         .in("study_plan_id", planIds)
         .eq("level_id", form.level_id!)
+        .eq("semester_code", semesterCode!)
         .order("sort_order");
       if (sErr) throw sErr;
       const ids = Array.from(new Set((spc ?? []).map((r) => r.course_id)));
@@ -330,6 +334,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
       return { noPlan: false, courses };
     },
   });
+
 
   const save = async () => {
     if (!form.course_id || !form.academic_year_id || !form.semester_id || !form.program_id || !form.level_id) {
