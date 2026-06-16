@@ -197,7 +197,7 @@ function FacultyPage() {
                     {key === "__leadership" ? (
                       <LeadershipGroup members={members} onSelect={setSelected} />
                     ) : (
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
                         {members.map((f) => (
                           <FacultyCard key={f.id} f={f} onSelect={setSelected} />
                         ))}
@@ -291,9 +291,9 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
   const initials = f.full_name_ar.trim().split(/\s+/).slice(0, 2).map((s) => s.charAt(0)).join("");
   return (
     <article
-      className="group rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col"
+      className="group h-full rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 flex-1 min-w-0">
         <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-hero-gradient grid place-items-center ring-2 ring-gold/20 group-hover:ring-gold/50 transition-all">
           {f.photo ? (
             <img src={f.photo} alt={f.full_name_ar} className="w-full h-full object-cover" />
@@ -324,10 +324,9 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
             )}
           </div>
           {f.specialization && (
-            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{f.specialization}</div>
+            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-2">{f.specialization}</div>
           )}
         </div>
-
       </div>
 
       <div className="mt-3 pt-3 flex items-center justify-end border-t border-border/60">
@@ -374,14 +373,14 @@ function LeadershipGroup({ members, onSelect }: { members: FacultyRow[]; onSelec
         </div>
       )}
       {tier2.length > 0 && (
-        <div className="grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto w-full">
+        <div className="grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto w-full auto-rows-fr">
           {tier2.map((f) => (
             <ViceDeanCard key={f.id} f={f} onSelect={onSelect} />
           ))}
         </div>
       )}
       {tier3.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 auto-rows-fr">
           {tier3.map((f) => (
             <DepartmentHeadCard key={f.id} f={f} onSelect={onSelect} />
           ))}
@@ -436,7 +435,7 @@ function DeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) =>
 
 function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
   return (
-    <article className="relative rounded-xl border border-border border-t-4 border-t-gold/70 bg-card p-6 pt-5 text-center shadow-lg hover:shadow-elegant hover:-translate-y-0.5 transition-all duration-300">
+    <article className="relative h-full flex flex-col rounded-xl border border-border border-t-4 border-t-gold/70 bg-card p-6 pt-5 text-center shadow-lg hover:shadow-elegant hover:-translate-y-0.5 transition-all duration-300">
       <div className="mb-4 mx-auto flex items-center justify-center gap-1.5 rounded-full bg-gold text-primary-foreground px-4 py-1.5 text-xs font-bold shadow-md max-w-[90%]">
         <Crown className="h-3.5 w-3.5 shrink-0" />
         <span className="line-clamp-2">{f.admin_position}</span>
@@ -459,7 +458,7 @@ function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow
         )}
         {f.degree && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{f.degree}</Badge>}
       </div>
-      <div className="mt-4 pt-3 border-t border-border/60 flex justify-center">
+      <div className="mt-auto pt-3 border-t border-border/60 flex justify-center">
         <Button
           size="sm"
           variant="outline"
@@ -478,11 +477,11 @@ function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow
 function DepartmentHeadCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
   const initials = f.full_name_ar.trim().split(/\s+/).slice(0, 2).map((s) => s.charAt(0)).join("");
   return (
-    <article className="group rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col">
+    <article className="group h-full rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col">
       <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 text-center">
         رئيس قسم
       </div>
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 flex-1 min-w-0">
         <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-hero-gradient grid place-items-center ring-2 ring-gold/20 group-hover:ring-gold/50 transition-all">
           {f.photo ? (
             <img src={f.photo} alt={f.full_name_ar} className="w-full h-full object-cover" />
