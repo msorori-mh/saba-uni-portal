@@ -440,6 +440,7 @@ function EditFacultyModal({
   const updateFn = useServerFn(updateFacultyMember);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const { data: member, isLoading } = useQuery({
     queryKey: ["admin-faculty-detail", memberId],
@@ -458,10 +459,36 @@ function EditFacultyModal({
       email: (member as any).faculty?.email ?? "",
       phone: (member as any).faculty?.phone ?? "",
       status: (member as any).status ?? "active",
+      photo: (member as any).faculty?.photo ?? null,
     });
   }
 
   const update = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  const handlePhotoUpload = async (file: File) => {
+    const result = validateUpload(file, "public_image");
+    if (!result.ok) { toast.error(result.message); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("الصيغ المقبولة فقط: JPG، PNG، WebP."); return;
+    }
+    setUploading(true);
+    try {
+      const ext = getExt(file.name);
+      const uuid = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const path = `faculty/${memberId}/${uuid}.${ext}`;
+      const { error } = await supabase.storage
+        .from("faculty-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (error) { toast.error("فشل رفع الصورة: " + error.message); return; }
+      const { data } = supabase.storage.from("faculty-images").getPublicUrl(path);
+      update("photo", data.publicUrl);
+      toast.success("تم رفع الصورة — اضغط حفظ التغييرات للتثبيت");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -478,6 +505,7 @@ function EditFacultyModal({
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
         status: form.status,
+        photo: form.photo ?? null,
       };
       await updateFn({ data: payload });
       onSaved();
