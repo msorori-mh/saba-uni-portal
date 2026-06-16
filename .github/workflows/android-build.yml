@@ -61,12 +61,13 @@ jobs:
 
       - name: Add Android platform (if missing)
         run: |
-          if [ ! -d "android" ] || [ ! -f "android/build.gradle" ]; then
+          if [ ! -d "android" ]; then
             echo "android/ not present — running cap add android"
             ./node_modules/.bin/cap add android
           else
             echo "android/ already exists — skipping add"
           fi
+
 
       - name: Capacitor sync
         run: ./node_modules/.bin/cap sync android
