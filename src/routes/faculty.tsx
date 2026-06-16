@@ -100,7 +100,7 @@ export const Route = createFileRoute("/faculty")({
 });
 
 function FacultyPage() {
-  const { data: faculty = [], isLoading } = useQuery(facultyQuery);
+  const { data: faculty = [] } = useSuspenseQuery(facultyQuery);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<FacultyRow | null>(null);
 
