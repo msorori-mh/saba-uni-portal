@@ -234,6 +234,7 @@ export const updateFacultyMember = createServerFn({ method: "POST" })
           phone: data.phone || null,
           is_active: data.status === "active",
           ...(data.photo !== undefined ? { photo: data.photo } : {}),
+          ...(data.bio_ar !== undefined ? { bio_ar: data.bio_ar } : {}),
         } as any)
         .eq("id", (old as any).faculty_id);
     }
