@@ -83,71 +83,95 @@ function dryRunReport<T>(rows: ValidatedRow<T>[]): ImportReport {
 }
 
 export async function importStudents(rows: ValidatedRow<StudentRow>[], dryRun = false): Promise<ImportReport> {
-  if (dryRun) return dryRunReport(rows);
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
-  const valid = splitRows(rows, report);
+  // Pre-compute the create_login / no-account split for both modes.
+  const valid = rows.filter((r) => r.parsed !== null) as Array<ValidatedRow<StudentRow> & { parsed: StudentRow }>;
+  const accountsToCreate = valid.filter((r) => r.parsed.create_login).length;
+  const withoutAccount = valid.length - accountsToCreate;
+  // Duplicate academic_numbers are already flagged by the validator; surface a count here.
+  const dupErrors = rows.flatMap((r) => r.errors).filter((e) => e.column === "academic_number" && /مكرر|موجود/.test(e.message));
 
-  const inserts = valid.map((r) => ({
-    rowNumber: r.rowNumber,
-    payload: {
-      academic_number: r.parsed.academic_number,
-      full_name_ar: r.parsed.full_name_ar,
-      full_name_en: r.parsed.full_name_en,
-      national_id: r.parsed.national_id,
-      phone: r.parsed.phone,
-      email: r.parsed.email,
-      department_id: r.parsed.department_id,
-      program_id: r.parsed.program_id,
-      status: r.parsed.status,
-    },
-  }));
+  if (dryRun) {
+    const rep: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+    for (const r of rows) {
+      if (r.parsed === null) {
+        rep.rows_failed += 1;
+        r.errors.forEach((e) => rep.errors.push(e));
+      } else {
+        rep.rows_success += 1;
+      }
+    }
+    // Repurpose optional counts for the Dry Run summary:
+    //   rows_created = accounts to create, rows_updated = students without account
+    rep.rows_created = accountsToCreate;
+    rep.rows_updated = withoutAccount;
+    if (dupErrors.length) {
+      rep.errors.unshift({ row: 0, column: "academic_number", message: `أرقام أكاديمية مكررة/موجودة: ${dupErrors.length}` });
+    }
+    return rep;
+  }
 
-  const byAcademic = new Map(valid.map((v) => [v.parsed.academic_number, v.parsed]));
+  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, rows_created: 0, rows_updated: 0, errors: [] };
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+    }
+  }
 
-  for (let i = 0; i < inserts.length; i += CHUNK) {
-    const slice = inserts.slice(i, i + CHUNK);
-    const { data, error } = await sb.from("student_profiles")
-      .insert(slice.map((s) => s.payload)).select("id, academic_number");
-    if (error || !data) {
-      for (const r of slice) {
-        const { data: d, error: e2 } = await sb.from("student_profiles")
-          .insert([r.payload]).select("id, academic_number").maybeSingle();
-        if (e2 || !d) {
-          report.rows_failed += 1;
-          report.errors.push({ row: r.rowNumber, message: e2?.message ?? "insert failed" });
-        } else {
-          report.rows_success += 1;
-          const orig = byAcademic.get(d.academic_number);
-          if (orig) {
-            await sb.from("student_academic_status").insert({
-              student_profile_id: d.id,
-              academic_year_id: orig.academic_year_id,
-              semester_id: orig.semester_id,
-              level_id: orig.level_id,
-              enrollment_status: orig.status === "active" ? "enrolled" : orig.status,
-            });
-          }
-        }
+  for (const r of valid) {
+    const p = r.parsed;
+    const { data: prof, error: pErr } = await sb.from("student_profiles").insert({
+      academic_number: p.academic_number,
+      full_name_ar: p.full_name_ar,
+      full_name_en: p.full_name_en,
+      national_id: p.national_id,
+      phone: p.phone,
+      department_id: p.department_id,
+      program_id: p.program_id,
+      status: p.status,
+      must_change_password: p.must_change_password,
+    }).select("id").maybeSingle();
+    if (pErr || !prof) {
+      report.rows_failed += 1;
+      report.errors.push({ row: r.rowNumber, message: pErr?.message ?? "تعذّر إنشاء ملف الطالب" });
+      continue;
+    }
+
+    const { error: sErr } = await sb.from("student_academic_status").insert({
+      student_profile_id: prof.id,
+      academic_year_id: p.academic_year_id,
+      semester_id: p.semester_id,
+      level_id: p.level_id,
+      enrollment_status: p.status === "active" ? "enrolled" : p.status,
+    });
+    if (sErr) {
+      report.rows_failed += 1;
+      report.errors.push({ row: r.rowNumber, message: `الحالة الأكاديمية: ${sErr.message}` });
+      continue;
+    }
+
+    if (p.create_login) {
+      try {
+        await provisionStudentLogin({
+          data: {
+            profile_id: prof.id,
+            academic_number: p.academic_number,
+            must_change_password: p.must_change_password,
+          },
+        });
+        report.rows_created = (report.rows_created ?? 0) + 1;
+      } catch (e) {
+        report.errors.push({ row: r.rowNumber, message: `إنشاء الحساب: ${(e as Error).message}` });
+        // profile was created; we still count as success but log the account error.
       }
     } else {
-      report.rows_success += data.length;
-      const statusRows: Record<string, unknown>[] = [];
-      for (const d of data as Array<{ id: string; academic_number: string }>) {
-        const orig = byAcademic.get(d.academic_number);
-        if (!orig) continue;
-        statusRows.push({
-          student_profile_id: d.id,
-          academic_year_id: orig.academic_year_id,
-          semester_id: orig.semester_id,
-          level_id: orig.level_id,
-          enrollment_status: orig.status === "active" ? "enrolled" : orig.status,
-        });
-      }
-      if (statusRows.length) await sb.from("student_academic_status").insert(statusRows);
+      report.rows_updated = (report.rows_updated ?? 0) + 1;
     }
+    report.rows_success += 1;
   }
   return report;
 }
+
 
 export async function importFaculty(rows: ValidatedRow<FacultyRow>[], dryRun = false): Promise<ImportReport> {
   if (dryRun) return dryRunReport(rows);
