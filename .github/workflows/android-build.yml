@@ -9,7 +9,7 @@ on:
       - "public/**"
       - "capacitor.config.ts"
       - "package.json"
-      - "package-lock.json"
+      - "bun.lock"
       - "bun.lockb"
       - ".github/workflows/android-build.yml"
 
@@ -30,7 +30,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Setup JDK 17 (Temurin)
         uses: actions/setup-java@v4
@@ -43,28 +47,23 @@ jobs:
         with:
           packages: "platform-tools platforms;android-35 build-tools;35.0.0"
 
-      - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            npm install
-          fi
+      - name: Install dependencies (bun)
+        run: bun install --frozen-lockfile
 
       - name: Build web assets (Vite)
-        run: npm run build
+        run: bun run build
 
       - name: Add Android platform (if missing)
         run: |
           if [ ! -d "android" ] || [ ! -f "android/build.gradle" ]; then
             echo "android/ not present — running cap add android"
-            npx --yes cap add android
+            bunx cap add android
           else
             echo "android/ already exists — skipping add"
           fi
 
       - name: Capacitor sync
-        run: npx --yes cap sync android
+        run: bunx cap sync android
 
       - name: Grant gradlew execute permission
         run: chmod +x android/gradlew
