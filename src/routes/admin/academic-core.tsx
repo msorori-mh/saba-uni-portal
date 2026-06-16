@@ -294,6 +294,18 @@ function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: 
   const [status, setStatus] = useState(editing?.status ?? "active");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setYearId(editing?.academic_year_id ?? (years[0]?.id ?? ""));
+      setName(editing?.name ?? "");
+      setCode(editing?.code ?? "first");
+      setStart(editing?.start_date ?? "");
+      setEnd(editing?.end_date ?? "");
+      setIsCurrent(editing?.is_current ?? false);
+      setStatus(editing?.status ?? "active");
+    }
+  }, [open, editing, years]);
+
   const save = async () => {
     if (!yearId || !name || !code || !start || !end) { toast.error("الحقول مطلوبة"); return; }
     setSaving(true);
@@ -307,18 +319,7 @@ function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: 
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
-      onOpenChange(o);
-      if (o) {
-        setYearId(editing?.academic_year_id ?? (years[0]?.id ?? ""));
-        setName(editing?.name ?? "");
-        setCode(editing?.code ?? "first");
-        setStart(editing?.start_date ?? "");
-        setEnd(editing?.end_date ?? "");
-        setIsCurrent(editing?.is_current ?? false);
-        setStatus(editing?.status ?? "active");
-      }
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle>{editing ? "تعديل" : "إضافة"} فصل دراسي</DialogTitle></DialogHeader>
         <div className="space-y-3">
