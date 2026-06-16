@@ -260,14 +260,17 @@ function FacultyPage() {
               </DialogHeader>
 
               <div className="space-y-5 mt-2">
-                {selected.bio_ar && (
-                  <Section title="نبذة">
+                <Section title="السيرة الذاتية">
+                  {selected.bio_ar ? (
                     <p className="text-foreground/80 leading-relaxed whitespace-pre-line">
                       {selected.bio_ar}
                     </p>
-                  </Section>
-                )}
-
+                  ) : (
+                    <p className="text-muted-foreground leading-relaxed">
+                      لا توجد سيرة ذاتية مضافة حالياً.
+                    </p>
+                  )}
+                </Section>
               </div>
 
               <div className="flex justify-end pt-4 border-t mt-4">
@@ -335,7 +338,7 @@ function FacultyCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow)
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3 w-3 ml-1" />
-          التفاصيل
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
@@ -424,7 +427,7 @@ function DeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) =>
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3.5 w-3.5 ml-1" />
-          عرض السيرة
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
@@ -464,7 +467,7 @@ function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3 w-3 ml-1" />
-          التفاصيل
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
@@ -519,7 +522,7 @@ function DepartmentHeadCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: Facu
           onClick={() => onSelect(f)}
         >
           <FileText className="h-3 w-3 ml-1" />
-          التفاصيل
+          عرض السيرة الذاتية
         </Button>
       </div>
     </article>
