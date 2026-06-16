@@ -276,12 +276,57 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
   open: boolean; onOpenChange: (v: boolean) => void; editing: Offering | null;
   lk: ReturnType<typeof useLookups>; onSaved: () => void;
 }) {
-  const [form, setForm] = useState<Partial<Offering>>({});
+  const [form, setForm] = useState<Partial<Offering> & { department_id?: string }>({});
   const [saving, setSaving] = useState(false);
 
   useMemo(() => {
-    if (open) setForm(editing ?? { status: "active" });
-  }, [open, editing]);
+    if (open) {
+      if (editing) {
+        const prog = lk.programs.find((p) => p.id === editing.program_id);
+        setForm({ ...editing, department_id: prog?.department_id ?? undefined });
+      } else {
+        setForm({ status: "active" });
+      }
+    }
+  }, [open, editing, lk.programs]);
+
+  const semestersForYear = lk.semesters.filter((s) => !form.academic_year_id || s.academic_year_id === form.academic_year_id);
+  const programsForDept = lk.programs.filter((p) => !form.department_id || p.department_id === form.department_id);
+
+  const curriculumReady = Boolean(form.academic_year_id && form.semester_id && form.program_id && form.level_id);
+
+  // Curriculum-aware course query: only from active study_plan for selected program & level
+  const planCoursesQ = useQuery({
+    queryKey: ["plan-courses", form.program_id, form.level_id],
+    enabled: Boolean(form.program_id && form.level_id),
+    queryFn: async () => {
+      // Find active study plan(s) for program
+      const { data: plans, error: pErr } = await supabase
+        .from("study_plans")
+        .select("id")
+        .eq("program_id", form.program_id!)
+        .eq("is_active", true)
+        .eq("status", "active");
+      if (pErr) throw pErr;
+      if (!plans || plans.length === 0) return { noPlan: true, courses: [] as Course[] };
+
+      const planIds = plans.map((p) => p.id);
+      const { data: spc, error: sErr } = await supabase
+        .from("study_plan_courses")
+        .select("course_id, sort_order, courses:course_id(id, code, name_ar)")
+        .in("study_plan_id", planIds)
+        .eq("level_id", form.level_id!)
+        .order("sort_order");
+      if (sErr) throw sErr;
+      const seen = new Set<string>();
+      const courses: Course[] = [];
+      (spc ?? []).forEach((r: { courses: Course | Course[] | null }) => {
+        const c = Array.isArray(r.courses) ? r.courses[0] : r.courses;
+        if (c && !seen.has(c.id)) { seen.add(c.id); courses.push(c); }
+      });
+      return { noPlan: false, courses };
+    },
+  });
 
   const save = async () => {
     if (!form.course_id || !form.academic_year_id || !form.semester_id || !form.program_id || !form.level_id) {
@@ -306,25 +351,14 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
     onOpenChange(false); onSaved();
   };
 
-  const semestersForYear = lk.semesters.filter((s) => !form.academic_year_id || s.academic_year_id === form.academic_year_id);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl" className="max-w-xl">
         <DialogHeader><DialogTitle>{editing ? "تعديل إسناد" : "إسناد مقرر جديد"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <Label>المقرر *</Label>
-            <Select value={form.course_id ?? ""} onValueChange={(v) => setForm({ ...form, course_id: v })}>
-              <SelectTrigger><SelectValue placeholder="اختر المقرر" /></SelectTrigger>
-              <SelectContent>
-                {lk.courses.map((c) => <SelectItem key={c.id} value={c.id}>{c.code} — {c.name_ar}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
           <div>
             <Label>السنة الأكاديمية *</Label>
-            <Select value={form.academic_year_id ?? ""} onValueChange={(v) => setForm({ ...form, academic_year_id: v, semester_id: undefined })}>
+            <Select value={form.academic_year_id ?? ""} onValueChange={(v) => setForm({ ...form, academic_year_id: v, semester_id: undefined, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
                 {lk.years.map((y) => <SelectItem key={y.id} value={y.id}>{y.name}{y.is_current ? " (الحالية)" : ""}</SelectItem>)}
@@ -333,7 +367,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
           </div>
           <div>
             <Label>الفصل *</Label>
-            <Select value={form.semester_id ?? ""} onValueChange={(v) => setForm({ ...form, semester_id: v })}>
+            <Select value={form.semester_id ?? ""} onValueChange={(v) => setForm({ ...form, semester_id: v, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
                 {semestersForYear.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
@@ -341,24 +375,33 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
             </Select>
           </div>
           <div>
-            <Label>البرنامج *</Label>
-            <Select value={form.program_id ?? ""} onValueChange={(v) => setForm({ ...form, program_id: v })}>
+            <Label>القسم *</Label>
+            <Select value={form.department_id ?? ""} onValueChange={(v) => setForm({ ...form, department_id: v, program_id: undefined, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
-                {lk.programs.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+                {lk.departments.map((d) => <SelectItem key={d.id} value={d.id}>{d.name_ar}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>البرنامج *</Label>
+            <Select value={form.program_id ?? ""} onValueChange={(v) => setForm({ ...form, program_id: v, course_id: undefined })} disabled={!form.department_id}>
+              <SelectTrigger><SelectValue placeholder={form.department_id ? "اختر" : "اختر القسم أولاً"} /></SelectTrigger>
+              <SelectContent>
+                {programsForDept.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div>
             <Label>المستوى *</Label>
-            <Select value={form.level_id ?? ""} onValueChange={(v) => setForm({ ...form, level_id: v })}>
+            <Select value={form.level_id ?? ""} onValueChange={(v) => setForm({ ...form, level_id: v, course_id: undefined })}>
               <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
               <SelectContent>
                 {lk.levels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div className="col-span-2">
+          <div>
             <Label>الحالة</Label>
             <Select value={form.status ?? "active"} onValueChange={(v) => setForm({ ...form, status: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -367,6 +410,35 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
                 <SelectItem value="inactive">معطل</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="col-span-2">
+            <Label>المقرر *</Label>
+            <Select
+              value={form.course_id ?? ""}
+              onValueChange={(v) => setForm({ ...form, course_id: v })}
+              disabled={!curriculumReady || planCoursesQ.isLoading || !planCoursesQ.data || planCoursesQ.data.noPlan || planCoursesQ.data.courses.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={
+                  !curriculumReady ? "اختر السنة والفصل والبرنامج والمستوى أولاً" :
+                  planCoursesQ.isLoading ? "جارٍ التحميل..." :
+                  planCoursesQ.data?.noPlan ? "لا توجد خطة دراسية معتمدة لهذا البرنامج." :
+                  (planCoursesQ.data?.courses.length ?? 0) === 0 ? "لا توجد مقررات مرتبطة بهذا المستوى." :
+                  "اختر المقرر"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {(planCoursesQ.data?.courses ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.code} — {c.name_ar}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {curriculumReady && planCoursesQ.data?.noPlan && (
+              <p className="text-xs text-destructive mt-1">لا توجد خطة دراسية معتمدة لهذا البرنامج.</p>
+            )}
+            {curriculumReady && !planCoursesQ.isLoading && planCoursesQ.data && !planCoursesQ.data.noPlan && planCoursesQ.data.courses.length === 0 && (
+              <p className="text-xs text-destructive mt-1">لا توجد مقررات مرتبطة بهذا المستوى.</p>
+            )}
           </div>
         </div>
         <DialogFooter>
@@ -377,6 +449,7 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
     </Dialog>
   );
 }
+
 
 // ============ Sections Tab ============
 function SectionsTab() {
