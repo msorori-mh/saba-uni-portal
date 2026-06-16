@@ -360,3 +360,175 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </div>
   );
 }
+
+function LeadershipGroup({ members, onSelect }: { members: FacultyRow[]; onSelect: (f: FacultyRow) => void }) {
+  const tier1 = members.filter((m) => getLeaderTier(m.admin_position) === 1);
+  const tier2 = members.filter((m) => getLeaderTier(m.admin_position) === 2);
+  const tier3 = members.filter((m) => getLeaderTier(m.admin_position) === 3);
+
+  return (
+    <div className="space-y-12">
+      {tier1.length > 0 && (
+        <div className="flex justify-center">
+          <div className="w-full max-w-md">
+            {tier1.map((f) => (
+              <DeanCard key={f.id} f={f} onSelect={onSelect} />
+            ))}
+          </div>
+        </div>
+      )}
+      {tier2.length > 0 && (
+        <div className="grid gap-6 sm:grid-cols-2 max-w-4xl mx-auto w-full">
+          {tier2.map((f) => (
+            <ViceDeanCard key={f.id} f={f} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+      {tier3.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {tier3.map((f) => (
+            <DepartmentHeadCard key={f.id} f={f} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
+  return (
+    <article className="relative rounded-2xl border-2 border-gold bg-card p-8 pt-10 text-center shadow-elegant hover:-translate-y-1 transition-all duration-300">
+      <div className="absolute -top-4 right-1/2 translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-gold text-primary-foreground px-5 py-1 text-xs font-bold shadow-md whitespace-nowrap">
+        <Crown className="h-3.5 w-3.5" />
+        {f.admin_position}
+      </div>
+      <div className="mx-auto mb-5 h-28 w-28 rounded-full overflow-hidden bg-hero-gradient ring-4 ring-gold/40 grid place-items-center">
+        {f.photo ? (
+          <img src={f.photo} alt={f.full_name_ar} className="w-full h-full object-cover" />
+        ) : (
+          <span className="font-display text-3xl font-extrabold text-gold/90">
+            {f.full_name_ar.charAt(0)}
+          </span>
+        )}
+      </div>
+      <h3 className="font-display text-xl font-extrabold text-primary">{f.full_name_ar}</h3>
+      <div className="mt-2 flex flex-wrap gap-2 justify-center">
+        {f.rank && (
+          <Badge className="bg-primary/10 text-primary border border-primary/20 text-[11px]">
+            {displayRank(f.rank)}
+          </Badge>
+        )}
+        {f.degree && <Badge variant="outline" className="text-[11px]">{f.degree}</Badge>}
+      </div>
+      {f.specialization && (
+        <p className="mt-3 text-xs text-muted-foreground">{f.specialization}</p>
+      )}
+      <div className="mt-5 pt-4 border-t border-gold/30 flex justify-center">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-8 text-xs border-gold/50 text-primary hover:bg-gold/10 hover:border-gold"
+          onClick={() => onSelect(f)}
+        >
+          <FileText className="h-3.5 w-3.5 ml-1" />
+          عرض السيرة
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+function ViceDeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
+  return (
+    <article className="relative rounded-xl border border-border border-t-4 border-t-gold/70 bg-card p-6 pt-7 text-center shadow-lg hover:shadow-elegant hover:-translate-y-0.5 transition-all duration-300">
+      <div className="absolute -top-3 right-5 inline-flex items-center gap-1 rounded-full bg-gold/15 text-gold border border-gold/40 px-3 py-0.5 text-[11px] font-bold whitespace-nowrap">
+        <Crown className="h-3 w-3" />
+        {f.admin_position}
+      </div>
+      <div className="mx-auto mb-4 h-20 w-20 rounded-full overflow-hidden bg-hero-gradient ring-2 ring-gold/30 grid place-items-center">
+        {f.photo ? (
+          <img src={f.photo} alt={f.full_name_ar} className="w-full h-full object-cover" />
+        ) : (
+          <span className="font-display text-2xl font-extrabold text-gold/90">
+            {f.full_name_ar.charAt(0)}
+          </span>
+        )}
+      </div>
+      <h4 className="font-display text-base font-bold text-primary">{f.full_name_ar}</h4>
+      <div className="mt-2 flex flex-wrap gap-1 justify-center">
+        {f.rank && (
+          <Badge className="bg-primary/10 text-primary border border-primary/20 text-[10px] px-1.5 py-0">
+            {displayRank(f.rank)}
+          </Badge>
+        )}
+        {f.degree && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{f.degree}</Badge>}
+      </div>
+      <div className="mt-4 pt-3 border-t border-border/60 flex justify-center">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs border-gold/40 text-primary hover:bg-gold/10 hover:border-gold"
+          onClick={() => onSelect(f)}
+        >
+          <FileText className="h-3 w-3 ml-1" />
+          التفاصيل
+        </Button>
+      </div>
+    </article>
+  );
+}
+
+function DepartmentHeadCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
+  const initials = f.full_name_ar.trim().split(/\s+/).slice(0, 2).map((s) => s.charAt(0)).join("");
+  return (
+    <article className="group rounded-xl border border-border bg-card p-4 shadow-card hover:shadow-elegant hover:border-gold/50 hover:-translate-y-0.5 transition-all duration-300 flex flex-col">
+      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 text-center">
+        رئيس قسم
+      </div>
+      <div className="flex items-start gap-3">
+        <div className="h-14 w-14 shrink-0 rounded-full overflow-hidden bg-hero-gradient grid place-items-center ring-2 ring-gold/20 group-hover:ring-gold/50 transition-all">
+          {f.photo ? (
+            <img src={f.photo} alt={f.full_name_ar} className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-display text-base font-extrabold text-gold/90" aria-hidden>
+              {initials}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display text-sm font-bold text-primary leading-snug line-clamp-2">
+            {f.full_name_ar}
+          </h3>
+          {f.admin_position && (
+            <div className="mt-1 text-[11px] font-bold text-gold line-clamp-1">
+              {f.admin_position}
+            </div>
+          )}
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {f.rank && (
+              <Badge className="bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15 text-[10px] px-1.5 py-0">
+                {displayRank(f.rank)}
+              </Badge>
+            )}
+            {f.degree && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{f.degree}</Badge>}
+          </div>
+          {f.specialization && (
+            <div className="mt-1 text-[11px] text-muted-foreground line-clamp-1">{f.specialization}</div>
+          )}
+        </div>
+      </div>
+      <div className="mt-3 pt-3 flex items-center justify-end border-t border-border/60">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7 text-xs border-gold/40 text-primary hover:bg-gold/10 hover:border-gold"
+          onClick={() => onSelect(f)}
+        >
+          <FileText className="h-3 w-3 ml-1" />
+          التفاصيل
+        </Button>
+      </div>
+    </article>
+  );
+}
+
