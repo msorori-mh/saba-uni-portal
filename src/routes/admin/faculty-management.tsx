@@ -4,8 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX,
-  Users, Upload,
+  Users, Upload, User as UserIcon,
 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { validateUpload, getExt } from "@/lib/storage-validation";
 import { listUsers, createAccount, resetPassword, setActive } from "@/lib/admin-users.functions";
 import {
   getPeopleLookups, createFacultyMember, updateFacultyMember, getFacultyMember,
