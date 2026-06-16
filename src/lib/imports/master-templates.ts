@@ -260,7 +260,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "course_sections",
     fileName: "template_course_sections.xlsx",
     title: "مجموعات المقررات الدراسية",
-    description: "المجموعات (Sections) المفتوحة للمقررات في الفصل الحالي (يتطلب تطوير مستورد).",
+    description: "المجموعات (Groups) المفتوحة للمقررات في الفصل الحالي (يتطلب تطوير مستورد).",
     category: "courses",
     hasValidator: false,
     columns: [
