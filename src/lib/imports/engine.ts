@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { provisionStudentLogin } from "@/lib/admin-students.functions";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type {
   CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
@@ -7,6 +8,7 @@ import type {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
+
 
 const CHUNK = 200;
 
