@@ -201,11 +201,15 @@ function FacultyPage() {
                       </div>
                     </div>
                     <div className="divider-gold mb-8" />
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      {members.map((f) => (
-                        <FacultyCard key={f.id} f={f} onSelect={setSelected} />
-                      ))}
-                    </div>
+                    {key === "__leadership" ? (
+                      <LeadershipGroup members={members} onSelect={setSelected} />
+                    ) : (
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {members.map((f) => (
+                          <FacultyCard key={f.id} f={f} onSelect={setSelected} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               });
