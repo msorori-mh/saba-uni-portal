@@ -460,6 +460,7 @@ function EditFacultyModal({
       phone: (member as any).faculty?.phone ?? "",
       status: (member as any).status ?? "active",
       photo: (member as any).faculty?.photo ?? null,
+      bio_ar: (member as any).faculty?.bio_ar ?? "",
     });
   }
 
