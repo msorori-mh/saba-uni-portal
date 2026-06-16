@@ -193,6 +193,7 @@ const updateFacultySchema = z.object({
   email: z.preprocess(emptyToNull, z.string().trim().email().max(160).nullable().optional()),
   phone: z.preprocess(emptyToNull, z.string().trim().max(32).nullable().optional()),
   status: z.enum(["active", "inactive"]),
+  photo: z.preprocess(emptyToNull, z.string().trim().url().max(1024).nullable().optional()),
 });
 
 export const updateFacultyMember = createServerFn({ method: "POST" })
