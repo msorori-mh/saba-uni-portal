@@ -173,7 +173,7 @@ function CoursesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-row-reverse flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث بالكود أو الاسم" className="pr-9" />
@@ -461,7 +461,7 @@ function PlansTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-row-reverse flex-wrap items-center gap-3">
         <Select value={deptFilter} onValueChange={(v) => {
           setDeptFilter(v);
           if (v !== "all" && programFilter !== "all") {
@@ -744,7 +744,7 @@ function PlanCoursesTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-row-reverse flex-wrap items-end gap-3">
         <div className="min-w-[180px]">
           <Label className="text-xs">القسم</Label>
           <Select value={deptId} onValueChange={(v) => {
