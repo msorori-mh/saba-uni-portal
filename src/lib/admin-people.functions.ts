@@ -193,6 +193,7 @@ const updateFacultySchema = z.object({
   email: z.preprocess(emptyToNull, z.string().trim().email().max(160).nullable().optional()),
   phone: z.preprocess(emptyToNull, z.string().trim().max(32).nullable().optional()),
   status: z.enum(["active", "inactive"]),
+  photo: z.preprocess(emptyToNull, z.string().trim().url().max(1024).nullable().optional()),
 });
 
 export const updateFacultyMember = createServerFn({ method: "POST" })
@@ -231,6 +232,7 @@ export const updateFacultyMember = createServerFn({ method: "POST" })
           email: data.email || null,
           phone: data.phone || null,
           is_active: data.status === "active",
+          ...(data.photo !== undefined ? { photo: data.photo } : {}),
         } as any)
         .eq("id", (old as any).faculty_id);
     }
@@ -254,7 +256,7 @@ export const getFacultyMember = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnyRole(context.userId, [...FACULTY_ROLES, "student_affairs"]);
     const { data: row, error } = await supabaseAdmin
-      .from("faculty_profiles").select("*, faculty:faculty_id(email, phone)")
+      .from("faculty_profiles").select("*, faculty:faculty_id(email, phone, photo)")
       .eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("العضو غير موجود");

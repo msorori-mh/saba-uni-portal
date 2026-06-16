@@ -4,8 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX,
-  Users, Upload,
+  Users, Upload, User as UserIcon,
 } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { validateUpload, getExt } from "@/lib/storage-validation";
 import { listUsers, createAccount, resetPassword, setActive } from "@/lib/admin-users.functions";
 import {
   getPeopleLookups, createFacultyMember, updateFacultyMember, getFacultyMember,
@@ -437,6 +440,7 @@ function EditFacultyModal({
   const updateFn = useServerFn(updateFacultyMember);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const { data: member, isLoading } = useQuery({
     queryKey: ["admin-faculty-detail", memberId],
@@ -455,10 +459,36 @@ function EditFacultyModal({
       email: (member as any).faculty?.email ?? "",
       phone: (member as any).faculty?.phone ?? "",
       status: (member as any).status ?? "active",
+      photo: (member as any).faculty?.photo ?? null,
     });
   }
 
   const update = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+
+  const handlePhotoUpload = async (file: File) => {
+    const result = validateUpload(file, "public_image");
+    if (!result.ok) { toast.error(result.message); return; }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("الصيغ المقبولة فقط: JPG، PNG، WebP."); return;
+    }
+    setUploading(true);
+    try {
+      const ext = getExt(file.name);
+      const uuid = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const path = `faculty/${memberId}/${uuid}.${ext}`;
+      const { error } = await supabase.storage
+        .from("faculty-images")
+        .upload(path, file, { upsert: false, contentType: file.type });
+      if (error) { toast.error("فشل رفع الصورة: " + error.message); return; }
+      const { data } = supabase.storage.from("faculty-images").getPublicUrl(path);
+      update("photo", data.publicUrl);
+      toast.success("تم رفع الصورة — اضغط حفظ التغييرات للتثبيت");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -475,6 +505,7 @@ function EditFacultyModal({
         email: form.email?.trim() || null,
         phone: form.phone?.trim() || null,
         status: form.status,
+        photo: form.photo ?? null,
       };
       await updateFn({ data: payload });
       onSaved();
@@ -505,6 +536,38 @@ function EditFacultyModal({
                 <span className="text-muted-foreground">الرقم الوظيفي:</span>{" "}
                 <span className="font-mono font-bold">{(member as any)?.employee_number}</span>
               </div>
+
+              <div className="rounded-lg border border-border p-3">
+                <div className="text-sm font-bold mb-2">صورة عضو هيئة التدريس</div>
+                <div className="flex items-start gap-4">
+                  <div className="h-24 w-24 shrink-0 rounded-full border-2 border-dashed border-border bg-secondary/30 overflow-hidden grid place-items-center">
+                    {form.photo ? (
+                      <img src={form.photo} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <UserIcon className="h-8 w-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-secondary">
+                      {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      <span>{uploading ? "جارٍ الرفع..." : form.photo ? "تغيير الصورة" : "رفع صورة"}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        disabled={uploading}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handlePhotoUpload(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">الصيغ المسموحة: JPG، PNG، WebP. ملفات SVG مرفوضة.</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="الاسم بالعربية *">
                   <input required minLength={2} value={form.full_name_ar} onChange={(e) => update("full_name_ar", e.target.value)}
