@@ -178,7 +178,13 @@ function CoursesTab() {
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث بالكود أو الاسم" className="pr-9" />
         </div>
-        <Select value={deptFilter} onValueChange={(v) => { setDeptFilter(v); setProgramFilter("all"); }}>
+        <Select value={deptFilter} onValueChange={(v) => {
+          setDeptFilter(v);
+          if (v !== "all" && programFilter !== "all") {
+            const prog = programs.find((p) => p.id === programFilter);
+            if (!prog || prog.department_id !== v) setProgramFilter("all");
+          }
+        }}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="كل الأقسام" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">كل الأقسام</SelectItem>
