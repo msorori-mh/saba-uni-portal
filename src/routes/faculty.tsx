@@ -76,7 +76,7 @@ const RANK_SECTIONS: Array<{ key: string; title: string; subtitle: string; ranks
 ];
 
 const OTHERS_SECTION: SectionDef = {
-  title: "محاضرة مساعد",
+  title: "محاضر مساعد",
   subtitle: "أعضاء برتبة محاضر مساعد",
   Icon: GraduationCap,
 };
