@@ -770,15 +770,16 @@ function FacultyFormDialog({
                 ) : (
                   <Upload className="h-4 w-4" />
                 )}
-                <span>{uploading ? "جارٍ الرفع..." : "رفع صورة"}</span>
+                <span>{uploading ? "جارٍ الرفع..." : photo ? "تغيير الصورة" : "رفع صورة"}</span>
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   className="hidden"
                   disabled={uploading}
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) handleFileUpload(f);
+                    e.target.value = "";
                   }}
                 />
               </label>
