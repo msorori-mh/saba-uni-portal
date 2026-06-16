@@ -313,17 +313,20 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
       const planIds = plans.map((p) => p.id);
       const { data: spc, error: sErr } = await supabase
         .from("study_plan_courses")
-        .select("course_id, sort_order, courses:course_id(id, code, name_ar)")
+        .select("course_id, sort_order")
         .in("study_plan_id", planIds)
         .eq("level_id", form.level_id!)
         .order("sort_order");
       if (sErr) throw sErr;
-      const seen = new Set<string>();
-      const courses: Course[] = [];
-      (spc ?? []).forEach((r: { courses: Course | Course[] | null }) => {
-        const c = Array.isArray(r.courses) ? r.courses[0] : r.courses;
-        if (c && !seen.has(c.id)) { seen.add(c.id); courses.push(c); }
-      });
+      const ids = Array.from(new Set((spc ?? []).map((r) => r.course_id)));
+      if (ids.length === 0) return { noPlan: false, courses: [] as Course[] };
+      const { data: cs, error: cErr } = await supabase
+        .from("courses")
+        .select("id, code, name_ar")
+        .in("id", ids);
+      if (cErr) throw cErr;
+      const order = new Map(ids.map((id, i) => [id, i]));
+      const courses = ((cs ?? []) as Course[]).slice().sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
       return { noPlan: false, courses };
     },
   });
