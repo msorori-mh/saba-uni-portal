@@ -256,7 +256,7 @@ export const getFacultyMember = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnyRole(context.userId, [...FACULTY_ROLES, "student_affairs"]);
     const { data: row, error } = await supabaseAdmin
-      .from("faculty_profiles").select("*, faculty:faculty_id(email, phone)")
+      .from("faculty_profiles").select("*, faculty:faculty_id(email, phone, photo)")
       .eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("العضو غير موجود");
