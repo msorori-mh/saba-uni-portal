@@ -82,7 +82,7 @@ function useLookups() {
   const programs = useQuery({
     queryKey: ["lk-programs"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("programs").select("id, name_ar, code").order("sort_order");
+      const { data, error } = await supabase.from("programs").select("id, name_ar, code, department_id").order("sort_order");
       if (error) throw error; return data as Program[];
     },
   });
@@ -91,6 +91,13 @@ function useLookups() {
     queryFn: async () => {
       const { data, error } = await supabase.from("academic_levels").select("id, name, level_number").order("level_number");
       if (error) throw error; return data as Level[];
+    },
+  });
+  const departments = useQuery({
+    queryKey: ["lk-departments"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("departments").select("id, name_ar").order("name_ar");
+      if (error) throw error; return data as Department[];
     },
   });
   const faculty = useQuery({
@@ -103,6 +110,7 @@ function useLookups() {
   return {
     courses: courses.data ?? [], years: years.data ?? [], semesters: semesters.data ?? [],
     programs: programs.data ?? [], levels: levels.data ?? [], faculty: faculty.data ?? [],
+    departments: departments.data ?? [],
   };
 }
 
