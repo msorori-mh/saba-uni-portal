@@ -194,6 +194,7 @@ const updateFacultySchema = z.object({
   phone: z.preprocess(emptyToNull, z.string().trim().max(32).nullable().optional()),
   status: z.enum(["active", "inactive"]),
   photo: z.preprocess(emptyToNull, z.string().trim().url().max(1024).nullable().optional()),
+  bio_ar: z.preprocess(emptyToNull, z.string().trim().max(4000).nullable().optional()),
 });
 
 export const updateFacultyMember = createServerFn({ method: "POST" })
@@ -233,6 +234,7 @@ export const updateFacultyMember = createServerFn({ method: "POST" })
           phone: data.phone || null,
           is_active: data.status === "active",
           ...(data.photo !== undefined ? { photo: data.photo } : {}),
+          ...(data.bio_ar !== undefined ? { bio_ar: data.bio_ar } : {}),
         } as any)
         .eq("id", (old as any).faculty_id);
     }
@@ -256,7 +258,7 @@ export const getFacultyMember = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnyRole(context.userId, [...FACULTY_ROLES, "student_affairs"]);
     const { data: row, error } = await supabaseAdmin
-      .from("faculty_profiles").select("*, faculty:faculty_id(email, phone, photo)")
+      .from("faculty_profiles").select("*, faculty:faculty_id(email, phone, photo, bio_ar)")
       .eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("العضو غير موجود");

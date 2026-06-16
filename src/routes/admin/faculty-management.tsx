@@ -460,6 +460,7 @@ function EditFacultyModal({
       phone: (member as any).faculty?.phone ?? "",
       status: (member as any).status ?? "active",
       photo: (member as any).faculty?.photo ?? null,
+      bio_ar: (member as any).faculty?.bio_ar ?? "",
     });
   }
 
@@ -506,6 +507,7 @@ function EditFacultyModal({
         phone: form.phone?.trim() || null,
         status: form.status,
         photo: form.photo ?? null,
+        bio_ar: form.bio_ar?.trim() || null,
       };
       await updateFn({ data: payload });
       onSaved();
@@ -623,6 +625,17 @@ function EditFacultyModal({
                   </select>
                 </Field>
               </div>
+              <Field label="السيرة الذاتية / نبذة تعريفية">
+                <textarea
+                  value={form.bio_ar ?? ""}
+                  onChange={(e) => update("bio_ar", e.target.value)}
+                  rows={6}
+                  maxLength={4000}
+                  placeholder="نبذة تعريفية تظهر في صفحة أعضاء هيئة التدريس العامة عند الضغط على «عرض السيرة»"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">حد أقصى 4000 حرف. اتركه فارغاً لإخفاء قسم النبذة.</p>
+              </Field>
               {err && <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{err}</div>}
             </>
           )}
