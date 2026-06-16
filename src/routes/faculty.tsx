@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { GraduationCap, Search, FileText, ArrowRight, Crown, BookOpen, Users } from "lucide-react";
 import { PageHeader } from "@/components/site/PageHeader";
