@@ -141,11 +141,15 @@ function YearDialog({ open, onOpenChange, editing, onDone }: { open: boolean; on
   const [status, setStatus] = useState(editing?.status ?? "active");
   const [saving, setSaving] = useState(false);
 
-  // reset when opening
-  useState(() => { /* noop */ });
-  if (open && editing && name !== editing.name && !saving) {
-    // initialize on open
-  }
+  useEffect(() => {
+    if (open) {
+      setName(editing?.name ?? "");
+      setStart(editing?.start_date ?? "");
+      setEnd(editing?.end_date ?? "");
+      setIsCurrent(editing?.is_current ?? false);
+      setStatus(editing?.status ?? "active");
+    }
+  }, [open, editing]);
 
   const save = async () => {
     if (!name || !start || !end) { toast.error("الحقول مطلوبة"); return; }
@@ -160,16 +164,7 @@ function YearDialog({ open, onOpenChange, editing, onDone }: { open: boolean; on
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
-      onOpenChange(o);
-      if (o) {
-        setName(editing?.name ?? "");
-        setStart(editing?.start_date ?? "");
-        setEnd(editing?.end_date ?? "");
-        setIsCurrent(editing?.is_current ?? false);
-        setStatus(editing?.status ?? "active");
-      }
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle>{editing ? "تعديل" : "إضافة"} سنة أكاديمية</DialogTitle></DialogHeader>
         <div className="space-y-3">
