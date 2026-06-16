@@ -24,8 +24,9 @@ export const Route = createFileRoute("/admin/course-offerings")({
 type Course = { id: string; code: string; name_ar: string };
 type Year = { id: string; name: string; is_current: boolean };
 type Semester = { id: string; academic_year_id: string; name: string; code: string };
-type Program = { id: string; name_ar: string; code: string };
+type Program = { id: string; name_ar: string; code: string; department_id: string | null };
 type Level = { id: string; name: string; level_number: number };
+type Department = { id: string; name_ar: string };
 type FacultyProfile = { id: string; full_name_ar: string; employee_number: string | null };
 
 type Offering = {
