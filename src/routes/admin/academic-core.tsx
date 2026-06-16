@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -141,11 +141,15 @@ function YearDialog({ open, onOpenChange, editing, onDone }: { open: boolean; on
   const [status, setStatus] = useState(editing?.status ?? "active");
   const [saving, setSaving] = useState(false);
 
-  // reset when opening
-  useState(() => { /* noop */ });
-  if (open && editing && name !== editing.name && !saving) {
-    // initialize on open
-  }
+  useEffect(() => {
+    if (open) {
+      setName(editing?.name ?? "");
+      setStart(editing?.start_date ?? "");
+      setEnd(editing?.end_date ?? "");
+      setIsCurrent(editing?.is_current ?? false);
+      setStatus(editing?.status ?? "active");
+    }
+  }, [open, editing]);
 
   const save = async () => {
     if (!name || !start || !end) { toast.error("الحقول مطلوبة"); return; }
@@ -160,16 +164,7 @@ function YearDialog({ open, onOpenChange, editing, onDone }: { open: boolean; on
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
-      onOpenChange(o);
-      if (o) {
-        setName(editing?.name ?? "");
-        setStart(editing?.start_date ?? "");
-        setEnd(editing?.end_date ?? "");
-        setIsCurrent(editing?.is_current ?? false);
-        setStatus(editing?.status ?? "active");
-      }
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle>{editing ? "تعديل" : "إضافة"} سنة أكاديمية</DialogTitle></DialogHeader>
         <div className="space-y-3">
@@ -299,6 +294,18 @@ function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: 
   const [status, setStatus] = useState(editing?.status ?? "active");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setYearId(editing?.academic_year_id ?? (years[0]?.id ?? ""));
+      setName(editing?.name ?? "");
+      setCode(editing?.code ?? "first");
+      setStart(editing?.start_date ?? "");
+      setEnd(editing?.end_date ?? "");
+      setIsCurrent(editing?.is_current ?? false);
+      setStatus(editing?.status ?? "active");
+    }
+  }, [open, editing, years]);
+
   const save = async () => {
     if (!yearId || !name || !code || !start || !end) { toast.error("الحقول مطلوبة"); return; }
     setSaving(true);
@@ -312,18 +319,7 @@ function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: 
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
-      onOpenChange(o);
-      if (o) {
-        setYearId(editing?.academic_year_id ?? (years[0]?.id ?? ""));
-        setName(editing?.name ?? "");
-        setCode(editing?.code ?? "first");
-        setStart(editing?.start_date ?? "");
-        setEnd(editing?.end_date ?? "");
-        setIsCurrent(editing?.is_current ?? false);
-        setStatus(editing?.status ?? "active");
-      }
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle>{editing ? "تعديل" : "إضافة"} فصل دراسي</DialogTitle></DialogHeader>
         <div className="space-y-3">
@@ -451,6 +447,14 @@ function LevelDialog({ open, onOpenChange, editing, onDone }: { open: boolean; o
   const [status, setStatus] = useState(editing?.status ?? "active");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (open) {
+      setName(editing?.name ?? "");
+      setNum(editing?.level_number ?? "");
+      setStatus(editing?.status ?? "active");
+    }
+  }, [open, editing]);
+
   const save = async () => {
     if (!name || num === "" || Number(num) < 1) { toast.error("الحقول مطلوبة"); return; }
     setSaving(true);
@@ -464,14 +468,7 @@ function LevelDialog({ open, onOpenChange, editing, onDone }: { open: boolean; o
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => {
-      onOpenChange(o);
-      if (o) {
-        setName(editing?.name ?? "");
-        setNum(editing?.level_number ?? "");
-        setStatus(editing?.status ?? "active");
-      }
-    }}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent dir="rtl">
         <DialogHeader><DialogTitle>{editing ? "تعديل" : "إضافة"} مستوى</DialogTitle></DialogHeader>
         <div className="space-y-3">
