@@ -295,10 +295,17 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
 
   const curriculumReady = Boolean(form.academic_year_id && form.semester_id && form.program_id && form.level_id);
 
-  // Curriculum-aware course query: only courses from the active study_plan
-  // matching the selected program, level AND semester.
+  // Normalize semester code: study_plan_courses uses canonical "first"/"second",
+  // while semesters.code may also store year-specific codes like "2025-1"/"2025-2".
   const selectedSemester = lk.semesters.find((s) => s.id === form.semester_id);
-  const semesterCode = selectedSemester?.code ?? null;
+  const rawCode = selectedSemester?.code ?? null;
+  const semesterCode = rawCode
+    ? (rawCode === "first" || rawCode === "second"
+        ? rawCode
+        : rawCode.endsWith("-1") ? "first"
+        : rawCode.endsWith("-2") ? "second"
+        : rawCode)
+    : null;
   const planCoursesQ = useQuery({
     queryKey: ["plan-courses", form.program_id, form.level_id, semesterCode],
     enabled: Boolean(form.program_id && form.level_id && semesterCode),
