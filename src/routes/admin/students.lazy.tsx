@@ -471,8 +471,7 @@ function AddStudentModal({
               <div className="text-sm">
                 <div className="font-bold text-primary">إنشاء حساب دخول للطالب</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  سيتم إنشاء بريد <span dir="ltr" className="font-mono">[رقم]@students.usr.edu.ye</span> وكلمة مرور أولية = الرقم الأكاديمي،
-                  مع إجبار الطالب على تغييرها عند أول دخول.
+                  اسم المستخدم للطالب هو الرقم الأكاديمي، وكلمة المرور الأولية هي الرقم الأكاديمي عند أول دخول، ثم سيُطلب من الطالب تغيير كلمة المرور مباشرة.
                 </div>
               </div>
             </label>
