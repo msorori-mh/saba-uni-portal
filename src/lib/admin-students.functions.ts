@@ -250,3 +250,68 @@ export const getStudent = createServerFn({ method: "POST" })
     if (!row) throw new Error("الطالب غير موجود");
     return row;
   });
+
+// ------------ Provision Student Login (used by bulk import) ------------
+
+const provisionSchema = z.object({
+  profile_id: z.string().uuid(),
+  academic_number: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/),
+  must_change_password: z.boolean().optional().default(true),
+});
+
+export const provisionStudentLogin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => provisionSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertCanManage(context.userId);
+
+    const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
+    const password = data.academic_number;
+
+    const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { kind: "student" },
+    });
+    if (cErr || !created.user) {
+      throw new Error(cErr?.message ?? "تعذّر إنشاء حساب الدخول");
+    }
+
+    const newUserId = created.user.id;
+
+    // Use SECURITY DEFINER RPC (called as the authenticated admin) to bypass
+    // protect_student_sensitive_fields trigger when linking user_id.
+    const { error: linkErr } = await (context.supabase as any).rpc(
+      "link_student_user_account",
+      { _profile_id: data.profile_id, _target_user_id: newUserId }
+    );
+    if (linkErr) {
+      await supabaseAdmin.auth.admin.deleteUser(newUserId);
+      throw new Error(linkErr.message);
+    }
+
+    await supabaseAdmin.from("user_roles").insert({ user_id: newUserId, role: "student" as any });
+
+    // must_change_password: enforced via dedicated admin RPC (uses bypass token).
+    if (data.must_change_password) {
+      const { error: mErr } = await (context.supabase as any).rpc(
+        "admin_mark_student_password_reset",
+        { _profile_id: data.profile_id }
+      );
+      if (mErr) {
+        // best-effort: account exists, surface as warning via thrown error
+        throw new Error(`تم إنشاء الحساب لكن تعذّر ضبط must_change_password: ${mErr.message}`);
+      }
+    }
+
+    await logAudit({
+      actor_user_id: context.userId,
+      entity_id: data.profile_id,
+      action_type: "student_login_provisioned",
+      notes: `إنشاء حساب دخول للطالب ${data.academic_number} عبر الاستيراد`,
+      new_values: { academic_number: data.academic_number, must_change_password: data.must_change_password },
+    });
+
+    return { ok: true, user_id: newUserId, email };
+  });
