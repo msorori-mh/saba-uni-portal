@@ -507,6 +507,7 @@ function EditFacultyModal({
         phone: form.phone?.trim() || null,
         status: form.status,
         photo: form.photo ?? null,
+        bio_ar: form.bio_ar?.trim() || null,
       };
       await updateFn({ data: payload });
       onSaved();
