@@ -93,23 +93,26 @@ export function Header() {
           ))}
         </nav>
 
-        {/* Portal buttons — desktop */}
-        <div className="hidden lg:flex items-center gap-1.5">
-          {portalButtons.map(({ label, Icon, tone, type }) => (
-            <Link
-              key={label}
-              to="/portal-login"
-              search={{ type }}
-              className={
-                tone === "gold"
-                  ? "inline-flex items-center gap-1.5 rounded-md bg-gold-gradient px-3.5 py-2 text-[12px] font-extrabold text-primary-deep transition-all hover:-translate-y-0.5 shadow-gold"
-                  : "inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-secondary px-3.5 py-2 text-[12px] font-bold text-primary transition-all hover:border-gold/50 hover:text-primary-deep"
-              }
-            >
-              <Icon className="h-3.5 w-3.5" /> {label}
-            </Link>
-          ))}
-        </div>
+        {/* Portal buttons — desktop (hidden when already signed in) */}
+        {!isAuthed && (
+          <div className="hidden lg:flex items-center gap-1.5">
+            {portalButtons.map(({ label, Icon, tone, type }) => (
+              <Link
+                key={label}
+                to="/portal-login"
+                search={{ type }}
+                className={
+                  tone === "gold"
+                    ? "inline-flex items-center gap-1.5 rounded-md bg-gold-gradient px-3.5 py-2 text-[12px] font-extrabold text-primary-deep transition-all hover:-translate-y-0.5 shadow-gold"
+                    : "inline-flex items-center gap-1.5 rounded-md border border-primary/20 bg-secondary px-3.5 py-2 text-[12px] font-bold text-primary transition-all hover:border-gold/50 hover:text-primary-deep"
+                }
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </Link>
+            ))}
+          </div>
+        )}
+
 
         {/* Mobile toggle */}
         <button
