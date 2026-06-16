@@ -45,16 +45,26 @@ IdentifierInput.displayName = "IdentifierInput";
 
 export function friendlyAuthError(err: unknown): string {
   const raw = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  // Supabase AuthApiError v2 carries a structured code on the error object
+  const code = (err as any)?.code ?? (err as any)?.error_code ?? "";
+  const status = (err as any)?.status;
   const m = raw.toLowerCase();
-  if (!raw || m.includes("invalid") || m.includes("credentials") || m === "invalid")
+  const c = String(code).toLowerCase();
+
+  if (c === "user_banned" || m.includes("user is banned") || m.includes("banned"))
+    return "هذا الحساب معطّل من قبل إدارة النظام. الرجاء التواصل مع الدعم لإعادة تفعيله.";
+  if (c === "user_not_found" || m.includes("user not found"))
+    return "لا يوجد حساب مرتبط بهذا الرقم. تحقق من البيانات أو تواصل مع الدعم.";
+  if (c === "email_not_confirmed" || m.includes("email not confirmed"))
+    return "لم يتم تفعيل الحساب بعد. تواصل مع الدعم الفني.";
+  if (c === "invalid_credentials" || m.includes("invalid login credentials") || m.includes("invalid") || m.includes("credentials") || m === "invalid")
     return "الرقم أو كلمة المرور غير صحيحة.";
   if (m.includes("network") || m.includes("fetch") || m.includes("failed to fetch"))
     return "تعذر الاتصال بالخادم. تحقق من الاتصال بالإنترنت.";
-  if (m.includes("rate") || m.includes("too many"))
+  if (c === "over_request_rate_limit" || status === 429 || m.includes("rate") || m.includes("too many"))
     return "محاولات كثيرة جدًا. الرجاء المحاولة بعد قليل.";
-  if (m.includes("email not confirmed"))
-    return "لم يتم تفعيل الحساب بعد. تواصل مع الدعم الفني.";
   if (m === "mismatch") return "هذا الحساب لا يطابق نوع الدخول المختار";
   if (m === "forbidden") return "هذا الحساب لا يملك صلاحية الدخول إلى لوحة الإدارة";
-  return "حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى.";
+  if (!raw) return "تعذّر إكمال الطلب. الرجاء المحاولة مرة أخرى.";
+  return `تعذّر تسجيل الدخول: ${raw}`;
 }
