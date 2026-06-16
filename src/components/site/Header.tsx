@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 import universityLogo from "@/assets/university-logo.jpeg.asset.json";
+import { supabase } from "@/integrations/supabase/client";
 
 const navItems = [
   { to: "/", label: "الرئيسية" },
@@ -22,8 +23,28 @@ const portalButtons = [
   { label: "دخول الموظف", Icon: Briefcase, tone: "light" as const, type: "staff" as const },
 ];
 
+function useIsAuthenticated() {
+  // null = unknown (initial). Treat unknown as "show buttons" to avoid flashing
+  // a logged-out header for a brief moment on protected pages — but on first
+  // mount we resolve quickly via getSession() (sync localStorage read).
+  const [isAuthed, setIsAuthed] = useState<boolean>(false);
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (mounted) setIsAuthed(!!data.session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setIsAuthed(!!session);
+    });
+    return () => { mounted = false; subscription.unsubscribe(); };
+  }, []);
+  return isAuthed;
+}
+
 export function Header() {
   const [open, setOpen] = useState(false);
+  const isAuthed = useIsAuthenticated();
+
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
