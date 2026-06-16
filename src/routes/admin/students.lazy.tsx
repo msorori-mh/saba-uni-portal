@@ -156,7 +156,16 @@ function StudentsPage() {
                     <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
                       <td className="px-4 py-3 font-bold">{r.full_name_ar}</td>
                       <td className="px-4 py-3 font-mono text-xs">{r.academic_number}</td>
-                      <td className="px-4 py-3 text-xs font-mono" dir="ltr">{r.email ?? <span className="text-muted-foreground">— لا يوجد</span>}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {hasAccount ? (
+                          <span>
+                            <span className="text-muted-foreground">اسم المستخدم: </span>
+                            <span className="font-mono font-bold" dir="ltr">{r.academic_number}</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">— لا يوجد</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
                           isActive ? "bg-green-500/10 text-green-700" : "bg-destructive/10 text-destructive"
