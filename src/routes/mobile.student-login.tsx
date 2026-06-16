@@ -142,7 +142,7 @@ function MobileStudentLoginPage() {
                 htmlFor="m-student-id"
                 className="block text-sm font-semibold mb-1.5"
               >
-                الرقم الأكاديمي أو البريد الجامعي
+                الرقم الأكاديمي
               </label>
               <IdentifierInput
                 id="m-student-id"
@@ -164,7 +164,7 @@ function MobileStudentLoginPage() {
                 required
               />
               <p className="mt-1 text-[10px] text-muted-foreground">
-                يمكنك إدخال الرقم الأكاديمي فقط — سيتم تحويله تلقائياً إلى البريد الجامعي.
+                أدخل رقمك الأكاديمي.
               </p>
             </div>
 

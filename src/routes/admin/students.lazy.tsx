@@ -156,7 +156,16 @@ function StudentsPage() {
                     <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
                       <td className="px-4 py-3 font-bold">{r.full_name_ar}</td>
                       <td className="px-4 py-3 font-mono text-xs">{r.academic_number}</td>
-                      <td className="px-4 py-3 text-xs font-mono" dir="ltr">{r.email ?? <span className="text-muted-foreground">— لا يوجد</span>}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {hasAccount ? (
+                          <span>
+                            <span className="text-muted-foreground">اسم المستخدم: </span>
+                            <span className="font-mono font-bold" dir="ltr">{r.academic_number}</span>
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">— لا يوجد</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
                           isActive ? "bg-green-500/10 text-green-700" : "bg-destructive/10 text-destructive"
@@ -462,8 +471,7 @@ function AddStudentModal({
               <div className="text-sm">
                 <div className="font-bold text-primary">إنشاء حساب دخول للطالب</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  سيتم إنشاء بريد <span dir="ltr" className="font-mono">[رقم]@students.usr.edu.ye</span> وكلمة مرور أولية = الرقم الأكاديمي،
-                  مع إجبار الطالب على تغييرها عند أول دخول.
+                  اسم المستخدم للطالب هو الرقم الأكاديمي، وكلمة المرور الأولية هي الرقم الأكاديمي عند أول دخول، ثم سيُطلب من الطالب تغيير كلمة المرور مباشرة.
                 </div>
               </div>
             </label>
@@ -654,7 +662,6 @@ function CredentialsSlip({
         <div class="row"><span class="k">الرقم الأكاديمي:</span><span class="v">${slip.academic_number}</span></div>
         <div class="row"><span class="k">اسم الدخول:</span><span class="v">${slip.academic_number}</span></div>
         <div class="row"><span class="k">كلمة المرور المؤقتة:</span><span class="v">${slip.password}</span></div>
-        <div class="row"><span class="k">البريد:</span><span class="v">${slip.email}</span></div>
       </div>
       <p class="note">
         • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong> واختيار «طالب».<br>
@@ -680,7 +687,7 @@ function CredentialsSlip({
             <SlipRow label="الرقم الأكاديمي" value={slip.academic_number} mono onCopy={() => copy(slip.academic_number)} />
             <SlipRow label="اسم الدخول" value={slip.academic_number} mono onCopy={() => copy(slip.academic_number)} />
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
-            <SlipRow label="البريد" value={slip.email} mono onCopy={() => copy(slip.email)} />
+            
           </div>
           <p className="text-xs text-muted-foreground">سيُطلب من الطالب تغيير كلمة المرور عند أول دخول.</p>
         </div>
