@@ -662,16 +662,23 @@ function FacultyFormDialog({
   }, [open, editing]);
 
   const handleFileUpload = async (file: File) => {
-    if (!file.type.startsWith("image/"))
-      return toast.error("الرجاء اختيار ملف صورة");
-    if (file.size > 5 * 1024 * 1024)
-      return toast.error("حجم الصورة يجب أن يكون أقل من 5 ميجابايت");
+    const result = validateUpload(file, "public_image");
+    if (!result.ok) return toast.error(result.message);
+    // Extra tightening per FACULTY-PHOTOS-01: jpeg/png/webp only (block gif too)
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      return toast.error("الصيغ المقبولة فقط: JPG، PNG، WebP.");
+    }
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const ext = getExt(file.name);
+    const uuid =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const folder = editing?.id ?? "new";
+    const path = `faculty/${folder}/${uuid}.${ext}`;
     const { error } = await supabase.storage
       .from("faculty-images")
-      .upload(path, file, { upsert: false });
+      .upload(path, file, { upsert: false, contentType: file.type });
     if (error) {
       setUploading(false);
       return toast.error("فشل رفع الصورة: " + error.message);
