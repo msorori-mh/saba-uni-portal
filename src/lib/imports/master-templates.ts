@@ -128,7 +128,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "faculty",
     fileName: "template_faculty.xlsx",
     title: "أعضاء هيئة التدريس",
-    description: "بيانات أعضاء هيئة التدريس الأساسية (دون حسابات الدخول).",
+    description: "بيانات أعضاء هيئة التدريس الأساسية (دون حسابات الدخول). صور أعضاء هيئة التدريس تُدار من لوحة الإدارة عبر حقل faculty.photo و bucket التخزين faculty-images، ولا تُستورد من Excel.",
     category: "faculty",
     importerKey: "faculty",
     hasValidator: true,
