@@ -391,8 +391,8 @@ function LeadershipGroup({ members, onSelect }: { members: FacultyRow[]; onSelec
 function DeanCard({ f, onSelect }: { f: FacultyRow; onSelect: (f: FacultyRow) => void }) {
   return (
     <article className="relative rounded-2xl border-2 border-gold bg-card p-8 pt-10 text-center shadow-elegant hover:-translate-y-1 transition-all duration-300">
-      <div className="absolute -top-4 right-1/2 translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-gold text-primary-foreground px-5 py-1 text-xs font-bold shadow-md whitespace-nowrap">
-        <Crown className="h-3.5 w-3.5" />
+      <div className="absolute -top-4 right-1/2 translate-x-1/2 inline-flex items-center gap-2 rounded-full bg-gold text-primary-foreground px-6 py-1.5 text-sm font-display font-bold shadow-lg ring-2 ring-gold/30 whitespace-nowrap">
+        <Crown className="h-4 w-4" />
         {f.admin_position}
       </div>
       <div className="mx-auto mb-5 h-28 w-28 rounded-full overflow-hidden bg-hero-gradient ring-4 ring-gold/40 grid place-items-center">
