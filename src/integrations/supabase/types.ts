@@ -3807,11 +3807,43 @@ export type Database = {
       }
     }
     Functions: {
+      admin_mark_faculty_password_reset: {
+        Args: { _profile_id: string }
+        Returns: {
+          must_change_password: boolean
+          profile_id: string
+          user_id: string
+        }[]
+      }
+      admin_mark_staff_password_reset: {
+        Args: { _profile_id: string }
+        Returns: {
+          must_change_password: boolean
+          profile_id: string
+          user_id: string
+        }[]
+      }
       admin_mark_student_password_reset: {
         Args: { _profile_id: string }
         Returns: {
           must_change_password: boolean
           profile_id: string
+          user_id: string
+        }[]
+      }
+      admin_set_faculty_status: {
+        Args: { _active: boolean; _profile_id: string }
+        Returns: {
+          profile_id: string
+          status: string
+          user_id: string
+        }[]
+      }
+      admin_set_staff_status: {
+        Args: { _active: boolean; _profile_id: string }
+        Returns: {
+          profile_id: string
+          status: string
           user_id: string
         }[]
       }
