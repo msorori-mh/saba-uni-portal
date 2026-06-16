@@ -57,6 +57,15 @@ function displayRank(rank: string | null): string | null {
   return RANK_AR[rank.trim()] ?? rank;
 }
 
+// تحديد مستوى المنصب القيادي
+function getLeaderTier(adminPosition: string | null): 1 | 2 | 3 {
+  if (!adminPosition) return 3;
+  const p = adminPosition.trim();
+  if (p.startsWith("عميد")) return 1;
+  if (p.startsWith("نائب") || p.startsWith("وكيل")) return 2;
+  return 3;
+}
+
 // أقسام الرتب بالترتيب المطلوب بعد قسم القيادة
 const RANK_SECTIONS: Array<{ key: string; title: string; subtitle: string; ranks: string[]; Icon: typeof Crown }> = [
   { key: "associate", title: "الأساتذة المشاركون", subtitle: "برتبة أستاذ مشارك", ranks: ["Associate Professor", "أستاذ مشارك"], Icon: BookOpen },
@@ -71,6 +80,7 @@ const OTHERS_SECTION: SectionDef = {
   subtitle: "أعضاء برتبة محاضر مساعد",
   Icon: GraduationCap,
 };
+
 
 
 export const Route = createFileRoute("/faculty")({
