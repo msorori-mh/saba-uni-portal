@@ -20,26 +20,38 @@ export type StudentRow = {
   full_name_en: string | null;
   national_id: string | null;
   phone: string | null;
-  email: string | null;
+  gender: string | null;
   department_id: string;
   program_id: string;
   academic_year_id: string;
   semester_id: string;
   level_id: string;
   status: string;
+  create_login: boolean;
+  must_change_password: boolean;
+  notes: string | null;
 };
 
 const STUDENT_STATUSES = new Set(["active", "suspended", "graduated", "withdrawn", "transferred"]);
+
+function parseBool(v: unknown, defaultValue: boolean): { value: boolean; valid: boolean } {
+  if (v === null || v === undefined || v === "") return { value: defaultValue, valid: true };
+  if (typeof v === "boolean") return { value: v, valid: true };
+  const s = String(v).trim().toLowerCase();
+  if (["true", "1", "yes", "y", "نعم"].includes(s)) return { value: true, valid: true };
+  if (["false", "0", "no", "n", "لا"].includes(s)) return { value: false, valid: true };
+  return { value: defaultValue, valid: false };
+}
+
+const GENDERS = new Set(["male", "female", "ذكر", "أنثى", "انثى"]);
 
 export async function validateStudents(
   rows: Record<string, unknown>[],
   lookups: LookupMaps,
 ): Promise<ValidationResult<StudentRow>> {
-  // Pre-fetch existing academic numbers
   const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
   const existingSet = new Set<string>();
   if (acNumbers.length) {
-    // chunk
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
       const { data } = await sb.from("student_profiles").select("academic_number").in("academic_number", chunk);
@@ -54,6 +66,8 @@ export async function validateStudents(
     const errors: RowError[] = [];
     const academic_number = str(raw.academic_number);
     if (!academic_number) errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي مطلوب" });
+    if (academic_number && !/^[A-Za-z0-9_-]+$/.test(academic_number))
+      errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي يحتوي على أحرف غير صحيحة" });
     if (academic_number && seenInFile.has(academic_number))
       errors.push({ row: rowNumber, column: "academic_number", message: "رقم أكاديمي مكرر في الملف" });
     if (academic_number && existingSet.has(academic_number))
@@ -75,13 +89,28 @@ export async function validateStudents(
     const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
     if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
 
-    const levelKey = normKey(str(raw.level));
+    // Accept `academic_level` (canonical) and `level` (legacy) as fallback
+    const levelRaw = str(raw.academic_level) || str(raw.level);
+    const levelKey = normKey(levelRaw);
     const level_id = lookups.levelsByNumber.get(levelKey) ?? lookups.levelsByName.get(levelKey);
-    if (!level_id) errors.push({ row: rowNumber, column: "level", message: "المستوى غير موجود" });
+    if (!level_id) errors.push({ row: rowNumber, column: "academic_level", message: "المستوى غير موجود" });
 
     const status = str(raw.status) || "active";
     if (!STUDENT_STATUSES.has(status))
       errors.push({ row: rowNumber, column: "status", message: "الحالة غير صحيحة" });
+
+    const genderRaw = str(raw.gender).toLowerCase();
+    let gender: string | null = null;
+    if (genderRaw) {
+      if (!GENDERS.has(genderRaw)) errors.push({ row: rowNumber, column: "gender", message: "الجنس غير صحيح (male/female)" });
+      else gender = ["ذكر"].includes(genderRaw) ? "male" : ["أنثى","انثى"].includes(genderRaw) ? "female" : genderRaw;
+    }
+
+    const cl = parseBool(raw.create_login, false);
+    if (!cl.valid) errors.push({ row: rowNumber, column: "create_login", message: "create_login يجب أن يكون true/false" });
+    const mcpDefault = cl.value; // default = create_login
+    const mcp = parseBool(raw.must_change_password, mcpDefault);
+    if (!mcp.valid) errors.push({ row: rowNumber, column: "must_change_password", message: "must_change_password يجب أن يكون true/false" });
 
     if (academic_number) seenInFile.add(academic_number);
 
@@ -92,16 +121,20 @@ export async function validateStudents(
         full_name_en: str(raw.full_name_en) || null,
         national_id: str(raw.national_id) || null,
         phone: str(raw.phone) || null,
-        email: str(raw.email) || null,
+        gender,
         department_id: dep_id!, program_id: prog!.id,
         academic_year_id: ay_id!, semester_id: sem_id!, level_id: level_id!,
         status,
+        create_login: cl.value,
+        must_change_password: mcp.value,
+        notes: str(raw.notes) || null,
       },
     });
   });
 
   return summarize(result);
 }
+
 
 // =========================
 // Faculty
