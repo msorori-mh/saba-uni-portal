@@ -227,6 +227,8 @@ function ImportsPage() {
 
       {tab === "faculty_accounts" ? (
         <FacultyAccountsImportPanel />
+      ) : tab === "class_schedule" ? (
+        <ClassScheduleImportPanel />
       ) : (
       <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
         <div className="flex flex-wrap items-center gap-3">
