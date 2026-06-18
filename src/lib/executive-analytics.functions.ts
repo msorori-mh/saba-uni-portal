@@ -4,6 +4,25 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const EXEC_ROLES = ["admin", "system_admin", "dean", "registrar"];
+
+async function assertExecRole(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  userId: string,
+): Promise<void> {
+  const { data, error } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .in("role", EXEC_ROLES)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) {
+    throw new Error("ليس لديك صلاحية الوصول إلى لوحة التحليلات التنفيذية");
+  }
+}
+
 type GroupRow = { key: string; label: string; value: number };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
