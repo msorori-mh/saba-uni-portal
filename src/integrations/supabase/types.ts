@@ -1188,13 +1188,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "faculty_profiles_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: true
-            referencedRelation: "faculty_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "faculty_profiles_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
@@ -2412,13 +2405,6 @@ export type Database = {
             columns: ["faculty_id"]
             isOneToOne: false
             referencedRelation: "faculty"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "research_papers_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: false
-            referencedRelation: "faculty_directory"
             referencedColumns: ["id"]
           },
           {
@@ -3746,45 +3732,6 @@ export type Database = {
       }
     }
     Views: {
-      faculty_directory: {
-        Row: {
-          admin_position: string | null
-          admin_position_order: number | null
-          bio_ar: string | null
-          bio_en: string | null
-          category: string | null
-          degree: string | null
-          employee_id: string | null
-          full_name_ar: string | null
-          full_name_en: string | null
-          id: string | null
-          is_active: boolean | null
-          photo: string | null
-          program_code: string | null
-          program_id: string | null
-          program_name_ar: string | null
-          rank: string | null
-          sort_order: number | null
-          specialization: string | null
-          start_year: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "faculty_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "programs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "faculty_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
-          },
-        ]
-      }
       student_course_grade_summary: {
         Row: {
           academic_number: string | null
