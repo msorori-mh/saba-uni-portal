@@ -27,6 +27,8 @@ const COPY: Record<AccountType, { title: string; idLabel: string; idPlaceholder:
   staff:   { title: "دخول بوابة الموظفين",     idLabel: "رقم الموظف",     idPlaceholder: "S0001",     subtitle: "بوابة الموظفين الإداريين", Icon: Briefcase },
 };
 
+const SHOW_DEMO = import.meta.env.VITE_SHOW_DEMO_LOGIN === "true";
+
 const DEMO_CREDENTIALS: Record<AccountType, { identifier: string; password: string }> = {
   student: { identifier: "DEMO2024", password: "Demo@2024" },
   faculty: { identifier: "DEMO-FAC", password: "Demo@2024" },
