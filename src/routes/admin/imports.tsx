@@ -198,19 +198,30 @@ function ImportsPage() {
 
       <Stepper current={step} />
 
-      <nav className="flex flex-wrap gap-2 border-b border-border">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => onTabChange(t.id)}
-            className={`px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-colors ${
-              tab === t.id ? "border-gold text-primary" : "border-transparent text-muted-foreground hover:text-primary"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <div className="space-y-2">
+        <div className="flex items-start gap-2 rounded-lg bg-secondary/40 border border-border px-3 py-2 text-xs text-primary">
+          <AlertTriangle className="h-4 w-4 text-gold shrink-0 mt-0.5" />
+          <span>
+            الأنواع الظاهرة في التبويبات أدناه هي <strong>المستوردات المتاحة فعلياً</strong> للرفع والاستيراد.
+            القوالب الأخرى (مثل الجداول الدراسية، درجات الطلاب، تسجيلات الطلاب، الرسوم، الخصومات، الوثائق، مجموعات المقررات) متاحة
+            <strong> للتنزيل فقط</strong> من قسم «قوالب الاستيراد الرسمية» في الأسفل، ولا يمكن رفعها حتى يتم تطوير مستورد خاص بها.
+          </span>
+        </div>
+        <nav className="flex flex-wrap gap-2 border-b border-border">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => onTabChange(t.id)}
+              className={`px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-colors ${
+                tab === t.id ? "border-gold text-primary" : "border-transparent text-muted-foreground hover:text-primary"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
 
       {tab === "faculty_accounts" ? (
         <FacultyAccountsImportPanel />
