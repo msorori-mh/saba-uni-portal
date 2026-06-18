@@ -152,7 +152,7 @@ function ImportsPage() {
 
   const runImport = async () => {
     if (!validation || !file) return;
-    if (tab === "faculty_accounts") return;
+    if (isSpecialTab) return;
     const t = tab as ImportType;
     setImporting(true);
     setReport(null);
