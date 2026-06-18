@@ -95,7 +95,8 @@ function ImportsPage() {
     return 0;
   }, [report, importing, validation, rows, file]);
 
-  const isStructureTab = tab !== "faculty_accounts" && STRUCTURE_TYPES.has(tab as ImportType);
+  const isSpecialTab = tab === "faculty_accounts" || tab === "class_schedule";
+  const isStructureTab = !isSpecialTab && STRUCTURE_TYPES.has(tab as ImportType);
 
   const runValidation = async (parsed: Record<string, unknown>[]) => {
     const t = tab as ImportType;
@@ -111,7 +112,7 @@ function ImportsPage() {
   };
 
   const onFile = async (f: File) => {
-    if (tab === "faculty_accounts") return;
+    if (isSpecialTab) return;
     const t = tab as ImportType;
     setFile(f); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
     setValidating(true);
