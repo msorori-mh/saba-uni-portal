@@ -252,6 +252,7 @@ export const logExecutiveExport = createServerFn({ method: "POST" })
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sb = context.supabase as any;
+      await assertExecRole(sb, context.userId);
       await sb.rpc("log_audit", {
         _entity_type: "executive_dashboard",
         _entity_id: null,
