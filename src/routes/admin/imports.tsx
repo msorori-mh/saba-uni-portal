@@ -33,7 +33,7 @@ export const Route = createFileRoute("/admin/imports")({
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as any;
 
-type TabId = ImportType | "faculty_accounts";
+type TabId = ImportType | "faculty_accounts" | "class_schedule";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "students", label: "الطلاب" },
@@ -44,6 +44,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "departments", label: "الأقسام" },
   { id: "programs", label: "البرامج" },
   { id: "levels", label: "المستويات الدراسية" },
+  { id: "class_schedule", label: "الجداول الدراسية" },
   { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
 
