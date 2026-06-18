@@ -32,7 +32,7 @@ export type MasterTemplate = {
   description: string;
   category: MasterTemplateCategory;
   /** Linked existing importer key in imports page (if any) */
-  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels";
+  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "class_schedule";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
@@ -377,26 +377,25 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "class_schedule",
     fileName: "template_class_schedule.xlsx",
     title: "الجداول الدراسية",
-    description: "جداول المحاضرات (قاعة + فترة زمنية + مدرّس) للمجموعات الدراسية (يتطلب تطوير مستورد).",
+    description: "جداول المحاضرات (مقرر + مجموعة + قاعة + فترة + مدرّس). السنة الأكاديمية والفصل والبرنامج والمستوى تُحدَّد قبل الرفع من واجهة الاستيراد، ولا تُكتب داخل الملف.",
     category: "schedule",
-    hasValidator: false,
+    importerKey: "class_schedule",
+    hasValidator: true,
     columns: [
       { name: "course_code", description: "كود المقرر", required: true, type: "text", example: "CS101" },
       { name: "section_code", description: "رمز المجموعة الدراسية", required: true, type: "text", example: "A" },
-      { name: "academic_year", description: "اسم السنة الأكاديمية", required: true, type: "text", example: "2026-2027" },
-      { name: "semester", description: "first / second", required: true, type: "text", example: "first" },
-      { name: "day_of_week", description: "اليوم (sunday..saturday)", required: true, type: "enum", example: "sunday", enumValues: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] },
+      { name: "day_of_week", description: "اليوم (saturday..friday)", required: true, type: "enum", example: "sunday", enumValues: ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"] },
       { name: "start_time", description: "وقت البدء (HH:MM)", required: true, type: "text", example: "08:00" },
       { name: "end_time", description: "وقت الانتهاء (HH:MM)", required: true, type: "text", example: "09:30" },
       { name: "room_code", description: "كود/رقم القاعة", required: true, type: "text", example: "A101" },
-      { name: "faculty_employee_number", description: "الرقم الوظيفي لعضو هيئة التدريس", required: false, type: "text", example: "F2025001" },
-      { name: "schedule_type", description: "lecture / lab / tutorial", required: false, type: "enum", example: "lecture", enumValues: ["lecture", "lab", "tutorial"] },
-      { name: "status", description: "draft / published", required: false, type: "enum", example: "published", enumValues: ["draft", "published", "cancelled"] },
+      { name: "faculty_employee_number", description: "الرقم الوظيفي لعضو هيئة التدريس (اختياري)", required: false, type: "text", example: "F2025001" },
+      { name: "schedule_type", description: "lecture / lab / tutorial / exam", required: false, type: "enum", example: "lecture", enumValues: ["lecture", "lab", "tutorial", "exam"] },
+      { name: "status", description: "draft / published / cancelled (الافتراضي published)", required: false, type: "enum", example: "published", enumValues: ["draft", "published", "cancelled"] },
     ],
     examples: [
-      ["CS101", "A", "2026-2027", "first", "sunday", "08:00", "09:30", "A101", "F2025001", "lecture", "published"],
-      ["CS101", "A", "2026-2027", "first", "tuesday", "08:00", "09:30", "A101", "F2025001", "lecture", "published"],
-      ["IT101", "A", "2026-2027", "first", "monday", "10:00", "11:30", "A102", "F2025002", "lecture", "published"],
+      ["CS101", "A", "sunday", "08:00", "09:30", "A101", "F2025001", "lecture", "published"],
+      ["CS101", "A", "tuesday", "08:00", "09:30", "A101", "F2025001", "lecture", "published"],
+      ["IT101", "A", "monday", "10:00", "11:30", "A102", "F2025002", "lecture", "published"],
     ],
   },
 
