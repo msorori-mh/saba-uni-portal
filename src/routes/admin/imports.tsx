@@ -24,6 +24,11 @@ import {
 import { downloadValidationReport, downloadImportReport } from "@/lib/imports/reports";
 import type { ImportReport, ImportType, ValidationResult, ValidatedRow } from "@/lib/imports/types";
 import { MasterTemplatesLibrary } from "@/components/admin/MasterTemplatesLibrary";
+import { downloadMasterTemplate } from "@/lib/imports/master-templates";
+import {
+  loadScheduleLookups, validateClassSchedule, importClassSchedule,
+  type ScheduleContext, type ScheduleValidationResult, type ScheduleImportReport,
+} from "@/lib/imports/class-schedule";
 
 export const Route = createFileRoute("/admin/imports")({
   head: () => ({ meta: [{ title: "الاستيراد الجماعي — لوحة الإدارة" }, { name: "robots", content: "noindex,nofollow" }] }),
