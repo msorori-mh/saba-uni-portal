@@ -299,12 +299,14 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
             </form>
           </div>
 
-          <DemoHint
-            accountType={accountType}
-            loading={loading}
-            onFill={fillDemo}
-            onOneClick={oneClickDemo}
-          />
+          {SHOW_DEMO && (
+            <DemoHint
+              accountType={accountType}
+              loading={loading}
+              onFill={fillDemo}
+              onOneClick={oneClickDemo}
+            />
+          )}
 
 
 
