@@ -54,6 +54,7 @@ export const getExecutiveAnalytics = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
+    await assertExecRole(sb, context.userId);
 
     const [programs, departments, levels, currentSem] = await Promise.all([
       safeSelect(sb, "programs", "id, name_ar, code"),
