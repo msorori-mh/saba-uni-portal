@@ -1,8 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  listAcademicYears,
+  upsertAcademicYear,
+  deleteAcademicYear,
+  listSemesters,
+  upsertSemester,
+  deleteSemester,
+  listAcademicLevels,
+  upsertAcademicLevel,
+  deleteAcademicLevel,
+} from "@/lib/admin-academic-core.functions";
 import { Plus, Pencil, Trash2, Loader2, CalendarRange, BookMarked, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,13 +65,12 @@ function AcademicCorePage() {
 /* ---------------- Years ---------------- */
 function YearsTab() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listAcademicYears);
+  const deleteFn = useServerFn(deleteAcademicYear);
+
   const { data = [], isLoading } = useQuery({
     queryKey: ["academic_years"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("academic_years").select("*").order("start_date", { ascending: false });
-      if (error) throw error;
-      return data as Year[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   const [open, setOpen] = useState(false);
@@ -71,9 +81,13 @@ function YearsTab() {
 
   const onDelete = async () => {
     if (!delId) return;
-    const { error } = await supabase.from("academic_years").delete().eq("id", delId);
-    if (error) toast.error(error.message);
-    else { toast.success("تم الحذف"); refresh(); }
+    try {
+      await deleteFn({ data: { id: delId } });
+      toast.success("تم الحذف");
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحذف");
+    }
     setDelId(null);
   };
 
@@ -100,7 +114,7 @@ function YearsTab() {
           <tbody>
             {isLoading && <tr><td colSpan={6} className="p-6 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></td></tr>}
             {!isLoading && data.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">لا توجد بيانات</td></tr>}
-            {data.map((y) => (
+            {(data as Year[]).map((y) => (
               <tr key={y.id} className="border-t border-border">
                 <td className="p-3 font-bold">{y.name}</td>
                 <td className="p-3 font-mono text-xs">{y.start_date}</td>
@@ -134,6 +148,7 @@ function YearsTab() {
 }
 
 function YearDialog({ open, onOpenChange, editing, onDone }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Year | null; onDone: () => void }) {
+  const upsertFn = useServerFn(upsertAcademicYear);
   const [name, setName] = useState(editing?.name ?? "");
   const [start, setStart] = useState(editing?.start_date ?? "");
   const [end, setEnd] = useState(editing?.end_date ?? "");
@@ -154,13 +169,25 @@ function YearDialog({ open, onOpenChange, editing, onDone }: { open: boolean; on
   const save = async () => {
     if (!name || !start || !end) { toast.error("الحقول مطلوبة"); return; }
     setSaving(true);
-    const payload = { name, start_date: start, end_date: end, is_current: isCurrent, status };
-    const { error } = editing
-      ? await supabase.from("academic_years").update(payload).eq("id", editing.id)
-      : await supabase.from("academic_years").insert(payload);
-    setSaving(false);
-    if (error) toast.error(error.message);
-    else { toast.success(editing ? "تم التحديث" : "تمت الإضافة"); onDone(); onOpenChange(false); }
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          name,
+          start_date: start,
+          end_date: end,
+          is_current: isCurrent,
+          status: status as "active" | "archived",
+        },
+      });
+      toast.success(editing ? "تم التحديث" : "تمت الإضافة");
+      onDone();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحفظ");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -196,20 +223,17 @@ function YearDialog({ open, onOpenChange, editing, onDone }: { open: boolean; on
 /* ---------------- Semesters ---------------- */
 function SemestersTab() {
   const qc = useQueryClient();
+  const yearsFn = useServerFn(listAcademicYears);
+  const listFn = useServerFn(listSemesters);
+  const deleteFn = useServerFn(deleteSemester);
+
   const { data: years = [] } = useQuery({
     queryKey: ["academic_years"],
-    queryFn: async () => {
-      const { data } = await supabase.from("academic_years").select("*").order("start_date", { ascending: false });
-      return (data ?? []) as Year[];
-    },
+    queryFn: () => yearsFn({ data: {} }),
   });
   const { data = [], isLoading } = useQuery({
     queryKey: ["semesters"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("semesters").select("*").order("start_date", { ascending: false });
-      if (error) throw error;
-      return data as Semester[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   const [open, setOpen] = useState(false);
@@ -220,13 +244,17 @@ function SemestersTab() {
 
   const onDelete = async () => {
     if (!delId) return;
-    const { error } = await supabase.from("semesters").delete().eq("id", delId);
-    if (error) toast.error(error.message);
-    else { toast.success("تم الحذف"); refresh(); }
+    try {
+      await deleteFn({ data: { id: delId } });
+      toast.success("تم الحذف");
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحذف");
+    }
     setDelId(null);
   };
 
-  const yearName = (id: string) => years.find((y) => y.id === id)?.name ?? "—";
+  const yearName = (id: string) => (years as Year[]).find((y) => y.id === id)?.name ?? "—";
 
   return (
     <div className="space-y-4">
@@ -252,7 +280,7 @@ function SemestersTab() {
           <tbody>
             {isLoading && <tr><td colSpan={7} className="p-6 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></td></tr>}
             {!isLoading && data.length === 0 && <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">لا توجد بيانات</td></tr>}
-            {data.map((s) => (
+            {(data as Semester[]).map((s) => (
               <tr key={s.id} className="border-t border-border">
                 <td className="p-3 font-bold">{s.name}</td>
                 <td className="p-3 font-mono text-xs">{s.code}</td>
@@ -270,7 +298,7 @@ function SemestersTab() {
         </table>
       </div>
 
-      <SemesterDialog open={open} onOpenChange={setOpen} editing={editing} years={years} onDone={refresh} />
+      <SemesterDialog open={open} onOpenChange={setOpen} editing={editing} years={years as Year[]} onDone={refresh} />
       <AlertDialog open={!!delId} onOpenChange={(o) => !o && setDelId(null)}>
         <AlertDialogContent dir="rtl">
           <AlertDialogHeader><AlertDialogTitle>تأكيد الحذف</AlertDialogTitle></AlertDialogHeader>
@@ -285,6 +313,7 @@ function SemestersTab() {
 }
 
 function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Semester | null; years: Year[]; onDone: () => void }) {
+  const upsertFn = useServerFn(upsertSemester);
   const [yearId, setYearId] = useState(editing?.academic_year_id ?? "");
   const [name, setName] = useState(editing?.name ?? "");
   const [code, setCode] = useState(editing?.code ?? "first");
@@ -309,13 +338,27 @@ function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: 
   const save = async () => {
     if (!yearId || !name || !code || !start || !end) { toast.error("الحقول مطلوبة"); return; }
     setSaving(true);
-    const payload = { academic_year_id: yearId, name, code, start_date: start, end_date: end, is_current: isCurrent, status };
-    const { error } = editing
-      ? await supabase.from("semesters").update(payload).eq("id", editing.id)
-      : await supabase.from("semesters").insert(payload);
-    setSaving(false);
-    if (error) toast.error(error.message);
-    else { toast.success(editing ? "تم التحديث" : "تمت الإضافة"); onDone(); onOpenChange(false); }
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          academic_year_id: yearId,
+          name,
+          code: code as "first" | "second",
+          start_date: start,
+          end_date: end,
+          is_current: isCurrent,
+          status: status as "active" | "archived",
+        },
+      });
+      toast.success(editing ? "تم التحديث" : "تمت الإضافة");
+      onDone();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحفظ");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -368,13 +411,12 @@ function SemesterDialog({ open, onOpenChange, editing, years, onDone }: { open: 
 /* ---------------- Levels ---------------- */
 function LevelsTab() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listAcademicLevels);
+  const deleteFn = useServerFn(deleteAcademicLevel);
+
   const { data = [], isLoading } = useQuery({
     queryKey: ["academic_levels"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("academic_levels").select("*").order("level_number");
-      if (error) throw error;
-      return data as Level[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   const [open, setOpen] = useState(false);
@@ -385,9 +427,13 @@ function LevelsTab() {
 
   const onDelete = async () => {
     if (!delId) return;
-    const { error } = await supabase.from("academic_levels").delete().eq("id", delId);
-    if (error) toast.error(error.message);
-    else { toast.success("تم الحذف"); refresh(); }
+    try {
+      await deleteFn({ data: { id: delId } });
+      toast.success("تم الحذف");
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحذف");
+    }
     setDelId(null);
   };
 
@@ -412,7 +458,7 @@ function LevelsTab() {
           <tbody>
             {isLoading && <tr><td colSpan={4} className="p-6 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></td></tr>}
             {!isLoading && data.length === 0 && <tr><td colSpan={4} className="p-6 text-center text-muted-foreground">لا توجد بيانات</td></tr>}
-            {data.map((l) => (
+            {(data as Level[]).map((l) => (
               <tr key={l.id} className="border-t border-border">
                 <td className="p-3 font-bold">{l.level_number}</td>
                 <td className="p-3">{l.name}</td>
@@ -442,6 +488,7 @@ function LevelsTab() {
 }
 
 function LevelDialog({ open, onOpenChange, editing, onDone }: { open: boolean; onOpenChange: (v: boolean) => void; editing: Level | null; onDone: () => void }) {
+  const upsertFn = useServerFn(upsertAcademicLevel);
   const [name, setName] = useState(editing?.name ?? "");
   const [num, setNum] = useState<number | "">(editing?.level_number ?? "");
   const [status, setStatus] = useState(editing?.status ?? "active");
@@ -458,13 +505,23 @@ function LevelDialog({ open, onOpenChange, editing, onDone }: { open: boolean; o
   const save = async () => {
     if (!name || num === "" || Number(num) < 1) { toast.error("الحقول مطلوبة"); return; }
     setSaving(true);
-    const payload = { name, level_number: Number(num), status };
-    const { error } = editing
-      ? await supabase.from("academic_levels").update(payload).eq("id", editing.id)
-      : await supabase.from("academic_levels").insert(payload);
-    setSaving(false);
-    if (error) toast.error(error.message);
-    else { toast.success(editing ? "تم التحديث" : "تمت الإضافة"); onDone(); onOpenChange(false); }
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          name,
+          level_number: Number(num),
+          status: status as "active" | "archived",
+        },
+      });
+      toast.success(editing ? "تم التحديث" : "تمت الإضافة");
+      onDone();
+      onOpenChange(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحفظ");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
