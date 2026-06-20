@@ -1,8 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  getAcademicOpsContext,
+  getAcademicOpsKpis,
+  setCurrentAcademicYear,
+  setCurrentSemester,
+} from "@/lib/admin-academic-operations.functions";
 import {
   Activity, CalendarRange, BookMarked, Layers, ClipboardList, ClipboardCheck,
   CalendarDays, FileText, Wallet, GraduationCap, Loader2, ArrowLeft,
@@ -20,160 +26,65 @@ export const Route = createFileRoute("/admin/academic-operations")({
 type Year = { id: string; name: string; is_current: boolean; status: string };
 type Semester = { id: string; academic_year_id: string; name: string; is_current: boolean; status: string };
 
-async function safeCount(table: string, filter?: (q: any) => any): Promise<number> {
-  try {
-    let q = supabase.from(table as any).select("id", { count: "exact", head: true });
-    if (filter) q = filter(q);
-    const { count, error } = await q;
-    if (error) return -1;
-    return count ?? 0;
-  } catch { return -1; }
-}
-
 function AcademicOpsPage() {
   const qc = useQueryClient();
+  const contextFn = useServerFn(getAcademicOpsContext);
+  const kpisFn = useServerFn(getAcademicOpsKpis);
+  const setYearFn = useServerFn(setCurrentAcademicYear);
+  const setSemFn = useServerFn(setCurrentSemester);
 
-  const years = useQuery({
-    queryKey: ["aops-years"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("academic_years")
-        .select("id, name, is_current, status")
-        .order("start_date", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Year[];
-    },
+  const context = useQuery({
+    queryKey: ["aops-context"],
+    queryFn: () => contextFn({ data: {} }),
   });
 
-  const semesters = useQuery({
-    queryKey: ["aops-semesters"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("semesters")
-        .select("id, academic_year_id, name, is_current, status")
-        .order("start_date", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as Semester[];
-    },
-  });
+  const years = (context.data?.years ?? []) as Year[];
+  const semesters = (context.data?.semesters ?? []) as Semester[];
 
-  const currentYear = useMemo(() => (years.data ?? []).find((y) => y.is_current) ?? null, [years.data]);
+  const currentYear = useMemo(() => years.find((y) => y.is_current) ?? null, [years]);
   const currentSem = useMemo(
-    () => (semesters.data ?? []).find((s) => s.is_current && (!currentYear || s.academic_year_id === currentYear.id)) ?? null,
-    [semesters.data, currentYear],
+    () => semesters.find((s) => s.is_current && (!currentYear || s.academic_year_id === currentYear.id)) ?? null,
+    [semesters, currentYear],
   );
 
   const kpis = useQuery({
     queryKey: ["aops-kpis", currentYear?.id, currentSem?.id],
     enabled: !!currentYear && !!currentSem,
-    queryFn: async () => {
-      const yearId = currentYear!.id;
-      const semId = currentSem!.id;
-
-      // Offerings & sections in current year/semester
-      const { data: offerings } = await supabase
-        .from("course_offerings")
-        .select("id, status")
-        .eq("academic_year_id", yearId)
-        .eq("semester_id", semId);
-      const offeringIds = (offerings ?? []).map((o: any) => o.id);
-      const activeOfferings = (offerings ?? []).filter((o: any) => o.status === "active").length;
-
-      let sectionsTotal = 0;
-      let sectionsActive = 0;
-      let sectionIds: string[] = [];
-      if (offeringIds.length) {
-        const { data: secs } = await supabase
-          .from("course_sections")
-          .select("id, status")
-          .in("course_offering_id", offeringIds);
-        sectionsTotal = (secs ?? []).length;
-        sectionsActive = (secs ?? []).filter((s: any) => s.status === "active").length;
-        sectionIds = (secs ?? []).map((s: any) => s.id);
-      }
-
-      const [enrolledCount, droppedCount, statusActive, gradeComps, pendingReceipts, unpaidFees] = await Promise.all([
-        sectionIds.length
-          ? safeCount("student_enrollments", (q) => q.in("course_section_id", sectionIds).eq("enrollment_status", "enrolled"))
-          : Promise.resolve(0),
-        sectionIds.length
-          ? safeCount("student_enrollments", (q) => q.in("course_section_id", sectionIds).eq("enrollment_status", "dropped"))
-          : Promise.resolve(0),
-        safeCount("student_academic_status", (q) =>
-          q.eq("academic_year_id", yearId).eq("semester_id", semId).eq("enrollment_status", "active"),
-        ),
-        sectionIds.length
-          ? safeCount("grade_components", (q) => q.in("course_section_id", sectionIds))
-          : Promise.resolve(0),
-        safeCount("payment_receipts", (q) => q.eq("status", "submitted")),
-        safeCount("student_fees" as any, (q) => q.eq("payment_status", "unpaid")),
-      ]);
-
-      const sectionsWithoutComponents = Math.max(0, sectionsActive - new Set(gradeComps >= 0 ? [] : []).size);
-      return {
-        activeOfferings,
-        totalOfferings: offerings?.length ?? 0,
-        sectionsTotal,
-        sectionsActive,
-        enrolledCount,
-        droppedCount,
-        statusActive,
-        pendingReceipts,
-        unpaidFees,
-        gradeComponentsTotal: gradeComps,
-        sectionsWithoutComponents,
-      };
-    },
+    queryFn: () =>
+      kpisFn({
+        data: {
+          academicYearId: currentYear!.id,
+          semesterId: currentSem!.id,
+        },
+      }),
   });
-
-  const logAuditOp = async (action: "current_year_changed" | "current_semester_changed", entityId: string, oldId: string | null, newId: string, oldName: string | null, newName: string) => {
-    try {
-      await supabase.rpc("log_audit" as any, {
-        _entity_type: "academic_operation",
-        _entity_id: entityId,
-        _action_type: action,
-        _old: oldId ? { id: oldId, name: oldName } : null,
-        _new: { id: newId, name: newName },
-        _notes: action === "current_year_changed" ? "تغيير السنة الأكاديمية الحالية من مركز العمليات" : "تغيير الفصل الدراسي الحالي من مركز العمليات",
-      });
-    } catch (e) {
-      console.warn("audit log failed", e);
-    }
-  };
 
   const setCurrentYear = async (id: string) => {
     if (id === currentYear?.id) return;
-    const target = (years.data ?? []).find((y) => y.id === id);
-    const prev = currentYear;
-    const { error: e1 } = await supabase.from("academic_years").update({ is_current: false }).neq("id", id);
-    if (e1) return toast.error(e1.message);
-    const { error: e2 } = await supabase.from("academic_years").update({ is_current: true }).eq("id", id);
-    if (e2) return toast.error(e2.message);
-    await logAuditOp("current_year_changed", id, prev?.id ?? null, id, prev?.name ?? null, target?.name ?? id);
-    toast.success("تم تعيين السنة الحالية");
-    qc.invalidateQueries({ queryKey: ["aops-years"] });
-    qc.invalidateQueries({ queryKey: ["aops-kpis"] });
+    try {
+      await setYearFn({ data: { yearId: id } });
+      toast.success("تم تعيين السنة الحالية");
+      qc.invalidateQueries({ queryKey: ["aops-context"] });
+      qc.invalidateQueries({ queryKey: ["aops-kpis"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل تعيين السنة");
+    }
   };
 
   const setCurrentSemester = async (id: string) => {
-    const target = (semesters.data ?? []).find((s) => s.id === id);
+    const target = semesters.find((s) => s.id === id);
     if (!target || id === currentSem?.id) return;
-    const prev = currentSem;
-    const { error: e1 } = await supabase
-      .from("semesters")
-      .update({ is_current: false })
-      .eq("academic_year_id", target.academic_year_id);
-    if (e1) return toast.error(e1.message);
-    const { error: e2 } = await supabase.from("semesters").update({ is_current: true }).eq("id", id);
-    if (e2) return toast.error(e2.message);
-    await logAuditOp("current_semester_changed", id, prev?.id ?? null, id, prev?.name ?? null, target.name);
-    toast.success("تم تعيين الفصل الحالي");
-    qc.invalidateQueries({ queryKey: ["aops-semesters"] });
-    qc.invalidateQueries({ queryKey: ["aops-kpis"] });
+    try {
+      await setSemFn({ data: { semesterId: id } });
+      toast.success("تم تعيين الفصل الحالي");
+      qc.invalidateQueries({ queryKey: ["aops-context"] });
+      qc.invalidateQueries({ queryKey: ["aops-kpis"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل تعيين الفصل");
+    }
   };
 
-
-  const semsInYear = (semesters.data ?? []).filter((s) => s.academic_year_id === currentYear?.id);
+  const semsInYear = semesters.filter((s) => s.academic_year_id === currentYear?.id);
 
   return (
     <div dir="rtl" className="space-y-6">
@@ -193,13 +104,13 @@ function AcademicOpsPage() {
       <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-2">
         <div>
           <div className="text-xs font-bold text-muted-foreground mb-1.5">السنة الأكاديمية الحالية</div>
-          {years.isLoading ? (
+          {context.isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Select value={currentYear?.id ?? ""} onValueChange={setCurrentYear}>
               <SelectTrigger><SelectValue placeholder="اختر السنة..." /></SelectTrigger>
               <SelectContent>
-                {(years.data ?? []).map((y) => (
+                {years.map((y) => (
                   <SelectItem key={y.id} value={y.id}>
                     {y.name} {y.is_current && "★"} {y.status !== "active" && `(${y.status})`}
                   </SelectItem>
@@ -210,7 +121,7 @@ function AcademicOpsPage() {
         </div>
         <div>
           <div className="text-xs font-bold text-muted-foreground mb-1.5">الفصل الدراسي الحالي</div>
-          {semesters.isLoading ? (
+          {context.isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <Select value={currentSem?.id ?? ""} onValueChange={setCurrentSemester} disabled={!currentYear}>
@@ -331,7 +242,7 @@ function KpiCard({
   label, value, sub, icon: Icon, to, loading, highlight,
 }: {
   label: string; value: number | null | undefined; sub?: string;
-  icon: any; to: string; loading: boolean; highlight?: "warn";
+  icon: React.ComponentType<{ className?: string }>; to: string; loading: boolean; highlight?: "warn";
 }) {
   return (
     <Link
@@ -355,7 +266,7 @@ function KpiCard({
   );
 }
 
-function QuickLink({ to, icon: Icon, label, desc }: { to: string; icon: any; label: string; desc: string }) {
+function QuickLink({ to, icon: Icon, label, desc }: { to: string; icon: React.ComponentType<{ className?: string }>; label: string; desc: string }) {
   return (
     <Link to={to} className="group rounded-lg border bg-card p-3 hover:border-primary hover:bg-primary/5 transition flex items-start gap-3">
       <div className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary shrink-0">
