@@ -1,0 +1,91 @@
+name: Migration Review
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/**"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  review:
+    name: Review SQL migrations (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: List changed migration files
+        id: changed
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.sha }}"
+          mapfile -t FILES < <(git diff --name-only "$BASE" "$HEAD" -- 'supabase/migrations/' | grep -E '\.sql$' || true)
+
+          if [ "${#FILES[@]}" -eq 0 ] || [ -z "${FILES[0]}" ]; then
+            echo "No migration files changed in this PR."
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "count=${#FILES[@]}" >> "$GITHUB_OUTPUT"
+          {
+            echo "Changed migration files (${#FILES[@]}):"
+            printf '  - %s\n' "${FILES[@]}"
+          } | tee "$GITHUB_STEP_SUMMARY"
+
+          {
+            echo "files<<EOF"
+            printf '%s\n' "${FILES[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Scan for dangerous SQL patterns
+        if: steps.changed.outputs.count != '0'
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.sha }}"
+          mapfile -t FILES < <(git diff --name-only "$BASE" "$HEAD" -- 'supabase/migrations/' | grep -E '\.sql$' || true)
+
+          # Patterns that require explicit human review before merge.
+          PATTERNS=(
+            'DROP[[:space:]]+TABLE'
+            'TRUNCATE[[:space:]]+'
+            'DISABLE[[:space:]]+ROW[[:space:]]+LEVEL[[:space:]]+SECURITY'
+            'DROP[[:space:]]+POLICY'
+            'DELETE[[:space:]]+FROM'
+            'UPDATE[[:space:]]+auth\.users'
+          )
+
+          FOUND=0
+          REPORT="$RUNNER_TEMP/migration-review.txt"
+          : > "$REPORT"
+
+          for file in "${FILES[@]}"; do
+            [ -f "$file" ] || continue
+            for pattern in "${PATTERNS[@]}"; do
+              if grep -Ein "$pattern" "$file"; then
+                echo "⚠️  $file — matched: $pattern" >> "$REPORT"
+                FOUND=1
+              fi
+            done
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "### ⚠️ Dangerous SQL patterns detected" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "This check flags risky statements for manual review. Resolve or justify before merging." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Dangerous SQL patterns found in changed migrations (see job summary)."
+            exit 1
+          fi
+
+          echo "No dangerous SQL patterns detected in changed migrations." >> "$GITHUB_STEP_SUMMARY"
