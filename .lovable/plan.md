@@ -1,22 +1,30 @@
-# تحسين رسائل أخطاء تسجيل الدخول
+رأيي: المشكلة ليست في قاعدة البيانات ولا في صفحات الدخول نفسها؛ المشكلة أن build المنشور لا يرى قيم `VITE_SUPABASE_URL` و `VITE_SUPABASE_PUBLISHABLE_KEY`، لذلك يتم بناء ملف JavaScript بقيم فارغة وتتعطل البوابة في الإنتاج.
 
-## السبب
-دالة `friendlyAuthError` في `src/components/auth/IdentifierInput.tsx` لا تتعامل مع رمز خطأ Supabase `user_banned` (الحساب المعطّل من قبل الإدارة عبر زر «تعطيل»)، فتسقط على الرسالة الافتراضية: «حدث خطأ غير متوقع. الرجاء المحاولة مرة أخرى». لوحظ في سجلات Auth: `error_code: user_banned` و`msg: "400: User is banned"`.
+الخطة المقترحة:
 
-## التعديل
-ملف واحد فقط: `src/components/auth/IdentifierInput.tsx` — تحديث `friendlyAuthError` لـ:
+1. التأكد من أن `.env` الحالي يحتوي فقط على مفاتيح عامة آمنة للنشر:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - وعدم وجود أي `SERVICE_ROLE` أو أسرار خاصة.
 
-1. قراءة `err.code` / `err.error_code` بجانب `err.message` (Supabase v2 يضعها هناك).
-2. إضافة حالة صريحة للحساب المعطّل:
-   > «هذا الحساب معطّل من قبل إدارة النظام. الرجاء التواصل مع الدعم لإعادة تفعيله.»
-3. إضافة حالات أوضح لـ: `user_not_found`، `email_not_confirmed`، `invalid_credentials`، `over_request_rate_limit`.
-4. الافتراضي يصبح: «تعذّر تسجيل الدخول: {نص الخطأ الأصلي}» بدلاً من رسالة عامة بلا تفاصيل — يكشف السبب الفعلي عند ظهور خطأ غير مصنّف.
+2. تعديل `.gitignore` بشكل محدود حتى لا يمنع ملف البيئة المطلوب للـ build:
+   - الأفضل أماناً: إنشاء/اعتماد `.env.production` يحتوي فقط على قيم `VITE_*` العامة، ثم السماح له تحديداً في `.gitignore`.
+   - البديل المباشر: السماح بملف `.env` نفسه إذا كان لا يحتوي إلا على القيم العامة.
 
-## النطاق
-- لن يُعدَّل أي API أو RPC أو schema أو RLS.
-- لن تُعدَّل صفحات الدخول نفسها (`portal-login`, `admin/login`) — تستخدم الدالة كما هي.
-- لا يؤثر على البوابات أو الاستيراد أو التشغيل التجريبي.
+3. عدم تعديل ملف عميل Lovable Cloud/قاعدة البيانات auto-generated، وعدم إضافة Secrets، وعدم تطبيق migrations أو تغيير schema/auth.
 
-## التحقق
-- بناء المشروع.
-- محاكاة دخول بحساب معطّل ⇒ ظهور الرسالة الجديدة الواضحة.
+4. تنفيذ Publish/Deploy جديد بعد أن يصبح ملف البيئة جزءاً من ملفات المشروع التي يقرأها build.
+
+5. التحقق بعد النشر من:
+   - اختفاء خطأ `Missing Supabase environment variable(s)`.
+   - تغيّر اسم ملف JavaScript عن `index-r1msuoFF.js`.
+   - عمل الروابط:
+     - `https://quboolye.com/`
+     - `https://www.quboolye.com/`
+     - `https://saba-uni-portal.lovable.app/`
+     - `/student/login`
+     - `/faculty-portal/login`
+     - `/staff/login`
+     - `/admin/login`
+
+الخلاصة العملية: الحل الأقوى الآن هو جعل قيم `VITE_*` العامة متاحة فعلياً لمرحلة build المنشور، وليس وضعها في Secrets. سأفضّل `.env.production` مخصّصاً للإنتاج لأنه يقلل خطر نشر أي أسرار محلية بالخطأ.
