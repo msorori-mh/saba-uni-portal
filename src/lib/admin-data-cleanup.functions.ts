@@ -39,7 +39,8 @@ async function assertCleanupAccess(userId: string) {
 }
 
 async function countTable(table: string): Promise<number> {
-  const { count, error } = await supabaseAdmin
+  const adminDb = supabaseAdmin as unknown as { from: (table: string) => any };
+  const { count, error } = await adminDb
     .from(table)
     .select("id", { count: "exact", head: true });
   if (error) return 0;

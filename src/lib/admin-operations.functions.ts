@@ -18,9 +18,14 @@ async function assertOperationsAccess(userId: string) {
   );
 }
 
-async function safeCount(table: string, filter?: (q: ReturnType<typeof supabaseAdmin.from>) => ReturnType<typeof supabaseAdmin.from>): Promise<number> {
+async function safeCount(
+  table: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter?: (q: any) => any,
+): Promise<number> {
   try {
-    let q = supabaseAdmin.from(table).select("id", { count: "exact", head: true });
+    const adminDb = supabaseAdmin as unknown as { from: (table: string) => any };
+    let q = adminDb.from(table).select("id", { count: "exact", head: true });
     if (filter) q = filter(q);
     const { count, error } = await q;
     if (error) return -1;
@@ -30,13 +35,19 @@ async function safeCount(table: string, filter?: (q: ReturnType<typeof supabaseA
   }
 }
 
-async function lastEvent(table: string, dateCol = "created_at", filter?: (q: ReturnType<typeof supabaseAdmin.from>) => ReturnType<typeof supabaseAdmin.from>): Promise<string | null> {
+async function lastEvent(
+  table: string,
+  dateCol = "created_at",
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter?: (q: any) => any,
+): Promise<string | null> {
   try {
-    let q = supabaseAdmin.from(table).select(dateCol).order(dateCol, { ascending: false }).limit(1);
+    const adminDb = supabaseAdmin as unknown as { from: (table: string) => any };
+    let q = adminDb.from(table).select(dateCol).order(dateCol, { ascending: false }).limit(1);
     if (filter) q = filter(q);
     const { data, error } = await q;
     if (error || !data?.length) return null;
-    return (data[0] as Record<string, string>)[dateCol] ?? null;
+    return (data[0] as unknown as Record<string, string>)[dateCol] ?? null;
   } catch {
     return null;
   }

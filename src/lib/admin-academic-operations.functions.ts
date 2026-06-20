@@ -26,7 +26,8 @@ async function safeCount(
   filter?: (q: any) => any,
 ): Promise<number> {
   try {
-    let q = supabaseAdmin.from(table).select("id", { count: "exact", head: true });
+    const adminDb = supabaseAdmin as unknown as { from: (table: string) => any };
+    let q = adminDb.from(table).select("id", { count: "exact", head: true });
     if (filter) q = filter(q);
     const { count, error } = await q;
     if (error) return -1;
@@ -183,7 +184,7 @@ export const setCurrentAcademicYear = createServerFn({ method: "POST" })
     if (e2) throw new Error(e2.message);
 
     await logAuditOp(
-      context.supabase,
+      context.supabase as unknown as Parameters<typeof logAuditOp>[0],
       "current_year_changed",
       data.yearId,
       prev?.id ?? null,
@@ -233,7 +234,7 @@ export const setCurrentSemester = createServerFn({ method: "POST" })
     if (e2) throw new Error(e2.message);
 
     await logAuditOp(
-      context.supabase,
+      context.supabase as unknown as Parameters<typeof logAuditOp>[0],
       "current_semester_changed",
       data.semesterId,
       prev?.id ?? null,
