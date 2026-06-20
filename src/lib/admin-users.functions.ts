@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertAnyRole } from "@/lib/authz.server";
 
 // ------------ Helpers ------------
 
@@ -54,6 +55,19 @@ async function logAudit(input: {
 
 type AccountKind = "student" | "faculty" | "staff";
 
+/** Matches admin-nav route access for list/provision actions per account kind. */
+const ACCOUNT_LIST_ROLES: Record<AccountKind, readonly string[]> = {
+  student: ["admin", "system_admin", "dean", "registrar", "student_affairs"],
+  faculty: ["admin", "system_admin", "dean", "registrar", "hr_officer"],
+  staff: ["admin", "system_admin", "dean", "hr_officer"],
+};
+
+const ACCOUNT_PROVISION_ROLES: Record<AccountKind, readonly string[]> = {
+  student: ["admin", "system_admin", "registrar", "student_affairs"],
+  faculty: ["admin", "system_admin", "dean", "registrar", "hr_officer"],
+  staff: ["admin", "system_admin", "dean", "hr_officer"],
+};
+
 function emailFor(kind: AccountKind, identifier: string): string {
   switch (kind) {
     case "student":
@@ -71,6 +85,8 @@ function staffRoleFor(roleType: string | null | undefined): string {
     case "registrar": return "registrar";
     case "student_affairs": return "student_affairs";
     case "finance": return "finance_officer";
+    case "finance_officer": return "finance_officer";
+    case "hr_officer": return "hr_officer";
     case "dean": return "dean";
     case "admin": return "admin";
     default: return "registrar";
@@ -91,6 +107,8 @@ function catalogCodeForAccount(
     case "registrar": return "registrar_officer";
     case "student_affairs": return "student_affairs_officer";
     case "finance": return "finance_officer";
+    case "finance_officer": return "finance_officer";
+    case "hr_officer": return "hr_officer";
     default: break;
   }
   const fallback: Record<string, string> = {
@@ -136,7 +154,11 @@ export const listUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { kind: AccountKind; search?: string; status?: string; page?: number; pageSize?: number }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAnyRole(
+      context.userId,
+      ACCOUNT_LIST_ROLES[data.kind],
+      "ليس لديك صلاحية عرض هذه القائمة",
+    );
 
     // PERFORMANCE-FIX-02A: server-side pagination
     // Backward-compatible: when page/pageSize are omitted, behave as before (one page, up to 500).
@@ -231,7 +253,11 @@ export const createAccount = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAnyRole(
+      context.userId,
+      ACCOUNT_PROVISION_ROLES[data.kind],
+      "ليس لديك صلاحية إنشاء حسابات الدخول",
+    );
 
     const table =
       data.kind === "student" ? "student_profiles"

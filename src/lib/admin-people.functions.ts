@@ -72,7 +72,7 @@ export const getPeopleLookups = createServerFn({ method: "GET" })
 // FACULTY MANAGEMENT
 // =====================================================
 
-const FACULTY_ROLES = ["admin", "system_admin", "dean", "registrar"];
+const FACULTY_ROLES = ["admin", "system_admin", "dean", "registrar", "hr_officer"];
 
 const createFacultySchema = z.object({
   employee_number: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/),
@@ -269,7 +269,7 @@ export const getFacultyMember = createServerFn({ method: "POST" })
 // STAFF MANAGEMENT
 // =====================================================
 
-const STAFF_ROLES = ["admin", "system_admin", "dean"];
+const STAFF_ROLES = ["admin", "system_admin", "dean", "hr_officer"];
 const ALLOWED_STAFF_ROLE_TYPES = ["registrar", "student_affairs", "finance_officer", "hr_officer"] as const;
 
 const createStaffSchema = z.object({
