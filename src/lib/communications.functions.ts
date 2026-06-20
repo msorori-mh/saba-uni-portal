@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole, COMMUNICATIONS_ADMIN_ROLES, primaryActorRole, userRoles } from "@/lib/authz.server";
+import { assertCommunicationsAdmin, primaryActorRole, userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 // ---------- helpers ----------
@@ -26,7 +26,6 @@ async function logAudit(input: {
   } as any);
 }
 
-const ADMIN_ROLES = ["admin","system_admin","dean"];
 const MSG_SENDER_ROLES = ["admin","system_admin","dean","registrar","student_affairs","finance_officer","hr_officer"];
 
 // ===================== ANNOUNCEMENTS =====================
@@ -60,7 +59,7 @@ export const listAnnouncementsAdmin = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const from = (data.page - 1) * data.pageSize;
     const to = from + data.pageSize - 1;
     let q = supabaseAdmin
@@ -88,7 +87,7 @@ export const createAnnouncement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => announcementInput.parse(d))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const { data: row, error } = await supabaseAdmin
       .from("announcements")
       .insert({ ...data, created_by: context.userId } as any)
@@ -110,7 +109,7 @@ export const updateAnnouncement = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), patch: announcementInput.partial() }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const { data: row, error } = await supabaseAdmin
       .from("announcements")
       .update(data.patch as any)
@@ -133,7 +132,7 @@ export const setAnnouncementActive = createServerFn({ method: "POST" })
     z.object({ id: z.string().uuid(), is_active: z.boolean() }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const { error } = await supabaseAdmin
       .from("announcements")
       .update({ is_active: data.is_active } as any)
@@ -152,7 +151,7 @@ export const archiveAnnouncement = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const { error } = await supabaseAdmin
       .from("announcements")
       .update({ is_archived: true, is_active: false } as any)
@@ -170,7 +169,7 @@ export const getAnnouncementStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const { data: ann, error } = await supabaseAdmin
       .from("announcements")
       .select("target_audience, target_program_ids, target_department_ids, target_level_ids")
@@ -434,11 +433,7 @@ export const markMessageRead = createServerFn({ method: "POST" })
 export const getCommunicationsDashboardStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(
-      context.userId,
-      COMMUNICATIONS_ADMIN_ROLES,
-      "ليس لديك صلاحية لعرض إحصائيات الاتصالات",
-    );
+    await assertCommunicationsAdmin(context.userId);
 
     const { userId } = context;
     const nowIso = new Date().toISOString();
@@ -485,7 +480,7 @@ export const getCommunicationsDashboardStats = createServerFn({ method: "GET" })
 export const getCommunicationsTargetLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const [depts, progs, levels] = await Promise.all([
       supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
       supabaseAdmin.from("programs").select("id, name_ar").eq("is_active", true).order("sort_order"),
@@ -504,7 +499,7 @@ export const getCommunicationsTargetLookups = createServerFn({ method: "POST" })
 export const listCommunicationAuditLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(context.userId, ADMIN_ROLES);
+    await assertCommunicationsAdmin(context.userId);
     const { data, error } = await supabaseAdmin
       .from("audit_logs")
       .select("id, created_at, actor_role, action_type, entity_id, new_values, notes")

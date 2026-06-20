@@ -108,6 +108,14 @@ export async function assertFacultyCmsAdmin(userId: string): Promise<void> {
   );
 }
 
+export async function assertCommunicationsAdmin(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    COMMUNICATIONS_ADMIN_ROLES,
+    "ليس لديك صلاحية إدارة الاتصالات والإعلانات",
+  );
+}
+
 export async function primaryActorRole(userId: string): Promise<string | null> {
   const roles = await userRoles(userId);
   for (const p of ROLE_PRIORITY) {
