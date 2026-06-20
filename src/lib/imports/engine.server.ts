@@ -99,6 +99,7 @@ function dryRunReport<T>(rows: ValidatedRow<T>[]): ImportReport {
       report.rows_success += 1;
     }
   }
+  report.rows_created = report.rows_success;
   return report;
 }
 
@@ -376,7 +377,19 @@ export async function finalizeImportServer(opts: {
   durationMs?: number;
 }) {
   if (opts.dryRun) {
-    await safeAudit("import_validated", null, {
+    const { data: logRow } = await sb.from("import_logs").insert({
+      created_by: opts.userId,
+      import_type: opts.type,
+      file_name: opts.fileName,
+      rows_total: opts.report.rows_total,
+      rows_success: opts.report.rows_success,
+      rows_failed: opts.report.rows_failed,
+      status: "dry_run",
+      notes: opts.report.errors.slice(0, 30)
+        .map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`).join(" | ") || "تشغيل تجريبي — لم تُجرَ أي تغييرات",
+    }).select("id").maybeSingle();
+
+    await safeAudit("import_validated", logRow?.id ?? null, {
       import_type: opts.type,
       file_name: opts.fileName,
       rows_total: opts.report.rows_total,
@@ -385,7 +398,7 @@ export async function finalizeImportServer(opts: {
       duration_ms: opts.durationMs ?? null,
       dry_run: true,
     });
-    return { logId: null as string | null };
+    return { logId: (logRow?.id ?? null) as string | null };
   }
 
   const status = opts.report.rows_failed === 0 ? "completed" : opts.report.rows_success === 0 ? "failed" : "partial";

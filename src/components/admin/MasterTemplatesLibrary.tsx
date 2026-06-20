@@ -177,7 +177,7 @@ function TemplateCard({
   // Special note for class_schedule per spec
   const specialNote =
     t.id === "class_schedule"
-      ? "قالب الجداول الدراسية متاح للتنزيل فقط حالياً. رفع واستيراد الجداول يحتاج تفعيل مستورد الجداول."
+      ? "استخدم تبويب «الجداول الدراسية» في أعلى الصفحة لرفع الجدول بعد اختيار السياق الأكاديمي."
       : null;
 
   return (

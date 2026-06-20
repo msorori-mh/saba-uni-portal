@@ -20,6 +20,7 @@ import {
 } from "@/lib/imports/engine";
 import { runBulkImport } from "@/lib/imports.functions";
 import { downloadValidationReport, downloadImportReport } from "@/lib/imports/reports";
+import { IMPORT_TYPE_LABEL_AR, IMPORT_LOG_STATUS_AR, getReportStatLabels } from "@/lib/imports/labels";
 import type { ImportReport, ImportType, ValidationResult, ValidatedRow } from "@/lib/imports/types";
 import { MasterTemplatesLibrary } from "@/components/admin/MasterTemplatesLibrary";
 import { downloadMasterTemplate } from "@/lib/imports/master-templates";
@@ -57,15 +58,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
 
-const TYPE_LABEL: Record<ImportType, string> = {
-  students: "طلاب", faculty: "أعضاء هيئة تدريس", staff: "موظفون", courses: "مقررات", study_plans: "خطط دراسية",
-  departments: "أقسام", programs: "برامج", levels: "مستويات دراسية", course_sections: "مجموعات مقررات",
-  student_enrollments: "تسجيلات طلاب",
-  student_grades: "درجات طلاب",
-  student_fees: "رسوم طلاب",
-  student_discounts: "خصومات طلاب",
-  documents: "وثائق رسمية",
-};
+const TYPE_LABEL = IMPORT_TYPE_LABEL_AR;
 
 const STRUCTURE_TYPES = new Set<ImportType>([
   "departments", "programs", "levels", "course_sections", "student_enrollments", "student_grades", "student_fees", "student_discounts",
@@ -92,15 +85,17 @@ function ImportsPage() {
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<ImportReport | null>(null);
   const [dryRun, setDryRun] = useState(false);
+  const [dryRunCompleted, setDryRunCompleted] = useState(false);
   const [updateExisting, setUpdateExisting] = useState(false);
   const [perfMs, setPerfMs] = useState<number | null>(null);
   const qc = useQueryClient();
 
   const reset = () => {
     setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
+    setDryRunCompleted(false);
   };
 
-  const onTabChange = (t: TabId) => { setTab(t); reset(); setUpdateExisting(false); };
+  const onTabChange = (t: TabId) => { setTab(t); reset(); setUpdateExisting(false); setDryRun(false); };
 
   // Determine current step (0..5)
   const step = useMemo(() => {
@@ -158,6 +153,8 @@ function ImportsPage() {
   // Re-run validation when toggling Update Existing on structure tabs
   const onToggleUpdateExisting = async (next: boolean) => {
     setUpdateExisting(next);
+    setDryRunCompleted(false);
+    setReport(null);
     if (!rows || !isStructureTab) return;
     setValidating(true);
     try {
@@ -201,6 +198,7 @@ function ImportsPage() {
       const duration = Math.round(performance.now() - t0);
       setPerfMs(duration);
       setReport(rep);
+      if (dryRun) setDryRunCompleted(true);
       qc.invalidateQueries({ queryKey: ["import-history"] });
       qc.invalidateQueries({ queryKey: ["import-stats"] });
     } catch (e) {
@@ -291,7 +289,19 @@ function ImportsPage() {
           )}
 
           {validation && !report && (
-            <div className="ml-auto flex flex-wrap items-center gap-3">
+            <div className="ml-auto flex flex-col items-end gap-2">
+              {!dryRun && !dryRunCompleted && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 max-w-md text-right">
+                  <strong>خطوة مطلوبة:</strong> شغّل <strong>الوضع التجريبي (Dry Run)</strong> مرة واحدة قبل التنفيذ الفعلي للتأكد من النتائج المتوقعة.
+                </div>
+              )}
+              {dryRunCompleted && !dryRun && (
+                <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                  <CheckCircle2 className="inline h-3.5 w-3.5 ml-1" />
+                  اكتمل التشغيل التجريبي — يمكنك تنفيذ الاستيراد الفعلي الآن.
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-3">
               {isStructureTab && (
                 <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
                   <input
@@ -314,7 +324,8 @@ function ImportsPage() {
               </label>
               <button
                 onClick={runImport}
-                disabled={importing || validation.validRows === 0}
+                disabled={importing || validation.validRows === 0 || (!dryRun && !dryRunCompleted)}
+                title={!dryRun && !dryRunCompleted ? "شغّل الوضع التجريبي أولاً" : undefined}
                 className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50 ${
                   dryRun ? "bg-amber-600" : "bg-emerald-600"
                 }`}
@@ -322,6 +333,7 @@ function ImportsPage() {
                 {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 {dryRun ? "تشغيل تجريبي" : "تنفيذ الاستيراد"} ({validation.validRows} صف)
               </button>
+              </div>
             </div>
           )}
         </div>
@@ -344,7 +356,9 @@ function ImportsPage() {
             type={tab as ImportType}
             dryRun={dryRun}
             durationMs={perfMs}
-            onDownload={() => downloadImportReport(tab as ImportType, file?.name ?? "file.xlsx", report)}
+            onDownload={() => downloadImportReport(tab as ImportType, file?.name ?? "file.xlsx", report, { dryRun, durationMs: perfMs })}
+            onContinueRealImport={dryRun ? () => { setReport(null); setDryRun(false); } : undefined}
+            onStartOver={() => reset()}
           />
         )}
       </section>
@@ -621,13 +635,21 @@ function PreviewBlock({ validation }: { validation: ValidationResult<any> }) {
   );
 }
 
-function ReportBlock({ report, type, dryRun, durationMs, onDownload }: {
-  report: ImportReport; type: ImportType; dryRun: boolean; durationMs: number | null; onDownload: () => void;
+function ReportBlock({ report, type, dryRun, durationMs, onDownload, onContinueRealImport, onStartOver }: {
+  report: ImportReport; type: ImportType; dryRun: boolean; durationMs: number | null;
+  onDownload: () => void;
+  onContinueRealImport?: () => void;
+  onStartOver?: () => void;
 }) {
-  const tone = dryRun ? "amber" : "emerald";
+  const statLabels = getReportStatLabels(type, dryRun);
+  const boxClass = dryRun
+    ? "rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 space-y-3"
+    : "rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3";
+  const titleClass = dryRun ? "font-bold text-amber-700" : "font-bold text-emerald-700";
+
   return (
-    <div className={`rounded-lg border border-${tone}-500/30 bg-${tone}-500/5 p-4 space-y-3`}>
-      <div className={`flex items-center justify-between gap-2 font-bold text-${tone}-700`}>
+    <div className={boxClass}>
+      <div className={`flex items-center justify-between gap-2 ${titleClass}`}>
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5" />
           {dryRun ? "تشغيل تجريبي مكتمل (لم تتم أي تغييرات)" : `تم تنفيذ استيراد ${TYPE_LABEL[type]}`}
@@ -639,12 +661,14 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload }: {
           <FileDown className="h-3.5 w-3.5" /> تنزيل التقرير
         </button>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className={`grid gap-3 ${statLabels.showUpdated ? "grid-cols-2 md:grid-cols-6" : "grid-cols-2 md:grid-cols-5"}`}>
         <Stat label="إجمالي" value={report.rows_total} tone="neutral" />
         <Stat label="نجح" value={report.rows_success} tone="ok" />
         <Stat label="فشل" value={report.rows_failed} tone="bad" />
-        <Stat label={type === "students" ? "حسابات ستُنشأ" : "مضافة"} value={report.rows_created ?? 0} tone="ok" />
-        <Stat label={type === "students" ? "بدون حساب" : "محدثة"} value={report.rows_updated ?? 0} tone="neutral" />
+        <Stat label={statLabels.created} value={report.rows_created ?? 0} tone="ok" />
+        {statLabels.showUpdated && (
+          <Stat label={statLabels.updated} value={report.rows_updated ?? 0} tone="neutral" />
+        )}
         <Stat label="الزمن (ms)" value={durationMs ?? 0} tone="neutral" />
       </div>
       {report.errors.length > 0 && (
@@ -656,6 +680,26 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload }: {
             ))}
           </ul>
         </details>
+      )}
+      {(onContinueRealImport || onStartOver) && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {onContinueRealImport && report.rows_success > 0 && (
+            <button
+              onClick={onContinueRealImport}
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:opacity-90"
+            >
+              <CheckCircle2 className="h-4 w-4" /> تنفيذ الاستيراد الفعلي
+            </button>
+          )}
+          {onStartOver && (
+            <button
+              onClick={onStartOver}
+              className="text-xs font-bold text-primary underline"
+            >
+              رفع ملف جديد
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -731,7 +775,7 @@ function ImportHistory() {
                         ) : null}
                       </td>
                       <td className="py-2 px-2 text-xs">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
-                      <td className="py-2 px-2">{TYPE_LABEL[r.import_type] ?? r.import_type}</td>
+                      <td className="py-2 px-2">{TYPE_LABEL[r.import_type as ImportType] ?? r.import_type}</td>
                       <td className="py-2 px-2 font-mono text-xs">{r.file_name}</td>
                       <td className="py-2 px-2">{r.rows_total}</td>
                       <td className="py-2 px-2 text-emerald-700 font-bold">{r.rows_success}</td>
@@ -739,10 +783,11 @@ function ImportHistory() {
                       <td className="py-2 px-2">
                         <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
                           r.status === "completed" ? "bg-emerald-100 text-emerald-700" :
+                          r.status === "dry_run" ? "bg-amber-100 text-amber-700" :
                           r.status === "partial" ? "bg-amber-100 text-amber-700" :
                           "bg-destructive/10 text-destructive"
                         }`}>
-                          {r.status === "completed" ? "مكتمل" : r.status === "partial" ? "جزئي" : "فشل"}
+                          {IMPORT_LOG_STATUS_AR[r.status] ?? r.status}
                         </span>
                       </td>
                     </tr>
