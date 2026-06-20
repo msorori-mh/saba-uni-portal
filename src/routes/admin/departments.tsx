@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  listDepartments,
+  listProgramsAdmin,
+  listDepartmentOptions,
+  uploadDepartmentImage,
+  upsertDepartment,
+  deleteDepartment,
+  upsertProgram,
+  deleteProgram,
+} from "@/lib/admin-departments.functions";
 import {
   Plus,
   Pencil,
@@ -115,50 +125,43 @@ function AdminDepartmentsPage() {
 
 function DepartmentsTab() {
   const qc = useQueryClient();
+  const listDeptsFn = useServerFn(listDepartments);
+  const listProgsFn = useServerFn(listProgramsAdmin);
+  const deleteDeptFn = useServerFn(deleteDepartment);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
 
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ["admin", "departments"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("departments")
-        .select("*")
-        .order("sort_order");
-      if (error) throw error;
-      return data as Department[];
-    },
+    queryFn: () => listDeptsFn({ data: {} }),
   });
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin", "programs"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("programs").select("*");
-      if (error) throw error;
-      return data as Program[];
-    },
+    queryFn: () => listProgsFn({ data: {} }),
   });
 
   const programsCount = useMemo(() => {
     const m: Record<string, number> = {};
     programs.forEach((p) => {
-      if (p.department_id) m[p.department_id] = (m[p.department_id] || 0) + 1;
+      const prog = p as Program;
+      if (prog.department_id) m[prog.department_id] = (m[prog.department_id] || 0) + 1;
     });
     return m;
   }, [programs]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase
-      .from("departments")
-      .delete()
-      .eq("id", deleteTarget.id);
-    if (error) return toast.error("تعذر الحذف: " + error.message);
-    toast.success("تم حذف القسم");
-    setDeleteTarget(null);
-    qc.invalidateQueries({ queryKey: ["admin", "departments"] });
-    qc.invalidateQueries({ queryKey: ["admin", "programs"] });
+    try {
+      await deleteDeptFn({ data: { id: deleteTarget.id } });
+      toast.success("تم حذف القسم");
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["admin", "departments"] });
+      qc.invalidateQueries({ queryKey: ["admin", "programs"] });
+    } catch (e) {
+      toast.error("تعذر الحذف: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    }
   };
 
   const targetProgramsCount = deleteTarget
@@ -332,6 +335,8 @@ function DepartmentFormDialog({
   editing: Department | null;
   onSaved: () => void;
 }) {
+  const uploadFn = useServerFn(uploadDepartmentImage);
+  const upsertFn = useServerFn(upsertDepartment);
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [descAr, setDescAr] = useState("");
@@ -361,21 +366,31 @@ function DepartmentFormDialog({
       return toast.error("الرجاء اختيار صورة");
     if (file.size > 5 * 1024 * 1024) return toast.error("الحد الأقصى 5 ميجابايت");
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await supabase.storage
-      .from("department-images")
-      .upload(path, file);
-    if (error) {
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          const comma = result.indexOf(",");
+          resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = () => reject(new Error("فشل قراءة الملف"));
+        reader.readAsDataURL(file);
+      });
+      const { publicUrl } = await uploadFn({
+        data: {
+          fileBase64: base64,
+          contentType: file.type,
+          fileName: file.name,
+        },
+      });
+      setImage(publicUrl);
+      toast.success("تم رفع الصورة");
+    } catch (e) {
+      toast.error("فشل الرفع: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    } finally {
       setUploading(false);
-      return toast.error("فشل الرفع: " + error.message);
     }
-    const { data } = supabase.storage
-      .from("department-images")
-      .getPublicUrl(path);
-    setImage(data.publicUrl);
-    setUploading(false);
-    toast.success("تم رفع الصورة");
   };
 
   const handleSave = async () => {
@@ -384,23 +399,27 @@ function DepartmentFormDialog({
     setErrors(e);
     if (Object.keys(e).length) return;
     setSaving(true);
-    const payload = {
-      name_ar: nameAr.trim(),
-      name_en: nameEn.trim() || null,
-      description_ar: descAr.trim() || null,
-      description_en: descEn.trim() || null,
-      image,
-      sort_order: sortOrder,
-      is_active: isActive,
-    };
-    const { error } = editing
-      ? await supabase.from("departments").update(payload).eq("id", editing.id)
-      : await supabase.from("departments").insert(payload);
-    setSaving(false);
-    if (error) return toast.error("فشل الحفظ: " + error.message);
-    toast.success(editing ? "تم تحديث القسم" : "تم إنشاء القسم");
-    onOpenChange(false);
-    onSaved();
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          name_ar: nameAr.trim(),
+          name_en: nameEn.trim() || null,
+          description_ar: descAr.trim() || null,
+          description_en: descEn.trim() || null,
+          image,
+          sort_order: sortOrder,
+          is_active: isActive,
+        },
+      });
+      toast.success(editing ? "تم تحديث القسم" : "تم إنشاء القسم");
+      onOpenChange(false);
+      onSaved();
+    } catch (e) {
+      toast.error("فشل الحفظ: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -541,32 +560,21 @@ function DepartmentFormDialog({
 
 function ProgramsTab() {
   const qc = useQueryClient();
+  const listProgsFn = useServerFn(listProgramsAdmin);
+  const listDeptsFn = useServerFn(listDepartmentOptions);
+  const deleteProgFn = useServerFn(deleteProgram);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Program | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
 
   const { data: programs = [], isLoading } = useQuery({
     queryKey: ["admin", "programs"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("programs")
-        .select("*")
-        .order("sort_order");
-      if (error) throw error;
-      return data as Program[];
-    },
+    queryFn: () => listProgsFn({ data: {} }),
   });
 
   const { data: departments = [] } = useQuery({
     queryKey: ["admin", "departments"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("departments")
-        .select("id, name_ar")
-        .order("sort_order");
-      if (error) throw error;
-      return data as { id: string; name_ar: string }[];
-    },
+    queryFn: () => listDeptsFn({ data: {} }),
   });
 
   const deptMap = useMemo(
@@ -576,14 +584,14 @@ function ProgramsTab() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase
-      .from("programs")
-      .delete()
-      .eq("id", deleteTarget.id);
-    if (error) return toast.error("تعذر الحذف: " + error.message);
-    toast.success("تم حذف البرنامج");
-    setDeleteTarget(null);
-    qc.invalidateQueries({ queryKey: ["admin", "programs"] });
+    try {
+      await deleteProgFn({ data: { id: deleteTarget.id } });
+      toast.success("تم حذف البرنامج");
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["admin", "programs"] });
+    } catch (e) {
+      toast.error("تعذر الحذف: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    }
   };
 
   return (
@@ -741,6 +749,7 @@ function ProgramFormDialog({
   departments: { id: string; name_ar: string }[];
   onSaved: () => void;
 }) {
+  const upsertFn = useServerFn(upsertProgram);
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [code, setCode] = useState("");
@@ -779,25 +788,29 @@ function ProgramFormDialog({
     if (Object.keys(e).length) return;
 
     setSaving(true);
-    const payload = {
-      name_ar: nameAr.trim(),
-      name_en: nameEn.trim() || null,
-      code: code.trim(),
-      description_ar: descAr.trim() || null,
-      department_id: departmentId,
-      degree_type: degreeType,
-      years,
-      sort_order: sortOrder,
-      is_active: isActive,
-    };
-    const { error } = editing
-      ? await supabase.from("programs").update(payload).eq("id", editing.id)
-      : await supabase.from("programs").insert(payload);
-    setSaving(false);
-    if (error) return toast.error("فشل الحفظ: " + error.message);
-    toast.success(editing ? "تم تحديث البرنامج" : "تم إنشاء البرنامج");
-    onOpenChange(false);
-    onSaved();
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          name_ar: nameAr.trim(),
+          name_en: nameEn.trim() || null,
+          code: code.trim(),
+          description_ar: descAr.trim() || null,
+          department_id: departmentId,
+          degree_type: degreeType as "بكالوريوس" | "ماجستير" | "دبلوم" | "دكتوراه",
+          years,
+          sort_order: sortOrder,
+          is_active: isActive,
+        },
+      });
+      toast.success(editing ? "تم تحديث البرنامج" : "تم إنشاء البرنامج");
+      onOpenChange(false);
+      onSaved();
+    } catch (e) {
+      toast.error("فشل الحفظ: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
