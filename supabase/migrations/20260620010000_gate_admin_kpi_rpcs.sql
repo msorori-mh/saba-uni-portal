@@ -1,6 +1,5 @@
--- SECURITY-RBAC-02: Gate admin KPI RPCs to privileged roles only.
--- Aligns DB enforcement with app-layer checks in admin-dashboard.functions.ts
--- (ADMIN_PANEL_ROLES) and academic-status.functions.ts (PRIV_ROLES).
+-- SECURITY-RBAC-01A: Gate admin KPI RPCs to executive/academic privileged roles.
+-- Allowed: admin, system_admin, dean, registrar, student_affairs only.
 -- Uses SECURITY DEFINER after role check so aggregates are not skewed by caller RLS.
 
 CREATE OR REPLACE FUNCTION public.get_admin_dashboard_kpis()
@@ -15,10 +14,7 @@ DECLARE
 BEGIN
   IF NOT public.has_any_role(
     auth.uid(),
-    ARRAY[
-      'system_admin', 'admin', 'dean', 'registrar',
-      'student_affairs', 'finance_officer', 'hr_officer', 'department_head'
-    ]
+    ARRAY['admin', 'system_admin', 'dean', 'registrar', 'student_affairs']
   ) THEN
     RAISE EXCEPTION 'Not authorized';
   END IF;
