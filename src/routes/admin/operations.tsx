@@ -3,15 +3,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getOperationsOverview, type OperationsOverview as Ops } from "@/lib/admin-operations.functions";
+import { DataCleanupPanel } from "@/components/admin/DataCleanupPanel";
 import { logOperationsEvent } from "@/lib/operations/ops-audit.functions";
 import { cn } from "@/lib/utils";
 import {
   Activity, Database, ShieldCheck, Bell, FileBadge, Wallet, BarChart3,
   HardDrive, Users, AlertTriangle, CheckCircle2, XCircle, Info,
-  Server, Loader2, FileWarning, RotateCcw,
+  Server, Loader2, FileWarning, RotateCcw, Trash2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/operations")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
   component: OperationsPage,
 });
 
@@ -159,6 +163,7 @@ const RUNBOOK: Array<{ title: string; steps: string[] }> = [
 
 // -------- page --------
 function OperationsPage() {
+  const { tab: tabParam } = Route.useSearch();
   const log = useServerFn(logOperationsEvent);
   const fetchOps = useServerFn(getOperationsOverview);
   const { data, isLoading, refetch, isFetching } = useQuery({
@@ -166,7 +171,10 @@ function OperationsPage() {
     queryFn: () => fetchOps(),
     staleTime: 30_000,
   });
-  const [tab, setTab] = useState<"overview" | "storage" | "auth" | "backup" | "runbook" | "alerts">("overview");
+  const validTabs = ["overview", "cleanup", "storage", "auth", "backup", "runbook", "alerts"] as const;
+  type TabId = typeof validTabs[number];
+  const initialTab = validTabs.includes(tabParam as TabId) ? (tabParam as TabId) : "overview";
+  const [tab, setTab] = useState<TabId>(initialTab);
 
   useEffect(() => {
     log({ data: { action: "operations_viewed", page: "operations" } }).catch(() => {});
@@ -203,6 +211,7 @@ function OperationsPage() {
       <div className="flex flex-wrap gap-2 border-b border-border">
         {([
           ["overview", "نظرة عامة", Activity],
+          ["cleanup", "تنظيف البيانات", Trash2],
           ["storage", "التخزين", HardDrive],
           ["auth", "المصادقة", ShieldCheck],
           ["backup", "النسخ الاحتياطي", Database],
@@ -227,7 +236,9 @@ function OperationsPage() {
         })}
       </div>
 
-      {isLoading || !data ? (
+      {tab === "cleanup" ? (
+        <DataCleanupPanel />
+      ) : isLoading || !data ? (
         <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
           <Loader2 className="inline h-4 w-4 animate-spin me-2" /> جاري تحميل بيانات العمليات...
         </div>

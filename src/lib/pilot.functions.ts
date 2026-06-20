@@ -254,6 +254,32 @@ export const setPilotScenarioResult = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const resetPilotScenarios = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = context.supabase as any;
+    await assertPilotManage(context.userId);
+    const { data: scenarios, error: listErr } = await sb
+      .from("pilot_test_scenarios")
+      .select("id");
+    if (listErr) throw new Error(listErr.message);
+    const ids = (scenarios ?? []).map((s: { id: string }) => s.id);
+    if (ids.length === 0) return { ok: true, reset: 0 };
+    const { error } = await sb.from("pilot_test_results").upsert(
+      ids.map((scenario_id: string) => ({
+        scenario_id,
+        result: "not_tested",
+        notes: null,
+        tested_by: context.userId,
+        tested_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })),
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, reset: ids.length };
+  });
+
 /* =========================================================================
    DAILY CHECKLIST
    ========================================================================= */

@@ -1,10 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Rocket, Users, Bug, MessageSquare, ClipboardCheck, ListChecks, CheckCircle2,
-  XCircle, AlertCircle, Loader2, Plus, FileDown, FileSpreadsheet, Trash2, Pencil,
+  XCircle, AlertCircle, Loader2, Plus, FileDown, FileSpreadsheet, Trash2, Pencil, RotateCcw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   getPilotOverview, updatePilotConfig,
   listPilotParticipants, upsertPilotParticipant, deletePilotParticipant,
-  listPilotScenarios, setPilotScenarioResult,
+  listPilotScenarios, setPilotScenarioResult, resetPilotScenarios,
   getPilotChecklist, togglePilotChecklist,
   listPilotIssues, upsertPilotIssue,
   listPilotFeedback, recordPilotFeedback,
@@ -240,14 +240,43 @@ const CATEGORY_LABEL: Record<string, string> = {
   academic: "أكاديمي", financial: "مالي", requests: "طلبات", documents: "وثائق", operations: "عمليات",
 };
 
+const SCENARIO_STEPS: Record<string, string[]> = {
+  ACA_LOGIN: ["افتح /portal-login وسجّل دخول طالب", "افتح /faculty-portal وسجّل دخول عضو هيئة", "تحقق من رسالة الخطأ لحساب معطّل"],
+  ACA_PROFILE: ["من بوابة الطالب: افتح الملف الشخصي", "تحقق من صحة البيانات الأساسية"],
+  ACA_ENROLL: ["تأكد من وجود مجموعات مفتوحة", "سجّل طالباً في مقرر من /admin/enrollments"],
+  ACA_GRADES: ["ادخل درجة من بوابة الأستاذ", "تحقق من ظهورها في بوابة الطالب"],
+  ACA_TRANSCRIPT: ["افتح السجل الأكاديمي غير الرسمي", "تحقق من حساب المعدل"],
+  FIN_FEES: ["افتح المالية في بوابة الطالب", "تحقق من عرض الرسوم"],
+  FIN_DISCOUNTS: ["طبّق خصماً من /admin/finance", "تحقق من انعكاسه على الطالب"],
+  FIN_RECEIPTS: ["ارفع سند دفع", "راجعه من الإدارة واعتمد الرفض/القبول"],
+  REQ_ABSENCE: ["قدّم طلب عذر غياب", "راجعه من الإدارة"],
+  REQ_SUSPEND: ["قدّم طلب تأجيل", "تحقق من workflow الموافقة"],
+  REQ_TRANSFER: ["قدّم طلب نقل", "تحقق من الحقول الإلزامية"],
+  REQ_EQUIV: ["قدّم طلب معادلة", "تحقق من المرفقات"],
+  DOC_CERT: ["أصدر شهادة قيد من الإدارة", "تحقق من QR والتحقق"],
+  DOC_TRANSCRIPT: ["أصدر سجل أكاديمي رسمي", "تحقق من الرقم التسلسلي"],
+  DOC_VERIFY: ["افتح /verify-document", "أدخل رمز تحقق صالح"],
+  OPS_AUDIT: ["افتح /admin/audit-log", "تحقق من تسجيل العمليات الأخيرة"],
+  OPS_NOTIF: ["أرسل إشعاراً", "تحقق من وصوله للمستهدف"],
+  OPS_REPORTS: ["صدّر تقريراً من /admin/reports", "تحقق من تسجيل التصدير"],
+};
+
 function ScenariosTab({ canManage }: { canManage: boolean }) {
   const fetchList = useServerFn(listPilotScenarios);
   const setResult = useServerFn(setPilotScenarioResult);
+  const resetAll = useServerFn(resetPilotScenarios);
   const qc = useQueryClient();
   const list = useQuery({ queryKey: ["pilot-scenarios"], queryFn: () => fetchList(), staleTime: 30_000 });
   const mut = useMutation({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mutationFn: (vars: any) => setResult({ data: vars }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pilot-scenarios"] });
+      qc.invalidateQueries({ queryKey: ["pilot-overview"] });
+    },
+  });
+  const resetMut = useMutation({
+    mutationFn: () => resetAll(),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pilot-scenarios"] });
       qc.invalidateQueries({ queryKey: ["pilot-overview"] });
@@ -260,8 +289,27 @@ function ScenariosTab({ canManage }: { canManage: boolean }) {
   for (const s of (list.data ?? [])) {
     (grouped[s.category] ||= []).push(s);
   }
+  const tested = (list.data ?? []).filter((s) => s.result !== "not_tested").length;
+  const passed = (list.data ?? []).filter((s) => s.result === "pass").length;
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="font-bold">قبل الاختبار</div>
+          <p className="mt-1 leading-6">
+            1) نظّف البيانات التجريبية من{" "}
+            <Link to="/admin/operations" search={{ tab: "cleanup" }} className="font-bold underline">مركز العمليات → تنظيف البيانات</Link>
+            {" "}· 2) أعد إعداد المجموعات والجداول · 3) نفّذ كل سيناريو وسجّل النتيجة.
+          </p>
+          <p className="mt-2 text-xs">التقدم: {passed} نجح / {tested} مُختبر من {(list.data ?? []).length} — الهدف ≥ 80%</p>
+        </div>
+        {canManage && (
+          <Button variant="outline" size="sm" disabled={resetMut.isPending} onClick={() => resetMut.mutate()}>
+            {resetMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4 ml-1" />}
+            إعادة تعيين الكل
+          </Button>
+        )}
+      </div>
       {Object.entries(grouped).map(([cat, items]) => (
         <div key={cat} className="rounded-xl border bg-card">
           <div className="px-4 py-2 border-b bg-muted/30 font-bold">{CATEGORY_LABEL[cat] ?? cat}</div>
@@ -271,6 +319,11 @@ function ScenariosTab({ canManage }: { canManage: boolean }) {
                 <div className="min-w-0">
                   <div className="text-sm font-semibold">{s.name}</div>
                   <div className="text-[11px] text-muted-foreground">{s.code}{s.tested_at ? ` — آخر اختبار ${new Date(s.tested_at).toLocaleDateString("ar-EG-u-nu-latn")}` : ""}</div>
+                  {SCENARIO_STEPS[s.code] && (
+                    <ol className="mt-2 text-[11px] text-muted-foreground list-decimal list-inside space-y-0.5">
+                      {SCENARIO_STEPS[s.code].map((step, i) => <li key={i}>{step}</li>)}
+                    </ol>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   <ResultBadge r={s.result} />
