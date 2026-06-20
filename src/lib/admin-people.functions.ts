@@ -136,7 +136,7 @@ export const createFacultyMember = createServerFn({ method: "POST" })
         throw new Error(`تم إنشاء الملف لكن تعذّر إنشاء حساب الدخول: ${cErr?.message ?? ""}`);
       }
       const newUserId = created.user.id;
-      await supabaseAdmin
+      await context.supabase
         .from("faculty_profiles")
         .update({ user_id: newUserId, must_change_password: true } as any)
         .eq("id", profile.id);
@@ -309,7 +309,7 @@ export const createStaffMember = createServerFn({ method: "POST" })
         throw new Error(`تم إنشاء الملف لكن تعذّر إنشاء حساب الدخول: ${cErr?.message ?? ""}`);
       }
       const newUserId = created.user.id;
-      await supabaseAdmin
+      await context.supabase
         .from("staff_profiles")
         .update({ user_id: newUserId, must_change_password: true } as any)
         .eq("id", profile.id);
