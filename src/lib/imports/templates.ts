@@ -143,6 +143,21 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "فعّل (تحديث القائم) لتحديث حالة تسجيل موجود",
     ],
   },
+  student_grades: {
+    sheetName: "StudentGrades",
+    headers: [
+      "academic_number","course_code","section_code","academic_year","semester",
+      "component_name","score","status",
+    ],
+    sample: ["2026001","CS101","A","2026-2027","first","نهائي",45,"submitted"],
+    instructions: [
+      "academic_number, course_code, section_code, academic_year, semester, component_name, score حقول مطلوبة",
+      "يجب أن يكون الطالب مسجلاً في المجموعة وأن يوجد مكوّن التقييم لها مسبقاً",
+      "score لا يتجاوز max_score للمكوّن",
+      "status = draft / submitted / approved (افتراضي submitted)",
+      "فعّل (تحديث القائم) لتحديث درجة موجودة",
+    ],
+  },
 };
 
 export async function downloadTemplate(type: ImportType) {

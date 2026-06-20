@@ -920,6 +920,212 @@ export async function validateStudentEnrollments(
   return summarize(out);
 }
 
+// =========================
+// Student grades
+// =========================
+export type StudentGradeRow = {
+  student_enrollment_id: string;
+  grade_component_id: string;
+  score: number;
+  status: string;
+  _existingId: string | null;
+};
+
+const GRADE_STATUSES = new Set(["draft", "submitted", "approved"]);
+
+export async function validateStudentGrades(
+  rows: Record<string, unknown>[],
+  lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<StudentGradeRow>> {
+  const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
+  const studentByAc = new Map<string, { id: string; program_id: string | null }>();
+  if (acNumbers.length) {
+    for (let i = 0; i < acNumbers.length; i += 500) {
+      const chunk = acNumbers.slice(i, i + 500);
+      const { data } = await sb.from("student_profiles")
+        .select("id, academic_number, program_id")
+        .in("academic_number", chunk);
+      (data ?? []).forEach((s: { id: string; academic_number: string; program_id: string | null }) => {
+        studentByAc.set(normKey(s.academic_number), { id: s.id, program_id: s.program_id });
+      });
+    }
+  }
+
+  const [
+    { data: statuses },
+    { data: offerings },
+    { data: sections },
+    { data: enrollments },
+    { data: components },
+    { data: grades },
+  ] = await Promise.all([
+    sb.from("student_academic_status").select("student_profile_id, academic_year_id, semester_id, level_id"),
+    sb.from("course_offerings").select("id, course_id, academic_year_id, semester_id, program_id, level_id"),
+    sb.from("course_sections").select("id, course_offering_id, section_code"),
+    sb.from("student_enrollments").select("id, student_profile_id, course_section_id, enrollment_status"),
+    sb.from("grade_components").select("id, course_section_id, name, max_score"),
+    sb.from("student_grades").select("id, student_enrollment_id, grade_component_id, status"),
+  ]);
+
+  const levelByStudentTerm = new Map<string, string>();
+  (statuses ?? []).forEach((s: {
+    student_profile_id: string; academic_year_id: string; semester_id: string; level_id: string;
+  }) => {
+    levelByStudentTerm.set(`${s.student_profile_id}|${s.academic_year_id}|${s.semester_id}`, s.level_id);
+  });
+
+  const offeringByKey = new Map<string, string>();
+  (offerings ?? []).forEach((o: {
+    id: string; course_id: string; academic_year_id: string;
+    semester_id: string; program_id: string; level_id: string;
+  }) => {
+    offeringByKey.set(
+      enrollmentOfferingKey(o.course_id, o.academic_year_id, o.semester_id, o.program_id, o.level_id),
+      o.id,
+    );
+  });
+
+  const sectionByOfferingCode = new Map<string, string>();
+  (sections ?? []).forEach((s: { id: string; course_offering_id: string; section_code: string }) => {
+    sectionByOfferingCode.set(`${s.course_offering_id}|${normKey(s.section_code)}`, s.id);
+  });
+
+  const enrollmentByStudentSection = new Map<string, { id: string; status: string }>();
+  (enrollments ?? []).forEach((e: {
+    id: string; student_profile_id: string; course_section_id: string; enrollment_status: string;
+  }) => {
+    enrollmentByStudentSection.set(`${e.student_profile_id}|${e.course_section_id}`, {
+      id: e.id,
+      status: e.enrollment_status,
+    });
+  });
+
+  const componentBySectionName = new Map<string, { id: string; max_score: number }>();
+  (components ?? []).forEach((c: { id: string; course_section_id: string; name: string; max_score: number }) => {
+    componentBySectionName.set(`${c.course_section_id}|${normKey(c.name)}`, { id: c.id, max_score: c.max_score });
+  });
+
+  const gradeByEnrollmentComponent = new Map<string, string>();
+  (grades ?? []).forEach((g: { id: string; student_enrollment_id: string; grade_component_id: string }) => {
+    gradeByEnrollmentComponent.set(`${g.student_enrollment_id}|${g.grade_component_id}`, g.id);
+  });
+
+  const seenInFile = new Set<string>();
+  const out: ValidatedRow<StudentGradeRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+
+    const academic_number = str(raw.academic_number);
+    if (!academic_number) errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي مطلوب" });
+    const student = academic_number ? studentByAc.get(normKey(academic_number)) ?? null : null;
+    if (academic_number && !student) errors.push({ row: rowNumber, column: "academic_number", message: "الطالب غير موجود" });
+    if (student && !student.program_id)
+      errors.push({ row: rowNumber, column: "academic_number", message: "الطالب بلا برنامج دراسي مسجل" });
+
+    const course = lookups.coursesByCode.get(normKey(str(raw.course_code)));
+    if (!course) errors.push({ row: rowNumber, column: "course_code", message: "المقرر غير موجود" });
+
+    const ay_id = lookups.academicYearsByName.get(normKey(str(raw.academic_year)));
+    if (!ay_id) errors.push({ row: rowNumber, column: "academic_year", message: "السنة الأكاديمية غير موجودة" });
+
+    const semKey = normKey(str(raw.semester));
+    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
+    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+
+    const section_code = str(raw.section_code).toUpperCase();
+    if (!section_code) errors.push({ row: rowNumber, column: "section_code", message: "رمز المجموعة مطلوب" });
+
+    const component_name = str(raw.component_name);
+    if (!component_name) errors.push({ row: rowNumber, column: "component_name", message: "اسم مكوّن التقييم مطلوب" });
+
+    const scoreN = num(raw.score);
+    if (!Number.isFinite(scoreN) || scoreN < 0)
+      errors.push({ row: rowNumber, column: "score", message: "الدرجة يجب أن تكون رقماً >= 0" });
+
+    const status = str(raw.status) || "submitted";
+    if (!GRADE_STATUSES.has(status))
+      errors.push({ row: rowNumber, column: "status", message: "الحالة غير صحيحة (draft/submitted/approved)" });
+
+    let course_section_id: string | null = null;
+    let student_enrollment_id: string | null = null;
+    let grade_component_id: string | null = null;
+    let _existingId: string | null = null;
+
+    if (student && course && ay_id && sem_id && section_code && student.program_id) {
+      const level_id = levelByStudentTerm.get(`${student.id}|${ay_id}|${sem_id}`);
+      if (!level_id) {
+        errors.push({ row: rowNumber, column: "academic_year", message: "لا توجد حالة أكاديمية للطالب في هذا الفصل" });
+      } else {
+        const oKey = enrollmentOfferingKey(course.id, ay_id, sem_id, student.program_id, level_id);
+        const offeringId = offeringByKey.get(oKey);
+        if (!offeringId) {
+          errors.push({ row: rowNumber, column: "course_code", message: "لا يوجد إسناد مقرر مطابق لبرنامج ومستوى الطالب" });
+        } else {
+          course_section_id = sectionByOfferingCode.get(`${offeringId}|${normKey(section_code)}`) ?? null;
+          if (!course_section_id) {
+            errors.push({ row: rowNumber, column: "section_code", message: "المجموعة غير موجودة لهذا الإسناد" });
+          }
+        }
+      }
+    }
+
+    if (student && course_section_id) {
+      const enr = enrollmentByStudentSection.get(`${student.id}|${course_section_id}`);
+      if (!enr) {
+        errors.push({ row: rowNumber, column: "academic_number", message: "الطالب غير مسجل في هذه المجموعة" });
+      } else if (enr.status === "dropped") {
+        errors.push({ row: rowNumber, column: "academic_number", message: "تسجيل الطالب محذوف — لا يمكن إدخال درجة" });
+      } else {
+        student_enrollment_id = enr.id;
+      }
+    }
+
+    if (course_section_id && component_name) {
+      const comp = componentBySectionName.get(`${course_section_id}|${normKey(component_name)}`);
+      if (!comp) {
+        errors.push({ row: rowNumber, column: "component_name", message: "مكوّن التقييم غير موجود لهذه المجموعة" });
+      } else {
+        grade_component_id = comp.id;
+        if (Number.isFinite(scoreN) && scoreN > comp.max_score) {
+          errors.push({
+            row: rowNumber,
+            column: "score",
+            message: `الدرجة ${scoreN} تتجاوز الحد الأقصى ${comp.max_score} لمكوّن «${component_name}»`,
+          });
+        }
+      }
+    }
+
+    if (student_enrollment_id && grade_component_id) {
+      const fileKey = `${student_enrollment_id}|${grade_component_id}`;
+      if (seenInFile.has(fileKey))
+        errors.push({ row: rowNumber, column: "component_name", message: "درجة مكررة في الملف لنفس الطالب والمكوّن" });
+      else seenInFile.add(fileKey);
+
+      _existingId = gradeByEnrollmentComponent.get(fileKey) ?? null;
+      if (_existingId && !updateExisting) {
+        errors.push({ row: rowNumber, column: "component_name", message: "الدرجة موجودة مسبقاً (فعّل تحديث القائم)" });
+      }
+    }
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        student_enrollment_id: student_enrollment_id!,
+        grade_component_id: grade_component_id!,
+        score: scoreN,
+        status,
+        _existingId,
+      },
+    });
+  });
+
+  return summarize(out);
+}
+
 function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {
