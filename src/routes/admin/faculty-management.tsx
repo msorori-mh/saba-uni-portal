@@ -4,13 +4,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX,
-  Users, Upload, User as UserIcon,
+  Users, Upload, User as UserIcon, Unlink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { validateUpload } from "@/lib/storage-validation";
 import { uploadAdminStorageFile } from "@/lib/admin-storage.functions";
 import { readFileAsBase64 } from "@/lib/file-upload";
-import { listUsers, createAccount, resetPassword, setActive } from "@/lib/admin-users.functions";
+import { listUsers, createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
+
+const UNLINK_LOGIN_CONFIRM =
+  "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
 import {
   getPeopleLookups, createFacultyMember, updateFacultyMember, getFacultyMember,
 } from "@/lib/admin-people.functions";
@@ -36,6 +39,7 @@ function FacultyManagementPage() {
   const create = useServerFn(createAccount);
   const reset = useServerFn(resetPassword);
   const toggle = useServerFn(setActive);
+  const removeLogin = useServerFn(removeLoginAccount);
   const lookupsFn = useServerFn(getPeopleLookups);
 
   const qc = useQueryClient();
@@ -224,6 +228,15 @@ function FacultyManagementPage() {
                                 {busy === `toggle-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" />
                                   : isActive ? <UserX className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
                                 {isActive ? "تعطيل" : "تفعيل"}
+                              </button>
+                              <button disabled={!!busy}
+                                onClick={() => {
+                                  if (!confirm(`فك ربط حساب الدخول لـ «${r.full_name_ar}»؟\n\n${UNLINK_LOGIN_CONFIRM}`)) return;
+                                  run(`unlink-${r.id}`, () => removeLogin({ data: { kind: "faculty", profile_id: r.id } }), refresh);
+                                }}
+                                className="inline-flex items-center gap-1 rounded border border-amber-500/40 text-amber-800 hover:bg-amber-500/10 px-2 py-1 text-xs">
+                                {busy === `unlink-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+                                فك ربط الدخول
                               </button>
                             </>
                           )}
