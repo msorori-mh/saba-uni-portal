@@ -3855,6 +3855,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_unlink_portal_login: {
+        Args: { p_kind: string; p_profile_id: string }
+        Returns: string
+      }
       apply_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
