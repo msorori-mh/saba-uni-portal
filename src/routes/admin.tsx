@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { canAccessAdminPanel } from "@/lib/admin-nav";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -17,9 +18,9 @@ export const Route = createFileRoute("/admin")({
     if (error || !data.user) {
       throw redirect({ to: "/admin/login" });
     }
-    const { data: role } = await supabase
-      .from("user_roles").select("role").eq("user_id", data.user.id).in("role", ["admin", "system_admin"]).maybeSingle();
-    if (!role) {
+    const { data: roles } = await supabase
+      .from("user_roles").select("role").eq("user_id", data.user.id);
+    if (!canAccessAdminPanel((roles ?? []).map((r) => r.role))) {
       await supabase.auth.signOut();
       throw redirect({ to: "/admin/login" });
     }

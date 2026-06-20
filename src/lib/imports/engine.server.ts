@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type {
   CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
-  DepartmentRow, ProgramRow, LevelRow,
+  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow,
 } from "./validators";
 
 export type ServerImportContext = {
@@ -395,6 +395,7 @@ export async function finalizeImportServer(opts: {
     departments: "import_departments",
     programs: "import_programs",
     levels: "import_levels",
+    course_sections: "course_sections_imported",
   };
 
   const payload = {
@@ -539,6 +540,98 @@ export async function importLevels(
       const { error } = await sb.from("academic_levels").insert(payload);
       if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
       else { report.rows_success += 1; report.rows_created! += 1; }
+    }
+  }
+  return report;
+}
+
+function sectionOfferingKey(
+  courseId: string,
+  ayId: string,
+  semId: string,
+  progId: string,
+  lvlId: string,
+) {
+  return `${courseId}|${ayId}|${semId}|${progId}|${lvlId}`;
+}
+
+export async function importCourseSections(
+  rows: ValidatedRow<CourseSectionRow>[],
+  dryRun = false,
+  updateExisting = false,
+): Promise<ImportReport> {
+  if (dryRun) return structDryRun(rows, updateExisting);
+  const report = emptyStructReport(rows.length);
+
+  const offeringCache = new Map<string, string>();
+
+  async function resolveOffering(p: CourseSectionRow): Promise<string | null> {
+    const key = sectionOfferingKey(
+      p.course_id, p.academic_year_id, p.semester_id, p.program_id, p.level_id,
+    );
+    if (offeringCache.has(key)) return offeringCache.get(key)!;
+    if (p.course_offering_id) {
+      offeringCache.set(key, p.course_offering_id);
+      return p.course_offering_id;
+    }
+    const { data: created, error } = await sb.from("course_offerings")
+      .insert({
+        course_id: p.course_id,
+        academic_year_id: p.academic_year_id,
+        semester_id: p.semester_id,
+        program_id: p.program_id,
+        level_id: p.level_id,
+        status: "active",
+      })
+      .select("id")
+      .maybeSingle();
+    if (error || !created) return null;
+    offeringCache.set(key, created.id);
+    return created.id;
+  }
+
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+    const p = r.parsed;
+    const offeringId = await resolveOffering(p);
+    if (!offeringId) {
+      report.rows_failed += 1;
+      report.errors.push({ row: r.rowNumber, message: "تعذّر إنشاء أو إيجاد إسناد المقرر" });
+      continue;
+    }
+
+    const payload = {
+      course_offering_id: offeringId,
+      section_code: p.section_code,
+      faculty_profile_id: p.faculty_profile_id,
+      capacity: p.capacity,
+      status: p.status,
+    };
+
+    if (p._existingId) {
+      const { error } = await sb.from("course_sections")
+        .update(payload)
+        .eq("id", p._existingId);
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_updated! += 1;
+      }
+    } else {
+      const { error } = await sb.from("course_sections").insert(payload);
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_created! += 1;
+      }
     }
   }
   return report;

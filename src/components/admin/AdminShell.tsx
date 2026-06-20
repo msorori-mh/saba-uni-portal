@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { filterNavGroups } from "@/lib/admin-nav";
 
 type NavItem = {
   to: string;
@@ -167,10 +168,29 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ["admin-user-roles"],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return [];
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", auth.user.id);
+      return (data ?? []).map((r) => r.role as string);
+    },
+    staleTime: 60_000,
+  });
+
+  const visibleGroups = useMemo(
+    () => filterNavGroups(groups, userRoles),
+    [userRoles],
+  );
+
   const activeGroupId = useMemo(() => {
-    const g = groups.find((g) => g.items.some((it) => isItemActive(pathname, it)));
+    const g = visibleGroups.find((g) => g.items.some((it) => isItemActive(pathname, it)));
     return g?.id ?? "dashboard";
-  }, [pathname]);
+  }, [pathname, visibleGroups]);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => ({
     [activeGroupId]: true,
@@ -223,7 +243,7 @@ export function AdminShell({ children, userEmail }: { children: React.ReactNode;
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-          {groups.map((group) => {
+          {visibleGroups.map((group) => {
             const GroupIcon = group.icon;
             const isOpen = !!openGroups[group.id];
             const isActiveGroup = activeGroupId === group.id;

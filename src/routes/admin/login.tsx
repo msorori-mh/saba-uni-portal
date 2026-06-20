@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { friendlyAuthError } from "@/components/auth/IdentifierInput";
 import { checkRateLimit, RATE_LIMIT_POLICIES, RATE_LIMIT_MESSAGE, describeBlockedFor } from "@/lib/rate-limit";
+import { canAccessAdminPanel } from "@/lib/admin-nav";
 
 export const Route = createFileRoute("/admin/login")({
   head: () => ({
@@ -33,8 +34,8 @@ function AdminLoginPage() {
       const { data } = await supabase.auth.getUser();
       if (cancelled || !data.user) return;
       const { data: roles } = await supabase
-        .from("user_roles").select("role").eq("user_id", data.user.id).in("role", ["admin", "system_admin"]).maybeSingle();
-      if (!cancelled && roles) navigate({ to: "/admin", replace: true });
+        .from("user_roles").select("role").eq("user_id", data.user.id);
+      if (!cancelled && canAccessAdminPanel((roles ?? []).map((r) => r.role))) navigate({ to: "/admin", replace: true });
     })();
     return () => { cancelled = true; };
   }, [navigate]);
@@ -63,9 +64,9 @@ function AdminLoginPage() {
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: trimmed, password });
       if (signInError) throw signInError;
       if (!data.user) throw new Error("invalid");
-      const { data: role } = await supabase
-        .from("user_roles").select("role").eq("user_id", data.user.id).in("role", ["admin", "system_admin"]).maybeSingle();
-      if (!role) {
+      const { data: roles } = await supabase
+        .from("user_roles").select("role").eq("user_id", data.user.id);
+      if (!canAccessAdminPanel((roles ?? []).map((r) => r.role))) {
         await supabase.auth.signOut();
         throw new Error("forbidden");
       }
@@ -158,7 +159,7 @@ function AdminLoginPage() {
             </div>
 
             <p className="text-center text-xs text-muted-foreground pt-2">
-              يقتصر الوصول على المسؤولين المعتمدين فقط
+              يقتصر الوصول على موظفي الكلية المعتمدين فقط
             </p>
           </form>
         </div>

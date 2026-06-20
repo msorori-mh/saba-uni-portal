@@ -32,7 +32,7 @@ export type MasterTemplate = {
   description: string;
   category: MasterTemplateCategory;
   /** Linked existing importer key in imports page (if any) */
-  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "class_schedule";
+  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "course_sections" | "class_schedule";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
@@ -260,9 +260,10 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "course_sections",
     fileName: "template_course_sections.xlsx",
     title: "مجموعات المقررات الدراسية",
-    description: "المجموعات (Groups) المفتوحة للمقررات في الفصل الحالي (يتطلب تطوير مستورد).",
+    description: "المجموعات المفتوحة للمقررات في الفصل الحالي.",
     category: "courses",
-    hasValidator: false,
+    importerKey: "course_sections",
+    hasValidator: true,
     columns: [
       { name: "course_code", description: "كود المقرر", required: true, type: "text", example: "CS101" },
       { name: "academic_year", description: "اسم السنة الأكاديمية", required: true, type: "text", example: "2026-2027" },

@@ -6,7 +6,8 @@ export type ImportType =
   | "study_plans"
   | "departments"
   | "programs"
-  | "levels";
+  | "levels"
+  | "course_sections";
 
 export type RowError = { row: number; column?: string; message: string };
 

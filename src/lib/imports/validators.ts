@@ -601,6 +601,164 @@ export async function validateLevels(
   return summarize(out);
 }
 
+// =========================
+// Course sections (المجموعات)
+// =========================
+export type CourseSectionRow = {
+  course_id: string;
+  academic_year_id: string;
+  semester_id: string;
+  program_id: string;
+  level_id: string;
+  section_code: string;
+  faculty_profile_id: string | null;
+  capacity: number | null;
+  status: string;
+  course_offering_id: string | null;
+  _existingId: string | null;
+  _needsOffering: boolean;
+};
+
+const SECTION_STATUSES = new Set(["active", "closed", "cancelled", "inactive"]);
+
+function offeringKey(
+  courseId: string,
+  ayId: string,
+  semId: string,
+  progId: string,
+  lvlId: string,
+) {
+  return `${courseId}|${ayId}|${semId}|${progId}|${lvlId}`;
+}
+
+export async function validateCourseSections(
+  rows: Record<string, unknown>[],
+  lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<CourseSectionRow>> {
+  const [{ data: offerings }, { data: sections }, { data: faculty }] = await Promise.all([
+    sb.from("course_offerings").select("id, course_id, academic_year_id, semester_id, program_id, level_id"),
+    sb.from("course_sections").select("id, course_offering_id, section_code"),
+    sb.from("faculty_profiles").select("id, employee_number"),
+  ]);
+
+  const offeringByKey = new Map<string, string>();
+  (offerings ?? []).forEach((o: {
+    id: string; course_id: string; academic_year_id: string;
+    semester_id: string; program_id: string; level_id: string;
+  }) => {
+    offeringByKey.set(
+      offeringKey(o.course_id, o.academic_year_id, o.semester_id, o.program_id, o.level_id),
+      o.id,
+    );
+  });
+
+  const sectionByOfferingCode = new Map<string, { id: string }>();
+  (sections ?? []).forEach((s: { id: string; course_offering_id: string; section_code: string }) => {
+    sectionByOfferingCode.set(
+      `${s.course_offering_id}|${normKey(s.section_code)}`,
+      { id: s.id },
+    );
+  });
+
+  const facultyByEmp = new Map<string, string>();
+  (faculty ?? []).forEach((f: { id: string; employee_number: string | null }) => {
+    if (f.employee_number) facultyByEmp.set(normKey(f.employee_number), f.id);
+  });
+
+  const seenInFile = new Set<string>();
+  const out: ValidatedRow<CourseSectionRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+
+    const course = lookups.coursesByCode.get(normKey(str(raw.course_code)));
+    if (!course) errors.push({ row: rowNumber, column: "course_code", message: "المقرر غير موجود" });
+
+    const ay_id = lookups.academicYearsByName.get(normKey(str(raw.academic_year)));
+    if (!ay_id) errors.push({ row: rowNumber, column: "academic_year", message: "السنة الأكاديمية غير موجودة" });
+
+    const semKey = normKey(str(raw.semester));
+    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
+    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+
+    const prog = lookups.programsByCode.get(normKey(str(raw.program_code)));
+    if (!prog) errors.push({ row: rowNumber, column: "program_code", message: "البرنامج غير موجود" });
+
+    const levelKey = normKey(str(raw.level));
+    const level_id = lookups.levelsByNumber.get(levelKey) ?? lookups.levelsByName.get(levelKey);
+    if (!level_id) errors.push({ row: rowNumber, column: "level", message: "المستوى غير موجود" });
+
+    const section_code = str(raw.section_code).toUpperCase();
+    if (!section_code) errors.push({ row: rowNumber, column: "section_code", message: "رمز المجموعة مطلوب" });
+
+    const status = str(raw.status) || "active";
+    if (!SECTION_STATUSES.has(status))
+      errors.push({ row: rowNumber, column: "status", message: "الحالة غير صحيحة (active/closed/cancelled/inactive)" });
+
+    let faculty_profile_id: string | null = null;
+    const empNum = str(raw.faculty_employee_number);
+    if (empNum) {
+      faculty_profile_id = facultyByEmp.get(normKey(empNum)) ?? null;
+      if (!faculty_profile_id)
+        errors.push({ row: rowNumber, column: "faculty_employee_number", message: "عضو هيئة التدريس غير موجود" });
+    }
+
+    let capacity: number | null = null;
+    const capRaw = raw.capacity;
+    if (capRaw !== null && capRaw !== undefined && str(capRaw) !== "") {
+      const capN = num(capRaw);
+      if (!Number.isFinite(capN) || capN < 0 || !Number.isInteger(capN))
+        errors.push({ row: rowNumber, column: "capacity", message: "السعة يجب أن تكون رقماً صحيحاً >= 0" });
+      else capacity = capN;
+    }
+
+    let course_offering_id: string | null = null;
+    let _needsOffering = false;
+    let _existingId: string | null = null;
+
+    if (course && ay_id && sem_id && prog && level_id && section_code) {
+      const oKey = offeringKey(course.id, ay_id, sem_id, prog.id, level_id);
+      course_offering_id = offeringByKey.get(oKey) ?? null;
+      _needsOffering = !course_offering_id;
+
+      const fileKey = `${oKey}|${normKey(section_code)}`;
+      if (seenInFile.has(fileKey))
+        errors.push({ row: rowNumber, column: "section_code", message: "رمز مجموعة مكرر في الملف لنفس إسناد المقرر" });
+      else seenInFile.add(fileKey);
+
+      if (course_offering_id) {
+        const existing = sectionByOfferingCode.get(`${course_offering_id}|${normKey(section_code)}`);
+        _existingId = existing?.id ?? null;
+        if (_existingId && !updateExisting) {
+          errors.push({ row: rowNumber, column: "section_code", message: "المجموعة موجودة مسبقاً (فعّل تحديث القائم)" });
+        }
+      }
+    }
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        course_id: course!.id,
+        academic_year_id: ay_id!,
+        semester_id: sem_id!,
+        program_id: prog!.id,
+        level_id: level_id!,
+        section_code,
+        faculty_profile_id,
+        capacity,
+        status,
+        course_offering_id,
+        _existingId,
+        _needsOffering,
+      },
+    });
+  });
+
+  return summarize(out);
+}
+
 function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {

@@ -113,6 +113,23 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "level_code يُستخدم للتمييز داخل الملف فقط",
     ],
   },
+  course_sections: {
+    sheetName: "CourseSections",
+    headers: [
+      "course_code","academic_year","semester","program_code","level",
+      "section_code","faculty_employee_number","capacity","status",
+    ],
+    sample: ["CS101","2026-2027","first","IT","1","A","F2025001",30,"active"],
+    instructions: [
+      "course_code, academic_year, semester, program_code, level, section_code حقول مطلوبة",
+      "section_code = رمز المجموعة (A / B / C)",
+      "faculty_employee_number = الرقم الوظيفي لعضو هيئة التدريس (اختياري)",
+      "capacity = السعة القصوى (اختياري)",
+      "status = active / closed / cancelled / inactive (افتراضي active)",
+      "إن لم يوجد إسناد مقرر مطابق يُنشأ تلقائياً",
+      "فعّل (تحديث القائم) لتحديث مجموعات موجودة بنفس الرمز",
+    ],
+  },
 };
 
 export async function downloadTemplate(type: ImportType) {
