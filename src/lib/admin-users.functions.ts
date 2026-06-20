@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Database } from "@/integrations/supabase/types";
 import { assertAdmin, assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
@@ -63,25 +66,61 @@ async function findAuthUserIdByEmail(email: string): Promise<string | null> {
   return data ? (data as string) : null;
 }
 
-/** Relink profile → auth user as the authenticated admin (protect_* triggers allow admin writes). */
+type ActorSupabase = ReturnType<typeof createClient<Database>>;
+
+/** RPCs that require auth.uid() must use a client bound to the admin Bearer token from this request. */
+function actorSupabase(context: { supabase: ActorSupabase }): ActorSupabase {
+  const request = getRequest();
+  const authHeader = request?.headers?.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.replace("Bearer ", "");
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (url && key && token) {
+      return createClient<Database>(url, key, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+      });
+    }
+  }
+  return context.supabase;
+}
+
+/** Server-safe faculty link (service_role RPC — no caller Authorization header). */
+async function linkFacultyProfileToAuth(profileId: string, userId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("link_faculty_profile_account", {
+    p_profile_id: profileId,
+    p_auth_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Relink profile → auth user.
+ * Faculty: service_role RPC (PR #14 used context.supabase UPDATE which could fail without JWT).
+ * Staff/student: actor JWT via link RPC or admin session UPDATE.
+ */
 async function relinkProfileUserId(
-  context: { supabase: { from: (table: string) => any; rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }> } },
+  context: { supabase: ActorSupabase },
   kind: AccountKind,
   profileId: string,
   userId: string,
 ): Promise<void> {
+  if (kind === "faculty") {
+    await linkFacultyProfileToAuth(profileId, userId);
+    return;
+  }
   if (kind === "student") {
-    const { error } = await context.supabase.rpc("link_student_user_account", {
+    const { error } = await actorSupabase(context).rpc("link_student_user_account", {
       _profile_id: profileId,
       _target_user_id: userId,
     });
     if (error) throw new Error(error.message);
     return;
   }
-  const table = kind === "faculty" ? "faculty_profiles" : "staff_profiles";
-  const { error } = await context.supabase
-    .from(table)
-    .update({ user_id: userId } as any)
+  const { error } = await actorSupabase(context)
+    .from("staff_profiles")
+    .update({ user_id: userId, must_change_password: true } as any)
     .eq("id", profileId);
   if (error) throw new Error(error.message);
 }
@@ -418,13 +457,19 @@ export const createAccount = createServerFn({ method: "POST" })
     // RPC's internal role check passes.
     let uErr: { message: string } | null = null;
     if (data.kind === "student") {
-      const { error } = await (context.supabase as any).rpc(
+      const { error } = await actorSupabase(context).rpc(
         "link_student_user_account",
-        { _profile_id: data.profile_id, _target_user_id: newUserId }
+        { _profile_id: data.profile_id, _target_user_id: newUserId },
       );
       uErr = error ? { message: error.message } : null;
+    } else if (data.kind === "faculty") {
+      try {
+        await linkFacultyProfileToAuth(data.profile_id, newUserId!);
+      } catch (e) {
+        uErr = { message: e instanceof Error ? e.message : String(e) };
+      }
     } else {
-      const { error } = await context.supabase
+      const { error } = await actorSupabase(context)
         .from(table)
         .update({ user_id: newUserId, must_change_password: true, status: "active" } as any)
         .eq("id", data.profile_id);
@@ -567,7 +612,7 @@ export const resetPassword = createServerFn({ method: "POST" })
       data.kind === "student" ? "admin_mark_student_password_reset"
       : data.kind === "faculty" ? "admin_mark_faculty_password_reset"
       : "admin_mark_staff_password_reset";
-    const { error: rErr } = await (context.supabase as any).rpc(
+    const { error: rErr } = await actorSupabase(context).rpc(
       rpcName, { _profile_id: data.profile_id }
     );
     if (rErr) {

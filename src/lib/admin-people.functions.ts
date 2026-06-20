@@ -136,11 +136,13 @@ export const createFacultyMember = createServerFn({ method: "POST" })
         throw new Error(`تم إنشاء الملف لكن تعذّر إنشاء حساب الدخول: ${cErr?.message ?? ""}`);
       }
       const newUserId = created.user.id;
-      await context.supabase
-        .from("faculty_profiles")
-        .update({ user_id: newUserId, must_change_password: true } as any)
-        .eq("id", profile.id);
-      await supabaseAdmin.from("user_roles").insert({ user_id: newUserId, role: "faculty_member" as any });
+      const { error: linkErr } = await supabaseAdmin.rpc("link_faculty_profile_account", {
+        p_profile_id: profile.id,
+        p_auth_user_id: newUserId,
+      });
+      if (linkErr) {
+        throw new Error(`تم إنشاء الملف لكن تعذّر ربط حساب الدخول: ${linkErr.message}`);
+      }
       credentials = { email: loginEmail, password };
     }
 
