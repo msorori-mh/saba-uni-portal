@@ -381,7 +381,11 @@ export const resetPassword = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAnyRole(
+      context.userId,
+      ACCOUNT_PROVISION_ROLES[data.kind],
+      "ليس لديك صلاحية إعادة تعيين كلمة المرور",
+    );
     await enforceRateLimit(
       `admin-reset:${context.userId}:${data.kind}:${data.profile_id}`,
       SERVER_RATE_LIMIT_POLICIES.adminPasswordReset,
@@ -444,7 +448,11 @@ export const setActive = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertAnyRole(
+      context.userId,
+      ACCOUNT_PROVISION_ROLES[data.kind],
+      "ليس لديك صلاحية تغيير حالة الحساب",
+    );
 
     const table =
       data.kind === "student" ? "student_profiles"
