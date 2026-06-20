@@ -72,7 +72,60 @@ export const NAV_ITEM_ROLES: Record<string, readonly string[]> = {
   "/admin/pilot-center": ["system_admin", "admin"],
   "/admin/backup-status": ["system_admin", "admin"],
   "/admin/system-readiness": ["system_admin", "admin"],
+  "/admin/faculty-accounts": ["system_admin", "admin", "dean", "hr_officer"],
+  "/admin/schedules": ["system_admin", "admin", "dean", "registrar", "department_head"],
+  "/admin/programs": ["system_admin", "admin"],
+  "/admin/messages": ["system_admin", "admin"],
 };
+
+/** Preferred redirect order when a user lacks access to the requested admin route. */
+const ADMIN_ROUTE_FALLBACK_ORDER: string[] = [
+  "/admin",
+  ...Object.keys(NAV_ITEM_ROLES)
+    .filter((p) => p.startsWith("/admin/"))
+    .sort((a, b) => a.localeCompare(b, "ar")),
+];
+
+function normalizeAdminPath(pathname: string): string {
+  const trimmed = pathname.replace(/\/$/, "");
+  if (!trimmed || trimmed === "/admin") return "/admin";
+  return trimmed;
+}
+
+/** Resolve RBAC roles for an admin (or /messages) path via exact or longest-prefix match. */
+export function resolveAdminRouteRoles(pathname: string): readonly string[] | null {
+  if (pathname === "/admin/login") return null;
+
+  const path = normalizeAdminPath(pathname);
+  if (NAV_ITEM_ROLES[path]) return NAV_ITEM_ROLES[path];
+
+  const prefixes = Object.keys(NAV_ITEM_ROLES)
+    .filter((k) => k !== "/admin" && k !== "/messages")
+    .sort((a, b) => b.length - a.length);
+  for (const key of prefixes) {
+    if (path.startsWith(key + "/")) return NAV_ITEM_ROLES[key];
+  }
+
+  if (path.startsWith("/admin/")) {
+    return ["system_admin", "admin"];
+  }
+  return null;
+}
+
+export function canAccessAdminRoute(pathname: string, userRoles: string[]): boolean {
+  const allowed = resolveAdminRouteRoles(pathname);
+  if (!allowed) return true;
+  return canSeeNavItem(allowed, userRoles);
+}
+
+/** First admin route the user may open (used after access-denied redirect). */
+export function firstAccessibleAdminRoute(userRoles: string[]): string {
+  for (const path of ADMIN_ROUTE_FALLBACK_ORDER) {
+    const allowed = NAV_ITEM_ROLES[path];
+    if (allowed && canSeeNavItem(allowed, userRoles)) return path;
+  }
+  return "/admin";
+}
 
 export function filterNavGroups<T extends { items: { to: string }[] }>(
   groups: T[],

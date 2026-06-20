@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Inbox, Send, MailOpen, Plus, ArrowRight, Megaphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { canAccessAdminPanel, canSeeNavItem, firstAccessibleAdminRoute, NAV_ITEM_ROLES } from "@/lib/admin-nav";
 import { listMessages, sendMessage, searchMessageRecipients, markMessageRead } from "@/lib/communications.functions";
 import { ComposeDialog } from "@/routes/admin/communications";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,19 @@ export const Route = createFileRoute("/messages")({
   beforeLoad: async () => {
     const { data } = await supabase.auth.getUser();
     if (!data.user) throw redirect({ to: "/portal-login" });
+
+    const { data: roleRows } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user.id);
+    const roles = (roleRows ?? []).map((r) => r.role);
+    const allowed = NAV_ITEM_ROLES["/messages"];
+    if (!allowed || !canSeeNavItem(allowed, roles)) {
+      if (canAccessAdminPanel(roles)) {
+        throw redirect({ to: firstAccessibleAdminRoute(roles), search: { accessDenied: "1" } });
+      }
+      throw redirect({ to: "/portal-login" });
+    }
   },
   component: MessagesCenter,
 });
