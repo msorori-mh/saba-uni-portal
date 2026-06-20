@@ -9,6 +9,8 @@ import {
   GraduationCap, Upload, CheckCircle2, Copy, Unlink,
 } from "lucide-react";
 import { listUsers, createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
+import { canWriteStudents, studentsNavLabel } from "@/lib/admin-nav";
+import { supabase } from "@/integrations/supabase/client";
 
 const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
@@ -48,6 +50,23 @@ function StudentsPage() {
   const lookupsFn = useServerFn(getStudentLookups);
 
   const qc = useQueryClient();
+
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ["admin-user-roles"],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return [];
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", auth.user.id);
+      return (data ?? []).map((r) => r.role as string);
+    },
+    staleTime: 60_000,
+  });
+  const canWrite = canWriteStudents(userRoles);
+  const pageTitle = studentsNavLabel(userRoles);
+
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, status]);
   const { data: rows, isLoading } = useQuery({
@@ -60,6 +79,7 @@ function StudentsPage() {
     queryKey: ["admin-student-lookups"],
     queryFn: () => lookupsFn(),
     staleTime: Infinity,
+    enabled: canWrite,
   });
 
   const refresh = () => {
@@ -79,12 +99,15 @@ function StudentsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-extrabold text-primary flex items-center gap-2">
-            <GraduationCap className="h-7 w-7" /> إدارة الطلاب
+            <GraduationCap className="h-7 w-7" /> {pageTitle}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            إضافة الطلاب، تعديل البيانات، إنشاء حسابات الدخول، وإعادة تعيين كلمات المرور.
+            {canWrite
+              ? "إضافة الطلاب، تعديل البيانات، إنشاء حسابات الدخول، وإعادة تعيين كلمات المرور."
+              : "عرض قائمة الطلاب والبحث والفلاتر — صلاحية قراءة فقط."}
           </p>
         </div>
+        {canWrite && (
         <div className="flex gap-2">
           <Link
             to="/admin/imports"
@@ -99,6 +122,7 @@ function StudentsPage() {
             <Plus className="h-4 w-4" /> إضافة طالب جديد
           </button>
         </div>
+        )}
       </div>
 
       {error && (
@@ -138,7 +162,9 @@ function StudentsPage() {
           <div className="p-12 grid place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
         ) : !rows || rows.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground text-sm">
-            لا يوجد طلاب. ابدأ بالضغط على «إضافة طالب جديد».
+            {canWrite
+              ? "لا يوجد طلاب. ابدأ بالضغط على «إضافة طالب جديد»."
+              : "لا يوجد طلاب مطابقون للبحث."}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -149,7 +175,9 @@ function StudentsPage() {
                   <th className="px-4 py-3 text-right font-bold">الرقم الأكاديمي</th>
                   <th className="px-4 py-3 text-right font-bold">حساب الدخول</th>
                   <th className="px-4 py-3 text-right font-bold">الحالة</th>
-                  <th className="px-4 py-3 text-right font-bold">إجراءات</th>
+                  {canWrite && (
+                    <th className="px-4 py-3 text-right font-bold">إجراءات</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -177,6 +205,7 @@ function StudentsPage() {
                           {isActive ? "نشط" : "معطّل"}
                         </span>
                       </td>
+                      {canWrite && (
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
                           <button
@@ -249,6 +278,7 @@ function StudentsPage() {
                           )}
                         </div>
                       </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -282,7 +312,7 @@ function StudentsPage() {
 
 
 
-      {showAdd && lookups && (
+      {showAdd && canWrite && lookups && (
         <AddStudentModal
           lookups={lookups}
           onClose={() => setShowAdd(false)}
@@ -301,7 +331,7 @@ function StudentsPage() {
         />
       )}
 
-      {editId && (
+      {editId && canWrite && (
         <EditStudentModal
           studentId={editId}
           lookups={lookups}
