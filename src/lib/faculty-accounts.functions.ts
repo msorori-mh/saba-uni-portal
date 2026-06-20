@@ -4,20 +4,37 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
 
-async function assertAdmin(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles").select("role").eq("user_id", userId)
-    .in("role", ["admin", "system_admin"]);
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) throw new Error("ليس لديك صلاحية");
+/** Matches admin-nav `/admin/faculty-accounts`. */
+const FACULTY_ACCOUNTS_READ_ROLES = [
+  "admin",
+  "system_admin",
+  "dean",
+  "hr_officer",
+] as const;
+
+/** Auth create/link/reset/import — HR + super-admins only (dean: read-only). */
+const FACULTY_ACCOUNTS_WRITE_ROLES = [
+  "admin",
+  "system_admin",
+  "hr_officer",
+] as const;
+
+async function assertFacultyAccountsRead(userId: string): Promise<void> {
+  await assertAnyRole(userId, FACULTY_ACCOUNTS_READ_ROLES, "ليس لديك صلاحية");
+}
+
+async function assertFacultyAccountsWrite(userId: string): Promise<void> {
+  await assertAnyRole(userId, FACULTY_ACCOUNTS_WRITE_ROLES, "ليس لديك صلاحية");
 }
 
 async function logAudit(actor: string, action: string, entity_id: string | null, notes: string, payload?: any) {
+  const role = await primaryActorRole(actor);
   await supabaseAdmin.from("audit_logs").insert({
     actor_user_id: actor,
-    actor_role: "admin",
+    actor_role: role,
     entity_type: "faculty_account",
     entity_id,
     action_type: action,
@@ -62,7 +79,7 @@ export const listFacultyAccounts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { search?: string; status?: string; hasAccount?: "all" | "yes" | "no"; departmentId?: string }) => input)
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertFacultyAccountsRead(context.userId);
 
     let q = supabaseAdmin
       .from("faculty_profiles")
@@ -136,7 +153,7 @@ export const listFacultyAccounts = createServerFn({ method: "POST" })
 export const facultyAccountStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
+    await assertFacultyAccountsRead(context.userId);
     const { data: rows } = await supabaseAdmin
       .from("faculty_profiles")
       .select("id, user_id, status")
@@ -179,7 +196,7 @@ export const createFacultyAccountManual = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertFacultyAccountsWrite(context.userId);
     await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountCreation);
     const email = data.email.toLowerCase().trim();
 
@@ -235,7 +252,7 @@ export const linkFacultyAccountByEmail = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertFacultyAccountsWrite(context.userId);
     await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountCreation);
     const email = data.email.toLowerCase().trim();
 
@@ -274,7 +291,7 @@ export const resetFacultyPasswordManual = createServerFn({ method: "POST" })
     }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertFacultyAccountsWrite(context.userId);
     await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountCreation);
     const { data: profile } = await supabaseAdmin
       .from("faculty_profiles").select("id, user_id, employee_number").eq("id", data.profile_id).maybeSingle();
@@ -326,7 +343,7 @@ export const importFacultyAccountsRows = createServerFn({ method: "POST" })
     z.object({ rows: z.array(z.any()).max(2000) }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertFacultyAccountsWrite(context.userId);
     await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountImport);
 
     const results: Array<{
@@ -512,7 +529,7 @@ export const auditFacultyAccountExport = createServerFn({ method: "POST" })
     z.object({ kind: z.enum(["status", "without_accounts"]), count: z.number().int().min(0) }).parse(input)
   )
   .handler(async ({ data, context }) => {
-    await assertAdmin(context.userId);
+    await assertFacultyAccountsRead(context.userId);
     const action = data.kind === "status" ? "export_faculty_accounts_status" : "export_faculty_without_accounts";
     await logAudit(context.userId, action, null,
       `تصدير ${data.kind === "status" ? "حالة الحسابات" : "بدون حسابات"} — عدد الصفوف: ${data.count}`,
