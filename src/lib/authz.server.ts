@@ -54,6 +54,14 @@ export const STUDENT_ADMIN_ROLES = [
   "student_affairs",
 ] as const;
 
+/** Roles for public site faculty CMS (`/admin/faculty`). Matches admin-nav NAV_ITEM_ROLES. */
+export const FACULTY_CMS_ROLES = [
+  "admin",
+  "system_admin",
+  "dean",
+  "hr_officer",
+] as const;
+
 export async function userRoles(userId: string): Promise<string[]> {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
@@ -90,6 +98,14 @@ export async function assertStudentRead(userId: string): Promise<void> {
 
 export async function assertStudentAdmin(userId: string): Promise<void> {
   await assertAnyRole(userId, STUDENT_ADMIN_ROLES, "ليس لديك صلاحية لإدارة الطلاب");
+}
+
+export async function assertFacultyCmsAdmin(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    FACULTY_CMS_ROLES,
+    "ليس لديك صلاحية إدارة صفحة هيئة التدريس بالموقع",
+  );
 }
 
 export async function primaryActorRole(userId: string): Promise<string | null> {

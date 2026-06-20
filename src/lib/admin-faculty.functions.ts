@@ -1,14 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole } from "@/lib/authz.server";
+import { assertFacultyCmsAdmin } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-export const FACULTY_ADMIN_ROLES = ["system_admin", "admin"] as const;
-
-async function assertFacultyAdmin(userId: string) {
-  await assertAnyRole(userId, FACULTY_ADMIN_ROLES, "ليس لديك صلاحية إدارة أعضاء هيئة التدريس");
-}
 
 export const listAdminFaculty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -24,7 +18,7 @@ export const listAdminFaculty = createServerFn({ method: "POST" })
       .parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
-    await assertFacultyAdmin(context.userId);
+    await assertFacultyCmsAdmin(context.userId);
     let q = supabaseAdmin
       .from("faculty")
       .select("*", { count: "exact" })
@@ -52,7 +46,7 @@ export const listAdminFaculty = createServerFn({ method: "POST" })
 export const listAdminProgramOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertFacultyAdmin(context.userId);
+    await assertFacultyCmsAdmin(context.userId);
     const { data, error } = await supabaseAdmin
       .from("programs")
       .select("id, name_ar")
@@ -67,7 +61,7 @@ export const listAdminFacultyPapers = createServerFn({ method: "POST" })
     z.object({ facultyId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertFacultyAdmin(context.userId);
+    await assertFacultyCmsAdmin(context.userId);
     const { data: papers, error } = await supabaseAdmin
       .from("research_papers")
       .select("id, title_ar, publication_year, journal_name")
@@ -99,7 +93,7 @@ export const upsertAdminFaculty = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertFacultyAdmin(context.userId);
+    await assertFacultyCmsAdmin(context.userId);
     const payload = {
       full_name_ar: data.full_name_ar.trim(),
       full_name_en: data.full_name_en?.trim() || null,
@@ -134,7 +128,7 @@ export const deleteAdminFaculty = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertFacultyAdmin(context.userId);
+    await assertFacultyCmsAdmin(context.userId);
     const { error } = await supabaseAdmin.from("faculty").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true as const };
