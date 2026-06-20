@@ -759,6 +759,167 @@ export async function validateCourseSections(
   return summarize(out);
 }
 
+// =========================
+// Student enrollments
+// =========================
+export type StudentEnrollmentRow = {
+  student_profile_id: string;
+  course_section_id: string;
+  enrollment_status: string;
+  _existingId: string | null;
+};
+
+const ENROLLMENT_STATUSES = new Set(["enrolled", "dropped", "completed"]);
+
+function enrollmentOfferingKey(
+  courseId: string,
+  ayId: string,
+  semId: string,
+  progId: string,
+  lvlId: string,
+) {
+  return `${courseId}|${ayId}|${semId}|${progId}|${lvlId}`;
+}
+
+export async function validateStudentEnrollments(
+  rows: Record<string, unknown>[],
+  lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<StudentEnrollmentRow>> {
+  const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
+  const studentByAc = new Map<string, { id: string; program_id: string | null }>();
+  if (acNumbers.length) {
+    for (let i = 0; i < acNumbers.length; i += 500) {
+      const chunk = acNumbers.slice(i, i + 500);
+      const { data } = await sb.from("student_profiles")
+        .select("id, academic_number, program_id")
+        .in("academic_number", chunk);
+      (data ?? []).forEach((s: { id: string; academic_number: string; program_id: string | null }) => {
+        studentByAc.set(normKey(s.academic_number), { id: s.id, program_id: s.program_id });
+      });
+    }
+  }
+
+  const [{ data: statuses }, { data: offerings }, { data: sections }, { data: existingEnrollments }] = await Promise.all([
+    sb.from("student_academic_status").select("student_profile_id, academic_year_id, semester_id, level_id"),
+    sb.from("course_offerings").select("id, course_id, academic_year_id, semester_id, program_id, level_id"),
+    sb.from("course_sections").select("id, course_offering_id, section_code, status"),
+    sb.from("student_enrollments").select("id, student_profile_id, course_section_id"),
+  ]);
+
+  const levelByStudentTerm = new Map<string, string>();
+  (statuses ?? []).forEach((s: {
+    student_profile_id: string; academic_year_id: string; semester_id: string; level_id: string;
+  }) => {
+    levelByStudentTerm.set(`${s.student_profile_id}|${s.academic_year_id}|${s.semester_id}`, s.level_id);
+  });
+
+  const offeringByKey = new Map<string, string>();
+  (offerings ?? []).forEach((o: {
+    id: string; course_id: string; academic_year_id: string;
+    semester_id: string; program_id: string; level_id: string;
+  }) => {
+    offeringByKey.set(
+      enrollmentOfferingKey(o.course_id, o.academic_year_id, o.semester_id, o.program_id, o.level_id),
+      o.id,
+    );
+  });
+
+  const sectionByOfferingCode = new Map<string, { id: string; status: string }>();
+  (sections ?? []).forEach((s: { id: string; course_offering_id: string; section_code: string; status: string }) => {
+    sectionByOfferingCode.set(
+      `${s.course_offering_id}|${normKey(s.section_code)}`,
+      { id: s.id, status: s.status },
+    );
+  });
+
+  const enrollmentByStudentSection = new Map<string, string>();
+  (existingEnrollments ?? []).forEach((e: { id: string; student_profile_id: string; course_section_id: string }) => {
+    enrollmentByStudentSection.set(`${e.student_profile_id}|${e.course_section_id}`, e.id);
+  });
+
+  const seenInFile = new Set<string>();
+  const out: ValidatedRow<StudentEnrollmentRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+
+    const academic_number = str(raw.academic_number);
+    if (!academic_number) errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي مطلوب" });
+    const student = academic_number ? studentByAc.get(normKey(academic_number)) ?? null : null;
+    if (academic_number && !student) errors.push({ row: rowNumber, column: "academic_number", message: "الطالب غير موجود" });
+    if (student && !student.program_id)
+      errors.push({ row: rowNumber, column: "academic_number", message: "الطالب بلا برنامج دراسي مسجل" });
+
+    const course = lookups.coursesByCode.get(normKey(str(raw.course_code)));
+    if (!course) errors.push({ row: rowNumber, column: "course_code", message: "المقرر غير موجود" });
+
+    const ay_id = lookups.academicYearsByName.get(normKey(str(raw.academic_year)));
+    if (!ay_id) errors.push({ row: rowNumber, column: "academic_year", message: "السنة الأكاديمية غير موجودة" });
+
+    const semKey = normKey(str(raw.semester));
+    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
+    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+
+    const section_code = str(raw.section_code).toUpperCase();
+    if (!section_code) errors.push({ row: rowNumber, column: "section_code", message: "رمز المجموعة مطلوب" });
+
+    const enrollment_status = str(raw.enrollment_status) || "enrolled";
+    if (!ENROLLMENT_STATUSES.has(enrollment_status))
+      errors.push({ row: rowNumber, column: "enrollment_status", message: "حالة التسجيل غير صحيحة (enrolled/dropped/completed)" });
+
+    let course_section_id: string | null = null;
+    let _existingId: string | null = null;
+
+    if (student && course && ay_id && sem_id && section_code && student.program_id) {
+      const level_id = levelByStudentTerm.get(`${student.id}|${ay_id}|${sem_id}`);
+      if (!level_id) {
+        errors.push({ row: rowNumber, column: "academic_year", message: "لا توجد حالة أكاديمية للطالب في هذا الفصل" });
+      } else {
+        const oKey = enrollmentOfferingKey(course.id, ay_id, sem_id, student.program_id, level_id);
+        const offeringId = offeringByKey.get(oKey);
+        if (!offeringId) {
+          errors.push({ row: rowNumber, column: "course_code", message: "لا يوجد إسناد مقرر مطابق لبرنامج ومستوى الطالب" });
+        } else {
+          const sec = sectionByOfferingCode.get(`${offeringId}|${normKey(section_code)}`);
+          if (!sec) {
+            errors.push({ row: rowNumber, column: "section_code", message: "المجموعة غير موجودة لهذا الإسناد" });
+          } else if (sec.status !== "active") {
+            errors.push({ row: rowNumber, column: "section_code", message: "المجموعة غير نشطة" });
+          } else {
+            course_section_id = sec.id;
+          }
+        }
+      }
+    }
+
+    if (student && course_section_id) {
+      const fileKey = `${student.id}|${course_section_id}`;
+      if (seenInFile.has(fileKey))
+        errors.push({ row: rowNumber, column: "academic_number", message: "تسجيل مكرر في الملف لنفس الطالب والمجموعة" });
+      else seenInFile.add(fileKey);
+
+      _existingId = enrollmentByStudentSection.get(fileKey) ?? null;
+      if (_existingId && !updateExisting) {
+        errors.push({ row: rowNumber, column: "academic_number", message: "التسجيل موجود مسبقاً (فعّل تحديث القائم)" });
+      }
+    }
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        student_profile_id: student!.id,
+        course_section_id: course_section_id!,
+        enrollment_status,
+        _existingId,
+      },
+    });
+  });
+
+  return summarize(out);
+}
+
 function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {

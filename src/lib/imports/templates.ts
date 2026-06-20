@@ -130,6 +130,19 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "فعّل (تحديث القائم) لتحديث مجموعات موجودة بنفس الرمز",
     ],
   },
+  student_enrollments: {
+    sheetName: "StudentEnrollments",
+    headers: [
+      "academic_number","course_code","section_code","academic_year","semester","enrollment_status",
+    ],
+    sample: ["2026001","CS101","A","2026-2027","first","enrolled"],
+    instructions: [
+      "academic_number, course_code, section_code, academic_year, semester حقول مطلوبة",
+      "يُستنتج البرنامج والمستوى من ملف الطالب وحالته الأكاديمية للفصل",
+      "enrollment_status = enrolled / dropped / completed (افتراضي enrolled)",
+      "فعّل (تحديث القائم) لتحديث حالة تسجيل موجود",
+    ],
+  },
 };
 
 export async function downloadTemplate(type: ImportType) {

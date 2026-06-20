@@ -11,6 +11,7 @@ const TYPE_LABEL: Record<ImportType, string> = {
   programs: "programs",
   levels: "levels",
   course_sections: "course_sections",
+  student_enrollments: "student_enrollments",
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

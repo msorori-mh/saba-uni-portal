@@ -32,7 +32,7 @@ export type MasterTemplate = {
   description: string;
   category: MasterTemplateCategory;
   /** Linked existing importer key in imports page (if any) */
-  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "course_sections" | "class_schedule";
+  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "course_sections" | "student_enrollments" | "class_schedule";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
@@ -287,9 +287,10 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "student_enrollments",
     fileName: "template_student_enrollments.xlsx",
     title: "تسجيلات الطلاب",
-    description: "تسجيل الطلاب في مجموعات المقررات (يتطلب تطوير مستورد).",
+    description: "تسجيل الطلاب في مجموعات المقررات.",
     category: "enrollment",
-    hasValidator: false,
+    importerKey: "student_enrollments",
+    hasValidator: true,
     columns: [
       { name: "academic_number", description: "الرقم الأكاديمي للطالب", required: true, type: "text", example: "2026001" },
       { name: "course_code", description: "كود المقرر", required: true, type: "text", example: "CS101" },

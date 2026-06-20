@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type {
   CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
-  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow,
+  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow, StudentEnrollmentRow,
 } from "./validators";
 
 export type ServerImportContext = {
@@ -396,6 +396,7 @@ export async function finalizeImportServer(opts: {
     programs: "import_programs",
     levels: "import_levels",
     course_sections: "course_sections_imported",
+    student_enrollments: "student_enrollments_imported",
   };
 
   const payload = {
@@ -625,6 +626,52 @@ export async function importCourseSections(
       }
     } else {
       const { error } = await sb.from("course_sections").insert(payload);
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_created! += 1;
+      }
+    }
+  }
+  return report;
+}
+
+export async function importStudentEnrollments(
+  rows: ValidatedRow<StudentEnrollmentRow>[],
+  dryRun = false,
+  updateExisting = false,
+): Promise<ImportReport> {
+  if (dryRun) return structDryRun(rows, updateExisting);
+  const report = emptyStructReport(rows.length);
+
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+    const p = r.parsed;
+    const payload = {
+      student_profile_id: p.student_profile_id,
+      course_section_id: p.course_section_id,
+      enrollment_status: p.enrollment_status,
+    };
+
+    if (p._existingId) {
+      const { error } = await sb.from("student_enrollments")
+        .update({ enrollment_status: p.enrollment_status })
+        .eq("id", p._existingId);
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_updated! += 1;
+      }
+    } else {
+      const { error } = await sb.from("student_enrollments").insert(payload);
       if (error) {
         report.rows_failed += 1;
         report.errors.push({ row: r.rowNumber, message: error.message });

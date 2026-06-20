@@ -15,6 +15,7 @@ import {
   importStudents,
   importStudyPlans,
   importCourseSections,
+  importStudentEnrollments,
   type ServerImportContext,
 } from "@/lib/imports/engine.server";
 import type { ImportReport, ImportType } from "@/lib/imports/types";
@@ -36,6 +37,7 @@ const importTypeSchema = z.enum([
   "programs",
   "levels",
   "course_sections",
+  "student_enrollments",
 ]);
 
 const validatedRowSchema = z.object({
@@ -108,6 +110,9 @@ export const runBulkImport = createServerFn({ method: "POST" })
         break;
       case "course_sections":
         report = await importCourseSections(vrows, data.dryRun, data.updateExisting);
+        break;
+      case "student_enrollments":
+        report = await importStudentEnrollments(vrows, data.dryRun, data.updateExisting);
         break;
       default:
         throw new Error("نوع استيراد غير مدعوم");
