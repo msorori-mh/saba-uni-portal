@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
+import { generateTemporaryPassword } from "@/lib/password.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
 
 /** Matches admin-nav `/admin/faculty-accounts`. */
@@ -274,14 +275,6 @@ export const linkFacultyAccountByEmail = createServerFn({ method: "POST" })
     return { ok: true, user_id: existing.id, email };
   });
 
-// ---------- Reset password (manual or random) ----------
-function genPassword(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  let p = "";
-  for (let i = 0; i < 12; i++) p += chars[Math.floor(Math.random() * chars.length)];
-  return p;
-}
-
 export const resetFacultyPasswordManual = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { profile_id: string; password?: string }) =>
@@ -292,12 +285,12 @@ export const resetFacultyPasswordManual = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertFacultyAccountsWrite(context.userId);
-    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountCreation);
+    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.passwordReset);
     const { data: profile } = await supabaseAdmin
       .from("faculty_profiles").select("id, user_id, employee_number").eq("id", data.profile_id).maybeSingle();
     if (!profile || !(profile as any).user_id) throw new Error("الحساب غير موجود");
 
-    const password = data.password ?? genPassword();
+    const password = data.password ?? generateTemporaryPassword();
     const { error } = await supabaseAdmin.auth.admin.updateUserById((profile as any).user_id, { password });
     if (error) throw new Error(error.message);
 

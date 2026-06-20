@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertAnyRole } from "@/lib/authz.server";
+import { generateTemporaryPassword } from "@/lib/password.server";
+import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
 
 // ------------ Helpers ------------
 
@@ -400,6 +402,7 @@ export const resetPassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
+    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.passwordReset);
 
     const table =
       data.kind === "student" ? "student_profiles"
@@ -414,7 +417,7 @@ export const resetPassword = createServerFn({ method: "POST" })
       data.kind === "student"
         ? (profile as any).academic_number
         : (profile as any).employee_number;
-    const password = identifier;
+    const password = generateTemporaryPassword();
 
     const { error: aErr } = await supabaseAdmin.auth.admin.updateUserById(
       (profile as any).user_id,
@@ -442,7 +445,7 @@ export const resetPassword = createServerFn({ method: "POST" })
       notes: `إعادة تعيين كلمة المرور لـ ${identifier}`,
     });
 
-    return { ok: true };
+    return { ok: true, password };
   });
 
 

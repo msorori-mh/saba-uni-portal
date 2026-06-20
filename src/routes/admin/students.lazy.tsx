@@ -204,12 +204,12 @@ function StudentsPage() {
                               <button
                                 disabled={!!busy}
                                 onClick={() => run(`reset-${r.id}`, async () => {
-                                  await reset({ data: { kind: "student", profile_id: r.id } });
+                                  const res = await reset({ data: { kind: "student", profile_id: r.id } });
                                   setCredentialsSlip({
                                     full_name_ar: r.full_name_ar,
                                     academic_number: r.academic_number,
                                     email: r.email,
-                                    password: r.academic_number,
+                                    password: res.password,
                                   });
                                 })}
                                 className="inline-flex items-center gap-1 rounded border border-border hover:bg-secondary px-2 py-1 text-xs"

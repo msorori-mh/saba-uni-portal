@@ -210,13 +210,13 @@ function StaffManagementPage() {
                             <>
                               <button disabled={!!busy}
                                 onClick={() => run(`reset-${r.id}`, async () => {
-                                  await reset({ data: { kind: "staff", profile_id: r.id } });
+                                  const res = await reset({ data: { kind: "staff", profile_id: r.id } });
                                   setSlip({
                                     portal: "staff",
                                     full_name_ar: r.full_name_ar,
                                     identifier: r.employee_number,
                                     email: r.email,
-                                    password: r.employee_number,
+                                    password: res.password,
                                   });
                                 }, refresh)}
                                 className="inline-flex items-center gap-1 rounded border border-border hover:bg-secondary px-2 py-1 text-xs">

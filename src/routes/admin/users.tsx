@@ -37,6 +37,7 @@ function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAdminForm, setShowAdminForm] = useState(false);
   const [adminMsg, setAdminMsg] = useState<string | null>(null);
+  const [passwordReveal, setPasswordReveal] = useState<{ name: string; password: string } | null>(null);
 
   const list = useServerFn(listUsers);
   const create = useServerFn(createAccount);
@@ -206,7 +207,10 @@ function UsersPage() {
                           {hasAccount && (
                             <>
                               <button disabled={!!busy}
-                                onClick={() => run(`reset-${r.id}`, () => reset({ data: { kind, profile_id: r.id } }))}
+                                onClick={() => run(`reset-${r.id}`, async () => {
+                                  const res = await reset({ data: { kind, profile_id: r.id } });
+                                  setPasswordReveal({ name: r.full_name_ar, password: res.password });
+                                })}
                                 className="inline-flex items-center gap-1 rounded border border-border hover:bg-secondary px-2 py-1 text-xs">
                                 {busy === `reset-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <KeyRound className="h-3 w-3" />}
                                 إعادة تعيين
@@ -240,6 +244,22 @@ function UsersPage() {
           </div>
         )}
       </div>
+
+      {passwordReveal && (
+        <div className="fixed inset-0 z-50 bg-black/50 grid place-items-center p-4" onClick={() => setPasswordReveal(null)}>
+          <div className="bg-card rounded-xl shadow-2xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-display text-lg font-bold text-primary">كلمة المرور الجديدة</h3>
+            <p className="text-sm text-muted-foreground">للمستخدم: {passwordReveal.name}</p>
+            <p className="font-mono text-sm bg-muted rounded-md px-3 py-2 break-all" dir="ltr">{passwordReveal.password}</p>
+            <p className="text-xs text-destructive">احفظها الآن — لن تُعرض مرة أخرى.</p>
+            <div className="flex justify-end">
+              <button onClick={() => setPasswordReveal(null)} className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-bold">
+                تم
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Roles modal */}
       {rolesFor && (
