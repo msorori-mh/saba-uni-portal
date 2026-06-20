@@ -10,24 +10,24 @@ import {
   FileBadge, FileCheck2, Receipt, FileSignature, FileClock, FileSpreadsheet,
   BarChart3, TrendingUp, Activity, HardDrive, Megaphone, MailOpen,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { activeUserCounts, adminAccountCounts } from "@/lib/admin-users.functions";
 import { getAdminProgressKpisFast } from "@/lib/academic-status.functions";
 import { getCommunicationsDashboardStats } from "@/lib/communications.functions";
 import { getAutomationSettings, getAutomationPreview } from "@/lib/automation.functions";
 import { getPilotOverview } from "@/lib/pilot.functions";
+import {
+  getHardeningStatus,
+  getDashboardCounts,
+  getScheduleStats,
+  getRecentOfficialDocuments,
+  getDashboardPerfKpis,
+  getAcademicOpsKpis,
+} from "@/lib/admin-dashboard.functions";
 import { Rocket } from "lucide-react";
 
 export const Route = createLazyFileRoute("/admin/")({
   component: AdminDashboard,
 });
-
-async function tableCount(table: string, filters?: (q: any) => any) {
-  let q = supabase.from(table as any).select("id", { count: "exact", head: true });
-  if (filters) q = filters(q);
-  const { count } = await q;
-  return count ?? 0;
-}
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   enrollment_certificate: "شهادة قيد",
@@ -46,6 +46,12 @@ function AdminDashboard() {
   const fetchCommStats = useServerFn(getCommunicationsDashboardStats);
   const fetchAutomationSettings = useServerFn(getAutomationSettings);
   const fetchAutomationPreview = useServerFn(getAutomationPreview);
+  const fetchHardening = useServerFn(getHardeningStatus);
+  const fetchDashboardCounts = useServerFn(getDashboardCounts);
+  const fetchScheduleStats = useServerFn(getScheduleStats);
+  const fetchRecentDocs = useServerFn(getRecentOfficialDocuments);
+  const fetchPerfKpis = useServerFn(getDashboardPerfKpis);
+  const fetchAcademicOps = useServerFn(getAcademicOpsKpis);
   const { data: commStats } = useQuery({
     queryKey: ["admin-comm-stats"],
     queryFn: () => fetchCommStats(),
@@ -82,172 +88,32 @@ function AdminDashboard() {
   });
   const { data: hardening } = useQuery({
     queryKey: ["hardening-status"],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_hardening_status" as any);
-      if (error) throw new Error(error.message);
-      return data as any;
-    },
+    queryFn: () => fetchHardening({ data: {} }),
   });
   const { data: s } = useQuery({
     queryKey: ["admin-dashboard-counts"],
-    queryFn: async () => {
-      const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-      const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-      const todayIso = startOfToday.toISOString();
-      const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
-      const monthIso = startOfMonth.toISOString();
-      const [
-        programs, courses, sections, students,
-        faculty, staff,
-        newReq, reviewReq,
-        news, events, research,
-        audit24h, notif24h,
-        feesPending, feesPartial,
-        docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
-        docsIssuedToday, docsCancelledToday,
-        docsActive, docsCancelled, docsThisMonth,
-        importsTotal, importsToday, importsCompleted, importsFailed,
-      ] = await Promise.all([
-        tableCount("programs", (q) => q.eq("is_active", true)),
-        tableCount("courses"),
-        tableCount("course_sections"),
-        tableCount("student_profiles"),
-        tableCount("faculty_profiles"),
-        tableCount("staff_profiles"),
-        tableCount("student_requests", (q) => q.eq("status", "submitted")),
-        tableCount("student_requests", (q) => q.eq("status", "under_review")),
-        tableCount("news", (q) => q.eq("is_published", true)),
-        tableCount("events", (q) => q.eq("is_published", true)),
-        tableCount("research_papers", (q) => q.eq("is_published", true)),
-        tableCount("audit_logs", (q) => q.gte("created_at", since24h)),
-        tableCount("notifications", (q) => q.gte("created_at", since24h)),
-        tableCount("student_fees", (q) => q.eq("status", "pending")),
-        tableCount("student_fees", (q) => q.eq("status", "partially_paid")),
-        tableCount("official_documents"),
-        tableCount("official_documents", (q) => q.eq("document_type", "enrollment_certificate")),
-        tableCount("official_documents", (q) => q.eq("document_type", "official_transcript")),
-        tableCount("official_documents", (q) => q.eq("document_type", "financial_receipt")),
-        tableCount("official_documents", (q) => q.gte("issued_at", todayIso)),
-        tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_issued").gte("created_at", todayIso)),
-        tableCount("audit_logs", (q) => q.eq("entity_type", "document").eq("action_type", "document_cancelled").gte("created_at", todayIso)),
-        tableCount("official_documents", (q) => q.eq("status", "issued")),
-        tableCount("official_documents", (q) => q.eq("status", "cancelled")),
-        tableCount("official_documents", (q) => q.gte("issued_at", monthIso)),
-        tableCount("import_logs"),
-        tableCount("import_logs", (q) => q.gte("created_at", todayIso)),
-        tableCount("import_logs", (q) => q.eq("status", "completed")),
-        tableCount("import_logs", (q) => q.eq("status", "failed")),
-      ]);
-      const importsRate = importsTotal > 0 ? Math.round((importsCompleted / importsTotal) * 100) : 0;
-      return {
-        programs, courses, sections, students, faculty, staff,
-        newReq, reviewReq, news, events, research, audit24h, notif24h,
-        feesPending, feesPartial,
-        docsAll, docsEnroll, docsTranscript, docsReceipt, docsToday,
-        docsIssuedToday, docsCancelledToday,
-        docsActive, docsCancelled, docsThisMonth,
-        importsTotal, importsToday, importsCompleted, importsFailed, importsRate,
-      };
-    },
+    queryFn: () => fetchDashboardCounts({ data: {} }),
   });
 
   const { data: scheduleStats } = useQuery({
     queryKey: ["admin-schedule-stats"],
-    queryFn: async () => {
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      const [rooms, slots, published, sectionsAll, scheduledSectionRows, publishedToday, scheduleAll] = await Promise.all([
-        tableCount("rooms", (q) => q.eq("is_active", true)),
-        tableCount("time_slots", (q) => q.eq("is_active", true)),
-        tableCount("class_schedule", (q) => q.eq("status", "published")),
-        tableCount("course_sections", (q) => q.eq("status", "active")),
-        supabase.from("class_schedule").select("course_section_id, room_id, faculty_profile_id").in("status", ["draft", "published"]),
-        tableCount("class_schedule", (q) => q.eq("status", "published").gte("updated_at", todayStart.toISOString())),
-        supabase.from("class_schedule").select("room_id, faculty_profile_id").eq("status", "published"),
-      ]);
-      const scheduledIds = new Set(((scheduledSectionRows.data ?? []) as Array<{ course_section_id: string }>).map((r) => r.course_section_id));
-      const pubRows = (scheduleAll.data ?? []) as Array<{ room_id: string | null; faculty_profile_id: string | null }>;
-      const roomsUsed = new Set(pubRows.map((r) => r.room_id).filter(Boolean)).size;
-      const facultyWithSchedules = new Set(pubRows.map((r) => r.faculty_profile_id).filter(Boolean)).size;
-      return {
-        rooms, slots, published,
-        unscheduled: Math.max(0, sectionsAll - scheduledIds.size),
-        publishedToday, roomsUsed, facultyWithSchedules,
-      };
-    },
+    queryFn: () => fetchScheduleStats({ data: {} }),
   });
 
   const { data: recentDocs } = useQuery({
     queryKey: ["admin-recent-documents"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("official_documents")
-        .select("id, document_number, document_type, issued_at, status, student_profiles(full_name_ar, academic_number)")
-        .order("issued_at", { ascending: false })
-        .limit(10);
-      if (error) throw new Error(error.message);
-      return (data ?? []) as any[];
-    },
+    queryFn: () => fetchRecentDocs({ data: {} }),
   });
 
   const { data: kpis } = useQuery({
     queryKey: ["admin-perf-kpis-rpc"],
-    queryFn: async () => {
-      // PERFORMANCE-FIX-02A: replace 3× limit(10000) scans with single RPC aggregate
-      const { data, error } = await supabase.rpc("get_admin_dashboard_kpis" as any);
-      if (error) throw new Error(error.message);
-      const k = (data ?? {}) as {
-        successRate?: number;
-        outstanding?: number;
-        openRequests?: number;
-      };
-      return {
-        successRate: Number(k.successRate ?? 0),
-        outstanding: Math.round(Number(k.outstanding ?? 0) * 100) / 100,
-        openRequests: Number(k.openRequests ?? 0),
-      };
-    },
+    queryFn: () => fetchPerfKpis({ data: {} }),
     staleTime: 60_000,
   });
 
   const { data: aops } = useQuery({
     queryKey: ["admin-academic-ops-kpis"],
-    queryFn: async () => {
-      const yearQ = await supabase.from("academic_years").select("id").eq("is_current", true).maybeSingle();
-      const semQ = await supabase.from("semesters").select("id").eq("is_current", true).maybeSingle();
-      const yearId = yearQ.data?.id as string | undefined;
-      const semId = semQ.data?.id as string | undefined;
-      if (!yearId || !semId) {
-        return { activeOfferings: 0, activeSections: 0, activeEnrollments: 0, pendingReceipts: 0 };
-      }
-      const offerings = await supabase
-        .from("course_offerings")
-        .select("id, status")
-        .eq("academic_year_id", yearId)
-        .eq("semester_id", semId);
-      const offeringIds = (offerings.data ?? []).map((o: any) => o.id);
-      const activeOfferings = (offerings.data ?? []).filter((o: any) => o.status === "active").length;
-      let activeSections = 0;
-      let sectionIds: string[] = [];
-      if (offeringIds.length) {
-        const secs = await supabase.from("course_sections").select("id, status").in("course_offering_id", offeringIds);
-        sectionIds = (secs.data ?? []).map((s: any) => s.id);
-        activeSections = (secs.data ?? []).filter((s: any) => s.status === "active").length;
-      }
-      let activeEnrollments = 0;
-      if (sectionIds.length) {
-        const en = await supabase
-          .from("student_enrollments")
-          .select("id", { count: "exact", head: true })
-          .in("course_section_id", sectionIds)
-          .eq("enrollment_status", "enrolled");
-        activeEnrollments = en.count ?? 0;
-      }
-      const pr = await supabase
-        .from("payment_receipts")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "submitted");
-      return { activeOfferings, activeSections, activeEnrollments, pendingReceipts: pr.count ?? 0 };
-    },
+    queryFn: () => fetchAcademicOps({ data: {} }),
   });
 
   const counts = s ?? {
