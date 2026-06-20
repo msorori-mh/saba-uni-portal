@@ -32,7 +32,7 @@ export type MasterTemplate = {
   description: string;
   category: MasterTemplateCategory;
   /** Linked existing importer key in imports page (if any) */
-  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "course_sections" | "student_enrollments" | "student_grades" | "student_fees" | "class_schedule";
+  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "course_sections" | "student_enrollments" | "student_grades" | "student_fees" | "student_discounts" | "class_schedule";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
@@ -358,9 +358,10 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "student_discounts",
     fileName: "template_student_discounts.xlsx",
     title: "خصومات الطلاب",
-    description: "تطبيق خصومات (نسبة أو مبلغ) على رسوم الطلاب (يتطلب تطوير مستورد).",
+    description: "تطبيق خصومات (نسبة أو مبلغ) على رسوم الطلاب.",
     category: "finance",
-    hasValidator: false,
+    importerKey: "student_discounts",
+    hasValidator: true,
     columns: [
       { name: "academic_number", description: "الرقم الأكاديمي للطالب", required: true, type: "text", example: "2026001" },
       { name: "discount_type_code", description: "كود نوع الخصم", required: true, type: "text", example: "SCHOLARSHIP" },

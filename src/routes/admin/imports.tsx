@@ -13,7 +13,7 @@ import { loadLookups } from "@/lib/imports/lookups";
 import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
 import {
   validateStudents, validateFaculty, validateStaff, validateCourses, validateStudyPlans,
-  validateDepartments, validatePrograms, validateLevels, validateCourseSections, validateStudentEnrollments, validateStudentGrades, validateStudentFees,
+  validateDepartments, validatePrograms, validateLevels, validateCourseSections, validateStudentEnrollments, validateStudentGrades, validateStudentFees, validateStudentDiscounts,
 } from "@/lib/imports/validators";
 import {
   auditImportStarted, auditImportValidated, auditImportFailed,
@@ -51,6 +51,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "student_enrollments", label: "تسجيلات الطلاب" },
   { id: "student_grades", label: "درجات الطلاب" },
   { id: "student_fees", label: "رسوم الطلاب" },
+  { id: "student_discounts", label: "خصومات الطلاب" },
   { id: "class_schedule", label: "الجداول الدراسية" },
   { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
@@ -61,10 +62,11 @@ const TYPE_LABEL: Record<ImportType, string> = {
   student_enrollments: "تسجيلات طلاب",
   student_grades: "درجات طلاب",
   student_fees: "رسوم طلاب",
+  student_discounts: "خصومات طلاب",
 };
 
 const STRUCTURE_TYPES = new Set<ImportType>([
-  "departments", "programs", "levels", "course_sections", "student_enrollments", "student_grades", "student_fees",
+  "departments", "programs", "levels", "course_sections", "student_enrollments", "student_grades", "student_fees", "student_discounts",
 ]);
 
 const STEPS = [
@@ -125,7 +127,8 @@ function ImportsPage() {
     if (t === "course_sections") return validateCourseSections(parsed, lookups, updateExisting);
     if (t === "student_enrollments") return validateStudentEnrollments(parsed, lookups, updateExisting);
     if (t === "student_grades") return validateStudentGrades(parsed, lookups, updateExisting);
-    return validateStudentFees(parsed, lookups, updateExisting);
+    if (t === "student_fees") return validateStudentFees(parsed, lookups, updateExisting);
+    return validateStudentDiscounts(parsed, lookups, updateExisting);
   };
 
   const onFile = async (f: File) => {
@@ -164,7 +167,8 @@ function ImportsPage() {
       else if (t === "course_sections") res = await validateCourseSections(rows, lookups, next);
       else if (t === "student_enrollments") res = await validateStudentEnrollments(rows, lookups, next);
       else if (t === "student_grades") res = await validateStudentGrades(rows, lookups, next);
-      else res = await validateStudentFees(rows, lookups, next);
+      else if (t === "student_fees") res = await validateStudentFees(rows, lookups, next);
+      else res = await validateStudentDiscounts(rows, lookups, next);
       setValidation(res);
     } finally {
       setValidating(false);
@@ -224,7 +228,7 @@ function ImportsPage() {
           <AlertTriangle className="h-4 w-4 text-gold shrink-0 mt-0.5" />
           <span>
             الأنواع الظاهرة في التبويبات أدناه هي <strong>المستوردات المتاحة فعلياً</strong> للرفع والاستيراد.
-            القوالب الأخرى (مثل الخصومات، الوثائق) متاحة
+            القوالب الأخرى (مثل الوثائق) متاحة
             <strong> للتنزيل فقط</strong> من قسم «قوالب الاستيراد الرسمية» في الأسفل، ولا يمكن رفعها حتى يتم تطوير مستورد خاص بها.
           </span>
         </div>

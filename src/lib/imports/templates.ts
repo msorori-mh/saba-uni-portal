@@ -174,6 +174,23 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "فعّل (تحديث القائم) لتحديث رسم موجود لنفس الطالب والنوع والفصل",
     ],
   },
+  student_discounts: {
+    sheetName: "StudentDiscounts",
+    headers: [
+      "academic_number","discount_type_code","academic_year","semester",
+      "value","reason","status",
+    ],
+    sample: ["2026001","SCHOLARSHIP","2026-2027","first",25,"تفوق دراسي","active"],
+    instructions: [
+      "academic_number, discount_type_code, academic_year, semester, value حقول مطلوبة",
+      "discount_type_code = كود نوع الخصم النشط (مثل SCHOLARSHIP)",
+      "value = نسبة (0-100) أو مبلغ ثابت حسب نوع الخصم",
+      "reason = سبب الخصم (يُخزَّن في الملاحظات)",
+      "status = active / inactive / cancelled (افتراضي active)",
+      "عند active يُطبَّق الخصم تلقائياً على رسوم الطالب للفصل",
+      "فعّل (تحديث القائم) لتحديث خصم موجود",
+    ],
+  },
 };
 
 export async function downloadTemplate(type: ImportType) {

@@ -1254,6 +1254,128 @@ export async function validateStudentFees(
   return summarize(out);
 }
 
+// =========================
+// Student discounts
+// =========================
+export type StudentDiscountRow = {
+  student_profile_id: string;
+  discount_type_id: string;
+  academic_year_id: string;
+  semester_id: string;
+  value: number;
+  status: string;
+  notes: string | null;
+  _existingId: string | null;
+};
+
+const DISCOUNT_STATUSES = new Set(["active", "inactive", "cancelled"]);
+
+export async function validateStudentDiscounts(
+  rows: Record<string, unknown>[],
+  lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<StudentDiscountRow>> {
+  const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
+  const studentByAc = new Map<string, string>();
+  if (acNumbers.length) {
+    for (let i = 0; i < acNumbers.length; i += 500) {
+      const chunk = acNumbers.slice(i, i + 500);
+      const { data } = await sb.from("student_profiles").select("id, academic_number").in("academic_number", chunk);
+      (data ?? []).forEach((s: { id: string; academic_number: string }) => {
+        studentByAc.set(normKey(s.academic_number), s.id);
+      });
+    }
+  }
+
+  const [{ data: discountTypes }, { data: existing }] = await Promise.all([
+    sb.from("discount_types").select("id, code, discount_type, is_active"),
+    sb.from("student_discounts").select("id, student_profile_id, discount_type_id, academic_year_id, semester_id"),
+  ]);
+
+  const typeByCode = new Map<string, { id: string; discount_type: string }>();
+  (discountTypes ?? []).forEach((d: { id: string; code: string; discount_type: string; is_active: boolean }) => {
+    if (d.code && d.is_active) typeByCode.set(normKey(d.code), { id: d.id, discount_type: d.discount_type });
+  });
+
+  const discountByKey = new Map<string, string>();
+  (existing ?? []).forEach((d: {
+    id: string; student_profile_id: string; discount_type_id: string;
+    academic_year_id: string; semester_id: string;
+  }) => {
+    discountByKey.set(
+      `${d.student_profile_id}|${d.discount_type_id}|${d.academic_year_id}|${d.semester_id}`,
+      d.id,
+    );
+  });
+
+  const seenInFile = new Set<string>();
+  const out: ValidatedRow<StudentDiscountRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+
+    const academic_number = str(raw.academic_number);
+    if (!academic_number) errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي مطلوب" });
+    const student_id = academic_number ? studentByAc.get(normKey(academic_number)) ?? null : null;
+    if (academic_number && !student_id) errors.push({ row: rowNumber, column: "academic_number", message: "الطالب غير موجود" });
+
+    const discount_type_code = str(raw.discount_type_code);
+    if (!discount_type_code) errors.push({ row: rowNumber, column: "discount_type_code", message: "كود نوع الخصم مطلوب" });
+    const dtype = discount_type_code ? typeByCode.get(normKey(discount_type_code)) ?? null : null;
+    if (discount_type_code && !dtype) errors.push({ row: rowNumber, column: "discount_type_code", message: "نوع الخصم غير موجود أو غير نشط" });
+
+    const ay_id = lookups.academicYearsByName.get(normKey(str(raw.academic_year)));
+    if (!ay_id) errors.push({ row: rowNumber, column: "academic_year", message: "السنة الأكاديمية غير موجودة" });
+
+    const semKey = normKey(str(raw.semester));
+    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
+    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+
+    const valueN = num(raw.value);
+    if (!Number.isFinite(valueN) || valueN < 0)
+      errors.push({ row: rowNumber, column: "value", message: "قيمة الخصم يجب أن تكون رقماً >= 0" });
+    else if (dtype?.discount_type === "percentage" && valueN > 100)
+      errors.push({ row: rowNumber, column: "value", message: "نسبة الخصم يجب أن تكون بين 0 و 100" });
+
+    const status = str(raw.status) || "active";
+    if (!DISCOUNT_STATUSES.has(status))
+      errors.push({ row: rowNumber, column: "status", message: "الحالة غير صحيحة (active/inactive/cancelled)" });
+
+    const reason = str(raw.reason);
+    const notes = reason || null;
+
+    let _existingId: string | null = null;
+    if (student_id && dtype && ay_id && sem_id) {
+      const fileKey = `${student_id}|${dtype.id}|${ay_id}|${sem_id}`;
+      if (seenInFile.has(fileKey))
+        errors.push({ row: rowNumber, column: "academic_number", message: "خصم مكرر في الملف لنفس الطالب والنوع والفصل" });
+      else seenInFile.add(fileKey);
+
+      _existingId = discountByKey.get(fileKey) ?? null;
+      if (_existingId && !updateExisting) {
+        errors.push({ row: rowNumber, column: "academic_number", message: "الخصم موجود مسبقاً (فعّل تحديث القائم)" });
+      }
+    }
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        student_profile_id: student_id!,
+        discount_type_id: dtype!.id,
+        academic_year_id: ay_id!,
+        semester_id: sem_id!,
+        value: valueN,
+        status,
+        notes,
+        _existingId,
+      },
+    });
+  });
+
+  return summarize(out);
+}
+
 function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {

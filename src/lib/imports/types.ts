@@ -10,7 +10,8 @@ export type ImportType =
   | "course_sections"
   | "student_enrollments"
   | "student_grades"
-  | "student_fees";
+  | "student_fees"
+  | "student_discounts";
 
 export type RowError = { row: number; column?: string; message: string };
 
