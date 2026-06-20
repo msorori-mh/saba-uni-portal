@@ -198,7 +198,12 @@ function UsersPage() {
                         <div className="flex flex-wrap gap-1">
                           {!hasAccount && (
                             <button disabled={!!busy}
-                              onClick={() => run(`create-${r.id}`, () => create({ data: { kind, profile_id: r.id } }))}
+                              onClick={() => run(`create-${r.id}`, async () => {
+                                const res = await create({ data: { kind, profile_id: r.id } });
+                                if (res.password) {
+                                  setPasswordReveal({ name: r.full_name_ar, password: res.password });
+                                }
+                              })}
                               className="inline-flex items-center gap-1 rounded border border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 text-xs font-bold">
                               {busy === `create-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
                               إنشاء حساب

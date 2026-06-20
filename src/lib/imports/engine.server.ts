@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { generateTemporaryPassword } from "@/lib/password.server";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type {
   CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
@@ -203,7 +204,7 @@ async function provisionStudentLoginServer(
   data: { profile_id: string; academic_number: string; must_change_password: boolean },
 ) {
   const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
-  const password = data.academic_number;
+  const password = generateTemporaryPassword();
 
   const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
     email,

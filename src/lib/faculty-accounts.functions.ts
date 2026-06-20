@@ -285,7 +285,10 @@ export const resetFacultyPasswordManual = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertFacultyAccountsWrite(context.userId);
-    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.passwordReset);
+    await enforceRateLimit(
+      `admin-reset:${context.userId}:faculty:${data.profile_id}`,
+      SERVER_RATE_LIMIT_POLICIES.adminPasswordReset,
+    );
     const { data: profile } = await supabaseAdmin
       .from("faculty_profiles").select("id, user_id, employee_number").eq("id", data.profile_id).maybeSingle();
     if (!profile || !(profile as any).user_id) throw new Error("الحساب غير موجود");
