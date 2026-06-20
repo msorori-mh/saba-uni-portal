@@ -54,13 +54,16 @@ async function lastEvent(
 }
 
 async function fetchOperationsOverview() {
+  const adminRpc = supabaseAdmin as unknown as {
+    rpc: (fn: string, args?: Record<string, unknown>) => Promise<{ data: unknown | null }>;
+  };
   const [
     tables, functions, audits, audits24, notifs, notifsUnread,
     lastAudit, lastFinance, lastDoc,
     studentReqFailed, importsFailed, receiptsPending,
   ] = await Promise.all([
-    supabaseAdmin.rpc("get_table_count").then((r) => r.data ?? null).catch(() => null),
-    supabaseAdmin.rpc("get_function_count").then((r) => r.data ?? null).catch(() => null),
+    adminRpc.rpc("get_table_count").then((r) => r.data ?? null).catch(() => null),
+    adminRpc.rpc("get_function_count").then((r) => r.data ?? null).catch(() => null),
     safeCount("audit_logs"),
     safeCount("audit_logs", (q) => q.gte("created_at", new Date(Date.now() - 86400000).toISOString())),
     safeCount("notifications"),
@@ -106,14 +109,15 @@ async function fetchOperationsOverview() {
     safeCount("faculty_profiles", (q) => q.eq("must_change_password", true)),
   ]);
 
-  let hardening: {
+  type HardeningStatus = {
     password_hibp_enabled?: boolean;
     signup_disabled?: boolean;
     anonymous_disabled?: boolean;
-  } | null = null;
+  };
+  let hardening: HardeningStatus | null = null;
   try {
     const { data } = await supabaseAdmin.rpc("get_hardening_status");
-    hardening = (data ?? null) as typeof hardening;
+    hardening = (data ?? null) as HardeningStatus | null;
   } catch { /* ignore */ }
 
   const [docsAll, docsCancelled, feesAll, paymentsAll] = await Promise.all([
