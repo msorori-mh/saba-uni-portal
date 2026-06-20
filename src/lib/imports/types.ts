@@ -11,7 +11,8 @@ export type ImportType =
   | "student_enrollments"
   | "student_grades"
   | "student_fees"
-  | "student_discounts";
+  | "student_discounts"
+  | "documents";
 
 export type RowError = { row: number; column?: string; message: string };
 

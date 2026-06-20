@@ -191,6 +191,20 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "فعّل (تحديث القائم) لتحديث خصم موجود",
     ],
   },
+  documents: {
+    sheetName: "Documents",
+    headers: [
+      "academic_number", "document_type", "issue_date", "purpose", "notes",
+    ],
+    sample: ["2026001", "enrollment_letter", "2026-10-01", "لتقديمها للجهات الرسمية", ""],
+    instructions: [
+      "academic_number, document_type حقول مطلوبة",
+      "document_type: enrollment_certificate / enrollment_letter / student_status_certificate / graduation_certificate / official_transcript / transcript / financial_receipt",
+      "issue_date = YYYY-MM-DD (اختياري — افتراضي تاريخ اليوم)",
+      "purpose, notes = اختياريان — يُخزَّنان في metadata",
+      "كل صف يُصدر وثيقة جديدة برقم وثيقة ورمز تحقق فريدين",
+    ],
+  },
 };
 
 export async function downloadTemplate(type: ImportType) {

@@ -1376,6 +1376,109 @@ export async function validateStudentDiscounts(
   return summarize(out);
 }
 
+// =========================
+// Official documents
+// =========================
+export type DocumentRow = {
+  student_profile_id: string;
+  document_type: string;
+  metadata: Record<string, unknown>;
+  issued_at: string | null;
+};
+
+const DOCUMENT_TYPES = new Set([
+  "enrollment_certificate",
+  "student_status_certificate",
+  "official_transcript",
+  "financial_receipt",
+]);
+
+const DOCUMENT_TYPE_ALIASES: Record<string, string> = {
+  enrollment_certificate: "enrollment_certificate",
+  enrollment_letter: "enrollment_certificate",
+  student_status_certificate: "student_status_certificate",
+  graduation_certificate: "student_status_certificate",
+  official_transcript: "official_transcript",
+  transcript: "official_transcript",
+  financial_receipt: "financial_receipt",
+};
+
+function normalizeDocumentType(raw: string): string | null {
+  const key = normKey(raw);
+  return DOCUMENT_TYPE_ALIASES[key] ?? (DOCUMENT_TYPES.has(key) ? key : null);
+}
+
+function parseIssueDate(raw: unknown): { valid: boolean; iso: string | null } {
+  const s = str(raw);
+  if (!s) return { valid: true, iso: null };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return { valid: false, iso: null };
+  const d = new Date(`${s}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return { valid: false, iso: null };
+  return { valid: true, iso: d.toISOString() };
+}
+
+export async function validateDocuments(
+  rows: Record<string, unknown>[],
+  _lookups: LookupMaps,
+): Promise<ValidationResult<DocumentRow>> {
+  const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
+  const studentByAc = new Map<string, string>();
+  if (acNumbers.length) {
+    for (let i = 0; i < acNumbers.length; i += 500) {
+      const chunk = acNumbers.slice(i, i + 500);
+      const { data } = await sb.from("student_profiles").select("id, academic_number").in("academic_number", chunk);
+      (data ?? []).forEach((s: { id: string; academic_number: string }) => {
+        studentByAc.set(normKey(s.academic_number), s.id);
+      });
+    }
+  }
+
+  const out: ValidatedRow<DocumentRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+
+    const academic_number = str(raw.academic_number);
+    if (!academic_number) errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي مطلوب" });
+    const student_id = academic_number ? studentByAc.get(normKey(academic_number)) ?? null : null;
+    if (academic_number && !student_id) errors.push({ row: rowNumber, column: "academic_number", message: "الطالب غير موجود" });
+
+    const docTypeRaw = str(raw.document_type);
+    if (!docTypeRaw) errors.push({ row: rowNumber, column: "document_type", message: "نوع الوثيقة مطلوب" });
+    const document_type = docTypeRaw ? normalizeDocumentType(docTypeRaw) : null;
+    if (docTypeRaw && !document_type) {
+      errors.push({
+        row: rowNumber,
+        column: "document_type",
+        message: "نوع الوثيقة غير صحيح (enrollment_certificate, student_status_certificate, official_transcript, financial_receipt)",
+      });
+    }
+
+    const issueDate = parseIssueDate(raw.issue_date);
+    if (!issueDate.valid) errors.push({ row: rowNumber, column: "issue_date", message: "تاريخ الإصدار بصيغة YYYY-MM-DD" });
+
+    const purpose = str(raw.purpose);
+    const notes = str(raw.notes);
+    const metadata: Record<string, unknown> = {};
+    if (purpose) metadata.purpose = purpose;
+    if (notes) metadata.notes = notes;
+    if (issueDate.iso) metadata.issue_date = raw.issue_date;
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        student_profile_id: student_id!,
+        document_type: document_type!,
+        metadata,
+        issued_at: issueDate.iso,
+      },
+    });
+  });
+
+  return summarize(out);
+}
+
 function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {

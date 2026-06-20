@@ -13,7 +13,7 @@ import { loadLookups } from "@/lib/imports/lookups";
 import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
 import {
   validateStudents, validateFaculty, validateStaff, validateCourses, validateStudyPlans,
-  validateDepartments, validatePrograms, validateLevels, validateCourseSections, validateStudentEnrollments, validateStudentGrades, validateStudentFees, validateStudentDiscounts,
+  validateDepartments, validatePrograms, validateLevels, validateCourseSections, validateStudentEnrollments, validateStudentGrades, validateStudentFees, validateStudentDiscounts, validateDocuments,
 } from "@/lib/imports/validators";
 import {
   auditImportStarted, auditImportValidated, auditImportFailed,
@@ -52,6 +52,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "student_grades", label: "درجات الطلاب" },
   { id: "student_fees", label: "رسوم الطلاب" },
   { id: "student_discounts", label: "خصومات الطلاب" },
+  { id: "documents", label: "الوثائق الرسمية" },
   { id: "class_schedule", label: "الجداول الدراسية" },
   { id: "faculty_accounts", label: "حسابات أعضاء هيئة التدريس" },
 ];
@@ -63,6 +64,7 @@ const TYPE_LABEL: Record<ImportType, string> = {
   student_grades: "درجات طلاب",
   student_fees: "رسوم طلاب",
   student_discounts: "خصومات طلاب",
+  documents: "وثائق رسمية",
 };
 
 const STRUCTURE_TYPES = new Set<ImportType>([
@@ -128,7 +130,8 @@ function ImportsPage() {
     if (t === "student_enrollments") return validateStudentEnrollments(parsed, lookups, updateExisting);
     if (t === "student_grades") return validateStudentGrades(parsed, lookups, updateExisting);
     if (t === "student_fees") return validateStudentFees(parsed, lookups, updateExisting);
-    return validateStudentDiscounts(parsed, lookups, updateExisting);
+    if (t === "student_discounts") return validateStudentDiscounts(parsed, lookups, updateExisting);
+    return validateDocuments(parsed, lookups);
   };
 
   const onFile = async (f: File) => {
@@ -228,8 +231,7 @@ function ImportsPage() {
           <AlertTriangle className="h-4 w-4 text-gold shrink-0 mt-0.5" />
           <span>
             الأنواع الظاهرة في التبويبات أدناه هي <strong>المستوردات المتاحة فعلياً</strong> للرفع والاستيراد.
-            القوالب الأخرى (مثل الوثائق) متاحة
-            <strong> للتنزيل فقط</strong> من قسم «قوالب الاستيراد الرسمية» في الأسفل، ولا يمكن رفعها حتى يتم تطوير مستورد خاص بها.
+            بعض القوالب الإضافية متاحة للتنزيل من قسم «قوالب الاستيراد الرسمية» في الأسفل.
           </span>
         </div>
         <nav className="flex flex-wrap gap-2 border-b border-border">

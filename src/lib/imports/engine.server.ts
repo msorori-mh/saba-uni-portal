@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type {
   CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
-  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow, StudentEnrollmentRow, StudentGradeRow, StudentFeeRow, StudentDiscountRow,
+  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow, StudentEnrollmentRow, StudentGradeRow, StudentFeeRow, StudentDiscountRow, DocumentRow,
 } from "./validators";
 
 export type ServerImportContext = {
@@ -37,6 +37,21 @@ async function safeAudit(action: string, entityId: string | null, payload: Recor
     await sb.rpc("log_audit", {
       _entity_type: "import",
       _entity_id: entityId,
+      _action_type: action,
+      _old: null,
+      _new: payload,
+      _notes: null,
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+async function safeDocumentAudit(action: string, documentId: string, payload: Record<string, unknown>) {
+  try {
+    await sb.rpc("log_audit", {
+      _entity_type: "document",
+      _entity_id: documentId,
       _action_type: action,
       _old: null,
       _new: payload,
@@ -400,6 +415,7 @@ export async function finalizeImportServer(opts: {
     student_grades: "student_grades_imported",
     student_fees: "student_fees_imported",
     student_discounts: "student_discounts_imported",
+    documents: "documents_imported",
   };
 
   const payload = {
@@ -850,6 +866,73 @@ export async function importStudentDiscounts(
         report.rows_created! += 1;
       }
     }
+  }
+  return report;
+}
+
+const DOC_AUDIT_ACTION: Record<string, string> = {
+  enrollment_certificate: "certificate_generated",
+  student_status_certificate: "certificate_generated",
+  official_transcript: "transcript_generated",
+  financial_receipt: "financial_receipt_generated",
+};
+
+export async function importDocuments(
+  rows: ValidatedRow<DocumentRow>[],
+  dryRun = false,
+  ctx?: ServerImportContext,
+): Promise<ImportReport> {
+  if (dryRun) return dryRunReport(rows);
+  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, rows_created: 0, errors: [] };
+
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+    const p = r.parsed;
+
+    const { data: docNum, error: numErr } = await sb.rpc("generate_document_number");
+    if (numErr || !docNum) {
+      report.rows_failed += 1;
+      report.errors.push({ row: r.rowNumber, message: numErr?.message ?? "تعذّر توليد رقم الوثيقة" });
+      continue;
+    }
+    const { data: verCode, error: codeErr } = await sb.rpc("generate_verification_code");
+    if (codeErr || !verCode) {
+      report.rows_failed += 1;
+      report.errors.push({ row: r.rowNumber, message: codeErr?.message ?? "تعذّر توليد رمز التحقق" });
+      continue;
+    }
+
+    const { data: inserted, error } = await sb.from("official_documents").insert({
+      student_profile_id: p.student_profile_id,
+      document_type: p.document_type,
+      document_number: docNum,
+      verification_code: verCode,
+      issued_by: ctx?.userId ?? null,
+      issued_at: p.issued_at ?? new Date().toISOString(),
+      status: "issued",
+      metadata: p.metadata,
+    }).select("id").maybeSingle();
+
+    if (error || !inserted) {
+      report.rows_failed += 1;
+      report.errors.push({ row: r.rowNumber, message: error?.message ?? "تعذّر إصدار الوثيقة" });
+      continue;
+    }
+
+    const auditAction = DOC_AUDIT_ACTION[p.document_type] ?? "document_issued";
+    await safeDocumentAudit(auditAction, inserted.id, {
+      document_number: docNum,
+      document_type: p.document_type,
+      student_profile_id: p.student_profile_id,
+      verification_code: verCode,
+    });
+
+    report.rows_success += 1;
+    report.rows_created! += 1;
   }
   return report;
 }
