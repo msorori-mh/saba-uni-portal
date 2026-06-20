@@ -2,37 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { assertAnyRole } from "@/lib/authz.server";
+import { assertAdmin, assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
 
 // ------------ Helpers ------------
-
-async function assertAdmin(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .in("role", ["admin", "system_admin"]);
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) {
-    throw new Error("ليس لديك صلاحية");
-  }
-}
-
-async function actorRole(userId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (!data || data.length === 0) return null;
-  const priority = [
-    "system_admin", "admin", "dean", "registrar", "student_affairs",
-    "finance_officer", "department_head", "faculty_member", "graduate", "student",
-  ];
-  for (const p of priority) if (data.some((r: any) => r.role === p)) return p;
-  return data[0].role as string;
-}
 
 async function logAudit(input: {
   actor_user_id: string;
@@ -42,7 +16,7 @@ async function logAudit(input: {
   old_values?: any;
   new_values?: any;
 }) {
-  const role = await actorRole(input.actor_user_id);
+  const role = await primaryActorRole(input.actor_user_id);
   await supabaseAdmin.from("audit_logs").insert({
     actor_user_id: input.actor_user_id,
     actor_role: role,
