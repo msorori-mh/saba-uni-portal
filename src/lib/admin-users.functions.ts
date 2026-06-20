@@ -282,13 +282,13 @@ export const createAccount = createServerFn({ method: "POST" })
     if (!identifier) throw new Error("الرقم الأكاديمي/الوظيفي مفقود");
 
     const email = emailFor(data.kind, identifier);
-    const password = identifier;
 
     // ─── FACULTY-ACCOUNT-REPAIR-02: استعلام مباشر على auth.users بدل listUsers ───
     // listUsers({perPage:200}) يحمّل كل سجلات auth دفعة واحدة وقد يفشل بالكامل
     // بخطأ "Database error loading user" إذا كان أحد السجلات فاسداً.
     let newUserId: string | null = null;
     let linkedExisting = false;
+    let temporaryPassword: string | null = null;
 
     const { data: existingId, error: lookupErr } = await (supabaseAdmin as any)
       .rpc("find_auth_user_id_by_email", { p_email: email });
@@ -316,9 +316,10 @@ export const createAccount = createServerFn({ method: "POST" })
       newUserId = (existing as any).id;
       linkedExisting = true;
     } else {
+      temporaryPassword = generateTemporaryPassword();
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email,
-        password,
+        password: temporaryPassword,
         email_confirm: true,
         user_metadata: { full_name_ar: (profile as any).full_name_ar, kind: data.kind },
       });
@@ -387,7 +388,12 @@ export const createAccount = createServerFn({ method: "POST" })
       new_values: { email, kind: data.kind, profile_id: data.profile_id, role, linked_existing: linkedExisting },
     });
 
-    return { user_id: newUserId, email, linked_existing: linkedExisting };
+    return {
+      user_id: newUserId,
+      email,
+      linked_existing: linkedExisting,
+      password: temporaryPassword ?? undefined,
+    };
   });
 
 // ------------ Reset Password ------------

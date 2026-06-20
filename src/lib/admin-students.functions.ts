@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { generateTemporaryPassword } from "@/lib/password.server";
 
 async function assertCanManage(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -134,7 +135,7 @@ export const createStudent = createServerFn({ method: "POST" })
 
     if (data.create_login) {
       const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
-      const password = data.academic_number;
+      const password = generateTemporaryPassword();
 
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email,
@@ -266,7 +267,7 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
     await assertCanManage(context.userId);
 
     const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
-    const password = data.academic_number;
+    const password = generateTemporaryPassword();
 
     const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -313,5 +314,5 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
       new_values: { academic_number: data.academic_number, must_change_password: data.must_change_password },
     });
 
-    return { ok: true, user_id: newUserId, email };
+    return { ok: true, user_id: newUserId, email, password };
   });

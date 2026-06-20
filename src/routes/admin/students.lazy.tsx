@@ -191,7 +191,7 @@ function StudentsPage() {
                                   full_name_ar: r.full_name_ar,
                                   academic_number: r.academic_number,
                                   email: res.email,
-                                  password: r.academic_number,
+                                  password: res.password ?? "— (حساب Auth موجود مسبقاً)",
                                 });
                               })}
                               className="inline-flex items-center gap-1 rounded border border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 text-xs font-bold"

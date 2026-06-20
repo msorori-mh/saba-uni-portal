@@ -190,7 +190,7 @@ function FacultyManagementPage() {
                                   full_name_ar: r.full_name_ar,
                                   identifier: r.employee_number,
                                   email: res.email,
-                                  password: r.employee_number,
+                                  password: res.password ?? "— (حساب Auth موجود مسبقاً)",
                                 });
                               }, refresh)}
                               className="inline-flex items-center gap-1 rounded border border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 px-2 py-1 text-xs font-bold">

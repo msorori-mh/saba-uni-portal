@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { generateTemporaryPassword } from "@/lib/password.server";
 
 // ---------- Authorization ----------
 
@@ -145,7 +146,7 @@ export const createFacultyMember = createServerFn({ method: "POST" })
 
     if (data.create_login) {
       const loginEmail = `${data.employee_number.toLowerCase()}@faculty.usr.edu.ye`;
-      const password = data.employee_number;
+      const password = generateTemporaryPassword();
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email: loginEmail,
         password,
@@ -318,7 +319,7 @@ export const createStaffMember = createServerFn({ method: "POST" })
 
     if (data.create_login) {
       const loginEmail = `${data.employee_number.toLowerCase()}@staff.usr.edu.ye`;
-      const password = data.employee_number;
+      const password = generateTemporaryPassword();
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email: loginEmail,
         password,
