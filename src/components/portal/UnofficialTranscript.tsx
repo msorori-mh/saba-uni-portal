@@ -1,10 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, FileText, Printer, AlertTriangle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (t: string) => any };
+import { useServerFn } from "@tanstack/react-start";
+import { getUnofficialTranscriptData } from "@/lib/transcript.functions";
 
 export type TranscriptRow = {
   enrollment_id: string;
@@ -50,32 +48,18 @@ export type SummaryRow = {
 };
 
 export function UnofficialTranscript({ studentProfileId, header }: { studentProfileId: string; header?: React.ReactNode }) {
+  const transcriptFn = useServerFn(getUnofficialTranscriptData);
   const [yearFilter, setYearFilter] = useState<string>("");
   const [semFilter, setSemFilter] = useState<string>("");
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["transcript", studentProfileId],
     enabled: !!studentProfileId,
-    queryFn: async () => {
-      const { data, error } = await sb.from("student_unofficial_transcript")
-        .select("*")
-        .eq("student_profile_id", studentProfileId);
-      if (error) throw error;
-      return (data ?? []) as TranscriptRow[];
-    },
+    queryFn: () => transcriptFn({ data: { studentProfileId } }),
   });
 
-  const { data: summary = [] } = useQuery({
-    queryKey: ["transcript-summary", studentProfileId],
-    enabled: !!studentProfileId,
-    queryFn: async () => {
-      const { data, error } = await sb.from("student_transcript_summary")
-        .select("*")
-        .eq("student_profile_id", studentProfileId);
-      if (error) throw error;
-      return (data ?? []) as SummaryRow[];
-    },
-  });
+  const rows = (data?.rows ?? []) as TranscriptRow[];
+  const summary = (data?.summary ?? []) as SummaryRow[];
 
   const years = useMemo(() => Array.from(new Map(rows.map(r => [r.academic_year_id, r.academic_year_name])).entries()), [rows]);
   const sems = useMemo(() => Array.from(new Map(rows.filter(r => !yearFilter || r.academic_year_id === yearFilter).map(r => [r.semester_id, r.semester_name])).entries()), [rows, yearFilter]);

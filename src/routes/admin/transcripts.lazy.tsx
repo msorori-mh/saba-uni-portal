@@ -2,7 +2,8 @@ import { createLazyFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loader2, Search, FileText, ArrowRight } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { searchStudentsForTranscript } from "@/lib/transcript.functions";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 
 export const Route = createLazyFileRoute("/admin/transcripts")({
@@ -18,6 +19,7 @@ type StudentResult = {
 };
 
 function AdminTranscriptsPage() {
+  const searchFn = useServerFn(searchStudentsForTranscript);
   const [search, setSearch] = useState("");
   const [active, setActive] = useState<string>("");
   const [selected, setSelected] = useState<StudentResult | null>(null);
@@ -25,16 +27,7 @@ function AdminTranscriptsPage() {
   const { data: results = [], isFetching } = useQuery({
     queryKey: ["admin-transcript-search", active],
     enabled: active.length >= 2,
-    queryFn: async () => {
-      const term = `%${active}%`;
-      const { data, error } = await supabase
-        .from("student_profiles")
-        .select("id, academic_number, full_name_ar, program:programs(name_ar), department:departments(name_ar)")
-        .or(`academic_number.ilike.${term},full_name_ar.ilike.${term}`)
-        .limit(20);
-      if (error) throw error;
-      return (data ?? []) as unknown as StudentResult[];
-    },
+    queryFn: () => searchFn({ data: { query: active } }),
   });
 
   return (
@@ -71,17 +64,17 @@ function AdminTranscriptsPage() {
               ) : results.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">لا توجد نتائج.</div>
               ) : (
-                results.map(s => (
+                results.map((s) => (
                   <button
                     key={s.id}
-                    onClick={() => setSelected(s)}
+                    onClick={() => setSelected(s as StudentResult)}
                     className="w-full text-right p-3 hover:bg-muted/40 flex items-center justify-between gap-2"
                   >
                     <div className="min-w-0">
                       <div className="font-mono text-xs font-bold text-primary">{s.academic_number}</div>
                       <div className="font-semibold text-sm truncate">{s.full_name_ar}</div>
                       <div className="text-[11px] text-muted-foreground truncate">
-                        {s.program?.name_ar ?? "—"} • {s.department?.name_ar ?? "—"}
+                        {(s.program as { name_ar?: string } | null)?.name_ar ?? "—"} • {(s.department as { name_ar?: string } | null)?.name_ar ?? "—"}
                       </div>
                     </div>
                     <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
