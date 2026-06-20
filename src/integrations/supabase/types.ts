@@ -4016,6 +4016,7 @@ export type Database = {
         | "faculty_member"
         | "student"
         | "graduate"
+        | "hr_officer"
       day_of_week:
         | "saturday"
         | "sunday"
@@ -4167,6 +4168,7 @@ export const Constants = {
         "faculty_member",
         "student",
         "graduate",
+        "hr_officer",
       ],
       day_of_week: [
         "saturday",
