@@ -72,7 +72,7 @@ export const getPeopleLookups = createServerFn({ method: "GET" })
 // FACULTY MANAGEMENT
 // =====================================================
 
-const FACULTY_ROLES = ["admin", "system_admin", "dean", "registrar"];
+const FACULTY_ROLES = ["admin", "system_admin", "dean", "registrar", "hr_officer"];
 
 const createFacultySchema = z.object({
   employee_number: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/),
@@ -256,7 +256,7 @@ export const getFacultyMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, [...FACULTY_ROLES, "student_affairs"]);
+    await assertAnyRole(context.userId, [...FACULTY_ROLES, "student_affairs", "hr_officer"]);
     const { data: row, error } = await supabaseAdmin
       .from("faculty_profiles").select("*, faculty:faculty_id(email, phone, photo, bio_ar)")
       .eq("id", data.id).maybeSingle();
@@ -269,7 +269,7 @@ export const getFacultyMember = createServerFn({ method: "POST" })
 // STAFF MANAGEMENT
 // =====================================================
 
-const STAFF_ROLES = ["admin", "system_admin", "dean"];
+const STAFF_ROLES = ["admin", "system_admin", "dean", "hr_officer"];
 const ALLOWED_STAFF_ROLE_TYPES = ["registrar", "student_affairs", "finance_officer", "hr_officer"] as const;
 
 const createStaffSchema = z.object({
@@ -419,7 +419,7 @@ export const getStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, [...STAFF_ROLES, "registrar"]);
+    await assertAnyRole(context.userId, [...STAFF_ROLES, "registrar", "hr_officer"]);
     const { data: row, error } = await supabaseAdmin
       .from("staff_profiles").select("*")
       .eq("id", data.id).maybeSingle();

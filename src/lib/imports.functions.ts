@@ -25,7 +25,7 @@ import {
 } from "@/lib/imports/engine.server";
 import type { ImportReport, ImportType } from "@/lib/imports/types";
 
-const IMPORT_ROLES = [
+const IMPORT_PANEL_ROLES = [
   "admin",
   "system_admin",
   "registrar",
@@ -49,6 +49,35 @@ const importTypeSchema = z.enum([
   "student_discounts",
   "documents",
 ]);
+
+const ACADEMIC_IMPORT_ROLES = [
+  "admin",
+  "system_admin",
+  "registrar",
+  "student_affairs",
+] as const;
+
+const FINANCE_IMPORT_ROLES = ["admin", "system_admin", "finance_officer"] as const;
+
+const IMPORT_ROLES_BY_TYPE: Record<
+  z.infer<typeof importTypeSchema>,
+  readonly string[]
+> = {
+  students: ACADEMIC_IMPORT_ROLES,
+  student_enrollments: ACADEMIC_IMPORT_ROLES,
+  student_grades: ACADEMIC_IMPORT_ROLES,
+  documents: ACADEMIC_IMPORT_ROLES,
+  courses: ACADEMIC_IMPORT_ROLES,
+  study_plans: ACADEMIC_IMPORT_ROLES,
+  departments: ACADEMIC_IMPORT_ROLES,
+  programs: ACADEMIC_IMPORT_ROLES,
+  levels: ACADEMIC_IMPORT_ROLES,
+  course_sections: ACADEMIC_IMPORT_ROLES,
+  student_fees: FINANCE_IMPORT_ROLES,
+  student_discounts: FINANCE_IMPORT_ROLES,
+  faculty: ["admin", "system_admin", "registrar"],
+  staff: ["admin", "system_admin", "registrar"],
+};
 
 const validatedRowSchema = z.object({
   rowNumber: z.number().int().positive(),
@@ -75,8 +104,13 @@ export const runBulkImport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAnyRole(
       context.userId,
-      IMPORT_ROLES,
-      "ليس لديك صلاحية تنفيذ الاستيراد الجماعي",
+      IMPORT_PANEL_ROLES,
+      "ليس لديك صلاحية الوصول إلى الاستيراد",
+    );
+    await assertAnyRole(
+      context.userId,
+      IMPORT_ROLES_BY_TYPE[data.type],
+      "ليس لديك صلاحية استيراد هذا النوع من البيانات",
     );
 
     if (!data.dryRun) {
@@ -155,7 +189,7 @@ export const runBulkImport = createServerFn({ method: "POST" })
 export const getImportStats = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
     const todayIso = startOfToday.toISOString();
@@ -174,7 +208,7 @@ export const getImportStats = createServerFn({ method: "POST" })
 export const listImportHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
     const { data, error } = await supabaseAdmin
       .from("import_logs")
       .select("id, created_at, import_type, file_name, rows_total, rows_success, rows_failed, status, notes")
@@ -187,7 +221,7 @@ export const listImportHistory = createServerFn({ method: "POST" })
 export const getScheduleImportLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
     const [yearsRes, semRes, progRes, lvlRes] = await Promise.all([
       supabaseAdmin.from("academic_years").select("id, name").order("name", { ascending: false }),
       supabaseAdmin.from("semesters").select("id, name, code").order("name"),
@@ -219,7 +253,7 @@ export const logScheduleImport = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
     const { error } = await supabaseAdmin.from("import_logs").insert({
       created_by: context.userId,
       import_type: "class_schedule",
