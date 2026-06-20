@@ -2,25 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertStudentAdmin, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
-
-async function assertCanManage(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .in("role", ["admin", "system_admin", "registrar", "student_affairs"]);
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) throw new Error("ليس لديك صلاحية لإدارة الطلاب");
-}
-
-async function actorRole(userId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
-  if (!data || data.length === 0) return null;
-  const priority = ["system_admin", "admin", "registrar", "student_affairs", "faculty_member", "student"];
-  for (const p of priority) if (data.some((r: any) => r.role === p)) return p;
-  return data[0].role as string;
-}
 
 async function logAudit(input: {
   actor_user_id: string;
@@ -30,7 +13,7 @@ async function logAudit(input: {
   old_values?: any;
   new_values?: any;
 }) {
-  const role = await actorRole(input.actor_user_id);
+  const role = await primaryActorRole(input.actor_user_id);
   await supabaseAdmin.from("audit_logs").insert({
     actor_user_id: input.actor_user_id,
     actor_role: role,
@@ -48,7 +31,7 @@ async function logAudit(input: {
 export const getStudentLookups = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertCanManage(context.userId);
+    await assertStudentAdmin(context.userId);
     const [deps, progs, levels, years, sems] = await Promise.all([
       supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
       supabaseAdmin.from("programs").select("id, name_ar, department_id, code").eq("is_active", true).order("sort_order"),
@@ -87,7 +70,7 @@ export const createStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => createSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertCanManage(context.userId);
+    await assertStudentAdmin(context.userId);
 
     // Check duplicate academic_number
     const { data: existing } = await supabaseAdmin
@@ -202,7 +185,7 @@ export const updateStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => updateSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertCanManage(context.userId);
+    await assertStudentAdmin(context.userId);
 
     const { data: old } = await supabaseAdmin
       .from("student_profiles").select("*").eq("id", data.id).maybeSingle();
@@ -241,7 +224,7 @@ export const getStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertCanManage(context.userId);
+    await assertStudentAdmin(context.userId);
     const { data: row, error } = await supabaseAdmin
       .from("student_profiles")
       .select("*")
@@ -264,7 +247,7 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => provisionSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertCanManage(context.userId);
+    await assertStudentAdmin(context.userId);
 
     const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
     const password = generateTemporaryPassword();

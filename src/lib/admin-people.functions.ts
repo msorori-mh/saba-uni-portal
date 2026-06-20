@@ -2,31 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 
 // ---------- Authorization ----------
-
-async function userRoles(userId: string): Promise<string[]> {
-  const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r: any) => r.role);
-}
-
-async function assertAnyRole(userId: string, allowed: string[]) {
-  const roles = await userRoles(userId);
-  if (!roles.some((r) => allowed.includes(r))) {
-    throw new Error("ليس لديك صلاحية لتنفيذ هذا الإجراء");
-  }
-}
-
-async function actorRole(userId: string): Promise<string | null> {
-  const roles = await userRoles(userId);
-  const priority = [
-    "system_admin", "admin", "dean", "registrar", "student_affairs",
-    "finance_officer", "hr_officer", "department_head", "faculty_member",
-  ];
-  for (const p of priority) if (roles.includes(p)) return p;
-  return roles[0] ?? null;
-}
 
 async function logAudit(input: {
   actor_user_id: string;
@@ -37,7 +16,7 @@ async function logAudit(input: {
   old_values?: any;
   new_values?: any;
 }) {
-  const role = await actorRole(input.actor_user_id);
+  const role = await primaryActorRole(input.actor_user_id);
   await supabaseAdmin.from("audit_logs").insert({
     actor_user_id: input.actor_user_id,
     actor_role: role,

@@ -37,6 +37,14 @@ export const COMMUNICATIONS_ADMIN_ROLES = [
 /** Roles allowed to access executive dashboard analytics. */
 export const EXEC_ROLES = ["admin", "system_admin", "dean", "registrar"] as const;
 
+/** Roles allowed to manage student records and provision student logins. */
+export const STUDENT_ADMIN_ROLES = [
+  "admin",
+  "system_admin",
+  "registrar",
+  "student_affairs",
+] as const;
+
 export async function userRoles(userId: string): Promise<string[]> {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
@@ -65,6 +73,10 @@ export async function assertExecRole(userId: string): Promise<void> {
     EXEC_ROLES,
     "ليس لديك صلاحية الوصول إلى لوحة التحليلات التنفيذية",
   );
+}
+
+export async function assertStudentAdmin(userId: string): Promise<void> {
+  await assertAnyRole(userId, STUDENT_ADMIN_ROLES, "ليس لديك صلاحية لإدارة الطلاب");
 }
 
 export async function primaryActorRole(userId: string): Promise<string | null> {
