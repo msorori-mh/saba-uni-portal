@@ -17,17 +17,19 @@ async function assertReportsAccess(userId: string) {
 
 async function fetchAll<T = Record<string, unknown>>(
   table: string,
-  build: (q: ReturnType<typeof supabaseAdmin.from>) => ReturnType<typeof supabaseAdmin.from>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  build: (q: any) => any,
   pageSize = 1000,
 ): Promise<T[]> {
+  const adminDb = supabaseAdmin as unknown as { from: (table: string) => any };
   const out: T[] = [];
   let from = 0;
   for (let i = 0; i < 10; i++) {
-    let q = supabaseAdmin.from(table).select("*");
+    let q = adminDb.from(table).select("*");
     q = build(q);
     const { data, error } = await q.range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
-    const rows = (data ?? []) as T[];
+    const rows = (data ?? []) as unknown as T[];
     out.push(...rows);
     if (rows.length < pageSize) break;
     from += pageSize;

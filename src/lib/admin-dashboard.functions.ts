@@ -14,9 +14,11 @@ async function assertDashboardAccess(userId: string) {
 
 async function tableCount(
   table: string,
-  filters?: (q: ReturnType<typeof supabaseAdmin.from>) => ReturnType<typeof supabaseAdmin.from>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filters?: (q: any) => any,
 ): Promise<number> {
-  let q = supabaseAdmin.from(table).select("id", { count: "exact", head: true });
+  const adminDb = supabaseAdmin as unknown as { from: (table: string) => any };
+  let q = adminDb.from(table).select("id", { count: "exact", head: true });
   if (filters) q = filters(q);
   const { count, error } = await q;
   if (error) throw new Error(error.message);

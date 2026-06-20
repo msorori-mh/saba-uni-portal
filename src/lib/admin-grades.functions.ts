@@ -105,7 +105,7 @@ export const listGradeSections = createServerFn({ method: "POST" })
       } | null;
     };
 
-    return ((rows ?? []) as Raw[])
+    return ((rows ?? []) as unknown as Raw[])
       .filter((r) => !data.yearId || r.offering?.academic_year_id === data.yearId)
       .filter((r) => !data.semesterId || r.offering?.semester_id === data.semesterId)
       .map((r): GradeSectionOption => ({
@@ -140,7 +140,7 @@ export const getSectionGradesGrid = createServerFn({ method: "POST" })
     if (enrErr) throw new Error(enrErr.message);
 
     type EnRaw = { id: string; student: { academic_number: string; full_name_ar: string } | null };
-    const enr = (enrolls ?? []) as EnRaw[];
+    const enr = (enrolls ?? []) as unknown as EnRaw[];
     const enrIds = enr.map((e) => e.id);
 
     let grades: Array<{
