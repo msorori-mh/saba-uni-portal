@@ -3,13 +3,17 @@ import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, FileWarning, Paperclip, CheckCircle2, XCircle, Eye, ArrowRight, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { sendNotificationEmail } from "@/lib/email.functions";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (t: string) => any };
+import {
+  getStudentRequestLookups,
+  listStudentRequestsOverview,
+  getStudentRequestDetails,
+  updateStudentRequestStatus,
+  updateEquivalencyCourse,
+  getStudentRequestAttachmentUrl,
+} from "@/lib/admin-student-requests.functions";
 
 export const Route = createLazyFileRoute("/admin/student-requests")({
   component: AdminRequestsPage,
@@ -111,45 +115,30 @@ type AdminReq = {
 function AdminRequestsPage() {
   usePagePerf("/admin/student-requests");
   const qc = useQueryClient();
+  const lookupsFn = useServerFn(getStudentRequestLookups);
+  const listFn = useServerFn(listStudentRequestsOverview);
+  const detailsFn = useServerFn(getStudentRequestDetails);
+  const updateStatusFn = useServerFn(updateStudentRequestStatus);
+  const sendEmail = useServerFn(sendNotificationEmail);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [programFilter, setProgramFilter] = useState<string>("");
   const [deptFilter, setDeptFilter] = useState<string>("");
   const [selected, setSelected] = useState<AdminReq | null>(null);
 
-  const { data: requestTypes = [] } = useQuery({
-    queryKey: ["admin-request-types-min"],
-    queryFn: async () => {
-      const { data } = await sb.from("request_types").select("code, name_ar, is_active").order("sort_order");
-      return (data ?? []) as { code: string; name_ar: string; is_active: boolean }[];
-    },
+  const { data: lookups } = useQuery({
+    queryKey: ["admin-request-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
   });
+  const requestTypes = lookups?.requestTypes ?? [];
+  const programs = lookups?.programs ?? [];
+  const depts = lookups?.departments ?? [];
   const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
 
-  const { data: programs = [] } = useQuery({
-    queryKey: ["admin-programs-min"],
-    queryFn: async () => {
-      const { data } = await supabase.from("programs").select("id, name_ar").order("name_ar");
-      return (data ?? []) as { id: string; name_ar: string }[];
-    },
-  });
-  const { data: depts = [] } = useQuery({
-    queryKey: ["admin-depts-min"],
-    queryFn: async () => {
-      const { data } = await supabase.from("departments").select("id, name_ar").order("name_ar");
-      return (data ?? []) as { id: string; name_ar: string }[];
-    },
-  });
-
-  // PERFORMANCE-FIX-02A: list query no longer fetches per-type details upfront.
-  // Details are loaded on demand when the user opens a request (see useEffect below).
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["admin-requests-overview"],
     queryFn: async (): Promise<AdminReq[]> => {
-      const { data: reqs, error } = await sb.from("student_requests")
-        .select("id, title, description, status, submitted_at, created_at, rejection_reason, student_profile_id, request_type, student:student_profiles(academic_number, full_name_ar, program_id, department_id, program:programs(name_ar), department:departments(name_ar))")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+      const reqs = await listFn({ data: {} });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (reqs as any[]).map((r) => ({
         ...r,
@@ -166,67 +155,21 @@ function AdminRequestsPage() {
     },
   });
 
-  // Lazy-load deep details only when a request is selected
   useEffect(() => {
-    if (!selected || (selected as AdminReq & { _detailsLoaded?: boolean })._detailsLoaded) return;
+    if (!selected || selected._detailsLoaded) return;
     const id = selected.id;
     let cancelled = false;
     (async () => {
-      const [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
-        sb.from("absence_excuse_details")
-          .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
-          .eq("request_id", id).maybeSingle(),
-        sb.from("enrollment_suspension_details")
-          .select("request_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
-          .eq("request_id", id).maybeSingle(),
-        sb.from("extra_chance_details")
-          .select("request_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
-          .eq("request_id", id).maybeSingle(),
-        sb.from("transfer_request_details")
-          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
-          .eq("request_id", id).maybeSingle(),
-        sb.from("equivalency_request_details")
-          .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes")
-          .eq("request_id", id).maybeSingle(),
-        sb.from("equivalency_courses")
-          .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
-          .eq("equivalency_request_id", id),
-        sb.from("grade_appeal_details")
-          .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
-          .eq("request_id", id).maybeSingle(),
-        sb.from("student_request_attachments")
-          .select("id, request_id, file_url, file_name")
-          .eq("request_id", id),
-      ]);
+      const details = await detailsFn({ data: { requestId: id } });
       if (cancelled) return;
       setSelected((prev) =>
         prev && prev.id === id
-          ? {
-              ...prev,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              absence_details: (absRes.data as any) ?? null,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              suspension_details: (suspRes.data as any) ?? null,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              extra_chance_details: (ecRes.data as any) ?? null,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              transfer_details: (trRes.data as any) ?? null,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              equivalency_details: (eqdRes.data as any) ?? null,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              equivalency_courses: ((eqcRes.data as any[]) ?? []),
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              grade_appeal_details: (gaRes.data as any) ?? null,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              attachments: ((attRes.data as any[]) ?? []),
-              _detailsLoaded: true,
-            } as AdminReq
+          ? { ...prev, ...details, _detailsLoaded: true }
           : prev,
       );
     })();
     return () => { cancelled = true; };
-  }, [selected]);
-
+  }, [selected, detailsFn]);
 
   const filtered = useMemo(() => requests.filter((r) =>
     (!statusFilter || r.status === statusFilter)
@@ -235,44 +178,46 @@ function AdminRequestsPage() {
     && (!deptFilter || r.student?.department_id === deptFilter)
   ), [requests, statusFilter, typeFilter, programFilter, deptFilter]);
 
-  const sendEmail = useServerFn(sendNotificationEmail);
-
   const updateStatus = async (id: string, status: string, rejection_reason?: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    const patch: Record<string, unknown> = { status, reviewed_by: user?.id, reviewed_at: new Date().toISOString() };
-    if (status === "rejected") patch.rejection_reason = rejection_reason ?? null;
-    const { error } = await sb.from("student_requests").update(patch).eq("id", id);
-    if (error) { toast.error(error.message); return false; }
-    toast.success("تم تحديث الحالة");
-    qc.invalidateQueries({ queryKey: ["admin-requests"] });
-    if (selected?.id === id) setSelected({ ...selected, status, rejection_reason: patch.rejection_reason as string ?? null });
+    try {
+      const result = await updateStatusFn({
+        data: {
+          requestId: id,
+          status: status as "draft" | "submitted" | "under_review" | "approved" | "rejected" | "cancelled",
+          rejectionReason: rejection_reason,
+        },
+      });
+      toast.success("تم تحديث الحالة");
+      qc.invalidateQueries({ queryKey: ["admin-requests-overview"] });
+      if (selected?.id === id) {
+        setSelected({
+          ...selected,
+          status,
+          rejection_reason: result.rejection_reason ?? null,
+          _detailsLoaded: selected._detailsLoaded,
+        });
+      }
 
-    // Phase 9B: secondary email notification (best-effort; never blocks)
-    if (status === "approved" || status === "rejected") {
-      try {
-        const { data: req } = await sb.from("student_requests")
-          .select("title, student:student_profiles(email, full_name_ar)")
-          .eq("id", id).maybeSingle();
-        const email = (req?.student?.email as string | undefined) ?? null;
-        if (email) {
-          sendEmail({
-            data: {
-              templateKey: status === "approved" ? "request_approved" : "request_rejected",
-              recipientEmail: email,
-              recipientName: req?.student?.full_name_ar ?? null,
-              variables: {
-                request_title: req?.title ?? "",
-                rejection_reason: rejection_reason ?? null,
-              },
-              relatedEntityType: "student_request",
-              relatedEntityId: id,
+      if ((status === "approved" || status === "rejected") && result.email) {
+        sendEmail({
+          data: {
+            templateKey: status === "approved" ? "request_approved" : "request_rejected",
+            recipientEmail: result.email,
+            recipientName: result.full_name_ar,
+            variables: {
+              request_title: result.title ?? "",
+              rejection_reason: rejection_reason ?? null,
             },
-          }).catch(() => undefined);
-        }
-      } catch { /* silent — email is secondary */ }
+            relatedEntityType: "student_request",
+            relatedEntityId: id,
+          },
+        }).catch(() => undefined);
+      }
+      return true;
+    } catch (e) {
+      toast.error((e as Error).message);
+      return false;
     }
-
-    return true;
   };
 
   return (
@@ -382,10 +327,14 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
 }
 
 function SignedAttachment({ path, name }: { path: string; name: string }) {
+  const urlFn = useServerFn(getStudentRequestAttachmentUrl);
   const open = async () => {
-    const { data, error } = await supabase.storage.from("student-request-attachments").createSignedUrl(path, 300);
-    if (error || !data) { toast.error("تعذر فتح المرفق"); return; }
-    window.open(data.signedUrl, "_blank");
+    try {
+      const { signedUrl } = await urlFn({ data: { path } });
+      window.open(signedUrl, "_blank");
+    } catch {
+      toast.error("تعذر فتح المرفق");
+    }
   };
   return (
     <button onClick={open} className="text-xs inline-flex items-center gap-1 border bg-muted/30 px-2 py-1 rounded hover:bg-muted">
@@ -561,16 +510,27 @@ type EqCourseLite = {
 
 function EquivalencyCoursesReview({ requestId, courses }: { requestId: string; courses: EqCourseLite[] }) {
   const qc = useQueryClient();
+  const updateFn = useServerFn(updateEquivalencyCourse);
   const [local, setLocal] = useState(courses);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const updateCourse = async (id: string, patch: Partial<EqCourseLite>) => {
     setBusyId(id);
-    const { error } = await sb.from("equivalency_courses").update(patch).eq("id", id);
-    setBusyId(null);
-    if (error) { toast.error(error.message); return; }
-    setLocal((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-    qc.invalidateQueries({ queryKey: ["admin-requests"] });
+    try {
+      await updateFn({
+        data: {
+          courseId: id,
+          status: patch.status as "pending" | "approved" | "rejected" | undefined,
+          reviewerNotes: patch.reviewer_notes,
+        },
+      });
+      setLocal((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+      qc.invalidateQueries({ queryKey: ["admin-requests-overview"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyId(null);
+    }
     void requestId;
   };
 

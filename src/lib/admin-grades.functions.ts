@@ -22,6 +22,163 @@ export type GradeEmailTarget = {
   full_name_ar: string | null;
 };
 
+export type GradeSectionOption = {
+  id: string;
+  section_code: string;
+  course_code: string;
+  course_name: string;
+  year_name: string;
+  semester_name: string;
+};
+
+export type GradeComponentRow = {
+  id: string;
+  name: string;
+  max_score: number;
+  sort_order: number;
+};
+
+export type SectionGradeRow = {
+  enrollmentId: string;
+  academic_number: string;
+  name: string;
+  grades: Record<string, {
+    id: string;
+    student_enrollment_id: string;
+    grade_component_id: string;
+    score: number;
+    status: string;
+    approved_at: string | null;
+  } | undefined>;
+};
+
+async function assertGradesAdmin(userId: string) {
+  await assertAnyRole(userId, GRADES_ADMIN_ROLES, "ليس لديك صلاحية إدارة الدرجات");
+}
+
+export const getGradesLookups = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ yearId: z.string().uuid().optional() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertGradesAdmin(context.userId);
+    const [yearsRes, semsRes] = await Promise.all([
+      supabaseAdmin.from("academic_years").select("id, name").order("name"),
+      data.yearId
+        ? supabaseAdmin.from("semesters").select("id, name").eq("academic_year_id", data.yearId).order("name")
+        : Promise.resolve({ data: [] as { id: string; name: string }[], error: null }),
+    ]);
+    if (yearsRes.error) throw new Error(yearsRes.error.message);
+    if (semsRes.error) throw new Error(semsRes.error.message);
+    return {
+      years: yearsRes.data ?? [],
+      semesters: semsRes.data ?? [],
+    };
+  });
+
+export const listGradeSections = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      yearId: z.string().uuid().optional(),
+      semesterId: z.string().uuid().optional(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertGradesAdmin(context.userId);
+    const { data: rows, error } = await supabaseAdmin
+      .from("course_sections")
+      .select("id, section_code, offering:course_offerings(academic_year_id, semester_id, course:courses(code, name_ar), academic_year:academic_years(name), semester:semesters(name))")
+      .eq("status", "active");
+    if (error) throw new Error(error.message);
+
+    type Raw = {
+      id: string;
+      section_code: string;
+      offering: {
+        academic_year_id: string;
+        semester_id: string;
+        course: { code: string; name_ar: string } | null;
+        academic_year: { name: string } | null;
+        semester: { name: string } | null;
+      } | null;
+    };
+
+    return ((rows ?? []) as Raw[])
+      .filter((r) => !data.yearId || r.offering?.academic_year_id === data.yearId)
+      .filter((r) => !data.semesterId || r.offering?.semester_id === data.semesterId)
+      .map((r): GradeSectionOption => ({
+        id: r.id,
+        section_code: r.section_code,
+        course_code: r.offering?.course?.code ?? "—",
+        course_name: r.offering?.course?.name_ar ?? "—",
+        year_name: r.offering?.academic_year?.name ?? "",
+        semester_name: r.offering?.semester?.name ?? "",
+      }));
+  });
+
+export const getSectionGradesGrid = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ sectionId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertGradesAdmin(context.userId);
+
+    const { data: components, error: compErr } = await supabaseAdmin
+      .from("grade_components")
+      .select("id, name, max_score, sort_order")
+      .eq("course_section_id", data.sectionId)
+      .order("sort_order");
+    if (compErr) throw new Error(compErr.message);
+
+    const { data: enrolls, error: enrErr } = await supabaseAdmin
+      .from("student_enrollments")
+      .select("id, student:student_profiles(academic_number, full_name_ar)")
+      .eq("course_section_id", data.sectionId);
+    if (enrErr) throw new Error(enrErr.message);
+
+    type EnRaw = { id: string; student: { academic_number: string; full_name_ar: string } | null };
+    const enr = (enrolls ?? []) as EnRaw[];
+    const enrIds = enr.map((e) => e.id);
+
+    let grades: Array<{
+      id: string;
+      student_enrollment_id: string;
+      grade_component_id: string;
+      score: number;
+      status: string;
+      approved_at: string | null;
+    }> = [];
+    if (enrIds.length) {
+      const { data: gs, error: gErr } = await supabaseAdmin
+        .from("student_grades")
+        .select("id, student_enrollment_id, grade_component_id, score, status, approved_at")
+        .in("student_enrollment_id", enrIds);
+      if (gErr) throw new Error(gErr.message);
+      grades = gs ?? [];
+    }
+
+    const rows: SectionGradeRow[] = enr.map((e) => {
+      const gByComp: SectionGradeRow["grades"] = {};
+      for (const g of grades) {
+        if (g.student_enrollment_id === e.id) gByComp[g.grade_component_id] = g;
+      }
+      return {
+        enrollmentId: e.id,
+        academic_number: e.student?.academic_number ?? "—",
+        name: e.student?.full_name_ar ?? "—",
+        grades: gByComp,
+      };
+    });
+
+    return {
+      components: (components ?? []) as GradeComponentRow[],
+      rows,
+    };
+  });
+
 export const approveSubmittedGrades = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => gradeIdsInput.parse(input))

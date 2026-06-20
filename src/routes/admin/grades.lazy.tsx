@@ -4,60 +4,26 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Loader2, CheckCircle2, RotateCcw, ClipboardCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { approveSubmittedGrades, returnSubmittedGrades } from "@/lib/admin-grades.functions";
+import {
+  getGradesLookups,
+  listGradeSections,
+  getSectionGradesGrid,
+  approveSubmittedGrades,
+  returnSubmittedGrades,
+} from "@/lib/admin-grades.functions";
 import { sendNotificationEmail } from "@/lib/email.functions";
-
-// Cast helper: new tables not in generated types yet
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (t: string) => any };
 
 export const Route = createLazyFileRoute("/admin/grades")({
   component: AdminGradesPage,
 });
 
-type SectionOption = {
-  id: string;
-  section_code: string;
-  course_code: string;
-  course_name: string;
-  year_name: string;
-  semester_name: string;
-};
-
-async function fetchSections(filters: { yearId?: string; semId?: string }): Promise<SectionOption[]> {
-  let q = supabase
-    .from("course_sections")
-    .select("id, section_code, offering:course_offerings(academic_year_id, semester_id, course:courses(code, name_ar), academic_year:academic_years(name), semester:semesters(name))")
-    .eq("status", "active");
-  const { data, error } = await q;
-  if (error) throw error;
-  type Raw = {
-    id: string; section_code: string;
-    offering: {
-      academic_year_id: string; semester_id: string;
-      course: { code: string; name_ar: string } | null;
-      academic_year: { name: string } | null;
-      semester: { name: string } | null;
-    } | null;
-  };
-  return ((data ?? []) as unknown as Raw[])
-    .filter((r) => !filters.yearId || r.offering?.academic_year_id === filters.yearId)
-    .filter((r) => !filters.semId || r.offering?.semester_id === filters.semId)
-    .map((r) => ({
-      id: r.id,
-      section_code: r.section_code,
-      course_code: r.offering?.course?.code ?? "—",
-      course_name: r.offering?.course?.name_ar ?? "—",
-      year_name: r.offering?.academic_year?.name ?? "",
-      semester_name: r.offering?.semester?.name ?? "",
-    }));
-}
-
 function AdminGradesPage() {
   usePagePerf("/admin/grades");
   const qc = useQueryClient();
+  const lookupsFn = useServerFn(getGradesLookups);
+  const sectionsFn = useServerFn(listGradeSections);
+  const gridFn = useServerFn(getSectionGradesGrid);
   const approveFn = useServerFn(approveSubmittedGrades);
   const returnFn = useServerFn(returnSubmittedGrades);
   const [sectionId, setSectionId] = useState<string>("");
@@ -68,60 +34,35 @@ function AdminGradesPage() {
   const { data: years = [] } = useQuery({
     queryKey: ["adm-grades-years"],
     queryFn: async () => {
-      const { data } = await supabase.from("academic_years").select("id, name").order("name");
-      return (data ?? []) as { id: string; name: string }[];
+      const res = await lookupsFn({ data: {} });
+      return res.years;
     },
   });
   const { data: sems = [] } = useQuery({
     queryKey: ["adm-grades-sems", yearId],
     enabled: !!yearId,
     queryFn: async () => {
-      const { data } = await supabase.from("semesters").select("id, name").eq("academic_year_id", yearId).order("name");
-      return (data ?? []) as { id: string; name: string }[];
+      const res = await lookupsFn({ data: { yearId } });
+      return res.semesters;
     },
   });
   const { data: sections = [], isLoading: secLoading } = useQuery({
     queryKey: ["adm-grades-sections", yearId, semId],
-    queryFn: () => fetchSections({ yearId, semId }),
+    queryFn: () => sectionsFn({
+      data: {
+        yearId: yearId || undefined,
+        semesterId: semId || undefined,
+      },
+    }),
   });
 
-  const { data: components = [] } = useQuery({
-    queryKey: ["adm-grades-components", sectionId],
-    enabled: !!sectionId,
-    queryFn: async () => {
-      const { data, error } = await sb.from("grade_components")
-        .select("id, name, max_score, sort_order")
-        .eq("course_section_id", sectionId)
-        .order("sort_order");
-      if (error) throw error;
-      return (data ?? []) as unknown as { id: string; name: string; max_score: number; sort_order: number }[];
-    },
-  });
-
-  const { data: rows = [], isLoading: gradesLoading } = useQuery({
+  const { data: grid, isLoading: gradesLoading } = useQuery({
     queryKey: ["adm-grades-rows", sectionId],
     enabled: !!sectionId,
-    queryFn: async () => {
-      const { data: enrolls, error: e1 } = await supabase
-        .from("student_enrollments")
-        .select("id, student:student_profiles(academic_number, full_name_ar)")
-        .eq("course_section_id", sectionId);
-      if (e1) throw e1;
-      type EnRaw = { id: string; student: { academic_number: string; full_name_ar: string } | null };
-      const enr = (enrolls ?? []) as unknown as EnRaw[];
-      const { data: gs, error: e2 } = await sb.from("student_grades")
-        .select("id, student_enrollment_id, grade_component_id, score, status, approved_at")
-        .in("student_enrollment_id", enr.map((e) => e.id));
-      if (e2) throw e2;
-      type GR = { id: string; student_enrollment_id: string; grade_component_id: string; score: number; status: string; approved_at: string | null };
-      const grades = (gs ?? []) as unknown as GR[];
-      return enr.map((e) => {
-        const gByComp: Record<string, GR | undefined> = {};
-        for (const g of grades) if (g.student_enrollment_id === e.id) gByComp[g.grade_component_id] = g;
-        return { enrollmentId: e.id, academic_number: e.student?.academic_number ?? "—", name: e.student?.full_name_ar ?? "—", grades: gByComp };
-      });
-    },
+    queryFn: () => gridFn({ data: { sectionId } }),
   });
+  const components = grid?.components ?? [];
+  const rows = grid?.rows ?? [];
 
   const totalMax = components.reduce((s, c) => s + Number(c.max_score), 0);
 
