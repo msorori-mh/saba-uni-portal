@@ -3,12 +3,34 @@ import { usePagePerf } from "@/lib/perf-probe";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Wallet, Plus, X, Receipt, Tag, Users, Percent, FileText } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
 import { sendNotificationEmail } from "@/lib/email.functions";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (t: string) => any; storage: any };
+import {
+  getFinanceLookups,
+  searchStudentsForFinance,
+  listFeeTypes,
+  listActiveFeeTypes,
+  upsertFeeType,
+  deleteFeeType,
+  listStudentFees,
+  cancelStudentFee,
+  createStudentFee,
+  listOpenStudentFees,
+  listStudentPayments,
+  createStudentPayment,
+  listDiscountTypes,
+  listActiveDiscountTypes,
+  upsertDiscountType,
+  deleteDiscountType,
+  listStudentDiscounts,
+  updateStudentDiscountStatus,
+  createStudentDiscount,
+  listPaymentReceipts,
+  getPaymentReceiptFileUrl,
+  approvePaymentReceipt,
+  rejectPaymentReceipt,
+} from "@/lib/admin-finance.functions";
 
 export const Route = createLazyFileRoute("/admin/finance")({
   component: AdminFinancePage,
@@ -84,24 +106,25 @@ function TabButton({ active, onClick, children, icon: Icon }: { active: boolean;
 // ===================== Fee Types =====================
 function FeeTypesTab() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listFeeTypes);
+  const deleteFn = useServerFn(deleteFeeType);
   const [editing, setEditing] = useState<FeeType | null>(null);
   const [creating, setCreating] = useState(false);
 
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["admin-fee-types"],
-    queryFn: async (): Promise<FeeType[]> => {
-      const { data, error } = await sb.from("fee_types").select("*").order("code");
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   const remove = async (id: string) => {
     if (!confirm("حذف نوع الرسوم؟")) return;
-    const { error } = await sb.from("fee_types").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("تم الحذف");
-    qc.invalidateQueries({ queryKey: ["admin-fee-types"] });
+    try {
+      await deleteFn({ data: { id } });
+      toast.success("تم الحذف");
+      qc.invalidateQueries({ queryKey: ["admin-fee-types"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   return (
@@ -148,6 +171,7 @@ function FeeTypesTab() {
 }
 
 function FeeTypeModal({ value, onClose, onSaved }: { value: FeeType | null; onClose: () => void; onSaved: () => void }) {
+  const upsertFn = useServerFn(upsertFeeType);
   const [code, setCode] = useState(value?.code ?? "");
   const [name, setName] = useState(value?.name_ar ?? "");
   const [desc, setDesc] = useState(value?.description_ar ?? "");
@@ -158,13 +182,24 @@ function FeeTypeModal({ value, onClose, onSaved }: { value: FeeType | null; onCl
   const submit = async () => {
     if (!code.trim() || !name.trim()) return toast.error("الرمز والاسم مطلوبان");
     setSaving(true);
-    const payload = { code: code.trim(), name_ar: name.trim(), description_ar: desc || null, amount: Number(amount) || 0, is_active: active };
-    const q = value ? sb.from("fee_types").update(payload).eq("id", value.id) : sb.from("fee_types").insert(payload);
-    const { error } = await q;
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم الحفظ");
-    onSaved();
+    try {
+      await upsertFn({
+        data: {
+          id: value?.id,
+          code: code.trim(),
+          name_ar: name.trim(),
+          description_ar: desc || null,
+          amount: Number(amount) || 0,
+          is_active: active,
+        },
+      });
+      toast.success("تم الحفظ");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -189,56 +224,42 @@ function FeeTypeModal({ value, onClose, onSaved }: { value: FeeType | null; onCl
 // ===================== Student Fees =====================
 function StudentFeesTab() {
   const qc = useQueryClient();
+  const lookupsFn = useServerFn(getFinanceLookups);
+  const listFn = useServerFn(listStudentFees);
+  const cancelFn = useServerFn(cancelStudentFee);
   const [creating, setCreating] = useState(false);
   const [filterYear, setFilterYear] = useState<string>("");
   const [filterSem, setFilterSem] = useState<string>("");
   const [filterProgram, setFilterProgram] = useState<string>("");
 
-  const { data: years = [] } = useQuery({
-    queryKey: ["years"],
-    queryFn: async (): Promise<Year[]> => (await sb.from("academic_years").select("id, name, is_current").order("name", { ascending: false })).data ?? [],
+  const { data: lookups } = useQuery({
+    queryKey: ["finance-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
   });
-  const { data: semesters = [] } = useQuery({
-    queryKey: ["semesters"],
-    queryFn: async (): Promise<Sem[]> => (await sb.from("semesters").select("id, name, academic_year_id, is_current")).data ?? [],
-  });
-  const { data: programs = [] } = useQuery({
-    queryKey: ["programs"],
-    queryFn: async (): Promise<Program[]> => (await sb.from("programs").select("id, name_ar").eq("is_active", true)).data ?? [],
-  });
+  const years = lookups?.years ?? [];
+  const semesters = lookups?.semesters ?? [];
+  const programs = lookups?.programs ?? [];
 
   const { data: fees = [], isLoading } = useQuery({
     queryKey: ["admin-student-fees", filterYear, filterSem, filterProgram],
-    queryFn: async (): Promise<StudentFee[]> => {
-      let q = sb.from("student_fees").select(
-        "id, amount, status, notes, student_profile_id, fee_type_id, academic_year_id, semester_id, fee_type:fee_types(name_ar, code), student:student_profiles(academic_number, full_name_ar, program_id), academic_year:academic_years(name), semester:semesters(name)"
-      ).order("created_at", { ascending: false });
-      if (filterYear) q = q.eq("academic_year_id", filterYear);
-      if (filterSem) q = q.eq("semester_id", filterSem);
-      const { data, error } = await q;
-      if (error) throw error;
-      let rows = (data ?? []) as StudentFee[];
-      if (filterProgram) rows = rows.filter((r) => r.student?.program_id === filterProgram);
-      // load payments to compute paid
-      if (rows.length > 0) {
-        const ids = rows.map((r) => r.id);
-        const { data: pays } = await sb.from("student_payments").select("student_fee_id, amount").in("student_fee_id", ids);
-        const sum = new Map<string, number>();
-        for (const p of (pays ?? []) as { student_fee_id: string; amount: number }[]) {
-          sum.set(p.student_fee_id, (sum.get(p.student_fee_id) ?? 0) + Number(p.amount));
-        }
-        rows = rows.map((r) => ({ ...r, paid: sum.get(r.id) ?? 0 }));
-      }
-      return rows;
-    },
+    queryFn: () => listFn({
+      data: {
+        academicYearId: filterYear || undefined,
+        semesterId: filterSem || undefined,
+        programId: filterProgram || undefined,
+      },
+    }),
   });
 
   const cancelFee = async (id: string) => {
     if (!confirm("إلغاء هذه الرسوم؟")) return;
-    const { error } = await sb.from("student_fees").update({ status: "cancelled" }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("تم الإلغاء");
-    qc.invalidateQueries({ queryKey: ["admin-student-fees"] });
+    try {
+      await cancelFn({ data: { id } });
+      toast.success("تم الإلغاء");
+      qc.invalidateQueries({ queryKey: ["admin-student-fees"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   return (
@@ -317,6 +338,10 @@ function StudentFeesTab() {
 }
 
 function StudentFeeModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const searchFn = useServerFn(searchStudentsForFinance);
+  const lookupsFn = useServerFn(getFinanceLookups);
+  const typesFn = useServerFn(listActiveFeeTypes);
+  const createFn = useServerFn(createStudentFee);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentId, setStudentId] = useState("");
   const [feeTypeId, setFeeTypeId] = useState("");
@@ -328,27 +353,19 @@ function StudentFeeModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
 
   const { data: students = [] } = useQuery({
     queryKey: ["student-search", studentSearch],
-    queryFn: async (): Promise<Student[]> => {
-      if (studentSearch.trim().length < 2) return [];
-      const { data } = await sb.from("student_profiles")
-        .select("id, academic_number, full_name_ar, program_id")
-        .or(`academic_number.ilike.%${studentSearch}%,full_name_ar.ilike.%${studentSearch}%`)
-        .limit(10);
-      return data ?? [];
-    },
+    queryFn: () => searchFn({ data: { query: studentSearch } }),
+    enabled: studentSearch.trim().length >= 2,
   });
   const { data: types = [] } = useQuery({
     queryKey: ["fee-types-active"],
-    queryFn: async (): Promise<FeeType[]> => (await sb.from("fee_types").select("*").eq("is_active", true).order("name_ar")).data ?? [],
+    queryFn: () => typesFn({ data: {} }),
   });
-  const { data: years = [] } = useQuery({
-    queryKey: ["years-current"],
-    queryFn: async (): Promise<Year[]> => (await sb.from("academic_years").select("id, name, is_current").order("name", { ascending: false })).data ?? [],
+  const { data: lookups } = useQuery({
+    queryKey: ["finance-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
   });
-  const { data: semesters = [] } = useQuery({
-    queryKey: ["semesters-all"],
-    queryFn: async (): Promise<Sem[]> => (await sb.from("semesters").select("id, name, academic_year_id, is_current")).data ?? [],
-  });
+  const years = lookups?.years ?? [];
+  const semesters = lookups?.semesters ?? [];
 
   const selectedStudent = useMemo(() => students.find((s) => s.id === studentId), [students, studentId]);
 
@@ -361,15 +378,24 @@ function StudentFeeModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
   const submit = async () => {
     if (!studentId || !feeTypeId || !yearId || !semId || !amount) return toast.error("الرجاء تعبئة كل الحقول");
     setSaving(true);
-    const { error } = await sb.from("student_fees").insert({
-      student_profile_id: studentId, fee_type_id: feeTypeId,
-      academic_year_id: yearId, semester_id: semId,
-      amount: Number(amount), notes: notes || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم إنشاء الرسوم");
-    onSaved();
+    try {
+      await createFn({
+        data: {
+          studentProfileId: studentId,
+          feeTypeId,
+          academicYearId: yearId,
+          semesterId: semId,
+          amount: Number(amount),
+          notes: notes || null,
+        },
+      });
+      toast.success("تم إنشاء الرسوم");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -425,17 +451,12 @@ function StudentFeeModal({ onClose, onSaved }: { onClose: () => void; onSaved: (
 // ===================== Payments =====================
 function PaymentsTab() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listStudentPayments);
   const [creating, setCreating] = useState(false);
 
   const { data: payments = [], isLoading } = useQuery({
     queryKey: ["admin-payments"],
-    queryFn: async (): Promise<Payment[]> => {
-      const { data, error } = await sb.from("student_payments")
-        .select("id, student_fee_id, receipt_number, amount, payment_date, payment_method, notes, fee:student_fees(amount, student:student_profiles(academic_number, full_name_ar), fee_type:fee_types(name_ar))")
-        .order("payment_date", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   return (
@@ -487,6 +508,9 @@ function PaymentsTab() {
 }
 
 function PaymentModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const searchFn = useServerFn(searchStudentsForFinance);
+  const openFeesFn = useServerFn(listOpenStudentFees);
+  const createFn = useServerFn(createStudentPayment);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentId, setStudentId] = useState("");
   const [feeId, setFeeId] = useState("");
@@ -499,40 +523,37 @@ function PaymentModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =
 
   const { data: students = [] } = useQuery({
     queryKey: ["student-search-pay", studentSearch],
-    queryFn: async (): Promise<Student[]> => {
-      if (studentSearch.trim().length < 2) return [];
-      const { data } = await sb.from("student_profiles")
-        .select("id, academic_number, full_name_ar, program_id")
-        .or(`academic_number.ilike.%${studentSearch}%,full_name_ar.ilike.%${studentSearch}%`)
-        .limit(10);
-      return data ?? [];
-    },
+    queryFn: () => searchFn({ data: { query: studentSearch } }),
+    enabled: studentSearch.trim().length >= 2,
   });
 
   const { data: openFees = [] } = useQuery({
     queryKey: ["student-open-fees", studentId],
-    queryFn: async (): Promise<StudentFee[]> => {
-      if (!studentId) return [];
-      const { data } = await sb.from("student_fees")
-        .select("id, amount, status, student_profile_id, fee_type_id, academic_year_id, semester_id, fee_type:fee_types(name_ar, code), academic_year:academic_years(name), semester:semesters(name)")
-        .eq("student_profile_id", studentId)
-        .in("status", ["pending", "partially_paid"]);
-      return data ?? [];
-    },
+    queryFn: () => openFeesFn({ data: { studentProfileId: studentId } }),
     enabled: !!studentId,
   });
 
   const submit = async () => {
     if (!feeId || !amount || !receipt) return toast.error("الرجاء تعبئة الحقول");
     setSaving(true);
-    const { error } = await sb.from("student_payments").insert({
-      student_fee_id: feeId, receipt_number: receipt.trim(),
-      amount: Number(amount), payment_date: date, payment_method: method, notes: notes || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم تسجيل الدفعة وتحديث الحالة تلقائياً");
-    onSaved();
+    try {
+      await createFn({
+        data: {
+          studentFeeId: feeId,
+          receiptNumber: receipt.trim(),
+          amount: Number(amount),
+          paymentDate: date,
+          paymentMethod: method as "cash" | "bank_transfer" | "other",
+          notes: notes || null,
+        },
+      });
+      toast.success("تم تسجيل الدفعة وتحديث الحالة تلقائياً");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -628,18 +649,23 @@ function DiscountsTab() {
 
 function DiscountTypesPanel() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listDiscountTypes);
+  const deleteFn = useServerFn(deleteDiscountType);
   const [editing, setEditing] = useState<DiscountType | null>(null);
   const [creating, setCreating] = useState(false);
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["admin-discount-types"],
-    queryFn: async (): Promise<DiscountType[]> => (await sb.from("discount_types").select("*").order("code")).data ?? [],
+    queryFn: () => listFn({ data: {} }),
   });
   const remove = async (id: string) => {
     if (!confirm("حذف نوع الخصم؟")) return;
-    const { error } = await sb.from("discount_types").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("تم الحذف");
-    qc.invalidateQueries({ queryKey: ["admin-discount-types"] });
+    try {
+      await deleteFn({ data: { id } });
+      toast.success("تم الحذف");
+      qc.invalidateQueries({ queryKey: ["admin-discount-types"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
   return (
     <div className="space-y-3">
@@ -682,6 +708,7 @@ function DiscountTypesPanel() {
 }
 
 function DiscountTypeModal({ value, onClose, onSaved }: { value: DiscountType | null; onClose: () => void; onSaved: () => void }) {
+  const upsertFn = useServerFn(upsertDiscountType);
   const [code, setCode] = useState(value?.code ?? "");
   const [name, setName] = useState(value?.name_ar ?? "");
   const [desc, setDesc] = useState(value?.description_ar ?? "");
@@ -692,12 +719,25 @@ function DiscountTypeModal({ value, onClose, onSaved }: { value: DiscountType | 
   const submit = async () => {
     if (!code.trim() || !name.trim()) return toast.error("الرمز والاسم مطلوبان");
     setSaving(true);
-    const payload = { code: code.trim(), name_ar: name.trim(), description_ar: desc || null, discount_type: type, default_value: Number(defVal) || 0, is_active: active };
-    const q = value ? sb.from("discount_types").update(payload).eq("id", value.id) : sb.from("discount_types").insert(payload);
-    const { error } = await q;
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم الحفظ"); onSaved();
+    try {
+      await upsertFn({
+        data: {
+          id: value?.id,
+          code: code.trim(),
+          name_ar: name.trim(),
+          description_ar: desc || null,
+          discount_type: type,
+          default_value: Number(defVal) || 0,
+          is_active: active,
+        },
+      });
+      toast.success("تم الحفظ");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <ModalShell title={value ? "تعديل نوع خصم" : "نوع خصم جديد"} onClose={onClose}>
@@ -728,34 +768,27 @@ function DiscountTypeModal({ value, onClose, onSaved }: { value: DiscountType | 
 
 function StudentDiscountsPanel() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listStudentDiscounts);
+  const statusFn = useServerFn(updateStudentDiscountStatus);
   const [creating, setCreating] = useState(false);
   const { data: discounts = [], isLoading } = useQuery({
     queryKey: ["admin-student-discounts"],
-    queryFn: async (): Promise<StudentDiscount[]> => {
-      const { data, error } = await sb.from("student_discounts")
-        .select("id, student_profile_id, discount_type_id, academic_year_id, semester_id, value, status, notes, approved_at, discount_type:discount_types(name_ar, discount_type, code), student:student_profiles(academic_number, full_name_ar), academic_year:academic_years(name), semester:semesters(name)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      const rows = (data ?? []) as StudentDiscount[];
-      if (rows.length === 0) return rows;
-      const { data: adjs } = await sb.from("student_fee_adjustments")
-        .select("id, student_discount_id, original_amount, discount_amount, final_amount")
-        .in("student_discount_id", rows.map((r) => r.id));
-      const m = new Map<string, StudentDiscount["adjustments"]>();
-      for (const a of (adjs ?? []) as { id: string; student_discount_id: string; original_amount: number; discount_amount: number; final_amount: number }[]) {
-        const arr = m.get(a.student_discount_id) ?? [];
-        arr.push({ id: a.id, original_amount: a.original_amount, discount_amount: a.discount_amount, final_amount: a.final_amount });
-        m.set(a.student_discount_id, arr);
-      }
-      return rows.map((r) => ({ ...r, adjustments: m.get(r.id) ?? [] }));
-    },
+    queryFn: () => listFn({ data: {} }),
   });
   const setStatus = async (id: string, status: string) => {
-    const { error } = await sb.from("student_discounts").update({ status }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("تم التحديث");
-    qc.invalidateQueries({ queryKey: ["admin-student-discounts"] });
-    qc.invalidateQueries({ queryKey: ["admin-student-fees"] });
+    try {
+      await statusFn({
+        data: {
+          id,
+          status: status as "active" | "inactive" | "cancelled",
+        },
+      });
+      toast.success("تم التحديث");
+      qc.invalidateQueries({ queryKey: ["admin-student-discounts"] });
+      qc.invalidateQueries({ queryKey: ["admin-student-fees"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
   return (
     <div className="space-y-3">
@@ -822,6 +855,10 @@ function Mini({ label, value, tone }: { label: string; value: number; tone?: "ok
 }
 
 function StudentDiscountModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const searchFn = useServerFn(searchStudentsForFinance);
+  const typesFn = useServerFn(listActiveDiscountTypes);
+  const lookupsFn = useServerFn(getFinanceLookups);
+  const createFn = useServerFn(createStudentDiscount);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentId, setStudentId] = useState("");
   const [typeId, setTypeId] = useState("");
@@ -834,25 +871,19 @@ function StudentDiscountModal({ onClose, onSaved }: { onClose: () => void; onSav
 
   const { data: students = [] } = useQuery({
     queryKey: ["student-search-disc", studentSearch],
-    queryFn: async (): Promise<Student[]> => {
-      if (studentSearch.trim().length < 2) return [];
-      const { data } = await sb.from("student_profiles").select("id, academic_number, full_name_ar, program_id")
-        .or(`academic_number.ilike.%${studentSearch}%,full_name_ar.ilike.%${studentSearch}%`).limit(10);
-      return data ?? [];
-    },
+    queryFn: () => searchFn({ data: { query: studentSearch } }),
+    enabled: studentSearch.trim().length >= 2,
   });
   const { data: types = [] } = useQuery({
     queryKey: ["discount-types-active"],
-    queryFn: async (): Promise<DiscountType[]> => (await sb.from("discount_types").select("*").eq("is_active", true).order("name_ar")).data ?? [],
+    queryFn: () => typesFn({ data: {} }),
   });
-  const { data: years = [] } = useQuery({
-    queryKey: ["years-disc"],
-    queryFn: async (): Promise<Year[]> => (await sb.from("academic_years").select("id, name, is_current").order("name", { ascending: false })).data ?? [],
+  const { data: lookups } = useQuery({
+    queryKey: ["finance-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
   });
-  const { data: semesters = [] } = useQuery({
-    queryKey: ["semesters-disc"],
-    queryFn: async (): Promise<Sem[]> => (await sb.from("semesters").select("id, name, academic_year_id, is_current")).data ?? [],
-  });
+  const years = lookups?.years ?? [];
+  const semesters = lookups?.semesters ?? [];
 
   const selectedType = useMemo(() => types.find((t) => t.id === typeId), [types, typeId]);
 
@@ -865,17 +896,25 @@ function StudentDiscountModal({ onClose, onSaved }: { onClose: () => void; onSav
   const submit = async () => {
     if (!studentId || !typeId || !yearId || !semId || !value) return toast.error("الرجاء تعبئة كل الحقول");
     setSaving(true);
-    const { error } = await sb.from("student_discounts").insert({
-      student_profile_id: studentId, discount_type_id: typeId,
-      academic_year_id: yearId, semester_id: semId,
-      value: Number(value), notes: notes || null,
-      status: activate ? "active" : "inactive",
-      approved_at: activate ? new Date().toISOString() : null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success(activate ? "تم منح الخصم وتطبيقه" : "تم حفظ الخصم (غير مفعّل)");
-    onSaved();
+    try {
+      await createFn({
+        data: {
+          studentProfileId: studentId,
+          discountTypeId: typeId,
+          academicYearId: yearId,
+          semesterId: semId,
+          value: Number(value),
+          notes: notes || null,
+          activate,
+        },
+      });
+      toast.success(activate ? "تم منح الخصم وتطبيقه" : "تم حفظ الخصم (غير مفعّل)");
+      onSaved();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -949,21 +988,21 @@ const REC_STATUS_LABEL: Record<string, { text: string; cls: string }> = {
 
 function ReceiptsTab() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listPaymentReceipts);
+  const fileUrlFn = useServerFn(getPaymentReceiptFileUrl);
+  const approveFn = useServerFn(approvePaymentReceipt);
+  const sendEmail = useServerFn(sendNotificationEmail);
   const [statusFilter, setStatusFilter] = useState<string>("submitted");
   const [search, setSearch] = useState("");
   const [rejecting, setRejecting] = useState<ReceiptRecord | null>(null);
 
   const { data: receipts = [], isLoading } = useQuery({
     queryKey: ["admin-payment-receipts", statusFilter],
-    queryFn: async (): Promise<ReceiptRecord[]> => {
-      let q = sb.from("payment_receipts")
-        .select("id, student_profile_id, student_fee_id, amount, payment_date, payment_method, receipt_reference, file_url, file_name, status, rejection_reason, created_at, reviewed_at, student_payment_id, student:student_profiles(academic_number, full_name_ar), fee:student_fees(amount, fee_type:fee_types(name_ar))")
-        .order("created_at", { ascending: false });
-      if (statusFilter !== "all") q = q.eq("status", statusFilter);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data ?? [];
-    },
+    queryFn: () => listFn({
+      data: {
+        statusFilter: (statusFilter === "all" ? "all" : statusFilter) as "all" | "submitted" | "under_review" | "approved" | "rejected",
+      },
+    }),
   });
 
   const filtered = useMemo(() => {
@@ -976,33 +1015,39 @@ function ReceiptsTab() {
   }, [receipts, search]);
 
   const viewFile = async (path: string) => {
-    const { data, error } = await (sb.storage as { from: (b: string) => { createSignedUrl: (p: string, n: number) => Promise<{ data: { signedUrl: string }; error: { message: string } | null }> } })
-      .from("payment-receipts").createSignedUrl(path, 60 * 5);
-    if (error) return toast.error(error.message);
-    window.open(data.signedUrl, "_blank");
+    try {
+      const { signedUrl } = await fileUrlFn({ data: { path } });
+      window.open(signedUrl, "_blank");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const approve = async (r: ReceiptRecord) => {
     if (!confirm(`اعتماد سند الدفع للطالب ${r.student?.academic_number}؟ سيتم تسجيل دفعة بقيمة ${Number(r.amount).toFixed(2)}.`)) return;
-    const { error } = await sb.from("payment_receipts").update({ status: "approved" }).eq("id", r.id);
-    if (error) return toast.error(error.message);
-    toast.success("تم الاعتماد وتسجيل الدفعة");
-    qc.invalidateQueries({ queryKey: ["admin-payment-receipts"] });
-    // Phase 9B: best-effort email
     try {
-      const { data: srow } = await sb.from("student_profiles")
-        .select("email, full_name_ar").eq("id", r.student_profile_id).maybeSingle();
-      if (srow?.email) {
-        sendNotificationEmail({ data: {
-          templateKey: "receipt_approved",
-          recipientEmail: srow.email,
-          recipientName: srow.full_name_ar,
-          variables: { amount: Number(r.amount).toFixed(2), payment_date: r.payment_date, fee_type: r.fee?.fee_type?.name_ar ?? null },
-          relatedEntityType: "payment_receipt",
-          relatedEntityId: r.id,
-        } }).catch(() => undefined);
+      const result = await approveFn({ data: { id: r.id } });
+      toast.success("تم الاعتماد وتسجيل الدفعة");
+      qc.invalidateQueries({ queryKey: ["admin-payment-receipts"] });
+      if (result.email) {
+        sendEmail({
+          data: {
+            templateKey: "receipt_approved",
+            recipientEmail: result.email,
+            recipientName: result.full_name_ar,
+            variables: {
+              amount: Number(result.amount).toFixed(2),
+              payment_date: result.payment_date,
+              fee_type: result.fee_type,
+            },
+            relatedEntityType: "payment_receipt",
+            relatedEntityId: r.id,
+          },
+        }).catch(() => undefined);
       }
-    } catch { /* secondary */ }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   return (
@@ -1066,31 +1111,39 @@ function ReceiptsTab() {
 }
 
 function RejectReceiptModal({ receipt, onClose, onDone }: { receipt: ReceiptRecord; onClose: () => void; onDone: () => void }) {
+  const rejectFn = useServerFn(rejectPaymentReceipt);
+  const sendEmail = useServerFn(sendNotificationEmail);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     if (!reason.trim()) return toast.error("سبب الرفض مطلوب");
     setBusy(true);
-    const { error } = await sb.from("payment_receipts").update({ status: "rejected", rejection_reason: reason.trim() }).eq("id", receipt.id);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("تم رفض السند");
-    // Phase 9B: best-effort email
     try {
-      const { data: srow } = await sb.from("student_profiles")
-        .select("email, full_name_ar").eq("id", receipt.student_profile_id).maybeSingle();
-      if (srow?.email) {
-        sendNotificationEmail({ data: {
-          templateKey: "receipt_rejected",
-          recipientEmail: srow.email,
-          recipientName: srow.full_name_ar,
-          variables: { amount: Number(receipt.amount).toFixed(2), rejection_reason: reason.trim() },
-          relatedEntityType: "payment_receipt",
-          relatedEntityId: receipt.id,
-        } }).catch(() => undefined);
+      const result = await rejectFn({
+        data: { id: receipt.id, rejectionReason: reason.trim() },
+      });
+      toast.success("تم رفض السند");
+      if (result.email) {
+        sendEmail({
+          data: {
+            templateKey: "receipt_rejected",
+            recipientEmail: result.email,
+            recipientName: result.full_name_ar,
+            variables: {
+              amount: Number(result.amount).toFixed(2),
+              rejection_reason: result.rejection_reason,
+            },
+            relatedEntityType: "payment_receipt",
+            relatedEntityId: receipt.id,
+          },
+        }).catch(() => undefined);
       }
-    } catch { /* secondary */ }
-    onDone();
+      onDone();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-3" dir="rtl">
