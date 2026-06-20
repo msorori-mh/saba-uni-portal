@@ -3,11 +3,11 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Plus, Megaphone, Inbox, BarChart3, History, Archive, Power, PowerOff, Edit, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import {
   listAnnouncementsAdmin, createAnnouncement, updateAnnouncement,
   setAnnouncementActive, archiveAnnouncement, getAnnouncementStats,
   listMessages, sendMessage, searchMessageRecipients,
+  getCommunicationsTargetLookups, listCommunicationAuditLogs,
 } from "@/lib/communications.functions";
 import { cn } from "@/lib/utils";
 
@@ -206,6 +206,7 @@ function TypeBadge({ t }: { t: string }) {
 function AnnouncementDialog({ initial, onClose, onSaved }: { initial: any | null; onClose: () => void; onSaved: () => void }) {
   const createFn = useServerFn(createAnnouncement);
   const updateFn = useServerFn(updateAnnouncement);
+  const lookupsFn = useServerFn(getCommunicationsTargetLookups);
   const [form, setForm] = useState({
     title_ar: initial?.title_ar ?? "",
     content_ar: initial?.content_ar ?? "",
@@ -221,14 +222,7 @@ function AnnouncementDialog({ initial, onClose, onSaved }: { initial: any | null
 
   const { data: lookups } = useQuery({
     queryKey: ["comm-lookups"],
-    queryFn: async () => {
-      const [d, p, l] = await Promise.all([
-        supabase.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
-        supabase.from("programs").select("id, name_ar").eq("is_active", true).order("sort_order"),
-        supabase.from("academic_levels").select("id, name, level_number").order("level_number"),
-      ]);
-      return { departments: d.data ?? [], programs: p.data ?? [], levels: l.data ?? [] };
-    },
+    queryFn: () => lookupsFn({ data: {} }),
   });
 
   const save = useMutation({
@@ -501,17 +495,10 @@ export function ComposeDialog({
 // SEND LOG TAB
 // ===================================================
 function SendLogTab() {
+  const listAuditFn = useServerFn(listCommunicationAuditLogs);
   const { data, isLoading } = useQuery({
     queryKey: ["comm-audit"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("audit_logs")
-        .select("id, created_at, actor_role, action_type, entity_id, new_values, notes")
-        .eq("entity_type", "communication")
-        .order("created_at", { ascending: false })
-        .limit(100);
-      return data ?? [];
-    },
+    queryFn: () => listAuditFn({ data: {} }),
   });
 
   if (isLoading) return <div className="grid h-40 place-items-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;

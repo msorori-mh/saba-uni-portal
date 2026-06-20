@@ -1,8 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  listAdminEvents,
+  upsertAdminEvent,
+  deleteAdminEvent,
+  toggleAdminEventPublish,
+} from "@/lib/admin-events.functions";
+import { uploadAdminStorageFile, removeAdminStorageFile } from "@/lib/admin-storage.functions";
+import { readFileAsBase64, storagePathFromPublicUrl } from "@/lib/file-upload";
 import {
   Plus, Pencil, Trash2, Calendar as CalendarIcon, MapPin, Loader2, Upload, X, Search,
 } from "lucide-react";
@@ -43,6 +51,10 @@ type EventRow = {
 
 function AdminEventsPage() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listAdminEvents);
+  const deleteFn = useServerFn(deleteAdminEvent);
+  const toggleFn = useServerFn(toggleAdminEventPublish);
+  const removeStorageFn = useServerFn(removeAdminStorageFile);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<EventRow | null>(null);
   const [open, setOpen] = useState(false);
@@ -50,14 +62,7 @@ function AdminEventsPage() {
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["admin-events"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("events")
-        .select("*")
-        .order("event_date", { ascending: true });
-      if (error) throw error;
-      return data as EventRow[];
-    },
+    queryFn: async () => (await listFn({ data: {} })) as EventRow[],
   });
 
   const sorted = useMemo(() => {
@@ -75,34 +80,28 @@ function AdminEventsPage() {
     if (!deleting) return;
     try {
       if (deleting.image) {
-        const marker = `/${BUCKET}/`;
-        const idx = deleting.image.indexOf(marker);
-        if (idx > -1) {
-          await supabase.storage
-            .from(BUCKET)
-            .remove([deleting.image.substring(idx + marker.length)]);
+        const path = storagePathFromPublicUrl(BUCKET, deleting.image);
+        if (path) {
+          await removeStorageFn({ data: { bucket: BUCKET, path } });
         }
       }
-      const { error } = await supabase.from("events").delete().eq("id", deleting.id);
-      if (error) throw error;
+      await deleteFn({ data: { id: deleting.id } });
       toast.success("تم حذف الفعالية");
       qc.invalidateQueries({ queryKey: ["admin-events"] });
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذر الحذف");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحذف");
     } finally {
       setDeleting(null);
     }
   };
 
   const togglePublish = async (ev: EventRow, val: boolean) => {
-    const { error } = await supabase
-      .from("events")
-      .update({ is_published: val })
-      .eq("id", ev.id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      await toggleFn({ data: { id: ev.id, is_published: val } });
       toast.success(val ? "تم النشر" : "تم إلغاء النشر");
       qc.invalidateQueries({ queryKey: ["admin-events"] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر التحديث");
     }
   };
 
@@ -245,6 +244,9 @@ function EventFormDialog({
   event: EventRow | null;
   onSaved: () => void;
 }) {
+  const uploadFn = useServerFn(uploadAdminStorageFile);
+  const removeStorageFn = useServerFn(removeAdminStorageFile);
+  const upsertFn = useServerFn(upsertAdminEvent);
   const isEdit = !!event;
   const [titleAr, setTitleAr] = useState("");
   const [titleEn, setTitleEn] = useState("");
@@ -259,7 +261,7 @@ function EventFormDialog({
   const [isFeatured, setIsFeatured] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useMemo(() => {
+  useEffect(() => {
     if (open) {
       setTitleAr(event?.title_ar ?? "");
       setTitleEn(event?.title_en ?? "");
@@ -281,17 +283,28 @@ function EventFormDialog({
       toast.error("حجم الصورة يجب أن يكون أقل من 5MB");
       return null;
     }
-    const ext = file.name.split(".").pop() || "jpg";
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: file.type });
-    if (error) { toast.error(error.message); return null; }
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    if (event?.image) {
-      const marker = `/${BUCKET}/`;
-      const idx = event.image.indexOf(marker);
-      if (idx > -1) await supabase.storage.from(BUCKET).remove([event.image.substring(idx + marker.length)]);
+    try {
+      const fileBase64 = await readFileAsBase64(file);
+      const { publicUrl } = await uploadFn({
+        data: {
+          bucket: BUCKET,
+          fileBase64,
+          contentType: file.type,
+          fileName: file.name,
+          maxBytes: 5 * 1024 * 1024,
+        },
+      });
+      if (event?.image) {
+        const prevPath = storagePathFromPublicUrl(BUCKET, event.image);
+        if (prevPath) {
+          await removeStorageFn({ data: { bucket: BUCKET, path: prevPath } });
+        }
+      }
+      return publicUrl;
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر رفع الصورة");
+      return null;
     }
-    return data.publicUrl;
   };
 
   const handleSave = async () => {
@@ -303,32 +316,27 @@ function EventFormDialog({
       const finalImage = file ? await uploadImage() : imageUrl || null;
       if (file && !finalImage) { setSaving(false); return; }
 
-      const payload = {
-        title_ar: titleAr.trim(),
-        title_en: titleEn.trim() || null,
-        description_ar: descAr.trim() || null,
-        event_date: date,
-        event_time: time || null,
-        location: location.trim() || null,
-        registration_url: registrationUrl.trim() || null,
-        image: finalImage,
-        is_published: isPublished,
-        is_featured: isFeatured,
-      };
-
-      if (isEdit && event) {
-        const { error } = await supabase.from("events").update(payload).eq("id", event.id);
-        if (error) throw error;
-        toast.success("تم التحديث");
-      } else {
-        const { error } = await supabase.from("events").insert(payload);
-        if (error) throw error;
-        toast.success("تمت الإضافة");
-      }
+      await upsertFn({
+        data: {
+          id: event?.id,
+          title_ar: titleAr.trim(),
+          title_en: titleEn.trim() || null,
+          description_ar: descAr.trim() || null,
+          description_en: null,
+          event_date: date,
+          event_time: time || null,
+          location: location.trim() || null,
+          registration_url: registrationUrl.trim() || null,
+          image: finalImage,
+          is_published: isPublished,
+          is_featured: isFeatured,
+        },
+      });
+      toast.success(isEdit ? "تم التحديث" : "تمت الإضافة");
       onSaved();
       onOpenChange(false);
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذر الحفظ");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
     } finally {
       setSaving(false);
     }

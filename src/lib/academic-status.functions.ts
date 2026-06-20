@@ -647,3 +647,22 @@ export const getAdminProgressKpisFast = createServerFn({ method: "POST" })
     };
   });
 
+export const getAcademicProgressFilterLookups = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    if (!(await hasPriv(context.userId))) throw new Error("ليس لديك صلاحية");
+    const [p, d, l] = await Promise.all([
+      supabaseAdmin.from("programs").select("id, name_ar").eq("is_active", true),
+      supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true),
+      supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
+    ]);
+    if (p.error) throw new Error(p.error.message);
+    if (d.error) throw new Error(d.error.message);
+    if (l.error) throw new Error(l.error.message);
+    return {
+      programs: p.data ?? [],
+      departments: d.data ?? [],
+      levels: l.data ?? [],
+    };
+  });
+

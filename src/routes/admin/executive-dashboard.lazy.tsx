@@ -12,30 +12,23 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer,
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
-import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
-import { adminAccountCounts } from "@/lib/admin-users.functions";
 import {
   logExecutiveDashboardViewed,
   getExecutiveScope,
+  getExecutiveCoreKpis,
 } from "@/lib/executive-dashboard.functions";
 import {
   getExecutiveAnalytics,
   logExecutiveExport,
 } from "@/lib/executive-analytics.functions";
 import { exportXlsx } from "@/lib/reports/export";
+import { cn } from "@/lib/utils";
+import { getProgressDashboardKpis } from "@/lib/academic-status.functions";
+import { adminAccountCounts } from "@/lib/admin-users.functions";
 
 export const Route = createLazyFileRoute("/admin/executive-dashboard")({
   component: ExecutiveDashboardPage,
 });
-
-async function tableCount(table: string, filters?: (q: any) => any) {
-  let q = supabase.from(table as any).select("id", { count: "exact", head: true });
-  if (filters) q = filters(q);
-  const { count } = await q;
-  return count ?? 0;
-}
 
 type Severity = "critical" | "warning" | "info";
 type Alert = { id: string; severity: Severity; title: string; detail?: string; href?: string };
@@ -111,6 +104,7 @@ function ExecutiveDashboardPage() {
   const fetchProgress = useServerFn(getProgressDashboardKpis);
   const fetchAdminCounts = useServerFn(adminAccountCounts);
   const fetchAnalytics = useServerFn(getExecutiveAnalytics);
+  const fetchCoreKpis = useServerFn(getExecutiveCoreKpis);
   const logExport = useServerFn(logExecutiveExport);
 
   useEffect(() => {
@@ -142,69 +136,7 @@ function ExecutiveDashboardPage() {
 
   const { data: core } = useQuery({
     queryKey: ["exec-core-kpis"],
-    queryFn: async () => {
-      const [
-        students, activeStudents, faculty, sections,
-        currentYear, currentSem,
-        feesTotalRows, feesPaidRows,
-        studentsNoProgram, sectionsNoFaculty,
-        gradCandidatesPending, newDocsToday, newRequestsPending,
-        lastAudit,
-      ] = await Promise.all([
-        tableCount("student_profiles"),
-        tableCount("student_profiles", (q) => q.eq("status", "active")),
-        tableCount("faculty_profiles", (q) => q.eq("status", "active")),
-        tableCount("course_sections", (q) => q.eq("status", "active")),
-        supabase.from("academic_years").select("name").eq("is_current", true).maybeSingle(),
-        supabase.from("semesters").select("name").eq("is_current", true).maybeSingle(),
-        supabase.from("student_fees").select("amount"),
-        supabase.from("student_fees").select("amount").eq("status", "paid"),
-        tableCount("student_profiles", (q) => q.is("program_id", null)),
-        supabase.from("course_sections").select("id, course_offering_id").eq("status", "active"),
-        tableCount("student_requests", (q) => q.eq("status", "submitted")),
-        tableCount("official_documents", (q) => {
-          const t = new Date(); t.setHours(0, 0, 0, 0);
-          return q.gte("issued_at", t.toISOString());
-        }),
-        tableCount("student_requests", (q) => q.eq("status", "submitted")),
-        supabase.from("audit_logs").select("created_at, action_type, entity_type")
-          .order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      ]);
-      const totalFees = ((feesTotalRows.data ?? []) as Array<{ amount: number }>)
-        .reduce((s, r) => s + Number(r.amount ?? 0), 0);
-      const paidFees = ((feesPaidRows.data ?? []) as Array<{ amount: number }>)
-        .reduce((s, r) => s + Number(r.amount ?? 0), 0);
-      const collectionRate = totalFees > 0 ? Math.round((paidFees / totalFees) * 100) : 0;
-      // outstanding = totalFees - paidFees
-      const outstanding = Math.max(0, totalFees - paidFees);
-      // sections without faculty: detect via class_schedule presence — fallback: 0
-      const sectionsList = (sectionsNoFaculty.data ?? []) as Array<{ id: string }>;
-      let unassignedSections = 0;
-      if (sectionsList.length > 0) {
-        const ids = sectionsList.map((s) => s.id);
-        const { data: scheds } = await supabase
-          .from("class_schedule")
-          .select("course_section_id, faculty_profile_id")
-          .in("course_section_id", ids);
-        const assigned = new Set(
-          ((scheds ?? []) as Array<{ course_section_id: string; faculty_profile_id: string | null }>)
-            .filter((r) => r.faculty_profile_id)
-            .map((r) => r.course_section_id),
-        );
-        unassignedSections = ids.filter((id) => !assigned.has(id)).length;
-      }
-      return {
-        students, activeStudents, faculty, sections,
-        currentYearName: (currentYear.data as { name?: string } | null)?.name ?? "غير محددة",
-        currentSemName: (currentSem.data as { name?: string } | null)?.name ?? "غير محدد",
-        currentYearOk: !!currentYear.data,
-        currentSemOk: !!currentSem.data,
-        collectionRate, totalFees, paidFees, outstanding,
-        studentsNoProgram, unassignedSections,
-        gradCandidatesPending, newDocsToday, newRequestsPending,
-        lastAudit: lastAudit.data as { created_at: string; action_type: string; entity_type: string } | null,
-      };
-    },
+    queryFn: () => fetchCoreKpis(),
     staleTime: 60_000,
   });
 

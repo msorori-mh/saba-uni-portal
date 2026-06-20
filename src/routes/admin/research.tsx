@@ -1,8 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  listAdminResearchPapers,
+  listAdminResearchFacultyOptions,
+  upsertAdminResearchPaper,
+  deleteAdminResearchPaper,
+} from "@/lib/admin-research.functions";
+import { uploadAdminStorageFile, removeAdminStorageFile } from "@/lib/admin-storage.functions";
+import { readFileAsBase64, storagePathFromPublicUrl } from "@/lib/file-upload";
+import { validateUpload } from "@/lib/storage-validation";
 import {
   Plus,
   Pencil,
@@ -74,6 +83,10 @@ const PDF_BUCKET = "research-pdfs";
 
 function AdminResearchPage() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listAdminResearchPapers);
+  const listFacultyFn = useServerFn(listAdminResearchFacultyOptions);
+  const deleteFn = useServerFn(deleteAdminResearchPaper);
+  const removeStorageFn = useServerFn(removeAdminStorageFile);
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [facultyFilter, setFacultyFilter] = useState<string>("all");
@@ -84,27 +97,12 @@ function AdminResearchPage() {
 
   const { data: papers = [], isLoading } = useQuery({
     queryKey: ["admin-research"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("research_papers")
-        .select("*")
-        .order("publication_year", { ascending: false })
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Paper[];
-    },
+    queryFn: async () => (await listFn({ data: {} })) as Paper[],
   });
 
   const { data: faculty = [] } = useQuery({
     queryKey: ["admin-faculty-options"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("faculty")
-        .select("id, full_name_ar")
-        .order("full_name_ar");
-      if (error) throw error;
-      return data as FacultyOpt[];
-    },
+    queryFn: async () => (await listFacultyFn({ data: {} })) as FacultyOpt[],
   });
 
   const facultyMap = useMemo(
@@ -135,24 +133,17 @@ function AdminResearchPage() {
   const handleDelete = async () => {
     if (!deleting) return;
     try {
-      // delete pdf from storage if owned
       if (deleting.pdf_url) {
-        const marker = `/${PDF_BUCKET}/`;
-        const idx = deleting.pdf_url.indexOf(marker);
-        if (idx > -1) {
-          const path = deleting.pdf_url.substring(idx + marker.length);
-          await supabase.storage.from(PDF_BUCKET).remove([path]);
+        const path = storagePathFromPublicUrl(PDF_BUCKET, deleting.pdf_url);
+        if (path) {
+          await removeStorageFn({ data: { bucket: PDF_BUCKET, path } });
         }
       }
-      const { error } = await supabase
-        .from("research_papers")
-        .delete()
-        .eq("id", deleting.id);
-      if (error) throw error;
+      await deleteFn({ data: { id: deleting.id } });
       toast.success("تم حذف البحث");
       qc.invalidateQueries({ queryKey: ["admin-research"] });
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذر الحذف");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحذف");
     } finally {
       setDeleting(null);
     }
@@ -179,7 +170,6 @@ function AdminResearchPage() {
         </Button>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-wrap gap-3 rounded-lg border bg-card p-4">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -233,7 +223,6 @@ function AdminResearchPage() {
         </Select>
       </div>
 
-      {/* Table */}
       <div className="rounded-lg border bg-card overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center p-12">
@@ -397,6 +386,9 @@ function ResearchFormDialog({
   faculty: FacultyOpt[];
   onSaved: () => void;
 }) {
+  const uploadFn = useServerFn(uploadAdminStorageFile);
+  const removeStorageFn = useServerFn(removeAdminStorageFile);
+  const upsertFn = useServerFn(upsertAdminResearchPaper);
   const isEdit = !!paper;
   const [titleAr, setTitleAr] = useState("");
   const [titleEn, setTitleEn] = useState("");
@@ -412,8 +404,7 @@ function ResearchFormDialog({
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // reset on open
-  useMemo(() => {
+  useEffect(() => {
     if (open) {
       setTitleAr(paper?.title_ar ?? "");
       setTitleEn(paper?.title_en ?? "");
@@ -431,31 +422,32 @@ function ResearchFormDialog({
 
   const uploadPdf = async (): Promise<string | null> => {
     if (!file) return pdfUrl || null;
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error("حجم الملف يجب أن يكون أقل من 20 ميجابايت");
+    const validation = validateUpload(file, "research_pdf");
+    if (!validation.ok) {
+      toast.error(validation.message);
       return null;
     }
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "pdf";
-      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage
-        .from(PDF_BUCKET)
-        .upload(path, file, { contentType: file.type || "application/pdf" });
-      if (error) throw error;
-      const { data } = supabase.storage.from(PDF_BUCKET).getPublicUrl(path);
-      // remove previous file if any
+      const fileBase64 = await readFileAsBase64(file);
+      const { publicUrl } = await uploadFn({
+        data: {
+          bucket: PDF_BUCKET,
+          fileBase64,
+          contentType: file.type || "application/pdf",
+          fileName: file.name,
+          maxBytes: 20 * 1024 * 1024,
+        },
+      });
       if (paper?.pdf_url) {
-        const marker = `/${PDF_BUCKET}/`;
-        const idx = paper.pdf_url.indexOf(marker);
-        if (idx > -1) {
-          const prev = paper.pdf_url.substring(idx + marker.length);
-          await supabase.storage.from(PDF_BUCKET).remove([prev]);
+        const prevPath = storagePathFromPublicUrl(PDF_BUCKET, paper.pdf_url);
+        if (prevPath) {
+          await removeStorageFn({ data: { bucket: PDF_BUCKET, path: prevPath } });
         }
       }
-      return data.publicUrl;
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذر رفع الملف");
+      return publicUrl;
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر رفع الملف");
       return null;
     } finally {
       setUploading(false);
@@ -479,37 +471,27 @@ function ResearchFormDialog({
         }
       }
 
-      const payload = {
-        title_ar: titleAr.trim(),
-        title_en: titleEn.trim() || null,
-        abstract_ar: abstractAr.trim() || null,
-        authors: authors.trim(),
-        publication_year: year,
-        journal_name: journal.trim() || null,
-        faculty_id: facultyId || null,
-        doi: doi.trim() || null,
-        external_url: externalUrl.trim() || null,
-        pdf_url: finalPdf,
-      };
-
-      if (isEdit && paper) {
-        const { error } = await supabase
-          .from("research_papers")
-          .update(payload)
-          .eq("id", paper.id);
-        if (error) throw error;
-        toast.success("تم تحديث البحث");
-      } else {
-        const { error } = await supabase
-          .from("research_papers")
-          .insert(payload);
-        if (error) throw error;
-        toast.success("تمت إضافة البحث");
-      }
+      await upsertFn({
+        data: {
+          id: paper?.id,
+          title_ar: titleAr.trim(),
+          title_en: titleEn.trim() || null,
+          abstract_ar: abstractAr.trim() || null,
+          abstract_en: null,
+          authors: authors.trim(),
+          publication_year: year,
+          journal_name: journal.trim() || null,
+          faculty_id: facultyId || null,
+          doi: doi.trim() || null,
+          external_url: externalUrl.trim() || null,
+          pdf_url: finalPdf,
+        },
+      });
+      toast.success(isEdit ? "تم تحديث البحث" : "تمت إضافة البحث");
       onSaved();
       onOpenChange(false);
-    } catch (e: any) {
-      toast.error(e.message ?? "تعذر الحفظ");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحفظ");
     } finally {
       setSaving(false);
     }
@@ -517,11 +499,9 @@ function ResearchFormDialog({
 
   const removePdf = async () => {
     if (pdfUrl && paper?.pdf_url === pdfUrl) {
-      const marker = `/${PDF_BUCKET}/`;
-      const idx = pdfUrl.indexOf(marker);
-      if (idx > -1) {
-        const path = pdfUrl.substring(idx + marker.length);
-        await supabase.storage.from(PDF_BUCKET).remove([path]);
+      const path = storagePathFromPublicUrl(PDF_BUCKET, pdfUrl);
+      if (path) {
+        await removeStorageFn({ data: { bucket: PDF_BUCKET, path } });
       }
     }
     setPdfUrl("");

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
 import {
   emptyReport,
@@ -149,4 +150,86 @@ export const runBulkImport = createServerFn({ method: "POST" })
     });
 
     return report;
+  });
+
+export const getImportStats = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayIso = startOfToday.toISOString();
+    const [all, today, completed, failed] = await Promise.all([
+      supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }),
+      supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
+      supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "completed"),
+      supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "failed"),
+    ]);
+    const total = all.count ?? 0;
+    const okCount = completed.count ?? 0;
+    const rate = total > 0 ? Math.round((okCount / total) * 100) : 0;
+    return { total, today: today.count ?? 0, completed: okCount, failed: failed.count ?? 0, rate };
+  });
+
+export const listImportHistory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    const { data, error } = await supabaseAdmin
+      .from("import_logs")
+      .select("id, created_at, import_type, file_name, rows_total, rows_success, rows_failed, status, notes")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const getScheduleImportLookups = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    const [yearsRes, semRes, progRes, lvlRes] = await Promise.all([
+      supabaseAdmin.from("academic_years").select("id, name").order("name", { ascending: false }),
+      supabaseAdmin.from("semesters").select("id, name, code").order("name"),
+      supabaseAdmin.from("programs").select("id, code, name_ar").eq("is_active", true).order("name_ar"),
+      supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
+    ]);
+    if (yearsRes.error) throw new Error(yearsRes.error.message);
+    if (semRes.error) throw new Error(semRes.error.message);
+    if (progRes.error) throw new Error(progRes.error.message);
+    if (lvlRes.error) throw new Error(lvlRes.error.message);
+    return {
+      academicYears: yearsRes.data ?? [],
+      semesters: semRes.data ?? [],
+      programs: progRes.data ?? [],
+      levels: lvlRes.data ?? [],
+    };
+  });
+
+export const logScheduleImport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      fileName: z.string().min(1),
+      rowsTotal: z.number().int().min(0),
+      rowsSuccess: z.number().int().min(0),
+      rowsFailed: z.number().int().min(0),
+      status: z.enum(["completed", "failed", "partial"]),
+      notes: z.string().nullable().optional(),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(context.userId, IMPORT_ROLES, "ليس لديك صلاحية");
+    const { error } = await supabaseAdmin.from("import_logs").insert({
+      created_by: context.userId,
+      import_type: "class_schedule",
+      file_name: data.fileName,
+      rows_total: data.rowsTotal,
+      rows_success: data.rowsSuccess,
+      rows_failed: data.rowsFailed,
+      status: data.status,
+      notes: data.notes ?? null,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });

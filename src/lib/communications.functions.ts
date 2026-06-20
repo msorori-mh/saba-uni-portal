@@ -481,3 +481,36 @@ export const getCommunicationsDashboardStats = createServerFn({ method: "GET" })
       unread_messages: unreadMsg.count ?? 0,
     };
   });
+
+export const getCommunicationsTargetLookups = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAnyRole(context.userId, ADMIN_ROLES);
+    const [depts, progs, levels] = await Promise.all([
+      supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
+      supabaseAdmin.from("programs").select("id, name_ar").eq("is_active", true).order("sort_order"),
+      supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
+    ]);
+    if (depts.error) throw new Error(depts.error.message);
+    if (progs.error) throw new Error(progs.error.message);
+    if (levels.error) throw new Error(levels.error.message);
+    return {
+      departments: depts.data ?? [],
+      programs: progs.data ?? [],
+      levels: levels.data ?? [],
+    };
+  });
+
+export const listCommunicationAuditLogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAnyRole(context.userId, ADMIN_ROLES);
+    const { data, error } = await supabaseAdmin
+      .from("audit_logs")
+      .select("id, created_at, actor_role, action_type, entity_id, new_values, notes")
+      .eq("entity_type", "communication")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });

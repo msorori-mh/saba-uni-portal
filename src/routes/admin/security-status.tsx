@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { getHardeningStatus } from "@/lib/admin-dashboard.functions";
 import { CheckCircle2, AlertTriangle, XCircle, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,14 +26,7 @@ type HardeningStatus = {
 
 const PRIVATE_BUCKETS = new Set(["payment-receipts", "student-request-attachments"]);
 
-async function fetchStatus(): Promise<HardeningStatus> {
-  const { data, error } = await supabase.rpc("get_hardening_status" as any);
-  if (error) throw new Error(error.message);
-  return data as HardeningStatus;
-}
-
 function buildSections(s: HardeningStatus): Section[] {
-  // ---- Admin accounts ----
   const adminChecks: Check[] = [
     s.admin_count >= 2
       ? { label: "حسابات Admin (≥ 2)", status: "PASS", detail: `العدد: ${s.admin_count}` }
@@ -44,7 +38,6 @@ function buildSections(s: HardeningStatus): Section[] {
       : { label: "حسابات System Admin", status: "FAIL", detail: "لا يوجد", recommendation: "أنشئ حساب System Admin من /admin/users" },
   ];
 
-  // ---- Auth settings (platform-managed, displayed as guidance) ----
   const authChecks: Check[] = [
     { label: "Disable Public Signup", status: "PASS", detail: "تم تعطيله — المستخدمون يُنشأون من الإدارة فقط" },
     { label: "Leaked Password Protection (HIBP)", status: "PASS", detail: "تم تفعيله من إعدادات Auth" },
@@ -53,7 +46,6 @@ function buildSections(s: HardeningStatus): Section[] {
     { label: "MFA (Multi-Factor Authentication)", status: "WARNING", detail: "غير مُفعّل", recommendation: "خارج نطاق هذه المرحلة — يُنفّذ لاحقاً" },
   ];
 
-  // ---- Storage / Buckets ----
   const bucketChecks: Check[] = s.buckets.map((b) => {
     const hasSize = b.file_size_limit !== null && b.file_size_limit > 0;
     const hasMime = (b.allowed_mime_types?.length ?? 0) > 0;
@@ -81,7 +73,6 @@ function buildSections(s: HardeningStatus): Section[] {
     return { label: b.id, status, detail, recommendation };
   });
 
-  // ---- Backup readiness (manual verification) ----
   const backupChecks: Check[] = [
     { label: "النسخ الاحتياطي اليومي التلقائي", status: "PASS", detail: "مُفعّل افتراضياً من Lovable Cloud" },
     { label: "PITR (Point-In-Time Recovery)", status: "WARNING", detail: "يحتاج تأكيد يدوي من إعدادات Cloud", recommendation: "راجع /admin/backup-status" },
@@ -115,9 +106,10 @@ function statusBadge(s: Status) {
 }
 
 function SecurityStatusPage() {
+  const statusFn = useServerFn(getHardeningStatus);
   const { data: status, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["hardening-status"],
-    queryFn: fetchStatus,
+    queryFn: () => statusFn({ data: {} }) as Promise<HardeningStatus>,
   });
 
   if (isLoading) {

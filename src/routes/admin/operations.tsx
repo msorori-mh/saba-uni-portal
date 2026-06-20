@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
+import { getOperationsOverview, type OperationsOverview as Ops } from "@/lib/admin-operations.functions";
 import { logOperationsEvent } from "@/lib/operations/ops-audit.functions";
 import { cn } from "@/lib/utils";
 import {
@@ -17,127 +17,6 @@ export const Route = createFileRoute("/admin/operations")({
 
 type Health = "PASS" | "WARNING" | "FAIL";
 type Severity = "INFO" | "WARNING" | "CRITICAL";
-
-const BUCKETS = [
-  "department-images", "events-images", "faculty-images", "news-images",
-  "research-pdfs", "payment-receipts", "student-request-attachments",
-] as const;
-
-async function safeCount(table: string, filter?: (q: any) => any): Promise<number> {
-  try {
-    let q = supabase.from(table as any).select("id", { count: "exact", head: true });
-    if (filter) q = filter(q);
-    const { count, error } = await q;
-    if (error) return -1;
-    return count ?? 0;
-  } catch { return -1; }
-}
-
-async function lastEvent(table: string, dateCol = "created_at", filter?: (q: any) => any): Promise<string | null> {
-  try {
-    let q = supabase.from(table as any).select(dateCol).order(dateCol, { ascending: false }).limit(1);
-    if (filter) q = filter(q);
-    const { data, error } = await q;
-    if (error || !data?.length) return null;
-    return (data[0] as any)[dateCol] ?? null;
-  } catch { return null; }
-}
-
-async function fetchOps() {
-  // ---- DATABASE ----
-  const [
-    tables, functions, audits, audits24, notifs, notifsUnread,
-    lastAudit, lastFinance, lastDoc,
-    studentReqFailed, importsFailed, receiptsPending,
-  ] = await Promise.all([
-    Promise.resolve(supabase.rpc("get_table_count" as any)).then((r: any) => r.data ?? null).catch(() => null),
-    Promise.resolve(supabase.rpc("get_function_count" as any)).then((r: any) => r.data ?? null).catch(() => null),
-    safeCount("audit_logs"),
-    safeCount("audit_logs", (q) => q.gte("created_at", new Date(Date.now() - 86400000).toISOString())),
-    safeCount("notifications"),
-    safeCount("notifications", (q) => q.eq("is_read", false)),
-    lastEvent("audit_logs"),
-    lastEvent("student_payments"),
-    lastEvent("official_documents", "issued_at"),
-    safeCount("student_requests", (q) => q.eq("status", "rejected")),
-    safeCount("import_logs", (q) => q.eq("status", "failed")),
-    safeCount("payment_receipts", (q) => q.eq("status", "submitted")),
-  ]);
-
-  const dbReachable = audits >= 0;
-
-  // ---- STORAGE ----
-  const buckets: Array<{
-    id: string; public: boolean; size_limit: number | null;
-    mime_types: string[] | null; file_count: number; exists: boolean;
-  }> = [];
-  try {
-    const { data: bk } = await supabase.storage.listBuckets();
-    const map = new Map((bk ?? []).map((b: any) => [b.id, b]));
-    for (const id of BUCKETS) {
-      const b: any = map.get(id);
-      if (!b) {
-        buckets.push({ id, public: false, size_limit: null, mime_types: null, file_count: -1, exists: false });
-        continue;
-      }
-      let count = -1;
-      try {
-        const { data: files } = await supabase.storage.from(id).list("", { limit: 100 });
-        count = files?.length ?? 0;
-      } catch { /* ignore */ }
-      buckets.push({
-        id, public: !!b.public, size_limit: b.file_size_limit ?? null,
-        mime_types: b.allowed_mime_types ?? null, file_count: count, exists: true,
-      });
-    }
-  } catch { /* ignore */ }
-
-  // ---- AUTH ----
-  const [adminCount, sysAdminCount, mustChange] = await Promise.all([
-    safeCount("user_roles", (q) => q.eq("role", "admin")),
-    safeCount("user_roles", (q) => q.eq("role", "system_admin")),
-    safeCount("faculty_profiles", (q) => q.eq("must_change_password", true)),
-  ]);
-
-  let hardening: any = null;
-  try {
-    const { data } = await supabase.rpc("get_hardening_status" as any);
-    hardening = data ?? null;
-  } catch { /* ignore */ }
-
-  // ---- DOCUMENTS / FINANCE ----
-  const [docsAll, docsCancelled, feesAll, paymentsAll] = await Promise.all([
-    safeCount("official_documents"),
-    safeCount("official_documents", (q) => q.eq("status", "cancelled")),
-    safeCount("student_fees"),
-    safeCount("student_payments"),
-  ]);
-
-  // ---- REPORTS ----
-  const reportExports = await safeCount("audit_logs",
-    (q) => q.eq("entity_type", "report").eq("action_type", "report_exported"));
-
-  return {
-    db: {
-      reachable: dbReachable, tables, functions,
-      audits, audits24, notifs, notifsUnread,
-      lastAudit, lastFinance, lastDoc,
-    },
-    storage: buckets,
-    auth: {
-      adminCount, sysAdminCount, mustChange,
-      hibp: hardening?.password_hibp_enabled ?? null,
-      signupDisabled: hardening?.signup_disabled ?? null,
-      anonDisabled: hardening?.anonymous_disabled ?? null,
-    },
-    docs: { all: docsAll, cancelled: docsCancelled },
-    finance: { fees: feesAll, payments: paymentsAll, receiptsPending },
-    reports: { exports: reportExports },
-    issues: { studentReqFailed, importsFailed, receiptsPending },
-  };
-}
-
-type Ops = Awaited<ReturnType<typeof fetchOps>>;
 
 // -------- UI helpers --------
 function badge(s: Health) {
@@ -281,9 +160,10 @@ const RUNBOOK: Array<{ title: string; steps: string[] }> = [
 // -------- page --------
 function OperationsPage() {
   const log = useServerFn(logOperationsEvent);
+  const fetchOps = useServerFn(getOperationsOverview);
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["operations-overview"],
-    queryFn: fetchOps,
+    queryFn: () => fetchOps(),
     staleTime: 30_000,
   });
   const [tab, setTab] = useState<"overview" | "storage" | "auth" | "backup" | "runbook" | "alerts">("overview");

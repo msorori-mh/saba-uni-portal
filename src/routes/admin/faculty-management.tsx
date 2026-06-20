@@ -7,8 +7,9 @@ import {
   Users, Upload, User as UserIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { validateUpload, getExt } from "@/lib/storage-validation";
+import { validateUpload } from "@/lib/storage-validation";
+import { uploadAdminStorageFile } from "@/lib/admin-storage.functions";
+import { readFileAsBase64 } from "@/lib/file-upload";
 import { listUsers, createAccount, resetPassword, setActive } from "@/lib/admin-users.functions";
 import {
   getPeopleLookups, createFacultyMember, updateFacultyMember, getFacultyMember,
@@ -438,6 +439,7 @@ function EditFacultyModal({
 }) {
   const getFn = useServerFn(getFacultyMember);
   const updateFn = useServerFn(updateFacultyMember);
+  const uploadFn = useServerFn(uploadAdminStorageFile);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -474,18 +476,20 @@ function EditFacultyModal({
     }
     setUploading(true);
     try {
-      const ext = getExt(file.name);
-      const uuid = typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      const path = `faculty/${memberId}/${uuid}.${ext}`;
-      const { error } = await supabase.storage
-        .from("faculty-images")
-        .upload(path, file, { upsert: false, contentType: file.type });
-      if (error) { toast.error("فشل رفع الصورة: " + error.message); return; }
-      const { data } = supabase.storage.from("faculty-images").getPublicUrl(path);
-      update("photo", data.publicUrl);
+      const fileBase64 = await readFileAsBase64(file);
+      const { publicUrl } = await uploadFn({
+        data: {
+          bucket: "faculty-images",
+          fileBase64,
+          contentType: file.type,
+          fileName: file.name,
+          maxBytes: 2 * 1024 * 1024,
+        },
+      });
+      update("photo", publicUrl);
       toast.success("تم رفع الصورة — اضغط حفظ التغييرات للتثبيت");
+    } catch (e) {
+      toast.error("فشل رفع الصورة: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
     } finally {
       setUploading(false);
     }

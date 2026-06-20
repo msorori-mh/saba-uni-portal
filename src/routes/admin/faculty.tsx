@@ -2,9 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { validateUpload, getExt } from "@/lib/storage-validation";
+import { validateUpload } from "@/lib/storage-validation";
+import {
+  listAdminFaculty,
+  listAdminProgramOptions,
+  listAdminFacultyPapers,
+  upsertAdminFaculty,
+  deleteAdminFaculty,
+} from "@/lib/admin-faculty.functions";
+import { uploadAdminStorageFile } from "@/lib/admin-storage.functions";
+import { readFileAsBase64 } from "@/lib/file-upload";
 import {
   Plus,
   Pencil,
@@ -95,6 +104,9 @@ function displayRank(rank: string | null): string {
 function AdminFacultyPage() {
   usePagePerf("/admin/faculty");
   const qc = useQueryClient();
+  const listFn = useServerFn(listAdminFaculty);
+  const listProgramsFn = useServerFn(listAdminProgramOptions);
+  const deleteFn = useServerFn(deleteAdminFaculty);
   const [search, setSearch] = useState("");
   const [programFilter, setProgramFilter] = useState("all");
   const [rankFilter, setRankFilter] = useState("all");
@@ -111,24 +123,16 @@ function AdminFacultyPage() {
 
   const { data: facultyPage, isLoading } = useQuery({
     queryKey: ["admin", "faculty", { search, programFilter, rankFilter, page }],
-    queryFn: async () => {
-      let q = supabase
-        .from("faculty")
-        .select("*", { count: "exact" })
-        .order("sort_order")
-        .order("full_name_ar");
-      if (search.trim()) {
-        const s = search.trim();
-        q = q.or(`full_name_ar.ilike.%${s}%,full_name_en.ilike.%${s}%,email.ilike.%${s}%`);
-      }
-      if (programFilter !== "all") q = q.eq("program_id", programFilter);
-      if (rankFilter !== "all") q = q.eq("rank", rankFilter);
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      const { data, count, error } = await q.range(from, to);
-      if (error) throw error;
-      return { rows: (data ?? []) as Faculty[], total: count ?? 0 };
-    },
+    queryFn: () =>
+      listFn({
+        data: {
+          search: search.trim() || undefined,
+          programFilter,
+          rankFilter,
+          page,
+          pageSize: PAGE_SIZE,
+        },
+      }),
   });
   const faculty: Faculty[] = facultyPage?.rows ?? [];
   const total = facultyPage?.total ?? 0;
@@ -136,14 +140,7 @@ function AdminFacultyPage() {
 
   const { data: programs = [] } = useQuery({
     queryKey: ["admin", "programs", "list"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("programs")
-        .select("id, name_ar")
-        .order("sort_order");
-      if (error) throw error;
-      return data as Program[];
-    },
+    queryFn: () => listProgramsFn({ data: {} }) as Promise<Program[]>,
     staleTime: Infinity,
   });
 
@@ -157,15 +154,15 @@ function AdminFacultyPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase
-      .from("faculty")
-      .delete()
-      .eq("id", deleteTarget.id);
-    if (error) return toast.error("تعذر حذف العضو");
-    toast.success("تم حذف العضو");
-    setDeleteTarget(null);
-    qc.invalidateQueries({ queryKey: ["admin", "faculty"] });
-    qc.invalidateQueries({ queryKey: ["faculty"] });
+    try {
+      await deleteFn({ data: { id: deleteTarget.id } });
+      toast.success("تم حذف العضو");
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["admin", "faculty"] });
+      qc.invalidateQueries({ queryKey: ["faculty"] });
+    } catch {
+      toast.error("تعذر حذف العضو");
+    }
   };
 
   return (
@@ -480,18 +477,11 @@ function FacultyDetailDialog({
   onClose: () => void;
   programName: string;
 }) {
+  const listPapersFn = useServerFn(listAdminFacultyPapers);
   const { data: papers = [] } = useQuery({
     queryKey: ["admin", "faculty", "papers", faculty?.id],
     enabled: !!faculty?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("research_papers")
-        .select("id, title_ar, publication_year, journal_name")
-        .eq("faculty_id", faculty!.id)
-        .order("publication_year", { ascending: false });
-      if (error) throw error;
-      return data;
-    },
+    queryFn: () => listPapersFn({ data: { facultyId: faculty!.id } }),
   });
 
   return (
@@ -621,6 +611,8 @@ function FacultyFormDialog({
   programs: Program[];
   onSaved: () => void;
 }) {
+  const uploadFn = useServerFn(uploadAdminStorageFile);
+  const upsertFn = useServerFn(upsertAdminFaculty);
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
   const [employeeId, setEmployeeId] = useState("");
@@ -670,24 +662,24 @@ function FacultyFormDialog({
       return toast.error("الصيغ المقبولة فقط: JPG، PNG، WebP.");
     }
     setUploading(true);
-    const ext = getExt(file.name);
-    const uuid =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const folder = editing?.id ?? "new";
-    const path = `faculty/${folder}/${uuid}.${ext}`;
-    const { error } = await supabase.storage
-      .from("faculty-images")
-      .upload(path, file, { upsert: false, contentType: file.type });
-    if (error) {
+    try {
+      const fileBase64 = await readFileAsBase64(file);
+      const { publicUrl } = await uploadFn({
+        data: {
+          bucket: "faculty-images",
+          fileBase64,
+          contentType: file.type,
+          fileName: file.name,
+          maxBytes: 2 * 1024 * 1024,
+        },
+      });
+      setPhoto(publicUrl);
+      toast.success("تم رفع الصورة");
+    } catch (e) {
+      toast.error("فشل رفع الصورة: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    } finally {
       setUploading(false);
-      return toast.error("فشل رفع الصورة: " + error.message);
     }
-    const { data } = supabase.storage.from("faculty-images").getPublicUrl(path);
-    setPhoto(data.publicUrl);
-    setUploading(false);
-    toast.success("تم رفع الصورة");
   };
 
   const addTag = () => {
@@ -710,28 +702,32 @@ function FacultyFormDialog({
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
-    const payload = {
-      full_name_ar: nameAr.trim(),
-      full_name_en: nameEn.trim() || null,
-      employee_id: employeeId.trim(),
-      email: email.trim() || null,
-      phone: phone.trim() || null,
-      degree: degree.trim() || null,
-      rank: rank || null,
-      program_id: programId === "none" ? null : programId,
-      bio_ar: bioAr.trim() || null,
-      specialization: tags.length ? tags.join(", ") : null,
-      photo,
-      is_active: isActive,
-    };
-    const { error } = editing
-      ? await supabase.from("faculty").update(payload).eq("id", editing.id)
-      : await supabase.from("faculty").insert(payload);
-    setSaving(false);
-    if (error) return toast.error("فشل الحفظ: " + error.message);
-    toast.success(editing ? "تم تحديث بيانات العضو" : "تم إضافة العضو");
-    onOpenChange(false);
-    onSaved();
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          full_name_ar: nameAr.trim(),
+          full_name_en: nameEn.trim() || null,
+          employee_id: employeeId.trim(),
+          email: email.trim() || null,
+          phone: phone.trim() || null,
+          degree: degree.trim() || null,
+          rank: rank || null,
+          program_id: programId === "none" ? null : programId,
+          bio_ar: bioAr.trim() || null,
+          specialization: tags.length ? tags.join(", ") : null,
+          photo,
+          is_active: isActive,
+        },
+      });
+      toast.success(editing ? "تم تحديث بيانات العضو" : "تم إضافة العضو");
+      onOpenChange(false);
+      onSaved();
+    } catch (e) {
+      toast.error("فشل الحفظ: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

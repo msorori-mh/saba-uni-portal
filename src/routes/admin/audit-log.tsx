@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { listAuditLogs } from "@/lib/admin-audit-log.functions";
 import { Loader2, Search, X } from "lucide-react";
 
 export const Route = createFileRoute("/admin/audit-log")({
@@ -55,6 +56,7 @@ function entityLabel(code: string) {
 }
 
 function AuditLogPage() {
+  const listFn = useServerFn(listAuditLogs);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [entity, setEntity] = useState("");
@@ -64,25 +66,15 @@ function AuditLogPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["audit-logs", from, to, entity, action, userId],
-    queryFn: async () => {
-      let q = supabase
-        .from("audit_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (from) q = q.gte("created_at", new Date(from).toISOString());
-      if (to) {
-        const end = new Date(to);
-        end.setDate(end.getDate() + 1);
-        q = q.lt("created_at", end.toISOString());
-      }
-      if (entity) q = q.eq("entity_type", entity);
-      if (action) q = q.eq("action_type", action);
-      if (userId.trim()) q = q.eq("actor_user_id", userId.trim());
-      const { data, error } = await q;
-      if (error) throw error;
-      return data as AuditRow[];
-    },
+    queryFn: () => listFn({
+      data: {
+        from: from || undefined,
+        to: to || undefined,
+        entityType: entity || undefined,
+        actionType: action || undefined,
+        actorUserId: userId.trim() || undefined,
+      },
+    }),
   });
 
   const rows = data ?? [];

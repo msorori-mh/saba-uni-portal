@@ -1,8 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import {
+  listAdminNews,
+  upsertAdminNews,
+  deleteAdminNews,
+  toggleAdminNewsPublish,
+} from "@/lib/admin-news.functions";
+import { uploadAdminStorageFile } from "@/lib/admin-storage.functions";
+import { readFileAsBase64 } from "@/lib/file-upload";
 import {
   Plus,
   Pencil,
@@ -85,6 +93,9 @@ function slugify(text: string) {
 
 function AdminNewsPage() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listAdminNews);
+  const deleteFn = useServerFn(deleteAdminNews);
+  const toggleFn = useServerFn(toggleAdminNewsPublish);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
@@ -97,14 +108,7 @@ function AdminNewsPage() {
 
   const { data: allNews = [], isLoading } = useQuery({
     queryKey: ["admin", "news", "all"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("news")
-        .select("*")
-        .order("published_at", { ascending: false });
-      if (error) throw error;
-      return data as NewsRow[];
-    },
+    queryFn: async () => (await listFn({ data: {} })) as NewsRow[],
   });
 
   const filtered = useMemo(() => {
@@ -131,24 +135,29 @@ function AdminNewsPage() {
   }, [totalPages, page]);
 
   const togglePublish = async (row: NewsRow) => {
-    const { error } = await supabase
-      .from("news")
-      .update({ is_published: !row.is_published })
-      .eq("id", row.id);
-    if (error) return toast.error("تعذر تحديث الحالة");
-    toast.success(!row.is_published ? "تم نشر الخبر" : "تم إلغاء النشر");
-    qc.invalidateQueries({ queryKey: ["admin", "news"] });
-    qc.invalidateQueries({ queryKey: ["news"] });
+    try {
+      await toggleFn({
+        data: { id: row.id, is_published: !row.is_published },
+      });
+      toast.success(!row.is_published ? "تم نشر الخبر" : "تم إلغاء النشر");
+      qc.invalidateQueries({ queryKey: ["admin", "news"] });
+      qc.invalidateQueries({ queryKey: ["news"] });
+    } catch {
+      toast.error("تعذر تحديث الحالة");
+    }
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-    const { error } = await supabase.from("news").delete().eq("id", deleteTarget.id);
-    if (error) return toast.error("تعذر حذف الخبر");
-    toast.success("تم حذف الخبر");
-    setDeleteTarget(null);
-    qc.invalidateQueries({ queryKey: ["admin", "news"] });
-    qc.invalidateQueries({ queryKey: ["news"] });
+    try {
+      await deleteFn({ data: { id: deleteTarget.id } });
+      toast.success("تم حذف الخبر");
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["admin", "news"] });
+      qc.invalidateQueries({ queryKey: ["news"] });
+    } catch {
+      toast.error("تعذر حذف الخبر");
+    }
   };
 
   return (
@@ -397,6 +406,8 @@ function NewsFormDialog({
   editing: NewsRow | null;
   onSaved: () => void;
 }) {
+  const uploadFn = useServerFn(uploadAdminStorageFile);
+  const upsertFn = useServerFn(upsertAdminNews);
   const [titleAr, setTitleAr] = useState("");
   const [titleEn, setTitleEn] = useState("");
   const [excerptAr, setExcerptAr] = useState("");
@@ -431,19 +442,24 @@ function NewsFormDialog({
       return toast.error("حجم الصورة يجب أن يكون أقل من 5 ميجابايت");
     }
     setUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const { error } = await supabase.storage
-      .from("news-images")
-      .upload(path, file, { cacheControl: "3600", upsert: false });
-    if (error) {
+    try {
+      const fileBase64 = await readFileAsBase64(file);
+      const { publicUrl } = await uploadFn({
+        data: {
+          bucket: "news-images",
+          fileBase64,
+          contentType: file.type,
+          fileName: file.name,
+          maxBytes: 5 * 1024 * 1024,
+        },
+      });
+      setFeaturedImage(publicUrl);
+      toast.success("تم رفع الصورة");
+    } catch (e) {
+      toast.error("فشل رفع الصورة: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    } finally {
       setUploading(false);
-      return toast.error("فشل رفع الصورة: " + error.message);
     }
-    const { data } = supabase.storage.from("news-images").getPublicUrl(path);
-    setFeaturedImage(data.publicUrl);
-    setUploading(false);
-    toast.success("تم رفع الصورة");
   };
 
   const validate = () => {
@@ -457,25 +473,29 @@ function NewsFormDialog({
   const handleSave = async () => {
     if (!validate()) return;
     setSaving(true);
-    const payload = {
-      title_ar: titleAr.trim(),
-      title_en: titleEn.trim() || null,
-      excerpt_ar: excerptAr.trim(),
-      content_ar: contentAr.trim() || null,
-      content_en: contentEn.trim() || null,
-      category,
-      is_published: isPublished,
-      featured_image: featuredImage,
-      slug: editing?.slug || slugify(titleAr),
-    };
-    const { error } = editing
-      ? await supabase.from("news").update(payload).eq("id", editing.id)
-      : await supabase.from("news").insert(payload);
-    setSaving(false);
-    if (error) return toast.error("فشل الحفظ: " + error.message);
-    toast.success(editing ? "تم تحديث الخبر" : "تم إنشاء الخبر");
-    onOpenChange(false);
-    onSaved();
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          title_ar: titleAr.trim(),
+          title_en: titleEn.trim() || null,
+          excerpt_ar: excerptAr.trim(),
+          content_ar: contentAr.trim() || null,
+          content_en: contentEn.trim() || null,
+          category,
+          is_published: isPublished,
+          featured_image: featuredImage,
+          slug: editing?.slug || slugify(titleAr),
+        },
+      });
+      toast.success(editing ? "تم تحديث الخبر" : "تم إنشاء الخبر");
+      onOpenChange(false);
+      onSaved();
+    } catch (e) {
+      toast.error("فشل الحفظ: " + (e instanceof Error ? e.message : "خطأ غير معروف"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

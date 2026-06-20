@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { listSiteSettings, saveSiteSettings } from "@/lib/admin-settings.functions";
 import { toast } from "sonner";
 import { Loader2, Save, Settings as SettingsIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -59,16 +60,14 @@ const GROUPS: { value: string; label: string }[] = [
 
 function AdminSettingsPage() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listSiteSettings);
+  const saveFn = useServerFn(saveSiteSettings);
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "site-settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("site_settings").select("setting_key, setting_value, setting_group");
-      if (error) throw error;
-      return data as SettingRow[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   useEffect(() => {
@@ -89,15 +88,12 @@ function AdminSettingsPage() {
         setting_group: f.group,
         setting_value: values[f.key] ?? "",
       }));
-      const { error } = await supabase
-        .from("site_settings")
-        .upsert(rows, { onConflict: "setting_key" });
-      if (error) throw error;
+      await saveFn({ data: { rows } });
       toast.success("تم حفظ الإعدادات بنجاح");
       qc.invalidateQueries({ queryKey: ["admin", "site-settings"] });
       qc.invalidateQueries({ queryKey: ["site-settings"] });
-    } catch (e: any) {
-      toast.error(e?.message || "تعذر حفظ الإعدادات");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر حفظ الإعدادات");
     } finally {
       setSaving(false);
     }

@@ -5,8 +5,7 @@ import { useState } from "react";
 import { AlertTriangle, Loader2, FileSpreadsheet, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
-import { getAtRiskStudents } from "@/lib/academic-status.functions";
+import { getAtRiskStudents, getAcademicProgressFilterLookups } from "@/lib/academic-status.functions";
 import { exportProgressXlsx, logAcademicAudit, standingLabel } from "@/lib/academic-status";
 
 export const Route = createFileRoute("/admin/at-risk-students")({
@@ -15,24 +14,14 @@ export const Route = createFileRoute("/admin/at-risk-students")({
 
 function AtRiskStudentsPage() {
   const fetchAtRisk = useServerFn(getAtRiskStudents);
+  const lookupsFn = useServerFn(getAcademicProgressFilterLookups);
   const [programId, setProgramId] = useState<string>("");
   const [departmentId, setDepartmentId] = useState<string>("");
   const [levelId, setLevelId] = useState<string>("");
 
   const lookups = useQuery({
     queryKey: ["lk-progress-filters"],
-    queryFn: async () => {
-      const [p, d, l] = await Promise.all([
-        supabase.from("programs").select("id, name_ar").eq("is_active", true),
-        supabase.from("departments").select("id, name_ar").eq("is_active", true),
-        supabase.from("academic_levels").select("id, name, level_number").order("level_number"),
-      ]);
-      return {
-        programs: (p.data ?? []) as Array<{ id: string; name_ar: string }>,
-        departments: (d.data ?? []) as Array<{ id: string; name_ar: string }>,
-        levels: (l.data ?? []) as Array<{ id: string; name: string; level_number: number }>,
-      };
-    },
+    queryFn: () => lookupsFn({ data: {} }),
   });
 
   const list = useQuery({

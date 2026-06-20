@@ -8,7 +8,7 @@ import {
   Upload, Download, CheckCircle2, XCircle, Loader2, FileSpreadsheet,
   AlertTriangle, History, FileDown, FlaskConical, BarChart3, ChevronDown, ChevronUp,
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { runBulkImport, getImportStats, listImportHistory, getScheduleImportLookups, logScheduleImport } from "@/lib/imports.functions";
 import { loadLookups } from "@/lib/imports/lookups";
 import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
 import {
@@ -18,7 +18,6 @@ import {
 import {
   auditImportStarted, auditImportValidated, auditImportFailed,
 } from "@/lib/imports/engine";
-import { runBulkImport } from "@/lib/imports.functions";
 import { downloadValidationReport, downloadImportReport } from "@/lib/imports/reports";
 import { IMPORT_TYPE_LABEL_AR, IMPORT_LOG_STATUS_AR, getReportStatLabels } from "@/lib/imports/labels";
 import type { ImportReport, ImportType, ValidationResult, ValidatedRow } from "@/lib/imports/types";
@@ -33,9 +32,6 @@ export const Route = createFileRoute("/admin/imports")({
   head: () => ({ meta: [{ title: "الاستيراد الجماعي — لوحة الإدارة" }, { name: "robots", content: "noindex,nofollow" }] }),
   component: ImportsPage,
 });
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as any;
 
 type TabId = ImportType | "faculty_accounts" | "class_schedule";
 
@@ -552,22 +548,10 @@ function Stepper({ current }: { current: number }) {
 }
 
 function ImportStats() {
+  const statsFn = useServerFn(getImportStats);
   const { data } = useQuery({
     queryKey: ["import-stats"],
-    queryFn: async () => {
-      const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-      const todayIso = startOfToday.toISOString();
-      const [all, today, completed, failed] = await Promise.all([
-        sb.from("import_logs").select("id", { count: "exact", head: true }),
-        sb.from("import_logs").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
-        sb.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "completed"),
-        sb.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "failed"),
-      ]);
-      const total = all.count ?? 0;
-      const okCount = completed.count ?? 0;
-      const rate = total > 0 ? Math.round((okCount / total) * 100) : 0;
-      return { total, today: today.count ?? 0, completed: okCount, failed: failed.count ?? 0, rate };
-    },
+    queryFn: () => statsFn({ data: {} }),
   });
   const cards = [
     { label: "إجمالي الاستيرادات", value: data?.total ?? 0, tone: "neutral" as const },
@@ -721,16 +705,11 @@ type HistoryRow = {
 };
 
 function ImportHistory() {
+  const listFn = useServerFn(listImportHistory);
   const [expanded, setExpanded] = useState<string | null>(null);
   const { data = [], isLoading } = useQuery({
     queryKey: ["import-history"],
-    queryFn: async () => {
-      const { data, error } = await sb.from("import_logs")
-        .select("id, created_at, import_type, file_name, rows_total, rows_success, rows_failed, status, notes")
-        .order("created_at", { ascending: false }).limit(50);
-      if (error) throw new Error(error.message);
-      return (data ?? []) as HistoryRow[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   return (
@@ -818,6 +797,8 @@ function ImportHistory() {
 type RefRow = { id: string; label: string };
 
 function ClassScheduleImportPanel() {
+  const lookupsFn = useServerFn(getScheduleImportLookups);
+  const logFn = useServerFn(logScheduleImport);
   const [ay, setAy] = useState<string>("");
   const [sem, setSem] = useState<string>("");
   const [prog, setProg] = useState<string>("");
@@ -832,17 +813,12 @@ function ClassScheduleImportPanel() {
   const { data: refs } = useQuery({
     queryKey: ["class-schedule-ref-options"],
     queryFn: async () => {
-      const [ays, sems, progs, lvls] = await Promise.all([
-        sb.from("academic_years").select("id, name").order("name", { ascending: false }),
-        sb.from("semesters").select("id, name, code").order("name"),
-        sb.from("programs").select("id, code, name_ar").eq("is_active", true).order("name_ar"),
-        sb.from("academic_levels").select("id, name, level_number").order("level_number"),
-      ]);
+      const raw = await lookupsFn({ data: {} });
       return {
-        academicYears: (ays.data ?? []).map((r: { id: string; name: string }) => ({ id: r.id, label: r.name })) as RefRow[],
-        semesters: (sems.data ?? []).map((r: { id: string; name: string; code: string }) => ({ id: r.id, label: `${r.name} (${r.code})` })) as RefRow[],
-        programs: (progs.data ?? []).map((r: { id: string; code: string; name_ar: string }) => ({ id: r.id, label: `${r.name_ar} (${r.code})` })) as RefRow[],
-        levels: (lvls.data ?? []).map((r: { id: string; name: string; level_number: number }) => ({ id: r.id, label: `${r.name} — ${r.level_number}` })) as RefRow[],
+        academicYears: (raw.academicYears ?? []).map((r: { id: string; name: string }) => ({ id: r.id, label: r.name })) as RefRow[],
+        semesters: (raw.semesters ?? []).map((r: { id: string; name: string; code: string }) => ({ id: r.id, label: `${r.name} (${r.code})` })) as RefRow[],
+        programs: (raw.programs ?? []).map((r: { id: string; code: string; name_ar: string }) => ({ id: r.id, label: `${r.name_ar} (${r.code})` })) as RefRow[],
+        levels: (raw.levels ?? []).map((r: { id: string; name: string; level_number: number }) => ({ id: r.id, label: `${r.name} — ${r.level_number}` })) as RefRow[],
       };
     },
   });
@@ -885,19 +861,17 @@ function ClassScheduleImportPanel() {
       );
       const rep = await importClassSchedule(res, ctx, lookups);
       setReport(rep);
-      // Log to import_logs for audit consistency
       try {
-        const { data: auth } = await supabase.auth.getUser();
         const status = rep.aborted ? "failed" : rep.rows_failed === 0 ? "completed" : "partial";
-        await sb.from("import_logs").insert({
-          created_by: auth.user?.id ?? null,
-          import_type: "class_schedule",
-          file_name: file.name,
-          rows_total: rep.rows_total,
-          rows_success: rep.rows_inserted,
-          rows_failed: rep.rows_failed + (rep.aborted ? rep.rows_total - rep.rows_inserted : 0),
-          status,
-          notes: (rep.abortReason ? `[ABORT] ${rep.abortReason} | ` : "") + rep.errors.slice(0, 30).map((e) => `R${e.row}: ${e.message}`).join(" | ") || null,
+        await logFn({
+          data: {
+            fileName: file.name,
+            rowsTotal: rep.rows_total,
+            rowsSuccess: rep.rows_inserted,
+            rowsFailed: rep.rows_failed + (rep.aborted ? rep.rows_total - rep.rows_inserted : 0),
+            status,
+            notes: (rep.abortReason ? `[ABORT] ${rep.abortReason} | ` : "") + rep.errors.slice(0, 30).map((e) => `R${e.row}: ${e.message}`).join(" | ") || null,
+          },
         });
       } catch { /* best effort */ }
     } catch (e) {

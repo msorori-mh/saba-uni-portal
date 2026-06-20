@@ -1,7 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  listContactMessages,
+  updateContactMessageStatus,
+  deleteContactMessage,
+} from "@/lib/admin-contacts.functions";
 import { toast } from "sonner";
 import {
   Mail, Trash2, Eye, CheckCheck, Reply, Loader2, Inbox,
@@ -43,20 +48,16 @@ const STATUS_LABEL: Record<string, string> = {
 
 function AdminContactsPage() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listContactMessages);
+  const updateStatusFn = useServerFn(updateContactMessageStatus);
+  const deleteFn = useServerFn(deleteContactMessage);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [viewing, setViewing] = useState<Message | null>(null);
   const [deleting, setDeleting] = useState<Message | null>(null);
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["admin-contacts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("contact_messages")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Message[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   const filtered = useMemo(
@@ -66,15 +67,13 @@ function AdminContactsPage() {
 
   const newCount = useMemo(() => messages.filter((m) => m.status === "new").length, [messages]);
 
-  const updateStatus = async (m: Message, status: string) => {
-    const { error } = await supabase
-      .from("contact_messages")
-      .update({ status, is_read: status !== "new" })
-      .eq("id", m.id);
-    if (error) toast.error(error.message);
-    else {
+  const updateStatus = async (m: Message, status: "new" | "read" | "replied") => {
+    try {
+      await updateStatusFn({ data: { id: m.id, status } });
       qc.invalidateQueries({ queryKey: ["admin-contacts"] });
       qc.invalidateQueries({ queryKey: ["sidebar-new-messages"] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر تحديث الحالة");
     }
   };
 
@@ -91,12 +90,13 @@ function AdminContactsPage() {
 
   const handleDelete = async () => {
     if (!deleting) return;
-    const { error } = await supabase.from("contact_messages").delete().eq("id", deleting.id);
-    if (error) toast.error(error.message);
-    else {
+    try {
+      await deleteFn({ data: { id: deleting.id } });
       toast.success("تم حذف الرسالة");
       qc.invalidateQueries({ queryKey: ["admin-contacts"] });
       qc.invalidateQueries({ queryKey: ["sidebar-new-messages"] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "تعذر الحذف");
     }
     setDeleting(null);
   };
