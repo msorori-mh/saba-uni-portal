@@ -14,6 +14,7 @@ export type ServerRateLimitPolicy = {
 export const SERVER_RATE_LIMIT_POLICIES = {
   accountCreation: { action: "account_creation", maxAttempts: 20, windowMinutes: 10, blockMinutes: 15 },
   accountImport:   { action: "account_import",   maxAttempts: 3,  windowMinutes: 30, blockMinutes: 30 },
+  passwordReset:   { action: "password_reset",   maxAttempts: 5,  windowMinutes: 30, blockMinutes: 30 },
   sensitiveRpc:    { action: "sensitive_rpc",    maxAttempts: 30, windowMinutes: 10, blockMinutes: 15 },
 } as const;
 
