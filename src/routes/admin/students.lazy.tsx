@@ -486,7 +486,7 @@ function AddStudentModal({
               <div className="text-sm">
                 <div className="font-bold text-primary">إنشاء حساب دخول للطالب</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  اسم المستخدم للطالب هو الرقم الأكاديمي، وكلمة المرور الأولية هي الرقم الأكاديمي عند أول دخول، ثم سيُطلب من الطالب تغيير كلمة المرور مباشرة.
+                  اسم الدخول للطالب هو الرقم الأكاديمي. تُنشأ كلمة مرور مؤقتة عشوائية وتُعرض للمسؤول مرة واحدة فقط، ويجب على الطالب تغييرها عند أول دخول.
                 </div>
               </div>
             </label>
@@ -680,7 +680,8 @@ function CredentialsSlip({
       </div>
       <p class="note">
         • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong> واختيار «طالب».<br>
-        • سيتم طلب تغيير كلمة المرور عند أول دخول.<br>
+        • تُنشأ كلمة المرور المؤقتة عشوائياً وتُعرض للمسؤول مرة واحدة فقط.<br>
+        • سيُطلب من الطالب تغيير كلمة المرور عند أول دخول.<br>
         • لا تشارك بيانات الدخول مع أي شخص.
       </p>
       <script>window.onload=()=>{window.print();}</script>
@@ -696,7 +697,9 @@ function CredentialsSlip({
           <h3 className="font-display text-lg font-bold">تم بنجاح</h3>
         </div>
         <div className="p-5 space-y-4">
-          <p className="text-sm text-muted-foreground">احفظ بيانات الدخول التالية وسلّمها للطالب:</p>
+          <p className="text-sm text-muted-foreground">
+            احفظ بيانات الدخول التالية وسلّمها للطالب. كلمة المرور المؤقتة تُعرض مرة واحدة فقط:
+          </p>
           <div className="rounded-lg border-2 border-primary/20 bg-secondary/30 p-4 space-y-2.5 text-sm">
             <SlipRow label="الاسم" value={slip.full_name_ar} />
             <SlipRow label="الرقم الأكاديمي" value={slip.academic_number} mono onCopy={() => copy(slip.academic_number)} />
@@ -704,7 +707,9 @@ function CredentialsSlip({
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
             
           </div>
-          <p className="text-xs text-muted-foreground">سيُطلب من الطالب تغيير كلمة المرور عند أول دخول.</p>
+          <p className="text-xs text-muted-foreground">
+            تُنشأ كلمة المرور المؤقتة عشوائياً وتُعرض هنا مرة واحدة. سيُطلب من الطالب تغييرها عند أول دخول.
+          </p>
         </div>
         <div className="p-4 border-t border-border flex justify-end gap-2 bg-secondary/30">
           <button onClick={onClose} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-bold">إغلاق</button>
