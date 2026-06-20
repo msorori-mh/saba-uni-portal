@@ -1,8 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  getEnrollmentsLookups,
+  listOfferingsForEnrollment,
+  listSectionsForOfferings,
+  listSectionEnrollments,
+  listEligibleStudentsForEnrollment,
+  createStudentEnrollment,
+  updateEnrollmentStatus,
+  deleteStudentEnrollment,
+} from "@/lib/admin-enrollments.functions";
 import { Loader2, UserPlus, Trash2, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -33,6 +43,15 @@ type StudentRow = {
 
 function EnrollmentsPage() {
   const qc = useQueryClient();
+  const lookupsFn = useServerFn(getEnrollmentsLookups);
+  const offeringsFn = useServerFn(listOfferingsForEnrollment);
+  const sectionsFn = useServerFn(listSectionsForOfferings);
+  const enrollmentsFn = useServerFn(listSectionEnrollments);
+  const eligibleFn = useServerFn(listEligibleStudentsForEnrollment);
+  const createFn = useServerFn(createStudentEnrollment);
+  const updateStatusFn = useServerFn(updateEnrollmentStatus);
+  const deleteFn = useServerFn(deleteStudentEnrollment);
+
   const [yearId, setYearId] = useState<string>("");
   const [semId, setSemId] = useState<string>("");
   const [programId, setProgramId] = useState<string>("");
@@ -40,140 +59,112 @@ function EnrollmentsPage() {
   const [sectionId, setSectionId] = useState<string>("");
   const [toRemove, setToRemove] = useState<Enrollment | null>(null);
 
-  const years = useQuery({
-    queryKey: ["en-years"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false });
-      if (error) throw error; return data as Year[];
-    },
+  const { data: lookups } = useQuery({
+    queryKey: ["enrollments-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
   });
-  const semesters = useQuery({
-    queryKey: ["en-semesters", yearId],
-    queryFn: async () => {
-      const q = supabase.from("semesters").select("id, academic_year_id, name").order("start_date");
-      const { data, error } = yearId ? await q.eq("academic_year_id", yearId) : await q;
-      if (error) throw error; return data as Semester[];
-    },
-  });
-  const programs = useQuery({
-    queryKey: ["en-programs"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("programs").select("id, name_ar, code").eq("is_active", true).order("name_ar");
-      if (error) throw error; return data as Program[];
-    },
-  });
-  const levels = useQuery({
-    queryKey: ["en-levels"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("academic_levels").select("id, name, level_number").order("level_number");
-      if (error) throw error; return data as Level[];
-    },
-  });
+  const years = (lookups?.years ?? []) as Year[];
+  const semesters = (lookups?.semesters ?? []) as Semester[];
+  const programs = (lookups?.programs ?? []) as Program[];
+  const levels = (lookups?.levels ?? []) as Level[];
 
-  const offerings = useQuery({
+  useEffect(() => {
+    if (!yearId && years.length > 0) {
+      const cur = years.find((y) => y.is_current) ?? years[0];
+      if (cur) setYearId(cur.id);
+    }
+  }, [years, yearId]);
+
+  const filtersReady = !!(yearId && semId && programId && levelId);
+
+  const { data: offerings = [] } = useQuery({
     queryKey: ["en-offerings", yearId, semId, programId, levelId],
-    enabled: !!(yearId && semId && programId && levelId),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("course_offerings")
-        .select("id, course_id, course:courses(code, name_ar)")
-        .eq("academic_year_id", yearId).eq("semester_id", semId)
-        .eq("program_id", programId).eq("level_id", levelId)
-        .eq("status", "active");
-      if (error) throw error; return (data ?? []) as unknown as Offering[];
-    },
+    enabled: filtersReady,
+    queryFn: () => offeringsFn({
+      data: {
+        academicYearId: yearId,
+        semesterId: semId,
+        programId,
+        levelId,
+      },
+    }),
   });
 
-  const sections = useQuery({
-    queryKey: ["en-sections", offerings.data?.map((o) => o.id).join(",")],
-    enabled: !!offerings.data && offerings.data.length > 0,
-    queryFn: async () => {
-      const ids = (offerings.data ?? []).map((o) => o.id);
-      const { data, error } = await supabase
-        .from("course_sections")
-        .select("id, section_code, course_offering_id, capacity")
-        .in("course_offering_id", ids).eq("status", "active")
-        .order("section_code");
-      if (error) throw error; return (data ?? []) as Section[];
-    },
+  const offeringIds = offerings.map((o) => o.id as string);
+
+  const { data: sections = [] } = useQuery({
+    queryKey: ["en-sections", offeringIds.join(",")],
+    enabled: offeringIds.length > 0,
+    queryFn: () => sectionsFn({ data: { offeringIds } }),
   });
 
   const sectionsWithCourse = useMemo(() => {
-    const offMap = new Map((offerings.data ?? []).map((o) => [o.id, o.course]));
-    return (sections.data ?? []).map((s) => ({
+    const offMap = new Map(offerings.map((o) => [o.id as string, o.course as Offering["course"]]));
+    return sections.map((s) => ({
       ...s,
-      course: offMap.get(s.course_offering_id) ?? null,
+      course: offMap.get(s.course_offering_id as string) ?? null,
     }));
-  }, [sections.data, offerings.data]);
+  }, [sections, offerings]);
 
-  const enrollments = useQuery({
+  const { data: enrollments = [], isLoading: enrollmentsLoading } = useQuery({
     queryKey: ["en-enrollments", sectionId],
     enabled: !!sectionId,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("student_enrollments")
-        .select("id, enrollment_status, student:student_profiles(id, academic_number, full_name_ar)")
-        .eq("course_section_id", sectionId)
-        .order("enrolled_at");
-      if (error) throw error; return (data ?? []) as unknown as Enrollment[];
-    },
+    queryFn: () => enrollmentsFn({ data: { sectionId } }),
   });
 
-  // Eligible students: matching program + current academic_status with year/sem/level
-  const eligibleStudents = useQuery({
-    queryKey: ["en-eligible", programId, yearId, semId, levelId, enrollments.data?.length],
-    enabled: !!(programId && yearId && semId && levelId && sectionId),
-    queryFn: async () => {
-      const { data: statuses, error: sErr } = await supabase
-        .from("student_academic_status")
-        .select("student_profile_id, student:student_profiles(id, academic_number, full_name_ar, status, program_id)")
-        .eq("academic_year_id", yearId)
-        .eq("semester_id", semId)
-        .eq("level_id", levelId)
-        .eq("enrollment_status", "active");
-      if (sErr) throw sErr;
-      type Raw = { student_profile_id: string; student: { id: string; academic_number: string; full_name_ar: string; status: string; program_id: string | null } | null };
-      const enrolledIds = new Set((enrollments.data ?? []).map((e) => e.student?.id));
-      return ((statuses ?? []) as unknown as Raw[])
-        .map((r) => r.student)
-        .filter((s): s is NonNullable<typeof s> => !!s)
-        .filter((s) => s.program_id === programId && s.status === "active")
-        .filter((s) => !enrolledIds.has(s.id))
-        .map((s): StudentRow => ({ id: s.id, academic_number: s.academic_number, full_name_ar: s.full_name_ar, status: s.status }));
-    },
+  const { data: eligibleStudents = [], isLoading: eligibleLoading } = useQuery({
+    queryKey: ["en-eligible", programId, yearId, semId, levelId, sectionId, enrollments.length],
+    enabled: filtersReady && !!sectionId,
+    queryFn: () => eligibleFn({
+      data: {
+        programId,
+        academicYearId: yearId,
+        semesterId: semId,
+        levelId,
+        sectionId,
+      },
+    }),
   });
-
-  // Set defaults
-  if (!yearId && years.data) {
-    const cur = years.data.find((y) => y.is_current) ?? years.data[0];
-    if (cur) setYearId(cur.id);
-  }
 
   const handleEnroll = async (studentProfileId: string) => {
-    const { error } = await supabase
-      .from("student_enrollments")
-      .insert({ student_profile_id: studentProfileId, course_section_id: sectionId });
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم تسجيل الطالب");
-    qc.invalidateQueries({ queryKey: ["en-enrollments"] });
-    qc.invalidateQueries({ queryKey: ["en-eligible"] });
+    try {
+      await createFn({
+        data: { studentProfileId, courseSectionId: sectionId },
+      });
+      toast.success("تم تسجيل الطالب");
+      qc.invalidateQueries({ queryKey: ["en-enrollments"] });
+      qc.invalidateQueries({ queryKey: ["en-eligible"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const handleStatus = async (id: string, status: string) => {
-    const { error } = await supabase.from("student_enrollments").update({ enrollment_status: status }).eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم تحديث الحالة");
-    qc.invalidateQueries({ queryKey: ["en-enrollments"] });
+    try {
+      await updateStatusFn({
+        data: {
+          id,
+          enrollmentStatus: status as "enrolled" | "dropped" | "completed",
+        },
+      });
+      toast.success("تم تحديث الحالة");
+      qc.invalidateQueries({ queryKey: ["en-enrollments"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const handleDelete = async () => {
     if (!toRemove) return;
-    const { error } = await supabase.from("student_enrollments").delete().eq("id", toRemove.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف التسجيل");
-    setToRemove(null);
-    qc.invalidateQueries({ queryKey: ["en-enrollments"] });
-    qc.invalidateQueries({ queryKey: ["en-eligible"] });
+    try {
+      await deleteFn({ data: { id: toRemove.id } });
+      toast.success("تم حذف التسجيل");
+      setToRemove(null);
+      qc.invalidateQueries({ queryKey: ["en-enrollments"] });
+      qc.invalidateQueries({ queryKey: ["en-eligible"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const statusBadge = (s: string) => {
@@ -198,14 +189,13 @@ function EnrollmentsPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="rounded-lg border bg-card p-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <div>
           <Label className="text-xs">السنة الأكاديمية</Label>
           <Select value={yearId} onValueChange={(v) => { setYearId(v); setSemId(""); setSectionId(""); }}>
             <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
             <SelectContent>
-              {(years.data ?? []).map((y) => <SelectItem key={y.id} value={y.id}>{y.name}{y.is_current && " ★"}</SelectItem>)}
+              {years.map((y) => <SelectItem key={y.id} value={y.id}>{y.name}{y.is_current && " ★"}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -214,7 +204,7 @@ function EnrollmentsPage() {
           <Select value={semId} onValueChange={(v) => { setSemId(v); setSectionId(""); }} disabled={!yearId}>
             <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
             <SelectContent>
-              {(semesters.data ?? []).filter((s) => s.academic_year_id === yearId).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              {semesters.filter((s) => s.academic_year_id === yearId).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -223,7 +213,7 @@ function EnrollmentsPage() {
           <Select value={programId} onValueChange={(v) => { setProgramId(v); setSectionId(""); }}>
             <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
             <SelectContent>
-              {(programs.data ?? []).map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
+              {programs.map((p) => <SelectItem key={p.id} value={p.id}>{p.name_ar}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -232,7 +222,7 @@ function EnrollmentsPage() {
           <Select value={levelId} onValueChange={(v) => { setLevelId(v); setSectionId(""); }}>
             <SelectTrigger><SelectValue placeholder="اختر..." /></SelectTrigger>
             <SelectContent>
-              {(levels.data ?? []).map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
+              {levels.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -242,7 +232,7 @@ function EnrollmentsPage() {
             <SelectTrigger><SelectValue placeholder={sectionsWithCourse.length === 0 ? "لا توجد مجموعات" : "اختر..."} /></SelectTrigger>
             <SelectContent>
               {sectionsWithCourse.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
+                <SelectItem key={s.id as string} value={s.id as string}>
                   {s.course?.code} — مجموعة دراسية {s.section_code}
                 </SelectItem>
               ))}
@@ -257,19 +247,18 @@ function EnrollmentsPage() {
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Eligible */}
           <div className="rounded-lg border bg-card overflow-hidden">
             <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
               <div className="text-sm font-bold text-primary">الطلاب المتاحون</div>
-              <Badge variant="secondary">{eligibleStudents.data?.length ?? 0}</Badge>
+              <Badge variant="secondary">{eligibleStudents.length}</Badge>
             </div>
-            {eligibleStudents.isLoading ? (
+            {eligibleLoading ? (
               <div className="p-6 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></div>
-            ) : (eligibleStudents.data ?? []).length === 0 ? (
+            ) : eligibleStudents.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">لا يوجد طلاب مطابقون لهذه المجموعات الدراسيةة</div>
             ) : (
               <ul className="divide-y">
-                {(eligibleStudents.data ?? []).map((s) => (
+                {(eligibleStudents as StudentRow[]).map((s) => (
                   <li key={s.id} className="p-3 flex items-center gap-2 text-sm">
                     <div className="flex-1 min-w-0">
                       <div className="font-mono text-xs text-muted-foreground">{s.academic_number}</div>
@@ -284,19 +273,18 @@ function EnrollmentsPage() {
             )}
           </div>
 
-          {/* Enrolled */}
           <div className="rounded-lg border bg-card overflow-hidden">
             <div className="px-4 py-2.5 bg-muted/50 border-b flex items-center justify-between">
               <div className="text-sm font-bold text-primary">الطلاب المسجلون في المجموعات الدراسيةة</div>
-              <Badge variant="secondary">{enrollments.data?.length ?? 0}</Badge>
+              <Badge variant="secondary">{enrollments.length}</Badge>
             </div>
-            {enrollments.isLoading ? (
+            {enrollmentsLoading ? (
               <div className="p-6 text-center"><Loader2 className="inline h-5 w-5 animate-spin" /></div>
-            ) : (enrollments.data ?? []).length === 0 ? (
+            ) : enrollments.length === 0 ? (
               <div className="p-6 text-center text-xs text-muted-foreground">لا يوجد طلاب مسجلون بعد</div>
             ) : (
               <ul className="divide-y">
-                {(enrollments.data ?? []).map((e) => (
+                {(enrollments as Enrollment[]).map((e) => (
                   <li key={e.id} className="p-3 flex items-center gap-2 text-sm">
                     <div className="flex-1 min-w-0">
                       <div className="font-mono text-xs text-muted-foreground">{e.student?.academic_number}</div>
