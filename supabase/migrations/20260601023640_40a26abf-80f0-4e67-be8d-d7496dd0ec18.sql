@@ -1,0 +1,1 @@
+ALTER TABLE public.student_profiles ALTER COLUMN user_id DROP NOT NULL;

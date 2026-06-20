@@ -1,0 +1,1 @@
+GRANT SELECT ON public.faculty TO anon, authenticated; GRANT ALL ON public.faculty TO service_role;
