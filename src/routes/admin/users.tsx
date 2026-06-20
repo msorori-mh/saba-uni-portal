@@ -4,12 +4,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   listUsers, createAccount, resetPassword, setActive, addRole, removeRole,
-  adminAccountCounts, createAdminAccount,
+  adminAccountCounts, createAdminAccount, removeLoginAccount,
 } from "@/lib/admin-users.functions";
 import {
   Loader2, Search, KeyRound, UserCheck, UserX, ShieldPlus, X, Plus, ShieldMinus,
-  ShieldAlert, ShieldCheck,
+  ShieldAlert, ShieldCheck, Unlink,
 } from "lucide-react";
+
+const UNLINK_LOGIN_CONFIRM =
+  "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
 
 export const Route = createFileRoute("/admin/users")({
   component: UsersPage,
@@ -47,6 +50,7 @@ function UsersPage() {
   const rmR = useServerFn(removeRole);
   const adminCounts = useServerFn(adminAccountCounts);
   const createAdmin = useServerFn(createAdminAccount);
+  const removeLogin = useServerFn(removeLoginAccount);
 
   const qc = useQueryClient();
   const { data: rows, isLoading } = useQuery({
@@ -236,6 +240,15 @@ function UsersPage() {
                                 className="inline-flex items-center gap-1 rounded border border-border hover:bg-secondary px-2 py-1 text-xs">
                                 <ShieldPlus className="h-3 w-3" />
                                 الأدوار
+                              </button>
+                              <button disabled={!!busy}
+                                onClick={() => {
+                                  if (!confirm(`فك ربط حساب الدخول لـ «${r.full_name_ar}»؟\n\n${UNLINK_LOGIN_CONFIRM}`)) return;
+                                  run(`unlink-${r.id}`, () => removeLogin({ data: { kind, profile_id: r.id } }));
+                                }}
+                                className="inline-flex items-center gap-1 rounded border border-amber-500/40 text-amber-800 hover:bg-amber-500/10 px-2 py-1 text-xs">
+                                {busy === `unlink-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlink className="h-3 w-3" />}
+                                فك ربط الدخول
                               </button>
                             </>
                           )}

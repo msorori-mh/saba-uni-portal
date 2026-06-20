@@ -798,6 +798,173 @@ export const removeRole = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ------------ Unlink portal login (Phase 1: no profile delete, no Auth delete) ------------
+
+const PRIVILEGED_ROLES_NEVER_STRIPPED = new Set(["admin", "system_admin"]);
+
+async function assertNotLastPrivilegedAdmin(targetUserId: string): Promise<void> {
+  const { data: roleRows } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", targetUserId)
+    .in("role", ["admin", "system_admin"]);
+  const roles = (roleRows ?? []).map((r) => r.role as string);
+  if (roles.includes("admin")) {
+    const { count } = await supabaseAdmin
+      .from("user_roles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin");
+    if ((count ?? 0) <= 1) throw new Error("لا يمكن فك ربط أو حذف آخر حساب مدير في النظام");
+  }
+  if (roles.includes("system_admin")) {
+    const { count } = await supabaseAdmin
+      .from("user_roles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "system_admin");
+    if ((count ?? 0) <= 1) throw new Error("لا يمكن فك ربط أو حذف آخر system_admin في النظام");
+  }
+}
+
+async function isAuthUserLinkedToAnyProfile(userId: string): Promise<boolean> {
+  const [{ data: s }, { data: f }, { data: st }] = await Promise.all([
+    supabaseAdmin.from("student_profiles").select("id").eq("user_id", userId).limit(1).maybeSingle(),
+    supabaseAdmin.from("faculty_profiles").select("id").eq("user_id", userId).limit(1).maybeSingle(),
+    supabaseAdmin.from("staff_profiles").select("id").eq("user_id", userId).limit(1).maybeSingle(),
+  ]);
+  return !!(s || f || st);
+}
+
+function portalRolesForKind(kind: AccountKind, profile: Record<string, unknown>): string[] {
+  const roles =
+    kind === "student"
+      ? ["student"]
+      : kind === "faculty"
+        ? ["faculty_member"]
+        : [staffRoleFor(profile.role_type as string | null | undefined)];
+  return roles.filter((r) => !PRIVILEGED_ROLES_NEVER_STRIPPED.has(r));
+}
+
+async function removePortalRolesOnly(
+  kind: AccountKind,
+  userId: string,
+  profile: Record<string, unknown>,
+): Promise<string[]> {
+  const roles = portalRolesForKind(kind, profile);
+  for (const role of roles) {
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", role as any);
+  }
+  return roles;
+}
+
+const UNLINK_LOGIN_CONFIRM_HINT =
+  "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.";
+
+/** Unlink portal login from profile; Phase 1 does not delete auth.users rows. */
+export const removeLoginAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { kind: AccountKind; profile_id: string }) =>
+    z.object({
+      kind: z.enum(["student", "faculty", "staff"]),
+      profile_id: z.string().uuid(),
+    }).parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(
+      context.userId,
+      ACCOUNT_PROVISION_ROLES[data.kind],
+      "ليس لديك صلاحية فك ربط حسابات الدخول",
+    );
+
+    const table =
+      data.kind === "student" ? "student_profiles"
+      : data.kind === "faculty" ? "faculty_profiles"
+      : "staff_profiles";
+
+    const { data: profile } = await supabaseAdmin
+      .from(table).select("*").eq("id", data.profile_id).maybeSingle();
+    if (!profile) throw new Error("الحساب غير موجود");
+
+    const targetUserId = (profile as any).user_id as string | null;
+    if (!targetUserId) throw new Error("لا يوجد حساب دخول مرتبط بهذا الملف");
+
+    const identifier =
+      data.kind === "student"
+        ? (profile as any).academic_number
+        : (profile as any).employee_number;
+
+    if (context.userId === targetUserId) {
+      await logAudit({
+        actor_user_id: context.userId,
+        action_type: "portal_login_unlink_blocked",
+        entity_id: targetUserId,
+        notes: `محاولة فك ربط الحساب الحالي: ${identifier}`,
+        new_values: { reason: "self_target", kind: data.kind, profile_id: data.profile_id },
+      });
+      throw new Error("لا يمكن حذف أو فك ربط حساب الدخول الخاص بك.");
+    }
+
+    try {
+      await assertNotLastPrivilegedAdmin(targetUserId);
+    } catch (e) {
+      await logAudit({
+        actor_user_id: context.userId,
+        action_type: "portal_login_unlink_blocked",
+        entity_id: targetUserId,
+        notes: `رفض فك ربط ${identifier}`,
+        new_values: {
+          reason: "last_privileged_admin",
+          message: e instanceof Error ? e.message : String(e),
+        },
+      });
+      throw e;
+    }
+
+    const { data: unlinkedId, error: uErr } = await actorSupabase(context).rpc(
+      "admin_unlink_portal_login",
+      { p_kind: data.kind, p_profile_id: data.profile_id },
+    );
+    if (uErr) throw new Error(uErr.message);
+    if (!unlinkedId) throw new Error("لا يوجد حساب دخول لإزالته");
+
+    const removedRoles = await removePortalRolesOnly(
+      data.kind,
+      targetUserId,
+      profile as Record<string, unknown>,
+    );
+
+    const stillLinked = await isAuthUserLinkedToAnyProfile(targetUserId);
+    const { data: remainingRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", targetUserId);
+    const roleNames = (remainingRoles ?? []).map((r) => r.role as string);
+
+    if (!stillLinked) {
+      await logAudit({
+        actor_user_id: context.userId,
+        action_type: "auth_user_delete_skipped",
+        entity_id: targetUserId,
+        notes: `Phase 1: Auth user retained after unlink for ${identifier}`,
+        new_values: {
+          remaining_roles: roleNames,
+          removed_portal_roles: removedRoles,
+          reason: "phase_1_unlink_only",
+        },
+      });
+    }
+
+    await logAudit({
+      actor_user_id: context.userId,
+      action_type: "portal_login_unlinked",
+      entity_id: targetUserId,
+      notes: `فك ربط حساب الدخول لـ ${identifier}`,
+      old_values: { kind: data.kind, profile_id: data.profile_id, user_id: targetUserId },
+      new_values: { removed_portal_roles: removedRoles, hint: UNLINK_LOGIN_CONFIRM_HINT },
+    });
+
+    return { ok: true };
+  });
+
 // ------------ Active users counts ------------
 
 export const activeUserCounts = createServerFn({ method: "GET" })
