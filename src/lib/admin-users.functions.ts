@@ -77,6 +77,59 @@ function staffRoleFor(roleType: string | null | undefined): string {
   }
 }
 
+/** Map operational app_role (+ staff role_type) to roles_catalog code for user_role_assignments sync. */
+function catalogCodeForAccount(
+  kind: AccountKind,
+  appRole: string,
+  staffRoleType?: string | null,
+): string | null {
+  if (kind === "student") return null;
+  if (kind === "faculty") return "faculty_member";
+  switch (staffRoleType) {
+    case "admin": return "admin";
+    case "dean": return "dean";
+    case "registrar": return "registrar_officer";
+    case "student_affairs": return "student_affairs_officer";
+    case "finance": return "finance_officer";
+    default: break;
+  }
+  const fallback: Record<string, string> = {
+    admin: "admin",
+    system_admin: "system_admin",
+    dean: "dean",
+    registrar: "registrar_officer",
+    student_affairs: "student_affairs_officer",
+    finance_officer: "finance_officer",
+    department_head: "department_head",
+    faculty_member: "faculty_member",
+  };
+  return fallback[appRole] ?? null;
+}
+
+async function syncCatalogRoleAssignment(
+  userId: string,
+  roleCode: string | null,
+  assignedBy: string,
+): Promise<void> {
+  if (!roleCode) return;
+  const { data: cat } = await supabaseAdmin
+    .from("roles_catalog")
+    .select("code, is_active")
+    .eq("code", roleCode)
+    .maybeSingle();
+  if (!cat || !(cat as { is_active: boolean }).is_active) return;
+
+  const { error } = await supabaseAdmin.from("user_role_assignments").insert({
+    user_id: userId,
+    role_code: roleCode,
+    assigned_by: assignedBy,
+    notes: "مزامنة تلقائية عند إنشاء الحساب",
+  } as any);
+  if (error && !error.message.toLowerCase().includes("duplicate")) {
+    /* non-fatal — operational role already assigned */
+  }
+}
+
 // ------------ List Users ------------
 
 export const listUsers = createServerFn({ method: "POST" })
@@ -289,6 +342,12 @@ export const createAccount = createServerFn({ method: "POST" })
     if (!existingRole) {
       await supabaseAdmin.from("user_roles").insert({ user_id: newUserId!, role: role as any });
     }
+
+    await syncCatalogRoleAssignment(
+      newUserId!,
+      catalogCodeForAccount(data.kind, role, (profile as any).role_type),
+      context.userId,
+    );
 
     await logAudit({
       actor_user_id: context.userId,
@@ -556,6 +615,8 @@ export const createAdminAccount = createServerFn({ method: "POST" })
       await supabaseAdmin.auth.admin.deleteUser(newUserId);
       throw new Error(rErr.message);
     }
+
+    await syncCatalogRoleAssignment(newUserId, data.role, context.userId);
 
     await logAudit({
       actor_user_id: context.userId,

@@ -4,14 +4,25 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAnyRole, userRoles } from "@/lib/authz.server";
 
-const MANAGE = ["admin", "system_admin"];
-const READ = ["admin", "system_admin", "dean"];
+export const PILOT_MANAGE_ROLES = ["admin", "system_admin"] as const;
+export const PILOT_READ_ROLES = ["admin", "system_admin", "dean"] as const;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getRoles(sb: any, userId: string): Promise<string[]> {
-  const { data } = await sb.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r: { role: string }) => r.role);
+async function assertPilotRead(userId: string) {
+  await assertAnyRole(
+    userId,
+    PILOT_READ_ROLES,
+    "ليست لديك صلاحية الاطلاع على مركز التشغيل التجريبي.",
+  );
+}
+
+async function assertPilotManage(userId: string) {
+  await assertAnyRole(
+    userId,
+    PILOT_MANAGE_ROLES,
+    "غير مصرح بتعديل إعدادات التشغيل التجريبي.",
+  );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,10 +41,6 @@ async function logAudit(sb: any, action: string, payload: unknown, entityId: str
   }
 }
 
-function requireRoles(roles: string[], allowed: string[], msg: string) {
-  if (!roles.some((r) => allowed.includes(r))) throw new Error(msg);
-}
-
 /* =========================================================================
    PILOT OVERVIEW (config + counts + readiness score)
    ========================================================================= */
@@ -41,10 +48,10 @@ function requireRoles(roles: string[], allowed: string[], msg: string) {
 export const getPilotOverview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await assertPilotRead(context.userId);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, READ, "ليست لديك صلاحية الاطلاع على مركز التشغيل التجريبي.");
+    const roles = await userRoles(context.userId);
 
     const today = new Date().toISOString().slice(0, 10);
     const [
@@ -105,7 +112,7 @@ export const getPilotOverview = createServerFn({ method: "POST" })
       tests: { total: testsTotal, pass: testsPass, fail: testsFail, completion_rate: completionRate },
       checklist: { total: checklistAll, done_today: checklistDone, pct: checklistPct },
       readiness: { score, status: readinessStatus },
-      canManage: roles.some((r) => MANAGE.includes(r)),
+      canManage: roles.some((r) => (PILOT_MANAGE_ROLES as readonly string[]).includes(r)),
     };
   });
 
@@ -119,8 +126,7 @@ export const updatePilotConfig = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, MANAGE, "غير مصرح بتعديل إعدادات التشغيل التجريبي.");
+    await assertPilotManage(context.userId);
     const patch: Record<string, unknown> = { updated_by: context.userId, updated_at: new Date().toISOString() };
     if (data.status !== undefined) patch.status = data.status;
     if (data.launch_date !== undefined) patch.launch_date = data.launch_date;
@@ -141,8 +147,7 @@ export const listPilotParticipants = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, READ, "غير مصرح.");
+    await assertPilotRead(context.userId);
     const { data, error } = await sb
       .from("pilot_participants")
       .select("id, full_name, role, department_id, status, notes, created_at")
@@ -165,8 +170,7 @@ export const upsertPilotParticipant = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, MANAGE, "غير مصرح.");
+    await assertPilotManage(context.userId);
     const payload: Record<string, unknown> = {
       full_name: data.full_name,
       role: data.role,
@@ -192,8 +196,7 @@ export const deletePilotParticipant = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, MANAGE, "غير مصرح.");
+    await assertPilotManage(context.userId);
     const { error } = await sb.from("pilot_participants").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -208,8 +211,7 @@ export const listPilotScenarios = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, READ, "غير مصرح.");
+    await assertPilotRead(context.userId);
     const [scens, results] = await Promise.all([
       sb.from("pilot_test_scenarios").select("id, category, code, name, description, order_index").order("order_index"),
       sb.from("pilot_test_results").select("scenario_id, result, notes, tested_at, tested_by"),
@@ -239,8 +241,7 @@ export const setPilotScenarioResult = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, MANAGE, "غير مصرح.");
+    await assertPilotManage(context.userId);
     const { error } = await sb.from("pilot_test_results").upsert({
       scenario_id: data.scenario_id,
       result: data.result,
@@ -262,8 +263,7 @@ export const getPilotChecklist = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, READ, "غير مصرح.");
+    await assertPilotRead(context.userId);
     const today = new Date().toISOString().slice(0, 10);
     const [items, runs] = await Promise.all([
       sb.from("pilot_checklist_items").select("id, period, code, label, order_index").order("order_index"),
@@ -285,8 +285,7 @@ export const togglePilotChecklist = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, MANAGE, "غير مصرح.");
+    await assertPilotManage(context.userId);
     const today = new Date().toISOString().slice(0, 10);
     if (data.completed) {
       const { error } = await sb.from("pilot_checklist_runs").upsert({
@@ -314,8 +313,7 @@ export const listPilotIssues = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, READ, "غير مصرح.");
+    await assertPilotRead(context.userId);
     const page = data?.page ?? 1;
     const pageSize = 100;
     const from = (page - 1) * pageSize, to = from + pageSize - 1;
@@ -343,8 +341,7 @@ export const upsertPilotIssue = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, MANAGE, "غير مصرح.");
+    await assertPilotManage(context.userId);
     const now = new Date().toISOString();
     const payload: Record<string, unknown> = {
       title: data.title,
@@ -381,8 +378,7 @@ export const listPilotFeedback = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, READ, "غير مصرح.");
+    await assertPilotRead(context.userId);
     const page = data?.page ?? 1;
     const pageSize = 100;
     const from = (page - 1) * pageSize, to = from + pageSize - 1;
@@ -405,8 +401,7 @@ export const recordPilotFeedback = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    requireRoles(roles, MANAGE, "غير مصرح.");
+    await assertPilotManage(context.userId);
     const { data: row, error } = await sb.from("pilot_feedback").insert({
       category: data.category,
       type: data.type,
@@ -427,6 +422,7 @@ export const logPilotReportExported = createServerFn({ method: "POST" })
   .inputValidator(z.object({ report: z.string(), format: z.enum(["csv","xlsx"]), rows: z.number().int() }))
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
+    await assertPilotRead(context.userId);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
     await logAudit(sb, "pilot_report_exported", data);
