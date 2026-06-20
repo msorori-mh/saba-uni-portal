@@ -464,14 +464,31 @@ export const setActive = createServerFn({ method: "POST" })
     if (!profile) throw new Error("الحساب غير موجود");
     const targetUserId = (profile as any).user_id as string | null;
 
-    // Protect last admin
+    // Protect last admin / system_admin
     if (!data.active && targetUserId) {
-      const { data: adminRoles } = await supabaseAdmin
-        .from("user_roles").select("user_id").eq("role", "admin");
-      const admins = adminRoles ?? [];
-      const isAdmin = admins.some((r: any) => r.user_id === targetUserId);
-      if (isAdmin && admins.length <= 1) {
-        throw new Error("لا يمكن تعطيل آخر حساب مدير في النظام");
+      const { data: roleRows } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", targetUserId)
+        .in("role", ["admin", "system_admin"]);
+      const roles = (roleRows ?? []).map((r: any) => r.role as string);
+      if (roles.includes("admin")) {
+        const { count } = await supabaseAdmin
+          .from("user_roles")
+          .select("id", { count: "exact", head: true })
+          .eq("role", "admin");
+        if ((count ?? 0) <= 1) {
+          throw new Error("لا يمكن تعطيل آخر حساب مدير في النظام");
+        }
+      }
+      if (roles.includes("system_admin")) {
+        const { count } = await supabaseAdmin
+          .from("user_roles")
+          .select("id", { count: "exact", head: true })
+          .eq("role", "system_admin");
+        if ((count ?? 0) <= 1) {
+          throw new Error("لا يمكن تعطيل آخر system_admin في النظام");
+        }
       }
     }
 
@@ -554,6 +571,13 @@ export const removeRole = createServerFn({ method: "POST" })
         .select("id", { count: "exact", head: true })
         .eq("role", "admin");
       if ((count ?? 0) <= 1) throw new Error("لا يمكن إزالة آخر مدير في النظام");
+    }
+    if (data.role === "system_admin") {
+      const { count } = await supabaseAdmin
+        .from("user_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "system_admin");
+      if ((count ?? 0) <= 1) throw new Error("لا يمكن إزالة آخر system_admin في النظام");
     }
 
     const { error } = await supabaseAdmin
