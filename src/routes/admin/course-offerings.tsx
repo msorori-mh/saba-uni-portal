@@ -1,8 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  getCourseOfferingsLookups,
+  listCourseOfferings,
+  upsertCourseOffering,
+  deleteCourseOffering,
+  getPlanCoursesForOffering,
+  listCourseSections,
+  upsertCourseSection,
+  deleteCourseSection,
+  getClassScheduleStats,
+} from "@/lib/admin-course-offerings.functions";
 import { Plus, Pencil, Trash2, Loader2, CalendarDays, Users2, Clock, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,59 +69,19 @@ const typeLabel = (c: string) => TYPES.find((t) => t.code === c)?.label ?? c;
 
 // ============ Shared lookups hook ============
 function useLookups() {
-  const courses = useQuery({
-    queryKey: ["lk-courses"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("courses").select("id, code, name_ar").order("code");
-      if (error) throw error; return data as Course[];
-    },
-  });
-  const years = useQuery({
-    queryKey: ["lk-years"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false });
-      if (error) throw error; return data as Year[];
-    },
-  });
-  const semesters = useQuery({
-    queryKey: ["lk-semesters"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("semesters").select("id, academic_year_id, name, code").order("start_date");
-      if (error) throw error; return data as Semester[];
-    },
-  });
-  const programs = useQuery({
-    queryKey: ["lk-programs"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("programs").select("id, name_ar, code, department_id").order("sort_order");
-      if (error) throw error; return data as Program[];
-    },
-  });
-  const levels = useQuery({
-    queryKey: ["lk-levels"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("academic_levels").select("id, name, level_number").order("level_number");
-      if (error) throw error; return data as Level[];
-    },
-  });
-  const departments = useQuery({
-    queryKey: ["lk-departments"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("departments").select("id, name_ar").order("name_ar");
-      if (error) throw error; return data as Department[];
-    },
-  });
-  const faculty = useQuery({
-    queryKey: ["lk-faculty-profiles"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("faculty_profiles").select("id, full_name_ar, employee_number").order("full_name_ar");
-      if (error) throw error; return data as FacultyProfile[];
-    },
+  const lookupsFn = useServerFn(getCourseOfferingsLookups);
+  const { data } = useQuery({
+    queryKey: ["course-offerings-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
   });
   return {
-    courses: courses.data ?? [], years: years.data ?? [], semesters: semesters.data ?? [],
-    programs: programs.data ?? [], levels: levels.data ?? [], faculty: faculty.data ?? [],
-    departments: departments.data ?? [],
+    courses: data?.courses ?? [],
+    years: data?.years ?? [],
+    semesters: data?.semesters ?? [],
+    programs: data?.programs ?? [],
+    levels: data?.levels ?? [],
+    faculty: data?.faculty ?? [],
+    departments: data?.departments ?? [],
   };
 }
 
@@ -142,6 +113,8 @@ function CourseOfferingsPage() {
 function OfferingsTab() {
   const qc = useQueryClient();
   const lk = useLookups();
+  const listFn = useServerFn(listCourseOfferings);
+  const deleteFn = useServerFn(deleteCourseOffering);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Offering | null>(null);
   const [confirmDel, setConfirmDel] = useState<Offering | null>(null);
@@ -150,10 +123,7 @@ function OfferingsTab() {
 
   const { data: offerings = [], isLoading } = useQuery({
     queryKey: ["admin-offerings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("course_offerings").select("*").order("created_at", { ascending: false });
-      if (error) throw error; return data as Offering[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   const filtered = useMemo(() => offerings.filter((o) =>
@@ -163,11 +133,15 @@ function OfferingsTab() {
 
   const handleDelete = async () => {
     if (!confirmDel) return;
-    const { error } = await supabase.from("course_offerings").delete().eq("id", confirmDel.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف إسناد المقررات");
-    setConfirmDel(null);
-    qc.invalidateQueries({ queryKey: ["admin-offerings"] });
+    try {
+      await deleteFn({ data: { id: confirmDel.id } });
+      toast.success("تم حذف إسناد المقررات");
+      setConfirmDel(null);
+      qc.invalidateQueries({ queryKey: ["admin-offerings"] });
+    } catch (e) {
+      const msg = (e as Error).message;
+      toast.error(msg.includes("uq_course_offering") ? "هذا المقرر مطروح مسبقاً بنفس التركيبة" : msg);
+    }
   };
 
   const findCourse = (id: string) => lk.courses.find((c) => c.id === id);
@@ -276,6 +250,8 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
   open: boolean; onOpenChange: (v: boolean) => void; editing: Offering | null;
   lk: ReturnType<typeof useLookups>; onSaved: () => void;
 }) {
+  const planCoursesFn = useServerFn(getPlanCoursesForOffering);
+  const upsertFn = useServerFn(upsertCourseOffering);
   const [form, setForm] = useState<Partial<Offering> & { department_id?: string }>({});
   const [saving, setSaving] = useState(false);
 
@@ -295,51 +271,16 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
 
   const curriculumReady = Boolean(form.academic_year_id && form.semester_id && form.program_id && form.level_id);
 
-  // Normalize semester code: study_plan_courses uses canonical "first"/"second",
-  // while semesters.code may also store year-specific codes like "2025-1"/"2025-2".
-  const selectedSemester = lk.semesters.find((s) => s.id === form.semester_id);
-  const rawCode = selectedSemester?.code ?? null;
-  const semesterCode = rawCode
-    ? (rawCode === "first" || rawCode === "second"
-        ? rawCode
-        : rawCode.endsWith("-1") ? "first"
-        : rawCode.endsWith("-2") ? "second"
-        : rawCode)
-    : null;
   const planCoursesQ = useQuery({
-    queryKey: ["plan-courses", form.program_id, form.level_id, semesterCode],
-    enabled: Boolean(form.program_id && form.level_id && semesterCode),
-    queryFn: async () => {
-      // Find active study plan(s) for program
-      const { data: plans, error: pErr } = await supabase
-        .from("study_plans")
-        .select("id")
-        .eq("program_id", form.program_id!)
-        .eq("is_active", true)
-        .eq("status", "active");
-      if (pErr) throw pErr;
-      if (!plans || plans.length === 0) return { noPlan: true, courses: [] as Course[] };
-
-      const planIds = plans.map((p) => p.id);
-      const { data: spc, error: sErr } = await supabase
-        .from("study_plan_courses")
-        .select("course_id, sort_order")
-        .in("study_plan_id", planIds)
-        .eq("level_id", form.level_id!)
-        .eq("semester_code", semesterCode!)
-        .order("sort_order");
-      if (sErr) throw sErr;
-      const ids = Array.from(new Set((spc ?? []).map((r) => r.course_id)));
-      if (ids.length === 0) return { noPlan: false, courses: [] as Course[] };
-      const { data: cs, error: cErr } = await supabase
-        .from("courses")
-        .select("id, code, name_ar")
-        .in("id", ids);
-      if (cErr) throw cErr;
-      const order = new Map(ids.map((id, i) => [id, i]));
-      const courses = ((cs ?? []) as Course[]).slice().sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
-      return { noPlan: false, courses };
-    },
+    queryKey: ["plan-courses", form.program_id, form.level_id, form.semester_id],
+    enabled: Boolean(form.program_id && form.level_id && form.semester_id),
+    queryFn: () => planCoursesFn({
+      data: {
+        programId: form.program_id!,
+        levelId: form.level_id!,
+        semesterId: form.semester_id!,
+      },
+    }),
   });
 
 
@@ -348,22 +289,27 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
       toast.error("جميع الحقول مطلوبة"); return;
     }
     setSaving(true);
-    const payload = {
-      course_id: form.course_id, academic_year_id: form.academic_year_id,
-      semester_id: form.semester_id, program_id: form.program_id,
-      level_id: form.level_id, status: form.status ?? "active",
-    };
-    const { error } = editing
-      ? await supabase.from("course_offerings").update(payload).eq("id", editing.id)
-      : await supabase.from("course_offerings").insert(payload);
-    setSaving(false);
-    if (error) {
-      if (error.message.includes("uq_course_offering")) toast.error("هذا المقرر مطروح مسبقاً بنفس التركيبة");
-      else toast.error(error.message);
-      return;
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          course_id: form.course_id,
+          academic_year_id: form.academic_year_id,
+          semester_id: form.semester_id,
+          program_id: form.program_id,
+          level_id: form.level_id,
+          status: (form.status ?? "active") as "active" | "inactive",
+        },
+      });
+      toast.success(editing ? "تم التحديث" : "تم إضافة إسناد المقررات");
+      onOpenChange(false);
+      onSaved();
+    } catch (e) {
+      const msg = (e as Error).message;
+      toast.error(msg.includes("uq_course_offering") ? "هذا المقرر مطروح مسبقاً بنفس التركيبة" : msg);
+    } finally {
+      setSaving(false);
     }
-    toast.success(editing ? "تم التحديث" : "تم إضافة إسناد المقررات");
-    onOpenChange(false); onSaved();
   };
 
   return (
@@ -470,24 +416,21 @@ function OfferingFormDialog({ open, onOpenChange, editing, lk, onSaved }: {
 function SectionsTab() {
   const qc = useQueryClient();
   const lk = useLookups();
+  const listOfferingsFn = useServerFn(listCourseOfferings);
+  const listSectionsFn = useServerFn(listCourseSections);
+  const deleteFn = useServerFn(deleteCourseSection);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Section | null>(null);
   const [confirmDel, setConfirmDel] = useState<Section | null>(null);
 
   const { data: offerings = [] } = useQuery({
     queryKey: ["admin-offerings"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("course_offerings").select("*");
-      if (error) throw error; return data as Offering[];
-    },
+    queryFn: () => listOfferingsFn({ data: {} }),
   });
 
   const { data: sections = [], isLoading } = useQuery({
     queryKey: ["admin-sections"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("course_sections").select("*").order("section_code");
-      if (error) throw error; return data as Section[];
-    },
+    queryFn: () => listSectionsFn({ data: {} }),
   });
 
   const findOff = (id: string) => offerings.find((o) => o.id === id);
@@ -503,11 +446,14 @@ function SectionsTab() {
 
   const handleDelete = async () => {
     if (!confirmDel) return;
-    const { error } = await supabase.from("course_sections").delete().eq("id", confirmDel.id);
-    if (error) { toast.error(error.message); return; }
-    toast.success("تم حذف المجموعات الدراسيةة");
-    setConfirmDel(null);
-    qc.invalidateQueries({ queryKey: ["admin-sections"] });
+    try {
+      await deleteFn({ data: { id: confirmDel.id } });
+      toast.success("تم حذف المجموعات الدراسيةة");
+      setConfirmDel(null);
+      qc.invalidateQueries({ queryKey: ["admin-sections"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   return (
@@ -579,6 +525,7 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
   open: boolean; onOpenChange: (v: boolean) => void; editing: Section | null;
   offerings: Offering[]; lk: ReturnType<typeof useLookups>; onSaved: () => void;
 }) {
+  const upsertFn = useServerFn(upsertCourseSection);
   const [form, setForm] = useState<Partial<Section>>({});
   const [saving, setSaving] = useState(false);
 
@@ -592,24 +539,26 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
   const save = async () => {
     if (!form.course_offering_id || !form.section_code) { toast.error("إسناد المقررات ورمز المجموعات الدراسيةة مطلوبان"); return; }
     setSaving(true);
-    const payload = {
-      course_offering_id: form.course_offering_id,
-      section_code: form.section_code.toUpperCase(),
-      faculty_profile_id: form.faculty_profile_id ?? null,
-      capacity: form.capacity ?? null,
-      status: form.status ?? "active",
-    };
-    const { error } = editing
-      ? await supabase.from("course_sections").update(payload).eq("id", editing.id)
-      : await supabase.from("course_sections").insert(payload);
-    setSaving(false);
-    if (error) {
-      if (error.message.includes("uq_section_code")) toast.error("رمز المجموعات الدراسيةة موجود لهذا إسناد المقررات");
-      else toast.error(error.message);
-      return;
+    try {
+      await upsertFn({
+        data: {
+          id: editing?.id,
+          course_offering_id: form.course_offering_id,
+          section_code: form.section_code,
+          faculty_profile_id: form.faculty_profile_id ?? null,
+          capacity: form.capacity ?? null,
+          status: (form.status ?? "active") as "active" | "inactive",
+        },
+      });
+      toast.success(editing ? "تم التحديث" : "تم إضافة المجموعات الدراسيةة");
+      onOpenChange(false);
+      onSaved();
+    } catch (e) {
+      const msg = (e as Error).message;
+      toast.error(msg.includes("uq_section_code") ? "رمز المجموعات الدراسيةة موجود لهذا إسناد المقررات" : msg);
+    } finally {
+      setSaving(false);
     }
-    toast.success(editing ? "تم التحديث" : "تم إضافة المجموعات الدراسيةة");
-    onOpenChange(false); onSaved();
   };
 
   return (
@@ -675,15 +624,10 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
 
 // ============ Schedule Tab — Import-only (university scheduling system is the source of truth) ============
 function ScheduleTab() {
+  const statsFn = useServerFn(getClassScheduleStats);
   const { data: stats } = useQuery({
     queryKey: ["class-schedule-stats"],
-    queryFn: async () => {
-      const [{ count: total }, { count: published }] = await Promise.all([
-        supabase.from("class_schedule").select("id", { count: "exact", head: true }),
-        supabase.from("class_schedule").select("id", { count: "exact", head: true }).eq("status", "published"),
-      ]);
-      return { total: total ?? 0, published: published ?? 0 };
-    },
+    queryFn: () => statsFn({ data: {} }),
   });
 
   return (
