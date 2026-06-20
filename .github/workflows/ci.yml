@@ -5,18 +5,27 @@ on:
     branches: [main]
     paths:
       - "src/**"
+      - "public/**"
+      - "scripts/**"
       - "package.json"
       - "bun.lock"
+      - "bun.lockb"
       - "vite.config.ts"
       - "tsconfig.json"
+      - "tsconfig.*.json"
       - "eslint.config.js"
       - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   quality:
+    name: Install · Lint · Typecheck · Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -28,10 +37,28 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Lint
-        run: bun run lint
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          if node -e "const s=require('./package.json').scripts||{}; process.exit(s.lint?0:1)"; then
+            bun run lint
+          else
+            echo "No lint script in package.json — skipped."
+          fi
 
       - name: Typecheck
-        run: bunx tsc --noEmit
+        run: |
+          if node -e "const s=require('./package.json').scripts||{}; process.exit(s.typecheck?0:1)"; then
+            bun run typecheck
+          else
+            bunx tsc --noEmit
+          fi
 
       - name: Build
-        run: bun run build
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          if node -e "const s=require('./package.json').scripts||{}; process.exit(s.build?0:1)"; then
+            bun run build
+          else
+            echo "::error::No build script in package.json"
+            exit 1
+          fi
