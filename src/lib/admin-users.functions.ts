@@ -47,15 +47,121 @@ const ACCOUNT_PROVISION_ROLES: Record<AccountKind, readonly string[]> = {
 function emailFor(kind: AccountKind, identifier: string): string {
   switch (kind) {
     case "student":
-      return `${identifier}@students.usr.edu.ye`;
+      return `${identifier.toLowerCase()}@students.usr.edu.ye`;
     case "faculty":
-      return `${identifier}@faculty.usr.edu.ye`;
+      return `${identifier.toLowerCase()}@faculty.usr.edu.ye`;
     case "staff":
-      return `${identifier}@staff.usr.edu.ye`;
+      return `${identifier.toLowerCase()}@staff.usr.edu.ye`;
   }
 }
 
-// Map staff role_type to app_role
+async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+  const { data, error } = await (supabaseAdmin as any).rpc("find_auth_user_id_by_email", {
+    p_email: email,
+  });
+  if (error) throw new Error(`تعذّر التحقق من حساب الدخول — ${error.message}`);
+  return data ? (data as string) : null;
+}
+
+/** Relink profile → auth user as the authenticated admin (protect_* triggers allow admin writes). */
+async function relinkProfileUserId(
+  context: { supabase: { from: (table: string) => any; rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }> } },
+  kind: AccountKind,
+  profileId: string,
+  userId: string,
+): Promise<void> {
+  if (kind === "student") {
+    const { error } = await context.supabase.rpc("link_student_user_account", {
+      _profile_id: profileId,
+      _target_user_id: userId,
+    });
+    if (error) throw new Error(error.message);
+    return;
+  }
+  const table = kind === "faculty" ? "faculty_profiles" : "staff_profiles";
+  const { error } = await context.supabase
+    .from(table)
+    .update({ user_id: userId } as any)
+    .eq("id", profileId);
+  if (error) throw new Error(error.message);
+}
+
+/** Last-resort repair: only touches the auth.users row for the given official email. */
+async function repairAuthUserForEmail(
+  email: string,
+  password: string,
+  metadata: { full_name_ar?: string; kind: AccountKind },
+): Promise<string> {
+  const emailAuthId = await findAuthUserIdByEmail(email);
+
+  if (emailAuthId) {
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(emailAuthId, { password });
+    if (!error) return emailAuthId;
+    try {
+      await supabaseAdmin.auth.admin.deleteUser(emailAuthId);
+    } catch {
+      /* corrupt rows may fail delete */
+    }
+  }
+
+  const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: metadata,
+  });
+  if (cErr || !created.user) {
+    throw new Error(cErr?.message ?? "تعذّر إنشاء حساب الدخول");
+  }
+  return created.user.id;
+}
+
+async function migrateUserRoles(fromUserId: string, toUserId: string): Promise<void> {
+  if (fromUserId === toUserId) return;
+  const { data: roles } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", fromUserId);
+  for (const row of roles ?? []) {
+    const { data: exists } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", toUserId)
+      .eq("role", row.role as any)
+      .maybeSingle();
+    if (!exists) {
+      await supabaseAdmin.from("user_roles").insert({ user_id: toUserId, role: row.role as any });
+    }
+  }
+}
+
+function defaultRoleForProfile(kind: AccountKind, profile: Record<string, unknown>): string {
+  if (kind === "student") return "student";
+  if (kind === "faculty") return "faculty_member";
+  return staffRoleFor(profile.role_type as string | null | undefined);
+}
+
+async function ensureProfileRoles(
+  kind: AccountKind,
+  profile: Record<string, unknown>,
+  userId: string,
+  preferredRoles?: string[],
+): Promise<void> {
+  const roles = preferredRoles?.length
+    ? preferredRoles
+    : [defaultRoleForProfile(kind, profile)];
+  for (const role of roles) {
+    const { data: exists } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("role", role as any)
+      .maybeSingle();
+    if (!exists) {
+      await supabaseAdmin.from("user_roles").insert({ user_id: userId, role: role as any });
+    }
+  }
+}
 function staffRoleFor(roleType: string | null | undefined): string {
   switch (roleType) {
     case "registrar": return "registrar";
@@ -318,7 +424,7 @@ export const createAccount = createServerFn({ method: "POST" })
       );
       uErr = error ? { message: error.message } : null;
     } else {
-      const { error } = await supabaseAdmin
+      const { error } = await context.supabase
         .from(table)
         .update({ user_id: newUserId, must_change_password: true, status: "active" } as any)
         .eq("id", data.profile_id);
@@ -398,19 +504,62 @@ export const resetPassword = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabaseAdmin
       .from(table).select("*").eq("id", data.profile_id).maybeSingle();
-    if (!profile || !(profile as any).user_id) throw new Error("الحساب غير موجود");
+    if (!profile) throw new Error("الحساب غير موجود");
 
     const identifier =
       data.kind === "student"
         ? (profile as any).academic_number
         : (profile as any).employee_number;
+    if (!identifier) throw new Error("الرقم الأكاديمي/الوظيفي مفقود");
+
+    const email = emailFor(data.kind, identifier);
+    const profileUserId = ((profile as any).user_id as string | null) ?? null;
+
+    let authUserId = await findAuthUserIdByEmail(email);
+    let relinked = false;
+    let repairedAuth = false;
+
+    if (!authUserId && !profileUserId) {
+      throw new Error("لا يوجد حساب دخول مرتبط بهذا الملف");
+    }
+
+    if (authUserId && authUserId !== profileUserId) {
+      if (profileUserId) await migrateUserRoles(profileUserId, authUserId);
+      await relinkProfileUserId(context, data.kind, data.profile_id, authUserId);
+      relinked = true;
+    } else if (!authUserId && profileUserId) {
+      authUserId = profileUserId;
+    }
+
     const password = generateTemporaryPassword();
 
-    const { error: aErr } = await supabaseAdmin.auth.admin.updateUserById(
-      (profile as any).user_id,
-      { password }
-    );
-    if (aErr) throw new Error(`تعذّر إعادة تعيين كلمة المرور — ${aErr.message}`);
+    let { error: aErr } = await supabaseAdmin.auth.admin.updateUserById(authUserId!, { password });
+
+    if (aErr && /Database error loading user/i.test(aErr.message)) {
+      const roleSourceId = profileUserId ?? authUserId!;
+      const { data: existingRoles } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", roleSourceId);
+      const rolesToRestore = (existingRoles ?? []).map((r) => r.role as string);
+
+      const previousAuthUserId = authUserId!;
+      authUserId = await repairAuthUserForEmail(
+        email,
+        password,
+        { full_name_ar: (profile as any).full_name_ar, kind: data.kind },
+      );
+      repairedAuth = true;
+
+      if (authUserId !== previousAuthUserId || !profileUserId) {
+        await relinkProfileUserId(context, data.kind, data.profile_id, authUserId);
+        relinked = true;
+        await ensureProfileRoles(data.kind, profile as Record<string, unknown>, authUserId, rolesToRestore);
+      }
+      aErr = null;
+    } else if (aErr) {
+      throw new Error(`تعذّر إعادة تعيين كلمة المرور — ${aErr.message}`);
+    }
 
     // Use SECURITY DEFINER RPCs to bypass protect_*_sensitive_fields triggers
     // (service_role has no auth.uid(), so a direct UPDATE is silently reverted).
@@ -427,9 +576,16 @@ export const resetPassword = createServerFn({ method: "POST" })
 
     await logAudit({
       actor_user_id: context.userId,
-      action_type: "password_reset",
-      entity_id: (profile as any).user_id,
-      notes: `إعادة تعيين كلمة المرور لـ ${identifier}`,
+      action_type: repairedAuth ? "auth_user_repaired" : "password_reset",
+      entity_id: authUserId,
+      notes: repairedAuth
+        ? `إصلاح حساب Auth وإعادة تعيين كلمة المرور لـ ${identifier} (${email})`
+        : relinked
+          ? `إعادة ربط ملف ${data.kind} وإعادة تعيين كلمة المرور لـ ${identifier}`
+          : `إعادة تعيين كلمة المرور لـ ${identifier}`,
+      new_values: repairedAuth || relinked
+        ? { kind: data.kind, profile_id: data.profile_id, email, relinked, repaired_auth: repairedAuth }
+        : undefined,
     });
 
     return { ok: true, password };
