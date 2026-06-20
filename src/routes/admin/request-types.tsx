@@ -1,18 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { Loader2, ListChecks, Power, Paperclip, Plus, Pencil, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  listRequestTypes,
+  toggleRequestTypeActive,
+  upsertRequestType,
+  deleteRequestType,
+} from "@/lib/admin-request-types.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as unknown as { from: (t: string) => any };
 
 export const Route = createFileRoute("/admin/request-types")({
   component: AdminRequestTypesPage,
@@ -40,26 +43,28 @@ const emptyForm: FormState = {
 
 function AdminRequestTypesPage() {
   const qc = useQueryClient();
+  const listFn = useServerFn(listRequestTypes);
+  const toggleFn = useServerFn(toggleRequestTypeActive);
+  const upsertFn = useServerFn(upsertRequestType);
+  const deleteFn = useServerFn(deleteRequestType);
+
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const { data: types = [], isLoading } = useQuery({
     queryKey: ["admin-request-types"],
-    queryFn: async (): Promise<RT[]> => {
-      const { data, error } = await sb.from("request_types")
-        .select("id, code, name_ar, description_ar, is_active, requires_attachment, sort_order")
-        .order("sort_order", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as RT[];
-    },
+    queryFn: () => listFn({ data: {} }),
   });
 
   const toggle = async (id: string, current: boolean) => {
-    const { error } = await sb.from("request_types").update({ is_active: !current }).eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    toast.success(!current ? "تم التفعيل" : "تم التعطيل");
-    qc.invalidateQueries({ queryKey: ["admin-request-types"] });
+    try {
+      await toggleFn({ data: { id, isActive: !current } });
+      toast.success(!current ? "تم التفعيل" : "تم التعطيل");
+      qc.invalidateQueries({ queryKey: ["admin-request-types"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل التحديث");
+    }
   };
 
   const openCreate = () => {
@@ -93,35 +98,37 @@ function AdminRequestTypesPage() {
       return;
     }
     setSaving(true);
-    const payload = {
-      code,
-      name_ar,
-      description_ar: form.description_ar.trim() || null,
-      is_active: form.is_active,
-      requires_attachment: form.requires_attachment,
-      sort_order: Number(form.sort_order) || 0,
-    };
-    const { error } = form.id
-      ? await sb.from("request_types").update(payload).eq("id", form.id)
-      : await sb.from("request_types").insert(payload);
-    setSaving(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(form.id ? "تم تحديث نوع الطلب" : "تم إضافة نوع الطلب");
-    setOpen(false);
-    qc.invalidateQueries({ queryKey: ["admin-request-types"] });
+    try {
+      await upsertFn({
+        data: {
+          id: form.id,
+          code,
+          name_ar,
+          description_ar: form.description_ar,
+          is_active: form.is_active,
+          requires_attachment: form.requires_attachment,
+          sort_order: form.sort_order,
+        },
+      });
+      toast.success(form.id ? "تم تحديث نوع الطلب" : "تم إضافة نوع الطلب");
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["admin-request-types"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحفظ");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const remove = async (t: RT) => {
     if (!confirm(`حذف نوع الطلب "${t.name_ar}"؟ لن يكون متاحًا للطلاب بعد ذلك.`)) return;
-    const { error } = await sb.from("request_types").delete().eq("id", t.id);
-    if (error) {
-      toast.error(error.message.includes("foreign") || error.message.includes("violates")
-        ? "لا يمكن الحذف: هناك طلبات مرتبطة بهذا النوع. يمكنك تعطيله بدلًا من حذفه."
-        : error.message);
-      return;
+    try {
+      await deleteFn({ data: { id: t.id } });
+      toast.success("تم الحذف");
+      qc.invalidateQueries({ queryKey: ["admin-request-types"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "فشل الحذف");
     }
-    toast.success("تم الحذف");
-    qc.invalidateQueries({ queryKey: ["admin-request-types"] });
   };
 
   return (
