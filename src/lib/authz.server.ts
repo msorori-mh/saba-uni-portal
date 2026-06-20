@@ -37,7 +37,16 @@ export const COMMUNICATIONS_ADMIN_ROLES = [
 /** Roles allowed to access executive dashboard analytics. */
 export const EXEC_ROLES = ["admin", "system_admin", "dean", "registrar"] as const;
 
-/** Roles allowed to manage student records and provision student logins. */
+/** Roles allowed read-only access to student records in the admin panel. */
+export const STUDENT_READ_ROLES = [
+  "admin",
+  "system_admin",
+  "dean",
+  "registrar",
+  "student_affairs",
+] as const;
+
+/** Roles allowed to manage student records and provision student logins (no dean). */
 export const STUDENT_ADMIN_ROLES = [
   "admin",
   "system_admin",
@@ -73,6 +82,10 @@ export async function assertExecRole(userId: string): Promise<void> {
     EXEC_ROLES,
     "ليس لديك صلاحية الوصول إلى لوحة التحليلات التنفيذية",
   );
+}
+
+export async function assertStudentRead(userId: string): Promise<void> {
+  await assertAnyRole(userId, STUDENT_READ_ROLES, "ليس لديك صلاحية لعرض الطلاب");
 }
 
 export async function assertStudentAdmin(userId: string): Promise<void> {

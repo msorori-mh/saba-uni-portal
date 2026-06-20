@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { assertStudentAdmin, primaryActorRole } from "@/lib/authz.server";
+import { assertStudentAdmin, assertStudentRead, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 
 async function logAudit(input: {
@@ -31,7 +31,7 @@ async function logAudit(input: {
 export const getStudentLookups = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertStudentAdmin(context.userId);
+    await assertStudentRead(context.userId);
     const [deps, progs, levels, years, sems] = await Promise.all([
       supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
       supabaseAdmin.from("programs").select("id, name_ar, department_id, code").eq("is_active", true).order("sort_order"),
@@ -224,7 +224,7 @@ export const getStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    await assertStudentAdmin(context.userId);
+    await assertStudentRead(context.userId);
     const { data: row, error } = await supabaseAdmin
       .from("student_profiles")
       .select("*")

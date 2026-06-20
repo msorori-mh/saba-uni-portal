@@ -14,6 +14,32 @@ export type AdminPanelRole = (typeof ADMIN_PANEL_ROLES)[number];
 
 const SUPER_ROLES = new Set<string>(["admin", "system_admin"]);
 
+/** Matches authz.server STUDENT_READ_ROLES — client-safe for UI gating. */
+export const STUDENT_READ_ROLES = [
+  "system_admin",
+  "admin",
+  "dean",
+  "registrar",
+  "student_affairs",
+] as const;
+
+/** Matches authz.server STUDENT_ADMIN_ROLES — write access to student CRUD & accounts. */
+export const STUDENT_WRITE_ROLES = [
+  "system_admin",
+  "admin",
+  "registrar",
+  "student_affairs",
+] as const;
+
+export function canWriteStudents(userRoles: string[]): boolean {
+  if (userRoles.some((r) => SUPER_ROLES.has(r))) return true;
+  return userRoles.some((r) => (STUDENT_WRITE_ROLES as readonly string[]).includes(r));
+}
+
+export function studentsNavLabel(userRoles: string[]): string {
+  return canWriteStudents(userRoles) ? "إدارة الطلاب" : "عرض الطلاب";
+}
+
 export function isAdminPanelRole(role: string): role is AdminPanelRole {
   return (ADMIN_PANEL_ROLES as readonly string[]).includes(role);
 }
@@ -127,17 +153,23 @@ export function firstAccessibleAdminRoute(userRoles: string[]): string {
   return "/admin";
 }
 
-export function filterNavGroups<T extends { items: { to: string }[] }>(
+export function filterNavGroups<T extends { items: { to: string; label: string }[] }>(
   groups: T[],
   userRoles: string[],
 ): T[] {
   return groups
     .map((g) => ({
       ...g,
-      items: g.items.filter((item) => {
-        const allowed = NAV_ITEM_ROLES[item.to];
-        return allowed ? canSeeNavItem(allowed, userRoles) : false;
-      }),
+      items: g.items
+        .filter((item) => {
+          const allowed = NAV_ITEM_ROLES[item.to];
+          return allowed ? canSeeNavItem(allowed, userRoles) : false;
+        })
+        .map((item) =>
+          item.to === "/admin/students"
+            ? { ...item, label: studentsNavLabel(userRoles) }
+            : item,
+        ),
     }))
     .filter((g) => g.items.length > 0);
 }
