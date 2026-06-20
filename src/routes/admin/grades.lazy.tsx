@@ -1,10 +1,12 @@
 import { createLazyFileRoute } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { Loader2, CheckCircle2, RotateCcw, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { approveSubmittedGrades, returnSubmittedGrades } from "@/lib/admin-grades.functions";
 import { sendNotificationEmail } from "@/lib/email.functions";
 
 // Cast helper: new tables not in generated types yet
@@ -56,6 +58,8 @@ async function fetchSections(filters: { yearId?: string; semId?: string }): Prom
 function AdminGradesPage() {
   usePagePerf("/admin/grades");
   const qc = useQueryClient();
+  const approveFn = useServerFn(approveSubmittedGrades);
+  const returnFn = useServerFn(returnSubmittedGrades);
   const [sectionId, setSectionId] = useState<string>("");
   const [yearId, setYearId] = useState<string>("");
   const [semId, setSemId] = useState<string>("");
@@ -122,61 +126,48 @@ function AdminGradesPage() {
   const totalMax = components.reduce((s, c) => s + Number(c.max_score), 0);
 
   const approveAll = async () => {
-    const { data: auth } = await supabase.auth.getUser();
-    const { data: staff } = await supabase.from("staff_profiles").select("id").eq("user_id", auth.user!.id).maybeSingle();
     const idsToApprove: string[] = [];
     for (const r of rows) for (const g of Object.values(r.grades)) if (g && g.status === "submitted") idsToApprove.push(g.id);
     if (idsToApprove.length === 0) {
       toast.info("لا توجد درجات بحالة (مرسلة) للاعتماد");
       return;
     }
-    const { error } = await (sb.from("student_grades") as any)
-      .update({ status: "approved", approved_at: new Date().toISOString(), approved_by: staff?.id ?? null })
-      .in("id", idsToApprove);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`تم اعتماد ${idsToApprove.length} درجة`);
-    qc.invalidateQueries({ queryKey: ["adm-grades-rows", sectionId] });
-    // Phase 9B: best-effort emails per affected student (one email/student)
     try {
-      const { data: sec } = await sb.from("course_sections")
-        .select("offering:course_offerings(course:courses(name_ar))").eq("id", sectionId).maybeSingle();
-      const courseName = sec?.offering?.course?.name_ar ?? "المقرر";
-      const enrIds = Array.from(new Set(rows
-        .filter(r => Object.values(r.grades).some(g => g && idsToApprove.includes(g.id)))
-        .map(r => r.enrollmentId)));
-      if (enrIds.length > 0) {
-        const { data: enrs } = await sb.from("student_enrollments")
-          .select("student_profile_id, student:student_profiles(email, full_name_ar)")
-          .in("id", enrIds);
-        const seen = new Set<string>();
-        for (const e of (enrs ?? [])) {
-          const email = e?.student?.email as string | undefined;
-          if (!email || seen.has(email)) continue;
-          seen.add(email);
-          sendNotificationEmail({ data: {
-            templateKey: "grade_approved",
-            recipientEmail: email,
-            recipientName: e.student?.full_name_ar ?? null,
-            variables: { course_name: courseName },
-            relatedEntityType: "course_section",
-            relatedEntityId: sectionId,
-          } }).catch(() => undefined);
-        }
+      const result = await approveFn({ data: { gradeIds: idsToApprove, sectionId } });
+      if (result.approvedCount === 0) {
+        toast.info("لا توجد درجات بحالة (مرسلة) للاعتماد");
+        return;
       }
-    } catch { /* secondary */ }
+      toast.success(`تم اعتماد ${result.approvedCount} درجة`);
+      qc.invalidateQueries({ queryKey: ["adm-grades-rows", sectionId] });
+      for (const t of result.emailTargets) {
+        sendNotificationEmail({ data: {
+          templateKey: "grade_approved",
+          recipientEmail: t.email,
+          recipientName: t.full_name_ar,
+          variables: { course_name: result.courseName },
+          relatedEntityType: "course_section",
+          relatedEntityId: sectionId,
+        } }).catch(() => undefined);
+      }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const returnAll = async () => {
     const idsToReturn: string[] = [];
     for (const r of rows) for (const g of Object.values(r.grades)) if (g && g.status === "submitted") idsToReturn.push(g.id);
     if (idsToReturn.length === 0) { toast.info("لا توجد درجات للإرجاع"); return; }
-    const { error } = await (sb.from("student_grades") as any)
-      .update({ status: "draft" })
-      .in("id", idsToReturn);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`أُعيدت ${idsToReturn.length} درجة للتعديل${returnNote ? " — ملاحظة مسجّلة" : ""}`);
-    setReturnNote("");
-    qc.invalidateQueries({ queryKey: ["adm-grades-rows", sectionId] });
+    try {
+      const result = await returnFn({ data: { gradeIds: idsToReturn } });
+      if (result.returnedCount === 0) { toast.info("لا توجد درجات للإرجاع"); return; }
+      toast.success(`أُعيدت ${result.returnedCount} درجة للتعديل${returnNote ? " — ملاحظة مسجّلة" : ""}`);
+      setReturnNote("");
+      qc.invalidateQueries({ queryKey: ["adm-grades-rows", sectionId] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   const submittedCount = useMemo(() => {

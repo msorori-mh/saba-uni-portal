@@ -2,16 +2,19 @@ import { createLazyFileRoute, Link } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Search, FileText, Plus, Eye, XCircle, ShieldCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  listOfficialDocuments,
+  searchStudentsForDocument,
+  issueOfficialDocument,
+  cancelOfficialDocument,
+} from "@/lib/admin-documents.functions";
 import { sendNotificationEmail } from "@/lib/email.functions";
 
 export const Route = createLazyFileRoute("/admin/documents")({
   component: AdminDocumentsPage,
 });
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as any;
 
 const TYPE_LABEL: Record<string, string> = {
   enrollment_certificate: "شهادة قيد",
@@ -25,6 +28,8 @@ const TYPES = Object.keys(TYPE_LABEL);
 function AdminDocumentsPage() {
   usePagePerf("/admin/documents");
   const qc = useQueryClient();
+  const listDocsFn = useServerFn(listOfficialDocuments);
+  const cancelDocFn = useServerFn(cancelOfficialDocument);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -32,28 +37,15 @@ function AdminDocumentsPage() {
 
   const { data: docs = [], isLoading } = useQuery({
     queryKey: ["admin-documents", typeFilter, statusFilter, search],
-    queryFn: async () => {
-      let q = sb.from("official_documents")
-        .select("id, document_type, document_number, verification_code, status, issued_at, student:student_profiles(id, academic_number, full_name_ar)")
-        .order("issued_at", { ascending: false }).limit(200);
-      if (typeFilter) q = q.eq("document_type", typeFilter);
-      if (statusFilter) q = q.eq("status", statusFilter);
-      const { data, error } = await q;
-      if (error) throw new Error(error.message);
-      let rows = (data ?? []) as Array<{
-        id: string; document_type: string; document_number: string;
-        verification_code: string; status: string; issued_at: string;
-        student: { id: string; academic_number: string; full_name_ar: string } | null;
-      }>;
-      if (search.trim()) {
-        const t = search.trim().toLowerCase();
-        rows = rows.filter(r =>
-          r.document_number.toLowerCase().includes(t) ||
-          (r.student?.academic_number ?? "").toLowerCase().includes(t) ||
-          (r.student?.full_name_ar ?? "").toLowerCase().includes(t));
-      }
-      return rows;
-    },
+    queryFn: () => listDocsFn({
+      data: {
+        type: typeFilter && TYPES.includes(typeFilter)
+          ? (typeFilter as "enrollment_certificate" | "student_status_certificate" | "official_transcript" | "financial_receipt")
+          : undefined,
+        status: statusFilter ? (statusFilter as "issued" | "cancelled" | "draft") : undefined,
+        search: search.trim() || undefined,
+      },
+    }),
   });
 
   const counts = {
@@ -65,9 +57,12 @@ function AdminDocumentsPage() {
 
   const handleCancel = async (id: string) => {
     if (!confirm("هل تريد إلغاء هذه الوثيقة؟ لن يمكن استخدامها بعد ذلك.")) return;
-    const { error } = await sb.rpc("cancel_official_document", { _document_id: id, _reason: "إلغاء يدوي" });
-    if (error) { alert(error.message); return; }
-    qc.invalidateQueries({ queryKey: ["admin-documents"] });
+    try {
+      await cancelDocFn({ data: { documentId: id } });
+      qc.invalidateQueries({ queryKey: ["admin-documents"] });
+    } catch (e) {
+      alert((e as Error).message);
+    }
   };
 
   return (
@@ -192,6 +187,8 @@ function AdminDocumentsPage() {
 }
 
 function IssueDialog({ onClose, onIssued }: { onClose: () => void; onIssued: () => void }) {
+  const searchFn = useServerFn(searchStudentsForDocument);
+  const issueFn = useServerFn(issueOfficialDocument);
   const [search, setSearch] = useState("");
   const [studentId, setStudentId] = useState<string>("");
   const [studentLabel, setStudentLabel] = useState<string>("");
@@ -201,43 +198,34 @@ function IssueDialog({ onClose, onIssued }: { onClose: () => void; onIssued: () 
   const { data: results = [] } = useQuery({
     queryKey: ["issue-doc-search", search],
     enabled: search.length >= 2,
-    queryFn: async () => {
-      const t = `%${search}%`;
-      const { data } = await sb.from("student_profiles")
-        .select("id, academic_number, full_name_ar")
-        .or(`academic_number.ilike.${t},full_name_ar.ilike.${t}`).limit(10);
-      return data ?? [];
-    },
+    queryFn: () => searchFn({ data: { query: search } }),
   });
 
   const handleIssue = async () => {
     if (!studentId) return;
     setLoading(true);
     try {
-      const { data, error } = await sb.rpc("issue_official_document", {
-        _student_profile_id: studentId, _document_type: docType, _metadata: {},
+      const result = await issueFn({
+        data: {
+          studentProfileId: studentId,
+          documentType: docType as "enrollment_certificate" | "student_status_certificate" | "official_transcript" | "financial_receipt",
+        },
       });
-      if (error) throw error;
-      alert(`تم إصدار الوثيقة: ${data?.document_number}`);
-      // Phase 9B: best-effort email
-      try {
-        const { data: srow } = await sb.from("student_profiles")
-          .select("email, full_name_ar").eq("id", studentId).maybeSingle();
-        if (srow?.email && data?.document_number) {
-          sendNotificationEmail({ data: {
-            templateKey: "document_issued",
-            recipientEmail: srow.email,
-            recipientName: srow.full_name_ar,
-            variables: {
-              document_type: TYPE_LABEL[docType] ?? docType,
-              document_number: data.document_number,
-              verification_code: data.verification_code ?? "",
-            },
-            relatedEntityType: "official_document",
-            relatedEntityId: data.id ?? null,
-          } }).catch(() => undefined);
-        }
-      } catch { /* secondary */ }
+      alert(`تم إصدار الوثيقة: ${result.document_number}`);
+      if (result.student_email && result.document_number) {
+        sendNotificationEmail({ data: {
+          templateKey: "document_issued",
+          recipientEmail: result.student_email,
+          recipientName: result.student_name,
+          variables: {
+            document_type: TYPE_LABEL[docType] ?? docType,
+            document_number: result.document_number,
+            verification_code: result.verification_code ?? "",
+          },
+          relatedEntityType: "official_document",
+          relatedEntityId: result.id ?? null,
+        } }).catch(() => undefined);
+      }
       onIssued();
     } catch (e) { alert((e as Error).message); }
     finally { setLoading(false); }
@@ -268,7 +256,7 @@ function IssueDialog({ onClose, onIssued }: { onClose: () => void; onIssued: () 
                 className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
               {results.length > 0 && (
                 <div className="mt-1 rounded-lg border border-border max-h-40 overflow-y-auto">
-                  {results.map((r: { id: string; academic_number: string; full_name_ar: string }) => (
+                  {results.map((r) => (
                     <button key={r.id} onClick={() => { setStudentId(r.id); setStudentLabel(`${r.full_name_ar} (${r.academic_number})`); setSearch(""); }}
                       className="block w-full text-right px-3 py-2 text-sm hover:bg-secondary">
                       {r.full_name_ar} <span className="font-mono text-xs text-muted-foreground">({r.academic_number})</span>
