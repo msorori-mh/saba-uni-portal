@@ -158,6 +158,22 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "فعّل (تحديث القائم) لتحديث درجة موجودة",
     ],
   },
+  student_fees: {
+    sheetName: "StudentFees",
+    headers: [
+      "academic_number","fee_type_code","academic_year","semester",
+      "amount","due_date","status",
+    ],
+    sample: ["2026001","TUITION","2026-2027","first",50000,"2026-10-15","pending"],
+    instructions: [
+      "academic_number, fee_type_code, academic_year, semester, amount حقول مطلوبة",
+      "fee_type_code = كود نوع الرسم النشط في النظام (مثل TUITION)",
+      "amount >= 0",
+      "due_date = YYYY-MM-DD (اختياري — يُخزَّن في الملاحظات)",
+      "status = pending / partially_paid / paid / cancelled (افتراضي pending)",
+      "فعّل (تحديث القائم) لتحديث رسم موجود لنفس الطالب والنوع والفصل",
+    ],
+  },
 };
 
 export async function downloadTemplate(type: ImportType) {

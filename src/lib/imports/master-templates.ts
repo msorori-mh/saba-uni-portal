@@ -32,7 +32,7 @@ export type MasterTemplate = {
   description: string;
   category: MasterTemplateCategory;
   /** Linked existing importer key in imports page (if any) */
-  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "course_sections" | "student_enrollments" | "student_grades" | "class_schedule";
+  importerKey?: "students" | "faculty" | "staff" | "courses" | "study_plans" | "faculty_accounts" | "departments" | "programs" | "levels" | "course_sections" | "student_enrollments" | "student_grades" | "student_fees" | "class_schedule";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
   hasValidator: boolean;
   /** Examples (3-5 rows) */
@@ -335,9 +335,10 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "student_fees",
     fileName: "template_student_fees.xlsx",
     title: "رسوم الطلاب",
-    description: "إصدار رسوم على الطلاب لفصل معيّن (يتطلب تطوير مستورد).",
+    description: "إصدار رسوم على الطلاب لفصل معيّن.",
     category: "finance",
-    hasValidator: false,
+    importerKey: "student_fees",
+    hasValidator: true,
     columns: [
       { name: "academic_number", description: "الرقم الأكاديمي للطالب", required: true, type: "text", example: "2026001" },
       { name: "fee_type_code", description: "كود نوع الرسم", required: true, type: "text", example: "TUITION" },

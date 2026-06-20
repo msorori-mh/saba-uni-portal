@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type {
   CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
-  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow, StudentEnrollmentRow, StudentGradeRow,
+  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow, StudentEnrollmentRow, StudentGradeRow, StudentFeeRow,
 } from "./validators";
 
 export type ServerImportContext = {
@@ -398,6 +398,7 @@ export async function finalizeImportServer(opts: {
     course_sections: "course_sections_imported",
     student_enrollments: "student_enrollments_imported",
     student_grades: "student_grades_imported",
+    student_fees: "student_fees_imported",
   };
 
   const payload = {
@@ -728,6 +729,54 @@ export async function importStudentGrades(
         status: p.status,
         approved_at: p.status === "approved" ? new Date().toISOString() : null,
       });
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_created! += 1;
+      }
+    }
+  }
+  return report;
+}
+
+export async function importStudentFees(
+  rows: ValidatedRow<StudentFeeRow>[],
+  dryRun = false,
+  updateExisting = false,
+): Promise<ImportReport> {
+  if (dryRun) return structDryRun(rows, updateExisting);
+  const report = emptyStructReport(rows.length);
+
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+    const p = r.parsed;
+    const payload = {
+      student_profile_id: p.student_profile_id,
+      fee_type_id: p.fee_type_id,
+      academic_year_id: p.academic_year_id,
+      semester_id: p.semester_id,
+      amount: p.amount,
+      status: p.status,
+      notes: p.notes,
+    };
+
+    if (p._existingId) {
+      const { error } = await sb.from("student_fees").update(payload).eq("id", p._existingId);
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_updated! += 1;
+      }
+    } else {
+      const { error } = await sb.from("student_fees").insert(payload);
       if (error) {
         report.rows_failed += 1;
         report.errors.push({ row: r.rowNumber, message: error.message });

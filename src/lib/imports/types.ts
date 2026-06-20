@@ -9,7 +9,8 @@ export type ImportType =
   | "levels"
   | "course_sections"
   | "student_enrollments"
-  | "student_grades";
+  | "student_grades"
+  | "student_fees";
 
 export type RowError = { row: number; column?: string; message: string };
 

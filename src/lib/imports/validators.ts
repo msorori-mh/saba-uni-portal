@@ -1126,6 +1126,134 @@ export async function validateStudentGrades(
   return summarize(out);
 }
 
+// =========================
+// Student fees
+// =========================
+export type StudentFeeRow = {
+  student_profile_id: string;
+  fee_type_id: string;
+  academic_year_id: string;
+  semester_id: string;
+  amount: number;
+  status: string;
+  notes: string | null;
+  _existingId: string | null;
+};
+
+const FEE_STATUSES = new Set(["pending", "partially_paid", "paid", "cancelled"]);
+
+function parseDueDateNote(dueRaw: unknown): { valid: boolean; note: string | null } {
+  const s = str(dueRaw);
+  if (!s) return { valid: true, note: null };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s))
+    return { valid: false, note: null };
+  return { valid: true, note: `تاريخ الاستحقاق: ${s}` };
+}
+
+export async function validateStudentFees(
+  rows: Record<string, unknown>[],
+  lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<StudentFeeRow>> {
+  const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
+  const studentByAc = new Map<string, string>();
+  if (acNumbers.length) {
+    for (let i = 0; i < acNumbers.length; i += 500) {
+      const chunk = acNumbers.slice(i, i + 500);
+      const { data } = await sb.from("student_profiles").select("id, academic_number").in("academic_number", chunk);
+      (data ?? []).forEach((s: { id: string; academic_number: string }) => {
+        studentByAc.set(normKey(s.academic_number), s.id);
+      });
+    }
+  }
+
+  const [{ data: feeTypes }, { data: existingFees }] = await Promise.all([
+    sb.from("fee_types").select("id, code, is_active"),
+    sb.from("student_fees").select("id, student_profile_id, fee_type_id, academic_year_id, semester_id"),
+  ]);
+
+  const feeTypeByCode = new Map<string, string>();
+  (feeTypes ?? []).forEach((f: { id: string; code: string; is_active: boolean }) => {
+    if (f.code && f.is_active) feeTypeByCode.set(normKey(f.code), f.id);
+  });
+
+  const feeByKey = new Map<string, string>();
+  (existingFees ?? []).forEach((f: {
+    id: string; student_profile_id: string; fee_type_id: string;
+    academic_year_id: string; semester_id: string;
+  }) => {
+    feeByKey.set(
+      `${f.student_profile_id}|${f.fee_type_id}|${f.academic_year_id}|${f.semester_id}`,
+      f.id,
+    );
+  });
+
+  const seenInFile = new Set<string>();
+  const out: ValidatedRow<StudentFeeRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+
+    const academic_number = str(raw.academic_number);
+    if (!academic_number) errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي مطلوب" });
+    const student_id = academic_number ? studentByAc.get(normKey(academic_number)) ?? null : null;
+    if (academic_number && !student_id) errors.push({ row: rowNumber, column: "academic_number", message: "الطالب غير موجود" });
+
+    const fee_type_code = str(raw.fee_type_code);
+    if (!fee_type_code) errors.push({ row: rowNumber, column: "fee_type_code", message: "كود نوع الرسم مطلوب" });
+    const fee_type_id = fee_type_code ? feeTypeByCode.get(normKey(fee_type_code)) ?? null : null;
+    if (fee_type_code && !fee_type_id) errors.push({ row: rowNumber, column: "fee_type_code", message: "نوع الرسم غير موجود أو غير نشط" });
+
+    const ay_id = lookups.academicYearsByName.get(normKey(str(raw.academic_year)));
+    if (!ay_id) errors.push({ row: rowNumber, column: "academic_year", message: "السنة الأكاديمية غير موجودة" });
+
+    const semKey = normKey(str(raw.semester));
+    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
+    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+
+    const amountN = num(raw.amount);
+    if (!Number.isFinite(amountN) || amountN < 0)
+      errors.push({ row: rowNumber, column: "amount", message: "المبلغ يجب أن يكون رقماً >= 0" });
+
+    const status = str(raw.status) || "pending";
+    if (!FEE_STATUSES.has(status))
+      errors.push({ row: rowNumber, column: "status", message: "الحالة غير صحيحة (pending/partially_paid/paid/cancelled)" });
+
+    const due = parseDueDateNote(raw.due_date);
+    if (!due.valid) errors.push({ row: rowNumber, column: "due_date", message: "تاريخ الاستحقاق بصيغة YYYY-MM-DD" });
+
+    let _existingId: string | null = null;
+    if (student_id && fee_type_id && ay_id && sem_id) {
+      const fileKey = `${student_id}|${fee_type_id}|${ay_id}|${sem_id}`;
+      if (seenInFile.has(fileKey))
+        errors.push({ row: rowNumber, column: "academic_number", message: "رسم مكرر في الملف لنفس الطالب والنوع والفصل" });
+      else seenInFile.add(fileKey);
+
+      _existingId = feeByKey.get(fileKey) ?? null;
+      if (_existingId && !updateExisting) {
+        errors.push({ row: rowNumber, column: "academic_number", message: "الرسم موجود مسبقاً (فعّل تحديث القائم)" });
+      }
+    }
+
+    out.push({
+      rowNumber, raw, errors,
+      parsed: errors.length ? null : {
+        student_profile_id: student_id!,
+        fee_type_id: fee_type_id!,
+        academic_year_id: ay_id!,
+        semester_id: sem_id!,
+        amount: amountN,
+        status,
+        notes: due.note,
+        _existingId,
+      },
+    });
+  });
+
+  return summarize(out);
+}
+
 function summarize<T>(rows: ValidatedRow<T>[]): ValidationResult<T> {
   const validRows = rows.filter((r) => r.parsed !== null).length;
   return {
