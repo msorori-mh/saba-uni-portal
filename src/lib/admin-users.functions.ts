@@ -402,7 +402,10 @@ export const resetPassword = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context.userId);
-    await enforceRateLimit(`admin:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.passwordReset);
+    await enforceRateLimit(
+      `admin-reset:${context.userId}:${data.kind}:${data.profile_id}`,
+      SERVER_RATE_LIMIT_POLICIES.adminPasswordReset,
+    );
 
     const table =
       data.kind === "student" ? "student_profiles"
