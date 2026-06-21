@@ -46,6 +46,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft: { text: "مسودة", cls: "bg-muted text-foreground" },
   submitted: { text: "مُرسَل", cls: "bg-blue-100 text-blue-800" },
   under_review: { text: "قيد المراجعة", cls: "bg-amber-100 text-amber-800" },
+  returned: { text: "يحتاج استكمال", cls: "bg-orange-100 text-orange-800" },
   approved: { text: "مقبول", cls: "bg-emerald-100 text-emerald-800" },
   rejected: { text: "مرفوض", cls: "bg-rose-100 text-rose-800" },
   cancelled: { text: "ملغي", cls: "bg-zinc-200 text-zinc-800" },
@@ -150,7 +151,7 @@ function MobileStudentRequests() {
                   </div>
                   {supported ? (
                     <Link
-                      to="/student"
+                      to="/student#student-requests"
                       hash="requests"
                       className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-bold"
                     >

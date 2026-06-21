@@ -7,7 +7,7 @@ import { toast } from "sonner";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as unknown as { from: (t: string) => any };
 
-type RequestType = { id: string; code: string; name_ar: string; description_ar: string | null; is_active: boolean };
+type RequestType = { id: string; code: string; name_ar: string; description_ar: string | null; is_active: boolean; requires_attachment: boolean };
 
 const REASON_LABEL: Record<string, string> = {
   medical: "طبي", family: "عائلي", emergency: "طارئ", other: "أخرى",
@@ -20,6 +20,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft:        { text: "مسودة",       cls: "bg-muted text-foreground" },
   submitted:    { text: "مُرسَل",       cls: "bg-blue-100 text-blue-800" },
   under_review: { text: "قيد المراجعة", cls: "bg-amber-100 text-amber-800" },
+  returned:     { text: "يحتاج استكمال", cls: "bg-orange-100 text-orange-800" },
   approved:     { text: "مقبول",       cls: "bg-emerald-100 text-emerald-800" },
   rejected:     { text: "مرفوض",       cls: "bg-rose-100 text-rose-800" },
   cancelled:    { text: "ملغي",        cls: "bg-zinc-200 text-zinc-800" },
@@ -114,7 +115,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     queryKey: ["request-types-active"],
     queryFn: async (): Promise<RequestType[]> => {
       const { data, error } = await sb.from("request_types")
-        .select("id, code, name_ar, description_ar, is_active")
+        .select("id, code, name_ar, description_ar, is_active, requires_attachment")
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return (data ?? []) as RequestType[];
@@ -228,10 +229,40 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     if (error) toast.error(error.message); else { toast.success("تم الحذف"); refresh(); }
   };
 
+  const requiresAttachment = (code: string) =>
+    requestTypes.find((t) => t.code === code)?.requires_attachment === true;
+
+  const submitDraft = async (row: RequestRow) => {
+    if (requiresAttachment(row.request_type) && row.attachments.length === 0) {
+      toast.error("المرفق مطلوب قبل إرسال هذا الطلب");
+      return;
+    }
+    const { error } = await sb.from("student_requests").update({
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+    }).eq("id", row.id);
+    if (error) toast.error(error.message);
+    else { toast.success("تم إرسال الطلب"); refresh(); }
+  };
+
+  const resubmitReturned = async (row: RequestRow) => {
+    if (requiresAttachment(row.request_type) && row.attachments.length === 0) {
+      toast.error("المرفق مطلوب قبل إعادة إرسال هذا الطلب");
+      return;
+    }
+    const { error } = await sb.from("student_requests").update({
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+      rejection_reason: null,
+    }).eq("id", row.id);
+    if (error) toast.error(error.message);
+    else { toast.success("تم إعادة إرسال الطلب"); refresh(); }
+  };
+
   const SUPPORTED_CODES = new Set(["absence_excuse", "enrollment_suspension", "extra_chance", "transfer", "equivalency", "grade_appeal"]);
 
   return (
-    <div className="mt-6">
+    <div id="student-requests" className="mt-6">
       <div className="flex items-center justify-between mb-3 gap-2">
         <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
           <FileWarning className="h-4 w-4 text-gold" /> الطلبات الطلابية
@@ -369,9 +400,14 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span className="text-muted-foreground">السبب: </span>{r.transfer_details.transfer_reason}
                   </div>
                 )}
-                {r.rejection_reason && (
+                {r.rejection_reason && r.status === "rejected" && (
                   <div className="mt-1.5 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">
                     سبب الرفض: {r.rejection_reason}
+                  </div>
+                )}
+                {r.rejection_reason && r.status === "returned" && (
+                  <div className="mt-1.5 text-xs text-orange-800 bg-orange-50 border border-orange-200 rounded p-2">
+                    ملاحظات الاستكمال: {r.rejection_reason}
                   </div>
                 )}
                 {r.attachments.length > 0 && (
@@ -381,13 +417,23 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     ))}
                   </div>
                 )}
-                <div className="mt-2 flex gap-1.5">
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   {r.status === "draft" && (
-                    <button onClick={() => deleteDraft(r.id)} className="text-[11px] inline-flex items-center gap-1 border border-rose-300 text-rose-700 px-2 py-0.5 rounded hover:bg-rose-50">
-                      <Trash2 className="h-3 w-3" /> حذف
+                    <>
+                      <button onClick={() => submitDraft(r)} className="text-[11px] inline-flex items-center gap-1 bg-primary text-primary-foreground px-2 py-0.5 rounded hover:opacity-90">
+                        <Send className="h-3 w-3" /> إرسال المسودة
+                      </button>
+                      <button onClick={() => deleteDraft(r.id)} className="text-[11px] inline-flex items-center gap-1 border border-rose-300 text-rose-700 px-2 py-0.5 rounded hover:bg-rose-50">
+                        <Trash2 className="h-3 w-3" /> حذف
+                      </button>
+                    </>
+                  )}
+                  {r.status === "returned" && (
+                    <button onClick={() => resubmitReturned(r)} className="text-[11px] inline-flex items-center gap-1 bg-primary text-primary-foreground px-2 py-0.5 rounded hover:opacity-90">
+                      <Send className="h-3 w-3" /> إعادة الإرسال
                     </button>
                   )}
-                  {r.status !== "approved" && r.status !== "cancelled" && r.status !== "rejected" && (
+                  {r.status !== "approved" && r.status !== "cancelled" && r.status !== "rejected" && r.status !== "draft" && r.status !== "returned" && (
                     <button onClick={() => cancelRequest(r.id)} className="text-[11px] inline-flex items-center gap-1 border px-2 py-0.5 rounded hover:bg-muted">
                       <Ban className="h-3 w-3" /> إلغاء
                     </button>
@@ -403,6 +449,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         <AbsenceModal
           studentProfileId={studentProfileId}
           enrollments={enrollments}
+          attachmentRequired={requiresAttachment("absence_excuse")}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
         />
@@ -410,6 +457,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       {openType === "enrollment_suspension" && (
         <SuspensionModal
           studentProfileId={studentProfileId}
+          attachmentRequired={requiresAttachment("enrollment_suspension")}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
         />
@@ -417,6 +465,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       {openType === "extra_chance" && (
         <ExtraChanceModal
           studentProfileId={studentProfileId}
+          attachmentRequired={requiresAttachment("extra_chance")}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
         />
@@ -424,6 +473,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       {openType === "transfer" && (
         <TransferModal
           studentProfileId={studentProfileId}
+          attachmentRequired={requiresAttachment("transfer")}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
         />
@@ -431,6 +481,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       {openType === "equivalency" && (
         <EquivalencyModal
           studentProfileId={studentProfileId}
+          attachmentRequired={requiresAttachment("equivalency")}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
         />
@@ -438,6 +489,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       {openType === "grade_appeal" && (
         <GradeAppealModal
           studentProfileId={studentProfileId}
+          attachmentRequired={requiresAttachment("grade_appeal")}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
         />
@@ -477,9 +529,9 @@ async function uploadAttachment(requestId: string, file: File) {
 }
 
 function AbsenceModal({
-  studentProfileId, enrollments, onClose, onSaved,
+  studentProfileId, enrollments, attachmentRequired = false, onClose, onSaved,
 }: {
-  studentProfileId: string; enrollments: Enrollment[];
+  studentProfileId: string; enrollments: Enrollment[]; attachmentRequired?: boolean;
   onClose: () => void; onSaved: () => void;
 }) {
   const [sectionId, setSectionId] = useState<string>(enrollments[0]?.course_section_id ?? "");
@@ -492,6 +544,10 @@ function AbsenceModal({
   const save = async (submit: boolean) => {
     if (!sectionId) { toast.error("اختر المقرر"); return; }
     if (!date) { toast.error("أدخل تاريخ الغياب"); return; }
+    if (submit && attachmentRequired && !file) {
+      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
+      return;
+    }
     setBusy(true);
     try {
       const enr = enrollments.find((e) => e.course_section_id === sectionId);
@@ -553,7 +609,7 @@ function AbsenceModal({
             <Label>السبب التفصيلي</Label>
             <textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={3} className="w-full rounded border bg-background px-2 py-1.5 text-sm" placeholder="اكتب تفاصيل العذر..." />
           </div>
-          <FilePicker file={file} setFile={setFile} />
+          <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
           <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
         </div>
       )}
@@ -562,9 +618,10 @@ function AbsenceModal({
 }
 
 function SuspensionModal({
-  studentProfileId, onClose, onSaved,
+  studentProfileId, attachmentRequired = false, onClose, onSaved,
 }: {
-  studentProfileId: string; onClose: () => void; onSaved: () => void;
+  studentProfileId: string; attachmentRequired?: boolean;
+  onClose: () => void; onSaved: () => void;
 }) {
   const { data: years = [] } = useQuery({
     queryKey: ["sus-years"],
@@ -602,6 +659,10 @@ function SuspensionModal({
     if (!yearId) { toast.error("اختر السنة الأكاديمية"); return; }
     if (!semId) { toast.error("اختر الفصل"); return; }
     if (!reason.trim()) { toast.error("أدخل سبب وقف القيد"); return; }
+    if (submit && attachmentRequired && !file) {
+      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
+      return;
+    }
     setBusy(true);
     try {
       const { data: created, error: e1 } = await sb.from("student_requests").insert({
@@ -670,7 +731,7 @@ function SuspensionModal({
           <Label>ملاحظات إضافية</Label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
         </div>
-        <FilePicker file={file} setFile={setFile} />
+        <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
         <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
       </div>
     </ModalShell>
@@ -695,10 +756,10 @@ function Label({ children }: { children: React.ReactNode }) {
   return <label className="text-[11px] font-bold text-muted-foreground block mb-1">{children}</label>;
 }
 
-function FilePicker({ file, setFile }: { file: File | null; setFile: (f: File | null) => void }) {
+function FilePicker({ file, setFile, required = false }: { file: File | null; setFile: (f: File | null) => void; required?: boolean }) {
   return (
     <div>
-      <Label>مرفق (اختياري)</Label>
+      <Label>مرفق {required ? "(مطلوب)" : "(اختياري)"}</Label>
       <label className="flex items-center gap-2 border border-dashed rounded p-2 cursor-pointer hover:bg-muted/30 text-xs">
         <Upload className="h-3.5 w-3.5" />
         <span>{file ? file.name : "اختر ملفاً..."}</span>
@@ -722,9 +783,10 @@ function Actions({ busy, onDraft, onSubmit }: { busy: boolean; onDraft: () => vo
 }
 
 function ExtraChanceModal({
-  studentProfileId, onClose, onSaved,
+  studentProfileId, attachmentRequired = false, onClose, onSaved,
 }: {
-  studentProfileId: string; onClose: () => void; onSaved: () => void;
+  studentProfileId: string; attachmentRequired?: boolean;
+  onClose: () => void; onSaved: () => void;
 }) {
   const { data: years = [] } = useQuery({
     queryKey: ["ec-years"],
@@ -761,6 +823,10 @@ function ExtraChanceModal({
     if (!yearId) { toast.error("اختر السنة الأكاديمية"); return; }
     if (!semId) { toast.error("اختر الفصل"); return; }
     if (!reason.trim()) { toast.error("أدخل سبب الطلب"); return; }
+    if (submit && attachmentRequired && !file) {
+      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
+      return;
+    }
     setBusy(true);
     try {
       const { data: created, error: e1 } = await sb.from("student_requests").insert({
@@ -829,7 +895,7 @@ function ExtraChanceModal({
           <Label>ملاحظات إضافية</Label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
         </div>
-        <FilePicker file={file} setFile={setFile} />
+        <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
         <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
       </div>
     </ModalShell>
@@ -837,9 +903,10 @@ function ExtraChanceModal({
 }
 
 function TransferModal({
-  studentProfileId, onClose, onSaved,
+  studentProfileId, attachmentRequired = false, onClose, onSaved,
 }: {
-  studentProfileId: string; onClose: () => void; onSaved: () => void;
+  studentProfileId: string; attachmentRequired?: boolean;
+  onClose: () => void; onSaved: () => void;
 }) {
   const { data: profile } = useQuery({
     queryKey: ["transfer-my-profile", studentProfileId],
@@ -882,6 +949,10 @@ function TransferModal({
     if (!requestedProgramId) { toast.error("اختر البرنامج المطلوب"); return; }
     if (requestedProgramId === profile.program_id) { toast.error("البرنامج المطلوب مماثل للحالي"); return; }
     if (!reason.trim()) { toast.error("أدخل سبب التحويل"); return; }
+    if (submit && attachmentRequired && !file) {
+      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
+      return;
+    }
     setBusy(true);
     try {
       const { data: created, error: e1 } = await sb.from("student_requests").insert({
@@ -941,7 +1012,7 @@ function TransferModal({
           <Label>ملاحظات إضافية</Label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
         </div>
-        <FilePicker file={file} setFile={setFile} />
+        <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
         <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
       </div>
     </ModalShell>
@@ -956,9 +1027,10 @@ type EqCourseRow = {
 };
 
 function EquivalencyModal({
-  studentProfileId, onClose, onSaved,
+  studentProfileId, attachmentRequired = false, onClose, onSaved,
 }: {
-  studentProfileId: string; onClose: () => void; onSaved: () => void;
+  studentProfileId: string; attachmentRequired?: boolean;
+  onClose: () => void; onSaved: () => void;
 }) {
   const { data: courses = [] } = useQuery({
     queryKey: ["eq-courses-catalog"],
@@ -988,6 +1060,10 @@ function EquivalencyModal({
     if (!prevProg.trim()) { toast.error("أدخل اسم البرنامج السابق"); return; }
     const validRows = rows.filter((r) => r.external_course_code.trim() && r.external_course_name.trim());
     if (validRows.length === 0) { toast.error("أضف مادة واحدة على الأقل"); return; }
+    if (submit && attachmentRequired && files.length === 0) {
+      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
+      return;
+    }
     setBusy(true);
     try {
       const { data: created, error: e1 } = await sb.from("student_requests").insert({
@@ -1084,7 +1160,7 @@ function EquivalencyModal({
         </div>
 
         <div>
-          <Label>المرفقات (كشف درجات، توصيف مقررات، ...)</Label>
+          <Label>المرفقات {attachmentRequired ? "(مطلوبة)" : "(اختيارية)"} — كشف درجات، توصيف مقررات، ...</Label>
           <label className="flex items-center gap-2 border border-dashed rounded p-2 cursor-pointer hover:bg-muted/30 text-xs">
             <Upload className="h-3.5 w-3.5" />
             <span>{files.length > 0 ? `تم اختيار ${files.length} ملف` : "اختر ملفات..."}</span>
@@ -1130,9 +1206,10 @@ type AppealEnrollment = {
 };
 
 function GradeAppealModal({
-  studentProfileId, onClose, onSaved,
+  studentProfileId, attachmentRequired = false, onClose, onSaved,
 }: {
-  studentProfileId: string; onClose: () => void; onSaved: () => void;
+  studentProfileId: string; attachmentRequired?: boolean;
+  onClose: () => void; onSaved: () => void;
 }) {
   // Load all enrollments for student with semester + course info + grades aggregated
   const { data: graded = [], isLoading } = useQuery({
@@ -1226,6 +1303,10 @@ function GradeAppealModal({
     if (!semId) { toast.error("اختر الفصل الدراسي"); return; }
     if (!enrollmentId || !selected) { toast.error("اختر المقرر"); return; }
     if (!reason.trim() || reason.trim().length < 10) { toast.error("اكتب سبب التظلم (10 أحرف على الأقل)"); return; }
+    if (submit && attachmentRequired && !file) {
+      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
+      return;
+    }
     setBusy(true);
     try {
       const title = `تظلم درجات — ${selected.course_code}`;
@@ -1331,7 +1412,7 @@ function GradeAppealModal({
             <Label>ملاحظات إضافية</Label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
           </div>
-          <FilePicker file={file} setFile={setFile} />
+          <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
           <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
         </div>
       )}
