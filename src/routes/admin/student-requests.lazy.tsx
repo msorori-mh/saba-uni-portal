@@ -10,10 +10,12 @@ import {
   getStudentRequestLookups,
   listStudentRequestsOverview,
   getStudentRequestDetails,
+  getStudentRequestTimeline,
   updateStudentRequestStatus,
   updateEquivalencyCourse,
   getStudentRequestAttachmentUrl,
 } from "@/lib/admin-student-requests.functions";
+import { RequestTimelinePanel } from "@/components/student-requests/RequestTimelinePanel";
 
 export const Route = createLazyFileRoute("/admin/student-requests")({
   component: AdminRequestsPage,
@@ -428,6 +430,11 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         : "",
   );
   const [busy, setBusy] = useState(false);
+  const timelineFn = useServerFn(getStudentRequestTimeline);
+  const { data: timeline = [], isLoading: timelineLoading } = useQuery({
+    queryKey: ["admin-request-timeline", req.id],
+    queryFn: () => timelineFn({ data: { requestId: req.id } }),
+  });
 
   const act = async (status: string) => {
     if ((status === "rejected" || status === "returned") && !reason.trim()) {
@@ -633,6 +640,10 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               </div>
             </div>
           )}
+
+          <div className="mt-3">
+            <RequestTimelinePanel events={timeline} loading={timelineLoading} variant="full" />
+          </div>
         </div>
 
         {req.status !== "approved" && req.status !== "rejected" && req.status !== "cancelled" && (
