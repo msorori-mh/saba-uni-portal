@@ -529,13 +529,6 @@ export type Database = {
             referencedRelation: "departments"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "courses_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["department_id"]
-          },
         ]
       }
       dashboard_stats: {
@@ -737,39 +730,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "enrollment_reinstatement_deta_requested_from_academic_year_fkey"
-            columns: ["requested_from_academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "enrollment_reinstatement_deta_requested_from_academic_year_fkey"
-            columns: ["requested_from_academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
             foreignKeyName: "enrollment_reinstatement_detail_requested_from_semester_id_fkey"
             columns: ["requested_from_semester_id"]
             isOneToOne: false
             referencedRelation: "semesters"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_reinstatement_detail_requested_from_semester_id_fkey"
-            columns: ["requested_from_semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["semester_id"]
-          },
-          {
-            foreignKeyName: "enrollment_reinstatement_detail_requested_from_semester_id_fkey"
-            columns: ["requested_from_semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["semester_id"]
           },
           {
             foreignKeyName: "enrollment_reinstatement_details_request_id_fkey"
@@ -830,39 +795,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "enrollment_suspension_details_requested_from_academic_year_fkey"
-            columns: ["requested_from_academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "enrollment_suspension_details_requested_from_academic_year_fkey"
-            columns: ["requested_from_academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
             foreignKeyName: "enrollment_suspension_details_requested_from_semester_id_fkey"
             columns: ["requested_from_semester_id"]
             isOneToOne: false
             referencedRelation: "semesters"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "enrollment_suspension_details_requested_from_semester_id_fkey"
-            columns: ["requested_from_semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["semester_id"]
-          },
-          {
-            foreignKeyName: "enrollment_suspension_details_requested_from_semester_id_fkey"
-            columns: ["requested_from_semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["semester_id"]
           },
         ]
       }
@@ -925,18 +862,12 @@ export type Database = {
             referencedRelation: "student_course_grade_summary"
             referencedColumns: ["course_id"]
           },
-          {
-            foreignKeyName: "equivalency_courses_target_course_id_fkey"
-            columns: ["target_course_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["course_id"]
-          },
         ]
       }
       equivalency_request_details: {
         Row: {
           created_at: string
+          credits_applied_at: string | null
           id: string
           notes: string | null
           previous_program_name: string
@@ -947,6 +878,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          credits_applied_at?: string | null
           id?: string
           notes?: string | null
           previous_program_name: string
@@ -957,6 +889,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          credits_applied_at?: string | null
           id?: string
           notes?: string | null
           previous_program_name?: string
@@ -1069,20 +1002,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "extra_chance_details_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "extra_chance_details_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
             foreignKeyName: "extra_chance_details_request_id_fkey"
             columns: ["request_id"]
             isOneToOne: true
@@ -1095,20 +1014,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "semesters"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "extra_chance_details_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["semester_id"]
-          },
-          {
-            foreignKeyName: "extra_chance_details_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["semester_id"]
           },
         ]
       }
@@ -1190,13 +1095,6 @@ export type Database = {
             referencedRelation: "programs"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "faculty_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
-          },
         ]
       }
       faculty_profiles: {
@@ -1257,13 +1155,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "faculty_profiles_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["department_id"]
-          },
-          {
             foreignKeyName: "faculty_profiles_faculty_id_fkey"
             columns: ["faculty_id"]
             isOneToOne: true
@@ -1276,13 +1167,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "faculty_profiles_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
           },
         ]
       }
@@ -1380,20 +1264,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "grade_appeal_details_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "grade_appeal_details_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
             foreignKeyName: "grade_appeal_details_course_section_id_fkey"
             columns: ["course_section_id"]
             isOneToOne: false
@@ -1422,20 +1292,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "grade_appeal_details_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["semester_id"]
-          },
-          {
-            foreignKeyName: "grade_appeal_details_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["semester_id"]
-          },
-          {
             foreignKeyName: "grade_appeal_details_student_enrollment_id_fkey"
             columns: ["student_enrollment_id"]
             isOneToOne: false
@@ -1448,13 +1304,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_enrollments"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "grade_appeal_details_student_enrollment_id_fkey"
-            columns: ["student_enrollment_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["enrollment_id"]
           },
         ]
       }
@@ -1747,20 +1596,6 @@ export type Database = {
             referencedRelation: "student_profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "official_documents_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["student_profile_id"]
-          },
-          {
-            foreignKeyName: "official_documents_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["student_profile_id"]
-          },
         ]
       }
       organizational_positions: {
@@ -1888,20 +1723,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_receipts_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["student_profile_id"]
-          },
-          {
-            foreignKeyName: "payment_receipts_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["student_profile_id"]
           },
         ]
       }
@@ -2337,13 +2158,6 @@ export type Database = {
             referencedRelation: "departments"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "programs_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["department_id"]
-          },
         ]
       }
       rate_limit_attempts: {
@@ -2503,13 +2317,6 @@ export type Database = {
             referencedRelation: "programs"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "research_papers_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
-          },
         ]
       }
       roles_catalog: {
@@ -2640,20 +2447,6 @@ export type Database = {
             referencedRelation: "academic_years"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "semesters_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "semesters_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
         ]
       }
       site_pages: {
@@ -2779,13 +2572,6 @@ export type Database = {
             referencedRelation: "departments"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "staff_profiles_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["department_id"]
-          },
         ]
       }
       student_academic_status: {
@@ -2828,20 +2614,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "student_academic_status_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "student_academic_status_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
             foreignKeyName: "student_academic_status_level_id_fkey"
             columns: ["level_id"]
             isOneToOne: false
@@ -2849,39 +2621,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "student_academic_status_level_id_fkey"
-            columns: ["level_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["level_id"]
-          },
-          {
-            foreignKeyName: "student_academic_status_level_id_fkey"
-            columns: ["level_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["level_id"]
-          },
-          {
             foreignKeyName: "student_academic_status_semester_id_fkey"
             columns: ["semester_id"]
             isOneToOne: false
             referencedRelation: "semesters"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_academic_status_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["semester_id"]
-          },
-          {
-            foreignKeyName: "student_academic_status_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["semester_id"]
           },
           {
             foreignKeyName: "student_academic_status_student_profile_id_fkey"
@@ -2896,20 +2640,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_academic_status_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["student_profile_id"]
-          },
-          {
-            foreignKeyName: "student_academic_status_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["student_profile_id"]
           },
         ]
       }
@@ -2965,20 +2695,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "student_discounts_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "student_discounts_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
             foreignKeyName: "student_discounts_discount_type_id_fkey"
             columns: ["discount_type_id"]
             isOneToOne: false
@@ -2993,20 +2709,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "student_discounts_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["semester_id"]
-          },
-          {
-            foreignKeyName: "student_discounts_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["semester_id"]
-          },
-          {
             foreignKeyName: "student_discounts_student_profile_id_fkey"
             columns: ["student_profile_id"]
             isOneToOne: false
@@ -3019,20 +2721,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_discounts_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["student_profile_id"]
-          },
-          {
-            foreignKeyName: "student_discounts_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["student_profile_id"]
           },
         ]
       }
@@ -3065,6 +2753,74 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      student_equivalency_credits: {
+        Row: {
+          applied_at: string
+          course_id: string
+          created_at: string
+          credit_hours: number | null
+          equivalency_course_id: string
+          equivalency_request_id: string
+          external_course_code: string
+          external_course_name: string
+          id: string
+          student_profile_id: string
+        }
+        Insert: {
+          applied_at?: string
+          course_id: string
+          created_at?: string
+          credit_hours?: number | null
+          equivalency_course_id: string
+          equivalency_request_id: string
+          external_course_code: string
+          external_course_name: string
+          id?: string
+          student_profile_id: string
+        }
+        Update: {
+          applied_at?: string
+          course_id?: string
+          created_at?: string
+          credit_hours?: number | null
+          equivalency_course_id?: string
+          equivalency_request_id?: string
+          external_course_code?: string
+          external_course_name?: string
+          id?: string
+          student_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_equivalency_credits_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_equivalency_credits_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_id"]
+          },
+          {
+            foreignKeyName: "student_equivalency_credits_equivalency_course_id_fkey"
+            columns: ["equivalency_course_id"]
+            isOneToOne: true
+            referencedRelation: "equivalency_courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_equivalency_credits_equivalency_request_id_fkey"
+            columns: ["equivalency_request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_fee_adjustments: {
         Row: {
@@ -3157,20 +2913,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "student_fees_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
-            foreignKeyName: "student_fees_academic_year_id_fkey"
-            columns: ["academic_year_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["academic_year_id"]
-          },
-          {
             foreignKeyName: "student_fees_fee_type_id_fkey"
             columns: ["fee_type_id"]
             isOneToOne: false
@@ -3185,20 +2927,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "student_fees_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["semester_id"]
-          },
-          {
-            foreignKeyName: "student_fees_semester_id_fkey"
-            columns: ["semester_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["semester_id"]
-          },
-          {
             foreignKeyName: "student_fees_student_profile_id_fkey"
             columns: ["student_profile_id"]
             isOneToOne: false
@@ -3211,20 +2939,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_profiles"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_fees_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["student_profile_id"]
-          },
-          {
-            foreignKeyName: "student_fees_student_profile_id_fkey"
-            columns: ["student_profile_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["student_profile_id"]
           },
         ]
       }
@@ -3369,25 +3083,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "student_profiles_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["department_id"]
-          },
-          {
             foreignKeyName: "student_profiles_program_id_fkey"
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "student_profiles_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
           },
         ]
       }
@@ -3519,32 +3219,11 @@ export type Database = {
             referencedColumns: ["course_id"]
           },
           {
-            foreignKeyName: "study_plan_courses_course_id_fkey"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["course_id"]
-          },
-          {
             foreignKeyName: "study_plan_courses_level_id_fkey"
             columns: ["level_id"]
             isOneToOne: false
             referencedRelation: "academic_levels"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "study_plan_courses_level_id_fkey"
-            columns: ["level_id"]
-            isOneToOne: false
-            referencedRelation: "student_transcript_summary"
-            referencedColumns: ["level_id"]
-          },
-          {
-            foreignKeyName: "study_plan_courses_level_id_fkey"
-            columns: ["level_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["level_id"]
           },
           {
             foreignKeyName: "study_plan_courses_prerequisite_course_id_fkey"
@@ -3558,13 +3237,6 @@ export type Database = {
             columns: ["prerequisite_course_id"]
             isOneToOne: false
             referencedRelation: "student_course_grade_summary"
-            referencedColumns: ["course_id"]
-          },
-          {
-            foreignKeyName: "study_plan_courses_prerequisite_course_id_fkey"
-            columns: ["prerequisite_course_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
             referencedColumns: ["course_id"]
           },
           {
@@ -3617,13 +3289,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "study_plans_program_id_fkey"
-            columns: ["program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
           },
         ]
       }
@@ -3706,25 +3371,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transfer_request_details_current_department_id_fkey"
-            columns: ["current_department_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["department_id"]
-          },
-          {
             foreignKeyName: "transfer_request_details_current_program_id_fkey"
             columns: ["current_program_id"]
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transfer_request_details_current_program_id_fkey"
-            columns: ["current_program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
           },
           {
             foreignKeyName: "transfer_request_details_request_id_fkey"
@@ -3741,25 +3392,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "transfer_request_details_requested_department_id_fkey"
-            columns: ["requested_department_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["department_id"]
-          },
-          {
             foreignKeyName: "transfer_request_details_requested_program_id_fkey"
             columns: ["requested_program_id"]
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transfer_request_details_requested_program_id_fkey"
-            columns: ["requested_program_id"]
-            isOneToOne: false
-            referencedRelation: "student_unofficial_transcript"
-            referencedColumns: ["program_id"]
           },
         ]
       }
