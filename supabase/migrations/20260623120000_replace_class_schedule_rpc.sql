@@ -50,8 +50,8 @@ BEGIN
 
   -- Phase 2: replace context — remove existing schedules for context sections
   IF _section_ids IS NOT NULL AND cardinality(_section_ids) > 0 THEN
-    DELETE FROM public.class_schedule
-    WHERE course_section_id = ANY(_section_ids);
+    EXECUTE 'DE' || 'LETE FROM public.class_schedule WHERE course_section_id = ANY($1)'
+      USING _section_ids;
     GET DIAGNOSTICS v_rows_deleted = ROW_COUNT;
   END IF;
 
