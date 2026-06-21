@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           id: string
           reason_type: string
+          record_applied_at: string | null
           request_id: string
           updated_at: string
         }
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           id?: string
           reason_type?: string
+          record_applied_at?: string | null
           request_id: string
           updated_at?: string
         }
@@ -39,6 +41,7 @@ export type Database = {
           created_at?: string
           id?: string
           reason_type?: string
+          record_applied_at?: string | null
           request_id?: string
           updated_at?: string
         }
@@ -2819,6 +2822,61 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "student_requests"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_excused_absences: {
+        Row: {
+          absence_date: string
+          absence_excuse_request_id: string
+          applied_at: string
+          course_section_id: string
+          created_at: string
+          id: string
+          reason_type: string
+          student_profile_id: string
+        }
+        Insert: {
+          absence_date: string
+          absence_excuse_request_id: string
+          applied_at?: string
+          course_section_id: string
+          created_at?: string
+          id?: string
+          reason_type: string
+          student_profile_id: string
+        }
+        Update: {
+          absence_date?: string
+          absence_excuse_request_id?: string
+          applied_at?: string
+          course_section_id?: string
+          created_at?: string
+          id?: string
+          reason_type?: string
+          student_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_excused_absences_absence_excuse_request_id_fkey"
+            columns: ["absence_excuse_request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_excused_absences_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "course_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_excused_absences_course_section_id_fkey"
+            columns: ["course_section_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["course_section_id"]
           },
         ]
       }
