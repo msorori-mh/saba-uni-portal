@@ -12,6 +12,13 @@ export const STUDENT_REQUESTS_ADMIN_ROLES = [
   "student_affairs",
 ] as const;
 
+/** PostgREST FK hints must match DB constraint names (see types.ts). */
+export const ENROLLMENT_SUSPENSION_DETAILS_SELECT =
+  "request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, requested_from_academic_year:academic_years!enrollment_suspension_details_requested_from_academic_year_fkey(name), requested_from_semester:semesters!enrollment_suspension_details_requested_from_semester_id_fkey(name)";
+
+export const ENROLLMENT_REINSTATEMENT_DETAILS_SELECT =
+  "request_id, requested_from_academic_year_id, requested_from_semester_id, reinstatement_reason, notes, requested_from_academic_year:academic_years!enrollment_reinstatement_deta_requested_from_academic_year_fkey(name), requested_from_semester:semesters!enrollment_reinstatement_detail_requested_from_semester_id_fkey(name)";
+
 const requestStatusSchema = z.enum([
   "draft", "submitted", "under_review", "returned", "approved", "rejected", "cancelled",
 ]);
@@ -166,12 +173,27 @@ export const listStudentRequestsOverview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertRequestsAdmin(context.userId);
-    const { data, error } = await supabaseAdmin
+    const { data: rows, error } = await supabaseAdmin
       .from("student_requests")
-      .select("id, title, description, status, submitted_at, created_at, rejection_reason, student_profile_id, request_type, student:student_profiles(academic_number, full_name_ar, program_id, department_id, program:programs(name_ar), department:departments(name_ar))")
+      .select("id, title, description, status, submitted_at, created_at, rejection_reason, student_profile_id, request_type")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+
+    const list = rows ?? [];
+    if (list.length === 0) return [];
+
+    const profileIds = [...new Set(list.map((r) => r.student_profile_id))];
+    const { data: profiles, error: profileErr } = await supabaseAdmin
+      .from("student_profiles")
+      .select("id, academic_number, full_name_ar, program_id, department_id, program:programs(name_ar), department:departments(name_ar)")
+      .in("id", profileIds);
+    if (profileErr) throw new Error(profileErr.message);
+
+    const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+    return list.map((r) => ({
+      ...r,
+      student: profileById.get(r.student_profile_id) ?? null,
+    }));
   });
 
 export const getStudentRequestDetails = createServerFn({ method: "POST" })
@@ -198,10 +220,10 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
         .select("request_id, absence_date, reason_type, course_section_id, record_applied_at, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("enrollment_suspension_details")
-        .select("request_id, suspension_reason, suspension_duration_type, notes, requested_from_academic_year:academic_years!enrollment_suspension_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_suspension_details_requested_from_semester_id_fkey(name)")
+        .select(ENROLLMENT_SUSPENSION_DETAILS_SELECT)
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("enrollment_reinstatement_details")
-        .select("request_id, reinstatement_reason, notes, requested_from_academic_year:academic_years!enrollment_reinstatement_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_reinstatement_details_requested_from_semester_id_fkey(name)")
+        .select(ENROLLMENT_REINSTATEMENT_DETAILS_SELECT)
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("extra_chance_details")
         .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
