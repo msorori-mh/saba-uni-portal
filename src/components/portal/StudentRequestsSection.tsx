@@ -3,6 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, FileWarning, Plus, Send, Trash2, Upload, X, Paperclip, Ban, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  ENROLLMENT_REINSTATEMENT_DETAILS_SELECT,
+  ENROLLMENT_SUSPENSION_DETAILS_SELECT,
+} from "@/lib/admin-student-requests.functions";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as unknown as { from: (t: string) => any };
@@ -177,7 +181,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     },
   });
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, isError, error: requestsError } = useQuery({
     queryKey: ["my-requests", studentProfileId],
     queryFn: async (): Promise<RequestRow[]> => {
       const { data: reqs, error } = await sb.from("student_requests")
@@ -190,10 +194,10 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       const [absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
         sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id, record_applied_at").in("request_id", ids),
         sb.from("enrollment_suspension_details")
-          .select("request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, requested_from_academic_year:academic_years!enrollment_suspension_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_suspension_details_requested_from_semester_id_fkey(name)")
+          .select(ENROLLMENT_SUSPENSION_DETAILS_SELECT)
           .in("request_id", ids),
         sb.from("enrollment_reinstatement_details")
-          .select("request_id, requested_from_academic_year_id, requested_from_semester_id, reinstatement_reason, notes, requested_from_academic_year:academic_years!enrollment_reinstatement_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_reinstatement_details_requested_from_semester_id_fkey(name)")
+          .select(ENROLLMENT_REINSTATEMENT_DETAILS_SELECT)
           .in("request_id", ids),
         sb.from("extra_chance_details")
           .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
@@ -348,6 +352,10 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
 
       {isLoading ? (
         <div className="rounded-lg border bg-card p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+      ) : isError ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-xs text-rose-800 text-center">
+          تعذر تحميل الطلبات: {requestsError instanceof Error ? requestsError.message : "خطأ غير معروف"}
+        </div>
       ) : requests.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
           لا توجد طلبات حالياً.

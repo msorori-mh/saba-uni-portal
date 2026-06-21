@@ -163,7 +163,7 @@ function AdminRequestsPage() {
   const depts = lookups?.departments ?? [];
   const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, isError, error: listError, refetch } = useQuery({
     queryKey: ["admin-requests-overview"],
     queryFn: async (): Promise<AdminReq[]> => {
       const reqs = await listFn({ data: {} });
@@ -202,6 +202,11 @@ function AdminRequestsPage() {
     })();
     return () => { cancelled = true; };
   }, [selected, detailsFn]);
+
+  const submittedCount = useMemo(
+    () => requests.filter((r) => r.status === "submitted").length,
+    [requests],
+  );
 
   const filtered = useMemo(() => requests.filter((r) =>
     (!statusFilter || r.status === statusFilter)
@@ -275,10 +280,26 @@ function AdminRequestsPage() {
           options={programs.map((p) => ({ value: p.id, label: p.name_ar }))} />
         <FilterSelect label="القسم" value={deptFilter} onChange={setDeptFilter}
           options={depts.map((d) => ({ value: d.id, label: d.name_ar }))} />
-        <div className="ms-auto text-xs text-muted-foreground self-end">
-          {filtered.length} طلب
+        <div className="ms-auto text-xs text-muted-foreground self-end flex flex-col items-end gap-0.5">
+          <span>{filtered.length} طلب</span>
+          {submittedCount > 0 && !statusFilter && (
+            <span className="text-blue-700">{submittedCount} مُرسَل بانتظار المراجعة</span>
+          )}
         </div>
       </div>
+
+      {isError && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 flex items-center justify-between gap-3">
+          <span>تعذر تحميل الطلبات: {listError instanceof Error ? listError.message : "خطأ غير معروف"}</span>
+          <button type="button" onClick={() => refetch()} className="text-xs font-bold underline shrink-0">إعادة المحاولة</button>
+        </div>
+      )}
+
+      {statusFilter === "under_review" && submittedCount > 0 && (
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+          يوجد {submittedCount} طلب(ات) بحالة «مُرسَل» لا تظهر مع فلتر «قيد المراجعة». امسح فلتر الحالة أو اختر «مُرسَل».
+        </div>
+      )}
 
       {isLoading ? (
         <div className="grid place-items-center py-10"><Loader2 className="h-6 w-6 animate-spin" /></div>
