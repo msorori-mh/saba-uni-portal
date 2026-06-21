@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   ENROLLMENT_REINSTATEMENT_DETAILS_SELECT,
   ENROLLMENT_SUSPENSION_DETAILS_SELECT,
+  OFFICIAL_TRANSCRIPT_DETAILS_SELECT,
   getMyStudentRequestTimelines,
 } from "@/lib/admin-student-requests.functions";
 import { RequestTimelinePanel } from "@/components/student-requests/RequestTimelinePanel";
@@ -109,6 +110,20 @@ type GradeAppealDetails = {
   section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
 };
 
+type OfficialTranscriptDetails = {
+  purpose: string | null;
+  notes: string | null;
+  document_issued_at: string | null;
+  official_document_id: string | null;
+  official_document: {
+    id: string;
+    document_number: string;
+    verification_code: string;
+    status: string;
+    issued_at: string;
+  } | null;
+};
+
 type RequestModalCode =
   | "absence_excuse"
   | "enrollment_suspension"
@@ -116,7 +131,8 @@ type RequestModalCode =
   | "extra_chance"
   | "transfer"
   | "equivalency"
-  | "grade_appeal";
+  | "grade_appeal"
+  | "official_transcript";
 
 type RequestRow = {
   id: string; title: string; description: string | null; status: string;
@@ -130,6 +146,7 @@ type RequestRow = {
   equivalency_details: EquivalencyDetails | null;
   equivalency_courses: EquivalencyCourseRow[];
   grade_appeal_details: GradeAppealDetails | null;
+  official_transcript_details: OfficialTranscriptDetails | null;
   attachments: { id: string; file_name: string; file_url: string }[];
 };
 
@@ -178,6 +195,7 @@ async function loadStudentRequestDetailsMaps(
   eqdMap: Map<string, RequestRow["equivalency_details"]>;
   eqcMap: Map<string, EquivalencyCourseRow[]>;
   gaMap: Map<string, RequestRow["grade_appeal_details"]>;
+  otrMap: Map<string, RequestRow["official_transcript_details"]>;
   attMap: Map<string, RequestRow["attachments"]>;
 }> {
   const ids = reqs.map((r) => r.id);
@@ -191,6 +209,7 @@ async function loadStudentRequestDetailsMaps(
   const eqdMap = new Map<string, RequestRow["equivalency_details"]>();
   const eqcMap = new Map<string, EquivalencyCourseRow[]>();
   const gaMap = new Map<string, RequestRow["grade_appeal_details"]>();
+  const otrMap = new Map<string, RequestRow["official_transcript_details"]>();
   const attMap = new Map<string, RequestRow["attachments"]>();
 
   const fetches: Promise<void>[] = [];
@@ -300,9 +319,20 @@ async function loadStudentRequestDetailsMaps(
     })());
   }
 
+  const officialTranscriptIds = byType.get("official_transcript");
+  if (officialTranscriptIds?.length) {
+    fetches.push((async () => {
+      const { data, error } = await sb.from("official_transcript_request_details")
+        .select(OFFICIAL_TRANSCRIPT_DETAILS_SELECT)
+        .in("request_id", officialTranscriptIds);
+      if (error) throw error;
+      for (const d of data ?? []) otrMap.set(d.request_id, d);
+    })());
+  }
+
   await Promise.all(fetches);
 
-  return { absMap, suspMap, reinMap, ecMap, trMap, eqdMap, eqcMap, gaMap, attMap };
+  return { absMap, suspMap, reinMap, ecMap, trMap, eqdMap, eqcMap, gaMap, otrMap, attMap };
 }
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
@@ -366,7 +396,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       if (error) throw error;
       if ((reqs ?? []).length === 0) return [];
       const {
-        absMap, suspMap, reinMap, ecMap, trMap, eqdMap, eqcMap, gaMap, attMap,
+        absMap, suspMap, reinMap, ecMap, trMap, eqdMap, eqcMap, gaMap, otrMap, attMap,
       } = await loadStudentRequestDetailsMaps(reqs as { id: string; request_type: string }[]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (reqs as any[]).map((r) => ({
@@ -379,6 +409,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         equivalency_details: eqdMap.get(r.id) ?? null,
         equivalency_courses: eqcMap.get(r.id) ?? [],
         grade_appeal_details: gaMap.get(r.id) ?? null,
+        official_transcript_details: otrMap.get(r.id) ?? null,
         attachments: attMap.get(r.id) ?? [],
       }));
     },
@@ -441,7 +472,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
 
   const SUPPORTED_CODES = new Set([
     "absence_excuse", "enrollment_suspension", "enrollment_reinstatement",
-    "extra_chance", "transfer", "equivalency", "grade_appeal",
+    "extra_chance", "transfer", "equivalency", "grade_appeal", "official_transcript",
   ]);
 
   const isTypeAvailable = (code: string) => {
@@ -605,6 +636,25 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     <span className="text-muted-foreground">السبب: </span>{r.transfer_details.transfer_reason}
                   </div>
                 )}
+                {r.official_transcript_details?.purpose && (
+                  <div className="mt-1.5 text-xs">
+                    <span className="text-muted-foreground">الغرض: </span>{r.official_transcript_details.purpose}
+                  </div>
+                )}
+                {r.status === "approved" && r.request_type === "official_transcript" && r.official_transcript_details?.official_document && (
+                  <div className="mt-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2 space-y-1">
+                    <div>تم إصدار السجل الأكاديمي الرسمي.</div>
+                    <div>رقم الوثيقة: <b>{r.official_transcript_details.official_document.document_number}</b></div>
+                    <a
+                      href={`/document-view/${r.official_transcript_details.official_document.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-block text-primary hover:underline font-semibold"
+                    >
+                      عرض الوثيقة
+                    </a>
+                  </div>
+                )}
                 {r.status === "approved" && r.request_type === "absence_excuse" && r.absence_details?.record_applied_at && (
                   <div className="mt-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">
                     تم تسجيل العذر في سجل الغياب بتاريخ {new Date(r.absence_details.record_applied_at).toLocaleString("ar-EG")}
@@ -718,6 +768,14 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         <GradeAppealModal
           studentProfileId={studentProfileId}
           attachmentRequired={requiresAttachment("grade_appeal")}
+          onClose={() => setOpenType(null)}
+          onSaved={() => { setOpenType(null); refresh(); }}
+        />
+      )}
+      {openType === "official_transcript" && (
+        <OfficialTranscriptModal
+          studentProfileId={studentProfileId}
+          attachmentRequired={requiresAttachment("official_transcript")}
           onClose={() => setOpenType(null)}
           onSaved={() => { setOpenType(null); refresh(); }}
         />
@@ -1515,6 +1573,79 @@ function EquivalencyModal({
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
         </div>
 
+        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+      </div>
+    </ModalShell>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// OfficialTranscriptModal — request official academic transcript
+// ──────────────────────────────────────────────────────────────────────────────
+
+function OfficialTranscriptModal({
+  studentProfileId, attachmentRequired = false, onClose, onSaved,
+}: {
+  studentProfileId: string; attachmentRequired?: boolean;
+  onClose: () => void; onSaved: () => void;
+}) {
+  const [purpose, setPurpose] = useState("");
+  const [notes, setNotes] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async (submit: boolean) => {
+    if (submit && attachmentRequired && !file) {
+      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { data: created, error: e1 } = await sb.from("student_requests").insert({
+        student_profile_id: studentProfileId,
+        request_type: "official_transcript",
+        title: "طلب سجل أكاديمي رسمي",
+        description: notes.trim() || null,
+        status: submit ? "submitted" : "draft",
+        submitted_at: submit ? new Date().toISOString() : null,
+      }).select("id").single();
+      if (e1) throw e1;
+
+      const { error: e2 } = await sb.from("official_transcript_request_details").insert({
+        request_id: created.id,
+        purpose: purpose.trim() || null,
+        notes: notes.trim() || null,
+      });
+      if (e2) throw e2;
+
+      if (file) await uploadAttachment(created.id, file);
+      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
+      onSaved();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "حدث خطأ");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <ModalShell title="طلب سجل أكاديمي رسمي" onClose={onClose}>
+      <div className="space-y-3 text-sm">
+        <div className="rounded border bg-muted/30 p-2 text-xs text-muted-foreground">
+          سيتم إصدار السجل الأكاديمي الرسمي بعد اعتماد الطلب من شؤون الطلاب.
+        </div>
+        <div>
+          <Label>الغرض من الطلب (اختياري)</Label>
+          <input
+            value={purpose}
+            onChange={(e) => setPurpose(e.target.value)}
+            placeholder="مثال: جهة عمل، سفارة، ..."
+            className="w-full h-9 rounded border bg-background px-2 text-sm"
+          />
+        </div>
+        <div>
+          <Label>ملاحظات إضافية</Label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
+        </div>
+        <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
         <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
       </div>
     </ModalShell>

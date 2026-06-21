@@ -61,6 +61,7 @@ const SUPPORTED_CODES = new Set([
   "transfer",
   "equivalency",
   "grade_appeal",
+  "official_transcript",
 ]);
 
 async function fetchData(): Promise<Data> {
