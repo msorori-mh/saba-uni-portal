@@ -146,7 +146,7 @@ function ExecutiveDashboardPage() {
     if (!core.currentYearOk) alerts.push({ id: "no-year", severity: "critical", title: "لا توجد سنة أكاديمية حالية", href: "/admin/academic-operations" });
     if (!core.currentSemOk) alerts.push({ id: "no-sem", severity: "critical", title: "لا يوجد فصل دراسي حالي", href: "/admin/academic-operations" });
     if (core.studentsNoProgram > 0) alerts.push({ id: "no-prog", severity: "warning", title: "طلاب بدون برنامج", detail: `${core.studentsNoProgram} طالب`, href: "/admin/students" });
-    if (core.unassignedSections > 0) alerts.push({ id: "no-faculty", severity: "warning", title: "مجموعات بدون عضو هيئة تدريس", detail: `${core.unassignedSections} مجموعة دراسية`, href: "/admin/schedules" });
+    if (core.unassignedSections > 0) alerts.push({ id: "no-faculty", severity: "warning", title: "مجموعات بدون عضو هيئة تدريس", detail: `${core.unassignedSections} مجموعة دراسية`, href: "/admin/course-offerings?tab=schedule" });
     if (core.outstanding > 0) alerts.push({ id: "outstanding", severity: "warning", title: "رسوم غير محصّلة", detail: `${core.outstanding.toLocaleString()} ر.ي`, href: "/admin/finance" });
     if (core.newRequestsPending > 0) alerts.push({ id: "req", severity: "info", title: "طلبات طلابية بانتظار المراجعة", detail: `${core.newRequestsPending}`, href: "/admin/student-requests" });
     if (core.newDocsToday > 0) alerts.push({ id: "docs", severity: "info", title: "وثائق صادرة اليوم", detail: `${core.newDocsToday}`, href: "/admin/documents" });
@@ -172,7 +172,7 @@ function ExecutiveDashboardPage() {
 
   const quickLinks = [
     { to: "/admin/academic-operations", label: "العمليات الأكاديمية", icon: Activity },
-    { to: "/admin/schedules", label: "الجداول الدراسية", icon: CalendarClock },
+    { to: "/admin/course-offerings", search: { tab: "schedule" }, label: "الجداول الدراسية", icon: CalendarClock },
     { to: "/admin/student-progress", label: "تقدم الطلاب", icon: TrendingUp },
     { to: "/admin/graduation-candidates", label: "مرشحو التخرج", icon: FileBadge },
     { to: "/admin/reports", label: "مركز التقارير", icon: BarChart3 },
@@ -593,6 +593,7 @@ function ExecutiveDashboardPage() {
               <Link
                 key={q.to}
                 to={q.to}
+                {...("search" in q && q.search ? { search: q.search } : {})}
                 className="flex items-center gap-3 rounded-lg border border-border p-3 hover:border-primary hover:bg-secondary transition-colors"
               >
                 <Icon className="h-4 w-4 text-primary" />

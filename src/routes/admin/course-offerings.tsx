@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,7 +27,18 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import { ScheduleImportPanel } from "@/components/admin/ScheduleImportPanel";
+import type { ScheduleContext } from "@/lib/imports/class-schedule";
+
+const TAB_IDS = ["offerings", "sections", "schedule"] as const;
+type TabId = typeof TAB_IDS[number];
+
 export const Route = createFileRoute("/admin/course-offerings")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: typeof search.tab === "string" && TAB_IDS.includes(search.tab as TabId)
+      ? (search.tab as TabId)
+      : undefined,
+  }),
   component: CourseOfferingsPage,
 });
 
@@ -87,6 +98,21 @@ function useLookups() {
 
 // ============ Page ============
 function CourseOfferingsPage() {
+  const { tab: tabParam } = Route.useSearch();
+  const navigate = useNavigate();
+  const initialTab = tabParam ?? "offerings";
+  const [tab, setTab] = useState<TabId>(initialTab);
+
+  useEffect(() => {
+    if (tabParam && tabParam !== tab) setTab(tabParam);
+  }, [tabParam, tab]);
+
+  const onTabChange = (value: string) => {
+    const next = value as TabId;
+    setTab(next);
+    navigate({ to: "/admin/course-offerings", search: next === "offerings" ? {} : { tab: next } });
+  };
+
   return (
     <div dir="rtl" className="space-y-6">
       <div>
@@ -94,7 +120,7 @@ function CourseOfferingsPage() {
         <p className="text-sm text-muted-foreground mt-1">إدارة إسناد المقررات والمجموعات الدراسية والجداول الدراسية</p>
       </div>
 
-      <Tabs defaultValue="offerings" className="w-full">
+      <Tabs value={tab} onValueChange={onTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-2xl">
           <TabsTrigger value="offerings"><CalendarDays className="h-4 w-4 ml-2" />إسناد المقررات</TabsTrigger>
           <TabsTrigger value="sections"><Users2 className="h-4 w-4 ml-2" />المجموعات الدراسية</TabsTrigger>
@@ -622,13 +648,19 @@ function SectionFormDialog({ open, onOpenChange, editing, offerings, lk, onSaved
   );
 }
 
-// ============ Schedule Tab — Import-only (university scheduling system is the source of truth) ============
+// ============ Schedule Tab — import via shared panel ============
 function ScheduleTab() {
+  const lk = useLookups();
   const statsFn = useServerFn(getClassScheduleStats);
   const { data: stats } = useQuery({
     queryKey: ["class-schedule-stats"],
     queryFn: () => statsFn({ data: {} }),
   });
+
+  const initialContext = useMemo((): Partial<ScheduleContext> | undefined => {
+    const currentYear = lk.years.find((y) => y.is_current);
+    return currentYear ? { academic_year_id: currentYear.id } : undefined;
+  }, [lk.years]);
 
   return (
     <div className="space-y-4">
@@ -640,7 +672,7 @@ function ScheduleTab() {
           <div>
             <h2 className="font-display text-lg font-extrabold text-primary">استيراد الجداول الدراسية</h2>
             <p className="text-xs text-muted-foreground">
-              المصدر الرسمي للجداول هو نظام إدارة الجداول الجامعية. تستورد البوابة الجداول فقط ولا تنشئها محلياً.
+              استيراد الجداول يتم من هذا التبويب. المصدر الرسمي هو نظام إدارة الجداول الجامعية؛ تستورد البوابة الجداول ولا تنشئها يدوياً.
             </p>
           </div>
         </div>
@@ -656,21 +688,16 @@ function ScheduleTab() {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2">
-          <a
-            href="/admin/imports"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
-          >
-            فتح صفحة الاستيراد (قالب class_schedule)
-          </a>
-        </div>
-
         <ul className="text-xs text-muted-foreground list-disc pr-5 space-y-1 pt-2">
-          <li>استخدم القالب المعتمد لاستيراد الجداول لكل فصل دراسي.</li>
           <li>تظهر الجداول المستوردة تلقائياً في بوابة الطالب وبوابة عضو هيئة التدريس.</li>
-          <li>لا تتوفر داخل بوابة الكلية أدوات إنشاء أو تعديل أو كشف تعارضات الجداول.</li>
+          <li>
+            يمكن أيضاً الوصول إلى نفس لوحة الاستيراد من{" "}
+            <a href="/admin/imports" className="font-bold text-primary underline">صفحة الاستيراد الجماعي</a>.
+          </li>
         </ul>
       </div>
+
+      <ScheduleImportPanel embedded initialContext={initialContext} />
     </div>
   );
 }
