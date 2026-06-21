@@ -150,6 +150,123 @@ async function assertExtraChanceCanApprove(requestId: string, studentProfileId: 
   }
 }
 
+type TransferDetailsRow = {
+  current_program_id: string;
+  requested_program_id: string;
+  current_department_id: string | null;
+  requested_department_id: string | null;
+  transfer_reason: string;
+};
+
+export type TransferApprovalSummary = {
+  can_approve: boolean;
+  block_reason: string | null;
+  warnings: string[];
+};
+
+async function validateTransferApproval(
+  studentProfileId: string,
+  details: TransferDetailsRow | null,
+): Promise<TransferApprovalSummary> {
+  const warnings: string[] = [];
+  if (!details) {
+    return { can_approve: false, block_reason: "تفاصيل طلب التحويل غير مكتملة", warnings };
+  }
+  if (!details.current_program_id || !details.requested_program_id) {
+    return { can_approve: false, block_reason: "تفاصيل طلب التحويل غير مكتملة", warnings };
+  }
+  if (!details.transfer_reason?.trim()) {
+    return { can_approve: false, block_reason: "سبب التحويل مطلوب", warnings };
+  }
+
+  const noProgramChange = details.current_program_id === details.requested_program_id;
+  const noDeptChange = (details.current_department_id ?? null) === (details.requested_department_id ?? null);
+  if (noProgramChange && noDeptChange) {
+    return { can_approve: false, block_reason: "لا يوجد تغيير فعلي في البرنامج أو القسم", warnings };
+  }
+
+  const { data: profile, error: profErr } = await supabaseAdmin
+    .from("student_profiles")
+    .select("program_id, department_id, status")
+    .eq("id", studentProfileId)
+    .maybeSingle();
+  if (profErr) throw new Error(profErr.message);
+  if (!profile) {
+    return { can_approve: false, block_reason: "ملف الطالب غير موجود", warnings };
+  }
+  if (profile.status !== "active") {
+    return { can_approve: false, block_reason: "حالة الطالب لا تسمح بالتحويل", warnings };
+  }
+  if (profile.program_id && profile.program_id !== details.current_program_id) {
+    return {
+      can_approve: false,
+      block_reason: "البرنامج الحالي في الطلب لا يطابق ملف الطالب — يحتاج تحديث الطلب",
+      warnings,
+    };
+  }
+
+  const { data: sas, error: sasErr } = await supabaseAdmin
+    .from("student_academic_status")
+    .select("enrollment_status")
+    .eq("student_profile_id", studentProfileId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (sasErr) throw new Error(sasErr.message);
+  if (sas?.enrollment_status === "suspended") {
+    return { can_approve: false, block_reason: "الطالب موقوف القيد ولا يمكن اعتماد تحويله", warnings };
+  }
+
+  const { data: targetProgram, error: progErr } = await supabaseAdmin
+    .from("programs")
+    .select("id, is_active")
+    .eq("id", details.requested_program_id)
+    .maybeSingle();
+  if (progErr) throw new Error(progErr.message);
+  if (!targetProgram?.is_active) {
+    return { can_approve: false, block_reason: "البرنامج المطلوب غير نشط أو غير موجود", warnings };
+  }
+
+  const { count: enrollmentCount, error: enrErr } = await supabaseAdmin
+    .from("student_enrollments")
+    .select("id", { count: "exact", head: true })
+    .eq("student_profile_id", studentProfileId)
+    .eq("enrollment_status", "enrolled");
+  if (enrErr) throw new Error(enrErr.message);
+  if ((enrollmentCount ?? 0) > 0) {
+    warnings.push(
+      `الطالب مسجّل حالياً في ${enrollmentCount} مقرر(ات) — راجع الآثار على التسجيل والخطة الدراسية`,
+    );
+  }
+
+  if (
+    details.current_department_id
+    && details.requested_department_id
+    && details.current_department_id !== details.requested_department_id
+  ) {
+    warnings.push("سيؤدي الاعتماد إلى تغيير قسم الطالب");
+  }
+
+  return { can_approve: true, block_reason: null, warnings };
+}
+
+async function assertTransferCanApprove(requestId: string, studentProfileId: string) {
+  const { data: details, error } = await supabaseAdmin
+    .from("transfer_request_details")
+    .select("current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason")
+    .eq("request_id", requestId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  const summary = await validateTransferApproval(
+    studentProfileId,
+    (details ?? null) as TransferDetailsRow | null,
+  );
+  if (!summary.can_approve) {
+    throw new Error(summary.block_reason ?? "لا يمكن اعتماد طلب التحويل");
+  }
+}
+
 type CourseSectionPreview = {
   section_code: string;
   offering: { course: { code: string; name_ar: string } | null } | null;
@@ -210,6 +327,7 @@ function emptyRequestDetailsPayload(attachments: { id: string; request_id: strin
     extra_chance_details: null,
     extra_chance_summary: null,
     transfer_details: null,
+    transfer_summary: null as TransferApprovalSummary | null,
     equivalency_details: null,
     equivalency_courses: [] as EquivalencyCourseRow[],
     equivalency_summary: buildEquivalencySummary([]),
@@ -339,7 +457,11 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
           .eq("request_id", id)
           .maybeSingle();
         if (error) throw new Error(`تعذر تحميل تفاصيل التحويل: ${error.message}`);
-        return { ...base, transfer_details: transfer_details ?? null };
+        const transfer_summary = await validateTransferApproval(
+          reqMeta.student_profile_id,
+          (transfer_details ?? null) as TransferDetailsRow | null,
+        );
+        return { ...base, transfer_details: transfer_details ?? null, transfer_summary };
       }
       case "equivalency": {
         const [eqdRes, eqcRes] = await Promise.all([
@@ -432,6 +554,10 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
 
     if (data.status === "approved" && reqRow.request_type === "extra_chance") {
       await assertExtraChanceCanApprove(data.requestId, reqRow.student_profile_id);
+    }
+
+    if (data.status === "approved" && reqRow.request_type === "transfer") {
+      await assertTransferCanApprove(data.requestId, reqRow.student_profile_id);
     }
 
     const patch: Record<string, unknown> = {
