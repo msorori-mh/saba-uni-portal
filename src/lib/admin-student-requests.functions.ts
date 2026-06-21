@@ -13,7 +13,7 @@ export const STUDENT_REQUESTS_ADMIN_ROLES = [
 ] as const;
 
 const requestStatusSchema = z.enum([
-  "draft", "submitted", "under_review", "approved", "rejected", "cancelled",
+  "draft", "submitted", "under_review", "returned", "approved", "rejected", "cancelled",
 ]);
 
 async function assertRequestsAdmin(userId: string) {
@@ -126,7 +126,7 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
       reviewed_by: context.userId,
       reviewed_at: new Date().toISOString(),
     };
-    if (data.status === "rejected") {
+    if (data.status === "rejected" || data.status === "returned") {
       patch.rejection_reason = data.rejectionReason ?? null;
     }
 

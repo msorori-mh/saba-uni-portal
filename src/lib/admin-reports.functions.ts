@@ -255,11 +255,13 @@ const REQ_TYPE_AR: Record<string, string> = {
   extra_chance: "فرصة إضافية",
   transfer: "تحويل",
   equivalency: "معادلة",
+  grade_appeal: "تظلم درجات",
 };
 const REQ_STATUS_AR: Record<string, string> = {
   draft: "مسودة",
   submitted: "مقدّم",
   under_review: "قيد المراجعة",
+  returned: "يحتاج استكمال",
   approved: "موافَق عليه",
   rejected: "مرفوض",
   cancelled: "ملغى",

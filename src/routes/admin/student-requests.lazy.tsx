@@ -34,6 +34,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
   draft:        { text: "مسودة",       cls: "bg-muted text-foreground" },
   submitted:    { text: "مُرسَل",       cls: "bg-blue-100 text-blue-800" },
   under_review: { text: "قيد المراجعة", cls: "bg-amber-100 text-amber-800" },
+  returned:     { text: "يحتاج استكمال", cls: "bg-orange-100 text-orange-800" },
   approved:     { text: "مقبول",       cls: "bg-emerald-100 text-emerald-800" },
   rejected:     { text: "مرفوض",       cls: "bg-rose-100 text-rose-800" },
   cancelled:    { text: "ملغي",        cls: "bg-zinc-200 text-zinc-800" },
@@ -183,7 +184,7 @@ function AdminRequestsPage() {
       const result = await updateStatusFn({
         data: {
           requestId: id,
-          status: status as "draft" | "submitted" | "under_review" | "approved" | "rejected" | "cancelled",
+          status: status as "draft" | "submitted" | "under_review" | "returned" | "approved" | "rejected" | "cancelled",
           rejectionReason: rejection_reason,
         },
       });
@@ -351,9 +352,16 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
   const [busy, setBusy] = useState(false);
 
   const act = async (status: string) => {
-    if (status === "rejected" && !reason.trim()) { toast.error("أدخل سبب الرفض"); return; }
+    if ((status === "rejected" || status === "returned") && !reason.trim()) {
+      toast.error(status === "returned" ? "أدخل ملاحظات الاستكمال" : "أدخل سبب الرفض");
+      return;
+    }
     setBusy(true);
-    await onUpdateStatus(req.id, status, status === "rejected" ? reason.trim() : undefined);
+    await onUpdateStatus(
+      req.id,
+      status,
+      status === "rejected" || status === "returned" ? reason.trim() : undefined,
+    );
     setBusy(false);
   };
 
@@ -461,6 +469,9 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                 <Clock className="h-3.5 w-3.5" /> بدء المراجعة
               </button>
             )}
+            <button disabled={busy} onClick={() => act("returned")} className="w-full text-xs bg-orange-500 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
+              إرجاع للاستكمال
+            </button>
             <div className="grid grid-cols-2 gap-2">
               <button disabled={busy} onClick={() => act("approved")} className="text-xs bg-emerald-600 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
                 <CheckCircle2 className="h-3.5 w-3.5" /> قبول
@@ -472,16 +483,21 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="سبب الرفض (مطلوب عند الرفض)..."
+              placeholder="ملاحظات (مطلوبة عند الرفض أو الإرجاع للاستكمال)..."
               rows={2}
               className="w-full rounded border bg-background px-2 py-1.5 text-xs"
             />
           </div>
         )}
 
-        {req.rejection_reason && (
+        {req.rejection_reason && req.status === "rejected" && (
           <div className="mt-3 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">
             <b>سبب الرفض:</b> {req.rejection_reason}
+          </div>
+        )}
+        {req.rejection_reason && req.status === "returned" && (
+          <div className="mt-3 text-xs text-orange-800 bg-orange-50 border border-orange-200 rounded p-2">
+            <b>ملاحظات الاستكمال:</b> {req.rejection_reason}
           </div>
         )}
       </div>
