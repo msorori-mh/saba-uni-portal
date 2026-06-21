@@ -68,6 +68,12 @@ type TransferDetails = {
   requested_department: { name_ar: string } | null;
 };
 
+type TransferSummary = {
+  can_approve: boolean;
+  block_reason: string | null;
+  warnings: string[];
+};
+
 type EquivalencyDetails = {
   previous_university_name: string;
   previous_program_name: string;
@@ -130,6 +136,7 @@ type AdminReq = {
   } | null;
   extra_chance_summary: ExtraChanceSummary | null;
   transfer_details: TransferDetails | null;
+  transfer_summary: TransferSummary | null;
   equivalency_details: EquivalencyDetails | null;
   equivalency_courses: EquivalencyCourse[];
   equivalency_summary: EquivalencySummary | null;
@@ -176,6 +183,7 @@ function AdminRequestsPage() {
         extra_chance_details: null,
         extra_chance_summary: null,
         transfer_details: null,
+        transfer_summary: null,
         equivalency_details: null,
         equivalency_courses: [],
         equivalency_summary: null,
@@ -455,6 +463,16 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         return;
       }
     }
+    if (status === "approved" && req.request_type === "transfer") {
+      if (!req.transfer_details) {
+        toast.error("تفاصيل طلب التحويل غير مكتملة");
+        return;
+      }
+      if (req.transfer_summary && !req.transfer_summary.can_approve) {
+        toast.error(req.transfer_summary.block_reason ?? "لا يمكن اعتماد طلب التحويل");
+        return;
+      }
+    }
     setBusy(true);
     await onUpdateStatus(
       req.id,
@@ -540,6 +558,19 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <Row label="سبب التحويل" value={req.transfer_details.transfer_reason} />
               {req.transfer_details.notes && <Row label="ملاحظات" value={req.transfer_details.notes} />}
             </>
+          )}
+          {req.request_type === "transfer" && req.transfer_summary && !req.transfer_summary.can_approve && (
+            <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded p-2">
+              {req.transfer_summary.block_reason ?? "لا يمكن اعتماد طلب التحويل — تحقق من التفاصيل وحالة الطالب."}
+            </div>
+          )}
+          {req.request_type === "transfer" && req.transfer_summary && req.transfer_summary.warnings.length > 0 && (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 space-y-1">
+              <div className="font-bold">تحذيرات قبل الاعتماد</div>
+              {req.transfer_summary.warnings.map((w) => (
+                <div key={w}>• {w}</div>
+              ))}
+            </div>
           )}
           {req.equivalency_details && (
             <>
@@ -652,6 +683,10 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                   || (req.request_type === "extra_chance" && (
                     !req.extra_chance_details
                     || (req.extra_chance_summary != null && !req.extra_chance_summary.can_approve)
+                  ))
+                  || (req.request_type === "transfer" && (
+                    !req.transfer_details
+                    || (req.transfer_summary != null && !req.transfer_summary.can_approve)
                   ))
                 }
                 onClick={() => act("approved")}
