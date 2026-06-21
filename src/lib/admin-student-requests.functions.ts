@@ -24,6 +24,40 @@ async function assertRequestsAdmin(userId: string) {
   );
 }
 
+type EquivalencyCourseRow = {
+  status: string;
+  target_course_id: string | null;
+};
+
+function buildEquivalencySummary(courses: EquivalencyCourseRow[]) {
+  const pendingCount = courses.filter((c) => c.status === "pending").length;
+  const approvedWithTargetCount = courses.filter(
+    (c) => c.status === "approved" && c.target_course_id,
+  ).length;
+  const rejectedCount = courses.filter((c) => c.status === "rejected").length;
+  return {
+    pending_count: pendingCount,
+    approved_with_target_count: approvedWithTargetCount,
+    rejected_count: rejectedCount,
+    can_approve_parent: pendingCount === 0 && approvedWithTargetCount > 0,
+  };
+}
+
+async function assertEquivalencyParentCanApprove(requestId: string) {
+  const { data: courses, error } = await supabaseAdmin
+    .from("equivalency_courses")
+    .select("status, target_course_id")
+    .eq("equivalency_request_id", requestId);
+  if (error) throw new Error(error.message);
+  const summary = buildEquivalencySummary((courses ?? []) as EquivalencyCourseRow[]);
+  if (summary.pending_count > 0) {
+    throw new Error("لا يمكن اعتماد طلب المقاصة قبل إنهاء مراجعة جميع المواد");
+  }
+  if (summary.approved_with_target_count === 0) {
+    throw new Error("يجب اعتماد مادة واحدة على الأقل مع تحديد المقرر المعادَل");
+  }
+}
+
 export const getStudentRequestLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -83,10 +117,10 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
         .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("equivalency_request_details")
-        .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes")
+        .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes, credits_applied_at")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("equivalency_courses")
-        .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
+        .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course_id, target_course:courses(code, name_ar)")
         .eq("equivalency_request_id", id),
       supabaseAdmin.from("grade_appeal_details")
         .select("request_id, reason, notes, current_grade_total, current_grade_status, approved_total_score, course_section_id, student_enrollment_id, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
@@ -111,6 +145,7 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
       gradeAppealSectionMax = (comps ?? []).reduce((sum, c) => sum + Number(c.max_score ?? 0), 0);
     }
 
+    const equivalencyCourses = eqcRes.data ?? [];
     return {
       absence_details: absRes.data ?? null,
       suspension_details: suspRes.data ?? null,
@@ -118,7 +153,8 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
       extra_chance_details: ecRes.data ?? null,
       transfer_details: trRes.data ?? null,
       equivalency_details: eqdRes.data ?? null,
-      equivalency_courses: eqcRes.data ?? [],
+      equivalency_courses: equivalencyCourses,
+      equivalency_summary: buildEquivalencySummary(equivalencyCourses as EquivalencyCourseRow[]),
       grade_appeal_details: gaRes.data ?? null,
       grade_appeal_section_max: gradeAppealSectionMax,
       attachments: attRes.data ?? [],
@@ -177,6 +213,10 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
       if (gaPatchErr) throw new Error(gaPatchErr.message);
     }
 
+    if (data.status === "approved" && reqRow.request_type === "equivalency") {
+      await assertEquivalencyParentCanApprove(data.requestId);
+    }
+
     const patch: Record<string, unknown> = {
       status: data.status,
       reviewed_by: context.userId,
@@ -227,6 +267,19 @@ export const updateEquivalencyCourse = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertRequestsAdmin(context.userId);
+
+    if (data.status === "approved") {
+      const { data: row, error: rowErr } = await supabaseAdmin
+        .from("equivalency_courses")
+        .select("target_course_id")
+        .eq("id", data.courseId)
+        .maybeSingle();
+      if (rowErr) throw new Error(rowErr.message);
+      if (!row?.target_course_id) {
+        throw new Error("حدّد المقرر المعادَل قبل اعتماد هذه المادة");
+      }
+    }
+
     const patch: Record<string, unknown> = {};
     if (data.status !== undefined) patch.status = data.status;
     if (data.reviewerNotes !== undefined) patch.reviewer_notes = data.reviewerNotes;
