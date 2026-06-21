@@ -113,6 +113,20 @@ type GradeAppealDetails = {
   section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
 };
 
+type OfficialTranscriptDetails = {
+  purpose: string | null;
+  notes: string | null;
+  document_issued_at: string | null;
+  official_document_id: string | null;
+  official_document: {
+    id: string;
+    document_number: string;
+    verification_code: string;
+    status: string;
+    issued_at: string;
+  } | null;
+};
+
 type ExtraChanceSummary = {
   can_approve: boolean;
   block_reason: string | null;
@@ -144,6 +158,7 @@ type AdminReq = {
   equivalency_summary: EquivalencySummary | null;
   grade_appeal_details: GradeAppealDetails | null;
   grade_appeal_section_max: number | null;
+  official_transcript_details: OfficialTranscriptDetails | null;
   attachments: { id: string; file_url: string; file_name: string }[];
   _detailsLoaded?: boolean;
 };
@@ -191,6 +206,7 @@ function AdminRequestsPage() {
         equivalency_summary: null,
         grade_appeal_details: null,
         grade_appeal_section_max: null,
+        official_transcript_details: null,
         attachments: [],
         _detailsLoaded: false,
       }));
@@ -619,6 +635,32 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                   label="الدرجة المعتمدة"
                   value={Number(req.grade_appeal_details.approved_total_score).toFixed(2)}
                 />
+              )}
+            </>
+          )}
+          {req.official_transcript_details && (
+            <>
+              {req.official_transcript_details.purpose && (
+                <Row label="الغرض من الطلب" value={req.official_transcript_details.purpose} />
+              )}
+              {req.official_transcript_details.notes && (
+                <Row label="ملاحظات" value={req.official_transcript_details.notes} />
+              )}
+              {req.official_transcript_details.official_document && (
+                <>
+                  <Row label="رقم الوثيقة" value={req.official_transcript_details.official_document.document_number} />
+                  <Row label="تاريخ الإصدار" value={new Date(req.official_transcript_details.official_document.issued_at).toLocaleString("ar-EG")} />
+                  <div>
+                    <a
+                      href={`/document-view/${req.official_transcript_details.official_document.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      عرض السجل الأكاديمي الرسمي
+                    </a>
+                  </div>
+                </>
               )}
             </>
           )}

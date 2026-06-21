@@ -30,6 +30,9 @@ export const ENROLLMENT_SUSPENSION_DETAILS_SELECT =
 export const ENROLLMENT_REINSTATEMENT_DETAILS_SELECT =
   "request_id, requested_from_academic_year_id, requested_from_semester_id, reinstatement_reason, notes, requested_from_academic_year:academic_years!enrollment_reinstatement_deta_requested_from_academic_year_fkey(name), requested_from_semester:semesters!enrollment_reinstatement_detail_requested_from_semester_id_fkey(name)";
 
+export const OFFICIAL_TRANSCRIPT_DETAILS_SELECT =
+  "request_id, purpose, notes, document_issued_at, official_document_id, official_document:official_documents(id, document_number, verification_code, status, issued_at)";
+
 const requestStatusSchema = z.enum([
   "draft", "submitted", "under_review", "returned", "approved", "rejected", "cancelled",
 ]);
@@ -344,6 +347,7 @@ function emptyRequestDetailsPayload(attachments: { id: string; request_id: strin
     equivalency_summary: buildEquivalencySummary([]),
     grade_appeal_details: null,
     grade_appeal_section_max: null as number | null,
+    official_transcript_details: null,
     attachments,
   };
 }
@@ -501,6 +505,15 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
           grade_appeal_details: details,
           grade_appeal_section_max: sectionMax,
         };
+      }
+      case "official_transcript": {
+        const { data: official_transcript_details, error } = await supabaseAdmin
+          .from("official_transcript_request_details")
+          .select(OFFICIAL_TRANSCRIPT_DETAILS_SELECT)
+          .eq("request_id", id)
+          .maybeSingle();
+        if (error) throw new Error(`تعذر تحميل تفاصيل طلب السجل: ${error.message}`);
+        return { ...base, official_transcript_details: official_transcript_details ?? null };
       }
       default:
         return base;
@@ -705,6 +718,15 @@ async function fetchRequestEffectMarkers(
         gradeAppealApprovedScore: score,
         gradeAppealReviewedAt: score != null ? reviewedAt : null,
       };
+    }
+    case "official_transcript": {
+      const { data, error } = await supabaseAdmin
+        .from("official_transcript_request_details")
+        .select("document_issued_at")
+        .eq("request_id", requestId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return { documentIssuedAt: data?.document_issued_at ?? null };
     }
     default:
       return {};

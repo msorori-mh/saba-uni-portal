@@ -37,6 +37,7 @@ export type RequestEffectMarkers = {
   creditsAppliedAt?: string | null;
   gradeAppealApprovedScore?: number | null;
   gradeAppealReviewedAt?: string | null;
+  documentIssuedAt?: string | null;
 };
 
 const KIND_TITLES: Record<TimelineEventKind, string> = {
@@ -132,6 +133,7 @@ const EFFECT_LABELS: Record<string, string> = {
   extra_chance: "تم تسجيل الفرصة في السجل الأكاديمي",
   equivalency: "تم تطبيق ساعات المعادلة",
   grade_appeal: "تم اعتماد الدرجة بعد التظلم",
+  official_transcript: "تم إصدار السجل الأكاديمي الرسمي",
 };
 
 export function buildEffectTimelineEvents(
@@ -166,6 +168,15 @@ export function buildEffectTimelineEvents(
       kind: "effect_applied",
       title: timelineTitleForKind("effect_applied"),
       description: label ?? "تم تطبيق أثر الطلب",
+    });
+  }
+  if (markers.documentIssuedAt) {
+    events.push({
+      id: `effect:transcript:${markers.documentIssuedAt}`,
+      at: markers.documentIssuedAt,
+      kind: "effect_applied",
+      title: timelineTitleForKind("effect_applied"),
+      description: label ?? "تم إصدار الوثيقة الرسمية",
     });
   }
   if (requestType === "grade_appeal" && markers.gradeAppealApprovedScore != null && markers.gradeAppealReviewedAt) {

@@ -257,6 +257,7 @@ const REQ_TYPE_AR: Record<string, string> = {
   transfer: "تحويل",
   equivalency: "معادلة",
   grade_appeal: "تظلم درجات",
+  official_transcript: "سجل أكاديمي رسمي",
 };
 const REQ_STATUS_AR: Record<string, string> = {
   draft: "مسودة",
