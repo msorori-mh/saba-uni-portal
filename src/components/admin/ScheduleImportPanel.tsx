@@ -4,11 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Upload, Download, CheckCircle2, XCircle, Loader2, AlertTriangle,
 } from "lucide-react";
-import { getScheduleImportLookups, logScheduleImport } from "@/lib/imports.functions";
+import { getScheduleImportLookups, runScheduleImport } from "@/lib/imports.functions";
 import { parseExcel } from "@/lib/imports/templates";
 import { downloadMasterTemplate } from "@/lib/imports/master-templates";
 import {
-  loadScheduleLookups, validateClassSchedule, importClassSchedule,
+  loadScheduleLookups, validateClassSchedule,
   type ScheduleContext, type ScheduleValidationResult, type ScheduleImportReport,
 } from "@/lib/imports/class-schedule";
 
@@ -24,7 +24,7 @@ export type ScheduleImportPanelProps = {
 export function ScheduleImportPanel({ initialContext, embedded = false }: ScheduleImportPanelProps) {
   const qc = useQueryClient();
   const lookupsFn = useServerFn(getScheduleImportLookups);
-  const logFn = useServerFn(logScheduleImport);
+  const importFn = useServerFn(runScheduleImport);
   const [ay, setAy] = useState(initialContext?.academic_year_id ?? "");
   const [sem, setSem] = useState(initialContext?.semester_id ?? "");
   const [prog, setProg] = useState(initialContext?.program_id ?? "");
@@ -86,30 +86,17 @@ export function ScheduleImportPanel({ initialContext, embedded = false }: Schedu
     setImporting(true);
     setError(null);
     try {
-      const lookups = await loadScheduleLookups(ctx);
-      const res = await validateClassSchedule(
-        validation.rows.map((r) => r.raw),
-        ctx,
-        lookups,
-      );
-      const rep = await importClassSchedule(res, ctx, lookups);
+      const rep = await importFn({
+        data: {
+          context: ctx,
+          rows: validation.rows.map((r) => r.raw),
+          fileName: file.name,
+        },
+      });
       setReport(rep);
       if (!rep.aborted && rep.rows_inserted > 0) {
         qc.invalidateQueries({ queryKey: ["class-schedule-stats"] });
       }
-      try {
-        const status = rep.aborted ? "failed" : rep.rows_failed === 0 ? "completed" : "partial";
-        await logFn({
-          data: {
-            fileName: file.name,
-            rowsTotal: rep.rows_total,
-            rowsSuccess: rep.rows_inserted,
-            rowsFailed: rep.rows_failed + (rep.aborted ? rep.rows_total - rep.rows_inserted : 0),
-            status,
-            notes: (rep.abortReason ? `[ABORT] ${rep.abortReason} | ` : "") + rep.errors.slice(0, 30).map((e) => `R${e.row}: ${e.message}`).join(" | ") || null,
-          },
-        });
-      } catch { /* best effort */ }
     } catch (e) {
       setError((e as Error).message);
     } finally {

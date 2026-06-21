@@ -7,15 +7,16 @@
 //   - Reject-file-on-conflict policy: any critical conflict aborts the whole import (no partial writes).
 //
 // Notes:
-// * No edits to student portal, faculty portal, or auth routes.
-// * No DB schema/RLS migration: only client-side SQL via PostgREST (admin role).
-// * No transaction wrapper: delete-then-insert is best-effort sequential.
-//   Pre-flight validation + conflict detection minimizes risk.
+// * Preview validation may run client-side (JWT) or server-side (supabaseAdmin).
+// * Writes run server-side via replace_class_schedule_for_context RPC (PR-6B).
 import { supabase } from "@/integrations/supabase/client";
 import type { RowError } from "./types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as any;
+type ScheduleDbClient = any;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const defaultClient = (): ScheduleDbClient => supabase as ScheduleDbClient;
 const str = (v: unknown) => (v == null ? "" : String(v).trim());
 const norm = (v: unknown) => str(v).toLowerCase();
 
@@ -75,7 +76,11 @@ export type ScheduleLookups = {
   timeSlotByKey: Map<string, string>;
 };
 
-export async function loadScheduleLookups(ctx: ScheduleContext): Promise<ScheduleLookups> {
+export async function loadScheduleLookups(
+  ctx: ScheduleContext,
+  client?: ScheduleDbClient,
+): Promise<ScheduleLookups> {
+  const sb = client ?? defaultClient();
   // Offerings for the exact context
   const { data: offRows } = await sb
     .from("course_offerings")
@@ -147,7 +152,9 @@ export async function validateClassSchedule(
   rows: Record<string, unknown>[],
   ctx: ScheduleContext,
   lookups: ScheduleLookups,
+  client?: ScheduleDbClient,
 ): Promise<ScheduleValidationResult> {
+  const sb = client ?? defaultClient();
   const out: ScheduleValidatedRow[] = [];
   // In-file conflict detection maps
   const roomSlot = new Map<string, number>(); // room_id|slotKey → first rowNumber
@@ -314,125 +321,3 @@ export type ScheduleImportReport = {
   aborted: boolean;
   abortReason?: string;
 };
-
-export async function importClassSchedule(
-  validation: ScheduleValidationResult,
-  ctx: ScheduleContext,
-  lookups: ScheduleLookups,
-): Promise<ScheduleImportReport> {
-  const report: ScheduleImportReport = {
-    rows_total: validation.totalRows,
-    rows_inserted: 0,
-    rows_failed: 0,
-    slots_created: 0,
-    errors: [],
-    aborted: false,
-  };
-
-  // Reject on any invalid row or critical conflict
-  if (validation.invalidRows > 0) {
-    report.aborted = true;
-    report.abortReason = "الملف يحتوي صفوفاً غير صالحة. صحّح الأخطاء ثم أعد الرفع.";
-    for (const r of validation.rows) r.errors.forEach((e) => report.errors.push(e));
-    report.rows_failed = validation.invalidRows;
-    return report;
-  }
-  if (validation.blockingConflicts.length > 0) {
-    report.aborted = true;
-    report.abortReason = "الملف يحتوي تعارضات حرجة. تم رفض الملف بالكامل.";
-    validation.blockingConflicts.forEach((c) => report.errors.push(c));
-    return report;
-  }
-
-  // 1) Ensure time_slots — auto-create missing
-  const slotMap = new Map<string, string>(lookups.timeSlotByKey);
-  const newSlotKeys = new Set<string>();
-  for (const r of validation.rows) {
-    if (!r.parsed) continue;
-    const key = `${r.parsed.day_of_week}|${r.parsed.start_time}|${r.parsed.end_time}`;
-    if (!slotMap.has(key)) newSlotKeys.add(key);
-  }
-  for (const key of newSlotKeys) {
-    const [day, start, end] = key.split("|");
-    const name_ar = `${day} ${start.slice(0, 5)}-${end.slice(0, 5)}`;
-    const { data, error } = await sb
-      .from("time_slots")
-      .insert({ day_of_week: day, start_time: start, end_time: end, name_ar, is_active: true })
-      .select("id")
-      .maybeSingle();
-    if (error || !data) {
-      // try fetch again (race / pre-existing not loaded)
-      const { data: again } = await sb
-        .from("time_slots").select("id")
-        .eq("day_of_week", day).eq("start_time", start).eq("end_time", end).maybeSingle();
-      if (again?.id) {
-        slotMap.set(key, again.id);
-      } else {
-        report.aborted = true;
-        report.abortReason = `تعذّر إنشاء الفترة الزمنية ${name_ar}: ${error?.message ?? "غير معروف"}`;
-        return report;
-      }
-    } else {
-      slotMap.set(key, data.id);
-      report.slots_created += 1;
-    }
-  }
-
-  // 2) Replace Context: delete existing class_schedule for ALL context sections.
-  if (lookups.contextSectionIds.length) {
-    const { error: delErr } = await sb
-      .from("class_schedule")
-      .delete()
-      .in("course_section_id", lookups.contextSectionIds);
-    if (delErr) {
-      report.aborted = true;
-      report.abortReason = `تعذّر تنفيذ Replace Context (حذف الجداول السابقة): ${delErr.message}`;
-      return report;
-    }
-  }
-
-  // 3) Insert all new rows
-  const payloads: Array<{ rowNumber: number; payload: Record<string, unknown> }> = [];
-  for (const r of validation.rows) {
-    if (!r.parsed) continue;
-    const slotId = slotMap.get(`${r.parsed.day_of_week}|${r.parsed.start_time}|${r.parsed.end_time}`);
-    if (!slotId) {
-      report.rows_failed += 1;
-      report.errors.push({ row: r.rowNumber, message: "تعذّر تحديد الفترة الزمنية" });
-      continue;
-    }
-    payloads.push({
-      rowNumber: r.rowNumber,
-      payload: {
-        course_section_id: r.parsed.course_section_id,
-        room_id: r.parsed.room_id,
-        faculty_profile_id: r.parsed.faculty_profile_id,
-        time_slot_id: slotId,
-        schedule_type: r.parsed.schedule_type,
-        status: r.parsed.status,
-      },
-    });
-  }
-
-  const CHUNK = 100;
-  for (let i = 0; i < payloads.length; i += CHUNK) {
-    const slice = payloads.slice(i, i + CHUNK);
-    const { error } = await sb.from("class_schedule").insert(slice.map((p) => p.payload));
-    if (error) {
-      // fall back row-by-row to attribute errors
-      for (const p of slice) {
-        const { error: e2 } = await sb.from("class_schedule").insert([p.payload]);
-        if (e2) {
-          report.rows_failed += 1;
-          report.errors.push({ row: p.rowNumber, message: e2.message });
-        } else {
-          report.rows_inserted += 1;
-        }
-      }
-    } else {
-      report.rows_inserted += slice.length;
-    }
-  }
-
-  return report;
-}

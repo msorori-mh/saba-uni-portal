@@ -24,6 +24,8 @@ import {
   type ServerImportContext,
 } from "@/lib/imports/engine.server";
 import type { ImportReport, ImportType } from "@/lib/imports/types";
+import { executeScheduleImport } from "@/lib/imports/class-schedule.server";
+import type { ScheduleContext, ScheduleImportReport } from "@/lib/imports/class-schedule";
 
 const IMPORT_PANEL_ROLES = [
   "admin",
@@ -31,6 +33,21 @@ const IMPORT_PANEL_ROLES = [
   "registrar",
   "student_affairs",
   "finance_officer",
+] as const;
+
+/** Roles allowed to execute class_schedule import writes (matches class_schedule RLS). */
+export const SCHEDULE_IMPORT_WRITE_ROLES = [
+  "admin",
+  "system_admin",
+  "registrar",
+] as const;
+
+/** Roles allowed to open schedule import UI (preview); write requires SCHEDULE_IMPORT_WRITE_ROLES. */
+export const SCHEDULE_IMPORT_PANEL_ROLES = [
+  ...SCHEDULE_IMPORT_WRITE_ROLES,
+  "student_affairs",
+  "dean",
+  "department_head",
 ] as const;
 
 const importTypeSchema = z.enum([
@@ -221,7 +238,7 @@ export const listImportHistory = createServerFn({ method: "POST" })
 export const getScheduleImportLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
+    await assertAnyRole(context.userId, SCHEDULE_IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
     const [yearsRes, semRes, progRes, lvlRes] = await Promise.all([
       supabaseAdmin.from("academic_years").select("id, name").order("name", { ascending: false }),
       supabaseAdmin.from("semesters").select("id, name, code").order("name"),
@@ -253,7 +270,7 @@ export const logScheduleImport = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
+    await assertAnyRole(context.userId, SCHEDULE_IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
     const { error } = await supabaseAdmin.from("import_logs").insert({
       created_by: context.userId,
       import_type: "class_schedule",
@@ -266,4 +283,71 @@ export const logScheduleImport = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+const scheduleContextSchema = z.object({
+  academic_year_id: z.string().uuid(),
+  semester_id: z.string().uuid(),
+  program_id: z.string().uuid(),
+  level_id: z.string().uuid(),
+});
+
+const scheduleImportInputSchema = z.object({
+  context: scheduleContextSchema,
+  rows: z.array(z.record(z.string(), z.unknown())).max(5000),
+  fileName: z.string().min(1).max(255),
+});
+
+async function logScheduleImportResult(
+  userId: string,
+  fileName: string,
+  rep: ScheduleImportReport,
+) {
+  const status = rep.aborted ? "failed" as const
+    : rep.rows_failed === 0 ? "completed" as const
+    : "partial" as const;
+  const notes = (rep.abortReason ? `[ABORT] ${rep.abortReason} | ` : "")
+    + rep.errors.slice(0, 30).map((e) => `R${e.row}: ${e.message}`).join(" | ") || null;
+
+  await supabaseAdmin.from("import_logs").insert({
+    created_by: userId,
+    import_type: "class_schedule",
+    file_name: fileName,
+    rows_total: rep.rows_total,
+    rows_success: rep.rows_inserted,
+    rows_failed: rep.rows_failed + (rep.aborted ? rep.rows_total - rep.rows_inserted : 0),
+    status,
+    notes,
+  });
+}
+
+export const runScheduleImport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleImportInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(
+      context.userId,
+      SCHEDULE_IMPORT_PANEL_ROLES,
+      "ليس لديك صلاحية الوصول إلى استيراد الجداول",
+    );
+    await assertAnyRole(
+      context.userId,
+      SCHEDULE_IMPORT_WRITE_ROLES,
+      "ليس لديك صلاحية استيراد الجداول الدراسية",
+    );
+
+    await enforceRateLimit(
+      `schedule-import:${context.userId}`,
+      SERVER_RATE_LIMIT_POLICIES.accountImport,
+    );
+
+    const rep = await executeScheduleImport(data.context as ScheduleContext, data.rows);
+
+    try {
+      await logScheduleImportResult(context.userId, data.fileName, rep);
+    } catch {
+      // best-effort audit
+    }
+
+    return rep;
   });
