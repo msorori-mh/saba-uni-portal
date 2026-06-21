@@ -150,6 +150,84 @@ async function assertExtraChanceCanApprove(requestId: string, studentProfileId: 
   }
 }
 
+type CourseSectionPreview = {
+  section_code: string;
+  offering: { course: { code: string; name_ar: string } | null } | null;
+} | null;
+
+async function fetchCourseSectionPreview(
+  courseSectionId: string | null | undefined,
+): Promise<CourseSectionPreview> {
+  if (!courseSectionId) return null;
+  const { data, error } = await supabaseAdmin
+    .from("course_sections")
+    .select("section_code, offering:course_offerings(course:courses(code, name_ar))")
+    .eq("id", courseSectionId)
+    .maybeSingle();
+  if (error) throw new Error(`تعذر تحميل مجموعة المقرر: ${error.message}`);
+  return data as CourseSectionPreview;
+}
+
+async function fetchAbsenceExcuseDetails(requestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("absence_excuse_details")
+    .select("request_id, absence_date, reason_type, course_section_id, record_applied_at")
+    .eq("request_id", requestId)
+    .maybeSingle();
+  if (error) throw new Error(`تعذر تحميل تفاصيل عذر الغياب: ${error.message}`);
+  if (!data) return null;
+  const section = await fetchCourseSectionPreview(data.course_section_id);
+  return { ...data, section };
+}
+
+async function fetchGradeAppealDetails(requestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("grade_appeal_details")
+    .select("request_id, reason, notes, current_grade_total, current_grade_status, approved_total_score, course_section_id, student_enrollment_id, academic_year:academic_years(name), semester:semesters(name)")
+    .eq("request_id", requestId)
+    .maybeSingle();
+  if (error) throw new Error(`تعذر تحميل تفاصيل التظلم: ${error.message}`);
+  if (!data) return { details: null, sectionMax: null as number | null };
+
+  const section = await fetchCourseSectionPreview(data.course_section_id);
+  let sectionMax: number | null = null;
+  if (data.course_section_id) {
+    const { data: comps, error: compErr } = await supabaseAdmin
+      .from("grade_components")
+      .select("max_score")
+      .eq("course_section_id", data.course_section_id);
+    if (compErr) throw new Error(compErr.message);
+    sectionMax = (comps ?? []).reduce((sum, c) => sum + Number(c.max_score ?? 0), 0);
+  }
+  return { details: { ...data, section }, sectionMax };
+}
+
+function emptyRequestDetailsPayload(attachments: { id: string; request_id: string; file_url: string; file_name: string }[]) {
+  return {
+    absence_details: null,
+    suspension_details: null,
+    reinstatement_details: null,
+    extra_chance_details: null,
+    extra_chance_summary: null,
+    transfer_details: null,
+    equivalency_details: null,
+    equivalency_courses: [] as EquivalencyCourseRow[],
+    equivalency_summary: buildEquivalencySummary([]),
+    grade_appeal_details: null,
+    grade_appeal_section_max: null as number | null,
+    attachments,
+  };
+}
+
+async function fetchRequestAttachments(requestId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("student_request_attachments")
+    .select("id, request_id, file_url, file_name")
+    .eq("request_id", requestId);
+  if (error) throw new Error(`تعذر تحميل المرفقات: ${error.message}`);
+  return data ?? [];
+}
+
 export const getStudentRequestLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -213,75 +291,87 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
     if (reqMetaErr) throw new Error(reqMetaErr.message);
     if (!reqMeta) throw new Error("الطلب غير موجود");
 
-    const [
-      absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes,
-    ] = await Promise.all([
-      supabaseAdmin.from("absence_excuse_details")
-        .select("request_id, absence_date, reason_type, course_section_id, record_applied_at, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
-        .eq("request_id", id).maybeSingle(),
-      supabaseAdmin.from("enrollment_suspension_details")
-        .select(ENROLLMENT_SUSPENSION_DETAILS_SELECT)
-        .eq("request_id", id).maybeSingle(),
-      supabaseAdmin.from("enrollment_reinstatement_details")
-        .select(ENROLLMENT_REINSTATEMENT_DETAILS_SELECT)
-        .eq("request_id", id).maybeSingle(),
-      supabaseAdmin.from("extra_chance_details")
-        .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
-        .eq("request_id", id).maybeSingle(),
-      supabaseAdmin.from("transfer_request_details")
-        .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
-        .eq("request_id", id).maybeSingle(),
-      supabaseAdmin.from("equivalency_request_details")
-        .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes, credits_applied_at")
-        .eq("request_id", id).maybeSingle(),
-      supabaseAdmin.from("equivalency_courses")
-        .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course_id, target_course:courses(code, name_ar)")
-        .eq("equivalency_request_id", id),
-      supabaseAdmin.from("grade_appeal_details")
-        .select("request_id, reason, notes, current_grade_total, current_grade_status, approved_total_score, course_section_id, student_enrollment_id, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
-        .eq("request_id", id).maybeSingle(),
-      supabaseAdmin.from("student_request_attachments")
-        .select("id, request_id, file_url, file_name")
-        .eq("request_id", id),
-    ]);
+    const attachments = await fetchRequestAttachments(id);
+    const base = emptyRequestDetailsPayload(attachments);
+    const requestType = reqMeta.request_type;
 
-    const firstErr = [absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes]
-      .find((r) => r.error)?.error;
-    if (firstErr) throw new Error(firstErr.message);
-
-    let gradeAppealSectionMax: number | null = null;
-    const ga = gaRes.data as { course_section_id?: string } | null;
-    if (ga?.course_section_id) {
-      const { data: comps, error: compErr } = await supabaseAdmin
-        .from("grade_components")
-        .select("max_score")
-        .eq("course_section_id", ga.course_section_id);
-      if (compErr) throw new Error(compErr.message);
-      gradeAppealSectionMax = (comps ?? []).reduce((sum, c) => sum + Number(c.max_score ?? 0), 0);
-    }
-
-    const equivalencyCourses = eqcRes.data ?? [];
-    const extraChanceSummary = reqMeta.request_type === "extra_chance"
-      ? await validateExtraChanceApproval(
+    switch (requestType) {
+      case "absence_excuse": {
+        const absence_details = await fetchAbsenceExcuseDetails(id);
+        return { ...base, absence_details };
+      }
+      case "enrollment_suspension": {
+        const { data: suspension_details, error } = await supabaseAdmin
+          .from("enrollment_suspension_details")
+          .select(ENROLLMENT_SUSPENSION_DETAILS_SELECT)
+          .eq("request_id", id)
+          .maybeSingle();
+        if (error) throw new Error(`تعذر تحميل تفاصيل وقف القيد: ${error.message}`);
+        return { ...base, suspension_details: suspension_details ?? null };
+      }
+      case "enrollment_reinstatement": {
+        const { data: reinstatement_details, error } = await supabaseAdmin
+          .from("enrollment_reinstatement_details")
+          .select(ENROLLMENT_REINSTATEMENT_DETAILS_SELECT)
+          .eq("request_id", id)
+          .maybeSingle();
+        if (error) throw new Error(`تعذر تحميل تفاصيل إعادة القيد: ${error.message}`);
+        return { ...base, reinstatement_details: reinstatement_details ?? null };
+      }
+      case "extra_chance": {
+        const { data: extra_chance_details, error } = await supabaseAdmin
+          .from("extra_chance_details")
+          .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
+          .eq("request_id", id)
+          .maybeSingle();
+        if (error) throw new Error(`تعذر تحميل تفاصيل الفرصة: ${error.message}`);
+        const extra_chance_summary = await validateExtraChanceApproval(
           id,
           reqMeta.student_profile_id,
-          (ecRes.data ?? null) as ExtraChanceDetailsRow | null,
-        )
-      : null;
-    return {
-      absence_details: absRes.data ?? null,
-      suspension_details: suspRes.data ?? null,
-      reinstatement_details: reinRes.data ?? null,
-      extra_chance_details: ecRes.data ?? null,
-      extra_chance_summary: extraChanceSummary,
-      transfer_details: trRes.data ?? null,
-      equivalency_details: eqdRes.data ?? null,
-      equivalency_courses: equivalencyCourses,
-      equivalency_summary: buildEquivalencySummary(equivalencyCourses as EquivalencyCourseRow[]),
-      grade_appeal_details: gaRes.data ?? null,
-      grade_appeal_section_max: gradeAppealSectionMax,
-      attachments: attRes.data ?? [],
-    };
+          (extra_chance_details ?? null) as ExtraChanceDetailsRow | null,
+        );
+        return { ...base, extra_chance_details: extra_chance_details ?? null, extra_chance_summary };
+      }
+      case "transfer": {
+        const { data: transfer_details, error } = await supabaseAdmin
+          .from("transfer_request_details")
+          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
+          .eq("request_id", id)
+          .maybeSingle();
+        if (error) throw new Error(`تعذر تحميل تفاصيل التحويل: ${error.message}`);
+        return { ...base, transfer_details: transfer_details ?? null };
+      }
+      case "equivalency": {
+        const [eqdRes, eqcRes] = await Promise.all([
+          supabaseAdmin.from("equivalency_request_details")
+            .select("request_id, previous_university_name, previous_program_name, transfer_reference, notes, credits_applied_at")
+            .eq("request_id", id)
+            .maybeSingle(),
+          supabaseAdmin.from("equivalency_courses")
+            .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course_id, target_course:courses(code, name_ar)")
+            .eq("equivalency_request_id", id),
+        ]);
+        if (eqdRes.error) throw new Error(`تعذر تحميل تفاصيل المقاصة: ${eqdRes.error.message}`);
+        if (eqcRes.error) throw new Error(`تعذر تحميل مواد المقاصة: ${eqcRes.error.message}`);
+        const equivalencyCourses = eqcRes.data ?? [];
+        return {
+          ...base,
+          equivalency_details: eqdRes.data ?? null,
+          equivalency_courses: equivalencyCourses,
+          equivalency_summary: buildEquivalencySummary(equivalencyCourses as EquivalencyCourseRow[]),
+        };
+      }
+      case "grade_appeal": {
+        const { details, sectionMax } = await fetchGradeAppealDetails(id);
+        return {
+          ...base,
+          grade_appeal_details: details,
+          grade_appeal_section_max: sectionMax,
+        };
+      }
+      default:
+        return base;
+    }
   });
 
 export const updateStudentRequestStatus = createServerFn({ method: "POST" })
