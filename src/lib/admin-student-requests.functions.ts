@@ -65,13 +65,16 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
     const id = data.requestId;
 
     const [
-      absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes,
+      absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes,
     ] = await Promise.all([
       supabaseAdmin.from("absence_excuse_details")
         .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("enrollment_suspension_details")
-        .select("request_id, suspension_reason, suspension_duration_type, notes, academic_year:academic_years(name), semester:semesters(name)")
+        .select("request_id, suspension_reason, suspension_duration_type, notes, requested_from_academic_year:academic_years!enrollment_suspension_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_suspension_details_requested_from_semester_id_fkey(name)")
+        .eq("request_id", id).maybeSingle(),
+      supabaseAdmin.from("enrollment_reinstatement_details")
+        .select("request_id, reinstatement_reason, notes, requested_from_academic_year:academic_years!enrollment_reinstatement_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_reinstatement_details_requested_from_semester_id_fkey(name)")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("extra_chance_details")
         .select("request_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
@@ -86,25 +89,38 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
         .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
         .eq("equivalency_request_id", id),
       supabaseAdmin.from("grade_appeal_details")
-        .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+        .select("request_id, reason, notes, current_grade_total, current_grade_status, approved_total_score, course_section_id, student_enrollment_id, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("student_request_attachments")
         .select("id, request_id, file_url, file_name")
         .eq("request_id", id),
     ]);
 
-    const firstErr = [absRes, suspRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes]
+    const firstErr = [absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes]
       .find((r) => r.error)?.error;
     if (firstErr) throw new Error(firstErr.message);
+
+    let gradeAppealSectionMax: number | null = null;
+    const ga = gaRes.data as { course_section_id?: string } | null;
+    if (ga?.course_section_id) {
+      const { data: comps, error: compErr } = await supabaseAdmin
+        .from("grade_components")
+        .select("max_score")
+        .eq("course_section_id", ga.course_section_id);
+      if (compErr) throw new Error(compErr.message);
+      gradeAppealSectionMax = (comps ?? []).reduce((sum, c) => sum + Number(c.max_score ?? 0), 0);
+    }
 
     return {
       absence_details: absRes.data ?? null,
       suspension_details: suspRes.data ?? null,
+      reinstatement_details: reinRes.data ?? null,
       extra_chance_details: ecRes.data ?? null,
       transfer_details: trRes.data ?? null,
       equivalency_details: eqdRes.data ?? null,
       equivalency_courses: eqcRes.data ?? [],
       grade_appeal_details: gaRes.data ?? null,
+      grade_appeal_section_max: gradeAppealSectionMax,
       attachments: attRes.data ?? [],
     };
   });
@@ -116,10 +132,50 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
       requestId: z.string().uuid(),
       status: requestStatusSchema,
       rejectionReason: z.string().trim().max(2000).optional(),
+      approvedGradeTotal: z.number().min(0).max(1000).optional(),
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertRequestsAdmin(context.userId);
+
+    const { data: reqRow, error: reqErr } = await supabaseAdmin
+      .from("student_requests")
+      .select("request_type")
+      .eq("id", data.requestId)
+      .maybeSingle();
+    if (reqErr) throw new Error(reqErr.message);
+    if (!reqRow) throw new Error("الطلب غير موجود");
+
+    if (data.status === "approved" && reqRow.request_type === "grade_appeal") {
+      if (data.approvedGradeTotal == null) {
+        throw new Error("أدخل الدرجة المعتمدة بعد التظلم");
+      }
+
+      const { data: ga, error: gaErr } = await supabaseAdmin
+        .from("grade_appeal_details")
+        .select("course_section_id")
+        .eq("request_id", data.requestId)
+        .maybeSingle();
+      if (gaErr) throw new Error(gaErr.message);
+      if (!ga?.course_section_id) throw new Error("تفاصيل التظلم غير مكتملة");
+
+      const { data: comps, error: compErr } = await supabaseAdmin
+        .from("grade_components")
+        .select("max_score")
+        .eq("course_section_id", ga.course_section_id);
+      if (compErr) throw new Error(compErr.message);
+      const sectionMax = (comps ?? []).reduce((sum, c) => sum + Number(c.max_score ?? 0), 0);
+      if (sectionMax <= 0) throw new Error("لا توجد مكونات درجات لهذه المجموعة");
+      if (data.approvedGradeTotal > sectionMax) {
+        throw new Error(`الدرجة المعتمدة لا يمكن أن تتجاوز ${sectionMax.toFixed(2)}`);
+      }
+
+      const { error: gaPatchErr } = await supabaseAdmin
+        .from("grade_appeal_details")
+        .update({ approved_total_score: data.approvedGradeTotal })
+        .eq("request_id", data.requestId);
+      if (gaPatchErr) throw new Error(gaPatchErr.message);
+    }
 
     const patch: Record<string, unknown> = {
       status: data.status,

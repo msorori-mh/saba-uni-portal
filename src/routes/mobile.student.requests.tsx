@@ -56,6 +56,7 @@ const STATUS_LABEL: Record<string, { text: string; cls: string }> = {
 const SUPPORTED_CODES = new Set([
   "absence_excuse",
   "enrollment_suspension",
+  "enrollment_reinstatement",
   "extra_chance",
   "transfer",
   "equivalency",
