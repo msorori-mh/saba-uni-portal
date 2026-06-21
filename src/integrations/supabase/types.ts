@@ -697,6 +697,89 @@ export type Database = {
         }
         Relationships: []
       }
+      enrollment_reinstatement_details: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          reinstatement_reason: string
+          request_id: string
+          requested_from_academic_year_id: string
+          requested_from_semester_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reinstatement_reason: string
+          request_id: string
+          requested_from_academic_year_id: string
+          requested_from_semester_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reinstatement_reason?: string
+          request_id?: string
+          requested_from_academic_year_id?: string
+          requested_from_semester_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_reinstatement_deta_requested_from_academic_year_fkey"
+            columns: ["requested_from_academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_reinstatement_deta_requested_from_academic_year_fkey"
+            columns: ["requested_from_academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "enrollment_reinstatement_deta_requested_from_academic_year_fkey"
+            columns: ["requested_from_academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["academic_year_id"]
+          },
+          {
+            foreignKeyName: "enrollment_reinstatement_detail_requested_from_semester_id_fkey"
+            columns: ["requested_from_semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_reinstatement_detail_requested_from_semester_id_fkey"
+            columns: ["requested_from_semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_transcript_summary"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "enrollment_reinstatement_detail_requested_from_semester_id_fkey"
+            columns: ["requested_from_semester_id"]
+            isOneToOne: false
+            referencedRelation: "student_unofficial_transcript"
+            referencedColumns: ["semester_id"]
+          },
+          {
+            foreignKeyName: "enrollment_reinstatement_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollment_suspension_details: {
         Row: {
           created_at: string
@@ -1239,10 +1322,12 @@ export type Database = {
       grade_appeal_details: {
         Row: {
           academic_year_id: string
+          approved_total_score: number | null
           course_section_id: string
           created_at: string
           current_grade_status: string | null
           current_grade_total: number | null
+          grades_applied_at: string | null
           id: string
           notes: string | null
           reason: string
@@ -1254,10 +1339,12 @@ export type Database = {
         }
         Insert: {
           academic_year_id: string
+          approved_total_score?: number | null
           course_section_id: string
           created_at?: string
           current_grade_status?: string | null
           current_grade_total?: number | null
+          grades_applied_at?: string | null
           id?: string
           notes?: string | null
           reason: string
@@ -1269,10 +1356,12 @@ export type Database = {
         }
         Update: {
           academic_year_id?: string
+          approved_total_score?: number | null
           course_section_id?: string
           created_at?: string
           current_grade_status?: string | null
           current_grade_total?: number | null
+          grades_applied_at?: string | null
           id?: string
           notes?: string | null
           reason?: string
