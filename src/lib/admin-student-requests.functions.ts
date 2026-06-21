@@ -102,7 +102,7 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
       absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes,
     ] = await Promise.all([
       supabaseAdmin.from("absence_excuse_details")
-        .select("request_id, absence_date, reason_type, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+        .select("request_id, absence_date, reason_type, course_section_id, record_applied_at, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("enrollment_suspension_details")
         .select("request_id, suspension_reason, suspension_duration_type, notes, requested_from_academic_year:academic_years!enrollment_suspension_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_suspension_details_requested_from_semester_id_fkey(name)")

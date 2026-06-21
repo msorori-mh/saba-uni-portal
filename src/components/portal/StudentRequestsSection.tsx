@@ -114,7 +114,7 @@ type RequestRow = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; rejection_reason: string | null; created_at: string;
   request_type: string;
-  absence_details: { absence_date: string; reason_type: string; course_section_id: string } | null;
+  absence_details: { absence_date: string; reason_type: string; course_section_id: string; record_applied_at: string | null } | null;
   suspension_details: SuspensionDetails | null;
   reinstatement_details: ReinstatementDetails | null;
   extra_chance_details: ExtraChanceDetails | null;
@@ -187,7 +187,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
       const ids = (reqs ?? []).map((r: { id: string }) => r.id);
       if (ids.length === 0) return [];
       const [absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
-        sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id").in("request_id", ids),
+        sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id, record_applied_at").in("request_id", ids),
         sb.from("enrollment_suspension_details")
           .select("request_id, requested_from_academic_year_id, requested_from_semester_id, suspension_reason, suspension_duration_type, notes, requested_from_academic_year:academic_years!enrollment_suspension_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_suspension_details_requested_from_semester_id_fkey(name)")
           .in("request_id", ids),
@@ -458,6 +458,11 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                 {r.transfer_details?.transfer_reason && (
                   <div className="mt-1.5 text-xs">
                     <span className="text-muted-foreground">السبب: </span>{r.transfer_details.transfer_reason}
+                  </div>
+                )}
+                {r.status === "approved" && r.request_type === "absence_excuse" && r.absence_details?.record_applied_at && (
+                  <div className="mt-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">
+                    تم تسجيل العذر في سجل الغياب بتاريخ {new Date(r.absence_details.record_applied_at).toLocaleString("ar-EG")}
                   </div>
                 )}
                 {r.rejection_reason && r.status === "rejected" && (
