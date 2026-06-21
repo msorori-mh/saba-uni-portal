@@ -593,7 +593,7 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
       patch.rejection_reason = data.rejectionReason ?? null;
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("student_requests")
       .update(patch)
       .eq("id", data.requestId);
