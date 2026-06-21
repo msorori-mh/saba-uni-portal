@@ -276,6 +276,10 @@ function AdminRequestsPage() {
             variables: {
               request_title: result.title ?? "",
               rejection_reason: rejection_reason ?? null,
+              document_number: result.document_number ?? null,
+              verification_code: result.verification_code ?? null,
+              document_url: result.document_url ?? null,
+              verify_url: result.verify_url ?? null,
             },
             relatedEntityType: "student_request",
             relatedEntityId: id,

@@ -45,6 +45,14 @@ async function assertRequestsAdmin(userId: string) {
   );
 }
 
+function portalSiteUrl(): string {
+  return (
+    process.env.SITE_URL ??
+    process.env.VITE_SITE_URL ??
+    "https://quboolye.com"
+  ).replace(/\/$/, "");
+}
+
 type EquivalencyCourseRow = {
   status: string;
   target_course_id: string | null;
@@ -535,7 +543,7 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
 
     const { data: reqRow, error: reqErr } = await supabaseAdmin
       .from("student_requests")
-      .select("request_type, student_profile_id")
+      .select("request_type, student_profile_id, title")
       .eq("id", data.requestId)
       .maybeSingle();
     if (reqErr) throw new Error(reqErr.message);
@@ -601,17 +609,42 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
 
     let email: string | null = null;
     let full_name_ar: string | null = null;
-    let title: string | null = null;
+    const title = reqRow.title ?? null;
+    let document_number: string | null = null;
+    let verification_code: string | null = null;
+    let document_url: string | null = null;
+    let verify_url: string | null = null;
+
     if (data.status === "approved" || data.status === "rejected") {
-      const { data: req } = await supabaseAdmin
-        .from("student_requests")
-        .select("title, student:student_profiles(email, full_name_ar)")
-        .eq("id", data.requestId)
+      const { data: prof, error: profErr } = await supabaseAdmin
+        .from("student_profiles")
+        .select("email, full_name_ar")
+        .eq("id", reqRow.student_profile_id)
         .maybeSingle();
-      const student = req?.student as { email?: string; full_name_ar?: string } | null;
-      email = student?.email ?? null;
-      full_name_ar = student?.full_name_ar ?? null;
-      title = req?.title ?? null;
+      if (profErr) throw new Error(profErr.message);
+      email = prof?.email ?? null;
+      full_name_ar = prof?.full_name_ar ?? null;
+
+      if (data.status === "approved" && reqRow.request_type === "official_transcript") {
+        const { data: otr, error: otrErr } = await supabaseAdmin
+          .from("official_transcript_request_details")
+          .select(OFFICIAL_TRANSCRIPT_DETAILS_SELECT)
+          .eq("request_id", data.requestId)
+          .maybeSingle();
+        if (otrErr) throw new Error(otrErr.message);
+        const doc = otr?.official_document as {
+          id?: string;
+          document_number?: string;
+          verification_code?: string;
+        } | null;
+        if (doc?.id && doc.document_number && doc.verification_code) {
+          const base = portalSiteUrl();
+          document_number = doc.document_number;
+          verification_code = doc.verification_code;
+          document_url = `${base}/document-view/${doc.id}`;
+          verify_url = `${base}/verify-document?code=${encodeURIComponent(doc.verification_code)}`;
+        }
+      }
     }
 
     return {
@@ -620,6 +653,10 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
       full_name_ar,
       title,
       rejection_reason: data.status === "rejected" ? (data.rejectionReason ?? null) : null,
+      document_number,
+      verification_code,
+      document_url,
+      verify_url,
     };
   });
 
