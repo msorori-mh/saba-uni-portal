@@ -56,6 +56,32 @@ export function timelineTitleForKind(kind: TimelineEventKind): string {
   return KIND_TITLES[kind];
 }
 
+const ACTOR_ROLE_LABELS: Record<string, string> = {
+  student: "الطالب",
+  system_admin: "مدير النظام",
+  admin: "المدير",
+  dean: "العميد",
+  registrar: "المسجل",
+  student_affairs: "شؤون الطلاب",
+  finance_officer: "الشؤون المالية",
+  hr_officer: "الموارد البشرية",
+  department_head: "رئيس القسم",
+  faculty: "عضو هيئة التدريس",
+};
+
+export function formatTimelineActorLabel(
+  role: string | null | undefined,
+  kind?: TimelineEventKind,
+): string | null {
+  if (!role) {
+    if (kind === "created" || kind === "submitted" || kind === "resubmitted" || kind === "cancelled") {
+      return "الطالب";
+    }
+    return null;
+  }
+  return ACTOR_ROLE_LABELS[role] ?? role;
+}
+
 function auditActionToKind(row: AuditLogTimelineRow): TimelineEventKind {
   const oldStatus = row.old_values?.status;
   if (row.action_type === "request_submitted" && oldStatus === "returned") {
@@ -97,7 +123,7 @@ export function auditLogToTimelineEvent(row: AuditLogTimelineRow): StudentReques
     title: timelineTitleForKind(kind),
     description,
     actorRole: row.actor_role,
-    actorLabel: row.actor_role ?? null,
+    actorLabel: formatTimelineActorLabel(row.actor_role, kind),
   };
 }
 
