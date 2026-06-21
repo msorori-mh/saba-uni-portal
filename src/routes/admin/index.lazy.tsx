@@ -170,12 +170,12 @@ function AdminDashboard() {
     {
       title: "الجداول الدراسية",
       cards: [
-        { label: "الجداول المنشورة", value: scheduleStats?.published ?? 0, icon: CalendarDays, to: "/admin/schedules" },
-        { label: "منشورة اليوم", value: scheduleStats?.publishedToday ?? 0, icon: CalendarClock, to: "/admin/schedules" },
-        { label: "المجموعات الدراسية غير المجدولة", value: scheduleStats?.unscheduled ?? 0, icon: AlertCircle, to: "/admin/schedules" },
-        { label: "القاعات المستخدمة", value: scheduleStats?.roomsUsed ?? 0, icon: DoorOpen, to: "/admin/schedules" },
-        { label: "أعضاء لديهم جداول", value: scheduleStats?.facultyWithSchedules ?? 0, icon: Users, to: "/admin/schedules" },
-        { label: "إجمالي القاعات", value: scheduleStats?.rooms ?? 0, icon: DoorOpen, to: "/admin/schedules" },
+        { label: "الجداول المنشورة", value: scheduleStats?.published ?? 0, icon: CalendarDays, to: "/admin/course-offerings?tab=schedule" },
+        { label: "منشورة اليوم", value: scheduleStats?.publishedToday ?? 0, icon: CalendarClock, to: "/admin/course-offerings?tab=schedule" },
+        { label: "المجموعات الدراسية غير المجدولة", value: scheduleStats?.unscheduled ?? 0, icon: AlertCircle, to: "/admin/course-offerings?tab=schedule" },
+        { label: "القاعات المستخدمة", value: scheduleStats?.roomsUsed ?? 0, icon: DoorOpen, to: "/admin/course-offerings?tab=schedule" },
+        { label: "أعضاء لديهم جداول", value: scheduleStats?.facultyWithSchedules ?? 0, icon: Users, to: "/admin/course-offerings?tab=schedule" },
+        { label: "إجمالي القاعات", value: scheduleStats?.rooms ?? 0, icon: DoorOpen, to: "/admin/course-offerings?tab=schedule" },
       ],
     },
     {

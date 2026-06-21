@@ -177,7 +177,7 @@ function TemplateCard({
   // Special note for class_schedule per spec
   const specialNote =
     t.id === "class_schedule"
-      ? "استخدم تبويب «الجداول الدراسية» في أعلى الصفحة لرفع الجدول بعد اختيار السياق الأكاديمي."
+      ? "استخدم تبويب «الجدول» في صفحة إسناد المقررات والمجموعات الدراسية لرفع الجدول بعد اختيار السياق الأكاديمي."
       : null;
 
   return (
