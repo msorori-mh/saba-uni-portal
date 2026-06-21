@@ -73,6 +73,14 @@ type EquivalencyDetails = {
   previous_program_name: string;
   transfer_reference: string | null;
   notes: string | null;
+  credits_applied_at: string | null;
+};
+
+type EquivalencySummary = {
+  pending_count: number;
+  approved_with_target_count: number;
+  rejected_count: number;
+  can_approve_parent: boolean;
 };
 
 type EquivalencyCourse = {
@@ -82,6 +90,7 @@ type EquivalencyCourse = {
   external_credit_hours: number | null;
   status: string;
   reviewer_notes: string | null;
+  target_course_id: string | null;
   target_course: { code: string; name_ar: string } | null;
 };
 
@@ -116,6 +125,7 @@ type AdminReq = {
   transfer_details: TransferDetails | null;
   equivalency_details: EquivalencyDetails | null;
   equivalency_courses: EquivalencyCourse[];
+  equivalency_summary: EquivalencySummary | null;
   grade_appeal_details: GradeAppealDetails | null;
   grade_appeal_section_max: number | null;
   attachments: { id: string; file_url: string; file_name: string }[];
@@ -160,6 +170,7 @@ function AdminRequestsPage() {
         transfer_details: null,
         equivalency_details: null,
         equivalency_courses: [],
+        equivalency_summary: null,
         grade_appeal_details: null,
         grade_appeal_section_max: null,
         attachments: [],
@@ -399,6 +410,12 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
       }
       gradeTotal = parsed;
     }
+    if (status === "approved" && req.request_type === "equivalency") {
+      if (!req.equivalency_summary?.can_approve_parent) {
+        toast.error("أكمل مراجعة المواد واعتمد مادة واحدة على الأقل قبل اعتماد الطلب");
+        return;
+      }
+    }
     setBusy(true);
     await onUpdateStatus(
       req.id,
@@ -470,6 +487,14 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <Row label="البرنامج السابق" value={req.equivalency_details.previous_program_name} />
               {req.equivalency_details.transfer_reference && <Row label="مرجع التحويل" value={req.equivalency_details.transfer_reference} />}
               {req.equivalency_details.notes && <Row label="ملاحظات" value={req.equivalency_details.notes} />}
+              {req.equivalency_details.credits_applied_at && (
+                <Row label="تاريخ تطبيق المعادلة" value={new Date(req.equivalency_details.credits_applied_at).toLocaleString("ar-EG")} />
+              )}
+              {req.equivalency_summary && (
+                <div className="text-xs text-muted-foreground">
+                  مراجعة المواد: {req.equivalency_summary.approved_with_target_count} معتمدة • {req.equivalency_summary.pending_count} قيد المراجعة • {req.equivalency_summary.rejected_count} مرفوضة
+                </div>
+              )}
               <EquivalencyCoursesReview requestId={req.id} courses={req.equivalency_courses} />
             </>
           )}
@@ -541,6 +566,11 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                 />
               </div>
             )}
+            {req.request_type === "equivalency" && req.equivalency_summary && !req.equivalency_summary.can_approve_parent && (
+              <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                لا يمكن اعتماد طلب المقاصة قبل إنهاء مراجعة جميع المواد واعتماد مادة واحدة على الأقل مع مقرر معادَل.
+              </div>
+            )}
             {req.status === "submitted" && (
               <button disabled={busy} onClick={() => act("under_review")} className="w-full text-xs bg-amber-500 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
                 <Clock className="h-3.5 w-3.5" /> بدء المراجعة
@@ -550,7 +580,11 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               إرجاع للاستكمال
             </button>
             <div className="grid grid-cols-2 gap-2">
-              <button disabled={busy} onClick={() => act("approved")} className="text-xs bg-emerald-600 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
+              <button
+                disabled={busy || (req.request_type === "equivalency" && !req.equivalency_summary?.can_approve_parent)}
+                onClick={() => act("approved")}
+                className="text-xs bg-emerald-600 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90 disabled:opacity-50"
+              >
                 <CheckCircle2 className="h-3.5 w-3.5" /> قبول
               </button>
               <button disabled={busy} onClick={() => act("rejected")} className="text-xs bg-rose-600 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
@@ -598,6 +632,7 @@ type EqCourseLite = {
   external_credit_hours: number | null;
   status: string;
   reviewer_notes: string | null;
+  target_course_id: string | null;
   target_course: { code: string; name_ar: string } | null;
 };
 
@@ -663,8 +698,13 @@ function EquivalencyCoursesReview({ requestId, courses }: { requestId: string; c
               className="w-full h-7 rounded border bg-background px-2 text-xs"
             />
             <div className="flex gap-1.5">
-              <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "approved" })}
-                className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded hover:opacity-90">قبول</button>
+              <button
+                disabled={busyId === c.id || !c.target_course_id}
+                onClick={() => updateCourse(c.id, { status: "approved" })}
+                className="text-[11px] bg-emerald-600 text-white px-2 py-0.5 rounded hover:opacity-90 disabled:opacity-50"
+              >
+                قبول
+              </button>
               <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "rejected" })}
                 className="text-[11px] bg-rose-600 text-white px-2 py-0.5 rounded hover:opacity-90">رفض</button>
               <button disabled={busyId === c.id} onClick={() => updateCourse(c.id, { status: "pending" })}

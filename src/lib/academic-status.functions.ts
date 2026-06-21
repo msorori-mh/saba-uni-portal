@@ -336,6 +336,25 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
     }
   }
 
+  const { data: eqCreditsRaw } = await supabaseAdmin
+    .from("student_equivalency_credits")
+    .select("course_id, credit_hours")
+    .eq("student_profile_id", studentProfileId);
+  for (const eq of (eqCreditsRaw ?? []) as Array<{ course_id: string; credit_hours: number | null }>) {
+    if (passedCourseIds.has(eq.course_id)) continue;
+    if (!coursesById.has(eq.course_id)) {
+      const { data: cRow } = await supabaseAdmin
+        .from("courses")
+        .select("id, code, name_ar, credit_hours")
+        .eq("id", eq.course_id)
+        .maybeSingle();
+      if (cRow) coursesById.set(cRow.id, cRow);
+    }
+    passedCourseIds.add(eq.course_id);
+    passedCourses++;
+    completedHours += eq.credit_hours ?? coursesById.get(eq.course_id)?.credit_hours ?? 0;
+  }
+
   // GPAs
   const gpaPoints = (filter: (a: Attempt) => boolean) => {
     let pts = 0, hrs = 0;
@@ -403,8 +422,12 @@ async function computeStudentProgress(studentProfileId: string): Promise<Student
     standing = "warning"; reason = `المعدل التراكمي ${cumulativeGpa.toFixed(2)} يتطلب تحسيناً`;
   }
 
-  // Audit course view (per-course list = plan ∪ taken)
-  const allCourseIds = new Set<string>([...planCourseIds, ...Array.from(attemptsByCourse.keys())]);
+  // Audit course view (per-course list = plan ∪ taken ∪ equivalency)
+  const allCourseIds = new Set<string>([
+    ...planCourseIds,
+    ...Array.from(attemptsByCourse.keys()),
+    ...Array.from(passedCourseIds),
+  ]);
   const planMap = new Map(planCourses.map((p) => [p.course_id, p]));
   const auditCourses: StudentProgressDTO["audit"]["courses"] = [];
   for (const cid of allCourseIds) {
