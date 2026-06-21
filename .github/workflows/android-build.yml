@@ -59,13 +59,14 @@ jobs:
           bun --version
           ./node_modules/.bin/cap --version
 
-      - name: Add Android platform (if missing)
+      - name: Ensure Android platform skeleton
         run: |
-          if [ ! -d "android" ]; then
-            echo "android/ not present — running cap add android"
+          if [ ! -f "android/gradlew" ]; then
+            echo "android/gradlew missing — regenerating Android platform"
+            rm -rf android
             ./node_modules/.bin/cap add android
           else
-            echo "android/ already exists — skipping add"
+            echo "android/gradlew present — skipping cap add android"
           fi
 
 
