@@ -55,7 +55,7 @@ const PORTAL_CARDS: PortalCard[] = [
   },
   {
     Icon: BookOpen, emoji: "👨‍🏫", title: "بوابة أعضاء هيئة التدريس", tone: "primary",
-    short: "إدارة الشُعب والدرجات والأنشطة الأكاديمية.",
+    short: "إدارة المجموعات والدرجات والأنشطة الأكاديمية.",
     cta: "دخول بوابة أعضاء هيئة التدريس", to: "/portal-login", search: { type: "faculty" },
   },
   {
