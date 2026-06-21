@@ -1604,6 +1604,54 @@ export type Database = {
           },
         ]
       }
+      official_transcript_request_details: {
+        Row: {
+          created_at: string
+          document_issued_at: string | null
+          id: string
+          notes: string | null
+          official_document_id: string | null
+          purpose: string | null
+          request_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_issued_at?: string | null
+          id?: string
+          notes?: string | null
+          official_document_id?: string | null
+          purpose?: string | null
+          request_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_issued_at?: string | null
+          id?: string
+          notes?: string | null
+          official_document_id?: string | null
+          purpose?: string | null
+          request_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "official_transcript_request_details_official_document_id_fkey"
+            columns: ["official_document_id"]
+            isOneToOne: false
+            referencedRelation: "official_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "official_transcript_request_details_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizational_positions: {
         Row: {
           code: string
