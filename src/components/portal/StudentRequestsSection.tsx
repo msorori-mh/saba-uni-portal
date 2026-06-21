@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Loader2, FileWarning, Plus, Send, Trash2, Upload, X, Paperclip, Ban, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   ENROLLMENT_REINSTATEMENT_DETAILS_SELECT,
   ENROLLMENT_SUSPENSION_DETAILS_SELECT,
+  getMyStudentRequestTimelines,
 } from "@/lib/admin-student-requests.functions";
+import { RequestTimelinePanel } from "@/components/student-requests/RequestTimelinePanel";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabase as unknown as { from: (t: string) => any };
@@ -304,6 +307,7 @@ async function loadStudentRequestDetailsMaps(
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
+  const timelinesFn = useServerFn(getMyStudentRequestTimelines);
   const [openType, setOpenType] = useState<null | RequestModalCode>(null);
 
   const { data: enrollmentStatus = "active" } = useQuery({
@@ -380,7 +384,19 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
     },
   });
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ["my-requests", studentProfileId] });
+  const requestIds = requests.map((r) => r.id);
+  const { data: timelines = {} } = useQuery({
+    queryKey: ["my-request-timelines", studentProfileId, requestIds.join(",")],
+    enabled: requestIds.length > 0,
+    queryFn: () => timelinesFn({
+      data: { studentProfileId, requestIds },
+    }),
+  });
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["my-requests", studentProfileId] });
+    qc.invalidateQueries({ queryKey: ["my-request-timelines", studentProfileId] });
+  };
 
   const cancelRequest = async (id: string) => {
     if (!confirm("هل تريد إلغاء هذا الطلب؟")) return;
@@ -609,6 +625,11 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                     ملاحظات الاستكمال: {r.rejection_reason}
                   </div>
                 )}
+                <RequestTimelinePanel
+                  events={timelines[r.id] ?? []}
+                  variant="compact"
+                  emptyMessage="سيتم عرض مراحل الطلب بعد أول إجراء."
+                />
                 {r.attachments.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {r.attachments.map((a) => (

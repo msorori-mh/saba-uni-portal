@@ -3,6 +3,17 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  auditLogToTimelineEvent,
+  buildEffectTimelineEvents,
+  mergeTimelineEvents,
+  sanitizeTimelineForStudent,
+  type AuditLogTimelineRow,
+  type RequestEffectMarkers,
+  type StudentRequestTimelineEvent,
+} from "@/lib/student-request-timeline";
+
+export type { StudentRequestTimelineEvent };
 
 export const STUDENT_REQUESTS_ADMIN_ROLES = [
   "system_admin",
@@ -647,4 +658,145 @@ export const getStudentRequestAttachmentUrl = createServerFn({ method: "POST" })
       .createSignedUrl(data.path, 300);
     if (error || !signed?.signedUrl) throw new Error(error?.message ?? "تعذر فتح المرفق");
     return { signedUrl: signed.signedUrl };
+  });
+
+async function fetchRequestEffectMarkers(
+  requestId: string,
+  requestType: string,
+  reviewedAt: string | null,
+): Promise<RequestEffectMarkers> {
+  switch (requestType) {
+    case "absence_excuse": {
+      const { data, error } = await supabaseAdmin
+        .from("absence_excuse_details")
+        .select("record_applied_at")
+        .eq("request_id", requestId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return { recordAppliedAt: data?.record_applied_at ?? null };
+    }
+    case "extra_chance": {
+      const { data, error } = await supabaseAdmin
+        .from("extra_chance_details")
+        .select("chance_applied_at")
+        .eq("request_id", requestId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return { chanceAppliedAt: data?.chance_applied_at ?? null };
+    }
+    case "equivalency": {
+      const { data, error } = await supabaseAdmin
+        .from("equivalency_request_details")
+        .select("credits_applied_at")
+        .eq("request_id", requestId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return { creditsAppliedAt: data?.credits_applied_at ?? null };
+    }
+    case "grade_appeal": {
+      const { data, error } = await supabaseAdmin
+        .from("grade_appeal_details")
+        .select("approved_total_score")
+        .eq("request_id", requestId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      const score = data?.approved_total_score ?? null;
+      return {
+        gradeAppealApprovedScore: score,
+        gradeAppealReviewedAt: score != null ? reviewedAt : null,
+      };
+    }
+    default:
+      return {};
+  }
+}
+
+async function buildRequestTimeline(
+  requestId: string,
+  studentView: boolean,
+): Promise<StudentRequestTimelineEvent[]> {
+  const { data: req, error: reqErr } = await supabaseAdmin
+    .from("student_requests")
+    .select("request_type, reviewed_at")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (reqErr) throw new Error(reqErr.message);
+  if (!req) throw new Error("الطلب غير موجود");
+
+  const { data: logs, error: logErr } = await supabaseAdmin
+    .from("audit_logs")
+    .select("id, created_at, action_type, actor_user_id, actor_role, old_values, new_values, notes")
+    .eq("entity_type", "student_request")
+    .eq("entity_id", requestId)
+    .order("created_at", { ascending: true });
+  if (logErr) throw new Error(logErr.message);
+
+  const markers = await fetchRequestEffectMarkers(
+    requestId,
+    req.request_type,
+    req.reviewed_at,
+  );
+  const events = mergeTimelineEvents([
+    ...(logs ?? []).map((row) => auditLogToTimelineEvent(row as AuditLogTimelineRow)),
+    ...buildEffectTimelineEvents(req.request_type, markers),
+  ]);
+  return studentView ? sanitizeTimelineForStudent(events) : events;
+}
+
+async function assertStudentOwnsRequests(
+  userId: string,
+  studentProfileId: string,
+  requestIds: string[],
+) {
+  const { data: profile, error } = await supabaseAdmin
+    .from("student_profiles")
+    .select("id")
+    .eq("id", studentProfileId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!profile) throw new Error("غير مصرح");
+
+  if (requestIds.length === 0) return;
+
+  const { count, error: countErr } = await supabaseAdmin
+    .from("student_requests")
+    .select("id", { count: "exact", head: true })
+    .in("id", requestIds)
+    .eq("student_profile_id", studentProfileId);
+  if (countErr) throw new Error(countErr.message);
+  if ((count ?? 0) !== requestIds.length) throw new Error("طلب غير مصرح");
+}
+
+export const getStudentRequestTimeline = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ requestId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertRequestsAdmin(context.userId);
+    return buildRequestTimeline(data.requestId, false);
+  });
+
+export const getMyStudentRequestTimelines = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      studentProfileId: z.string().uuid(),
+      requestIds: z.array(z.string().uuid()),
+    }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await assertStudentOwnsRequests(
+      context.userId,
+      data.studentProfileId,
+      data.requestIds,
+    );
+    const entries = await Promise.all(
+      data.requestIds.map(async (requestId) => [
+        requestId,
+        await buildRequestTimeline(requestId, true),
+      ] as const),
+    );
+    return Object.fromEntries(entries) as Record<string, StudentRequestTimelineEvent[]>;
   });
