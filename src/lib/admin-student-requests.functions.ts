@@ -58,6 +58,91 @@ async function assertEquivalencyParentCanApprove(requestId: string) {
   }
 }
 
+type ExtraChanceDetailsRow = {
+  academic_year_id: string;
+  semester_id: string;
+  chance_type: string;
+  reason: string;
+  chance_applied_at: string | null;
+};
+
+async function validateExtraChanceApproval(
+  requestId: string,
+  studentProfileId: string,
+  details: ExtraChanceDetailsRow | null,
+): Promise<{ can_approve: boolean; block_reason: string | null }> {
+  if (!details) {
+    return { can_approve: false, block_reason: "تفاصيل طلب الفرصة غير مكتملة" };
+  }
+  if (!details.academic_year_id || !details.semester_id) {
+    return { can_approve: false, block_reason: "السياق الأكاديمي لطلب الفرصة غير واضح" };
+  }
+  if (!details.chance_type || !details.reason?.trim()) {
+    return { can_approve: false, block_reason: "تفاصيل طلب الفرصة غير مكتملة" };
+  }
+  if (details.chance_applied_at) {
+    return { can_approve: false, block_reason: "تم تطبيق أثر الفرصة على هذا الطلب مسبقاً" };
+  }
+
+  const { data: semester, error: semErr } = await supabaseAdmin
+    .from("semesters")
+    .select("academic_year_id")
+    .eq("id", details.semester_id)
+    .maybeSingle();
+  if (semErr) throw new Error(semErr.message);
+  if (!semester || semester.academic_year_id !== details.academic_year_id) {
+    return { can_approve: false, block_reason: "الفصل المحدد لا يتبع السنة الأكاديمية في طلب الفرصة" };
+  }
+
+  const { data: sas, error: sasErr } = await supabaseAdmin
+    .from("student_academic_status")
+    .select("enrollment_status")
+    .eq("student_profile_id", studentProfileId)
+    .eq("academic_year_id", details.academic_year_id)
+    .eq("semester_id", details.semester_id)
+    .maybeSingle();
+  if (sasErr) throw new Error(sasErr.message);
+  if (!sas || sas.enrollment_status !== "active") {
+    return { can_approve: false, block_reason: "الطالب ليس بحالة قيد نشط للسنة والفصل المحددين" };
+  }
+
+  const { data: existing, error: exErr } = await supabaseAdmin
+    .from("student_extra_chances")
+    .select("id")
+    .eq("student_profile_id", studentProfileId)
+    .eq("academic_year_id", details.academic_year_id)
+    .eq("semester_id", details.semester_id)
+    .eq("chance_type", details.chance_type)
+    .maybeSingle();
+  if (exErr) throw new Error(exErr.message);
+  if (existing) {
+    return {
+      can_approve: false,
+      block_reason: "يوجد سجل فرصة مماثل سابقاً لنفس الطالب في هذا الفصل ونوع الفرصة",
+    };
+  }
+
+  return { can_approve: true, block_reason: null };
+}
+
+async function assertExtraChanceCanApprove(requestId: string, studentProfileId: string) {
+  const { data: details, error } = await supabaseAdmin
+    .from("extra_chance_details")
+    .select("academic_year_id, semester_id, chance_type, reason, chance_applied_at")
+    .eq("request_id", requestId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  const summary = await validateExtraChanceApproval(
+    requestId,
+    studentProfileId,
+    (details ?? null) as ExtraChanceDetailsRow | null,
+  );
+  if (!summary.can_approve) {
+    throw new Error(summary.block_reason ?? "لا يمكن اعتماد طلب الفرصة");
+  }
+}
+
 export const getStudentRequestLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -98,6 +183,14 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
     await assertRequestsAdmin(context.userId);
     const id = data.requestId;
 
+    const { data: reqMeta, error: reqMetaErr } = await supabaseAdmin
+      .from("student_requests")
+      .select("student_profile_id, request_type")
+      .eq("id", id)
+      .maybeSingle();
+    if (reqMetaErr) throw new Error(reqMetaErr.message);
+    if (!reqMeta) throw new Error("الطلب غير موجود");
+
     const [
       absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes,
     ] = await Promise.all([
@@ -111,7 +204,7 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
         .select("request_id, reinstatement_reason, notes, requested_from_academic_year:academic_years!enrollment_reinstatement_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_reinstatement_details_requested_from_semester_id_fkey(name)")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("extra_chance_details")
-        .select("request_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
+        .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
         .eq("request_id", id).maybeSingle(),
       supabaseAdmin.from("transfer_request_details")
         .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
@@ -146,11 +239,19 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
     }
 
     const equivalencyCourses = eqcRes.data ?? [];
+    const extraChanceSummary = reqMeta.request_type === "extra_chance"
+      ? await validateExtraChanceApproval(
+          id,
+          reqMeta.student_profile_id,
+          (ecRes.data ?? null) as ExtraChanceDetailsRow | null,
+        )
+      : null;
     return {
       absence_details: absRes.data ?? null,
       suspension_details: suspRes.data ?? null,
       reinstatement_details: reinRes.data ?? null,
       extra_chance_details: ecRes.data ?? null,
+      extra_chance_summary: extraChanceSummary,
       transfer_details: trRes.data ?? null,
       equivalency_details: eqdRes.data ?? null,
       equivalency_courses: equivalencyCourses,
@@ -176,7 +277,7 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
 
     const { data: reqRow, error: reqErr } = await supabaseAdmin
       .from("student_requests")
-      .select("request_type")
+      .select("request_type, student_profile_id")
       .eq("id", data.requestId)
       .maybeSingle();
     if (reqErr) throw new Error(reqErr.message);
@@ -215,6 +316,10 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
 
     if (data.status === "approved" && reqRow.request_type === "equivalency") {
       await assertEquivalencyParentCanApprove(data.requestId);
+    }
+
+    if (data.status === "approved" && reqRow.request_type === "extra_chance") {
+      await assertExtraChanceCanApprove(data.requestId, reqRow.student_profile_id);
     }
 
     const patch: Record<string, unknown> = {

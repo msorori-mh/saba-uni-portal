@@ -58,6 +58,7 @@ type ExtraChanceDetails = {
   chance_type: string;
   reason: string;
   notes: string | null;
+  chance_applied_at: string | null;
   academic_year: { name: string } | null;
   semester: { name: string } | null;
 };
@@ -195,7 +196,7 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
           .select("request_id, requested_from_academic_year_id, requested_from_semester_id, reinstatement_reason, notes, requested_from_academic_year:academic_years!enrollment_reinstatement_details_requested_from_academic_year_id_fkey(name), requested_from_semester:semesters!enrollment_reinstatement_details_requested_from_semester_id_fkey(name)")
           .in("request_id", ids),
         sb.from("extra_chance_details")
-          .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, academic_year:academic_years(name), semester:semesters(name)")
+          .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
           .in("request_id", ids),
         sb.from("transfer_request_details")
           .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
@@ -463,6 +464,11 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
                 {r.status === "approved" && r.request_type === "absence_excuse" && r.absence_details?.record_applied_at && (
                   <div className="mt-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">
                     تم تسجيل العذر في سجل الغياب بتاريخ {new Date(r.absence_details.record_applied_at).toLocaleString("ar-EG")}
+                  </div>
+                )}
+                {r.status === "approved" && r.request_type === "extra_chance" && r.extra_chance_details?.chance_applied_at && (
+                  <div className="mt-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded p-2">
+                    تم تسجيل الفرصة الإضافية في سجلك الأكاديمي.
                   </div>
                 )}
                 {r.rejection_reason && r.status === "rejected" && (

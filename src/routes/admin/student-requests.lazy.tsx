@@ -105,6 +105,11 @@ type GradeAppealDetails = {
   section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
 };
 
+type ExtraChanceSummary = {
+  can_approve: boolean;
+  block_reason: string | null;
+};
+
 type AdminReq = {
   id: string; title: string; description: string | null; status: string;
   submitted_at: string | null; created_at: string; rejection_reason: string | null;
@@ -119,9 +124,11 @@ type AdminReq = {
     chance_type: string;
     reason: string;
     notes: string | null;
+    chance_applied_at: string | null;
     academic_year: { name: string } | null;
     semester: { name: string } | null;
   } | null;
+  extra_chance_summary: ExtraChanceSummary | null;
   transfer_details: TransferDetails | null;
   equivalency_details: EquivalencyDetails | null;
   equivalency_courses: EquivalencyCourse[];
@@ -167,6 +174,7 @@ function AdminRequestsPage() {
         suspension_details: null,
         reinstatement_details: null,
         extra_chance_details: null,
+        extra_chance_summary: null,
         transfer_details: null,
         equivalency_details: null,
         equivalency_courses: [],
@@ -416,6 +424,16 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         return;
       }
     }
+    if (status === "approved" && req.request_type === "extra_chance") {
+      if (!req.extra_chance_details) {
+        toast.error("تفاصيل طلب الفرصة غير مكتملة");
+        return;
+      }
+      if (req.extra_chance_summary && !req.extra_chance_summary.can_approve) {
+        toast.error(req.extra_chance_summary.block_reason ?? "لا يمكن اعتماد طلب الفرصة");
+        return;
+      }
+    }
     setBusy(true);
     await onUpdateStatus(
       req.id,
@@ -472,7 +490,25 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <Row label="نوع الفرصة" value={CHANCE_LABEL[req.extra_chance_details.chance_type] ?? req.extra_chance_details.chance_type} />
               <Row label="السبب" value={req.extra_chance_details.reason} />
               {req.extra_chance_details.notes && <Row label="ملاحظات" value={req.extra_chance_details.notes} />}
+              <Row
+                label="حالة تطبيق الأثر"
+                value={
+                  req.extra_chance_details.chance_applied_at
+                    ? "تم تسجيل الفرصة"
+                    : req.status === "approved"
+                      ? "معتمد — بانتظار التسجيل"
+                      : "لم يُطبَّق بعد"
+                }
+              />
+              {req.extra_chance_details.chance_applied_at && (
+                <Row label="تاريخ منح الفرصة" value={new Date(req.extra_chance_details.chance_applied_at).toLocaleString("ar-EG")} />
+              )}
             </>
+          )}
+          {!req.extra_chance_details && req.request_type === "extra_chance" && (
+            <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded p-2">
+              تفاصيل طلب الفرصة غير مكتملة — لا يمكن الاعتماد.
+            </div>
           )}
           {req.transfer_details && (
             <>
@@ -574,6 +610,11 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                 لا يمكن اعتماد طلب المقاصة قبل إنهاء مراجعة جميع المواد واعتماد مادة واحدة على الأقل مع مقرر معادَل.
               </div>
             )}
+            {req.request_type === "extra_chance" && req.extra_chance_summary && !req.extra_chance_summary.can_approve && (
+              <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                {req.extra_chance_summary.block_reason ?? "لا يمكن اعتماد طلب الفرصة — تحقق من التفاصيل والسياق الأكاديمي."}
+              </div>
+            )}
             {req.status === "submitted" && (
               <button disabled={busy} onClick={() => act("under_review")} className="w-full text-xs bg-amber-500 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
                 <Clock className="h-3.5 w-3.5" /> بدء المراجعة
@@ -584,7 +625,14 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
             </button>
             <div className="grid grid-cols-2 gap-2">
               <button
-                disabled={busy || (req.request_type === "equivalency" && !req.equivalency_summary?.can_approve_parent)}
+                disabled={
+                  busy
+                  || (req.request_type === "equivalency" && !req.equivalency_summary?.can_approve_parent)
+                  || (req.request_type === "extra_chance" && (
+                    !req.extra_chance_details
+                    || (req.extra_chance_summary != null && !req.extra_chance_summary.can_approve)
+                  ))
+                }
                 onClick={() => act("approved")}
                 className="text-xs bg-emerald-600 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90 disabled:opacity-50"
               >
