@@ -1,8 +1,6 @@
-// Client-side helper around the public.check_and_record_rate_limit RPC.
-// Note: this is an ad-hoc limiter — it protects flows we control (Forgot
-// Password, account creation, sensitive RPCs). It does NOT protect direct
-// calls to Supabase Auth (login/reset) — that requires Cloudflare/WAF.
-import { supabase } from "@/integrations/supabase/client";
+// Client-side helper for pre-auth rate limits.
+// Calls checkPublicRateLimit server function (service role) — not anon RPC.
+import { checkPublicRateLimit } from "@/lib/rate-limit.functions";
 
 export type RateLimitResult = {
   allowed: boolean;
@@ -34,29 +32,24 @@ function normalizeKey(input: string) {
   return input.trim().toLowerCase().slice(0, 200);
 }
 
-/** Calls the SECURITY DEFINER RPC (also granted to anon for pre-auth flows). */
+/** Calls server-side rate limit (no anon RPC). */
 export async function checkRateLimit(
   keyParts: string,
   policy: RateLimitPolicy,
 ): Promise<RateLimitResult> {
+  if (policy.action !== "login_attempt" && policy.action !== "forgot_password") {
+    console.warn("[rate-limit] unsupported pre-auth action", policy.action);
+    return { allowed: true, reason: "unsupported_action" };
+  }
   const key = normalizeKey(keyParts);
   try {
-    const { data, error } = await (supabase.rpc as any)(
-      "check_and_record_rate_limit",
-      {
-        p_key: key,
-        p_action: policy.action,
-        p_max_attempts: policy.maxAttempts,
-        p_window_minutes: policy.windowMinutes,
-        p_block_minutes: policy.blockMinutes ?? 15,
+    const result = await checkPublicRateLimit({
+      data: {
+        key,
+        action: policy.action,
       },
-    );
-    if (error) {
-      // Fail-open to avoid blocking real users on infra glitches.
-      console.warn("[rate-limit] RPC error", error);
-      return { allowed: true, reason: "rpc_error" };
-    }
-    return (data ?? { allowed: true }) as RateLimitResult;
+    });
+    return result;
   } catch (e) {
     console.warn("[rate-limit] threw", e);
     return { allowed: true, reason: "exception" };

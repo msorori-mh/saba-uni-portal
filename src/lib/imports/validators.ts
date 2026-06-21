@@ -1,9 +1,6 @@
 import type { LookupMaps, RowError, ValidatedRow, ValidationResult } from "./types";
 import { normKey } from "./lookups";
-import { supabase } from "@/integrations/supabase/client";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as any;
+import { getImportDb } from "./import-db";
 
 const str = (v: unknown) => (v == null ? "" : String(v).trim());
 const num = (v: unknown) => {
@@ -54,7 +51,7 @@ export async function validateStudents(
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await sb.from("student_profiles").select("academic_number").in("academic_number", chunk);
+      const { data } = await getImportDb().from("student_profiles").select("academic_number").in("academic_number", chunk);
       (data ?? []).forEach((d: { academic_number: string }) => existingSet.add(d.academic_number));
     }
   }
@@ -159,7 +156,7 @@ export async function validateFaculty(
   if (empNums.length) {
     for (let i = 0; i < empNums.length; i += 500) {
       const chunk = empNums.slice(i, i + 500);
-      const { data } = await sb.from("faculty_profiles").select("employee_number").in("employee_number", chunk);
+      const { data } = await getImportDb().from("faculty_profiles").select("employee_number").in("employee_number", chunk);
       (data ?? []).forEach((d: { employee_number: string }) => existing.add(d.employee_number));
     }
   }
@@ -232,7 +229,7 @@ export async function validateStaff(
   if (empNums.length) {
     for (let i = 0; i < empNums.length; i += 500) {
       const chunk = empNums.slice(i, i + 500);
-      const { data } = await sb.from("staff_profiles").select("employee_number").in("employee_number", chunk);
+      const { data } = await getImportDb().from("staff_profiles").select("employee_number").in("employee_number", chunk);
       (data ?? []).forEach((d: { employee_number: string }) => existing.add(d.employee_number));
     }
   }
@@ -296,7 +293,7 @@ export async function validateCourses(
   if (codes.length) {
     for (let i = 0; i < codes.length; i += 500) {
       const chunk = codes.slice(i, i + 500);
-      const { data } = await sb.from("courses").select("code").in("code", chunk);
+      const { data } = await getImportDb().from("courses").select("code").in("code", chunk);
       (data ?? []).forEach((d: { code: string }) => existing.add(d.code));
     }
   }
@@ -434,7 +431,7 @@ export async function validateDepartments(
   updateExisting = false,
 ): Promise<ValidationResult<DepartmentRow>> {
   // Fetch existing departments by name_ar (treated as the "code")
-  const { data: existing } = await sb.from("departments").select("id, name_ar");
+  const { data: existing } = await getImportDb().from("departments").select("id, name_ar");
   const existMap = new Map<string, string>();
   (existing ?? []).forEach((d: { id: string; name_ar: string }) => existMap.set(normKey(d.name_ar), d.id));
 
@@ -491,7 +488,7 @@ export async function validatePrograms(
   lookups: LookupMaps,
   updateExisting = false,
 ): Promise<ValidationResult<ProgramRow>> {
-  const { data: existing } = await sb.from("programs").select("id, code");
+  const { data: existing } = await getImportDb().from("programs").select("id, code");
   const existMap = new Map<string, string>();
   (existing ?? []).forEach((p: { id: string; code: string }) => existMap.set(normKey(p.code), p.id));
 
@@ -557,7 +554,7 @@ export async function validateLevels(
   _lookups: LookupMaps,
   updateExisting = false,
 ): Promise<ValidationResult<LevelRow>> {
-  const { data: existing } = await sb.from("academic_levels").select("id, level_number, name");
+  const { data: existing } = await getImportDb().from("academic_levels").select("id, level_number, name");
   const existByNumber = new Map<string, string>();
   (existing ?? []).forEach((l: { id: string; level_number: number }) =>
     existByNumber.set(String(l.level_number), l.id));
@@ -791,7 +788,7 @@ export async function validateStudentEnrollments(
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await sb.from("student_profiles")
+      const { data } = await getImportDb().from("student_profiles")
         .select("id, academic_number, program_id")
         .in("academic_number", chunk);
       (data ?? []).forEach((s: { id: string; academic_number: string; program_id: string | null }) => {
@@ -943,7 +940,7 @@ export async function validateStudentGrades(
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await sb.from("student_profiles")
+      const { data } = await getImportDb().from("student_profiles")
         .select("id, academic_number, program_id")
         .in("academic_number", chunk);
       (data ?? []).forEach((s: { id: string; academic_number: string; program_id: string | null }) => {
@@ -1160,7 +1157,7 @@ export async function validateStudentFees(
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await sb.from("student_profiles").select("id, academic_number").in("academic_number", chunk);
+      const { data } = await getImportDb().from("student_profiles").select("id, academic_number").in("academic_number", chunk);
       (data ?? []).forEach((s: { id: string; academic_number: string }) => {
         studentByAc.set(normKey(s.academic_number), s.id);
       });
@@ -1280,7 +1277,7 @@ export async function validateStudentDiscounts(
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await sb.from("student_profiles").select("id, academic_number").in("academic_number", chunk);
+      const { data } = await getImportDb().from("student_profiles").select("id, academic_number").in("academic_number", chunk);
       (data ?? []).forEach((s: { id: string; academic_number: string }) => {
         studentByAc.set(normKey(s.academic_number), s.id);
       });
@@ -1426,7 +1423,7 @@ export async function validateDocuments(
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await sb.from("student_profiles").select("id, academic_number").in("academic_number", chunk);
+      const { data } = await getImportDb().from("student_profiles").select("id, academic_number").in("academic_number", chunk);
       (data ?? []).forEach((s: { id: string; academic_number: string }) => {
         studentByAc.set(normKey(s.academic_number), s.id);
       });

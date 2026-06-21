@@ -1,10 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { LookupMaps } from "./types";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const sb = supabase as any;
+import { getImportDb } from "./import-db";
 
 export async function loadLookups(): Promise<LookupMaps> {
+  const sb = getImportDb();
   const [deps, progs, lvls, crs, ays, sems] = await Promise.all([
     sb.from("departments").select("id, name_ar, name_en"),
     sb.from("programs").select("id, code, department_id"),
