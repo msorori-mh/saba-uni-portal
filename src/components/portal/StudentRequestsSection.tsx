@@ -130,6 +130,177 @@ type RequestRow = {
   attachments: { id: string; file_name: string; file_url: string }[];
 };
 
+function groupRequestIdsByType(reqs: { id: string; request_type: string }[]) {
+  const map = new Map<string, string[]>();
+  for (const r of reqs) {
+    const list = map.get(r.request_type) ?? [];
+    list.push(r.id);
+    map.set(r.request_type, list);
+  }
+  return map;
+}
+
+type CourseSectionPreview = {
+  section_code: string;
+  offering: { course: { code: string; name_ar: string } | null } | null;
+};
+
+async function fetchCourseSectionPreviews(
+  sectionIds: string[],
+): Promise<Map<string, CourseSectionPreview>> {
+  const map = new Map<string, CourseSectionPreview>();
+  if (sectionIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from("course_sections")
+    .select("id, section_code, offering:course_offerings(course:courses(code, name_ar))")
+    .in("id", sectionIds);
+  if (error) throw error;
+  for (const row of data ?? []) {
+    map.set(row.id, {
+      section_code: row.section_code,
+      offering: row.offering as CourseSectionPreview["offering"],
+    });
+  }
+  return map;
+}
+
+async function loadStudentRequestDetailsMaps(
+  reqs: { id: string; request_type: string }[],
+): Promise<{
+  absMap: Map<string, RequestRow["absence_details"]>;
+  suspMap: Map<string, RequestRow["suspension_details"]>;
+  reinMap: Map<string, RequestRow["reinstatement_details"]>;
+  ecMap: Map<string, RequestRow["extra_chance_details"]>;
+  trMap: Map<string, RequestRow["transfer_details"]>;
+  eqdMap: Map<string, RequestRow["equivalency_details"]>;
+  eqcMap: Map<string, EquivalencyCourseRow[]>;
+  gaMap: Map<string, RequestRow["grade_appeal_details"]>;
+  attMap: Map<string, RequestRow["attachments"]>;
+}> {
+  const ids = reqs.map((r) => r.id);
+  const byType = groupRequestIdsByType(reqs);
+
+  const absMap = new Map<string, RequestRow["absence_details"]>();
+  const suspMap = new Map<string, RequestRow["suspension_details"]>();
+  const reinMap = new Map<string, RequestRow["reinstatement_details"]>();
+  const ecMap = new Map<string, RequestRow["extra_chance_details"]>();
+  const trMap = new Map<string, RequestRow["transfer_details"]>();
+  const eqdMap = new Map<string, RequestRow["equivalency_details"]>();
+  const eqcMap = new Map<string, EquivalencyCourseRow[]>();
+  const gaMap = new Map<string, RequestRow["grade_appeal_details"]>();
+  const attMap = new Map<string, RequestRow["attachments"]>();
+
+  const fetches: Promise<void>[] = [];
+
+  fetches.push((async () => {
+    const { data, error } = await sb.from("student_request_attachments")
+      .select("id, request_id, file_name, file_url")
+      .in("request_id", ids);
+    if (error) throw error;
+    for (const a of data ?? []) {
+      if (!attMap.has(a.request_id)) attMap.set(a.request_id, []);
+      attMap.get(a.request_id)!.push(a);
+    }
+  })());
+
+  const absenceIds = byType.get("absence_excuse");
+  if (absenceIds?.length) {
+    fetches.push((async () => {
+      const { data, error } = await sb.from("absence_excuse_details")
+        .select("request_id, absence_date, reason_type, course_section_id, record_applied_at")
+        .in("request_id", absenceIds);
+      if (error) throw error;
+      for (const d of data ?? []) absMap.set(d.request_id, d);
+    })());
+  }
+
+  const suspensionIds = byType.get("enrollment_suspension");
+  if (suspensionIds?.length) {
+    fetches.push((async () => {
+      const { data, error } = await sb.from("enrollment_suspension_details")
+        .select(ENROLLMENT_SUSPENSION_DETAILS_SELECT)
+        .in("request_id", suspensionIds);
+      if (error) throw error;
+      for (const d of data ?? []) suspMap.set(d.request_id, d);
+    })());
+  }
+
+  const reinstatementIds = byType.get("enrollment_reinstatement");
+  if (reinstatementIds?.length) {
+    fetches.push((async () => {
+      const { data, error } = await sb.from("enrollment_reinstatement_details")
+        .select(ENROLLMENT_REINSTATEMENT_DETAILS_SELECT)
+        .in("request_id", reinstatementIds);
+      if (error) throw error;
+      for (const d of data ?? []) reinMap.set(d.request_id, d);
+    })());
+  }
+
+  const extraChanceIds = byType.get("extra_chance");
+  if (extraChanceIds?.length) {
+    fetches.push((async () => {
+      const { data, error } = await sb.from("extra_chance_details")
+        .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
+        .in("request_id", extraChanceIds);
+      if (error) throw error;
+      for (const d of data ?? []) ecMap.set(d.request_id, d);
+    })());
+  }
+
+  const transferIds = byType.get("transfer");
+  if (transferIds?.length) {
+    fetches.push((async () => {
+      const { data, error } = await sb.from("transfer_request_details")
+        .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
+        .in("request_id", transferIds);
+      if (error) throw error;
+      for (const d of data ?? []) trMap.set(d.request_id, d);
+    })());
+  }
+
+  const equivalencyIds = byType.get("equivalency");
+  if (equivalencyIds?.length) {
+    fetches.push((async () => {
+      const [eqdRes, eqcRes] = await Promise.all([
+        sb.from("equivalency_request_details")
+          .select("request_id, previous_university_name, previous_program_name, notes")
+          .in("request_id", equivalencyIds),
+        sb.from("equivalency_courses")
+          .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
+          .in("equivalency_request_id", equivalencyIds),
+      ]);
+      if (eqdRes.error) throw eqdRes.error;
+      if (eqcRes.error) throw eqcRes.error;
+      for (const d of eqdRes.data ?? []) eqdMap.set(d.request_id, d);
+      for (const c of eqcRes.data ?? []) {
+        if (!eqcMap.has(c.equivalency_request_id)) eqcMap.set(c.equivalency_request_id, []);
+        eqcMap.get(c.equivalency_request_id)!.push(c);
+      }
+    })());
+  }
+
+  const gradeAppealIds = byType.get("grade_appeal");
+  if (gradeAppealIds?.length) {
+    fetches.push((async () => {
+      const { data, error } = await sb.from("grade_appeal_details")
+        .select("request_id, reason, notes, current_grade_total, current_grade_status, course_section_id, academic_year:academic_years(name), semester:semesters(name)")
+        .in("request_id", gradeAppealIds);
+      if (error) throw error;
+      const sectionIds = [...new Set(
+        (data ?? []).map((d: { course_section_id: string | null }) => d.course_section_id).filter(Boolean),
+      )] as string[];
+      const sectionMap = await fetchCourseSectionPreviews(sectionIds);
+      for (const d of data ?? []) {
+        const section = d.course_section_id ? sectionMap.get(d.course_section_id) ?? null : null;
+        gaMap.set(d.request_id, { ...d, section });
+      }
+    })());
+  }
+
+  await Promise.all(fetches);
+
+  return { absMap, suspMap, reinMap, ecMap, trMap, eqdMap, eqcMap, gaMap, attMap };
+}
 
 export function StudentRequestsSection({ studentProfileId }: { studentProfileId: string }) {
   const qc = useQueryClient();
@@ -189,61 +360,10 @@ export function StudentRequestsSection({ studentProfileId }: { studentProfileId:
         .eq("student_profile_id", studentProfileId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      const ids = (reqs ?? []).map((r: { id: string }) => r.id);
-      if (ids.length === 0) return [];
-      const [absRes, suspRes, reinRes, ecRes, trRes, eqdRes, eqcRes, gaRes, attRes] = await Promise.all([
-        sb.from("absence_excuse_details").select("request_id, absence_date, reason_type, course_section_id, record_applied_at").in("request_id", ids),
-        sb.from("enrollment_suspension_details")
-          .select(ENROLLMENT_SUSPENSION_DETAILS_SELECT)
-          .in("request_id", ids),
-        sb.from("enrollment_reinstatement_details")
-          .select(ENROLLMENT_REINSTATEMENT_DETAILS_SELECT)
-          .in("request_id", ids),
-        sb.from("extra_chance_details")
-          .select("request_id, academic_year_id, semester_id, chance_type, reason, notes, chance_applied_at, academic_year:academic_years(name), semester:semesters(name)")
-          .in("request_id", ids),
-        sb.from("transfer_request_details")
-          .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
-          .in("request_id", ids),
-        sb.from("equivalency_request_details")
-          .select("request_id, previous_university_name, previous_program_name, notes")
-          .in("request_id", ids),
-        sb.from("equivalency_courses")
-          .select("id, equivalency_request_id, external_course_code, external_course_name, external_credit_hours, status, reviewer_notes, target_course:courses(code, name_ar)")
-          .in("equivalency_request_id", ids),
-        sb.from("grade_appeal_details")
-          .select("request_id, reason, notes, current_grade_total, current_grade_status, academic_year:academic_years(name), semester:semesters(name), section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
-          .in("request_id", ids),
-        sb.from("student_request_attachments").select("id, request_id, file_name, file_url").in("request_id", ids),
-      ]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const absMap = new Map((absRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const suspMap = new Map((suspRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const reinMap = new Map((reinRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ecMap = new Map((ecRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const trMap = new Map((trRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const eqdMap = new Map((eqdRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const gaMap = new Map((gaRes.data ?? []).map((d: any) => [d.request_id, d]));
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const eqcMap = new Map<string, any[]>();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const c of (eqcRes.data ?? []) as any[]) {
-        if (!eqcMap.has(c.equivalency_request_id)) eqcMap.set(c.equivalency_request_id, []);
-        eqcMap.get(c.equivalency_request_id)!.push(c);
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const attMap = new Map<string, any[]>();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const a of (attRes.data ?? []) as any[]) {
-        if (!attMap.has(a.request_id)) attMap.set(a.request_id, []);
-        attMap.get(a.request_id)!.push(a);
-      }
+      if ((reqs ?? []).length === 0) return [];
+      const {
+        absMap, suspMap, reinMap, ecMap, trMap, eqdMap, eqcMap, gaMap, attMap,
+      } = await loadStudentRequestDetailsMaps(reqs as { id: string; request_type: string }[]);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (reqs as any[]).map((r) => ({
         ...r,
