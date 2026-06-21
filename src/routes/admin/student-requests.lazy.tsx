@@ -44,8 +44,15 @@ type SuspensionDetails = {
   suspension_reason: string;
   suspension_duration_type: string;
   notes: string | null;
-  academic_year: { name: string } | null;
-  semester: { name: string } | null;
+  requested_from_academic_year: { name: string } | null;
+  requested_from_semester: { name: string } | null;
+};
+
+type ReinstatementDetails = {
+  reinstatement_reason: string;
+  notes: string | null;
+  requested_from_academic_year: { name: string } | null;
+  requested_from_semester: { name: string } | null;
 };
 
 type TransferDetails = {
@@ -83,6 +90,7 @@ type GradeAppealDetails = {
   notes: string | null;
   current_grade_total: number | null;
   current_grade_status: string | null;
+  approved_total_score: number | null;
   academic_year: { name: string } | null;
   semester: { name: string } | null;
   section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
@@ -97,6 +105,7 @@ type AdminReq = {
   absence_details: { absence_date: string; reason_type: string; course_section_id: string;
              section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null } | null;
   suspension_details: SuspensionDetails | null;
+  reinstatement_details: ReinstatementDetails | null;
   extra_chance_details: {
     chance_type: string;
     reason: string;
@@ -108,6 +117,7 @@ type AdminReq = {
   equivalency_details: EquivalencyDetails | null;
   equivalency_courses: EquivalencyCourse[];
   grade_appeal_details: GradeAppealDetails | null;
+  grade_appeal_section_max: number | null;
   attachments: { id: string; file_url: string; file_name: string }[];
   _detailsLoaded?: boolean;
 };
@@ -145,11 +155,13 @@ function AdminRequestsPage() {
         ...r,
         absence_details: null,
         suspension_details: null,
+        reinstatement_details: null,
         extra_chance_details: null,
         transfer_details: null,
         equivalency_details: null,
         equivalency_courses: [],
         grade_appeal_details: null,
+        grade_appeal_section_max: null,
         attachments: [],
         _detailsLoaded: false,
       }));
@@ -179,13 +191,19 @@ function AdminRequestsPage() {
     && (!deptFilter || r.student?.department_id === deptFilter)
   ), [requests, statusFilter, typeFilter, programFilter, deptFilter]);
 
-  const updateStatus = async (id: string, status: string, rejection_reason?: string) => {
+  const updateStatus = async (
+    id: string,
+    status: string,
+    rejection_reason?: string,
+    approvedGradeTotal?: number,
+  ) => {
     try {
       const result = await updateStatusFn({
         data: {
           requestId: id,
           status: status as "draft" | "submitted" | "under_review" | "returned" | "approved" | "rejected" | "cancelled",
           rejectionReason: rejection_reason,
+          approvedGradeTotal,
         },
       });
       toast.success("تم تحديث الحالة");
@@ -270,7 +288,12 @@ function AdminRequestsPage() {
                     )}
                     {r.suspension_details && (
                       <>
-                        {r.suspension_details.academic_year?.name ?? "—"} • {r.suspension_details.semester?.name ?? "—"} • {DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}
+                        {r.suspension_details.requested_from_academic_year?.name ?? "—"} • {r.suspension_details.requested_from_semester?.name ?? "—"} • {DURATION_LABEL[r.suspension_details.suspension_duration_type] ?? r.suspension_details.suspension_duration_type}
+                      </>
+                    )}
+                    {r.reinstatement_details && (
+                      <>
+                        {r.reinstatement_details.requested_from_academic_year?.name ?? "—"} • {r.reinstatement_details.requested_from_semester?.name ?? "—"} • إعادة قيد
                       </>
                     )}
                     {r.extra_chance_details && (
@@ -346,9 +369,16 @@ function SignedAttachment({ path, name }: { path: string; name: string }) {
 
 function DetailsModal({ req, onClose, onUpdateStatus }: {
   req: AdminReq; onClose: () => void;
-  onUpdateStatus: (id: string, status: string, rejection_reason?: string) => Promise<boolean>;
+  onUpdateStatus: (id: string, status: string, rejection_reason?: string, approvedGradeTotal?: number) => Promise<boolean>;
 }) {
   const [reason, setReason] = useState(req.rejection_reason ?? "");
+  const [approvedGradeTotal, setApprovedGradeTotal] = useState(
+    req.grade_appeal_details?.approved_total_score != null
+      ? String(req.grade_appeal_details.approved_total_score)
+      : req.grade_appeal_details?.current_grade_total != null
+        ? String(req.grade_appeal_details.current_grade_total)
+        : "",
+  );
   const [busy, setBusy] = useState(false);
 
   const act = async (status: string) => {
@@ -356,11 +386,25 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
       toast.error(status === "returned" ? "أدخل ملاحظات الاستكمال" : "أدخل سبب الرفض");
       return;
     }
+    let gradeTotal: number | undefined;
+    if (status === "approved" && req.request_type === "grade_appeal") {
+      const parsed = Number(approvedGradeTotal);
+      if (!Number.isFinite(parsed)) {
+        toast.error("أدخل الدرجة المعتمدة بعد التظلم");
+        return;
+      }
+      if (req.grade_appeal_section_max != null && parsed > req.grade_appeal_section_max) {
+        toast.error(`الدرجة المعتمدة لا يمكن أن تتجاوز ${req.grade_appeal_section_max.toFixed(2)}`);
+        return;
+      }
+      gradeTotal = parsed;
+    }
     setBusy(true);
     await onUpdateStatus(
       req.id,
       status,
       status === "rejected" || status === "returned" ? reason.trim() : undefined,
+      gradeTotal,
     );
     setBusy(false);
   };
@@ -386,11 +430,19 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
           )}
           {req.suspension_details && (
             <>
-              <Row label="السنة الأكاديمية" value={req.suspension_details.academic_year?.name ?? "—"} />
-              <Row label="الفصل" value={req.suspension_details.semester?.name ?? "—"} />
+              <Row label="السنة الأكاديمية" value={req.suspension_details.requested_from_academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.suspension_details.requested_from_semester?.name ?? "—"} />
               <Row label="مدة الوقف" value={DURATION_LABEL[req.suspension_details.suspension_duration_type] ?? req.suspension_details.suspension_duration_type} />
               <Row label="السبب" value={req.suspension_details.suspension_reason} />
               {req.suspension_details.notes && <Row label="ملاحظات" value={req.suspension_details.notes} />}
+            </>
+          )}
+          {req.reinstatement_details && (
+            <>
+              <Row label="السنة الأكاديمية" value={req.reinstatement_details.requested_from_academic_year?.name ?? "—"} />
+              <Row label="الفصل" value={req.reinstatement_details.requested_from_semester?.name ?? "—"} />
+              <Row label="سبب إعادة القيد" value={req.reinstatement_details.reinstatement_reason} />
+              {req.reinstatement_details.notes && <Row label="ملاحظات" value={req.reinstatement_details.notes} />}
             </>
           )}
           {req.extra_chance_details && (
@@ -439,6 +491,12 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               />
               <Row label="سبب التظلم" value={req.grade_appeal_details.reason} />
               {req.grade_appeal_details.notes && <Row label="ملاحظات" value={req.grade_appeal_details.notes} />}
+              {req.grade_appeal_details.approved_total_score != null && (
+                <Row
+                  label="الدرجة المعتمدة"
+                  value={Number(req.grade_appeal_details.approved_total_score).toFixed(2)}
+                />
+              )}
             </>
           )}
 
@@ -464,6 +522,25 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         {req.status !== "approved" && req.status !== "rejected" && req.status !== "cancelled" && (
           <div className="mt-4 border-t pt-3 space-y-2">
             <div className="text-[11px] font-bold text-muted-foreground">إجراء</div>
+            {req.request_type === "grade_appeal" && req.grade_appeal_details && (
+              <div>
+                <label className="text-[11px] font-bold text-muted-foreground block mb-1">
+                  الدرجة المعتمدة بعد التظلم
+                  {req.grade_appeal_section_max != null && (
+                    <span className="font-normal text-muted-foreground"> (الحد الأقصى {req.grade_appeal_section_max.toFixed(2)})</span>
+                  )}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={req.grade_appeal_section_max ?? 100}
+                  step="0.01"
+                  value={approvedGradeTotal}
+                  onChange={(e) => setApprovedGradeTotal(e.target.value)}
+                  className="w-full h-9 rounded border bg-background px-2 text-sm"
+                />
+              </div>
+            )}
             {req.status === "submitted" && (
               <button disabled={busy} onClick={() => act("under_review")} className="w-full text-xs bg-amber-500 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
                 <Clock className="h-3.5 w-3.5" /> بدء المراجعة

@@ -252,6 +252,7 @@ async function fetchFacultyReport() {
 const REQ_TYPE_AR: Record<string, string> = {
   absence_excuse: "عذر غياب",
   enrollment_suspension: "إيقاف قيد",
+  enrollment_reinstatement: "إعادة قيد",
   extra_chance: "فرصة إضافية",
   transfer: "تحويل",
   equivalency: "معادلة",
