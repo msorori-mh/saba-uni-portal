@@ -4,7 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   Upload, Download, CheckCircle2, XCircle, Loader2, AlertTriangle,
 } from "lucide-react";
+import { canWriteScheduleImport } from "@/lib/admin-nav";
 import { getScheduleImportLookups, runScheduleImport } from "@/lib/imports.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { parseExcel } from "@/lib/imports/templates";
 import { downloadMasterTemplate } from "@/lib/imports/master-templates";
 import {
@@ -42,6 +44,21 @@ export function ScheduleImportPanel({ initialContext, embedded = false }: Schedu
     if (initialContext?.program_id && !prog) setProg(initialContext.program_id);
     if (initialContext?.level_id && !lvl) setLvl(initialContext.level_id);
   }, [initialContext, ay, sem, prog, lvl]);
+
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ["admin-user-roles"],
+    queryFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return [];
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", auth.user.id);
+      return (data ?? []).map((r) => r.role as string);
+    },
+    staleTime: 60_000,
+  });
+  const canExecute = canWriteScheduleImport(userRoles);
 
   const { data: refs } = useQuery({
     queryKey: ["class-schedule-ref-options"],
@@ -82,7 +99,7 @@ export function ScheduleImportPanel({ initialContext, embedded = false }: Schedu
   };
 
   const runImport = async () => {
-    if (!ctx || !validation || !file) return;
+    if (!canExecute || !ctx || !validation || !file) return;
     setImporting(true);
     setError(null);
     try {
@@ -163,7 +180,7 @@ export function ScheduleImportPanel({ initialContext, embedded = false }: Schedu
 
         {file && <span className="text-xs text-muted-foreground">الملف: <span className="font-mono">{file.name}</span></span>}
 
-        {validation && !report && (
+        {validation && !report && canExecute && (
           <button
             type="button"
             onClick={runImport}
@@ -173,6 +190,12 @@ export function ScheduleImportPanel({ initialContext, embedded = false }: Schedu
             {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             تنفيذ استيراد الجدول ({validation.validRows} صف)
           </button>
+        )}
+
+        {validation && !report && !canExecute && (
+          <p className="ml-auto max-w-md rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            يمكنك معاينة ملف الجدول، لكن تنفيذ الاستيراد يتطلب صلاحية المسجل أو الإدارة.
+          </p>
         )}
       </div>
 

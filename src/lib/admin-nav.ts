@@ -36,6 +36,18 @@ export function canWriteStudents(userRoles: string[]): boolean {
   return userRoles.some((r) => (STUDENT_WRITE_ROLES as readonly string[]).includes(r));
 }
 
+/** Matches imports.functions SCHEDULE_IMPORT_WRITE_ROLES — UI gating for schedule import confirm. */
+export const SCHEDULE_IMPORT_WRITE_ROLES = [
+  "system_admin",
+  "admin",
+  "registrar",
+] as const;
+
+export function canWriteScheduleImport(userRoles: string[]): boolean {
+  if (userRoles.some((r) => SUPER_ROLES.has(r))) return true;
+  return userRoles.some((r) => (SCHEDULE_IMPORT_WRITE_ROLES as readonly string[]).includes(r));
+}
+
 export function studentsNavLabel(userRoles: string[]): string {
   return canWriteStudents(userRoles) ? "إدارة الطلاب" : "عرض الطلاب";
 }
