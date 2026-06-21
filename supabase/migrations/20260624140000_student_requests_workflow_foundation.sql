@@ -87,32 +87,52 @@ BEGIN
 END;
 $$;
 
-DROP POLICY IF EXISTS sr_update_self ON public.student_requests;
-CREATE POLICY sr_update_self ON public.student_requests
-  FOR UPDATE TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.student_profiles sp
-      WHERE sp.id = student_requests.student_profile_id
-        AND sp.user_id = auth.uid()
-    )
-    AND status = ANY (ARRAY['draft','submitted','under_review','returned'])
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.student_profiles sp
-      WHERE sp.id = student_profile_id
-        AND sp.user_id = auth.uid()
-    )
-    AND status = ANY (ARRAY['draft','submitted','under_review','returned','cancelled'])
-  );
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'student_requests'
+      AND policyname = 'sr_update_self'
+  ) THEN
+    EXECUTE $policy$
+      ALTER POLICY sr_update_self ON public.student_requests
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.student_profiles sp
+          WHERE sp.id = student_requests.student_profile_id
+            AND sp.user_id = auth.uid()
+        )
+        AND status = ANY (ARRAY['draft','submitted','under_review','returned'])
+      )
+    $policy$;
+    EXECUTE $policy$
+      ALTER POLICY sr_update_self ON public.student_requests
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.student_profiles sp
+          WHERE sp.id = student_profile_id
+            AND sp.user_id = auth.uid()
+        )
+        AND status = ANY (ARRAY['draft','submitted','under_review','returned','cancelled'])
+      )
+    $policy$;
+  END IF;
 
-DROP POLICY IF EXISTS sr_update_priv ON public.student_requests;
-CREATE POLICY sr_update_priv ON public.student_requests
-  FOR UPDATE TO authenticated
-  USING (
-    public.has_any_role(auth.uid(), ARRAY['admin','system_admin','dean','registrar','student_affairs'])
-  );
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'student_requests'
+      AND policyname = 'sr_update_priv'
+  ) THEN
+    EXECUTE $policy$
+      ALTER POLICY sr_update_priv ON public.student_requests
+      USING (
+        public.has_any_role(auth.uid(), ARRAY['admin','system_admin','dean','registrar','student_affairs'])
+      )
+    $policy$;
+  END IF;
+END $$;
 
 CREATE OR REPLACE FUNCTION public.trg_audit_student_requests()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
