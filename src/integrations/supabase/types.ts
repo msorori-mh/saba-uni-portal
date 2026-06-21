@@ -3987,6 +3987,10 @@ export type Database = {
         Args: { _fee_id: string }
         Returns: undefined
       }
+      replace_class_schedule_for_context: {
+        Args: { _rows: Json; _section_ids: string[] }
+        Returns: Json
+      }
       revert_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
