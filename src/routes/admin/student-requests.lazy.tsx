@@ -111,7 +111,7 @@ type AdminReq = {
   student_profile_id: string; request_type: string;
   student: { academic_number: string; full_name_ar: string; program_id: string | null; department_id: string | null;
              program: { name_ar: string } | null; department: { name_ar: string } | null } | null;
-  absence_details: { absence_date: string; reason_type: string; course_section_id: string;
+  absence_details: { absence_date: string; reason_type: string; course_section_id: string; record_applied_at: string | null;
              section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null } | null;
   suspension_details: SuspensionDetails | null;
   reinstatement_details: ReinstatementDetails | null;
@@ -443,6 +443,9 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               <Row label="المقرر" value={`${req.absence_details.section?.offering?.course?.code ?? "—"} — ${req.absence_details.section?.offering?.course?.name_ar ?? "—"} (مجموعة دراسية ${req.absence_details.section?.section_code ?? "—"})`} />
               <Row label="تاريخ الغياب" value={req.absence_details.absence_date} />
               <Row label="نوع العذر" value={REASON_LABEL[req.absence_details.reason_type ?? "other"]} />
+              {req.absence_details.record_applied_at && (
+                <Row label="تاريخ تسجيل العذر" value={new Date(req.absence_details.record_applied_at).toLocaleString("ar-EG")} />
+              )}
             </>
           )}
           {req.suspension_details && (
