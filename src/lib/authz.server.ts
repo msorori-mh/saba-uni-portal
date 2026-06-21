@@ -63,12 +63,27 @@ export const FACULTY_CMS_ROLES = [
 ] as const;
 
 export async function userRoles(userId: string): Promise<string[]> {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => r.role as string);
+  const [legacyRes, assignRes] = await Promise.all([
+    supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
+    supabaseAdmin
+      .from("user_role_assignments")
+      .select("role_code, roles_catalog(app_role_mapping)")
+      .eq("user_id", userId),
+  ]);
+  if (legacyRes.error) throw new Error(legacyRes.error.message);
+  if (assignRes.error) throw new Error(assignRes.error.message);
+
+  const roles = new Set<string>();
+  for (const row of legacyRes.data ?? []) {
+    roles.add(row.role as string);
+  }
+  for (const row of assignRes.data ?? []) {
+    roles.add(row.role_code as string);
+    const mapping = (row as { roles_catalog?: { app_role_mapping?: string | null } | null })
+      .roles_catalog?.app_role_mapping;
+    if (mapping) roles.add(mapping);
+  }
+  return [...roles];
 }
 
 export async function assertAnyRole(

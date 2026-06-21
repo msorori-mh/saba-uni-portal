@@ -26,6 +26,11 @@ import {
 import type { ImportReport, ImportType } from "@/lib/imports/types";
 import { executeScheduleImport } from "@/lib/imports/class-schedule.server";
 import type { ScheduleContext, ScheduleImportReport } from "@/lib/imports/class-schedule";
+import {
+  assertServerValidationPassed,
+  revalidateBulkImportRows,
+} from "@/lib/imports/bulk-import-validation.server";
+import type { ValidatedRow } from "@/lib/imports/types";
 
 const IMPORT_PANEL_ROLES = [
   "admin",
@@ -134,13 +139,16 @@ export const runBulkImport = createServerFn({ method: "POST" })
       await enforceRateLimit(`import:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountImport);
     }
 
+    const serverRows = await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[]);
+    assertServerValidationPassed(serverRows);
+
     const ctx: ServerImportContext = {
       userId: context.userId,
       userSupabase: context.supabase,
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const vrows = data.rows as any[];
+    const vrows = serverRows as any[];
     let report: ImportReport = emptyReport();
     const t0 = Date.now();
 
