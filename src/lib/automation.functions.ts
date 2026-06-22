@@ -3,9 +3,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-const MANAGE_ROLES = ["admin", "system_admin"];
-const READ_ROLES = ["admin", "system_admin", "registrar", "dean"];
+import {
+  assertAnyRole,
+  AUTOMATION_MANAGE_ROLES,
+  AUTOMATION_READ_ROLES,
+} from "@/lib/authz.server";
 
 export type AutomationKey = "registration" | "progression" | "graduation" | "finance";
 
@@ -21,6 +23,22 @@ export type AutomationSetting = {
 async function getRoles(sb: any, userId: string): Promise<string[]> {
   const { data } = await sb.from("user_roles").select("role").eq("user_id", userId);
   return (data ?? []).map((r: { role: string }) => r.role);
+}
+
+async function assertAutomationRead(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    AUTOMATION_READ_ROLES,
+    "ليست لديك صلاحية الوصول إلى مركز الأتمتة.",
+  );
+}
+
+async function assertAutomationManage(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    AUTOMATION_MANAGE_ROLES,
+    "ليست لديك صلاحية تعديل إعدادات الأتمتة.",
+  );
 }
 
 async function logAudit(sb: any, action: string, payload: unknown) {
@@ -43,10 +61,8 @@ export const getAutomationSettings = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
+    await assertAutomationRead(context.userId);
     const roles = await getRoles(sb, context.userId);
-    if (!roles.some((r) => READ_ROLES.includes(r))) {
-      throw new Error("ليست لديك صلاحية الوصول إلى مركز الأتمتة.");
-    }
     const { data, error } = await sb
       .from("automation_settings")
       .select("key, enabled, config, updated_at, updated_by")
@@ -54,7 +70,7 @@ export const getAutomationSettings = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return {
       settings: (data ?? []) as AutomationSetting[],
-      canManage: roles.some((r) => MANAGE_ROLES.includes(r)),
+      canManage: roles.some((r) => (AUTOMATION_MANAGE_ROLES as readonly string[]).includes(r)),
       roles,
     };
   });
@@ -69,12 +85,9 @@ export const updateAutomationSetting = createServerFn({ method: "POST" })
   )
   .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
+    await assertAutomationManage(context.userId);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    if (!roles.some((r) => MANAGE_ROLES.includes(r))) {
-      throw new Error("ليست لديك صلاحية تعديل إعدادات الأتمتة.");
-    }
     const patch: Record<string, unknown> = {
       updated_by: context.userId,
       updated_at: new Date().toISOString(),
@@ -101,6 +114,7 @@ export const updateAutomationSetting = createServerFn({ method: "POST" })
 export const logAutomationViewed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await assertAutomationRead(context.userId);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
     await logAudit(sb, "automation_viewed", { user_id: context.userId });
@@ -112,13 +126,9 @@ export const logAutomationViewed = createServerFn({ method: "POST" })
 export const getAutomationPreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    await assertAutomationRead(context.userId);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const roles = await getRoles(sb, context.userId);
-    if (!roles.some((r) => READ_ROLES.includes(r))) {
-      throw new Error("غير مصرح.");
-    }
-
     // ---- Registration window (current semester) ----
     const { data: currentSem } = await sb
       .from("semesters")
