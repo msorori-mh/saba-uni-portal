@@ -1,4 +1,4 @@
-import { createLazyFileRoute, Link } from "@tanstack/react-router";
+import { createLazyFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useMemo, useState } from "react";
@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { listUsers, createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
 import { canWriteStudents, studentsNavLabel } from "@/lib/admin-nav";
-import { supabase } from "@/integrations/supabase/client";
 
 const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
@@ -51,19 +50,8 @@ function StudentsPage() {
 
   const qc = useQueryClient();
 
-  const { data: userRoles = [] } = useQuery({
-    queryKey: ["admin-user-roles"],
-    queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return [];
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", auth.user.id);
-      return (data ?? []).map((r) => r.role as string);
-    },
-    staleTime: 60_000,
-  });
+  const { adminSession } = useRouteContext({ from: "/admin" });
+  const userRoles = adminSession?.roles ?? [];
   const canWrite = canWriteStudents(userRoles);
   const pageTitle = studentsNavLabel(userRoles);
 

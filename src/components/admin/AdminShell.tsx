@@ -163,24 +163,18 @@ function isItemActive(pathname: string, item: NavItem) {
     : pathname === item.to || pathname.startsWith(item.to + "/");
 }
 
-export function AdminShell({ children, userEmail }: { children: React.ReactNode; userEmail: string }) {
+export function AdminShell({
+  children,
+  userEmail,
+  userRoles,
+}: {
+  children: React.ReactNode;
+  userEmail: string;
+  userRoles: string[];
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-
-  const { data: userRoles = [] } = useQuery({
-    queryKey: ["admin-user-roles"],
-    queryFn: async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) return [];
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", auth.user.id);
-      return (data ?? []).map((r) => r.role as string);
-    },
-    staleTime: 60_000,
-  });
 
   const visibleGroups = useMemo(
     () => filterNavGroups(groups, userRoles),
