@@ -303,8 +303,32 @@ export async function importStaff(rows: ValidatedRow<StaffRow>[], dryRun = false
   const valid = splitRows(rows, report);
   await insertBatched("staff_profiles", valid.map((r) => ({
     rowNumber: r.rowNumber,
-    payload: { ...r.parsed },
+    payload: {
+      ...r.parsed,
+      department_scope: r.parsed!.department_id ? "specific" : "specific",
+    },
   })), report);
+
+  const withDept = valid.filter((r) => r.parsed?.department_id);
+  if (withDept.length) {
+    const empNums = withDept.map((r) => r.parsed!.employee_number);
+    const { data: profiles } = await sb
+      .from("staff_profiles")
+      .select("id, employee_number")
+      .in("employee_number", empNums);
+    const byEmp = new Map((profiles ?? []).map((p: { id: string; employee_number: string }) => [p.employee_number, p.id]));
+    const links = withDept.flatMap((r) => {
+      const profileId = byEmp.get(r.parsed!.employee_number);
+      const depId = r.parsed!.department_id;
+      return profileId && depId ? [{ staff_profile_id: profileId, department_id: depId }] : [];
+    });
+    if (links.length) {
+      await sb.from("staff_profile_departments").upsert(links, {
+        onConflict: "staff_profile_id,department_id",
+        ignoreDuplicates: true,
+      });
+    }
+  }
   return report;
 }
 

@@ -253,19 +253,89 @@ export const getFacultyMember = createServerFn({ method: "POST" })
 
 const STAFF_ROLES = ["admin", "system_admin", "dean", "hr_officer"];
 const ALLOWED_STAFF_ROLE_TYPES = ["registrar", "student_affairs", "finance_officer", "hr_officer"] as const;
+type StaffDepartmentScope = "all" | "specific";
+
+function normalizeStaffDepartmentInput(input: {
+  department_scope?: StaffDepartmentScope;
+  department_ids?: string[];
+  department_id?: string | null;
+}): { scope: StaffDepartmentScope; ids: string[] } {
+  const scope: StaffDepartmentScope = input.department_scope === "all" ? "all" : "specific";
+  let ids = [...new Set(input.department_ids ?? [])];
+  if (scope === "specific" && ids.length === 0 && input.department_id) {
+    ids = [input.department_id];
+  }
+  return { scope, ids };
+}
+
+async function syncStaffDepartmentScope(
+  profileId: string,
+  scope: StaffDepartmentScope,
+  departmentIds: string[],
+): Promise<void> {
+  if (scope === "all") {
+    await supabaseAdmin
+      .from("staff_profile_departments")
+      .delete()
+      .eq("staff_profile_id", profileId);
+    const { error } = await supabaseAdmin
+      .from("staff_profiles")
+      .update({ department_scope: "all", department_id: null, updated_at: new Date().toISOString() } as any)
+      .eq("id", profileId);
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  const ids = [...new Set(departmentIds)];
+  await supabaseAdmin
+    .from("staff_profile_departments")
+    .delete()
+    .eq("staff_profile_id", profileId);
+
+  if (ids.length) {
+    const { error: linkErr } = await supabaseAdmin
+      .from("staff_profile_departments")
+      .insert(ids.map((department_id) => ({ staff_profile_id: profileId, department_id })));
+    if (linkErr) throw new Error(linkErr.message);
+  }
+
+  const { error } = await supabaseAdmin
+    .from("staff_profiles")
+    .update({
+      department_scope: "specific",
+      department_id: ids[0] ?? null,
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", profileId);
+  if (error) throw new Error(error.message);
+}
+
+const staffDepartmentFieldsSchema = z.object({
+  department_scope: z.enum(["all", "specific"]).default("specific"),
+  department_ids: z.array(z.string().uuid()).default([]),
+  department_id: z.string().uuid().optional().nullable(),
+}).superRefine((data, ctx) => {
+  const { scope, ids } = normalizeStaffDepartmentInput(data);
+  if (scope === "specific" && ids.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "يجب اختيار قسم واحد على الأقل عند تحديد «أقسام محددة»",
+      path: ["department_ids"],
+    });
+  }
+});
 
 const createStaffSchema = z.object({
   employee_number: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/),
   full_name_ar: z.string().trim().min(2).max(160),
   full_name_en: z.string().trim().max(160).optional().nullable(),
-  department_id: z.string().uuid().optional().nullable(),
   job_title: z.string().trim().min(1).max(120),
   role_type: z.enum(ALLOWED_STAFF_ROLE_TYPES),
   email: z.string().trim().email().max(160).optional().or(z.literal("")).nullable(),
   phone: z.string().trim().max(32).optional().nullable(),
   status: z.enum(["active", "inactive"]).default("active"),
   create_login: z.boolean().default(false),
-});
+}).and(staffDepartmentFieldsSchema);
 
 export const createStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -280,13 +350,16 @@ export const createStaffMember = createServerFn({ method: "POST" })
       .maybeSingle();
     if (existing) throw new Error("الرقم الوظيفي مستخدم مسبقاً");
 
+    const { scope, ids } = normalizeStaffDepartmentInput(data);
+
     const { data: profile, error: pErr } = await supabaseAdmin
       .from("staff_profiles")
       .insert({
         employee_number: data.employee_number,
         full_name_ar: data.full_name_ar,
         full_name_en: data.full_name_en || null,
-        department_id: data.department_id || null,
+        department_scope: scope,
+        department_id: scope === "all" ? null : ids[0] ?? null,
         job_title: data.job_title,
         role_type: data.role_type,
         status: data.status,
@@ -295,6 +368,8 @@ export const createStaffMember = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (pErr || !profile) throw new Error(`تعذّر إنشاء الملف: ${pErr?.message ?? ""}`);
+
+    await syncStaffDepartmentScope(profile.id, scope, ids);
 
     let credentials: { email: string; password: string } | null = null;
 
@@ -343,13 +418,12 @@ const updateStaffSchema = z.object({
   id: z.string().uuid(),
   full_name_ar: z.string().trim().min(2).max(160),
   full_name_en: z.string().trim().max(160).optional().nullable(),
-  department_id: z.string().uuid().optional().nullable(),
   job_title: z.string().trim().min(1).max(120),
   role_type: z.enum(ALLOWED_STAFF_ROLE_TYPES),
   email: z.string().trim().email().max(160).optional().or(z.literal("")).nullable(),
   phone: z.string().trim().max(32).optional().nullable(),
   status: z.enum(["active", "inactive"]),
-});
+}).and(staffDepartmentFieldsSchema);
 
 export const updateStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -360,12 +434,13 @@ export const updateStaffMember = createServerFn({ method: "POST" })
       .from("staff_profiles").select("*").eq("id", data.id).maybeSingle();
     if (!old) throw new Error("الموظف غير موجود");
 
+    const { scope, ids } = normalizeStaffDepartmentInput(data);
+
     const { error } = await supabaseAdmin
       .from("staff_profiles")
       .update({
         full_name_ar: data.full_name_ar,
         full_name_en: data.full_name_en || null,
-        department_id: data.department_id || null,
         job_title: data.job_title,
         role_type: data.role_type,
         status: data.status,
@@ -373,6 +448,8 @@ export const updateStaffMember = createServerFn({ method: "POST" })
       } as any)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
+
+    await syncStaffDepartmentScope(data.id, scope, ids);
 
     // Sync role: if role_type changed and account exists, swap user_roles
     if ((old as any).role_type !== data.role_type && (old as any).user_id) {
@@ -410,7 +487,24 @@ export const getStaffMember = createServerFn({ method: "POST" })
       .eq("id", data.id).maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("الموظف غير موجود");
-    return row;
+
+    const { data: deptLinks } = await supabaseAdmin
+      .from("staff_profile_departments")
+      .select("department_id")
+      .eq("staff_profile_id", data.id);
+
+    const linkedIds = (deptLinks ?? []).map((l: { department_id: string }) => l.department_id);
+    const department_ids = linkedIds.length
+      ? linkedIds
+      : (row as any).department_id
+        ? [(row as any).department_id as string]
+        : [];
+
+    return {
+      ...row,
+      department_scope: ((row as any).department_scope as StaffDepartmentScope) ?? "specific",
+      department_ids,
+    };
   });
 
 // ---------- People stats (for dashboard cards) ----------

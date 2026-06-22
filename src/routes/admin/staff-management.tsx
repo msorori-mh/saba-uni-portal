@@ -14,6 +14,10 @@ import {
   getPeopleLookups, createStaffMember, updateStaffMember, getStaffMember,
 } from "@/lib/admin-people.functions";
 import { CredentialsSlip, Section, Field, useBusyError, type CredentialsSlipData } from "@/components/admin/people/shared";
+import {
+  StaffDepartmentScopeFields,
+  type StaffDepartmentScope,
+} from "@/components/admin/people/staff-department-scope";
 
 export const Route = createFileRoute("/admin/staff-management")({
   head: () => ({ meta: [{ title: "إدارة الموظفين — لوحة الإدارة" }] }),
@@ -69,7 +73,13 @@ function StaffManagementPage() {
   };
 
   const filtered = (rows ?? []).filter((r: any) => {
-    if (departmentId !== "all" && r.department_id !== departmentId) return false;
+    if (departmentId !== "all") {
+      const matchesDept =
+        r.department_scope === "all"
+        || (r.department_ids ?? []).includes(departmentId)
+        || r.department_id === departmentId;
+      if (!matchesDept) return false;
+    }
     if (roleType !== "all" && r.role_type !== roleType) return false;
     if (hasAccount === "yes" && !r.user_id) return false;
     if (hasAccount === "no" && r.user_id) return false;
@@ -158,6 +168,7 @@ function StaffManagementPage() {
                   <th className="px-4 py-3 text-right font-bold">الاسم</th>
                   <th className="px-4 py-3 text-right font-bold">الرقم الوظيفي</th>
                   <th className="px-4 py-3 text-right font-bold">الوظيفة</th>
+                  <th className="px-4 py-3 text-right font-bold">نطاق الأقسام</th>
                   <th className="px-4 py-3 text-right font-bold">الدور</th>
                   <th className="px-4 py-3 text-right font-bold">حساب الدخول</th>
                   <th className="px-4 py-3 text-right font-bold">الحالة</th>
@@ -173,6 +184,9 @@ function StaffManagementPage() {
                       <td className="px-4 py-3 font-bold">{r.full_name_ar}</td>
                       <td className="px-4 py-3 font-mono text-xs">{r.employee_number || "—"}</td>
                       <td className="px-4 py-3 text-xs">{r.job_title || "—"}</td>
+                      <td className="px-4 py-3 text-xs" title={r.department_names_title}>
+                        {r.department_label || "—"}
+                      </td>
                       <td className="px-4 py-3 text-xs">
                         <span className="inline-block rounded bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-bold">
                           {roleTypeLabel(r.role_type)}
@@ -305,7 +319,8 @@ function AddStaffModal({
     employee_number: "",
     full_name_ar: "",
     full_name_en: "",
-    department_id: "",
+    department_scope: "specific" as StaffDepartmentScope,
+    department_ids: [] as string[],
     job_title: "",
     role_type: "registrar" as typeof STAFF_ROLE_TYPES[number]["value"],
     email: "",
@@ -318,12 +333,15 @@ function AddStaffModal({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.department_scope === "specific" && form.department_ids.length === 0) {
+      setErr("يجب اختيار قسم واحد على الأقل عند تحديد «أقسام محددة»");
+      return;
+    }
     setBusy(true); setErr(null);
     try {
       const res = await createFn({ data: {
         ...form,
         full_name_en: form.full_name_en || undefined,
-        department_id: form.department_id || undefined,
         email: form.email || undefined,
         phone: form.phone || undefined,
       } as any });
@@ -373,13 +391,13 @@ function AddStaffModal({
                   placeholder="مثل: أمين سجلات"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
               </Field>
-              <Field label="القسم">
-                <select value={form.department_id} onChange={(e) => update("department_id", e.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                  <option value="">— بدون —</option>
-                  {lookups.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
-                </select>
-              </Field>
+              <StaffDepartmentScopeFields
+                departments={lookups.departments}
+                scope={form.department_scope}
+                departmentIds={form.department_ids}
+                onScopeChange={(scope) => update("department_scope", scope)}
+                onDepartmentIdsChange={(ids) => update("department_ids", ids)}
+              />
               <Field label="البريد الإلكتروني">
                 <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} dir="ltr"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
@@ -450,10 +468,12 @@ function EditStaffModal({
 
   const [form, setForm] = useState<any>(null);
   if (staff && !form) {
+    const scope = ((staff as any).department_scope === "all" ? "all" : "specific") as StaffDepartmentScope;
     setForm({
       full_name_ar: (staff as any).full_name_ar ?? "",
       full_name_en: (staff as any).full_name_en ?? "",
-      department_id: (staff as any).department_id ?? "",
+      department_scope: scope,
+      department_ids: (staff as any).department_ids ?? [],
       job_title: (staff as any).job_title ?? "",
       role_type: (staff as any).role_type ?? "registrar",
       email: "",
@@ -466,6 +486,10 @@ function EditStaffModal({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.department_scope === "specific" && form.department_ids.length === 0) {
+      setErr("يجب اختيار قسم واحد على الأقل عند تحديد «أقسام محددة»");
+      return;
+    }
     setBusy(true); setErr(null);
     try {
       await updateFn({ data: { id: staffId, ...form } });
@@ -517,13 +541,13 @@ function EditStaffModal({
                   </select>
                 </Field>
                 {lookups && (
-                  <Field label="القسم">
-                    <select value={form.department_id} onChange={(e) => update("department_id", e.target.value)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                      <option value="">— بدون —</option>
-                      {lookups.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
-                    </select>
-                  </Field>
+                  <StaffDepartmentScopeFields
+                    departments={lookups.departments}
+                    scope={form.department_scope}
+                    departmentIds={form.department_ids}
+                    onScopeChange={(scope) => update("department_scope", scope)}
+                    onDepartmentIdsChange={(ids) => update("department_ids", ids)}
+                  />
                 )}
                 <Field label="الحالة">
                   <select value={form.status} onChange={(e) => update("status", e.target.value)}
