@@ -36,11 +36,17 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup JDK 17 (Temurin)
+      - name: Setup JDK 21 (Temurin)
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version: "21"
+          cache: gradle
+
+      - name: Verify Java
+        run: |
+          java -version
+          javac -version
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
