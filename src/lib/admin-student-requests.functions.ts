@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { officialDocumentUrls } from "@/lib/site-url.server";
 import {
   auditLogToTimelineEvent,
   buildEffectTimelineEvents,
@@ -79,14 +80,6 @@ async function assertRequestsAdmin(userId: string) {
     STUDENT_REQUESTS_ADMIN_ROLES,
     "ليس لديك صلاحية إدارة طلبات الطلاب",
   );
-}
-
-function portalSiteUrl(): string {
-  return (
-    process.env.SITE_URL ??
-    process.env.VITE_SITE_URL ??
-    "https://quboolye.com"
-  ).replace(/\/$/, "");
 }
 
 type EquivalencyCourseRow = {
@@ -686,11 +679,11 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
           verification_code?: string;
         } | null;
         if (doc?.id && doc.document_number && doc.verification_code) {
-          const base = portalSiteUrl();
+          const urls = officialDocumentUrls(doc.id, doc.verification_code);
           document_number = doc.document_number;
           verification_code = doc.verification_code;
-          document_url = `${base}/document-view/${doc.id}`;
-          verify_url = `${base}/verify-document?code=${encodeURIComponent(doc.verification_code)}`;
+          document_url = urls.document_url;
+          verify_url = urls.verify_url;
         }
       }
     }

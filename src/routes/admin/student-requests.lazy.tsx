@@ -261,12 +261,23 @@ function AdminRequestsPage() {
       toast.success("تم تحديث الحالة");
       qc.invalidateQueries({ queryKey: ["admin-requests-overview"] });
       if (selected?.id === id) {
-        setSelected({
-          ...selected,
-          status,
-          rejection_reason: result.rejection_reason ?? null,
-          _detailsLoaded: selected._detailsLoaded,
-        });
+        if (status === "approved" && selected.request_type === "official_transcript") {
+          const details = await detailsFn({ data: { requestId: id } });
+          setSelected({
+            ...selected,
+            ...details,
+            status,
+            rejection_reason: result.rejection_reason ?? null,
+            _detailsLoaded: true,
+          });
+        } else {
+          setSelected({
+            ...selected,
+            status,
+            rejection_reason: result.rejection_reason ?? null,
+            _detailsLoaded: selected._detailsLoaded,
+          });
+        }
       }
 
       if ((status === "approved" || status === "rejected") && result.email) {

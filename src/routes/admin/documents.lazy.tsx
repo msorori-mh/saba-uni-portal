@@ -221,6 +221,8 @@ function IssueDialog({ onClose, onIssued }: { onClose: () => void; onIssued: () 
             document_type: TYPE_LABEL[docType] ?? docType,
             document_number: result.document_number,
             verification_code: result.verification_code ?? "",
+            document_url: result.document_url ?? null,
+            verify_url: result.verify_url ?? null,
           },
           relatedEntityType: "official_document",
           relatedEntityId: result.id ?? null,
