@@ -45,7 +45,7 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
 
       - name: Install dependencies (bun)
         run: bun install --frozen-lockfile
@@ -69,6 +69,10 @@ jobs:
             echo "android/gradlew present — skipping cap add android"
           fi
 
+      - name: Verify Android platform skeleton
+        run: |
+          test -f android/gradlew || (echo "gradlew missing after cap add" && exit 1)
+          ls -la android/gradlew
 
       - name: Capacitor sync
         run: ./node_modules/.bin/cap sync android
