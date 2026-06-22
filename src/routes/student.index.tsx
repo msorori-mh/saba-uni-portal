@@ -383,10 +383,6 @@ function StudentDashboard() {
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
               <ScheduleSection rows={schedule} />
             </LazyMount>
-
-            <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
-              ستتوفر الخدمات الأكاديمية الأخرى (الدرجات، الرسوم، الطلبات) في المراحل القادمة.
-            </div>
           </>
         )}
       </main>
