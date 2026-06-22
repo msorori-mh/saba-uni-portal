@@ -159,6 +159,7 @@ type AdminReq = {
   grade_appeal_details: GradeAppealDetails | null;
   grade_appeal_section_max: number | null;
   official_transcript_details: OfficialTranscriptDetails | null;
+  official_transcript_summary: ExtraChanceSummary | null;
   attachments: { id: string; file_url: string; file_name: string }[];
   _detailsLoaded?: boolean;
 };
@@ -207,6 +208,7 @@ function AdminRequestsPage() {
         grade_appeal_details: null,
         grade_appeal_section_max: null,
         official_transcript_details: null,
+        official_transcript_summary: null,
         attachments: [],
         _detailsLoaded: false,
       }));
@@ -500,6 +502,12 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         return;
       }
     }
+    if (status === "approved" && req.request_type === "official_transcript") {
+      if (req.official_transcript_summary && !req.official_transcript_summary.can_approve) {
+        toast.error(req.official_transcript_summary.block_reason ?? "لا يمكن اعتماد طلب السجل الأكاديمي");
+        return;
+      }
+    }
     setBusy(true);
     await onUpdateStatus(
       req.id,
@@ -724,6 +732,11 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                 {req.extra_chance_summary.block_reason ?? "لا يمكن اعتماد طلب الفرصة — تحقق من التفاصيل والسياق الأكاديمي."}
               </div>
             )}
+            {req.request_type === "official_transcript" && req.official_transcript_summary && !req.official_transcript_summary.can_approve && (
+              <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2">
+                {req.official_transcript_summary.block_reason}
+              </div>
+            )}
             {req.status === "submitted" && (
               <button disabled={busy} onClick={() => act("under_review")} className="w-full text-xs bg-amber-500 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90">
                 <Clock className="h-3.5 w-3.5" /> بدء المراجعة
@@ -745,6 +758,9 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                     !req.transfer_details
                     || (req.transfer_summary != null && !req.transfer_summary.can_approve)
                   ))
+                  || (req.request_type === "official_transcript"
+                    && req.official_transcript_summary != null
+                    && !req.official_transcript_summary.can_approve)
                 }
                 onClick={() => act("approved")}
                 className="text-xs bg-emerald-600 text-white inline-flex items-center justify-center gap-1 px-3 py-2 rounded hover:opacity-90 disabled:opacity-50"
