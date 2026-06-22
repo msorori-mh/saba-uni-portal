@@ -96,6 +96,25 @@ export const COMMUNICATIONS_ADMIN_ROLES = [
 /** Roles allowed to access executive dashboard analytics. */
 export const EXEC_ROLES = ["admin", "system_admin", "dean", "registrar"] as const;
 
+/** Roles allowed to view Operations Center (`/admin/operations`). */
+export const OPERATIONS_ROLES = ["system_admin", "admin"] as const;
+
+/** Roles allowed to view admin reports (`/admin/reports`). */
+export const REPORTS_ROLES = [
+  "system_admin",
+  "admin",
+  "dean",
+  "registrar",
+  "finance_officer",
+  "student_affairs",
+] as const;
+
+/** Roles allowed to read automation center settings/previews. */
+export const AUTOMATION_READ_ROLES = ["admin", "system_admin", "registrar", "dean"] as const;
+
+/** Roles allowed to manage automation settings. */
+export const AUTOMATION_MANAGE_ROLES = ["admin", "system_admin"] as const;
+
 /** Roles allowed read-only access to student records in the admin panel. */
 export const STUDENT_READ_ROLES = [
   "admin",

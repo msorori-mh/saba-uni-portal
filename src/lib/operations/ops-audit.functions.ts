@@ -2,6 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAnyRole, OPERATIONS_ROLES } from "@/lib/authz.server";
 
 const schema = z.object({
   action: z.enum(["operations_viewed", "backup_status_viewed", "recovery_runbook_viewed"]),
@@ -14,6 +15,11 @@ export const logOperationsEvent = createServerFn({ method: "POST" })
   .inputValidator((input: z.infer<typeof schema>) => schema.parse(input))
   .handler(async ({ data, context }) => {
     try {
+      await assertAnyRole(
+        context.userId,
+        OPERATIONS_ROLES,
+        "ليس لديك صلاحية تسجيل أحداث مركز العمليات",
+      );
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const sb = context.supabase as any;
       await sb.rpc("log_audit", {
