@@ -351,20 +351,52 @@ export const listUsers = createServerFn({ method: "POST" })
     // staff
     const { data: rows, count, error } = await buildSelect(
       "staff_profiles",
-      "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, role_type, job_title",
+      "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, department_scope, role_type, job_title",
       "employee_number",
     );
     if (error) throw new Error(error.message);
+    const profileIds = (rows ?? []).map((r: any) => r.id as string);
+    const [{ data: deptLinks }, { data: deptRows }] = await Promise.all([
+      profileIds.length
+        ? supabaseAdmin.from("staff_profile_departments").select("staff_profile_id, department_id").in("staff_profile_id", profileIds)
+        : Promise.resolve({ data: [] as any[] }),
+      supabaseAdmin.from("departments").select("id, name_ar"),
+    ]);
+    const deptNameById = new Map((deptRows ?? []).map((d: any) => [d.id, d.name_ar]));
+    const linksByProfile = new Map<string, string[]>();
+    for (const link of deptLinks ?? []) {
+      const arr = linksByProfile.get(link.staff_profile_id) ?? [];
+      arr.push(link.department_id);
+      linksByProfile.set(link.staff_profile_id, arr);
+    }
     const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
     const { data: roles } = userIds.length
       ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
       : { data: [] as any[] };
-    const mapped = (rows ?? []).map((r: any) => ({
-      ...r,
-      identifier: r.employee_number ?? "",
-      email: r.user_id && r.employee_number ? emailFor("staff", r.employee_number) : null,
-      roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
-    }));
+    const mapped = (rows ?? []).map((r: any) => {
+      const department_ids = linksByProfile.get(r.id)
+        ?? (r.department_id ? [r.department_id] : []);
+      const department_names = department_ids
+        .map((id: string) => deptNameById.get(id))
+        .filter(Boolean) as string[];
+      const department_label = r.department_scope === "all"
+        ? "كل أقسام الكلية"
+        : department_names.length === 0
+          ? "—"
+          : department_names.length === 1
+            ? department_names[0]
+            : `${department_names.length} أقسام`;
+      return {
+        ...r,
+        department_ids,
+        department_names,
+        department_label,
+        department_names_title: department_names.length > 1 ? department_names.join("، ") : undefined,
+        identifier: r.employee_number ?? "",
+        email: r.user_id && r.employee_number ? emailFor("staff", r.employee_number) : null,
+        roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
+      };
+    });
     return Object.assign(mapped, { __total: count ?? mapped.length, __page: page, __pageSize: pageSize });
   });
 
