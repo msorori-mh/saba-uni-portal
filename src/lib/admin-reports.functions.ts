@@ -1,11 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole } from "@/lib/authz.server";
+import { assertAnyRole, REPORTS_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-const REPORTS_ROLES = [
-  "system_admin", "admin", "dean", "registrar", "finance_officer", "student_affairs",
-] as const;
 
 async function assertReportsAccess(userId: string) {
   await assertAnyRole(

@@ -4,9 +4,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
-  assertAnyRole,
+  assertAutomationManage,
+  assertAutomationRead,
   AUTOMATION_MANAGE_ROLES,
-  AUTOMATION_READ_ROLES,
+  userRoles,
 } from "@/lib/authz.server";
 
 export type AutomationKey = "registration" | "progression" | "graduation" | "finance";
@@ -19,27 +20,6 @@ export type AutomationSetting = {
   updated_at: string;
   updated_by: string | null;
 };
-
-async function getRoles(sb: any, userId: string): Promise<string[]> {
-  const { data } = await sb.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r: { role: string }) => r.role);
-}
-
-async function assertAutomationRead(userId: string): Promise<void> {
-  await assertAnyRole(
-    userId,
-    AUTOMATION_READ_ROLES,
-    "ليست لديك صلاحية الوصول إلى مركز الأتمتة.",
-  );
-}
-
-async function assertAutomationManage(userId: string): Promise<void> {
-  await assertAnyRole(
-    userId,
-    AUTOMATION_MANAGE_ROLES,
-    "ليست لديك صلاحية تعديل إعدادات الأتمتة.",
-  );
-}
 
 async function logAudit(sb: any, action: string, payload: unknown) {
   try {
@@ -62,7 +42,7 @@ export const getAutomationSettings = createServerFn({ method: "POST" })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
     await assertAutomationRead(context.userId);
-    const roles = await getRoles(sb, context.userId);
+    const roles = await userRoles(context.userId);
     const { data, error } = await sb
       .from("automation_settings")
       .select("key, enabled, config, updated_at, updated_by")
@@ -172,9 +152,6 @@ export const getAutomationPreview = createServerFn({ method: "POST" })
     });
 
     // ---- Graduation preview (already-graduated + active as near-graduation proxy) ----
-    // True eligibility requires the academic-status engine (heavy); preview shows
-    // recorded graduates and current active students as the upper bound. Detailed
-    // candidate lists live in /admin/graduation-candidates.
     const gradEligibleCount = standingCounts.graduated;
     const nearGradCount = standingCounts.active;
 

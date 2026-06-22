@@ -1,18 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-async function assertLeadership(sb: any, userId: string, write = false) {
-  const allowed = write ? ["admin", "system_admin"] : ["admin", "system_admin", "dean"];
-  const { data } = await sb.from("user_roles").select("role").eq("user_id", userId).in("role", allowed);
-  if (!data || data.length === 0) throw new Error("ليس لديك صلاحية");
-}
+import {
+  assertOrgStructureRead,
+  assertOrgStructureWrite,
+} from "@/lib/authz.server";
 
 export const listOrgStructure = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const sb = context.supabase as any;
-    await assertLeadership(sb, context.userId, false);
+    await assertOrgStructureRead(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: positions }, { data: mappings }, { data: assignments }, authList] = await Promise.all([
@@ -38,8 +35,7 @@ export const listOrgStructure = createServerFn({ method: "GET" })
 export const listAssignableUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const sb = context.supabase as any;
-    await assertLeadership(sb, context.userId, true);
+    await assertOrgStructureWrite(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [auth, faculty, staff] = await Promise.all([
       supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
@@ -63,8 +59,7 @@ export const assignPosition = createServerFn({ method: "POST" })
       notes: z.string().max(500).optional(),
     }).parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
-    await assertLeadership(sb, context.userId, true);
+    await assertOrgStructureWrite(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // End any existing active assignment for this position
@@ -88,8 +83,7 @@ export const endAssignment = createServerFn({ method: "POST" })
   .inputValidator((input: { assignment_id: string }) =>
     z.object({ assignment_id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const sb = context.supabase as any;
-    await assertLeadership(sb, context.userId, true);
+    await assertOrgStructureWrite(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.from("position_assignments").update({
       is_active: false,

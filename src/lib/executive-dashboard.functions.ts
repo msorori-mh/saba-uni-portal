@@ -1,7 +1,7 @@
 // Phase 11H.1A: Executive Dashboard — read-only audit logging + scope helper.
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertExecRole } from "@/lib/authz.server";
+import { assertExecRole, userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 async function tableCount(
@@ -47,11 +47,7 @@ export const getExecutiveScope = createServerFn({ method: "POST" })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = context.supabase as any;
-    const { data: roles } = await sb
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", context.userId);
-    const roleList: string[] = (roles ?? []).map((r: { role: string }) => r.role);
+    const roleList = await userRoles(context.userId);
     const isAdmin = roleList.includes("admin") || roleList.includes("system_admin");
     const isDean = roleList.includes("dean");
     const isDeptHead = roleList.includes("department_head");
