@@ -95,6 +95,15 @@ async function linkFacultyProfileToAuth(profileId: string, userId: string): Prom
   if (error) throw new Error(error.message);
 }
 
+/** Server-safe staff link (service_role RPC — bypasses sensitive-field trigger). */
+async function linkStaffProfileToAuth(profileId: string, userId: string): Promise<void> {
+  const { error } = await supabaseAdmin.rpc("link_staff_profile_account", {
+    p_profile_id: profileId,
+    p_auth_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+}
+
 /**
  * Relink profile → auth user.
  * Faculty: service_role RPC (PR #14 used context.supabase UPDATE which could fail without JWT).
@@ -118,11 +127,7 @@ async function relinkProfileUserId(
     if (error) throw new Error(error.message);
     return;
   }
-  const { error } = await actorSupabase(context)
-    .from("staff_profiles")
-    .update({ user_id: userId, must_change_password: true } as any)
-    .eq("id", profileId);
-  if (error) throw new Error(error.message);
+  await linkStaffProfileToAuth(profileId, userId);
 }
 
 /** Last-resort repair: only touches the auth.users row for the given official email. */
@@ -469,11 +474,11 @@ export const createAccount = createServerFn({ method: "POST" })
         uErr = { message: e instanceof Error ? e.message : String(e) };
       }
     } else {
-      const { error } = await actorSupabase(context)
-        .from(table)
-        .update({ user_id: newUserId, must_change_password: true, status: "active" } as any)
-        .eq("id", data.profile_id);
-      uErr = error ? { message: error.message } : null;
+      try {
+        await linkStaffProfileToAuth(data.profile_id, newUserId!);
+      } catch (e) {
+        uErr = { message: e instanceof Error ? e.message : String(e) };
+      }
     }
     if (uErr) {
       if (!linkedExisting && newUserId) {
