@@ -71,6 +71,13 @@ export function renderTemplate(
       const body = `${greet(ctx)}
         <p>نفيدكم بأنه قد <strong style="color:#059669;">تم اعتماد طلبكم</strong> ذو العنوان:</p>
         <p style="background:#f3f4f6;padding:10px 14px;border-radius:8px;font-weight:bold;">${esc(ctx.request_title)}</p>
+        ${ctx.document_number ? `<p>تم إصدار وثيقتكم الرسمية:</p>
+        <ul>
+          <li>رقم الوثيقة: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${esc(ctx.document_number)}</code></li>
+          ${ctx.verification_code ? `<li>رمز التحقق: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${esc(ctx.verification_code)}</code></li>` : ""}
+        </ul>
+        ${ctx.document_url ? `<p><a href="${esc(ctx.document_url)}" style="color:#0f1b3d;font-weight:bold;">عرض الوثيقة (طباعة / PDF + QR)</a></p>` : ""}
+        ${ctx.verify_url ? `<p><a href="${esc(ctx.verify_url)}" style="color:#0f1b3d;">التحقق من صحة الوثيقة</a></p>` : ""}` : ""}
         <p>يمكنكم متابعة تفاصيل الطلب من خلال البوابة الإلكترونية للطالب.</p>`;
       return { subject: title, html: shell(title, body, ctx), text: `تم اعتماد طلبكم: ${ctx.request_title}` };
     }
