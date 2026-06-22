@@ -37,6 +37,42 @@ const requestStatusSchema = z.enum([
   "draft", "submitted", "under_review", "returned", "approved", "rejected", "cancelled",
 ]);
 
+const OFFICIAL_TRANSCRIPT_READINESS_MSG =
+  "لا يمكن إصدار سجل أكاديمي رسمي قبل إدخال واعتماد درجات الطالب.";
+
+async function studentHasApprovedGrades(studentProfileId: string): Promise<boolean> {
+  const { data: enrs, error: enrErr } = await supabaseAdmin
+    .from("student_enrollments")
+    .select("id")
+    .eq("student_profile_id", studentProfileId);
+  if (enrErr) throw new Error(enrErr.message);
+  const enrollmentIds = (enrs ?? []).map((e) => e.id);
+  if (enrollmentIds.length === 0) return false;
+
+  const { count, error: gradeErr } = await supabaseAdmin
+    .from("student_grades")
+    .select("id", { count: "exact", head: true })
+    .in("student_enrollment_id", enrollmentIds)
+    .eq("status", "approved");
+  if (gradeErr) throw new Error(gradeErr.message);
+  return (count ?? 0) > 0;
+}
+
+async function validateOfficialTranscriptApproval(studentProfileId: string) {
+  const ready = await studentHasApprovedGrades(studentProfileId);
+  if (!ready) {
+    return { can_approve: false, block_reason: OFFICIAL_TRANSCRIPT_READINESS_MSG };
+  }
+  return { can_approve: true, block_reason: null as string | null };
+}
+
+async function assertOfficialTranscriptCanApprove(studentProfileId: string) {
+  const summary = await validateOfficialTranscriptApproval(studentProfileId);
+  if (!summary.can_approve) {
+    throw new Error(summary.block_reason ?? OFFICIAL_TRANSCRIPT_READINESS_MSG);
+  }
+}
+
 async function assertRequestsAdmin(userId: string) {
   await assertAnyRole(
     userId,
@@ -356,6 +392,7 @@ function emptyRequestDetailsPayload(attachments: { id: string; request_id: strin
     grade_appeal_details: null,
     grade_appeal_section_max: null as number | null,
     official_transcript_details: null,
+    official_transcript_summary: null as { can_approve: boolean; block_reason: string | null } | null,
     attachments,
   };
 }
@@ -521,7 +558,14 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
           .eq("request_id", id)
           .maybeSingle();
         if (error) throw new Error(`تعذر تحميل تفاصيل طلب السجل: ${error.message}`);
-        return { ...base, official_transcript_details: official_transcript_details ?? null };
+        const official_transcript_summary = await validateOfficialTranscriptApproval(
+          reqMeta.student_profile_id,
+        );
+        return {
+          ...base,
+          official_transcript_details: official_transcript_details ?? null,
+          official_transcript_summary,
+        };
       }
       default:
         return base;
@@ -590,6 +634,10 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
 
     if (data.status === "approved" && reqRow.request_type === "transfer") {
       await assertTransferCanApprove(data.requestId, reqRow.student_profile_id);
+    }
+
+    if (data.status === "approved" && reqRow.request_type === "official_transcript") {
+      await assertOfficialTranscriptCanApprove(reqRow.student_profile_id);
     }
 
     const patch: Record<string, unknown> = {
