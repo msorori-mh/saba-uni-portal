@@ -6,8 +6,8 @@
 |---|---|
 | App Name | بوابة الطالب |
 | Package / appId | `usr.student` |
-| Min SDK | 23 (Android 6.0) |
-| Target SDK | 35 (Android 15) |
+| Min SDK | 24 (Android 7.0) |
+| Target SDK | 36 (Android 16) |
 | Mode | Remote shell → `https://saba-uni-portal.lovable.app/mobile/student-login` |
 | HTTPS | إجباري (`cleartext = false`) |
 | Auth / RLS / API | بدون تغيير — نفس Supabase الحالي |
