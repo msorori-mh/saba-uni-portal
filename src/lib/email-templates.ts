@@ -128,7 +128,9 @@ export function renderTemplate(
           <li>رقم الوثيقة: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${esc(ctx.document_number)}</code></li>
           <li>رمز التحقق: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;">${esc(ctx.verification_code)}</code></li>
         </ul>
-        <p>يمكنكم تنزيل الوثيقة من بوابة الطالب أو التحقق من صحتها عبر صفحة التحقق العامة.</p>`;
+        ${ctx.document_url ? `<p><a href="${esc(ctx.document_url)}" style="color:#0f1b3d;font-weight:bold;">عرض الوثيقة (طباعة / PDF + QR)</a></p>` : ""}
+        ${ctx.verify_url ? `<p><a href="${esc(ctx.verify_url)}" style="color:#0f1b3d;">التحقق من صحة الوثيقة</a></p>` : ""}
+        <p>يمكنكم أيضاً الوصول للوثيقة من بوابة الطالب.</p>`;
       return { subject: title, html: shell(title, body, ctx), text: `تم إصدار وثيقة ${ctx.document_type} رقم ${ctx.document_number}` };
     }
     case "password_reset": {

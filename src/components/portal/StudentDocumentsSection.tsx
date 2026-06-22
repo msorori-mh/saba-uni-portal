@@ -74,7 +74,7 @@ export function StudentDocumentsSection({ studentProfileId }: { studentProfileId
               <div className="text-[11px] text-muted-foreground">
                 رمز التحقق: <span className="font-mono">{d.verification_code}</span>
               </div>
-              <div className="mt-1 grid grid-cols-3 gap-1.5">
+              <div className="mt-1 grid grid-cols-2 gap-1.5">
                 <Link
                   to="/document-view/$id"
                   params={{ id: d.id }}
@@ -82,6 +82,14 @@ export function StudentDocumentsSection({ studentProfileId }: { studentProfileId
                   className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-bold text-primary-foreground"
                 >
                   <Eye className="h-3.5 w-3.5" /> عرض
+                </Link>
+                <Link
+                  to="/verify-document"
+                  search={{ code: d.verification_code }}
+                  target="_blank"
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" /> تحقق
                 </Link>
                 <button
                   type="button"

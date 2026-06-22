@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { officialDocumentUrls } from "@/lib/site-url.server";
 
 export const DOCUMENT_ADMIN_ROLES = [
   "system_admin",
@@ -117,10 +118,20 @@ export const issueOfficialDocument = createServerFn({ method: "POST" })
       .eq("id", data.studentProfileId)
       .maybeSingle();
 
+    const docId = result?.id as string | undefined;
+    const document_number = result?.document_number as string | undefined;
+    const verification_code = result?.verification_code as string | undefined;
+    const urls =
+      docId && verification_code
+        ? officialDocumentUrls(docId, verification_code)
+        : { document_url: null as string | null, verify_url: null as string | null };
+
     return {
-      id: result?.id as string | undefined,
-      document_number: result?.document_number as string | undefined,
-      verification_code: result?.verification_code as string | undefined,
+      id: docId,
+      document_number,
+      verification_code,
+      document_url: urls.document_url,
+      verify_url: urls.verify_url,
       student_email: student?.email ?? null,
       student_name: student?.full_name_ar ?? null,
     };
