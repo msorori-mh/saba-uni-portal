@@ -3904,6 +3904,10 @@ export type Database = {
         Args: { _discount_id: string }
         Returns: undefined
       }
+      student_has_approved_grades_for_transcript: {
+        Args: { _student_profile_id: string }
+        Returns: boolean
+      }
       user_can_see_announcement: {
         Args: { _ann_id: string; _uid: string }
         Returns: boolean
