@@ -311,10 +311,13 @@ export const createStaffMember = createServerFn({ method: "POST" })
         throw new Error(`تم إنشاء الملف لكن تعذّر إنشاء حساب الدخول: ${cErr?.message ?? ""}`);
       }
       const newUserId = created.user.id;
-      await context.supabase
-        .from("staff_profiles")
-        .update({ user_id: newUserId, must_change_password: true } as any)
-        .eq("id", profile.id);
+      const { error: linkErr } = await supabaseAdmin.rpc("link_staff_profile_account", {
+        p_profile_id: profile.id,
+        p_auth_user_id: newUserId,
+      });
+      if (linkErr) {
+        throw new Error(`تم إنشاء الملف لكن تعذّر ربط حساب الدخول: ${linkErr.message}`);
+      }
       await supabaseAdmin.from("user_roles").insert({ user_id: newUserId, role: data.role_type as any });
       credentials = { email: loginEmail, password };
     }
