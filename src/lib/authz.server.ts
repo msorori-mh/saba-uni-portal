@@ -15,6 +15,65 @@ export const ROLE_PRIORITY = [
   "student",
 ] as const;
 
+/** Roles with unrestricted audit_logs read (matches RLS audit_logs_select_privileged). */
+export const AUDIT_LOG_FULL_READ_ROLES = ["admin", "system_admin"] as const;
+
+/** Entity types visible to dean/vice_dean via RLS (audit_logs_select_dean_scoped). */
+export const AUDIT_LOG_DEAN_ENTITY_TYPES = [
+  "student_request",
+  "student",
+  "enrollment",
+  "grade",
+  "document",
+  "academic_status",
+  "report",
+  "executive_dashboard",
+  "academic_operation",
+  "schedule",
+  "faculty",
+  "import",
+  "faculty_account",
+  "communication",
+] as const;
+
+/** Entity types visible to registrar/student_affairs via RLS. */
+export const AUDIT_LOG_REGISTRAR_ENTITY_TYPES = [
+  "student_request",
+  "student",
+  "import",
+  "enrollment",
+  "document",
+  "academic_operation",
+  "communication",
+  "schedule",
+] as const;
+
+/** Entity types visible to hr_officer via RLS. */
+export const AUDIT_LOG_HR_ENTITY_TYPES = [
+  "staff",
+  "faculty",
+  "user",
+  "faculty_account",
+] as const;
+
+/** Sensitive entity types — full-read roles only (no scoped policy). */
+export const AUDIT_LOG_RESTRICTED_ENTITY_TYPES = [
+  "role",
+  "pilot",
+  "operations",
+  "automation",
+  "email",
+  "security",
+] as const;
+
+export async function assertAuditLogFullRead(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    AUDIT_LOG_FULL_READ_ROLES,
+    "ليس لديك صلاحية عرض سجل التدقيق الكامل",
+  );
+}
+
 /** Roles allowed to trigger transactional notification emails. */
 export const EMAIL_SENDER_ROLES = [
   "admin",
