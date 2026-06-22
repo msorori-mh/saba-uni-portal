@@ -23,7 +23,7 @@
 - يعمل **يدوياً** من تبويب Actions على GitHub (`workflow_dispatch`).
 - يعمل **تلقائياً** عند كل push على فرع `main` يمسّ كود الواجهة أو `capacitor.config.ts`.
 - يبني Debug APK + Release APK (unsigned) + Release AAB (unsigned).
-- إذا لم يوجد مجلد `android/` فإن الـ Workflow يستدعي `npx cap add android` تلقائياً.
+- إذا لم يوجد `android/gradlew`، يحذف مجلد `android/` القديم (إن وُجد) ويستدعي `cap add android` تلقائياً.
 
 ### تشغيل البناء يدوياً
 
