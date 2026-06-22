@@ -3864,10 +3864,6 @@ export type Database = {
         Args: { p_auth_user_id: string; p_profile_id: string }
         Returns: undefined
       }
-      link_staff_profile_account: {
-        Args: { p_auth_user_id: string; p_profile_id: string }
-        Returns: undefined
-      }
       link_student_user_account: {
         Args: { _profile_id: string; _target_user_id: string }
         Returns: Json
