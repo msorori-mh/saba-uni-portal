@@ -1,10 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole } from "@/lib/authz.server";
+import { assertAuditLogFullRead } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-const AUDIT_LOG_ROLES = ["system_admin", "admin"] as const;
 
 export const listAuditLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -18,7 +16,7 @@ export const listAuditLogs = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, AUDIT_LOG_ROLES, "ليس لديك صلاحية عرض سجل التدقيق");
+    await assertAuditLogFullRead(context.userId);
     let q = supabaseAdmin
       .from("audit_logs")
       .select("*")
