@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { hasAnyRole, STUDENT_READ_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /* ----------------------------------------------------------------------- *
@@ -17,10 +18,6 @@ const PROBATION_GPA = 1.0;
 const WARNING_GPA = 2.0;
 const GOOD_GPA = 2.5;
 const NEAR_COMPLETION_PCT = 80;
-
-const PRIV_ROLES = [
-  "admin", "system_admin", "registrar", "dean", "student_affairs",
-];
 
 type Standing =
   | "good_standing" | "warning" | "probation" | "suspended" | "graduated";
@@ -81,17 +78,6 @@ export type StudentProgressDTO = {
 };
 
 /* ----------------------- auth helpers ----------------------- */
-
-async function rolesOf(userId: string): Promise<string[]> {
-  const { data } = await supabaseAdmin
-    .from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r: any) => r.role as string);
-}
-
-async function hasPriv(userId: string): Promise<boolean> {
-  const roles = await rolesOf(userId);
-  return roles.some((r) => PRIV_ROLES.includes(r));
-}
 
 async function isOwnerStudent(userId: string, studentProfileId: string): Promise<boolean> {
   const { data } = await supabaseAdmin
@@ -509,7 +495,7 @@ export const getStudentProgress = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context;
     const allowed =
-      (await hasPriv(userId)) ||
+      (await hasAnyRole(userId, STUDENT_READ_ROLES)) ||
       (await isOwnerStudent(userId, data.studentProfileId)) ||
       (await isFacultyOfStudent(userId, data.studentProfileId));
     if (!allowed) throw new Error("Forbidden");
@@ -534,7 +520,7 @@ export const searchStudents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ query: z.string().trim().max(120) }).parse(d))
   .handler(async ({ data, context }) => {
-    if (!(await hasPriv(context.userId))) throw new Error("Forbidden");
+    if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("Forbidden");
     const q = data.query.trim();
     let qb = supabaseAdmin.from("student_profiles")
       .select("id, academic_number, full_name_ar, program:programs(name_ar)")
@@ -593,7 +579,7 @@ export const getAtRiskStudents = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ListFilters.parse(d ?? {}))
   .handler(async ({ data, context }) => {
-    if (!(await hasPriv(context.userId))) throw new Error("Forbidden");
+    if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("Forbidden");
     const rows = await bulkCompute(data);
     const filtered = rows
       .filter(({ summary: x }) =>
@@ -612,7 +598,7 @@ export const getGraduationCandidates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => ListFilters.parse(d ?? {}))
   .handler(async ({ data, context }) => {
-    if (!(await hasPriv(context.userId))) throw new Error("Forbidden");
+    if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("Forbidden");
     const rows = await bulkCompute(data);
     const candidates = rows
       .map((r) => r.summary)
@@ -629,7 +615,7 @@ export const getGraduationCandidates = createServerFn({ method: "POST" })
 export const getProgressDashboardKpis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    if (!(await hasPriv(context.userId))) throw new Error("Forbidden");
+    if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("Forbidden");
     const rows = await bulkCompute({ limit: 500 });
     const summaries = rows.map((r) => r.summary);
     const withGpa = summaries.filter((s) => s.progress.cumulative_gpa > 0);
@@ -654,7 +640,7 @@ export const getProgressDashboardKpis = createServerFn({ method: "POST" })
 export const getAdminProgressKpisFast = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    if (!(await hasPriv(context.userId))) throw new Error("Forbidden");
+    if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("Forbidden");
     const { data, error } = await context.supabase.rpc("get_admin_progress_kpis" as never, { _limit: 500 } as never);
     if (error) throw new Error(error.message);
     const k = (data ?? {}) as {
@@ -673,7 +659,7 @@ export const getAdminProgressKpisFast = createServerFn({ method: "POST" })
 export const getAcademicProgressFilterLookups = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    if (!(await hasPriv(context.userId))) throw new Error("ليس لديك صلاحية");
+    if (!(await hasAnyRole(context.userId, STUDENT_READ_ROLES))) throw new Error("ليس لديك صلاحية");
     const [p, d, l] = await Promise.all([
       supabaseAdmin.from("programs").select("id, name_ar").eq("is_active", true),
       supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true),

@@ -115,6 +115,18 @@ export const AUTOMATION_READ_ROLES = ["admin", "system_admin", "registrar", "dea
 /** Roles allowed to manage automation settings. */
 export const AUTOMATION_MANAGE_ROLES = ["admin", "system_admin"] as const;
 
+/** Roles allowed to read org structure (`/admin/org-structure`). */
+export const ORG_STRUCTURE_READ_ROLES = ["admin", "system_admin", "dean"] as const;
+
+/** Roles allowed to assign org structure positions. */
+export const ORG_STRUCTURE_WRITE_ROLES = ["admin", "system_admin"] as const;
+
+/** Roles allowed to read pilot center. */
+export const PILOT_READ_ROLES = ["admin", "system_admin", "dean"] as const;
+
+/** Roles allowed to manage pilot center. */
+export const PILOT_MANAGE_ROLES = ["admin", "system_admin"] as const;
+
 /** Roles allowed read-only access to student records in the admin panel. */
 export const STUDENT_READ_ROLES = [
   "admin",
@@ -171,6 +183,52 @@ export async function assertAnyRole(
 ): Promise<void> {
   const roles = await userRoles(userId);
   if (!roles.some((r) => allowed.includes(r))) throw new Error(message);
+}
+
+/** Non-throwing role check — for compound access (ownership + role). */
+export async function hasAnyRole(userId: string, allowed: readonly string[]): Promise<boolean> {
+  const roles = await userRoles(userId);
+  return roles.some((r) => allowed.includes(r));
+}
+
+export async function assertAutomationRead(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    AUTOMATION_READ_ROLES,
+    "ليست لديك صلاحية الوصول إلى مركز الأتمتة.",
+  );
+}
+
+export async function assertAutomationManage(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    AUTOMATION_MANAGE_ROLES,
+    "ليست لديك صلاحية تعديل إعدادات الأتمتة.",
+  );
+}
+
+export async function assertOrgStructureRead(userId: string): Promise<void> {
+  await assertAnyRole(userId, ORG_STRUCTURE_READ_ROLES, "ليس لديك صلاحية");
+}
+
+export async function assertOrgStructureWrite(userId: string): Promise<void> {
+  await assertAnyRole(userId, ORG_STRUCTURE_WRITE_ROLES, "ليس لديك صلاحية");
+}
+
+export async function assertPilotRead(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    PILOT_READ_ROLES,
+    "ليست لديك صلاحية الاطلاع على مركز التشغيل التجريبي.",
+  );
+}
+
+export async function assertPilotManage(userId: string): Promise<void> {
+  await assertAnyRole(
+    userId,
+    PILOT_MANAGE_ROLES,
+    "غير مصرح بتعديل إعدادات التشغيل التجريبي.",
+  );
 }
 
 export async function assertAdmin(userId: string): Promise<void> {

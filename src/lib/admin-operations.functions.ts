@@ -1,9 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole } from "@/lib/authz.server";
+import { assertAnyRole, OPERATIONS_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-
-const OPERATIONS_ROLES = ["system_admin", "admin"] as const;
 
 const BUCKETS = [
   "department-images", "events-images", "faculty-images", "news-images",

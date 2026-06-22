@@ -4,26 +4,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole, userRoles } from "@/lib/authz.server";
-
-export const PILOT_MANAGE_ROLES = ["admin", "system_admin"] as const;
-export const PILOT_READ_ROLES = ["admin", "system_admin", "dean"] as const;
-
-async function assertPilotRead(userId: string) {
-  await assertAnyRole(
-    userId,
-    PILOT_READ_ROLES,
-    "ليست لديك صلاحية الاطلاع على مركز التشغيل التجريبي.",
-  );
-}
-
-async function assertPilotManage(userId: string) {
-  await assertAnyRole(
-    userId,
-    PILOT_MANAGE_ROLES,
-    "غير مصرح بتعديل إعدادات التشغيل التجريبي.",
-  );
-}
+import {
+  assertPilotManage,
+  assertPilotRead,
+  PILOT_MANAGE_ROLES,
+  userRoles,
+} from "@/lib/authz.server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function logAudit(sb: any, action: string, payload: unknown, entityId: string | null = null) {
