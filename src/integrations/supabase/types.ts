@@ -2579,7 +2579,6 @@ export type Database = {
         Row: {
           created_at: string
           department_id: string | null
-          department_scope: string
           employee_number: string | null
           full_name_ar: string
           full_name_en: string | null
@@ -2594,7 +2593,6 @@ export type Database = {
         Insert: {
           created_at?: string
           department_id?: string | null
-          department_scope?: string
           employee_number?: string | null
           full_name_ar: string
           full_name_en?: string | null
@@ -2609,7 +2607,6 @@ export type Database = {
         Update: {
           created_at?: string
           department_id?: string | null
-          department_scope?: string
           employee_number?: string | null
           full_name_ar?: string
           full_name_en?: string | null
@@ -2627,39 +2624,6 @@ export type Database = {
             columns: ["department_id"]
             isOneToOne: false
             referencedRelation: "departments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      staff_profile_departments: {
-        Row: {
-          created_at: string
-          department_id: string
-          staff_profile_id: string
-        }
-        Insert: {
-          created_at?: string
-          department_id: string
-          staff_profile_id: string
-        }
-        Update: {
-          created_at?: string
-          department_id?: string
-          staff_profile_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "staff_profile_departments_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "departments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "staff_profile_departments_staff_profile_id_fkey"
-            columns: ["staff_profile_id"]
-            isOneToOne: false
-            referencedRelation: "staff_profiles"
             referencedColumns: ["id"]
           },
         ]
