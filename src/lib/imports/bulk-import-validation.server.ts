@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { runWithImportDb } from "@/lib/imports/import-db";
 import { loadLookups } from "@/lib/imports/lookups";
-import type { ImportType, ValidatedRow } from "@/lib/imports/types";
+import type { ImportType, ValidatedRow, ValidationResult } from "@/lib/imports/types";
 import {
   validateStudents, validateFaculty, validateStaff, validateCourses, validateStudyPlans,
   validateDepartments, validatePrograms, validateLevels, validateCourseSections,
@@ -9,46 +9,59 @@ import {
   validateStudentDiscounts, validateDocuments,
 } from "@/lib/imports/validators";
 
-export async function revalidateBulkImportRows(
+/** Server-side bulk import preview — uses supabaseAdmin via runWithImportDb (no writes). */
+export async function previewBulkImportValidation(
   type: ImportType,
-  rows: ValidatedRow[],
-): Promise<ValidatedRow[]> {
-  const rawRows = rows.map((r) => r.raw);
+  rawRows: Record<string, unknown>[],
+  updateExisting = false,
+): Promise<ValidationResult<unknown>> {
   return runWithImportDb(supabaseAdmin, async () => {
     const lookups = await loadLookups();
     switch (type) {
       case "students":
-        return (await validateStudents(rawRows, lookups)).rows;
+        return validateStudents(rawRows, lookups);
       case "faculty":
-        return (await validateFaculty(rawRows, lookups)).rows;
+        return validateFaculty(rawRows, lookups);
       case "staff":
-        return (await validateStaff(rawRows, lookups)).rows;
+        return validateStaff(rawRows, lookups);
       case "courses":
-        return (await validateCourses(rawRows, lookups)).rows;
+        return validateCourses(rawRows, lookups);
       case "study_plans":
-        return (await validateStudyPlans(rawRows, lookups)).rows;
+        return validateStudyPlans(rawRows, lookups);
       case "departments":
-        return (await validateDepartments(rawRows, lookups)).rows;
+        return validateDepartments(rawRows, lookups, updateExisting);
       case "programs":
-        return (await validatePrograms(rawRows, lookups)).rows;
+        return validatePrograms(rawRows, lookups, updateExisting);
       case "levels":
-        return (await validateLevels(rawRows, lookups)).rows;
+        return validateLevels(rawRows, lookups, updateExisting);
       case "course_sections":
-        return (await validateCourseSections(rawRows, lookups)).rows;
+        return validateCourseSections(rawRows, lookups, updateExisting);
       case "student_enrollments":
-        return (await validateStudentEnrollments(rawRows, lookups)).rows;
+        return validateStudentEnrollments(rawRows, lookups, updateExisting);
       case "student_grades":
-        return (await validateStudentGrades(rawRows, lookups)).rows;
+        return validateStudentGrades(rawRows, lookups, updateExisting);
       case "student_fees":
-        return (await validateStudentFees(rawRows, lookups)).rows;
+        return validateStudentFees(rawRows, lookups, updateExisting);
       case "student_discounts":
-        return (await validateStudentDiscounts(rawRows, lookups)).rows;
+        return validateStudentDiscounts(rawRows, lookups, updateExisting);
       case "documents":
-        return (await validateDocuments(rawRows, lookups)).rows;
+        return validateDocuments(rawRows, lookups);
       default:
         throw new Error("نوع استيراد غير مدعوم");
     }
   });
+}
+
+export async function revalidateBulkImportRows(
+  type: ImportType,
+  rows: ValidatedRow[],
+): Promise<ValidatedRow[]> {
+  const result = await previewBulkImportValidation(
+    type,
+    rows.map((r) => r.raw),
+    false,
+  );
+  return result.rows;
 }
 
 export function assertServerValidationPassed(rows: ValidatedRow[]): void {
