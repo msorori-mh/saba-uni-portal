@@ -28,6 +28,7 @@ import { executeScheduleImport } from "@/lib/imports/class-schedule.server";
 import type { ScheduleContext, ScheduleImportReport } from "@/lib/imports/class-schedule";
 import {
   assertServerValidationPassed,
+  previewBulkImportValidation,
   revalidateBulkImportRows,
 } from "@/lib/imports/bulk-import-validation.server";
 import type { ValidatedRow } from "@/lib/imports/types";
@@ -119,6 +120,29 @@ const inputSchema = z.object({
   dryRun: z.boolean().default(false),
   updateExisting: z.boolean().default(false),
 });
+
+const previewInputSchema = z.object({
+  type: importTypeSchema,
+  rows: z.array(z.record(z.string(), z.unknown())).max(5000),
+  updateExisting: z.boolean().default(false),
+});
+
+export const validateBulkImportPreview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => previewInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAnyRole(
+      context.userId,
+      IMPORT_PANEL_ROLES,
+      "ليس لديك صلاحية الوصول إلى الاستيراد",
+    );
+    await assertAnyRole(
+      context.userId,
+      IMPORT_ROLES_BY_TYPE[data.type],
+      "ليس لديك صلاحية استيراد هذا النوع من البيانات",
+    );
+    return previewBulkImportValidation(data.type, data.rows, data.updateExisting);
+  });
 
 export const runBulkImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

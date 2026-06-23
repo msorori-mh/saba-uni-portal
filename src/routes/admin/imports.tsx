@@ -8,13 +8,8 @@ import {
   Upload, Download, CheckCircle2, XCircle, Loader2, FileSpreadsheet,
   AlertTriangle, History, FileDown, FlaskConical, BarChart3, ChevronDown, ChevronUp,
 } from "lucide-react";
-import { runBulkImport, getImportStats, listImportHistory } from "@/lib/imports.functions";
-import { loadLookups } from "@/lib/imports/lookups";
+import { runBulkImport, getImportStats, listImportHistory, validateBulkImportPreview } from "@/lib/imports.functions";
 import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
-import {
-  validateStudents, validateFaculty, validateStaff, validateCourses, validateStudyPlans,
-  validateDepartments, validatePrograms, validateLevels, validateCourseSections, validateStudentEnrollments, validateStudentGrades, validateStudentFees, validateStudentDiscounts, validateDocuments,
-} from "@/lib/imports/validators";
 import {
   auditImportStarted, auditImportValidated, auditImportFailed,
 } from "@/lib/imports/engine";
@@ -66,9 +61,13 @@ const STEPS = [
   "التقرير",
 ] as const;
 
+const SERVER_PREVIEW_ERROR =
+  "تعذر تنفيذ التحقق على الخادم. يرجى المحاولة مرة أخرى أو التواصل مع مدير النظام.";
+
 function ImportsPage() {
   usePagePerf("/admin/imports");
   const runBulkImportFn = useServerFn(runBulkImport);
+  const previewFn = useServerFn(validateBulkImportPreview);
   const [tab, setTab] = useState<TabId>("students");
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
@@ -103,23 +102,23 @@ function ImportsPage() {
   const isSpecialTab = tab === "faculty_accounts" || tab === "class_schedule";
   const isStructureTab = !isSpecialTab && STRUCTURE_TYPES.has(tab as ImportType);
 
-  const runValidation = async (parsed: Record<string, unknown>[]) => {
-    const t = tab as ImportType;
-    const lookups = await loadLookups();
-    if (t === "students") return validateStudents(parsed, lookups);
-    if (t === "faculty") return validateFaculty(parsed, lookups);
-    if (t === "staff") return validateStaff(parsed, lookups);
-    if (t === "courses") return validateCourses(parsed, lookups);
-    if (t === "study_plans") return validateStudyPlans(parsed, lookups);
-    if (t === "departments") return validateDepartments(parsed, lookups, updateExisting);
-    if (t === "programs") return validatePrograms(parsed, lookups, updateExisting);
-    if (t === "levels") return validateLevels(parsed, lookups, updateExisting);
-    if (t === "course_sections") return validateCourseSections(parsed, lookups, updateExisting);
-    if (t === "student_enrollments") return validateStudentEnrollments(parsed, lookups, updateExisting);
-    if (t === "student_grades") return validateStudentGrades(parsed, lookups, updateExisting);
-    if (t === "student_fees") return validateStudentFees(parsed, lookups, updateExisting);
-    if (t === "student_discounts") return validateStudentDiscounts(parsed, lookups, updateExisting);
-    return validateDocuments(parsed, lookups);
+  const runServerPreview = async (
+    parsed: Record<string, unknown>[],
+    updateExistingFlag: boolean,
+  ): Promise<ValidationResult<unknown>> => {
+    try {
+      return await previewFn({
+        data: {
+          type: tab as ImportType,
+          rows: parsed,
+          updateExisting: updateExistingFlag,
+        },
+      });
+    } catch (e) {
+      const msg = (e as Error)?.message ?? "";
+      if (/صلاحية|Unauthorized/i.test(msg)) throw e;
+      throw new Error(SERVER_PREVIEW_ERROR);
+    }
   };
 
   const onFile = async (f: File) => {
@@ -130,14 +129,17 @@ function ImportsPage() {
     try {
       const parsed = await parseExcel(f);
       setRows(parsed);
-      const res = await runValidation(parsed);
+      const res = await runServerPreview(parsed, updateExisting);
       setValidation(res);
       void auditImportValidated(t, f.name, {
         total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
       });
     } catch (e) {
       void auditImportFailed(t, f.name, (e as Error).message);
-      alert("تعذر قراءة الملف: " + (e as Error).message);
+      const msg = (e as Error).message;
+      alert(msg === SERVER_PREVIEW_ERROR || /صلاحية|Unauthorized/i.test(msg)
+        ? msg
+        : "تعذر قراءة الملف: " + msg);
     } finally {
       setValidating(false);
     }
@@ -151,18 +153,10 @@ function ImportsPage() {
     if (!rows || !isStructureTab) return;
     setValidating(true);
     try {
-      const t = tab as ImportType;
-      const lookups = await loadLookups();
-      let res: ValidationResult<unknown>;
-      if (t === "departments") res = await validateDepartments(rows, lookups, next);
-      else if (t === "programs") res = await validatePrograms(rows, lookups, next);
-      else if (t === "levels") res = await validateLevels(rows, lookups, next);
-      else if (t === "course_sections") res = await validateCourseSections(rows, lookups, next);
-      else if (t === "student_enrollments") res = await validateStudentEnrollments(rows, lookups, next);
-      else if (t === "student_grades") res = await validateStudentGrades(rows, lookups, next);
-      else if (t === "student_fees") res = await validateStudentFees(rows, lookups, next);
-      else res = await validateStudentDiscounts(rows, lookups, next);
+      const res = await runServerPreview(rows, next);
       setValidation(res);
+    } catch (e) {
+      alert((e as Error).message);
     } finally {
       setValidating(false);
     }
