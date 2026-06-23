@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "cleanup:pilot": "bun run scripts/run-pilot-cleanup.ts"
+    "cleanup:pilot": "bun run scripts/run-pilot-cleanup.ts",
+    "security:test": "bun tests/security/security-test-runner.ts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.0",
