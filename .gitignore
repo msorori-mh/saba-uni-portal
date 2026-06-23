@@ -20,6 +20,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+tests/security/.env.local
+tests/security/.env.setup.local
 
 # Wrangler / Cloudflare
 .wrangler/
