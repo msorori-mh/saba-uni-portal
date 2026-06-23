@@ -13,22 +13,26 @@ Automated / semi-automated **read-only** security probes derived from
 
 ## Quick start (staging)
 
-1. Copy the example env file and fill values locally (do not commit):
+### A. One-time setup (writes to staging)
 
-   ```bash
-   cp tests/security/security-test.config.example.env tests/security/.env.local
-   ```
+```bash
+cp tests/security/staging-setup.example.env tests/security/.env.setup.local
+# Fill staging URLs, anon key, service role key, SEC_TEST_PASSWORD
+# Set SEC_SETUP_ALLOW_STAGING_WRITE=true
 
-2. Export variables or point the runner at your file:
+export SEC_SETUP_ENV_FILE=tests/security/.env.setup.local
+bun run security:setup-staging
+```
 
-   ```bash
-   export SEC_TEST_ENV_FILE=tests/security/.env.local
-   bun run security:test
-   ```
+### B. Run security harness
 
-3. For server-function probes, copy function IDs from browser DevTools
-   (`/_serverFn/<hash>` requests on the same staging build) into the optional
-   `SEC_TEST_FN_*` variables.
+```bash
+cp tests/security/security-test.config.example.env tests/security/.env.local
+# Or use auto-generated .env.local from setup script
+
+export SEC_TEST_ENV_FILE=tests/security/.env.local
+bun run security:test
+```
 
 ## Required environment
 
