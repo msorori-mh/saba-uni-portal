@@ -8,8 +8,11 @@ import {
   Upload, Download, CheckCircle2, XCircle, Loader2, FileSpreadsheet,
   AlertTriangle, History, FileDown, FlaskConical, BarChart3, ChevronDown, ChevronUp,
 } from "lucide-react";
-import { runBulkImport, getImportStats, listImportHistory, validateBulkImportPreview } from "@/lib/imports.functions";
-import { parseExcel, downloadTemplate } from "@/lib/imports/templates";
+import {
+  runBulkImport, getImportStats, listImportHistory, validateBulkImportPreview,
+  getStudentImportContextOptions,
+} from "@/lib/imports.functions";
+import { parseExcel, downloadTemplate, type StudentTemplateOverrides } from "@/lib/imports/templates";
 import {
   auditImportStarted, auditImportValidated, auditImportFailed,
 } from "@/lib/imports/engine";
@@ -64,10 +67,131 @@ const STEPS = [
 const SERVER_PREVIEW_ERROR =
   "تعذر تنفيذ التحقق على الخادم. يرجى المحاولة مرة أخرى أو التواصل مع مدير النظام.";
 
+const STUDENT_CONTEXT_REQUIRED_MESSAGE = "يرجى إكمال إعدادات قالب الطلاب قبل التنزيل.";
+const STUDENT_CONTEXT_PARTIAL_MESSAGE =
+  "يرجى إكمال إعدادات قالب الطلاب قبل رفع الملف أو امسح الاختيارات للمتابعة بالقالب العام.";
+
+const STUDENT_CONTEXT_MISMATCH_MESSAGES = {
+  department_code: "قيمة القسم في الملف لا تطابق القسم المحدد في إعدادات الاستيراد.",
+  program_code: "قيمة البرنامج في الملف لا تطابق البرنامج المحدد في إعدادات الاستيراد.",
+  academic_level: "قيمة المستوى في الملف لا تطابق المستوى المحدد في إعدادات الاستيراد.",
+  academic_year: "قيمة العام الجامعي في الملف لا تطابق العام المحدد في إعدادات الاستيراد.",
+  semester: "قيمة الفصل في الملف لا تطابق الفصل المحدد في إعدادات الاستيراد.",
+} as const;
+
+type StudentImportContextState = {
+  studySystem: string;
+  departmentId: string;
+  programId: string;
+  levelId: string;
+  academicYearId: string;
+  semesterId: string;
+};
+
+type StudentImportContextOptions = {
+  studySystems: Array<{ value: string; label: string }>;
+  departments: Array<{ id?: string; code?: string; name: string; study_system?: string | null }>;
+  programs: Array<{
+    id?: string;
+    code?: string;
+    name: string;
+    department_id?: string | null;
+    department_code?: string | null;
+    study_system?: string | null;
+  }>;
+  levels: Array<{ id?: string; code?: string; name?: string; level_number?: number }>;
+  academicYears: Array<{ id?: string; name: string; is_current?: boolean }>;
+  semesters: Array<{ id?: string; name: string; code?: string; academic_year_id?: string | null; is_current?: boolean }>;
+};
+
+const EMPTY_STUDENT_IMPORT_CONTEXT: StudentImportContextState = {
+  studySystem: "",
+  departmentId: "",
+  programId: "",
+  levelId: "",
+  academicYearId: "",
+  semesterId: "",
+};
+
+const cellText = (value: unknown) => (value == null ? "" : String(value).trim());
+const compareKey = (value: unknown) => cellText(value).toLowerCase();
+
+function hasAnyStudentImportContextValue(context: StudentImportContextState) {
+  return Object.values(context).some(Boolean);
+}
+
+function isStudentContextClientError(message: string) {
+  return message === STUDENT_CONTEXT_REQUIRED_MESSAGE
+    || message === STUDENT_CONTEXT_PARTIAL_MESSAGE
+    || Object.values(STUDENT_CONTEXT_MISMATCH_MESSAGES).includes(
+      message as (typeof STUDENT_CONTEXT_MISMATCH_MESSAGES)[keyof typeof STUDENT_CONTEXT_MISMATCH_MESSAGES],
+    );
+}
+
+function resolveStudentTemplateOverrides(
+  context: StudentImportContextState,
+  options?: StudentImportContextOptions,
+): StudentTemplateOverrides | null {
+  if (!options) return null;
+  const department = options.departments.find((item) => item.id === context.departmentId);
+  const program = options.programs.find((item) => item.id === context.programId);
+  const level = options.levels.find((item) => item.id === context.levelId);
+  const academicYear = options.academicYears.find((item) => item.id === context.academicYearId);
+  const semester = options.semesters.find((item) => item.id === context.semesterId);
+  if (!department || !program || !level || !academicYear || !semester) return null;
+
+  const academicLevel = level.level_number != null
+    ? String(level.level_number)
+    : (level.code || level.name || "");
+
+  return {
+    study_system: context.studySystem,
+    department_code: department.code || department.name,
+    program_code: program.code || "",
+    academic_level: academicLevel,
+    academic_year: academicYear.name,
+    semester: semester.code || semester.name,
+  };
+}
+
+function applyStudentContextToRows(
+  rows: Record<string, unknown>[],
+  context: StudentTemplateOverrides,
+): Record<string, unknown>[] {
+  const specs: Array<{
+    column: keyof typeof STUDENT_CONTEXT_MISMATCH_MESSAGES;
+    value: string | undefined;
+    message: string;
+  }> = [
+    { column: "department_code", value: context.department_code, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.department_code },
+    { column: "program_code", value: context.program_code, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.program_code },
+    { column: "academic_level", value: context.academic_level, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.academic_level },
+    { column: "academic_year", value: context.academic_year, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.academic_year },
+    { column: "semester", value: context.semester, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.semester },
+  ];
+
+  return rows.map((row) => {
+    const next = { ...row };
+    specs.forEach(({ column, value, message }) => {
+      if (!value) return;
+      const existing = cellText(next[column]);
+      if (!existing) {
+        next[column] = value;
+        return;
+      }
+      if (compareKey(existing) !== compareKey(value)) {
+        throw new Error(message);
+      }
+    });
+    return next;
+  });
+}
+
 function ImportsPage() {
   usePagePerf("/admin/imports");
   const runBulkImportFn = useServerFn(runBulkImport);
   const previewFn = useServerFn(validateBulkImportPreview);
+  const studentContextOptionsFn = useServerFn(getStudentImportContextOptions);
   const [tab, setTab] = useState<TabId>("students");
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
@@ -80,7 +204,17 @@ function ImportsPage() {
   const [dryRunCompleted, setDryRunCompleted] = useState(false);
   const [updateExisting, setUpdateExisting] = useState(false);
   const [perfMs, setPerfMs] = useState<number | null>(null);
+  const [studentImportContext, setStudentImportContext] = useState<StudentImportContextState>(
+    EMPTY_STUDENT_IMPORT_CONTEXT,
+  );
   const qc = useQueryClient();
+
+  const { data: rawStudentContextOptions, isLoading: studentContextOptionsLoading } = useQuery({
+    queryKey: ["student-import-context-options"],
+    queryFn: () => studentContextOptionsFn({ data: {} }),
+    enabled: tab === "students",
+  });
+  const studentContextOptions = rawStudentContextOptions as StudentImportContextOptions | undefined;
 
   const reset = () => {
     setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
@@ -101,6 +235,19 @@ function ImportsPage() {
 
   const isSpecialTab = tab === "faculty_accounts" || tab === "class_schedule";
   const isStructureTab = !isSpecialTab && STRUCTURE_TYPES.has(tab as ImportType);
+  const studentTemplateOverrides = useMemo(
+    () => resolveStudentTemplateOverrides(studentImportContext, studentContextOptions),
+    [studentImportContext, studentContextOptions],
+  );
+  const studentContextReady = Boolean(
+    studentImportContext.studySystem
+    && studentImportContext.departmentId
+    && studentImportContext.programId
+    && studentImportContext.levelId
+    && studentImportContext.academicYearId
+    && studentImportContext.semesterId
+    && studentTemplateOverrides,
+  );
 
   const runServerPreview = async (
     parsed: Record<string, unknown>[],
@@ -121,6 +268,28 @@ function ImportsPage() {
     }
   };
 
+  const updateStudentImportContext = (next: StudentImportContextState) => {
+    setStudentImportContext(next);
+    reset();
+  };
+
+  const downloadCustomStudentTemplate = () => {
+    if (!studentContextReady || !studentTemplateOverrides) {
+      alert(STUDENT_CONTEXT_REQUIRED_MESSAGE);
+      return;
+    }
+    void downloadTemplate("students", studentTemplateOverrides);
+  };
+
+  const prepareRowsForPreview = (parsed: Record<string, unknown>[]) => {
+    if (tab !== "students") return parsed;
+    if (!hasAnyStudentImportContextValue(studentImportContext)) return parsed;
+    if (!studentContextReady || !studentTemplateOverrides) {
+      throw new Error(STUDENT_CONTEXT_PARTIAL_MESSAGE);
+    }
+    return applyStudentContextToRows(parsed, studentTemplateOverrides);
+  };
+
   const onFile = async (f: File) => {
     if (isSpecialTab) return;
     const t = tab as ImportType;
@@ -128,8 +297,9 @@ function ImportsPage() {
     setValidating(true);
     try {
       const parsed = await parseExcel(f);
-      setRows(parsed);
-      const res = await runServerPreview(parsed, updateExisting);
+      const rowsForPreview = prepareRowsForPreview(parsed);
+      setRows(rowsForPreview);
+      const res = await runServerPreview(rowsForPreview, updateExisting);
       setValidation(res);
       void auditImportValidated(t, f.name, {
         total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
@@ -137,7 +307,7 @@ function ImportsPage() {
     } catch (e) {
       void auditImportFailed(t, f.name, (e as Error).message);
       const msg = (e as Error).message;
-      alert(msg === SERVER_PREVIEW_ERROR || /صلاحية|Unauthorized/i.test(msg)
+      alert(isStudentContextClientError(msg) || msg === SERVER_PREVIEW_ERROR || /صلاحية|Unauthorized/i.test(msg)
         ? msg
         : "تعذر قراءة الملف: " + msg);
     } finally {
@@ -241,12 +411,23 @@ function ImportsPage() {
         <ScheduleImportPanel />
       ) : (
       <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
+        {tab === "students" && (
+          <StudentImportContextWizard
+            options={studentContextOptions}
+            value={studentImportContext}
+            isLoading={studentContextOptionsLoading}
+            isReady={studentContextReady}
+            onChange={updateStudentImportContext}
+            onDownload={downloadCustomStudentTemplate}
+          />
+        )}
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => downloadTemplate(tab as ImportType)}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold"
           >
-            <Download className="h-4 w-4" /> تنزيل القالب
+            <Download className="h-4 w-4" /> {tab === "students" ? "تنزيل القالب العام" : "تنزيل القالب"}
           </button>
 
           <label className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground cursor-pointer hover:opacity-90">
@@ -355,6 +536,255 @@ function ImportsPage() {
 
       <ImportHistory />
     </div>
+  );
+}
+
+type StudentSelectOption = { value: string; label: string };
+
+function StudentImportContextWizard({
+  options,
+  value,
+  isLoading,
+  isReady,
+  onChange,
+  onDownload,
+}: {
+  options?: StudentImportContextOptions;
+  value: StudentImportContextState;
+  isLoading: boolean;
+  isReady: boolean;
+  onChange: (next: StudentImportContextState) => void;
+  onDownload: () => void;
+}) {
+  const studySystems = options?.studySystems ?? [];
+  const departments = options?.departments ?? [];
+  const programs = options?.programs ?? [];
+  const levels = options?.levels ?? [];
+  const academicYears = options?.academicYears ?? [];
+
+  const filteredDepartments = useMemo(() => departments.filter((department) =>
+    !department.study_system || department.study_system === value.studySystem,
+  ), [departments, value.studySystem]);
+
+  const selectedDepartment = departments.find((department) => department.id === value.departmentId);
+
+  const filteredPrograms = useMemo(() => {
+    if (!selectedDepartment) return [];
+    return programs.filter((program) => {
+      const matchesDepartmentId = Boolean(selectedDepartment.id && program.department_id === selectedDepartment.id);
+      const selectedDepartmentCode = selectedDepartment.code || selectedDepartment.name;
+      const matchesDepartmentCode = Boolean(
+        program.department_code
+        && selectedDepartmentCode
+        && compareKey(program.department_code) === compareKey(selectedDepartmentCode),
+      );
+      const matchesStudySystem = !program.study_system || program.study_system === value.studySystem;
+      return matchesStudySystem && (matchesDepartmentId || matchesDepartmentCode);
+    });
+  }, [programs, selectedDepartment, value.studySystem]);
+
+  const filteredSemesters = useMemo(() => {
+    const semesters = options?.semesters ?? [];
+    if (!value.academicYearId) return [];
+    return semesters.filter((semester) =>
+      !semester.academic_year_id || semester.academic_year_id === value.academicYearId,
+    );
+  }, [options?.semesters, value.academicYearId]);
+
+  const setStudySystem = (studySystem: string) => {
+    onChange({
+      ...EMPTY_STUDENT_IMPORT_CONTEXT,
+      studySystem,
+    });
+  };
+
+  const setDepartment = (departmentId: string) => {
+    onChange({
+      ...EMPTY_STUDENT_IMPORT_CONTEXT,
+      studySystem: value.studySystem,
+      departmentId,
+    });
+  };
+
+  const setProgram = (programId: string) => {
+    onChange({
+      ...EMPTY_STUDENT_IMPORT_CONTEXT,
+      studySystem: value.studySystem,
+      departmentId: value.departmentId,
+      programId,
+    });
+  };
+
+  const setLevel = (levelId: string) => {
+    onChange({
+      ...EMPTY_STUDENT_IMPORT_CONTEXT,
+      studySystem: value.studySystem,
+      departmentId: value.departmentId,
+      programId: value.programId,
+      levelId,
+    });
+  };
+
+  const setAcademicYear = (academicYearId: string) => {
+    onChange({
+      ...EMPTY_STUDENT_IMPORT_CONTEXT,
+      studySystem: value.studySystem,
+      departmentId: value.departmentId,
+      programId: value.programId,
+      levelId: value.levelId,
+      academicYearId,
+    });
+  };
+
+  const setSemester = (semesterId: string) => {
+    onChange({
+      ...value,
+      semesterId,
+    });
+  };
+
+  return (
+    <div className="rounded-xl border border-gold/40 bg-gold/5 p-4 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-extrabold text-primary">
+            إعداد قالب بيانات الطلاب
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            اختر سياق الاستيراد من بيانات النظام لتجهيز القالب بالقسم والبرنامج والمستوى والعام والفصل الصحيحين.
+          </p>
+        </div>
+        {isLoading && (
+          <span className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> تحميل الخيارات...
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <StudentContextSelect
+          label="1. نوع نظام الدراسة"
+          value={value.studySystem}
+          onChange={setStudySystem}
+          options={studySystems.map((system) => ({ value: system.value, label: system.label }))}
+          disabled={isLoading}
+          placeholder="اختر نظام الدراسة"
+        />
+        <StudentContextSelect
+          label="2. القسم"
+          value={value.departmentId}
+          onChange={setDepartment}
+          options={filteredDepartments.map((department) => ({
+            value: department.id || department.name,
+            label: department.name,
+          }))}
+          disabled={isLoading || !value.studySystem}
+          placeholder="اختر القسم"
+        />
+        <StudentContextSelect
+          label="3. البرنامج"
+          value={value.programId}
+          onChange={setProgram}
+          options={filteredPrograms.map((program) => ({
+            value: program.id || program.code || program.name,
+            label: program.code ? `${program.name} (${program.code})` : program.name,
+          }))}
+          disabled={isLoading || !value.departmentId}
+          placeholder="اختر البرنامج"
+        />
+        <StudentContextSelect
+          label="4. المستوى"
+          value={value.levelId}
+          onChange={setLevel}
+          options={levels.map((level) => ({
+            value: level.id || level.code || String(level.level_number ?? level.name ?? ""),
+            label: `${level.name ?? "المستوى"}${level.level_number != null ? ` — ${level.level_number}` : ""}`,
+          }))}
+          disabled={isLoading || !value.programId}
+          placeholder="اختر المستوى"
+        />
+        <StudentContextSelect
+          label="5. العام الجامعي"
+          value={value.academicYearId}
+          onChange={setAcademicYear}
+          options={academicYears.map((year) => ({
+            value: year.id || year.name,
+            label: year.is_current ? `${year.name} — الحالي` : year.name,
+          }))}
+          disabled={isLoading || !value.levelId}
+          placeholder="اختر العام الجامعي"
+        />
+        <StudentContextSelect
+          label="6. الفصل الدراسي"
+          value={value.semesterId}
+          onChange={setSemester}
+          options={filteredSemesters.map((semester) => ({
+            value: semester.id || semester.code || semester.name,
+            label: semester.code ? `${semester.name} (${semester.code})` : semester.name,
+          }))}
+          disabled={isLoading || !value.academicYearId}
+          placeholder="اختر الفصل الدراسي"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 border-t border-gold/30 pt-3">
+        <button
+          type="button"
+          onClick={onDownload}
+          aria-disabled={!isReady}
+          className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white ${
+            isReady ? "bg-primary hover:opacity-90" : "bg-muted text-muted-foreground"
+          }`}
+        >
+          <Download className="h-4 w-4" /> تنزيل قالب الطلاب المخصص
+        </button>
+        {!isReady && (
+          <span className="text-xs text-muted-foreground">
+            يرجى إكمال الاختيارات بالترتيب قبل تنزيل القالب المخصص.
+          </span>
+        )}
+        {value.departmentId && filteredPrograms.length === 0 && (
+          <span className="text-xs font-bold text-destructive">
+            لا توجد برامج مرتبطة بالقسم المحدد.
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StudentContextSelect({
+  label,
+  value,
+  onChange,
+  options,
+  disabled,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: StudentSelectOption[];
+  disabled?: boolean;
+  placeholder: string;
+}) {
+  return (
+    <label className="space-y-1 text-xs font-bold text-primary">
+      <span>{label}</span>
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:bg-secondary disabled:text-muted-foreground"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

@@ -254,6 +254,83 @@ export const getImportStats = createServerFn({ method: "POST" })
     return { total, today: today.count ?? 0, completed: okCount, failed: failed.count ?? 0, rate };
   });
 
+export const getStudentImportContextOptions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAnyRole(
+      context.userId,
+      IMPORT_PANEL_ROLES,
+      "ليس لديك صلاحية الوصول إلى الاستيراد",
+    );
+
+    const [depsRes, progsRes, levelsRes, yearsRes, semsRes] = await Promise.all([
+      supabaseAdmin
+        .from("departments")
+        .select("id, name_ar")
+        .eq("is_active", true)
+        .order("sort_order"),
+      supabaseAdmin
+        .from("programs")
+        .select("id, code, name_ar, department_id")
+        .eq("is_active", true)
+        .order("sort_order"),
+      supabaseAdmin
+        .from("academic_levels")
+        .select("id, name, level_number")
+        .eq("status", "active")
+        .order("level_number"),
+      supabaseAdmin
+        .from("academic_years")
+        .select("id, name, is_current")
+        .order("start_date", { ascending: false }),
+      supabaseAdmin
+        .from("semesters")
+        .select("id, name, code, academic_year_id, is_current")
+        .order("start_date", { ascending: false }),
+    ]);
+
+    const firstError = [depsRes, progsRes, levelsRes, yearsRes, semsRes].find((res) => res.error)?.error;
+    if (firstError) throw new Error(firstError.message);
+
+    return {
+      studySystems: [
+        { value: "general", label: "نظام عام" },
+        { value: "private_expense", label: "نفقة خاصة" },
+      ],
+      departments: (depsRes.data ?? []).map((department) => ({
+        id: department.id,
+        code: department.name_ar,
+        name: department.name_ar,
+        study_system: null as string | null,
+      })),
+      programs: (progsRes.data ?? []).map((program) => ({
+        id: program.id,
+        code: program.code,
+        name: program.name_ar,
+        department_id: program.department_id,
+        study_system: null as string | null,
+      })),
+      levels: (levelsRes.data ?? []).map((level) => ({
+        id: level.id,
+        code: String(level.level_number),
+        name: level.name,
+        level_number: level.level_number,
+      })),
+      academicYears: (yearsRes.data ?? []).map((year) => ({
+        id: year.id,
+        name: year.name,
+        is_current: year.is_current,
+      })),
+      semesters: (semsRes.data ?? []).map((semester) => ({
+        id: semester.id,
+        name: semester.name,
+        code: semester.code,
+        academic_year_id: semester.academic_year_id,
+        is_current: semester.is_current,
+      })),
+    };
+  });
+
 export const listImportHistory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
