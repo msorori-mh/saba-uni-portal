@@ -8,6 +8,15 @@ type TemplateDef = {
   sheetName: string;
 };
 
+export type StudentTemplateOverrides = {
+  study_system?: string;
+  department_code?: string;
+  program_code?: string;
+  academic_level?: string;
+  academic_year?: string;
+  semester?: string;
+};
+
 const TEMPLATES: Record<ImportType, TemplateDef> = {
   students: {
     sheetName: "Students",
@@ -207,16 +216,43 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
 };
 
-export async function downloadTemplate(type: ImportType) {
+function applyStudentTemplateOverrides(
+  def: TemplateDef,
+  overrides?: StudentTemplateOverrides,
+): (string | number)[] {
+  if (!overrides) return def.sample;
+  const byHeader: Partial<Record<keyof StudentTemplateOverrides, string>> = {
+    department_code: overrides.department_code,
+    program_code: overrides.program_code,
+    academic_level: overrides.academic_level,
+    academic_year: overrides.academic_year,
+    semester: overrides.semester,
+  };
+  return def.headers.map((header, idx) => {
+    const override = byHeader[header as keyof StudentTemplateOverrides];
+    return override && override.trim() ? override : def.sample[idx];
+  });
+}
+
+export async function downloadTemplate(type: ImportType, studentOverrides?: StudentTemplateOverrides) {
   const XLSX = await loadXLSX();
   const def = TEMPLATES[type];
   const wb = XLSX.utils.book_new();
-  const wsData = [def.headers, def.sample];
+  const sample = type === "students"
+    ? applyStudentTemplateOverrides(def, studentOverrides)
+    : def.sample;
+  const wsData = [def.headers, sample];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   ws["!cols"] = def.headers.map(() => ({ wch: 22 }));
   XLSX.utils.book_append_sheet(wb, ws, def.sheetName);
 
-  const instructions = [["التعليمات"], ...def.instructions.map((i) => [i])];
+  const extraInstructions = type === "students" && studentOverrides
+    ? [
+      "تم تجهيز هذا القالب بسياق استيراد الطلاب المحدد من الواجهة.",
+      "لا تغيّر قيم department_code أو program_code أو academic_level أو academic_year أو semester إلا إذا غيّرت إعدادات الاستيراد قبل الرفع.",
+    ]
+    : [];
+  const instructions = [["التعليمات"], ...def.instructions.map((i) => [i]), ...extraInstructions.map((i) => [i])];
   const wsi = XLSX.utils.aoa_to_sheet(instructions);
   wsi["!cols"] = [{ wch: 90 }];
   XLSX.utils.book_append_sheet(wb, wsi, "Instructions");
