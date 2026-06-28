@@ -26,6 +26,14 @@ async function logAudit(input: {
   } as any);
 }
 
+async function findAuthUserIdByEmail(email: string): Promise<string | null> {
+  const { data, error } = await (supabaseAdmin as any).rpc("find_auth_user_id_by_email", {
+    p_email: email,
+  });
+  if (error) throw new Error(`تعذّر التحقق من حساب الدخول — ${error.message}`);
+  return data ? (data as string) : null;
+}
+
 // ------------ Lookups ------------
 
 export const getStudentLookups = createServerFn({ method: "GET" })
@@ -46,6 +54,128 @@ export const getStudentLookups = createServerFn({ method: "GET" })
       levels: levels.data ?? [],
       academic_years: years.data ?? [],
       semesters: sems.data ?? [],
+    };
+  });
+
+const loginBackfillPreviewSchema = z.object({
+  academicPrefix: z.string().trim().max(32).regex(/^[A-Za-z0-9_-]*$/, "بادئة الرقم الأكاديمي تحتوي على أحرف غير صحيحة").optional(),
+  department_id: z.string().uuid().optional().nullable(),
+  program_id: z.string().uuid().optional().nullable(),
+  level_id: z.string().uuid().optional().nullable(),
+  academic_year_id: z.string().uuid().optional().nullable(),
+  semester_id: z.string().uuid().optional().nullable(),
+});
+
+export const listStudentLoginBackfillCandidates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => loginBackfillPreviewSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertStudentAdmin(context.userId);
+
+    const hasExplicitFilter = Boolean(
+      data.academicPrefix
+      || data.department_id
+      || data.program_id
+      || data.level_id
+      || data.academic_year_id
+      || data.semester_id,
+    );
+    if (!hasExplicitFilter) {
+      throw new Error("اختر فلترًا واحدًا على الأقل قبل معاينة الطلاب بدون حساب.");
+    }
+
+    let scopedProfileIds: string[] | null = null;
+    if (data.level_id || data.academic_year_id || data.semester_id) {
+      let statusQuery = supabaseAdmin
+        .from("student_academic_status")
+        .select("student_profile_id")
+        .limit(5000);
+      if (data.level_id) statusQuery = statusQuery.eq("level_id", data.level_id);
+      if (data.academic_year_id) statusQuery = statusQuery.eq("academic_year_id", data.academic_year_id);
+      if (data.semester_id) statusQuery = statusQuery.eq("semester_id", data.semester_id);
+      const { data: statusRows, error: statusErr } = await statusQuery;
+      if (statusErr) throw new Error(statusErr.message);
+      scopedProfileIds = Array.from(new Set((statusRows ?? []).map((r: any) => r.student_profile_id).filter(Boolean)));
+      if (scopedProfileIds.length === 0) {
+        return { total: 0, rows: [], truncated: false };
+      }
+    }
+
+    let query = supabaseAdmin
+      .from("student_profiles")
+      .select(`
+        id,
+        academic_number,
+        full_name_ar,
+        status,
+        user_id,
+        department_id,
+        program_id,
+        departments(name_ar),
+        programs(name_ar, code)
+      `, { count: "exact" })
+      .is("user_id", null)
+      .order("academic_number", { ascending: true })
+      .limit(250);
+
+    if (data.academicPrefix) query = query.ilike("academic_number", `${data.academicPrefix}%`);
+    if (data.department_id) query = query.eq("department_id", data.department_id);
+    if (data.program_id) query = query.eq("program_id", data.program_id);
+    if (scopedProfileIds) query = query.in("id", scopedProfileIds);
+
+    const { data: profiles, error, count } = await query;
+    if (error) throw new Error(error.message);
+
+    const profileIds = (profiles ?? []).map((p: any) => p.id);
+    const statusByProfile = new Map<string, any>();
+    if (profileIds.length > 0) {
+      const { data: statuses, error: statusesErr } = await supabaseAdmin
+        .from("student_academic_status")
+        .select(`
+          student_profile_id,
+          enrollment_status,
+          updated_at,
+          academic_levels(name, level_number),
+          academic_years(name),
+          semesters(name, code)
+        `)
+        .in("student_profile_id", profileIds)
+        .order("updated_at", { ascending: false });
+      if (statusesErr) throw new Error(statusesErr.message);
+      for (const row of statuses ?? []) {
+        if (!statusByProfile.has((row as any).student_profile_id)) {
+          statusByProfile.set((row as any).student_profile_id, row);
+        }
+      }
+    }
+
+    const rows = (profiles ?? []).map((profile: any) => {
+      const academicStatus = statusByProfile.get(profile.id);
+      const level = academicStatus?.academic_levels;
+      const year = academicStatus?.academic_years;
+      const semester = academicStatus?.semesters;
+      return {
+        id: profile.id,
+        academic_number: profile.academic_number,
+        full_name_ar: profile.full_name_ar,
+        status: profile.status,
+        user_id: profile.user_id,
+        has_user_id: Boolean(profile.user_id),
+        department_name: profile.departments?.name_ar ?? null,
+        program_name: profile.programs?.name_ar ?? null,
+        program_code: profile.programs?.code ?? null,
+        level_name: level?.name ?? null,
+        level_number: level?.level_number ?? null,
+        academic_year: year?.name ?? null,
+        semester: semester?.code ?? semester?.name ?? null,
+        enrollment_status: academicStatus?.enrollment_status ?? null,
+      };
+    });
+
+    return {
+      total: count ?? rows.length,
+      rows,
+      truncated: (count ?? rows.length) > rows.length,
     };
   });
 
@@ -250,6 +380,22 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
     await assertStudentAdmin(context.userId);
 
     const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
+    const { data: profile, error: profileErr } = await supabaseAdmin
+      .from("student_profiles")
+      .select("id, academic_number, user_id")
+      .eq("id", data.profile_id)
+      .maybeSingle();
+    if (profileErr) throw new Error(profileErr.message);
+    if (!profile) throw new Error("الطالب غير موجود");
+    if (profile.user_id) throw new Error("لدى الطالب حساب دخول مسبقاً");
+    if (profile.academic_number !== data.academic_number) {
+      throw new Error("الرقم الأكاديمي لا يطابق ملف الطالب المحدد");
+    }
+    const existingAuthUserId = await findAuthUserIdByEmail(email);
+    if (existingAuthUserId) {
+      throw new Error("يوجد حساب دخول مسبق يستخدم بريد هذا الطالب");
+    }
+
     const password = generateTemporaryPassword();
 
     const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
