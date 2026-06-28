@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX, Printer,
-  GraduationCap, Upload, CheckCircle2, Copy, Unlink,
+  GraduationCap, Upload, CheckCircle2, Copy, Unlink, AlertTriangle,
 } from "lucide-react";
 import { listUsers, createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
 import { canWriteStudents, studentsNavLabel } from "@/lib/admin-nav";
@@ -15,6 +15,7 @@ const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
 import {
   getStudentLookups, createStudent, updateStudent, getStudent,
+  listStudentLoginBackfillCandidates, provisionStudentLogin,
 } from "@/lib/admin-students.functions";
 
 export const Route = createLazyFileRoute("/admin/students")({
@@ -22,6 +23,16 @@ export const Route = createLazyFileRoute("/admin/students")({
 });
 
 type LookupData = Awaited<ReturnType<typeof getStudentLookups>>;
+type LoginBackfillPreview = Awaited<ReturnType<typeof listStudentLoginBackfillCandidates>>;
+type BackfillCandidate = LoginBackfillPreview["rows"][number];
+type BackfillProgress = {
+  total: number;
+  processed: number;
+  success: number;
+  failed: number;
+  skipped: number;
+  errors: Array<{ academic_number: string; message: string }>;
+};
 
 function StudentsPage() {
   usePagePerf("/admin/students");
@@ -47,6 +58,9 @@ function StudentsPage() {
   const toggle = useServerFn(setActive);
   const removeLogin = useServerFn(removeLoginAccount);
   const lookupsFn = useServerFn(getStudentLookups);
+  const previewBackfill = useServerFn(listStudentLoginBackfillCandidates);
+  const provisionLogin = useServerFn(provisionStudentLogin);
+  const getStudentFn = useServerFn(getStudent);
 
   const qc = useQueryClient();
 
@@ -54,6 +68,25 @@ function StudentsPage() {
   const userRoles = adminSession?.roles ?? [];
   const canWrite = canWriteStudents(userRoles);
   const pageTitle = studentsNavLabel(userRoles);
+  const [backfillPreview, setBackfillPreview] = useState<LoginBackfillPreview | null>(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+  const [backfillConfirm, setBackfillConfirm] = useState("");
+  const [backfillTestDone, setBackfillTestDone] = useState(false);
+  const [backfillProgress, setBackfillProgress] = useState<BackfillProgress | null>(null);
+  const [backfillCredentials, setBackfillCredentials] = useState<Array<{
+    full_name_ar: string;
+    academic_number: string;
+    email: string;
+    password: string;
+  }>>([]);
+  const [backfillFilters, setBackfillFilters] = useState({
+    academicPrefix: "",
+    department_id: "",
+    program_id: "",
+    level_id: "",
+    academic_year_id: "",
+    semester_id: "",
+  });
 
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, status]);
@@ -75,12 +108,188 @@ function StudentsPage() {
     qc.invalidateQueries({ queryKey: ["admin-users"] });
   };
 
+  const updateBackfillFilter = (key: keyof typeof backfillFilters, value: string) => {
+    setBackfillFilters((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "department_id" ? { program_id: "" } : {}),
+      ...(key === "academic_year_id" ? { semester_id: "" } : {}),
+    }));
+    setBackfillPreview(null);
+    setBackfillConfirm("");
+    setBackfillTestDone(false);
+    setBackfillProgress(null);
+    setBackfillCredentials([]);
+  };
+
+  const backfillPayload = () => ({
+    academicPrefix: backfillFilters.academicPrefix || undefined,
+    department_id: backfillFilters.department_id || undefined,
+    program_id: backfillFilters.program_id || undefined,
+    level_id: backfillFilters.level_id || undefined,
+    academic_year_id: backfillFilters.academic_year_id || undefined,
+    semester_id: backfillFilters.semester_id || undefined,
+  });
+
+  const runBackfillPreview = async (opts?: {
+    preserveTestDone?: boolean;
+    preserveCredentials?: typeof backfillCredentials;
+  }) => {
+    setBackfillLoading(true);
+    setError(null);
+    setBackfillProgress(null);
+    setBackfillCredentials(opts?.preserveCredentials ?? []);
+    setBackfillTestDone(Boolean(opts?.preserveTestDone));
+    try {
+      const res = await previewBackfill({ data: backfillPayload() });
+      setBackfillPreview(res);
+      setBackfillConfirm("");
+    } catch (e: any) {
+      setBackfillPreview(null);
+      setError(e?.message ?? "تعذّرت معاينة الطلاب بدون حساب");
+    } finally {
+      setBackfillLoading(false);
+    }
+  };
+
+  const ensureStillWithoutLogin = async (candidate: BackfillCandidate) => {
+    const latest = await getStudentFn({ data: { id: candidate.id } });
+    if ((latest as any).user_id) {
+      return { ok: false as const, reason: "تم تخطي الطالب لأن لديه حساب دخول الآن" };
+    }
+    if ((latest as any).academic_number !== candidate.academic_number) {
+      return { ok: false as const, reason: "تم تخطي الطالب لأن الرقم الأكاديمي تغيّر" };
+    }
+    return { ok: true as const };
+  };
+
+  const createBackfillLogin = async (candidate: BackfillCandidate) => {
+    const guard = await ensureStillWithoutLogin(candidate);
+    if (!guard.ok) return { skipped: true as const, reason: guard.reason };
+    const res = await provisionLogin({
+      data: {
+        profile_id: candidate.id,
+        academic_number: candidate.academic_number,
+        must_change_password: true,
+      },
+    });
+    return {
+      skipped: false as const,
+      email: res.email,
+      password: res.password,
+    };
+  };
+
+  const runBackfillSingleTest = async () => {
+    const candidate = backfillPreview?.rows.find((row) => !row.has_user_id);
+    if (!candidate) {
+      setError("لا يوجد طالب بدون حساب في نتائج المعاينة.");
+      return;
+    }
+    setBusy(`backfill-test-${candidate.id}`);
+    setError(null);
+    try {
+      const res = await createBackfillLogin(candidate);
+      if (res.skipped) {
+        setBackfillProgress({
+          total: 1, processed: 1, success: 0, failed: 0, skipped: 1,
+          errors: [{ academic_number: candidate.academic_number, message: res.reason }],
+        });
+        return;
+      }
+      setBackfillTestDone(true);
+      const credential = {
+        full_name_ar: candidate.full_name_ar,
+        academic_number: candidate.academic_number,
+        email: res.email,
+        password: res.password,
+      };
+      setCredentialsSlip(credential);
+      setBackfillCredentials([credential]);
+      refresh();
+      await runBackfillPreview({ preserveTestDone: true, preserveCredentials: [credential] });
+    } catch (e: any) {
+      setError(e?.message ?? "تعذّر إنشاء حساب الاختبار");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runBackfillBulk = async () => {
+    if (!backfillPreview || backfillPreview.total === 0) return;
+    if (backfillPreview.truncated) {
+      setError("نتائج المعاينة أكبر من الحد الآمن للدفعة الواحدة. ضيّق الفلاتر ثم أعد المعاينة.");
+      return;
+    }
+    if (backfillConfirm.trim() !== String(backfillPreview.total)) {
+      setError("أدخل عدد الطلاب المتوقع كما هو ظاهر في المعاينة قبل التنفيذ الجماعي.");
+      return;
+    }
+    if (!confirm(`سيتم إنشاء حسابات دخول للطلاب بدون حساب فقط. العدد المتوقع: ${backfillPreview.total}. هل تريد المتابعة؟`)) {
+      return;
+    }
+
+    const candidates = backfillPreview.rows.filter((row) => !row.has_user_id);
+    const nextProgress: BackfillProgress = {
+      total: candidates.length,
+      processed: 0,
+      success: 0,
+      failed: 0,
+      skipped: 0,
+      errors: [],
+    };
+    const credentials: typeof backfillCredentials = [];
+    setBackfillProgress(nextProgress);
+    setBackfillCredentials([]);
+    setBusy("backfill-bulk");
+    setError(null);
+
+    for (const candidate of candidates) {
+      try {
+        const res = await createBackfillLogin(candidate);
+        if (res.skipped) {
+          nextProgress.skipped += 1;
+          nextProgress.errors.push({ academic_number: candidate.academic_number, message: res.reason });
+        } else {
+          nextProgress.success += 1;
+          credentials.push({
+            full_name_ar: candidate.full_name_ar,
+            academic_number: candidate.academic_number,
+            email: res.email,
+            password: res.password,
+          });
+        }
+      } catch (e: any) {
+        nextProgress.failed += 1;
+        nextProgress.errors.push({
+          academic_number: candidate.academic_number,
+          message: e?.message ?? "فشل إنشاء الحساب",
+        });
+      } finally {
+        nextProgress.processed += 1;
+        setBackfillProgress({ ...nextProgress, errors: [...nextProgress.errors] });
+        setBackfillCredentials([...credentials]);
+      }
+    }
+
+    setBusy(null);
+    refresh();
+    await runBackfillPreview();
+  };
+
   const run = async (key: string, fn: () => Promise<any>) => {
     setBusy(key); setError(null);
     try { await fn(); refresh(); }
     catch (e: any) { setError(e?.message ?? "خطأ"); }
     finally { setBusy(null); }
   };
+
+  const backfillPrograms = backfillFilters.department_id && lookups
+    ? lookups.programs.filter((p: any) => p.department_id === backfillFilters.department_id)
+    : lookups?.programs ?? [];
+  const backfillSemesters = backfillFilters.academic_year_id && lookups
+    ? lookups.semesters.filter((s: any) => s.academic_year_id === backfillFilters.academic_year_id)
+    : lookups?.semesters ?? [];
 
   return (
     <div className="space-y-6">
@@ -118,6 +327,237 @@ function StudentsPage() {
           <span>{error}</span>
           <button onClick={() => setError(null)} aria-label="إخفاء"><X className="h-4 w-4" /></button>
         </div>
+      )}
+
+      {canWrite && lookups && (
+        <section className="rounded-xl border border-amber-300 bg-amber-50/70 p-4 shadow-card space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-lg font-extrabold text-primary flex items-center gap-2">
+                <KeyRound className="h-5 w-5 text-amber-700" /> إنشاء حسابات الدخول المفقودة
+              </h2>
+              <p className="mt-1 text-xs text-amber-900">
+                هذه الأداة تنشئ حسابات دخول فقط للطلاب الموجودين مسبقاً وبدون <span className="font-mono">user_id</span>.
+                لا تنشئ سجلات طلاب جديدة ولا تعدّل البيانات الأكاديمية.
+              </p>
+            </div>
+            <div className="rounded-lg border border-amber-300 bg-white/70 px-3 py-2 text-xs text-amber-900 flex items-start gap-2 max-w-md">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>يجب استخدام فلتر واحد على الأقل، ثم اختبار طالب واحد قبل التنفيذ الجماعي.</span>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <Field label="بادئة الرقم الأكاديمي">
+              <input
+                value={backfillFilters.academicPrefix}
+                onChange={(e) => updateBackfillFilter("academicPrefix", e.target.value)}
+                dir="ltr"
+                placeholder="مثال: 26"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+              />
+            </Field>
+            <Field label="القسم">
+              <select
+                value={backfillFilters.department_id}
+                onChange={(e) => updateBackfillFilter("department_id", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">كل الأقسام</option>
+                {lookups.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
+              </select>
+            </Field>
+            <Field label="البرنامج">
+              <select
+                value={backfillFilters.program_id}
+                onChange={(e) => updateBackfillFilter("program_id", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">كل البرامج</option>
+                {backfillPrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
+              </select>
+            </Field>
+            <Field label="المستوى">
+              <select
+                value={backfillFilters.level_id}
+                onChange={(e) => updateBackfillFilter("level_id", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">كل المستويات</option>
+                {lookups.levels.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </Field>
+            <Field label="العام الجامعي">
+              <select
+                value={backfillFilters.academic_year_id}
+                onChange={(e) => updateBackfillFilter("academic_year_id", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">كل الأعوام</option>
+                {lookups.academic_years.map((y: any) => (
+                  <option key={y.id} value={y.id}>{y.name}{y.is_current ? " (الحالية)" : ""}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="الفصل">
+              <select
+                value={backfillFilters.semester_id}
+                onChange={(e) => updateBackfillFilter("semester_id", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">كل الفصول</option>
+                {backfillSemesters.map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.name}{s.is_current ? " (الحالي)" : ""}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={backfillLoading || busy === "backfill-bulk"}
+              onClick={() => runBackfillPreview()}
+              className="inline-flex items-center gap-2 rounded-lg border border-amber-400 bg-white px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {backfillLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              معاينة الطلاب بدون حساب
+            </button>
+            {backfillPreview && (
+              <span className="text-sm font-bold text-primary">
+                العدد المطابق: {backfillPreview.total.toLocaleString("ar-EG")}
+              </span>
+            )}
+            {backfillPreview?.truncated && (
+              <span className="text-xs font-bold text-destructive">
+                النتائج أكبر من الحد الآمن؛ ضيّق الفلاتر قبل التنفيذ.
+              </span>
+            )}
+          </div>
+
+          {backfillPreview && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-border bg-white overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-secondary/60 text-primary">
+                    <tr>
+                      <th className="px-3 py-2 text-right">الرقم الأكاديمي</th>
+                      <th className="px-3 py-2 text-right">الاسم</th>
+                      <th className="px-3 py-2 text-right">البرنامج</th>
+                      <th className="px-3 py-2 text-right">المستوى</th>
+                      <th className="px-3 py-2 text-right">الحالة</th>
+                      <th className="px-3 py-2 text-right">user_id فارغ؟</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {backfillPreview.rows.slice(0, 10).map((row) => (
+                      <tr key={row.id} className="border-t border-border/60">
+                        <td className="px-3 py-2 font-mono">{row.academic_number}</td>
+                        <td className="px-3 py-2 font-bold">{row.full_name_ar}</td>
+                        <td className="px-3 py-2">{row.program_name ?? "—"}{row.program_code ? ` (${row.program_code})` : ""}</td>
+                        <td className="px-3 py-2">{row.level_name ?? "—"}{row.level_number != null ? ` — ${row.level_number}` : ""}</td>
+                        <td className="px-3 py-2">{row.status}</td>
+                        <td className="px-3 py-2 font-bold text-emerald-700">{row.has_user_id ? "لا" : "نعم"}</td>
+                      </tr>
+                    ))}
+                    {backfillPreview.rows.length === 0 && (
+                      <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">لا توجد نتائج مطابقة.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {backfillPreview.total > 0 && !backfillPreview.truncated && (
+                <div className="flex flex-wrap items-end gap-3 rounded-lg border border-amber-300 bg-white/80 p-3">
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    onClick={runBackfillSingleTest}
+                    className="inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2 text-sm font-bold text-primary hover:bg-primary/10 disabled:opacity-50"
+                  >
+                    {busy?.startsWith("backfill-test") ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                    إنشاء حساب لطالب واحد للاختبار
+                  </button>
+
+                  <Field label="تأكيد العدد قبل التنفيذ الجماعي">
+                    <input
+                      value={backfillConfirm}
+                      onChange={(e) => setBackfillConfirm(e.target.value)}
+                      inputMode="numeric"
+                      placeholder={`اكتب ${backfillPreview.total}`}
+                      className="w-44 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+                    />
+                  </Field>
+
+                  <button
+                    type="button"
+                    disabled={
+                      !!busy
+                      || !backfillTestDone
+                      || backfillConfirm.trim() !== String(backfillPreview.total)
+                    }
+                    onClick={runBackfillBulk}
+                    className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                    title={!backfillTestDone ? "أنشئ حساب طالب واحد للاختبار أولاً" : undefined}
+                  >
+                    {busy === "backfill-bulk" ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
+                    إنشاء حسابات الدخول للطلاب المحددين بدون حساب
+                  </button>
+                </div>
+              )}
+
+              {backfillProgress && (
+                <div className="rounded-lg border border-border bg-white p-3 text-sm">
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+                    <BackfillStat label="الإجمالي" value={backfillProgress.total} />
+                    <BackfillStat label="تمت المعالجة" value={backfillProgress.processed} />
+                    <BackfillStat label="نجح" value={backfillProgress.success} tone="ok" />
+                    <BackfillStat label="فشل" value={backfillProgress.failed} tone="bad" />
+                    <BackfillStat label="تم تخطيه" value={backfillProgress.skipped} />
+                  </div>
+                  {backfillProgress.errors.length > 0 && (
+                    <details className="mt-3 text-xs">
+                      <summary className="cursor-pointer font-bold text-destructive">أخطاء/تخطي ({backfillProgress.errors.length})</summary>
+                      <ul className="mt-2 list-disc pr-5 space-y-1">
+                        {backfillProgress.errors.slice(0, 50).map((item) => (
+                          <li key={`${item.academic_number}-${item.message}`}>
+                            <span className="font-mono">{item.academic_number}</span>: {item.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              )}
+
+              {backfillCredentials.length > 0 && (
+                <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900">
+                  تم إنشاء {backfillCredentials.length.toLocaleString("ar-EG")} حساب. كلمات المرور المؤقتة تُعرض هنا فقط ولا تُسجّل في logs.
+                  <div className="mt-2 max-h-48 overflow-y-auto rounded border border-emerald-200 bg-white">
+                    <table className="w-full">
+                      <thead className="bg-emerald-100">
+                        <tr>
+                          <th className="px-2 py-1 text-right">الرقم الأكاديمي</th>
+                          <th className="px-2 py-1 text-right">البريد</th>
+                          <th className="px-2 py-1 text-right">كلمة المرور المؤقتة</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {backfillCredentials.map((item) => (
+                          <tr key={item.academic_number} className="border-t border-emerald-100">
+                            <td className="px-2 py-1 font-mono">{item.academic_number}</td>
+                            <td className="px-2 py-1 font-mono">{item.email}</td>
+                            <td className="px-2 py-1 font-mono">{item.password}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
       )}
 
       {/* Filters */}
@@ -752,6 +1192,20 @@ function SlipRow({ label, value, mono, onCopy }: { label: string; value: string;
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function BackfillStat({ label, value, tone = "neutral" }: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "ok" | "bad";
+}) {
+  const toneClass = tone === "ok" ? "text-emerald-700" : tone === "bad" ? "text-destructive" : "text-primary";
+  return (
+    <div className="rounded-lg border border-border bg-background p-2">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={`text-lg font-extrabold ${toneClass}`}>{value.toLocaleString("ar-EG")}</div>
     </div>
   );
 }
