@@ -8,14 +8,14 @@ import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX, Printer,
   GraduationCap, Upload, CheckCircle2, Copy, Unlink, AlertTriangle,
 } from "lucide-react";
-import { listUsers, createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
+import { createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
 import { canWriteStudents, studentsNavLabel } from "@/lib/admin-nav";
 
 const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
 import {
   getStudentLookups, createStudent, updateStudent, getStudent,
-  listStudentLoginBackfillCandidates, provisionStudentLogin,
+  listStudentLoginBackfillCandidates, provisionStudentLogin, listStudentsForAdmin,
 } from "@/lib/admin-students.functions";
 
 export const Route = createLazyFileRoute("/admin/students")({
@@ -23,6 +23,8 @@ export const Route = createLazyFileRoute("/admin/students")({
 });
 
 type LookupData = Awaited<ReturnType<typeof getStudentLookups>>;
+type AdminStudentsResult = Awaited<ReturnType<typeof listStudentsForAdmin>>;
+type AdminStudentRow = AdminStudentsResult["rows"][number];
 type LoginBackfillPreview = Awaited<ReturnType<typeof listStudentLoginBackfillCandidates>>;
 type BackfillCandidate = LoginBackfillPreview["rows"][number];
 type BackfillProgress = {
@@ -36,8 +38,29 @@ type BackfillProgress = {
 
 function StudentsPage() {
   usePagePerf("/admin/students");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
+  const [academicSearch, setAcademicSearch] = useState("");
+  const [studentFilters, setStudentFilters] = useState({
+    study_system: "all" as "all" | "general" | "private_expense",
+    department_id: "",
+    program_id: "",
+    level_id: "",
+    academic_year_id: "",
+    semester_id: "",
+    status: "all",
+  });
+  const [appliedStudentQuery, setAppliedStudentQuery] = useState<{
+    academic_number?: string;
+    study_system: "all" | "general" | "private_expense";
+    department_id?: string;
+    program_id?: string;
+    level_id?: string;
+    academic_year_id?: string;
+    semester_id?: string;
+    status: string;
+  }>({
+    study_system: "all",
+    status: "all",
+  });
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,7 +75,7 @@ function StudentsPage() {
     password: string;
   } | null>(null);
 
-  const list = useServerFn(listUsers);
+  const listStudents = useServerFn(listStudentsForAdmin);
   const create = useServerFn(createAccount);
   const reset = useServerFn(resetPassword);
   const toggle = useServerFn(setActive);
@@ -88,24 +111,103 @@ function StudentsPage() {
     semester_id: "",
   });
 
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [search, status]);
-  const { data: rows, isLoading } = useQuery({
-    queryKey: ["admin-students", search, status, page],
-    queryFn: () => list({ data: { kind: "student", search: search || undefined, status, page, pageSize: PAGE_SIZE } }),
+  const appliedStudentPayload = () => ({
+    academic_number: appliedStudentQuery.academic_number || undefined,
+    study_system: appliedStudentQuery.study_system,
+    department_id: appliedStudentQuery.department_id || undefined,
+    program_id: appliedStudentQuery.program_id || undefined,
+    level_id: appliedStudentQuery.level_id || undefined,
+    academic_year_id: appliedStudentQuery.academic_year_id || undefined,
+    semester_id: appliedStudentQuery.semester_id || undefined,
+    status: appliedStudentQuery.status,
+    page,
+    pageSize: PAGE_SIZE,
   });
-  const total = (rows as any)?.__total ?? rows?.length ?? 0;
+
+  // Reset page when a new search/filter query is applied.
+  useEffect(() => { setPage(1); }, [appliedStudentQuery]);
+  const { data: rows, isLoading } = useQuery({
+    queryKey: ["admin-students", appliedStudentQuery, page],
+    queryFn: () => listStudents({ data: appliedStudentPayload() }),
+  });
+  const studentRows = rows?.rows ?? [];
+  const total = rows?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const { data: lookups } = useQuery({
     queryKey: ["admin-student-lookups"],
     queryFn: () => lookupsFn(),
     staleTime: Infinity,
-    enabled: canWrite,
   });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["admin-students"] });
     qc.invalidateQueries({ queryKey: ["admin-users"] });
+  };
+
+  const updateStudentFilter = (key: keyof typeof studentFilters, value: string) => {
+    setStudentFilters((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "department_id" ? { program_id: "" } : {}),
+      ...(key === "academic_year_id" ? { semester_id: "" } : {}),
+    }));
+  };
+
+  const applyAcademicNumberSearch = () => {
+    const value = academicSearch.trim();
+    if (!value) {
+      setError("أدخل الرقم الأكاديمي للبحث عن طالب.");
+      return;
+    }
+    setError(null);
+    setAppliedStudentQuery({
+      academic_number: value,
+      study_system: "all",
+      status: "all",
+    });
+  };
+
+  const hasGroupStudentFilter = () => Boolean(
+    studentFilters.department_id
+    || studentFilters.program_id
+    || studentFilters.level_id
+    || studentFilters.academic_year_id
+    || studentFilters.semester_id
+    || studentFilters.status !== "all",
+  );
+
+  const applyGroupStudentFilters = () => {
+    if (!hasGroupStudentFilter()) {
+      setError("اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي");
+      setAppliedStudentQuery({ study_system: "all", status: "all" });
+      return;
+    }
+    setError(null);
+    setAcademicSearch("");
+    setAppliedStudentQuery({
+      study_system: studentFilters.study_system,
+      department_id: studentFilters.department_id || undefined,
+      program_id: studentFilters.program_id || undefined,
+      level_id: studentFilters.level_id || undefined,
+      academic_year_id: studentFilters.academic_year_id || undefined,
+      semester_id: studentFilters.semester_id || undefined,
+      status: studentFilters.status,
+    });
+  };
+
+  const clearStudentFilters = () => {
+    setAcademicSearch("");
+    setStudentFilters({
+      study_system: "all",
+      department_id: "",
+      program_id: "",
+      level_id: "",
+      academic_year_id: "",
+      semester_id: "",
+      status: "all",
+    });
+    setAppliedStudentQuery({ study_system: "all", status: "all" });
+    setError(null);
   };
 
   const updateBackfillFilter = (key: keyof typeof backfillFilters, value: string) => {
@@ -289,6 +391,12 @@ function StudentsPage() {
     : lookups?.programs ?? [];
   const backfillSemesters = backfillFilters.academic_year_id && lookups
     ? lookups.semesters.filter((s: any) => s.academic_year_id === backfillFilters.academic_year_id)
+    : lookups?.semesters ?? [];
+  const studentFilterPrograms = studentFilters.department_id && lookups
+    ? lookups.programs.filter((p: any) => p.department_id === studentFilters.department_id)
+    : lookups?.programs ?? [];
+  const studentFilterSemesters = studentFilters.academic_year_id && lookups
+    ? lookups.semesters.filter((s: any) => s.academic_year_id === studentFilters.academic_year_id)
     : lookups?.semesters ?? [];
 
   return (
@@ -560,39 +668,157 @@ function StudentsPage() {
         </section>
       )}
 
-      {/* Filters */}
-      <div className="rounded-xl bg-card border border-border p-4 shadow-card">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="relative sm:col-span-2">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث بالاسم أو الرقم الأكاديمي..."
-              className="w-full rounded-lg border border-border bg-background pr-10 px-3 py-2 text-sm"
-            />
-          </div>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as any)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-          >
-            <option value="all">كل الحالات</option>
-            <option value="active">نشط</option>
-            <option value="inactive">معطّل</option>
-          </select>
+      <section className="rounded-xl bg-card border border-border p-4 shadow-card space-y-4">
+        <div>
+          <h2 className="font-display text-lg font-extrabold text-primary flex items-center gap-2">
+            <Search className="h-5 w-5 text-gold" /> البحث واستعراض الطلاب
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            ابحث عن طالب واحد بالرقم الأكاديمي مباشرة، أو استخدم فلترًا أكاديميًا واحدًا على الأقل للاستعراض الجماعي.
+          </p>
         </div>
-      </div>
+
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <Field label="الرقم الأكاديمي">
+            <input
+              value={academicSearch}
+              onChange={(e) => setAcademicSearch(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyAcademicNumberSearch(); }}
+              dir="ltr"
+              placeholder="أدخل الرقم الأكاديمي الكامل"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+            />
+          </Field>
+          <button
+            type="button"
+            onClick={applyAcademicNumberSearch}
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+          >
+            <Search className="h-4 w-4" /> بحث عن طالب
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          <span>أو استخدم الفلاتر التالية للاستعراض الجماعي</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <Field label="نظام الدراسة">
+            <select
+              value={studentFilters.study_system}
+              onChange={(e) => updateStudentFilter("study_system", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">الكل</option>
+              <option value="general">عام</option>
+              <option value="private_expense">نفقة خاصة</option>
+            </select>
+          </Field>
+          <Field label="القسم">
+            <select
+              value={studentFilters.department_id}
+              onChange={(e) => updateStudentFilter("department_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">كل الأقسام</option>
+              {lookups?.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
+            </select>
+          </Field>
+          <Field label="البرنامج">
+            <select
+              value={studentFilters.program_id}
+              onChange={(e) => updateStudentFilter("program_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">كل البرامج</option>
+              {studentFilterPrograms.map((p: any) => (
+                <option key={p.id} value={p.id}>{p.name_ar}{p.code ? ` (${p.code})` : ""}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="المستوى">
+            <select
+              value={studentFilters.level_id}
+              onChange={(e) => updateStudentFilter("level_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">كل المستويات</option>
+              {lookups?.levels.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </Field>
+          <Field label="العام الأكاديمي">
+            <select
+              value={studentFilters.academic_year_id}
+              onChange={(e) => updateStudentFilter("academic_year_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">كل الأعوام</option>
+              {lookups?.academic_years.map((y: any) => (
+                <option key={y.id} value={y.id}>{y.name}{y.is_current ? " (الحالية)" : ""}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="الفصل الدراسي">
+            <select
+              value={studentFilters.semester_id}
+              onChange={(e) => updateStudentFilter("semester_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="">كل الفصول</option>
+              {studentFilterSemesters.map((s: any) => (
+                <option key={s.id} value={s.id}>{s.name}{s.code ? ` (${s.code})` : ""}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="الحالة">
+            <select
+              value={studentFilters.status}
+              onChange={(e) => updateStudentFilter("status", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">كل الحالات</option>
+              <option value="active">نشط</option>
+              <option value="inactive">معطّل</option>
+              <option value="suspended">موقوف</option>
+              <option value="graduated">متخرج</option>
+              <option value="withdrawn">منسحب</option>
+              <option value="transferred">محول</option>
+            </select>
+          </Field>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={applyGroupStudentFilters}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+          >
+            <Search className="h-4 w-4" /> استعراض الطلاب
+          </button>
+          <button
+            type="button"
+            onClick={clearStudentFilters}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:bg-secondary"
+          >
+            <X className="h-4 w-4" /> مسح الفلاتر
+          </button>
+          {studentFilters.study_system !== "all" && (
+            <span className="text-xs text-muted-foreground">
+              ملاحظة: لا توجد خانة نظام دراسة مخزنة حالياً في جدول الطلاب؛ يتم عرض العمود للشفافية.
+            </span>
+          )}
+        </div>
+      </section>
 
       {/* Table */}
       <div className="rounded-xl bg-card border border-border shadow-card overflow-hidden">
         {isLoading ? (
           <div className="p-12 grid place-items-center"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-        ) : !rows || rows.length === 0 ? (
+        ) : studentRows.length === 0 ? (
           <div className="p-12 text-center text-muted-foreground text-sm">
-            {canWrite
-              ? "لا يوجد طلاب. ابدأ بالضغط على «إضافة طالب جديد»."
-              : "لا يوجد طلاب مطابقون للبحث."}
+            {rows?.message ?? "لا يوجد طلاب مطابقون للبحث."}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -601,6 +827,12 @@ function StudentsPage() {
                 <tr>
                   <th className="px-4 py-3 text-right font-bold">الاسم</th>
                   <th className="px-4 py-3 text-right font-bold">الرقم الأكاديمي</th>
+                  <th className="px-4 py-3 text-right font-bold">نظام الدراسة</th>
+                  <th className="px-4 py-3 text-right font-bold">القسم</th>
+                  <th className="px-4 py-3 text-right font-bold">البرنامج</th>
+                  <th className="px-4 py-3 text-right font-bold">المستوى</th>
+                  <th className="px-4 py-3 text-right font-bold">العام</th>
+                  <th className="px-4 py-3 text-right font-bold">الفصل</th>
                   <th className="px-4 py-3 text-right font-bold">حساب الدخول</th>
                   <th className="px-4 py-3 text-right font-bold">الحالة</th>
                   {canWrite && (
@@ -609,21 +841,32 @@ function StudentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r: any) => {
+                {studentRows.map((r: AdminStudentRow) => {
                   const hasAccount = !!r.user_id;
                   const isActive = r.status === "active";
                   return (
                     <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
                       <td className="px-4 py-3 font-bold">{r.full_name_ar}</td>
                       <td className="px-4 py-3 font-mono text-xs">{r.academic_number}</td>
+                      <td className="px-4 py-3 text-xs">{r.study_system ?? "—"}</td>
+                      <td className="px-4 py-3 text-xs">{r.department_name ?? "—"}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {r.program_name ?? "—"}{r.program_code ? ` (${r.program_code})` : ""}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {r.level_name ?? "—"}{r.level_number != null ? ` — ${r.level_number}` : ""}
+                      </td>
+                      <td className="px-4 py-3 text-xs">{r.academic_year ?? "—"}</td>
+                      <td className="px-4 py-3 text-xs">{r.semester ?? "—"}</td>
                       <td className="px-4 py-3 text-xs">
                         {hasAccount ? (
                           <span>
-                            <span className="text-muted-foreground">اسم المستخدم: </span>
+                            <span className="text-emerald-700 font-bold">لديه حساب</span>
+                            <span className="text-muted-foreground"> — اسم المستخدم: </span>
                             <span className="font-mono font-bold" dir="ltr">{r.academic_number}</span>
                           </span>
                         ) : (
-                          <span className="text-muted-foreground">— لا يوجد</span>
+                          <span className="text-amber-700 font-bold">بدون حساب</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

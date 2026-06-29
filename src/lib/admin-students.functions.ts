@@ -179,6 +179,185 @@ export const listStudentLoginBackfillCandidates = createServerFn({ method: "POST
     };
   });
 
+const adminStudentStatusSchema = z.enum([
+  "all",
+  "active",
+  "inactive",
+  "suspended",
+  "graduated",
+  "withdrawn",
+  "transferred",
+]);
+
+const adminStudentsFilterSchema = z.object({
+  academic_number: z.string().trim().max(32).regex(/^[A-Za-z0-9_-]*$/, "الرقم الأكاديمي يحتوي على أحرف غير صحيحة").optional(),
+  study_system: z.enum(["all", "general", "private_expense"]).default("all"),
+  department_id: z.string().uuid().optional().nullable(),
+  program_id: z.string().uuid().optional().nullable(),
+  level_id: z.string().uuid().optional().nullable(),
+  academic_year_id: z.string().uuid().optional().nullable(),
+  semester_id: z.string().uuid().optional().nullable(),
+  status: adminStudentStatusSchema.default("all"),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(100).default(25),
+});
+
+export const listStudentsForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => adminStudentsFilterSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertStudentRead(context.userId);
+
+    const academicNumber = data.academic_number?.trim() ?? "";
+    const hasAcademicNumber = academicNumber.length > 0;
+    const hasGroupFilter = Boolean(
+      data.department_id
+      || data.program_id
+      || data.level_id
+      || data.academic_year_id
+      || data.semester_id
+      || (data.status && data.status !== "all"),
+    );
+
+    if (!hasAcademicNumber && !hasGroupFilter) {
+      return {
+        rows: [],
+        total: 0,
+        page: data.page,
+        pageSize: data.pageSize,
+        mode: "empty" as const,
+        message: "اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي",
+      };
+    }
+
+    let scopedProfileIds: string[] | null = null;
+    if (!hasAcademicNumber && (data.level_id || data.academic_year_id || data.semester_id)) {
+      let statusQuery = supabaseAdmin
+        .from("student_academic_status")
+        .select("student_profile_id")
+        .limit(5000);
+      if (data.level_id) statusQuery = statusQuery.eq("level_id", data.level_id);
+      if (data.academic_year_id) statusQuery = statusQuery.eq("academic_year_id", data.academic_year_id);
+      if (data.semester_id) statusQuery = statusQuery.eq("semester_id", data.semester_id);
+
+      const { data: statusRows, error: statusErr } = await statusQuery;
+      if (statusErr) throw new Error(statusErr.message);
+      scopedProfileIds = Array.from(new Set((statusRows ?? []).map((r: any) => r.student_profile_id).filter(Boolean)));
+      if (scopedProfileIds.length === 0) {
+        return {
+          rows: [],
+          total: 0,
+          page: data.page,
+          pageSize: data.pageSize,
+          mode: hasAcademicNumber ? "academic_number" as const : "filters" as const,
+          message: hasAcademicNumber ? "لا يوجد طالب بهذا الرقم الأكاديمي" : null,
+        };
+      }
+    }
+
+    const from = hasAcademicNumber ? 0 : (data.page - 1) * data.pageSize;
+    const to = hasAcademicNumber ? 0 : from + data.pageSize - 1;
+
+    let query = supabaseAdmin
+      .from("student_profiles")
+      .select(`
+        id,
+        user_id,
+        academic_number,
+        full_name_ar,
+        status,
+        must_change_password,
+        department_id,
+        program_id,
+        departments(name_ar),
+        programs(name_ar, code)
+      `, { count: "exact" })
+      .order("academic_number", { ascending: true });
+
+    if (hasAcademicNumber) {
+      query = query.eq("academic_number", academicNumber);
+    } else {
+      if (data.department_id) query = query.eq("department_id", data.department_id);
+      if (data.program_id) query = query.eq("program_id", data.program_id);
+      if (data.status && data.status !== "all") query = query.eq("status", data.status);
+      if (scopedProfileIds) query = query.in("id", scopedProfileIds);
+    }
+
+    const { data: profiles, error, count } = await query.range(from, to);
+    if (error) throw new Error(error.message);
+
+    const profileIds = (profiles ?? []).map((profile: any) => profile.id);
+    const statusByProfile = new Map<string, any>();
+    if (profileIds.length > 0) {
+      let academicStatusQuery = supabaseAdmin
+        .from("student_academic_status")
+        .select(`
+          student_profile_id,
+          enrollment_status,
+          updated_at,
+          academic_levels(name, level_number),
+          academic_years(name),
+          semesters(name, code)
+        `)
+        .in("student_profile_id", profileIds)
+        .order("updated_at", { ascending: false });
+      if (!hasAcademicNumber) {
+        if (data.level_id) academicStatusQuery = academicStatusQuery.eq("level_id", data.level_id);
+        if (data.academic_year_id) academicStatusQuery = academicStatusQuery.eq("academic_year_id", data.academic_year_id);
+        if (data.semester_id) academicStatusQuery = academicStatusQuery.eq("semester_id", data.semester_id);
+      }
+      const { data: statuses, error: statusesErr } = await academicStatusQuery;
+      if (statusesErr) throw new Error(statusesErr.message);
+      for (const row of statuses ?? []) {
+        const profileId = (row as any).student_profile_id;
+        if (!statusByProfile.has(profileId)) statusByProfile.set(profileId, row);
+      }
+    }
+
+    const userIds = (profiles ?? []).filter((profile: any) => profile.user_id).map((profile: any) => profile.user_id as string);
+    const { data: roles } = userIds.length
+      ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
+      : { data: [] as any[] };
+
+    const rows = (profiles ?? []).map((profile: any) => {
+      const academicStatus = statusByProfile.get(profile.id);
+      const level = academicStatus?.academic_levels;
+      const year = academicStatus?.academic_years;
+      const semester = academicStatus?.semesters;
+      return {
+        id: profile.id,
+        user_id: profile.user_id,
+        academic_number: profile.academic_number,
+        identifier: profile.academic_number,
+        email: profile.user_id ? `${profile.academic_number.toLowerCase()}@students.usr.edu.ye` : null,
+        roles: (roles ?? []).filter((role: any) => role.user_id === profile.user_id).map((role: any) => role.role),
+        full_name_ar: profile.full_name_ar,
+        status: profile.status,
+        must_change_password: profile.must_change_password,
+        department_id: profile.department_id,
+        program_id: profile.program_id,
+        study_system: null as string | null,
+        department_name: profile.departments?.name_ar ?? null,
+        program_name: profile.programs?.name_ar ?? null,
+        program_code: profile.programs?.code ?? null,
+        level_name: level?.name ?? null,
+        level_number: level?.level_number ?? null,
+        academic_year: year?.name ?? null,
+        semester: semester?.code ?? semester?.name ?? null,
+        enrollment_status: academicStatus?.enrollment_status ?? null,
+      };
+    });
+
+    return {
+      rows,
+      total: count ?? rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      mode: hasAcademicNumber ? "academic_number" as const : "filters" as const,
+      message: hasAcademicNumber && rows.length === 0 ? "لا يوجد طالب بهذا الرقم الأكاديمي" : null,
+    };
+  });
+
 // ------------ Create Student ------------
 
 const createSchema = z.object({
