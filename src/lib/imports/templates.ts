@@ -23,13 +23,13 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
     headers: [
       "academic_number","full_name_ar","full_name_en",
       "department_code","program_code","academic_level","academic_year","semester",
-      "status","phone","gender","national_id",
+      "study_system","status","phone","gender","national_id",
       "create_login","must_change_password","notes",
     ],
     sample: [
       "20251001","أحمد محمد علي","Ahmed Mohammed",
       "قسم تكنولوجيا المعلومات والاتصالات","IT","1","2025-2026","first",
-      "active","777000111","male","12345678901",
+      "regular","active","777000111","male","12345678901",
       "true","true","ملاحظة اختيارية",
     ],
     instructions: [
@@ -40,6 +40,7 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "academic_level = رقم المستوى (1-4) أو اسم المستوى",
       "academic_year = اسم السنة الأكاديمية (مثل 2025-2026)",
       "semester = first / second أو اسم الفصل",
+      "study_system = regular / private أو عام / نفقة خاصة (اختياري؛ فارغ = غير محدد)",
       "status = active / suspended / graduated / withdrawn / transferred (افتراضي active)",
       "gender = male / female أو ذكر / أنثى (اختياري)",
       "create_login = true/false — عند true يُنشأ حساب دخول داخلي تلقائياً باسم المستخدم = academic_number وكلمة المرور الأولية = academic_number",
@@ -222,6 +223,7 @@ function applyStudentTemplateOverrides(
 ): (string | number)[] {
   if (!overrides) return def.sample;
   const byHeader: Partial<Record<keyof StudentTemplateOverrides, string>> = {
+    study_system: overrides.study_system,
     department_code: overrides.department_code,
     program_code: overrides.program_code,
     academic_level: overrides.academic_level,
@@ -249,7 +251,7 @@ export async function downloadTemplate(type: ImportType, studentOverrides?: Stud
   const extraInstructions = type === "students" && studentOverrides
     ? [
       "تم تجهيز هذا القالب بسياق استيراد الطلاب المحدد من الواجهة.",
-      "لا تغيّر قيم department_code أو program_code أو academic_level أو academic_year أو semester إلا إذا غيّرت إعدادات الاستيراد قبل الرفع.",
+      "لا تغيّر قيم study_system أو department_code أو program_code أو academic_level أو academic_year أو semester إلا إذا غيّرت إعدادات الاستيراد قبل الرفع.",
     ]
     : [];
   const instructions = [["التعليمات"], ...def.instructions.map((i) => [i]), ...extraInstructions.map((i) => [i])];

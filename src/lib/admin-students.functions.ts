@@ -191,7 +191,7 @@ const adminStudentStatusSchema = z.enum([
 
 const adminStudentsFilterSchema = z.object({
   academic_number: z.string().trim().max(32).regex(/^[A-Za-z0-9_-]*$/, "الرقم الأكاديمي يحتوي على أحرف غير صحيحة").optional(),
-  study_system: z.enum(["all", "general", "private_expense"]).default("all"),
+  study_system: z.enum(["all", "regular", "private"]).default("all"),
   department_id: z.string().uuid().optional().nullable(),
   program_id: z.string().uuid().optional().nullable(),
   level_id: z.string().uuid().optional().nullable(),
@@ -211,7 +211,8 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
     const academicNumber = data.academic_number?.trim() ?? "";
     const hasAcademicNumber = academicNumber.length > 0;
     const hasGroupFilter = Boolean(
-      data.department_id
+      (data.study_system && data.study_system !== "all")
+      || data.department_id
       || data.program_id
       || data.level_id
       || data.academic_year_id
@@ -266,6 +267,7 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
         academic_number,
         full_name_ar,
         status,
+        study_system,
         must_change_password,
         department_id,
         program_id,
@@ -279,6 +281,7 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
     } else {
       if (data.department_id) query = query.eq("department_id", data.department_id);
       if (data.program_id) query = query.eq("program_id", data.program_id);
+      if (data.study_system && data.study_system !== "all") query = query.eq("study_system", data.study_system);
       if (data.status && data.status !== "all") query = query.eq("status", data.status);
       if (scopedProfileIds) query = query.in("id", scopedProfileIds);
     }
@@ -336,7 +339,7 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
         must_change_password: profile.must_change_password,
         department_id: profile.department_id,
         program_id: profile.program_id,
-        study_system: null as string | null,
+        study_system: profile.study_system ?? null,
         department_name: profile.departments?.name_ar ?? null,
         program_name: profile.programs?.name_ar ?? null,
         program_code: profile.programs?.code ?? null,
@@ -369,6 +372,7 @@ const createSchema = z.object({
   national_id: z.string().trim().max(32).optional().nullable(),
   department_id: z.string().uuid().optional().nullable(),
   program_id: z.string().uuid().optional().nullable(),
+  study_system: z.enum(["regular", "private"]).optional().nullable(),
   level_id: z.string().uuid(),
   academic_year_id: z.string().uuid(),
   semester_id: z.string().uuid(),
@@ -401,6 +405,7 @@ export const createStudent = createServerFn({ method: "POST" })
         national_id: data.national_id || null,
         department_id: data.department_id || null,
         program_id: data.program_id || null,
+        study_system: data.study_system || null,
         status: "active",
         must_change_password: true,
       } as any)
@@ -488,6 +493,7 @@ const updateSchema = z.object({
   national_id: z.string().trim().max(32).optional().nullable(),
   department_id: z.string().uuid().optional().nullable(),
   program_id: z.string().uuid().optional().nullable(),
+  study_system: z.enum(["regular", "private"]).optional().nullable(),
 });
 
 export const updateStudent = createServerFn({ method: "POST" })
@@ -510,6 +516,7 @@ export const updateStudent = createServerFn({ method: "POST" })
         national_id: data.national_id || null,
         department_id: data.department_id || null,
         program_id: data.program_id || null,
+        study_system: data.study_system || null,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", data.id);

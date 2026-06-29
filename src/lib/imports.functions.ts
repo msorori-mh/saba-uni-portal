@@ -294,8 +294,8 @@ export const getStudentImportContextOptions = createServerFn({ method: "POST" })
 
     return {
       studySystems: [
-        { value: "general", label: "نظام عام" },
-        { value: "private_expense", label: "نفقة خاصة" },
+        { value: "regular", label: "نظام عام" },
+        { value: "private", label: "نفقة خاصة" },
       ],
       departments: (depsRes.data ?? []).map((department) => ({
         id: department.id,

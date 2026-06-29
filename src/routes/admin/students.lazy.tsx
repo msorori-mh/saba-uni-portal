@@ -36,11 +36,17 @@ type BackfillProgress = {
   errors: Array<{ academic_number: string; message: string }>;
 };
 
+function studySystemLabel(value: string | null | undefined) {
+  if (value === "regular") return "عام";
+  if (value === "private") return "نفقة خاصة";
+  return "غير محدد";
+}
+
 function StudentsPage() {
   usePagePerf("/admin/students");
   const [academicSearch, setAcademicSearch] = useState("");
   const [studentFilters, setStudentFilters] = useState({
-    study_system: "all" as "all" | "general" | "private_expense",
+    study_system: "all" as "all" | "regular" | "private",
     department_id: "",
     program_id: "",
     level_id: "",
@@ -50,7 +56,7 @@ function StudentsPage() {
   });
   const [appliedStudentQuery, setAppliedStudentQuery] = useState<{
     academic_number?: string;
-    study_system: "all" | "general" | "private_expense";
+    study_system: "all" | "regular" | "private";
     department_id?: string;
     program_id?: string;
     level_id?: string;
@@ -712,8 +718,8 @@ function StudentsPage() {
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             >
               <option value="all">الكل</option>
-              <option value="general">عام</option>
-              <option value="private_expense">نفقة خاصة</option>
+              <option value="regular">عام</option>
+              <option value="private">نفقة خاصة</option>
             </select>
           </Field>
           <Field label="القسم">
@@ -804,11 +810,6 @@ function StudentsPage() {
           >
             <X className="h-4 w-4" /> مسح الفلاتر
           </button>
-          {studentFilters.study_system !== "all" && (
-            <span className="text-xs text-muted-foreground">
-              ملاحظة: لا توجد خانة نظام دراسة مخزنة حالياً في جدول الطلاب؛ يتم عرض العمود للشفافية.
-            </span>
-          )}
         </div>
       </section>
 
@@ -848,7 +849,7 @@ function StudentsPage() {
                     <tr key={r.id} className="border-t border-border hover:bg-secondary/30">
                       <td className="px-4 py-3 font-bold">{r.full_name_ar}</td>
                       <td className="px-4 py-3 font-mono text-xs">{r.academic_number}</td>
-                      <td className="px-4 py-3 text-xs">{r.study_system ?? "—"}</td>
+                      <td className="px-4 py-3 text-xs">{studySystemLabel(r.study_system)}</td>
                       <td className="px-4 py-3 text-xs">{r.department_name ?? "—"}</td>
                       <td className="px-4 py-3 text-xs">
                         {r.program_name ?? "—"}{r.program_code ? ` (${r.program_code})` : ""}
@@ -1045,6 +1046,7 @@ function AddStudentModal({
     national_id: "",
     department_id: "",
     program_id: "",
+    study_system: "",
     level_id: lookups.levels[0]?.id ?? "",
     academic_year_id: currentYear?.id ?? "",
     semester_id: currentSem?.id ?? "",
@@ -1072,6 +1074,7 @@ function AddStudentModal({
         national_id: form.national_id || undefined,
         department_id: form.department_id || undefined,
         program_id: form.program_id || undefined,
+        study_system: form.study_system || undefined,
       };
       const res = await createFn({ data: payload as any });
       onCreated(res);
@@ -1149,6 +1152,14 @@ function AddStudentModal({
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
                   <option value="">— اختر —</option>
                   {filteredPrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
+                </select>
+              </Field>
+              <Field label="نظام الدراسة">
+                <select value={form.study_system} onChange={(e) => update("study_system", e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                  <option value="">غير محدد</option>
+                  <option value="regular">عام</option>
+                  <option value="private">نفقة خاصة</option>
                 </select>
               </Field>
               <Field label="المستوى *">
@@ -1243,6 +1254,7 @@ function EditStudentModal({
       national_id: student.national_id ?? "",
       department_id: student.department_id ?? "",
       program_id: student.program_id ?? "",
+      study_system: student.study_system ?? "",
     });
   }
 
@@ -1252,7 +1264,13 @@ function EditStudentModal({
     e.preventDefault();
     setBusy(true); setErr(null);
     try {
-      await updateFn({ data: { id: studentId, ...form } });
+      await updateFn({
+        data: {
+          id: studentId,
+          ...form,
+          study_system: form.study_system || undefined,
+        },
+      });
       onSaved();
     } catch (e: any) {
       setErr(e?.message ?? "تعذّر التحديث");
@@ -1321,6 +1339,14 @@ function EditStudentModal({
                         {lookups.programs
                           .filter((p: any) => !form.department_id || p.department_id === form.department_id)
                           .map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="نظام الدراسة">
+                      <select value={form.study_system} onChange={(e) => update("study_system", e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                        <option value="">غير محدد</option>
+                        <option value="regular">عام</option>
+                        <option value="private">نفقة خاصة</option>
                       </select>
                     </Field>
                   </>

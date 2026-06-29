@@ -190,6 +190,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
       { name: "academic_level", description: "رقم المستوى (1-4) أو اسمه", required: true, type: "text", example: "1" },
       { name: "academic_year", description: "اسم السنة الأكاديمية", required: true, type: "text", example: "2025-2026" },
       { name: "semester", description: "first / second أو اسم الفصل", required: true, type: "text", example: "first" },
+      { name: "study_system", description: "نظام الدراسة: regular=عام أو private=نفقة خاصة", required: false, type: "enum", example: "regular", enumValues: ["regular", "private"] },
       { name: "status", description: "حالة الطالب", required: false, type: "enum", example: "active", enumValues: ["active", "suspended", "graduated", "withdrawn", "transferred"] },
       { name: "phone", description: "رقم الهاتف", required: false, type: "text", example: "777000111" },
       { name: "gender", description: "male/female أو ذكر/أنثى", required: false, type: "text", example: "male" },
@@ -199,9 +200,9 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
       { name: "notes", description: "ملاحظات اختيارية تُسجَّل في سجل التدقيق", required: false, type: "text", example: "ملاحظة" },
     ],
     examples: [
-      ["20251001", "أحمد محمد علي", "Ahmed Mohammed", "قسم تكنولوجيا المعلومات والاتصالات", "IT", "1", "2025-2026", "first", "active", "777000111", "male", "12345678901", true, true, ""],
-      ["20251002", "فاطمة الزهراء", "Fatima Alzahra", "قسم علوم الحاسوب", "CS", "1", "2025-2026", "first", "active", "777000112", "female", "12345678902", true, true, ""],
-      ["20251003", "يوسف الحسن", "Yousef Alhassan", "قسم نظم المعلومات", "IS", "1", "2025-2026", "first", "active", "777000113", "male", "12345678903", false, false, "بدون حساب دخول"],
+      ["20251001", "أحمد محمد علي", "Ahmed Mohammed", "قسم تكنولوجيا المعلومات والاتصالات", "IT", "1", "2025-2026", "first", "regular", "active", "777000111", "male", "12345678901", true, true, ""],
+      ["20251002", "فاطمة الزهراء", "Fatima Alzahra", "قسم علوم الحاسوب", "CS", "1", "2025-2026", "first", "regular", "active", "777000112", "female", "12345678902", true, true, ""],
+      ["20251003", "يوسف الحسن", "Yousef Alhassan", "قسم نظم المعلومات", "IS", "1", "2025-2026", "first", "private", "active", "777000113", "male", "12345678903", false, false, "بدون حساب دخول"],
     ],
   },
 

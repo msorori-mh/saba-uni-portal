@@ -23,6 +23,7 @@ export type StudentRow = {
   academic_year_id: string;
   semester_id: string;
   level_id: string;
+  study_system: "regular" | "private" | null;
   status: string;
   create_login: boolean;
   must_change_password: boolean;
@@ -30,6 +31,16 @@ export type StudentRow = {
 };
 
 const STUDENT_STATUSES = new Set(["active", "suspended", "graduated", "withdrawn", "transferred"]);
+const STUDY_SYSTEM_ALIASES = new Map<string, "regular" | "private">([
+  ["regular", "regular"],
+  ["عام", "regular"],
+  ["نظام عام", "regular"],
+  ["general", "regular"],
+  ["private", "private"],
+  ["نفقة خاصة", "private"],
+  ["نظام نفقة خاصة", "private"],
+  ["private_expense", "private"],
+]);
 
 function parseBool(v: unknown, defaultValue: boolean): { value: boolean; valid: boolean } {
   if (v === null || v === undefined || v === "") return { value: defaultValue, valid: true };
@@ -86,6 +97,12 @@ export async function validateStudents(
     const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
     if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
 
+    const studySystemRaw = str(raw.study_system);
+    const study_system = studySystemRaw ? STUDY_SYSTEM_ALIASES.get(normKey(studySystemRaw)) ?? null : null;
+    if (studySystemRaw && !study_system) {
+      errors.push({ row: rowNumber, column: "study_system", message: "نظام الدراسة غير صحيح (regular/private أو عام/نفقة خاصة)" });
+    }
+
     // Accept `academic_level` (canonical) and `level` (legacy) as fallback
     const levelRaw = str(raw.academic_level) || str(raw.level);
     const levelKey = normKey(levelRaw);
@@ -121,6 +138,7 @@ export async function validateStudents(
         gender,
         department_id: dep_id!, program_id: prog!.id,
         academic_year_id: ay_id!, semester_id: sem_id!, level_id: level_id!,
+        study_system,
         status,
         create_login: cl.value,
         must_change_password: mcp.value,

@@ -72,6 +72,7 @@ const STUDENT_CONTEXT_PARTIAL_MESSAGE =
   "يرجى إكمال إعدادات قالب الطلاب قبل رفع الملف أو امسح الاختيارات للمتابعة بالقالب العام.";
 
 const STUDENT_CONTEXT_MISMATCH_MESSAGES = {
+  study_system: "قيمة نظام الدراسة في الملف لا تطابق نظام الدراسة المحدد في إعدادات الاستيراد.",
   department_code: "قيمة القسم في الملف لا تطابق القسم المحدد في إعدادات الاستيراد.",
   program_code: "قيمة البرنامج في الملف لا تطابق البرنامج المحدد في إعدادات الاستيراد.",
   academic_level: "قيمة المستوى في الملف لا تطابق المستوى المحدد في إعدادات الاستيراد.",
@@ -115,6 +116,12 @@ const EMPTY_STUDENT_IMPORT_CONTEXT: StudentImportContextState = {
 
 const cellText = (value: unknown) => (value == null ? "" : String(value).trim());
 const compareKey = (value: unknown) => cellText(value).toLowerCase();
+const normalizeStudySystemCell = (value: unknown) => {
+  const key = compareKey(value);
+  if (key === "regular" || key === "عام" || key === "نظام عام" || key === "general") return "regular";
+  if (key === "private" || key === "نفقة خاصة" || key === "نظام نفقة خاصة" || key === "private_expense") return "private";
+  return cellText(value);
+};
 
 function hasAnyStudentImportContextValue(context: StudentImportContextState) {
   return Object.values(context).some(Boolean);
@@ -163,6 +170,7 @@ function applyStudentContextToRows(
     value: string | undefined;
     message: string;
   }> = [
+    { column: "study_system", value: context.study_system, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.study_system },
     { column: "department_code", value: context.department_code, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.department_code },
     { column: "program_code", value: context.program_code, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.program_code },
     { column: "academic_level", value: context.academic_level, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.academic_level },
@@ -179,9 +187,12 @@ function applyStudentContextToRows(
         next[column] = value;
         return;
       }
-      if (compareKey(existing) !== compareKey(value)) {
+      const existingComparable = column === "study_system" ? normalizeStudySystemCell(existing) : compareKey(existing);
+      const valueComparable = column === "study_system" ? normalizeStudySystemCell(value) : compareKey(value);
+      if (existingComparable !== valueComparable) {
         throw new Error(message);
       }
+      if (column === "study_system") next[column] = valueComparable;
     });
     return next;
   });
