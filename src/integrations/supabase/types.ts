@@ -2255,37 +2255,58 @@ export type Database = {
       }
       request_types: {
         Row: {
+          article_ref: string | null
+          category: string | null
           code: string
           created_at: string
           description_ar: string | null
+          form_schema: Json
           id: string
           is_active: boolean
           name_ar: string
+          required_documents: Json
           requires_attachment: boolean
           sort_order: number
+          student_visible: boolean
+          title_en: string | null
           updated_at: string
+          workflow_schema: Json
         }
         Insert: {
+          article_ref?: string | null
+          category?: string | null
           code: string
           created_at?: string
           description_ar?: string | null
+          form_schema?: Json
           id?: string
           is_active?: boolean
           name_ar: string
+          required_documents?: Json
           requires_attachment?: boolean
           sort_order?: number
+          student_visible?: boolean
+          title_en?: string | null
           updated_at?: string
+          workflow_schema?: Json
         }
         Update: {
+          article_ref?: string | null
+          category?: string | null
           code?: string
           created_at?: string
           description_ar?: string | null
+          form_schema?: Json
           id?: string
           is_active?: boolean
           name_ar?: string
+          required_documents?: Json
           requires_attachment?: boolean
           sort_order?: number
+          student_visible?: boolean
+          title_en?: string | null
           updated_at?: string
+          workflow_schema?: Json
         }
         Relationships: []
       }
@@ -3332,48 +3353,181 @@ export type Database = {
       }
       student_requests: {
         Row: {
+          cancelled_at: string | null
+          completed_at: string | null
           created_at: string
+          current_assignee_id: string | null
+          current_role_key: string | null
+          current_step_index: number
           description: string | null
+          form_data: Json
           id: string
+          internal_notes: string | null
           rejection_reason: string | null
+          request_number: string | null
           request_type: string
           reviewed_at: string | null
           reviewed_by: string | null
           status: string
+          student_notes: string | null
           student_profile_id: string
           submitted_at: string | null
           title: string
           updated_at: string
         }
         Insert: {
+          cancelled_at?: string | null
+          completed_at?: string | null
           created_at?: string
+          current_assignee_id?: string | null
+          current_role_key?: string | null
+          current_step_index?: number
           description?: string | null
+          form_data?: Json
           id?: string
+          internal_notes?: string | null
           rejection_reason?: string | null
+          request_number?: string | null
           request_type?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          student_notes?: string | null
           student_profile_id: string
           submitted_at?: string | null
           title: string
           updated_at?: string
         }
         Update: {
+          cancelled_at?: string | null
+          completed_at?: string | null
           created_at?: string
+          current_assignee_id?: string | null
+          current_role_key?: string | null
+          current_step_index?: number
           description?: string | null
+          form_data?: Json
           id?: string
+          internal_notes?: string | null
           rejection_reason?: string | null
+          request_number?: string | null
           request_type?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: string
+          student_notes?: string | null
           student_profile_id?: string
           submitted_at?: string | null
           title?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      student_service_request_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          event_type: string
+          from_status: string | null
+          from_step_index: number | null
+          id: string
+          notes: string | null
+          payload: Json
+          request_id: string
+          to_status: string | null
+          to_step_index: number | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          event_type: string
+          from_status?: string | null
+          from_step_index?: number | null
+          id?: string
+          notes?: string | null
+          payload?: Json
+          request_id: string
+          to_status?: string | null
+          to_step_index?: number | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          event_type?: string
+          from_status?: string | null
+          from_step_index?: number | null
+          id?: string
+          notes?: string | null
+          payload?: Json
+          request_id?: string
+          to_status?: string | null
+          to_step_index?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_service_request_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_service_request_steps: {
+        Row: {
+          acted_at: string | null
+          acted_by: string | null
+          action: string | null
+          assigned_to: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          request_id: string
+          role_key: string
+          status: string
+          step_index: number
+          step_key: string
+          step_title_ar: string
+        }
+        Insert: {
+          acted_at?: string | null
+          acted_by?: string | null
+          action?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_id: string
+          role_key: string
+          status?: string
+          step_index: number
+          step_key: string
+          step_title_ar: string
+        }
+        Update: {
+          acted_at?: string | null
+          acted_by?: string | null
+          action?: string | null
+          assigned_to?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          request_id?: string
+          role_key?: string
+          status?: string
+          step_index?: number
+          step_key?: string
+          step_title_ar?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_service_request_steps_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       study_plan_courses: {
         Row: {
