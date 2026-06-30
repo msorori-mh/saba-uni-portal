@@ -1248,3 +1248,579 @@ export const getStudyPlanCoverageReportForAdmin = createServerFn({ method: "POST
       message: null,
     };
   });
+
+const SCHEDULE_REPORT_ROLES = ["system_admin", "admin", "dean", "registrar", "department_head"] as const;
+
+const scheduleReportSchema = z.object({
+  department_id: z.string().uuid().optional().nullable(),
+  program_id: z.string().uuid().optional().nullable(),
+  level_id: z.string().uuid().optional().nullable(),
+  academic_year_id: z.string().uuid().optional().nullable(),
+  semester_id: z.string().uuid().optional().nullable(),
+  faculty_profile_id: z.string().uuid().optional().nullable(),
+  room_id: z.string().uuid().optional().nullable(),
+  course_section_id: z.string().uuid().optional().nullable(),
+  day_of_week: z.string().trim().max(24).optional().nullable(),
+  schedule_type: z.string().trim().max(24).optional().nullable(),
+  assignment_status: z.enum(["all", "assigned", "unassigned"]).default("all"),
+  section_status: z.string().trim().max(40).optional().nullable(),
+  room_type: z.string().trim().max(40).optional().nullable(),
+  conflict_type: z.enum(["all", "faculty", "room", "group", "missing_data"]).default("all"),
+  search: z.string().trim().max(160).optional().nullable(),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(100).default(50),
+});
+
+async function assertScheduleReportsAccess(userId: string) {
+  await assertAnyRole(userId, SCHEDULE_REPORT_ROLES, "ليس لديك صلاحية عرض تقارير الجداول والإسناد");
+}
+
+function hasScheduleFilter(data: z.infer<typeof scheduleReportSchema>, extra = false) {
+  return Boolean(
+    extra
+    || data.department_id
+    || data.program_id
+    || data.level_id
+    || data.academic_year_id
+    || data.semester_id
+    || data.faculty_profile_id
+    || data.room_id
+    || data.course_section_id
+    || data.day_of_week
+    || data.schedule_type
+    || data.assignment_status !== "all"
+    || data.section_status
+    || data.room_type
+    || data.conflict_type !== "all"
+    || data.search,
+  );
+}
+
+function paginateRows<T>(rows: T[], page: number, pageSize: number) {
+  const from = (page - 1) * pageSize;
+  return rows.slice(from, from + pageSize);
+}
+
+async function loadScheduleBase() {
+  const [offeringsRes, sectionsRes, scheduleRes, roomsRes, slotsRes, facultyRes] = await Promise.all([
+    supabaseAdmin.from("course_offerings").select(`
+      id, academic_year_id, semester_id, program_id, level_id, status,
+      courses(id, code, name_ar, department_id, credit_hours, departments(name_ar)),
+      programs(id, name_ar, code, department_id, departments(name_ar)),
+      academic_levels(id, name, level_number),
+      academic_years(id, name),
+      semesters(id, name, code)
+    `).limit(5000),
+    supabaseAdmin.from("course_sections").select("id, course_offering_id, section_code, faculty_profile_id, capacity, status").limit(5000),
+    supabaseAdmin.from("class_schedule").select("id, course_section_id, faculty_profile_id, room_id, time_slot_id, schedule_type, status").limit(10000),
+    supabaseAdmin.from("rooms").select("id, code, name_ar, room_type, capacity, is_active").limit(2000),
+    supabaseAdmin.from("time_slots").select("id, day_of_week, start_time, end_time, name_ar").limit(2000),
+    supabaseAdmin.from("faculty_profiles").select("id, full_name_ar, employee_number, department_id, departments(name_ar)").limit(3000),
+  ]);
+  const firstError = [offeringsRes, sectionsRes, scheduleRes, roomsRes, slotsRes, facultyRes].find((res) => res.error)?.error;
+  if (firstError) throw new Error(firstError.message);
+  return {
+    offerings: offeringsRes.data ?? [],
+    sections: sectionsRes.data ?? [],
+    schedules: scheduleRes.data ?? [],
+    rooms: roomsRes.data ?? [],
+    slots: slotsRes.data ?? [],
+    faculty: facultyRes.data ?? [],
+  };
+}
+
+function scheduleLookups(base: Awaited<ReturnType<typeof loadScheduleBase>>) {
+  return {
+    sectionsByOffering: new Map<string, any[]>(),
+    schedulesBySection: new Map<string, any[]>(),
+    sectionsById: new Map((base.sections as any[]).map((row) => [row.id, row])),
+    roomsById: new Map((base.rooms as any[]).map((row) => [row.id, row])),
+    slotsById: new Map((base.slots as any[]).map((row) => [row.id, row])),
+    facultyById: new Map((base.faculty as any[]).map((row) => [row.id, row])),
+  };
+}
+
+function enrichScheduleMaps(base: Awaited<ReturnType<typeof loadScheduleBase>>) {
+  const lookups = scheduleLookups(base);
+  for (const section of base.sections as any[]) {
+    const arr = lookups.sectionsByOffering.get(section.course_offering_id) ?? [];
+    arr.push(section);
+    lookups.sectionsByOffering.set(section.course_offering_id, arr);
+  }
+  for (const session of base.schedules as any[]) {
+    const arr = lookups.schedulesBySection.get(session.course_section_id) ?? [];
+    arr.push(session);
+    lookups.schedulesBySection.set(session.course_section_id, arr);
+  }
+  return lookups;
+}
+
+function offeringMatches(offering: any, data: z.infer<typeof scheduleReportSchema>) {
+  const course = offering.courses;
+  const program = offering.programs;
+  const q = data.search?.trim().toLowerCase();
+  if (data.department_id && course?.department_id !== data.department_id && program?.department_id !== data.department_id) return false;
+  if (data.program_id && offering.program_id !== data.program_id) return false;
+  if (data.level_id && offering.level_id !== data.level_id) return false;
+  if (data.academic_year_id && offering.academic_year_id !== data.academic_year_id) return false;
+  if (data.semester_id && offering.semester_id !== data.semester_id) return false;
+  if (q && !`${course?.code ?? ""} ${course?.name_ar ?? ""}`.toLowerCase().includes(q)) return false;
+  return true;
+}
+
+export const getScheduleReportLookupsForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    const [departments, programs, levels, years, semesters, faculty, rooms, sections] = await Promise.all([
+      supabaseAdmin.from("departments").select("id, name_ar").order("name_ar"),
+      supabaseAdmin.from("programs").select("id, name_ar, code, department_id").order("sort_order"),
+      supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
+      supabaseAdmin.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false }),
+      supabaseAdmin.from("semesters").select("id, academic_year_id, name, code").order("start_date"),
+      supabaseAdmin.from("faculty_profiles").select("id, full_name_ar, employee_number, department_id").order("full_name_ar"),
+      supabaseAdmin.from("rooms").select("id, code, name_ar, room_type, capacity").order("code"),
+      supabaseAdmin.from("course_sections").select("id, section_code").order("section_code"),
+    ]);
+    const firstError = [departments, programs, levels, years, semesters, faculty, rooms, sections].find((res) => res.error)?.error;
+    if (firstError) throw new Error(firstError.message);
+    return {
+      departments: departments.data ?? [],
+      programs: programs.data ?? [],
+      levels: levels.data ?? [],
+      years: years.data ?? [],
+      semesters: semesters.data ?? [],
+      faculty: faculty.data ?? [],
+      rooms: rooms.data ?? [],
+      sections: sections.data ?? [],
+      days: ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"],
+      scheduleTypes: ["lecture", "lab", "tutorial", "exam"],
+    };
+  });
+
+export const getCourseAssignmentsReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    const base = await loadScheduleBase();
+    const maps = enrichScheduleMaps(base);
+    let rows = (base.offerings as any[]).filter((offering) => offeringMatches(offering, data)).map((offering) => {
+      const sections = maps.sectionsByOffering.get(offering.id) ?? [];
+      const assignedSections = sections.filter((section) => section.faculty_profile_id);
+      const scheduleCount = sections.reduce((sum, section) => sum + (maps.schedulesBySection.get(section.id)?.length ?? 0), 0);
+      const faculty = assignedSections[0] ? maps.facultyById.get(assignedSections[0].faculty_profile_id) : null;
+      return {
+        id: offering.id,
+        department: offering.courses?.departments?.name_ar ?? offering.programs?.departments?.name_ar ?? null,
+        program: offering.programs?.name_ar ?? null,
+        level: offering.academic_levels?.name ?? null,
+        course: offering.courses?.name_ar ?? null,
+        course_code: offering.courses?.code ?? null,
+        academic_year: offering.academic_years?.name ?? null,
+        semester: offering.semesters?.name ?? offering.semesters?.code ?? null,
+        faculty: faculty?.full_name_ar ?? null,
+        assignment_status: assignedSections.length > 0 ? "مسند" : "غير مسند",
+        groups_count: sections.length,
+        schedule_sessions: scheduleCount,
+      };
+    });
+    if (data.assignment_status === "assigned") rows = rows.filter((row) => row.assignment_status === "مسند");
+    if (data.assignment_status === "unassigned") rows = rows.filter((row) => row.assignment_status === "غير مسند");
+    if (data.faculty_profile_id) {
+      const offeringIds = new Set((base.sections as any[]).filter((section) => section.faculty_profile_id === data.faculty_profile_id).map((section) => section.course_offering_id));
+      rows = rows.filter((row) => offeringIds.has(row.id));
+    }
+    const total = rows.length;
+    const facultyIds = new Set((base.sections as any[]).filter((section) => section.faculty_profile_id).map((section) => section.faculty_profile_id));
+    return {
+      rows: paginateRows(rows, data.page, data.pageSize),
+      total,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total,
+        assigned: rows.filter((row) => row.assignment_status === "مسند").length,
+        unassigned: rows.filter((row) => row.assignment_status === "غير مسند").length,
+        faculty: facultyIds.size,
+        groups: rows.reduce((sum, row) => sum + row.groups_count, 0),
+        withSchedule: rows.filter((row) => row.schedule_sessions > 0).length,
+      },
+      message: null,
+    };
+  });
+
+export const getUnassignedCoursesReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    const base = await loadScheduleBase();
+    const maps = enrichScheduleMaps(base);
+    const rows = (base.offerings as any[])
+      .filter((offering) => offeringMatches(offering, data))
+      .map((offering) => {
+        const sections = maps.sectionsByOffering.get(offering.id) ?? [];
+        const assigned = sections.some((section) => section.faculty_profile_id);
+        const scheduleCount = sections.reduce((sum, section) => sum + (maps.schedulesBySection.get(section.id)?.length ?? 0), 0);
+        return {
+          id: offering.id,
+          department: offering.courses?.departments?.name_ar ?? offering.programs?.departments?.name_ar ?? null,
+          program: offering.programs?.name_ar ?? null,
+          level: offering.academic_levels?.name ?? null,
+          course: offering.courses?.name_ar ?? null,
+          course_code: offering.courses?.code ?? null,
+          academic_year: offering.academic_years?.name ?? null,
+          semester: offering.semesters?.name ?? offering.semesters?.code ?? null,
+          expected_students: null,
+          groups_count: sections.length,
+          has_schedule: scheduleCount > 0,
+          note: sections.length > 0 ? "غير مسند وله مجموعات دراسية" : "غير مسند",
+          assigned,
+        };
+      })
+      .filter((row) => !row.assigned);
+    const byDept = new Set(rows.map((row) => row.department).filter(Boolean)).size;
+    const byProgram = new Set(rows.map((row) => row.program).filter(Boolean)).size;
+    const byLevel = new Set(rows.map((row) => row.level).filter(Boolean)).size;
+    return {
+      rows: paginateRows(rows, data.page, data.pageSize),
+      total: rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total: rows.length,
+        departments: byDept,
+        programs: byProgram,
+        levels: byLevel,
+        withGroups: rows.filter((row) => row.groups_count > 0).length,
+        withSchedule: rows.filter((row) => row.has_schedule).length,
+      },
+      message: null,
+    };
+  });
+
+export const getStudyGroupsReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    const base = await loadScheduleBase();
+    const maps = enrichScheduleMaps(base);
+    let rows = (base.sections as any[]).map((section) => {
+      const offering = (base.offerings as any[]).find((item) => item.id === section.course_offering_id);
+      const sessions = maps.schedulesBySection.get(section.id) ?? [];
+      return {
+        id: section.id,
+        section_code: section.section_code,
+        section_name: null as string | null,
+        department: offering?.courses?.departments?.name_ar ?? offering?.programs?.departments?.name_ar ?? null,
+        program: offering?.programs?.name_ar ?? null,
+        level: offering?.academic_levels?.name ?? null,
+        academic_year: offering?.academic_years?.name ?? null,
+        semester: offering?.semesters?.name ?? offering?.semesters?.code ?? null,
+        expected_students: section.capacity ?? null,
+        courses_count: offering ? 1 : 0,
+        schedule_sessions: sessions.length,
+        status: section.status,
+        offering,
+      };
+    }).filter((row) => row.offering && offeringMatches(row.offering, data));
+    if (data.course_section_id) rows = rows.filter((row) => row.id === data.course_section_id);
+    if (data.section_status) rows = rows.filter((row) => row.status === data.section_status);
+    if (data.search) rows = rows.filter((row) => row.section_code.toLowerCase().includes(data.search!.toLowerCase()));
+    return {
+      rows: paginateRows(rows, data.page, data.pageSize),
+      total: rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total: rows.length,
+        withoutStudents: rows.filter((row) => !row.expected_students).length,
+        withoutCourses: rows.filter((row) => row.courses_count === 0).length,
+        withoutSchedule: rows.filter((row) => row.schedule_sessions === 0).length,
+        withSchedule: rows.filter((row) => row.schedule_sessions > 0).length,
+        avgCourses: rows.length ? Math.round((rows.reduce((sum, row) => sum + row.courses_count, 0) / rows.length) * 10) / 10 : 0,
+      },
+      message: null,
+    };
+  });
+
+export const getTimetableReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    const base = await loadScheduleBase();
+    const maps = enrichScheduleMaps(base);
+    let rows = (base.schedules as any[]).map((session) => {
+      const section = maps.sectionsById.get(session.course_section_id);
+      const offering = section ? (base.offerings as any[]).find((item) => item.id === section.course_offering_id) : null;
+      const room = maps.roomsById.get(session.room_id);
+      const slot = maps.slotsById.get(session.time_slot_id);
+      const faculty = maps.facultyById.get(session.faculty_profile_id ?? section?.faculty_profile_id);
+      return {
+        id: session.id,
+        day: slot?.day_of_week ?? null,
+        start_time: slot?.start_time ?? null,
+        end_time: slot?.end_time ?? null,
+        department: offering?.courses?.departments?.name_ar ?? offering?.programs?.departments?.name_ar ?? null,
+        program: offering?.programs?.name_ar ?? null,
+        level: offering?.academic_levels?.name ?? null,
+        section_code: section?.section_code ?? null,
+        course: offering?.courses?.name_ar ?? null,
+        course_code: offering?.courses?.code ?? null,
+        faculty: faculty?.full_name_ar ?? null,
+        room: room ? `${room.code} — ${room.name_ar}` : null,
+        schedule_type: session.schedule_type,
+        notes: null as string | null,
+        offering,
+        session,
+      };
+    }).filter((row) => row.offering && offeringMatches(row.offering, data));
+    if (data.course_section_id) rows = rows.filter((row) => row.session.course_section_id === data.course_section_id);
+    if (data.faculty_profile_id) rows = rows.filter((row) => row.session.faculty_profile_id === data.faculty_profile_id);
+    if (data.room_id) rows = rows.filter((row) => row.session.room_id === data.room_id);
+    if (data.day_of_week) rows = rows.filter((row) => row.day === data.day_of_week);
+    if (data.schedule_type) rows = rows.filter((row) => row.schedule_type === data.schedule_type);
+    return {
+      rows: paginateRows(rows, data.page, data.pageSize),
+      total: rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total: rows.length,
+        rooms: new Set(rows.map((row) => row.session.room_id).filter(Boolean)).size,
+        faculty: new Set(rows.map((row) => row.session.faculty_profile_id).filter(Boolean)).size,
+        groups: new Set(rows.map((row) => row.session.course_section_id).filter(Boolean)).size,
+        withoutRoom: rows.filter((row) => !row.room).length,
+        withoutFaculty: rows.filter((row) => !row.faculty).length,
+      },
+      message: null,
+    };
+  });
+
+function timeDiffHours(start?: string | null, end?: string | null) {
+  if (!start || !end) return 0;
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  if (![sh, sm, eh, em].every(Number.isFinite)) return 0;
+  return Math.max(0, ((eh * 60 + em) - (sh * 60 + sm)) / 60);
+}
+
+export const getRoomUtilizationReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    const base = await loadScheduleBase();
+    const maps = enrichScheduleMaps(base);
+    const filteredSessions = (base.schedules as any[]).filter((session) => {
+      const section = maps.sectionsById.get(session.course_section_id);
+      const offering = section ? (base.offerings as any[]).find((item) => item.id === section.course_offering_id) : null;
+      const slot = maps.slotsById.get(session.time_slot_id);
+      if (!offering || !offeringMatches(offering, data)) return false;
+      if (data.room_id && session.room_id !== data.room_id) return false;
+      if (data.day_of_week && slot?.day_of_week !== data.day_of_week) return false;
+      return true;
+    });
+    const sessionsByRoom = new Map<string, any[]>();
+    for (const session of filteredSessions) {
+      const arr = sessionsByRoom.get(session.room_id) ?? [];
+      arr.push(session);
+      sessionsByRoom.set(session.room_id, arr);
+    }
+    let rows = (base.rooms as any[]).filter((room) => {
+      if (data.room_id && room.id !== data.room_id) return false;
+      if (data.room_type && room.room_type !== data.room_type) return false;
+      return true;
+    }).map((room) => {
+      const sessions = sessionsByRoom.get(room.id) ?? [];
+      const slots = sessions.map((session) => maps.slotsById.get(session.time_slot_id)).filter(Boolean);
+      const hours = slots.reduce((sum, slot) => sum + timeDiffHours(slot.start_time, slot.end_time), 0);
+      const first = slots.map((slot) => slot.start_time).sort()[0] ?? null;
+      const last = slots.map((slot) => slot.end_time).sort().at(-1) ?? null;
+      const day = data.day_of_week ?? (slots[0]?.day_of_week ?? null);
+      return {
+        id: room.id,
+        room: `${room.code} — ${room.name_ar}`,
+        room_type: room.room_type,
+        capacity: room.capacity,
+        day,
+        sessions_count: sessions.length,
+        scheduled_hours: Math.round(hours * 10) / 10,
+        first_time: first,
+        last_time: last,
+        notes: sessions.length === 0 ? "غير مستخدمة ضمن الفلاتر" : hours === 0 ? "بيانات ناقصة" : "مستخدمة",
+      };
+    });
+    rows = rows.filter((row) => row.sessions_count > 0 || data.room_id || data.room_type);
+    return {
+      rows: paginateRows(rows, data.page, data.pageSize),
+      total: rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        totalRooms: rows.length,
+        usedRooms: rows.filter((row) => row.sessions_count > 0).length,
+        unusedRooms: rows.filter((row) => row.sessions_count === 0).length,
+        sessions: rows.reduce((sum, row) => sum + row.sessions_count, 0),
+        hours: Math.round(rows.reduce((sum, row) => sum + row.scheduled_hours, 0) * 10) / 10,
+        avgUtilization: rows.length ? Math.round((rows.reduce((sum, row) => sum + row.scheduled_hours, 0) / rows.length) * 10) / 10 : 0,
+      },
+      message: null,
+    };
+  });
+
+export const getFacultyLoadReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    const base = await loadScheduleBase();
+    const maps = enrichScheduleMaps(base);
+    const facultyRows = (base.faculty as any[]).filter((faculty) => {
+      if (data.faculty_profile_id && faculty.id !== data.faculty_profile_id) return false;
+      if (data.department_id && faculty.department_id !== data.department_id) return false;
+      return true;
+    }).map((faculty) => {
+      const assignedSections = (base.sections as any[]).filter((section) => section.faculty_profile_id === faculty.id);
+      const matchingSections = assignedSections.filter((section) => {
+        const offering = (base.offerings as any[]).find((item) => item.id === section.course_offering_id);
+        return offering && offeringMatches(offering, data);
+      });
+      const sessions = (base.schedules as any[]).filter((session) => {
+        if (session.faculty_profile_id !== faculty.id) return false;
+        const section = maps.sectionsById.get(session.course_section_id);
+        const offering = section ? (base.offerings as any[]).find((item) => item.id === section.course_offering_id) : null;
+        return offering && offeringMatches(offering, data);
+      });
+      const hours = sessions.reduce((sum, session) => {
+        const slot = maps.slotsById.get(session.time_slot_id);
+        return sum + timeDiffHours(slot?.start_time, slot?.end_time);
+      }, 0);
+      const courses = new Set(matchingSections.map((section) => section.course_offering_id)).size;
+      const note = sessions.length === 0 ? "بدون جدول" : hours < 4 ? "عبء منخفض" : hours > 18 ? "عبء مرتفع" : "طبيعي";
+      return {
+        id: faculty.id,
+        faculty: faculty.full_name_ar,
+        department: faculty.departments?.name_ar ?? null,
+        assigned_courses: courses,
+        groups_count: matchingSections.length,
+        schedule_sessions: sessions.length,
+        scheduled_hours: Math.round(hours * 10) / 10,
+        notes: note,
+      };
+    }).filter((row) => row.assigned_courses > 0 || row.schedule_sessions > 0 || data.faculty_profile_id);
+    return {
+      rows: paginateRows(facultyRows, data.page, data.pageSize),
+      total: facultyRows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        faculty: facultyRows.length,
+        assignedCourses: facultyRows.reduce((sum, row) => sum + row.assigned_courses, 0),
+        sessions: facultyRows.reduce((sum, row) => sum + row.schedule_sessions, 0),
+        hours: Math.round(facultyRows.reduce((sum, row) => sum + row.scheduled_hours, 0) * 10) / 10,
+        maxLoad: facultyRows.reduce((max, row) => Math.max(max, row.scheduled_hours), 0),
+        withoutSchedule: facultyRows.filter((row) => row.schedule_sessions === 0).length,
+      },
+      message: null,
+    };
+  });
+
+export const getScheduleConflictIndicatorsForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertScheduleReportsAccess(context.userId);
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    const base = await loadScheduleBase();
+    const maps = enrichScheduleMaps(base);
+    const sessions = (base.schedules as any[]).map((session) => {
+      const section = maps.sectionsById.get(session.course_section_id);
+      const offering = section ? (base.offerings as any[]).find((item) => item.id === section.course_offering_id) : null;
+      const slot = maps.slotsById.get(session.time_slot_id);
+      const room = maps.roomsById.get(session.room_id);
+      const faculty = maps.facultyById.get(session.faculty_profile_id ?? section?.faculty_profile_id);
+      return { session, section, offering, slot, room, faculty };
+    }).filter((item) => item.offering && offeringMatches(item.offering, data))
+      .filter((item) => !data.day_of_week || item.slot?.day_of_week === data.day_of_week);
+    const indicators: any[] = [];
+    const groups = [
+      { type: "faculty", label: "تعارض محاضر", key: (x: any) => x.faculty?.id },
+      { type: "room", label: "تعارض قاعة", key: (x: any) => x.room?.id },
+      { type: "group", label: "تعارض مجموعة دراسية", key: (x: any) => x.section?.id },
+    ];
+    for (const g of groups) {
+      const map = new Map<string, any[]>();
+      for (const item of sessions) {
+        const entity = g.key(item);
+        if (!entity || !item.slot?.day_of_week || !item.slot?.start_time || !item.slot?.end_time) continue;
+        const key = `${entity}|${item.slot.day_of_week}|${item.slot.start_time}|${item.slot.end_time}`;
+        const arr = map.get(key) ?? [];
+        arr.push(item);
+        map.set(key, arr);
+      }
+      for (const arr of map.values()) {
+        if (arr.length > 1) {
+          const first = arr[0];
+          indicators.push({
+            id: `${g.type}-${first.session.id}`,
+            conflict_type: g.label,
+            day: first.slot.day_of_week,
+            start_time: first.slot.start_time,
+            end_time: first.slot.end_time,
+            course: first.offering?.courses?.name_ar ?? null,
+            faculty: first.faculty?.full_name_ar ?? null,
+            room: first.room ? `${first.room.code} — ${first.room.name_ar}` : null,
+            section_code: first.section?.section_code ?? null,
+            description: `${g.label}: ${arr.length} جلسات في نفس الوقت`,
+          });
+        }
+      }
+    }
+    for (const item of sessions) {
+      if (!item.room || !item.faculty || !item.slot?.start_time || !item.slot?.end_time) {
+        indicators.push({
+          id: `missing-${item.session.id}`,
+          conflict_type: "جلسة ناقصة البيانات",
+          day: item.slot?.day_of_week ?? null,
+          start_time: item.slot?.start_time ?? null,
+          end_time: item.slot?.end_time ?? null,
+          course: item.offering?.courses?.name_ar ?? null,
+          faculty: item.faculty?.full_name_ar ?? null,
+          room: item.room ? `${item.room.code} — ${item.room.name_ar}` : null,
+          section_code: item.section?.section_code ?? null,
+          description: "جلسة بدون قاعة أو محاضر أو وقت مكتمل",
+        });
+      }
+    }
+    const filtered = data.conflict_type === "all"
+      ? indicators
+      : indicators.filter((item) =>
+        data.conflict_type === "faculty" ? item.conflict_type === "تعارض محاضر"
+          : data.conflict_type === "room" ? item.conflict_type === "تعارض قاعة"
+          : data.conflict_type === "group" ? item.conflict_type === "تعارض مجموعة دراسية"
+          : item.conflict_type === "جلسة ناقصة البيانات");
+    return {
+      rows: paginateRows(filtered, data.page, data.pageSize),
+      total: filtered.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total: filtered.length,
+        faculty: filtered.filter((item) => item.conflict_type === "تعارض محاضر").length,
+        room: filtered.filter((item) => item.conflict_type === "تعارض قاعة").length,
+        group: filtered.filter((item) => item.conflict_type === "تعارض مجموعة دراسية").length,
+        missingData: filtered.filter((item) => item.conflict_type === "جلسة ناقصة البيانات").length,
+      },
+      message: sessions.length === 0 ? "لا تتوفر بيانات كافية لاستخراج مؤشرات التعارضات لهذا النطاق." : null,
+    };
+  });
