@@ -904,3 +904,347 @@ export const getStudentAccountsReportForAdmin = createServerFn({ method: "POST" 
       message: null,
     };
   });
+
+const academicPageSchema = z.object({
+  department_id: z.string().uuid().optional().nullable(),
+  program_id: z.string().uuid().optional().nullable(),
+  status: z.string().trim().max(40).optional().nullable(),
+  search: z.string().trim().max(160).optional().nullable(),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(100).default(50),
+});
+
+const coursesReportSchema = academicPageSchema.extend({
+  level_id: z.string().uuid().optional().nullable(),
+  semester_code: z.enum(["all", "first", "second"]).default("all"),
+});
+
+const coverageReportSchema = z.object({
+  department_id: z.string().uuid().optional().nullable(),
+  program_id: z.string().uuid().optional().nullable(),
+  study_plan_id: z.string().uuid().optional().nullable(),
+  level_id: z.string().uuid().optional().nullable(),
+  semester_code: z.enum(["all", "first", "second"]).default("all"),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(100).default(50),
+});
+
+export const getAcademicReportLookupsForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertReportsAccess(context.userId);
+    const [departments, programs, levels, plans] = await Promise.all([
+      supabaseAdmin.from("departments").select("id, name_ar").order("sort_order"),
+      supabaseAdmin.from("programs").select("id, code, name_ar, department_id").order("sort_order"),
+      supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
+      supabaseAdmin.from("study_plans").select("id, name, version, program_id").order("name"),
+    ]);
+    const firstError = [departments, programs, levels, plans].find((res) => res.error)?.error;
+    if (firstError) throw new Error(firstError.message);
+    return {
+      departments: departments.data ?? [],
+      programs: programs.data ?? [],
+      levels: levels.data ?? [],
+      studyPlans: plans.data ?? [],
+      semesters: [
+        { code: "first", name: "الفصل الأول" },
+        { code: "second", name: "الفصل الثاني" },
+      ],
+    };
+  });
+
+function hasAcademicFilter(data: z.infer<typeof academicPageSchema>) {
+  return Boolean(data.department_id || data.program_id || data.status || data.search);
+}
+
+export const getAcademicProgramsReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => academicPageSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertReportsAccess(context.userId);
+    if (!hasAcademicFilter(data)) {
+      return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
+        kpis: { total: 0, active: 0, inactive: 0, withoutPlans: 0, withStudents: 0 },
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    }
+
+    let query = supabaseAdmin
+      .from("programs")
+      .select("id, code, name_ar, degree_type, status, is_active, department_id, years, departments(name_ar)", { count: "exact" })
+      .order("sort_order");
+    if (data.department_id) query = query.eq("department_id", data.department_id);
+    if (data.program_id) query = query.eq("id", data.program_id);
+    if (data.status) query = query.eq("status", data.status);
+    if (data.search) query = query.or(`code.ilike.%${data.search}%,name_ar.ilike.%${data.search}%`);
+
+    const from = (data.page - 1) * data.pageSize;
+    const to = from + data.pageSize - 1;
+    const { data: programs, error, count } = await query.range(from, to);
+    if (error) throw new Error(error.message);
+    const programIds = (programs ?? []).map((program: any) => program.id);
+
+    const [{ data: plans }, { data: students }] = await Promise.all([
+      programIds.length ? supabaseAdmin.from("study_plans").select("id, program_id").in("program_id", programIds) : Promise.resolve({ data: [] as any[] }),
+      programIds.length ? supabaseAdmin.from("student_profiles").select("id, program_id").in("program_id", programIds) : Promise.resolve({ data: [] as any[] }),
+    ]);
+    const planCount = new Map<string, number>();
+    for (const plan of plans ?? []) planCount.set((plan as any).program_id, (planCount.get((plan as any).program_id) ?? 0) + 1);
+    const studentCount = new Map<string, number>();
+    for (const student of students ?? []) studentCount.set((student as any).program_id, (studentCount.get((student as any).program_id) ?? 0) + 1);
+
+    const rows = (programs ?? []).map((program: any) => ({
+      id: program.id,
+      department: program.departments?.name_ar ?? null,
+      code: program.code,
+      name: program.name_ar,
+      degree_type: program.degree_type ?? null,
+      status: program.status ?? (program.is_active ? "active" : "inactive"),
+      levels_count: program.years ?? null,
+      plans_count: planCount.get(program.id) ?? 0,
+      students_count: studentCount.get(program.id) ?? 0,
+    }));
+    return {
+      rows,
+      total: count ?? rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total: count ?? rows.length,
+        active: rows.filter((row) => row.status === "active").length,
+        inactive: rows.filter((row) => row.status !== "active").length,
+        withoutPlans: rows.filter((row) => row.plans_count === 0).length,
+        withStudents: rows.filter((row) => row.students_count > 0).length,
+      },
+      message: null,
+    };
+  });
+
+export const getStudyPlansReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => academicPageSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertReportsAccess(context.userId);
+    if (!hasAcademicFilter(data)) {
+      return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
+        kpis: { total: 0, active: 0, withoutCourses: 0, avgCourses: 0, totalHours: 0 },
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    }
+
+    let programIds: string[] | null = null;
+    if (data.department_id) {
+      const { data: programs, error } = await supabaseAdmin.from("programs").select("id").eq("department_id", data.department_id);
+      if (error) throw new Error(error.message);
+      programIds = (programs ?? []).map((program: any) => program.id);
+      if (programIds.length === 0) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: { total: 0, active: 0, withoutCourses: 0, avgCourses: 0, totalHours: 0 }, message: null };
+    }
+    let query = supabaseAdmin
+      .from("study_plans")
+      .select("id, name, version, program_id, status, is_active, total_credit_hours, updated_at, programs(name_ar, code, department_id, departments(name_ar))", { count: "exact" })
+      .order("updated_at", { ascending: false });
+    if (data.program_id) query = query.eq("program_id", data.program_id);
+    else if (programIds) query = query.in("program_id", programIds);
+    if (data.status) query = query.eq("status", data.status);
+    if (data.search) query = query.or(`name.ilike.%${data.search}%,version.ilike.%${data.search}%`);
+    const from = (data.page - 1) * data.pageSize;
+    const to = from + data.pageSize - 1;
+    const { data: plans, error, count } = await query.range(from, to);
+    if (error) throw new Error(error.message);
+    const planIds = (plans ?? []).map((plan: any) => plan.id);
+    const { data: planCourses } = planIds.length
+      ? await supabaseAdmin.from("study_plan_courses").select("study_plan_id, courses(credit_hours)").in("study_plan_id", planIds)
+      : { data: [] as any[] };
+    const courseCount = new Map<string, number>();
+    const hoursByPlan = new Map<string, number>();
+    for (const link of planCourses ?? []) {
+      const planId = (link as any).study_plan_id;
+      courseCount.set(planId, (courseCount.get(planId) ?? 0) + 1);
+      hoursByPlan.set(planId, (hoursByPlan.get(planId) ?? 0) + Number((link as any).courses?.credit_hours ?? 0));
+    }
+    const rows = (plans ?? []).map((plan: any) => ({
+      id: plan.id,
+      name: plan.name,
+      code: plan.version,
+      department: plan.programs?.departments?.name_ar ?? null,
+      program: plan.programs?.name_ar ?? null,
+      program_code: plan.programs?.code ?? null,
+      academic_year: null as string | null,
+      status: plan.status ?? (plan.is_active ? "active" : "archived"),
+      courses_count: courseCount.get(plan.id) ?? 0,
+      total_hours: hoursByPlan.get(plan.id) || plan.total_credit_hours || 0,
+      updated_at: plan.updated_at,
+    }));
+    const totalCourses = rows.reduce((sum, row) => sum + row.courses_count, 0);
+    return {
+      rows,
+      total: count ?? rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total: count ?? rows.length,
+        active: rows.filter((row) => row.status === "active").length,
+        withoutCourses: rows.filter((row) => row.courses_count === 0).length,
+        avgCourses: rows.length ? Math.round((totalCourses / rows.length) * 10) / 10 : 0,
+        totalHours: rows.reduce((sum, row) => sum + row.total_hours, 0),
+      },
+      message: null,
+    };
+  });
+
+export const getCoursesReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => coursesReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertReportsAccess(context.userId);
+    const hasFilter = Boolean(data.department_id || data.program_id || data.level_id || data.semester_code !== "all" || data.status || data.search);
+    if (!hasFilter) {
+      return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
+        kpis: { total: 0, missingCode: 0, withoutPlan: 0, withoutLevel: 0, withoutSemester: 0, complete: 0, incomplete: 0 },
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    }
+    let scopedCourseIds: string[] | null = null;
+    if (data.program_id || data.level_id || data.semester_code !== "all") {
+      let linkQuery = supabaseAdmin.from("study_plan_courses").select("course_id, study_plans(program_id)");
+      if (data.level_id) linkQuery = linkQuery.eq("level_id", data.level_id);
+      if (data.semester_code !== "all") linkQuery = linkQuery.eq("semester_code", data.semester_code);
+      const { data: links, error } = await linkQuery;
+      if (error) throw new Error(error.message);
+      scopedCourseIds = Array.from(new Set((links ?? [])
+        .filter((link: any) => !data.program_id || link.study_plans?.program_id === data.program_id)
+        .map((link: any) => link.course_id)));
+      if (scopedCourseIds.length === 0) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: { total: 0, missingCode: 0, withoutPlan: 0, withoutLevel: 0, withoutSemester: 0, complete: 0, incomplete: 0 }, message: null };
+    }
+    let query = supabaseAdmin
+      .from("courses")
+      .select("id, code, name_ar, department_id, theory_hours, practical_hours, credit_hours, status, departments(name_ar)", { count: "exact" })
+      .order("code");
+    if (data.department_id) query = query.eq("department_id", data.department_id);
+    if (data.status) query = query.eq("status", data.status);
+    if (data.search) query = query.or(`code.ilike.%${data.search}%,name_ar.ilike.%${data.search}%`);
+    if (scopedCourseIds) query = query.in("id", scopedCourseIds);
+    const from = (data.page - 1) * data.pageSize;
+    const to = from + data.pageSize - 1;
+    const { data: courses, error, count } = await query.range(from, to);
+    if (error) throw new Error(error.message);
+    const courseIds = (courses ?? []).map((course: any) => course.id);
+    const { data: links } = courseIds.length
+      ? await supabaseAdmin.from("study_plan_courses").select("course_id, level_id, semester_code, study_plans(name, programs(name_ar, code))").in("course_id", courseIds)
+      : { data: [] as any[] };
+    const linksByCourse = new Map<string, any[]>();
+    for (const link of links ?? []) {
+      const arr = linksByCourse.get((link as any).course_id) ?? [];
+      arr.push(link);
+      linksByCourse.set((link as any).course_id, arr);
+    }
+    const rows = (courses ?? []).map((course: any) => {
+      const courseLinks = linksByCourse.get(course.id) ?? [];
+      const firstLink = courseLinks[0];
+      const incomplete = !course.code || !course.name_ar || !course.department_id || courseLinks.length === 0
+        || courseLinks.some((link) => !link.level_id || !link.semester_code);
+      return {
+        id: course.id,
+        code: course.code,
+        name: course.name_ar,
+        department: course.departments?.name_ar ?? null,
+        plan_or_program: firstLink?.study_plans?.programs?.name_ar ?? firstLink?.study_plans?.name ?? null,
+        level: firstLink?.level_id ? "محدد" : null,
+        semester: firstLink?.semester_code ?? null,
+        theory_hours: course.theory_hours ?? 0,
+        practical_hours: course.practical_hours ?? 0,
+        credit_hours: course.credit_hours ?? 0,
+        data_status: incomplete ? "ناقص" : "مكتمل",
+        links_count: courseLinks.length,
+      };
+    });
+    return {
+      rows,
+      total: count ?? rows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total: count ?? rows.length,
+        missingCode: rows.filter((row) => !row.code).length,
+        withoutPlan: rows.filter((row) => row.links_count === 0).length,
+        withoutLevel: rows.filter((row) => !row.level).length,
+        withoutSemester: rows.filter((row) => !row.semester).length,
+        complete: rows.filter((row) => row.data_status === "مكتمل").length,
+        incomplete: rows.filter((row) => row.data_status === "ناقص").length,
+      },
+      message: null,
+    };
+  });
+
+export const getStudyPlanCoverageReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => coverageReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertReportsAccess(context.userId);
+    const hasFilter = Boolean(data.department_id || data.program_id || data.study_plan_id || data.level_id || data.semester_code !== "all");
+    if (!hasFilter) {
+      return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
+        kpis: { plans: 0, filledSlots: 0, emptySlots: 0, courses: 0, hours: 0 },
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    }
+    let programIds: string[] | null = null;
+    if (data.department_id) {
+      const { data: programs, error } = await supabaseAdmin.from("programs").select("id").eq("department_id", data.department_id);
+      if (error) throw new Error(error.message);
+      programIds = (programs ?? []).map((program: any) => program.id);
+    }
+    let plansQuery = supabaseAdmin
+      .from("study_plans")
+      .select("id, name, version, program_id, programs(name_ar, code, departments(name_ar))")
+      .order("name");
+    if (data.study_plan_id) plansQuery = plansQuery.eq("id", data.study_plan_id);
+    if (data.program_id) plansQuery = plansQuery.eq("program_id", data.program_id);
+    else if (programIds) plansQuery = plansQuery.in("program_id", programIds);
+    const { data: plans, error: plansErr } = await plansQuery.limit(200);
+    if (plansErr) throw new Error(plansErr.message);
+    const planIds = (plans ?? []).map((plan: any) => plan.id);
+    if (planIds.length === 0) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: { plans: 0, filledSlots: 0, emptySlots: 0, courses: 0, hours: 0 }, message: null };
+    const [{ data: levels }, { data: links, error: linksErr }] = await Promise.all([
+      supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
+      supabaseAdmin.from("study_plan_courses").select("study_plan_id, level_id, semester_code, courses(credit_hours)").in("study_plan_id", planIds),
+    ]);
+    if (linksErr) throw new Error(linksErr.message);
+    const selectedLevels = (levels ?? []).filter((level: any) => !data.level_id || level.id === data.level_id);
+    const semesters = data.semester_code === "all" ? ["first", "second"] : [data.semester_code];
+    const grouped = new Map<string, { count: number; hours: number }>();
+    for (const link of links ?? []) {
+      if (data.level_id && (link as any).level_id !== data.level_id) continue;
+      if (data.semester_code !== "all" && (link as any).semester_code !== data.semester_code) continue;
+      const key = `${(link as any).study_plan_id}|${(link as any).level_id}|${(link as any).semester_code}`;
+      const current = grouped.get(key) ?? { count: 0, hours: 0 };
+      current.count += 1;
+      current.hours += Number((link as any).courses?.credit_hours ?? 0);
+      grouped.set(key, current);
+    }
+    const allRows = (plans ?? []).flatMap((plan: any) => selectedLevels.flatMap((level: any) => semesters.map((semester) => {
+      const current = grouped.get(`${plan.id}|${level.id}|${semester}`) ?? { count: 0, hours: 0 };
+      return {
+        id: `${plan.id}-${level.id}-${semester}`,
+        plan: `${plan.name} (${plan.version})`,
+        program: plan.programs?.name_ar ?? null,
+        level: level.name,
+        semester,
+        courses_count: current.count,
+        total_hours: current.hours,
+        notes: current.count === 0 ? "لا توجد مقررات" : current.hours === 0 ? "لا توجد ساعات" : "توزيع مكتمل",
+      };
+    })));
+    const from = (data.page - 1) * data.pageSize;
+    const rows = allRows.slice(from, from + data.pageSize);
+    return {
+      rows,
+      total: allRows.length,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        plans: planIds.length,
+        filledSlots: allRows.filter((row) => row.courses_count > 0).length,
+        emptySlots: allRows.filter((row) => row.courses_count === 0).length,
+        courses: allRows.reduce((sum, row) => sum + row.courses_count, 0),
+        hours: allRows.reduce((sum, row) => sum + row.total_hours, 0),
+      },
+      message: null,
+    };
+  });
