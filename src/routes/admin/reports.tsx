@@ -5,10 +5,15 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   BarChart3, BookOpen, ClipboardList, FileBadge, FileDown, FileSearch,
   FileText, GraduationCap, History, Loader2, Printer, Search, ShieldCheck,
-  Upload, UserCheck, Users,
+  Upload, UserCheck, Users, XCircle, Eye,
 } from "lucide-react";
 import { getStudentLookups } from "@/lib/admin-students.functions";
-import { getStudentsReportForAdmin } from "@/lib/admin-reports.functions";
+import {
+  getImportJobErrorsForAdmin,
+  getImportJobsReportForAdmin,
+  getStudentAccountsReportForAdmin,
+  getStudentsReportForAdmin,
+} from "@/lib/admin-reports.functions";
 
 export const Route = createFileRoute("/admin/reports")({
   component: ReportsPage,
@@ -25,6 +30,28 @@ type ReportFilters = {
   account_status: "all" | "with_account" | "without_account";
 };
 
+type ImportFilters = {
+  import_type: string;
+  status: "all" | "completed" | "failed" | "processing" | "partial" | "dry_run";
+  from_date: string;
+  to_date: string;
+  created_by: string;
+  file_name: string;
+};
+
+type StudentAccountFilters = {
+  department_id: string;
+  program_id: string;
+  level_id: string;
+  academic_year_id: string;
+  semester_id: string;
+  study_system: "all" | "regular" | "private" | "unset";
+  account_status: "all" | "with_account" | "without_account";
+  status: string;
+  academic_number: string;
+  student_name: string;
+};
+
 const EMPTY_FILTERS: ReportFilters = {
   study_system: "all",
   department_id: "",
@@ -37,6 +64,30 @@ const EMPTY_FILTERS: ReportFilters = {
 };
 
 const PAGE_SIZE = 50;
+const IMPORT_PAGE_SIZE = 50;
+const ACCOUNT_PAGE_SIZE = 50;
+
+const EMPTY_IMPORT_FILTERS: ImportFilters = {
+  import_type: "",
+  status: "all",
+  from_date: "",
+  to_date: "",
+  created_by: "",
+  file_name: "",
+};
+
+const EMPTY_ACCOUNT_FILTERS: StudentAccountFilters = {
+  department_id: "",
+  program_id: "",
+  level_id: "",
+  academic_year_id: "",
+  semester_id: "",
+  study_system: "all",
+  account_status: "all",
+  status: "all",
+  academic_number: "",
+  student_name: "",
+};
 
 function studySystemLabel(value: string | null | undefined) {
   if (value === "regular") return "عام";
@@ -56,6 +107,22 @@ function statusLabel(value: string | null | undefined) {
   return value ? labels[value] ?? value : "—";
 }
 
+function importStatusLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    completed: "ناجح",
+    failed: "فاشل",
+    processing: "قيد المعالجة",
+    partial: "مكتمل مع أخطاء",
+    dry_run: "تحقق فقط",
+  };
+  return value ? labels[value] ?? value : "—";
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("ar-EG");
+}
+
 function hasAnyFilter(filters: ReportFilters) {
   return filters.study_system !== "all"
     || Boolean(filters.department_id)
@@ -65,6 +132,32 @@ function hasAnyFilter(filters: ReportFilters) {
     || Boolean(filters.semester_id)
     || filters.status !== "all"
     || filters.account_status !== "all";
+}
+
+function hasImportFilter(filters: ImportFilters) {
+  return Boolean(
+    filters.import_type
+    || filters.status !== "all"
+    || filters.from_date
+    || filters.to_date
+    || filters.created_by
+    || filters.file_name,
+  );
+}
+
+function hasAccountFilter(filters: StudentAccountFilters) {
+  return Boolean(
+    filters.department_id
+    || filters.program_id
+    || filters.level_id
+    || filters.academic_year_id
+    || filters.semester_id
+    || filters.study_system !== "all"
+    || filters.account_status !== "all"
+    || filters.status !== "all"
+    || filters.academic_number
+    || filters.student_name,
+  );
 }
 
 function csvEscape(value: unknown) {
@@ -94,7 +187,8 @@ function ReportsPage() {
 
   const sections = [
     { id: "students", title: "تقارير الطلاب", icon: GraduationCap, active: true },
-    { id: "imports", title: "تقارير الاستيراد", icon: Upload },
+    { id: "imports", title: "تقارير الاستيراد", icon: Upload, active: true },
+    { id: "accounts", title: "تقارير حسابات الطلاب", icon: UserCheck, active: true },
     { id: "academic", title: "التقارير الأكاديمية", icon: BookOpen },
     { id: "schedules", title: "تقارير الجداول والإسناد", icon: ClipboardList },
     { id: "faculty", title: "تقارير أعضاء هيئة التدريس", icon: Users },
@@ -142,9 +236,10 @@ function ReportsPage() {
         })}
       </section>
 
-      {activeSection === "students" ? (
-        <StudentsReport />
-      ) : (
+      {activeSection === "students" && <StudentsReport />}
+      {activeSection === "imports" && <ImportJobsReport />}
+      {activeSection === "accounts" && <StudentAccountsReport />}
+      {!["students", "imports", "accounts"].includes(activeSection) && (
         <ComingSoonCard title={sections.find((section) => section.id === activeSection)?.title ?? "قسم التقارير"} />
       )}
     </div>
@@ -420,6 +515,404 @@ function StudentsReport() {
   );
 }
 
+function ImportJobsReport() {
+  const reportFn = useServerFn(getImportJobsReportForAdmin);
+  const errorsFn = useServerFn(getImportJobErrorsForAdmin);
+  const [filters, setFilters] = useState<ImportFilters>(EMPTY_IMPORT_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<ImportFilters>(EMPTY_IMPORT_FILTERS);
+  const [page, setPage] = useState(1);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
+  const enabled = hasImportFilter(appliedFilters);
+  const { data: report, isFetching, error } = useQuery({
+    queryKey: ["admin-import-jobs-report", appliedFilters, page],
+    enabled,
+    queryFn: () => reportFn({
+      data: {
+        ...appliedFilters,
+        import_type: appliedFilters.import_type || undefined,
+        from_date: appliedFilters.from_date || undefined,
+        to_date: appliedFilters.to_date || undefined,
+        created_by: appliedFilters.created_by || undefined,
+        file_name: appliedFilters.file_name || undefined,
+        page,
+        pageSize: IMPORT_PAGE_SIZE,
+      },
+    }),
+  });
+
+  const { data: details, isFetching: detailsLoading } = useQuery({
+    queryKey: ["admin-import-job-errors", selectedJobId],
+    enabled: Boolean(selectedJobId),
+    queryFn: () => errorsFn({ data: { import_log_id: selectedJobId! } }),
+  });
+
+  const totalPages = Math.max(1, Math.ceil((report?.total ?? 0) / IMPORT_PAGE_SIZE));
+  const exportRows = useMemo(() => (report?.rows ?? []).map((row) => ({
+    "تاريخ العملية": formatDateTime(row.created_at),
+    "نوع الاستيراد": row.import_type,
+    "اسم الملف": row.file_name,
+    "الحالة": importStatusLabel(row.status),
+    "إجمالي الصفوف": row.rows_total,
+    "الصفوف الناجحة": row.rows_success,
+    "الصفوف الفاشلة": row.rows_failed,
+    "عدد الأخطاء": row.error_count,
+    "المنفذ": row.created_by ?? "",
+    "ملاحظات": row.notes ?? "",
+  })), [report?.rows]);
+
+  const update = (key: keyof ImportFilters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
+  const apply = () => { setPage(1); setSelectedJobId(null); setAppliedFilters(filters); };
+  const clear = () => { setFilters(EMPTY_IMPORT_FILTERS); setAppliedFilters(EMPTY_IMPORT_FILTERS); setSelectedJobId(null); setPage(1); };
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card space-y-4">
+        <div>
+          <h2 className="font-display text-xl font-extrabold text-primary flex items-center gap-2">
+            <Upload className="h-5 w-5 text-gold" /> سجل عمليات الاستيراد
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            تقرير قراءة فقط يعرض سجلات الاستيراد المخزنة في import_logs.
+          </p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          <ReportField label="نوع الاستيراد">
+            <input value={filters.import_type} onChange={(e) => update("import_type", e.target.value)}
+              placeholder="students / class_schedule ..."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+          <ReportField label="الحالة">
+            <select value={filters.status} onChange={(e) => update("status", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="all">الكل</option>
+              <option value="completed">ناجح</option>
+              <option value="failed">فاشل</option>
+              <option value="processing">قيد المعالجة</option>
+              <option value="partial">مكتمل مع أخطاء</option>
+              <option value="dry_run">تحقق فقط</option>
+            </select>
+          </ReportField>
+          <ReportField label="اسم الملف">
+            <input value={filters.file_name} onChange={(e) => update("file_name", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+          <ReportField label="من تاريخ">
+            <input type="date" value={filters.from_date} onChange={(e) => update("from_date", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+          <ReportField label="إلى تاريخ">
+            <input type="date" value={filters.to_date} onChange={(e) => update("to_date", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+          <ReportField label="المستخدم/المنفذ">
+            <input value={filters.created_by} onChange={(e) => update("created_by", e.target.value)}
+              dir="ltr" placeholder="UUID إن وجد"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono" />
+          </ReportField>
+        </div>
+        <ReportActions
+          onApply={apply}
+          onClear={clear}
+          onPrint={() => window.print()}
+          onCsv={() => downloadCsv("import_jobs_report.csv", exportRows)}
+          csvDisabled={!exportRows.length}
+          printDisabled={!report?.rows?.length}
+        />
+      </div>
+
+      {!enabled ? (
+        <EmptyReportMessage message="اختر فلترًا واحدًا على الأقل لعرض التقرير." />
+      ) : error ? (
+        <ErrorBox message={(error as Error).message} />
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-5">
+            <KpiCard label="إجمالي العمليات" value={report?.kpis.total ?? 0} icon={Upload} />
+            <KpiCard label="العمليات الناجحة" value={report?.kpis.completed ?? 0} icon={UserCheck} />
+            <KpiCard label="العمليات الفاشلة" value={report?.kpis.failed ?? 0} icon={XCircle} />
+            <KpiCard label="إجمالي الصفوف" value={report?.kpis.rowsTotal ?? 0} icon={ClipboardList} />
+            <KpiCard label="إجمالي الأخطاء" value={report?.kpis.errorsTotal ?? 0} icon={XCircle} />
+          </div>
+          <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+            <ReportHeader title="نتائج سجل الاستيراد" loading={isFetching} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-secondary/50 text-primary">
+                  <tr>
+                    <th className="px-3 py-2 text-right">التاريخ</th>
+                    <th className="px-3 py-2 text-right">النوع</th>
+                    <th className="px-3 py-2 text-right">الملف</th>
+                    <th className="px-3 py-2 text-right">الحالة</th>
+                    <th className="px-3 py-2 text-right">إجمالي</th>
+                    <th className="px-3 py-2 text-right">ناجح</th>
+                    <th className="px-3 py-2 text-right">فاشل</th>
+                    <th className="px-3 py-2 text-right">الأخطاء</th>
+                    <th className="px-3 py-2 text-right">المنفذ</th>
+                    <th className="px-3 py-2 text-right">ملاحظات</th>
+                    <th className="px-3 py-2 text-right">تفاصيل</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report?.rows.length ? report.rows.map((row) => (
+                    <tr key={row.id} className="border-t border-border/60">
+                      <td className="px-3 py-2">{formatDateTime(row.created_at)}</td>
+                      <td className="px-3 py-2 font-mono">{row.import_type}</td>
+                      <td className="px-3 py-2">{row.file_name}</td>
+                      <td className="px-3 py-2">{importStatusLabel(row.status)}</td>
+                      <td className="px-3 py-2 font-mono">{row.rows_total}</td>
+                      <td className="px-3 py-2 font-mono">{row.rows_success}</td>
+                      <td className="px-3 py-2 font-mono">{row.rows_failed}</td>
+                      <td className="px-3 py-2 font-mono">{row.error_count}</td>
+                      <td className="px-3 py-2 font-mono">{row.created_by ?? "—"}</td>
+                      <td className="px-3 py-2 max-w-xs truncate">{row.notes ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <button type="button" onClick={() => setSelectedJobId(row.id)}
+                          className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 font-bold hover:bg-secondary">
+                          <Eye className="h-3 w-3" /> عرض
+                        </button>
+                      </td>
+                    </tr>
+                  )) : (
+                    <EmptyTableRow colSpan={11} />
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <PaginationFooter page={page} total={report?.total ?? 0} pageSize={IMPORT_PAGE_SIZE} totalPages={totalPages} setPage={setPage} />
+          </div>
+        </>
+      )}
+
+      {selectedJobId && (
+        <ImportDetailsDialog
+          details={details}
+          loading={detailsLoading}
+          onClose={() => setSelectedJobId(null)}
+        />
+      )}
+    </section>
+  );
+}
+
+function StudentAccountsReport() {
+  const lookupsFn = useServerFn(getStudentLookups);
+  const reportFn = useServerFn(getStudentAccountsReportForAdmin);
+  const [filters, setFilters] = useState<StudentAccountFilters>(EMPTY_ACCOUNT_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<StudentAccountFilters>(EMPTY_ACCOUNT_FILTERS);
+  const [page, setPage] = useState(1);
+
+  const { data: lookups } = useQuery({
+    queryKey: ["admin-report-student-account-lookups"],
+    queryFn: () => lookupsFn(),
+    staleTime: Infinity,
+  });
+
+  const enabled = hasAccountFilter(appliedFilters);
+  const { data: report, isFetching, error } = useQuery({
+    queryKey: ["admin-student-accounts-report", appliedFilters, page],
+    enabled,
+    queryFn: () => reportFn({
+      data: {
+        ...appliedFilters,
+        department_id: appliedFilters.department_id || undefined,
+        program_id: appliedFilters.program_id || undefined,
+        level_id: appliedFilters.level_id || undefined,
+        academic_year_id: appliedFilters.academic_year_id || undefined,
+        semester_id: appliedFilters.semester_id || undefined,
+        academic_number: appliedFilters.academic_number || undefined,
+        student_name: appliedFilters.student_name || undefined,
+        page,
+        pageSize: ACCOUNT_PAGE_SIZE,
+      },
+    }),
+  });
+
+  const filteredPrograms = filters.department_id && lookups
+    ? lookups.programs.filter((program: any) => program.department_id === filters.department_id)
+    : lookups?.programs ?? [];
+  const filteredSemesters = filters.academic_year_id && lookups
+    ? lookups.semesters.filter((semester: any) => semester.academic_year_id === filters.academic_year_id)
+    : lookups?.semesters ?? [];
+
+  const totalPages = Math.max(1, Math.ceil((report?.total ?? 0) / ACCOUNT_PAGE_SIZE));
+  const exportRows = useMemo(() => (report?.rows ?? []).map((row) => ({
+    "الرقم الأكاديمي": row.academic_number,
+    "اسم الطالب": row.full_name_ar,
+    "القسم": row.department_name ?? "",
+    "البرنامج": row.program_code ? `${row.program_name ?? ""} (${row.program_code})` : row.program_name ?? "",
+    "المستوى": row.level_number != null ? `${row.level_name ?? ""} - ${row.level_number}` : row.level_name ?? "",
+    "نظام الدراسة": studySystemLabel(row.study_system),
+    "الحالة": statusLabel(row.status),
+    "حالة حساب الدخول": row.has_account ? "لديه حساب" : "بدون حساب",
+    "تاريخ الإنشاء": formatDateTime(row.created_at),
+    "آخر تحديث": formatDateTime(row.updated_at),
+  })), [report?.rows]);
+
+  const update = (key: keyof StudentAccountFilters, value: string) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "department_id" ? { program_id: "" } : {}),
+      ...(key === "academic_year_id" ? { semester_id: "" } : {}),
+    }));
+  };
+  const apply = () => { setPage(1); setAppliedFilters(filters); };
+  const clear = () => { setFilters(EMPTY_ACCOUNT_FILTERS); setAppliedFilters(EMPTY_ACCOUNT_FILTERS); setPage(1); };
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card space-y-4">
+        <div>
+          <h2 className="font-display text-xl font-extrabold text-primary flex items-center gap-2">
+            <UserCheck className="h-5 w-5 text-gold" /> حسابات دخول الطلاب
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">تقرير قراءة فقط لحالة ربط الطلاب بحسابات الدخول.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <ReportField label="الرقم الأكاديمي">
+            <input value={filters.academic_number} onChange={(e) => update("academic_number", e.target.value)}
+              dir="ltr" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono" />
+          </ReportField>
+          <ReportField label="اسم الطالب">
+            <input value={filters.student_name} onChange={(e) => update("student_name", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+          <ReportField label="القسم">
+            <select value={filters.department_id} onChange={(e) => update("department_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأقسام</option>
+              {lookups?.departments.map((department: any) => <option key={department.id} value={department.id}>{department.name_ar}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="البرنامج">
+            <select value={filters.program_id} onChange={(e) => update("program_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل البرامج</option>
+              {filteredPrograms.map((program: any) => <option key={program.id} value={program.id}>{program.name_ar}{program.code ? ` (${program.code})` : ""}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="المستوى">
+            <select value={filters.level_id} onChange={(e) => update("level_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل المستويات</option>
+              {lookups?.levels.map((level: any) => <option key={level.id} value={level.id}>{level.name}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="العام الأكاديمي">
+            <select value={filters.academic_year_id} onChange={(e) => update("academic_year_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأعوام</option>
+              {lookups?.academic_years.map((year: any) => <option key={year.id} value={year.id}>{year.name}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="الفصل الدراسي">
+            <select value={filters.semester_id} onChange={(e) => update("semester_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الفصول</option>
+              {filteredSemesters.map((semester: any) => <option key={semester.id} value={semester.id}>{semester.name}{semester.code ? ` (${semester.code})` : ""}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="نظام الدراسة">
+            <select value={filters.study_system} onChange={(e) => update("study_system", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="all">الكل</option>
+              <option value="regular">عام</option>
+              <option value="private">نفقة خاصة</option>
+              <option value="unset">غير محدد</option>
+            </select>
+          </ReportField>
+          <ReportField label="حالة الحساب">
+            <select value={filters.account_status} onChange={(e) => update("account_status", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="all">الكل</option>
+              <option value="with_account">لديه حساب</option>
+              <option value="without_account">بدون حساب</option>
+            </select>
+          </ReportField>
+          <ReportField label="حالة الطالب">
+            <select value={filters.status} onChange={(e) => update("status", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="all">كل الحالات</option>
+              <option value="active">نشط</option>
+              <option value="inactive">معطّل</option>
+              <option value="suspended">موقوف</option>
+              <option value="graduated">متخرج</option>
+              <option value="withdrawn">منسحب</option>
+              <option value="transferred">محول</option>
+            </select>
+          </ReportField>
+        </div>
+        <ReportActions
+          onApply={apply}
+          onClear={clear}
+          onPrint={() => window.print()}
+          onCsv={() => downloadCsv("student_accounts_report.csv", exportRows)}
+          csvDisabled={!exportRows.length}
+          printDisabled={!report?.rows?.length}
+        />
+      </div>
+
+      {!enabled ? (
+        <EmptyReportMessage message="اختر فلترًا واحدًا على الأقل لعرض التقرير." />
+      ) : error ? (
+        <ErrorBox message={(error as Error).message} />
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <KpiCard label="إجمالي الطلاب" value={report?.kpis.total ?? 0} icon={Users} />
+            <KpiCard label="لديهم حساب" value={report?.kpis.withAccount ?? 0} icon={UserCheck} />
+            <KpiCard label="بدون حساب" value={report?.kpis.withoutAccount ?? 0} icon={Users} />
+            <KpiCard label="النظام العام" value={report?.kpis.regular ?? 0} icon={GraduationCap} />
+            <KpiCard label="النفقة الخاصة" value={report?.kpis.private ?? 0} icon={GraduationCap} />
+            <KpiCard label="غير محددي النظام" value={report?.kpis.unsetStudySystem ?? 0} icon={History} />
+          </div>
+          <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+            <ReportHeader title="نتائج حسابات دخول الطلاب" loading={isFetching} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-secondary/50 text-primary">
+                  <tr>
+                    <th className="px-3 py-2 text-right">الرقم الأكاديمي</th>
+                    <th className="px-3 py-2 text-right">اسم الطالب</th>
+                    <th className="px-3 py-2 text-right">القسم</th>
+                    <th className="px-3 py-2 text-right">البرنامج</th>
+                    <th className="px-3 py-2 text-right">المستوى</th>
+                    <th className="px-3 py-2 text-right">نظام الدراسة</th>
+                    <th className="px-3 py-2 text-right">الحالة</th>
+                    <th className="px-3 py-2 text-right">حالة الدخول</th>
+                    <th className="px-3 py-2 text-right">تاريخ الإنشاء</th>
+                    <th className="px-3 py-2 text-right">آخر تحديث</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report?.rows.length ? report.rows.map((row) => (
+                    <tr key={row.id} className="border-t border-border/60">
+                      <td className="px-3 py-2 font-mono">{row.academic_number}</td>
+                      <td className="px-3 py-2 font-bold">{row.full_name_ar}</td>
+                      <td className="px-3 py-2">{row.department_name ?? "—"}</td>
+                      <td className="px-3 py-2">{row.program_name ?? "—"}{row.program_code ? ` (${row.program_code})` : ""}</td>
+                      <td className="px-3 py-2">{row.level_name ?? "—"}{row.level_number != null ? ` — ${row.level_number}` : ""}</td>
+                      <td className="px-3 py-2">{studySystemLabel(row.study_system)}</td>
+                      <td className="px-3 py-2">{statusLabel(row.status)}</td>
+                      <td className="px-3 py-2">{row.has_account ? "لديه حساب" : "بدون حساب"}</td>
+                      <td className="px-3 py-2">{formatDateTime(row.created_at)}</td>
+                      <td className="px-3 py-2">{formatDateTime(row.updated_at)}</td>
+                    </tr>
+                  )) : (
+                    <EmptyTableRow colSpan={10} />
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <PaginationFooter page={page} total={report?.total ?? 0} pageSize={ACCOUNT_PAGE_SIZE} totalPages={totalPages} setPage={setPage} />
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function KpiCard({ label, value, icon: Icon }: { label: string; value: number; icon: any }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-card">
@@ -429,6 +922,176 @@ function KpiCard({ label, value, icon: Icon }: { label: string; value: number; i
       </div>
       <div className="mt-2 font-display text-2xl font-extrabold text-primary">
         {value.toLocaleString("ar-EG")}
+      </div>
+    </div>
+  );
+}
+
+function ReportActions({
+  onApply,
+  onClear,
+  onPrint,
+  onCsv,
+  csvDisabled,
+  printDisabled,
+}: {
+  onApply: () => void;
+  onClear: () => void;
+  onPrint: () => void;
+  onCsv: () => void;
+  csvDisabled: boolean;
+  printDisabled: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <button type="button" onClick={onApply}
+        className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90">
+        <Search className="h-4 w-4" /> تطبيق الفلاتر
+      </button>
+      <button type="button" onClick={onClear}
+        className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:bg-secondary">
+        مسح الفلاتر
+      </button>
+      <button type="button" disabled={printDisabled} onClick={onPrint}
+        className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:bg-secondary disabled:opacity-50">
+        <Printer className="h-4 w-4" /> طباعة
+      </button>
+      <button type="button" disabled={csvDisabled} onClick={onCsv}
+        className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:bg-secondary disabled:opacity-50">
+        <FileDown className="h-4 w-4" /> تصدير CSV
+      </button>
+    </div>
+  );
+}
+
+function ReportHeader({ title, loading }: { title: string; loading?: boolean }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border px-4 py-3">
+      <h3 className="font-display text-sm font-extrabold text-primary flex items-center gap-2">
+        <FileText className="h-4 w-4 text-gold" /> {title}
+      </h3>
+      {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+    </div>
+  );
+}
+
+function EmptyReportMessage({ message }: { message: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+      {message}
+    </div>
+  );
+}
+
+function ErrorBox({ message }: { message: string }) {
+  return (
+    <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">
+      {message}
+    </div>
+  );
+}
+
+function EmptyTableRow({ colSpan }: { colSpan: number }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-3 py-8 text-center text-muted-foreground">
+        لا توجد بيانات مطابقة.
+      </td>
+    </tr>
+  );
+}
+
+function PaginationFooter({
+  page,
+  total,
+  pageSize,
+  totalPages,
+  setPage,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  totalPages: number;
+  setPage: React.Dispatch<React.SetStateAction<number>>;
+}) {
+  if (total <= pageSize) return null;
+  return (
+    <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs">
+      <span className="text-muted-foreground">
+        عرض حتى {pageSize.toLocaleString("ar-EG")} من {total.toLocaleString("ar-EG")} سجل
+      </span>
+      <div className="flex gap-1">
+        <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}
+          className="rounded border border-border px-3 py-1 disabled:opacity-40">السابق</button>
+        <span className="px-2 py-1 font-mono">{page} / {totalPages}</span>
+        <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+          className="rounded border border-border px-3 py-1 disabled:opacity-40">التالي</button>
+      </div>
+    </div>
+  );
+}
+
+function ImportDetailsDialog({
+  details,
+  loading,
+  onClose,
+}: {
+  details: any;
+  loading: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
+      <div className="max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-xl bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <h3 className="font-display text-lg font-extrabold text-primary">تفاصيل عملية الاستيراد</h3>
+          <button type="button" onClick={onClose} className="rounded p-1 hover:bg-secondary" aria-label="إغلاق">×</button>
+        </div>
+        {loading ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">
+            <Loader2 className="me-2 inline h-4 w-4 animate-spin" /> جاري التحميل...
+          </div>
+        ) : details ? (
+          <div className="space-y-4 overflow-y-auto p-4">
+            <div className="grid gap-2 rounded-lg border border-border bg-secondary/20 p-3 text-xs md:grid-cols-2">
+              <div><span className="text-muted-foreground">النوع:</span> <span className="font-mono">{details.job.import_type}</span></div>
+              <div><span className="text-muted-foreground">الملف:</span> {details.job.file_name}</div>
+              <div><span className="text-muted-foreground">الحالة:</span> {importStatusLabel(details.job.status)}</div>
+              <div><span className="text-muted-foreground">التاريخ:</span> {formatDateTime(details.job.created_at)}</div>
+              <div><span className="text-muted-foreground">إجمالي:</span> {details.job.rows_total}</div>
+              <div><span className="text-muted-foreground">فشل:</span> {details.job.rows_failed}</div>
+            </div>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-secondary/50 text-primary">
+                  <tr>
+                    <th className="px-3 py-2 text-right">رقم الصف</th>
+                    <th className="px-3 py-2 text-right">العمود</th>
+                    <th className="px-3 py-2 text-right">رسالة الخطأ</th>
+                    <th className="px-3 py-2 text-right">القيمة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {details.errors.length ? details.errors.map((item, index) => (
+                    <tr key={index} className="border-t border-border/60">
+                      <td className="px-3 py-2 font-mono">{item.row}</td>
+                      <td className="px-3 py-2 font-mono">{item.column ?? "—"}</td>
+                      <td className="px-3 py-2">{item.message}</td>
+                      <td className="px-3 py-2">{item.value ?? "—"}</td>
+                    </tr>
+                  )) : (
+                    <EmptyTableRow colSpan={4} />
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              مصدر التفاصيل الحالي: {details.source}. لا يوجد جدول import_errors مستقل في schema الحالي.
+            </p>
+          </div>
+        ) : (
+          <div className="p-8 text-center text-sm text-muted-foreground">لا توجد تفاصيل.</div>
+        )}
       </div>
     </div>
   );
