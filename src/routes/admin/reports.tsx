@@ -9,10 +9,15 @@ import {
 } from "lucide-react";
 import { getStudentLookups } from "@/lib/admin-students.functions";
 import {
+  getAcademicProgramsReportForAdmin,
+  getAcademicReportLookupsForAdmin,
+  getCoursesReportForAdmin,
   getImportJobErrorsForAdmin,
   getImportJobsReportForAdmin,
   getStudentAccountsReportForAdmin,
   getStudentsReportForAdmin,
+  getStudyPlanCoverageReportForAdmin,
+  getStudyPlansReportForAdmin,
 } from "@/lib/admin-reports.functions";
 
 export const Route = createFileRoute("/admin/reports")({
@@ -52,6 +57,17 @@ type StudentAccountFilters = {
   student_name: string;
 };
 
+type AcademicReportId = "programs" | "plans" | "courses" | "coverage";
+type AcademicFilters = {
+  department_id: string;
+  program_id: string;
+  study_plan_id: string;
+  level_id: string;
+  semester_code: "all" | "first" | "second";
+  status: string;
+  search: string;
+};
+
 const EMPTY_FILTERS: ReportFilters = {
   study_system: "all",
   department_id: "",
@@ -87,6 +103,16 @@ const EMPTY_ACCOUNT_FILTERS: StudentAccountFilters = {
   status: "all",
   academic_number: "",
   student_name: "",
+};
+
+const EMPTY_ACADEMIC_FILTERS: AcademicFilters = {
+  department_id: "",
+  program_id: "",
+  study_plan_id: "",
+  level_id: "",
+  semester_code: "all",
+  status: "",
+  search: "",
 };
 
 function studySystemLabel(value: string | null | undefined) {
@@ -189,7 +215,7 @@ function ReportsPage() {
     { id: "students", title: "تقارير الطلاب", icon: GraduationCap, active: true },
     { id: "imports", title: "تقارير الاستيراد", icon: Upload, active: true },
     { id: "accounts", title: "تقارير حسابات الطلاب", icon: UserCheck, active: true },
-    { id: "academic", title: "التقارير الأكاديمية", icon: BookOpen },
+    { id: "academic", title: "التقارير الأكاديمية", icon: BookOpen, active: true },
     { id: "schedules", title: "تقارير الجداول والإسناد", icon: ClipboardList },
     { id: "faculty", title: "تقارير أعضاء هيئة التدريس", icon: Users },
     { id: "documents", title: "تقارير الوثائق والخدمات", icon: FileBadge },
@@ -239,7 +265,8 @@ function ReportsPage() {
       {activeSection === "students" && <StudentsReport />}
       {activeSection === "imports" && <ImportJobsReport />}
       {activeSection === "accounts" && <StudentAccountsReport />}
-      {!["students", "imports", "accounts"].includes(activeSection) && (
+      {activeSection === "academic" && <AcademicReports />}
+      {!["students", "imports", "accounts", "academic"].includes(activeSection) && (
         <ComingSoonCard title={sections.find((section) => section.id === activeSection)?.title ?? "قسم التقارير"} />
       )}
     </div>
@@ -910,6 +937,374 @@ function StudentAccountsReport() {
         </>
       )}
     </section>
+  );
+}
+
+function hasAcademicReportFilter(reportId: AcademicReportId, filters: AcademicFilters) {
+  if (reportId === "coverage") {
+    return Boolean(filters.department_id || filters.program_id || filters.study_plan_id || filters.level_id || filters.semester_code !== "all");
+  }
+  if (reportId === "courses") {
+    return Boolean(filters.department_id || filters.program_id || filters.level_id || filters.semester_code !== "all" || filters.status || filters.search);
+  }
+  return Boolean(filters.department_id || filters.program_id || filters.status || filters.search);
+}
+
+function AcademicReports() {
+  const lookupsFn = useServerFn(getAcademicReportLookupsForAdmin);
+  const programsFn = useServerFn(getAcademicProgramsReportForAdmin);
+  const plansFn = useServerFn(getStudyPlansReportForAdmin);
+  const coursesFn = useServerFn(getCoursesReportForAdmin);
+  const coverageFn = useServerFn(getStudyPlanCoverageReportForAdmin);
+  const [reportId, setReportId] = useState<AcademicReportId>("programs");
+  const [filters, setFilters] = useState<AcademicFilters>(EMPTY_ACADEMIC_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<AcademicFilters>(EMPTY_ACADEMIC_FILTERS);
+  const [page, setPage] = useState(1);
+
+  const { data: lookups } = useQuery({
+    queryKey: ["academic-reports-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
+    staleTime: Infinity,
+  });
+
+  const enabled = hasAcademicReportFilter(reportId, appliedFilters);
+  const commonPayload = {
+    department_id: appliedFilters.department_id || undefined,
+    program_id: appliedFilters.program_id || undefined,
+    status: appliedFilters.status || undefined,
+    search: appliedFilters.search || undefined,
+    page,
+    pageSize: 50,
+  };
+  const { data: report, isFetching, error } = useQuery({
+    queryKey: ["academic-report", reportId, appliedFilters, page],
+    enabled,
+    queryFn: () => {
+      if (reportId === "programs") return programsFn({ data: commonPayload });
+      if (reportId === "plans") return plansFn({ data: commonPayload });
+      if (reportId === "courses") {
+        return coursesFn({
+          data: {
+            ...commonPayload,
+            level_id: appliedFilters.level_id || undefined,
+            semester_code: appliedFilters.semester_code,
+          },
+        });
+      }
+      return coverageFn({
+        data: {
+          department_id: appliedFilters.department_id || undefined,
+          program_id: appliedFilters.program_id || undefined,
+          study_plan_id: appliedFilters.study_plan_id || undefined,
+          level_id: appliedFilters.level_id || undefined,
+          semester_code: appliedFilters.semester_code,
+          page,
+          pageSize: 50,
+        },
+      });
+    },
+  });
+
+  const filteredPrograms = filters.department_id && lookups
+    ? lookups.programs.filter((program: any) => program.department_id === filters.department_id)
+    : lookups?.programs ?? [];
+  const filteredPlans = filters.program_id && lookups
+    ? lookups.studyPlans.filter((plan: any) => plan.program_id === filters.program_id)
+    : lookups?.studyPlans ?? [];
+  const totalPages = Math.max(1, Math.ceil(((report as any)?.total ?? 0) / 50));
+
+  const update = (key: keyof AcademicFilters, value: string) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "department_id" ? { program_id: "", study_plan_id: "" } : {}),
+      ...(key === "program_id" ? { study_plan_id: "" } : {}),
+    }));
+  };
+  const apply = () => { setPage(1); setAppliedFilters(filters); };
+  const clear = () => { setFilters(EMPTY_ACADEMIC_FILTERS); setAppliedFilters(EMPTY_ACADEMIC_FILTERS); setPage(1); };
+  const switchReport = (next: AcademicReportId) => {
+    setReportId(next);
+    setPage(1);
+    setAppliedFilters(EMPTY_ACADEMIC_FILTERS);
+    setFilters(EMPTY_ACADEMIC_FILTERS);
+  };
+
+  const tabs: Array<{ id: AcademicReportId; label: string }> = [
+    { id: "programs", label: "البرامج الأكاديمية" },
+    { id: "plans", label: "الخطط الدراسية" },
+    { id: "courses", label: "دليل المقررات" },
+    { id: "coverage", label: "تغطية الخطط بالمقررات" },
+  ];
+
+  const exportRows = useMemo(() => {
+    const rows = ((report as any)?.rows ?? []) as any[];
+    if (reportId === "programs") return rows.map((row) => ({
+      "القسم": row.department ?? "",
+      "كود البرنامج": row.code ?? "",
+      "اسم البرنامج": row.name ?? "",
+      "نوع الدرجة": row.degree_type ?? "",
+      "الحالة": row.status ?? "",
+      "عدد المستويات": row.levels_count ?? "",
+      "عدد الخطط": row.plans_count ?? 0,
+      "عدد الطلاب": row.students_count ?? 0,
+    }));
+    if (reportId === "plans") return rows.map((row) => ({
+      "اسم الخطة": row.name ?? "",
+      "كود/إصدار الخطة": row.code ?? "",
+      "القسم": row.department ?? "",
+      "البرنامج": row.program ?? "",
+      "العام الأكاديمي": row.academic_year ?? "",
+      "الحالة": row.status ?? "",
+      "عدد المقررات": row.courses_count ?? 0,
+      "إجمالي الساعات": row.total_hours ?? 0,
+      "آخر تحديث": formatDateTime(row.updated_at),
+    }));
+    if (reportId === "courses") return rows.map((row) => ({
+      "كود المقرر": row.code ?? "",
+      "اسم المقرر": row.name ?? "",
+      "القسم": row.department ?? "",
+      "البرنامج/الخطة": row.plan_or_program ?? "",
+      "المستوى": row.level ?? "",
+      "الفصل": row.semester ?? "",
+      "نظري": row.theory_hours ?? 0,
+      "عملي": row.practical_hours ?? 0,
+      "إجمالي الساعات": row.credit_hours ?? 0,
+      "حالة البيانات": row.data_status ?? "",
+    }));
+    return rows.map((row) => ({
+      "الخطة": row.plan ?? "",
+      "البرنامج": row.program ?? "",
+      "المستوى": row.level ?? "",
+      "الفصل": row.semester ?? "",
+      "عدد المقررات": row.courses_count ?? 0,
+      "إجمالي الساعات": row.total_hours ?? 0,
+      "ملاحظات": row.notes ?? "",
+    }));
+  }, [report, reportId]);
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card space-y-4">
+        <div>
+          <h2 className="font-display text-xl font-extrabold text-primary flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-gold" /> التقارير الأكاديمية
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            تقارير قراءة فقط للبرامج والخطط والمقررات وتغطية الخطط.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 border-b border-border">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => switchReport(tab.id)}
+              className={`rounded-t-lg border-b-2 px-4 py-2 text-sm font-bold ${
+                reportId === tab.id ? "border-gold text-primary" : "border-transparent text-muted-foreground hover:text-primary"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <ReportField label="القسم">
+            <select value={filters.department_id} onChange={(e) => update("department_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأقسام</option>
+              {lookups?.departments.map((department: any) => <option key={department.id} value={department.id}>{department.name_ar}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="البرنامج">
+            <select value={filters.program_id} onChange={(e) => update("program_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل البرامج</option>
+              {filteredPrograms.map((program: any) => <option key={program.id} value={program.id}>{program.name_ar}{program.code ? ` (${program.code})` : ""}</option>)}
+            </select>
+          </ReportField>
+          {reportId === "coverage" && (
+            <ReportField label="الخطة">
+              <select value={filters.study_plan_id} onChange={(e) => update("study_plan_id", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <option value="">كل الخطط</option>
+                {filteredPlans.map((plan: any) => <option key={plan.id} value={plan.id}>{plan.name} ({plan.version})</option>)}
+              </select>
+            </ReportField>
+          )}
+          {(reportId === "courses" || reportId === "coverage") && (
+            <ReportField label="المستوى">
+              <select value={filters.level_id} onChange={(e) => update("level_id", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <option value="">كل المستويات</option>
+                {lookups?.levels.map((level: any) => <option key={level.id} value={level.id}>{level.name}</option>)}
+              </select>
+            </ReportField>
+          )}
+          {(reportId === "courses" || reportId === "coverage") && (
+            <ReportField label="الفصل">
+              <select value={filters.semester_code} onChange={(e) => update("semester_code", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <option value="all">كل الفصول</option>
+                <option value="first">الفصل الأول</option>
+                <option value="second">الفصل الثاني</option>
+              </select>
+            </ReportField>
+          )}
+          {reportId !== "coverage" && (
+            <ReportField label="الحالة">
+              <input value={filters.status} onChange={(e) => update("status", e.target.value)}
+                placeholder="active / inactive / archived"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </ReportField>
+          )}
+          {reportId !== "coverage" && (
+            <ReportField label="بحث بالكود أو الاسم">
+              <input value={filters.search} onChange={(e) => update("search", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </ReportField>
+          )}
+        </div>
+
+        <ReportActions
+          onApply={apply}
+          onClear={clear}
+          onPrint={() => window.print()}
+          onCsv={() => downloadCsv(`${reportId}_academic_report.csv`, exportRows)}
+          csvDisabled={!exportRows.length}
+          printDisabled={!((report as any)?.rows?.length)}
+        />
+      </div>
+
+      {!enabled ? (
+        <EmptyReportMessage message="اختر فلترًا واحدًا على الأقل لعرض التقرير." />
+      ) : error ? (
+        <ErrorBox message={(error as Error).message} />
+      ) : (
+        <>
+          <AcademicKpis reportId={reportId} report={report as any} />
+          <AcademicTable reportId={reportId} report={report as any} loading={isFetching} />
+          <PaginationFooter page={page} total={(report as any)?.total ?? 0} pageSize={50} totalPages={totalPages} setPage={setPage} />
+        </>
+      )}
+    </section>
+  );
+}
+
+function AcademicKpis({ reportId, report }: { reportId: AcademicReportId; report: any }) {
+  const k = report?.kpis ?? {};
+  if (reportId === "programs") {
+    return (
+      <div className="grid gap-3 md:grid-cols-5">
+        <KpiCard label="إجمالي البرامج" value={k.total ?? 0} icon={GraduationCap} />
+        <KpiCard label="النشطة" value={k.active ?? 0} icon={UserCheck} />
+        <KpiCard label="غير النشطة" value={k.inactive ?? 0} icon={XCircle} />
+        <KpiCard label="بدون خطة" value={k.withoutPlans ?? 0} icon={FileText} />
+        <KpiCard label="لديها طلاب" value={k.withStudents ?? 0} icon={Users} />
+      </div>
+    );
+  }
+  if (reportId === "plans") {
+    return (
+      <div className="grid gap-3 md:grid-cols-5">
+        <KpiCard label="إجمالي الخطط" value={k.total ?? 0} icon={FileText} />
+        <KpiCard label="النشطة" value={k.active ?? 0} icon={UserCheck} />
+        <KpiCard label="بدون مقررات" value={k.withoutCourses ?? 0} icon={XCircle} />
+        <KpiCard label="متوسط المقررات" value={k.avgCourses ?? 0} icon={ClipboardList} />
+        <KpiCard label="إجمالي الساعات" value={k.totalHours ?? 0} icon={BookOpen} />
+      </div>
+    );
+  }
+  if (reportId === "courses") {
+    return (
+      <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-7">
+        <KpiCard label="إجمالي المقررات" value={k.total ?? 0} icon={BookOpen} />
+        <KpiCard label="بدون كود" value={k.missingCode ?? 0} icon={XCircle} />
+        <KpiCard label="بدون خطة" value={k.withoutPlan ?? 0} icon={FileText} />
+        <KpiCard label="بدون مستوى" value={k.withoutLevel ?? 0} icon={History} />
+        <KpiCard label="بدون فصل" value={k.withoutSemester ?? 0} icon={History} />
+        <KpiCard label="مكتملة" value={k.complete ?? 0} icon={UserCheck} />
+        <KpiCard label="ناقصة" value={k.incomplete ?? 0} icon={XCircle} />
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-3 md:grid-cols-5">
+      <KpiCard label="الخطط المشمولة" value={k.plans ?? 0} icon={FileText} />
+      <KpiCard label="مستويات/فصول بها مقررات" value={k.filledSlots ?? 0} icon={UserCheck} />
+      <KpiCard label="مستويات/فصول فارغة" value={k.emptySlots ?? 0} icon={XCircle} />
+      <KpiCard label="إجمالي المقررات" value={k.courses ?? 0} icon={BookOpen} />
+      <KpiCard label="إجمالي الساعات" value={k.hours ?? 0} icon={ClipboardList} />
+    </div>
+  );
+}
+
+function AcademicTable({ reportId, report, loading }: { reportId: AcademicReportId; report: any; loading?: boolean }) {
+  const rows = report?.rows ?? [];
+  const columns: Array<{ key: string; label: string }> =
+    reportId === "programs" ? [
+      { key: "department", label: "القسم" },
+      { key: "code", label: "كود البرنامج" },
+      { key: "name", label: "اسم البرنامج" },
+      { key: "degree_type", label: "الدرجة" },
+      { key: "status", label: "الحالة" },
+      { key: "levels_count", label: "المستويات" },
+      { key: "plans_count", label: "الخطط" },
+      { key: "students_count", label: "الطلاب" },
+    ] : reportId === "plans" ? [
+      { key: "name", label: "اسم الخطة" },
+      { key: "code", label: "الكود/الإصدار" },
+      { key: "department", label: "القسم" },
+      { key: "program", label: "البرنامج" },
+      { key: "academic_year", label: "العام" },
+      { key: "status", label: "الحالة" },
+      { key: "courses_count", label: "المقررات" },
+      { key: "total_hours", label: "الساعات" },
+      { key: "updated_at", label: "آخر تحديث" },
+    ] : reportId === "courses" ? [
+      { key: "code", label: "كود المقرر" },
+      { key: "name", label: "اسم المقرر" },
+      { key: "department", label: "القسم" },
+      { key: "plan_or_program", label: "البرنامج/الخطة" },
+      { key: "level", label: "المستوى" },
+      { key: "semester", label: "الفصل" },
+      { key: "theory_hours", label: "نظري" },
+      { key: "practical_hours", label: "عملي" },
+      { key: "credit_hours", label: "إجمالي" },
+      { key: "data_status", label: "حالة البيانات" },
+    ] : [
+      { key: "plan", label: "الخطة" },
+      { key: "program", label: "البرنامج" },
+      { key: "level", label: "المستوى" },
+      { key: "semester", label: "الفصل" },
+      { key: "courses_count", label: "المقررات" },
+      { key: "total_hours", label: "الساعات" },
+      { key: "notes", label: "ملاحظات" },
+    ];
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+      <ReportHeader title={reportId === "programs" ? "البرامج الأكاديمية" : reportId === "plans" ? "الخطط الدراسية" : reportId === "courses" ? "دليل المقررات" : "تغطية الخطط بالمقررات"} loading={loading} />
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-secondary/50 text-primary">
+            <tr>{columns.map((column) => <th key={column.key} className="px-3 py-2 text-right">{column.label}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.length ? rows.map((row: any) => (
+              <tr key={row.id} className="border-t border-border/60">
+                {columns.map((column) => (
+                  <td key={column.key} className="px-3 py-2">
+                    {column.key === "updated_at" ? formatDateTime(row[column.key]) : row[column.key] ?? "—"}
+                  </td>
+                ))}
+              </tr>
+            )) : <EmptyTableRow colSpan={columns.length} />}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
