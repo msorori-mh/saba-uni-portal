@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole, REPORTS_ROLES } from "@/lib/authz.server";
+import { z } from "zod";
+import { assertAnyRole, assertStudentRead, REPORTS_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 async function assertReportsAccess(userId: string) {
@@ -356,3 +357,210 @@ export const getReportsEnrollment = reportsHandler(fetchEnrollmentReport);
 export const getReportsFaculty = reportsHandler(fetchFacultyReport);
 export const getReportsRequests = reportsHandler(fetchRequestsReport);
 export const getReportsFinancial = reportsHandler(fetchFinancialReport);
+
+const studentsReportSchema = z.object({
+  study_system: z.enum(["all", "regular", "private", "unset"]).default("all"),
+  department_id: z.string().uuid().optional().nullable(),
+  program_id: z.string().uuid().optional().nullable(),
+  level_id: z.string().uuid().optional().nullable(),
+  academic_year_id: z.string().uuid().optional().nullable(),
+  semester_id: z.string().uuid().optional().nullable(),
+  status: z.enum(["all", "active", "inactive", "suspended", "graduated", "withdrawn", "transferred"]).default("all"),
+  account_status: z.enum(["all", "with_account", "without_account"]).default("all"),
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(100).default(50),
+});
+
+export const getStudentsReportForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => studentsReportSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertStudentRead(context.userId);
+
+    const hasFilter = Boolean(
+      data.study_system !== "all"
+      || data.department_id
+      || data.program_id
+      || data.level_id
+      || data.academic_year_id
+      || data.semester_id
+      || data.status !== "all"
+      || data.account_status !== "all",
+    );
+
+    if (!hasFilter) {
+      return {
+        rows: [],
+        total: 0,
+        page: data.page,
+        pageSize: data.pageSize,
+        kpis: {
+          total: 0,
+          regular: 0,
+          private: 0,
+          unsetStudySystem: 0,
+          withAccount: 0,
+          withoutAccount: 0,
+        },
+        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير.",
+      };
+    }
+
+    let scopedProfileIds: string[] | null = null;
+    if (data.level_id || data.academic_year_id || data.semester_id) {
+      let statusQuery = supabaseAdmin
+        .from("student_academic_status")
+        .select("student_profile_id")
+        .limit(10000);
+      if (data.level_id) statusQuery = statusQuery.eq("level_id", data.level_id);
+      if (data.academic_year_id) statusQuery = statusQuery.eq("academic_year_id", data.academic_year_id);
+      if (data.semester_id) statusQuery = statusQuery.eq("semester_id", data.semester_id);
+      const { data: statusRows, error: statusErr } = await statusQuery;
+      if (statusErr) throw new Error(statusErr.message);
+      scopedProfileIds = Array.from(new Set((statusRows ?? []).map((row: any) => row.student_profile_id).filter(Boolean)));
+      if (scopedProfileIds.length === 0) {
+        return {
+          rows: [],
+          total: 0,
+          page: data.page,
+          pageSize: data.pageSize,
+          kpis: {
+            total: 0,
+            regular: 0,
+            private: 0,
+            unsetStudySystem: 0,
+            withAccount: 0,
+            withoutAccount: 0,
+          },
+          message: null,
+        };
+      }
+    }
+
+    const applyProfileFilters = (query: any, override?: {
+      study_system?: "regular" | "private" | "unset";
+      account_status?: "with_account" | "without_account";
+    }) => {
+      if (data.department_id) query = query.eq("department_id", data.department_id);
+      if (data.program_id) query = query.eq("program_id", data.program_id);
+      if (data.status !== "all") query = query.eq("status", data.status);
+      if (scopedProfileIds) query = query.in("id", scopedProfileIds);
+
+      const studySystem = override?.study_system ?? (data.study_system === "all" ? undefined : data.study_system);
+      if (studySystem === "regular" || studySystem === "private") query = query.eq("study_system", studySystem);
+      if (studySystem === "unset") query = query.is("study_system", null);
+
+      const accountStatus = override?.account_status ?? (data.account_status === "all" ? undefined : data.account_status);
+      if (accountStatus === "with_account") query = query.not("user_id", "is", null);
+      if (accountStatus === "without_account") query = query.is("user_id", null);
+
+      return query;
+    };
+
+    const countProfiles = async (override?: {
+      study_system?: "regular" | "private" | "unset";
+      account_status?: "with_account" | "without_account";
+    }) => {
+      const { count, error } = await applyProfileFilters(
+        supabaseAdmin.from("student_profiles").select("id", { count: "exact", head: true }),
+        override,
+      );
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    };
+
+    const total = await countProfiles();
+    const [regular, privateCount, unsetStudySystem, withAccount, withoutAccount] = await Promise.all([
+      countProfiles({ study_system: "regular" }),
+      countProfiles({ study_system: "private" }),
+      countProfiles({ study_system: "unset" }),
+      countProfiles({ account_status: "with_account" }),
+      countProfiles({ account_status: "without_account" }),
+    ]);
+
+    const from = (data.page - 1) * data.pageSize;
+    const to = from + data.pageSize - 1;
+    const { data: profiles, error } = await applyProfileFilters(
+      supabaseAdmin
+        .from("student_profiles")
+        .select(`
+          id,
+          academic_number,
+          full_name_ar,
+          status,
+          study_system,
+          user_id,
+          department_id,
+          program_id,
+          departments(name_ar),
+          programs(name_ar, code)
+        `)
+        .order("academic_number", { ascending: true })
+        .range(from, to),
+    );
+    if (error) throw new Error(error.message);
+
+    const profileIds = (profiles ?? []).map((profile: any) => profile.id);
+    const statusByProfile = new Map<string, any>();
+    if (profileIds.length > 0) {
+      let academicStatusQuery = supabaseAdmin
+        .from("student_academic_status")
+        .select(`
+          student_profile_id,
+          enrollment_status,
+          updated_at,
+          academic_levels(name, level_number),
+          academic_years(name),
+          semesters(name, code)
+        `)
+        .in("student_profile_id", profileIds)
+        .order("updated_at", { ascending: false });
+      if (data.level_id) academicStatusQuery = academicStatusQuery.eq("level_id", data.level_id);
+      if (data.academic_year_id) academicStatusQuery = academicStatusQuery.eq("academic_year_id", data.academic_year_id);
+      if (data.semester_id) academicStatusQuery = academicStatusQuery.eq("semester_id", data.semester_id);
+      const { data: statuses, error: statusesErr } = await academicStatusQuery;
+      if (statusesErr) throw new Error(statusesErr.message);
+      for (const row of statuses ?? []) {
+        const profileId = (row as any).student_profile_id;
+        if (!statusByProfile.has(profileId)) statusByProfile.set(profileId, row);
+      }
+    }
+
+    const rows = (profiles ?? []).map((profile: any) => {
+      const academicStatus = statusByProfile.get(profile.id);
+      const level = academicStatus?.academic_levels;
+      const year = academicStatus?.academic_years;
+      const semester = academicStatus?.semesters;
+      return {
+        id: profile.id,
+        academic_number: profile.academic_number,
+        full_name_ar: profile.full_name_ar,
+        department_name: profile.departments?.name_ar ?? null,
+        program_name: profile.programs?.name_ar ?? null,
+        program_code: profile.programs?.code ?? null,
+        level_name: level?.name ?? null,
+        level_number: level?.level_number ?? null,
+        academic_year: year?.name ?? null,
+        semester: semester?.code ?? semester?.name ?? null,
+        study_system: profile.study_system ?? null,
+        status: profile.status,
+        has_account: Boolean(profile.user_id),
+      };
+    });
+
+    return {
+      rows,
+      total,
+      page: data.page,
+      pageSize: data.pageSize,
+      kpis: {
+        total,
+        regular,
+        private: privateCount,
+        unsetStudySystem,
+        withAccount,
+        withoutAccount,
+      },
+      message: null,
+    };
+  });

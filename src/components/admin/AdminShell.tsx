@@ -122,7 +122,7 @@ const groups: NavGroup[] = [
     label: "التقارير والتحليلات",
     icon: BarChart3,
     items: [
-      { to: "/admin/reports", label: "مركز التقارير", icon: BarChart3 },
+      { to: "/admin/reports", label: "التقارير", icon: BarChart3 },
     ],
   },
   {

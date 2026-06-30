@@ -1,584 +1,456 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  getReportsAcademic,
-  getReportsEnrollment,
-  getReportsFaculty,
-  getReportsFinancial,
-  getReportsPerformance,
-  getReportsRequests,
-} from "@/lib/admin-reports.functions";
-import { exportCsv, exportXlsx, logReportView, type ExportRow } from "@/lib/reports/export";
-import { cn } from "@/lib/utils";
-import {
-  GraduationCap, BookOpen, CalendarDays, ClipboardList, Users,
-  FileWarning, Wallet, TrendingUp, Loader2, FileDown,
-  ArrowUpDown, Search, ChevronLeft, ChevronRight,
+  BarChart3, BookOpen, ClipboardList, FileBadge, FileDown, FileSearch,
+  FileText, GraduationCap, History, Loader2, Printer, Search, ShieldCheck,
+  Upload, UserCheck, Users,
 } from "lucide-react";
+import { getStudentLookups } from "@/lib/admin-students.functions";
+import { getStudentsReportForAdmin } from "@/lib/admin-reports.functions";
 
 export const Route = createFileRoute("/admin/reports")({
   component: ReportsPage,
 });
 
-type TabId = "academic" | "performance" | "enrollment" | "faculty" | "requests" | "financial";
+type ReportFilters = {
+  study_system: "all" | "regular" | "private" | "unset";
+  department_id: string;
+  program_id: string;
+  level_id: string;
+  academic_year_id: string;
+  semester_id: string;
+  status: string;
+  account_status: "all" | "with_account" | "without_account";
+};
 
-const TABS: Array<{ id: TabId; label: string; icon: any }> = [
-  { id: "academic",    label: "التقارير الأكاديمية", icon: GraduationCap },
-  { id: "performance", label: "تقارير الأداء",        icon: TrendingUp },
-  { id: "enrollment",  label: "تقارير التسجيل",      icon: ClipboardList },
-  { id: "faculty",     label: "تقارير هيئة التدريس", icon: Users },
-  { id: "requests",    label: "تقارير الطلبات",      icon: FileWarning },
-  { id: "financial",   label: "التقارير المالية",    icon: Wallet },
-];
+const EMPTY_FILTERS: ReportFilters = {
+  study_system: "all",
+  department_id: "",
+  program_id: "",
+  level_id: "",
+  academic_year_id: "",
+  semester_id: "",
+  status: "all",
+  account_status: "all",
+};
 
-// -------- shared UI --------
-function StatCard({ label, value, icon: Icon }: { label: string; value: number | string; icon: any }) {
-  return (
-    <div className="rounded-xl bg-card border border-border p-4 shadow-card flex items-center justify-between">
-      <div>
-        <div className="text-xs font-semibold text-muted-foreground">{label}</div>
-        <div className="mt-1.5 font-display text-2xl font-extrabold text-primary">
-          {typeof value === "number" ? value.toLocaleString("ar-EG") : value}
-        </div>
-      </div>
-      <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary">
-        <Icon className="h-4.5 w-4.5" />
-      </div>
-    </div>
-  );
+const PAGE_SIZE = 50;
+
+function studySystemLabel(value: string | null | undefined) {
+  if (value === "regular") return "عام";
+  if (value === "private") return "نفقة خاصة";
+  return "غير محدد";
 }
 
-function ReportTable({
-  title,
-  reportName,
-  columns,
-  rows,
-  loading,
-  pageSize = 50,
-}: {
-  title: string;
-  reportName: string;
-  columns: Array<{ key: string; label: string; numeric?: boolean }>;
-  rows: Array<Record<string, any>>;
-  loading?: boolean;
-  pageSize?: number;
-}) {
-  const [search, setSearch] = useState("");
-  const [sortKey, setSortKey] = useState<string | null>(null);
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
-  const [page, setPage] = useState(1);
-
-  const enableControls = rows.length > 100;
-
-  const filtered = useMemo(() => {
-    if (!enableControls || !search.trim()) return rows;
-    const q = search.trim().toLowerCase();
-    return rows.filter((r) =>
-      columns.some((c) => String(r[c.key] ?? "").toLowerCase().includes(q)),
-    );
-  }, [rows, search, columns, enableControls]);
-
-  const sorted = useMemo(() => {
-    if (!sortKey) return filtered;
-    const dir = sortDir === "asc" ? 1 : -1;
-    return [...filtered].sort((a, b) => {
-      const av = a[sortKey], bv = b[sortKey];
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-      return String(av).localeCompare(String(bv), "ar") * dir;
-    });
-  }, [filtered, sortKey, sortDir]);
-
-  const totalPages = enableControls ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1;
-  const currentPage = Math.min(page, totalPages);
-  const display = enableControls
-    ? sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    : sorted;
-
-  const exportRows: ExportRow[] = sorted.map((r) => {
-    const o: ExportRow = {};
-    for (const c of columns) o[c.label] = r[c.key];
-    return o;
-  });
-
-  const toggleSort = (key: string) => {
-    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortKey(key); setSortDir("asc"); }
+function statusLabel(value: string | null | undefined) {
+  const labels: Record<string, string> = {
+    active: "نشط",
+    inactive: "معطّل",
+    suspended: "موقوف",
+    graduated: "متخرج",
+    withdrawn: "منسحب",
+    transferred: "محول",
   };
+  return value ? labels[value] ?? value : "—";
+}
+
+function hasAnyFilter(filters: ReportFilters) {
+  return filters.study_system !== "all"
+    || Boolean(filters.department_id)
+    || Boolean(filters.program_id)
+    || Boolean(filters.level_id)
+    || Boolean(filters.academic_year_id)
+    || Boolean(filters.semester_id)
+    || filters.status !== "all"
+    || filters.account_status !== "all";
+}
+
+function csvEscape(value: unknown) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(fileName: string, rows: Array<Record<string, unknown>>) {
+  const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+  const csv = [
+    headers.map(csvEscape).join(","),
+    ...rows.map((row) => headers.map((header) => csvEscape(row[header])).join(",")),
+  ].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function ReportsPage() {
+  const [activeSection, setActiveSection] = useState("students");
+
+  const sections = [
+    { id: "students", title: "تقارير الطلاب", icon: GraduationCap, active: true },
+    { id: "imports", title: "تقارير الاستيراد", icon: Upload },
+    { id: "academic", title: "التقارير الأكاديمية", icon: BookOpen },
+    { id: "schedules", title: "تقارير الجداول والإسناد", icon: ClipboardList },
+    { id: "faculty", title: "تقارير أعضاء هيئة التدريس", icon: Users },
+    { id: "documents", title: "تقارير الوثائق والخدمات", icon: FileBadge },
+    { id: "audit", title: "تقارير التدقيق والأمان", icon: ShieldCheck },
+  ];
 
   return (
-    <div className="rounded-xl bg-card border border-border shadow-card overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-border">
-        <div className="font-display text-sm font-bold text-primary">{title}</div>
-        <div className="flex flex-wrap items-center gap-2">
-          {enableControls && (
-            <div className="relative">
-              <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                placeholder="بحث..."
-                className="h-8 w-40 rounded-md border border-border bg-background pe-7 ps-2 text-xs"
-              />
-            </div>
-          )}
-          <button
-            type="button"
-            disabled={!sorted.length}
-            onClick={() => exportCsv(reportName, exportRows)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-secondary disabled:opacity-50"
-          >
-            <FileDown className="h-3.5 w-3.5" /> CSV
-          </button>
-          <button
-            type="button"
-            disabled={!sorted.length}
-            onClick={() => exportXlsx(reportName, exportRows)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-3 py-1.5 text-xs font-bold text-primary hover:bg-secondary disabled:opacity-50"
-          >
-            <FileDown className="h-3.5 w-3.5" /> Excel
-          </button>
-        </div>
-      </div>
-      {loading ? (
-        <div className="p-8 text-center text-sm text-muted-foreground">
-          <Loader2 className="inline h-4 w-4 animate-spin me-2" /> جاري التحميل...
-        </div>
-      ) : sorted.length === 0 ? (
-        <div className="p-8 text-center text-sm text-muted-foreground">لا توجد بيانات.</div>
+    <div className="space-y-6">
+      <header>
+        <h1 className="font-display text-3xl font-extrabold text-primary flex items-center gap-2">
+          <BarChart3 className="h-7 w-7 text-gold" /> مركز التقارير
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          استعراض وطباعة وتصدير التقارير الأكاديمية والإدارية للكلية.
+        </p>
+      </header>
+
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {sections.map((section) => {
+          const Icon = section.icon;
+          const isActive = activeSection === section.id;
+          return (
+            <button
+              key={section.id}
+              type="button"
+              onClick={() => setActiveSection(section.id)}
+              className={`rounded-xl border p-4 text-right shadow-card transition ${
+                isActive ? "border-gold bg-gold/10" : "border-border bg-card hover:border-gold/60"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="font-display text-sm font-extrabold text-primary">{section.title}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {section.active ? "متاح الآن" : "سيتم تفعيله لاحقاً"}
+                  </div>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </section>
+
+      {activeSection === "students" ? (
+        <StudentsReport />
       ) : (
-        <>
-          <div className="overflow-x-auto max-h-[480px]">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/50 text-xs sticky top-0">
-                <tr>
-                  {columns.map((c) => (
-                    <th
-                      key={c.key}
-                      onClick={() => toggleSort(c.key)}
-                      className={cn(
-                        "px-4 py-2 font-bold cursor-pointer select-none hover:bg-secondary/80",
-                        c.numeric ? "text-left" : "text-right",
-                      )}
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        {c.label}
-                        <ArrowUpDown className={cn("h-3 w-3", sortKey === c.key ? "text-primary" : "text-muted-foreground/50")} />
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {display.map((r, i) => (
-                  <tr key={i} className="border-t border-border hover:bg-secondary/30">
-                    {columns.map((c) => (
-                      <td key={c.key} className={cn("px-4 py-2 text-xs", c.numeric ? "text-left font-mono" : "text-right")}>
-                        {r[c.key] ?? "—"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {enableControls && (
-            <div className="flex items-center justify-between px-4 py-2 border-t border-border text-xs">
-              <div className="text-muted-foreground">
-                {sorted.length.toLocaleString("ar-EG")} سجل · صفحة {currentPage} من {totalPages}
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={currentPage <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/40 px-2 py-1 font-bold disabled:opacity-40"
-                >
-                  <ChevronRight className="h-3 w-3" /> السابق
-                </button>
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary/40 px-2 py-1 font-bold disabled:opacity-40"
-                >
-                  التالي <ChevronLeft className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          )}
-        </>
+        <ComingSoonCard title={sections.find((section) => section.id === activeSection)?.title ?? "قسم التقارير"} />
       )}
     </div>
   );
 }
 
-// ===================================================================
-// TAB: ACADEMIC
-// ===================================================================
-function AcademicTab() {
-  const fetchReport = useServerFn(getReportsAcademic);
-  const { data, isLoading } = useQuery({
-    queryKey: ["reports-academic"],
-    queryFn: () => fetchReport(),
+function StudentsReport() {
+  const lookupsFn = useServerFn(getStudentLookups);
+  const reportFn = useServerFn(getStudentsReportForAdmin);
+  const [filters, setFilters] = useState<ReportFilters>(EMPTY_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<ReportFilters>(EMPTY_FILTERS);
+  const [page, setPage] = useState(1);
+
+  const { data: lookups } = useQuery({
+    queryKey: ["admin-report-student-lookups"],
+    queryFn: () => lookupsFn(),
+    staleTime: Infinity,
   });
 
-  const d = data;
+  const reportEnabled = hasAnyFilter(appliedFilters);
+  const { data: report, isFetching, error } = useQuery({
+    queryKey: ["admin-students-report", appliedFilters, page],
+    enabled: reportEnabled,
+    queryFn: () => reportFn({
+      data: {
+        ...appliedFilters,
+        department_id: appliedFilters.department_id || undefined,
+        program_id: appliedFilters.program_id || undefined,
+        level_id: appliedFilters.level_id || undefined,
+        academic_year_id: appliedFilters.academic_year_id || undefined,
+        semester_id: appliedFilters.semester_id || undefined,
+        page,
+        pageSize: PAGE_SIZE,
+      },
+    }),
+  });
+
+  const filteredPrograms = filters.department_id && lookups
+    ? lookups.programs.filter((program: any) => program.department_id === filters.department_id)
+    : lookups?.programs ?? [];
+  const filteredSemesters = filters.academic_year_id && lookups
+    ? lookups.semesters.filter((semester: any) => semester.academic_year_id === filters.academic_year_id)
+    : lookups?.semesters ?? [];
+
+  const totalPages = Math.max(1, Math.ceil((report?.total ?? 0) / PAGE_SIZE));
+
+  const exportRows = useMemo(() => (report?.rows ?? []).map((row) => ({
+    "الرقم الأكاديمي": row.academic_number,
+    "اسم الطالب": row.full_name_ar,
+    "القسم": row.department_name ?? "",
+    "البرنامج": row.program_code ? `${row.program_name ?? ""} (${row.program_code})` : row.program_name ?? "",
+    "المستوى": row.level_number != null ? `${row.level_name ?? ""} - ${row.level_number}` : row.level_name ?? "",
+    "العام الأكاديمي": row.academic_year ?? "",
+    "الفصل الدراسي": row.semester ?? "",
+    "نظام الدراسة": studySystemLabel(row.study_system),
+    "الحالة": statusLabel(row.status),
+    "حالة حساب الدخول": row.has_account ? "لديه حساب" : "بدون حساب",
+  })), [report?.rows]);
+
+  const updateFilter = (key: keyof ReportFilters, value: string) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "department_id" ? { program_id: "" } : {}),
+      ...(key === "academic_year_id" ? { semester_id: "" } : {}),
+    }));
+  };
+
+  const applyFilters = () => {
+    setPage(1);
+    setAppliedFilters(filters);
+  };
+
+  const clearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setAppliedFilters(EMPTY_FILTERS);
+    setPage(1);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="إجمالي الطلاب" value={d?.totalStudents ?? 0} icon={ClipboardList} />
-        <StatCard label="الطلاب النشطون" value={d?.activeStudents ?? 0} icon={Users} />
-        <StatCard label="الطلاب الموقوفون" value={d?.suspendedStudents ?? 0} icon={FileWarning} />
-        <StatCard label="إجمالي البرامج" value={d?.programs ?? 0} icon={GraduationCap} />
-        <StatCard label="إجمالي المقررات" value={d?.courses ?? 0} icon={BookOpen} />
-        <StatCard label="إجمالي المجموعات الدراسية" value={d?.sections ?? 0} icon={CalendarDays} />
+    <section className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card space-y-4">
+        <div>
+          <h2 className="font-display text-xl font-extrabold text-primary flex items-center gap-2">
+            <FileSearch className="h-5 w-5 text-gold" /> كشف الطلاب
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            تقرير قراءة فقط لعرض الطلاب حسب الفلاتر الأكاديمية وحالة حساب الدخول.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-4">
+          <ReportField label="نظام الدراسة">
+            <select value={filters.study_system} onChange={(e) => updateFilter("study_system", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="all">الكل</option>
+              <option value="regular">عام</option>
+              <option value="private">نفقة خاصة</option>
+              <option value="unset">غير محدد</option>
+            </select>
+          </ReportField>
+          <ReportField label="القسم">
+            <select value={filters.department_id} onChange={(e) => updateFilter("department_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأقسام</option>
+              {lookups?.departments.map((department: any) => (
+                <option key={department.id} value={department.id}>{department.name_ar}</option>
+              ))}
+            </select>
+          </ReportField>
+          <ReportField label="البرنامج">
+            <select value={filters.program_id} onChange={(e) => updateFilter("program_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل البرامج</option>
+              {filteredPrograms.map((program: any) => (
+                <option key={program.id} value={program.id}>{program.name_ar}{program.code ? ` (${program.code})` : ""}</option>
+              ))}
+            </select>
+          </ReportField>
+          <ReportField label="المستوى">
+            <select value={filters.level_id} onChange={(e) => updateFilter("level_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل المستويات</option>
+              {lookups?.levels.map((level: any) => (
+                <option key={level.id} value={level.id}>{level.name}</option>
+              ))}
+            </select>
+          </ReportField>
+          <ReportField label="العام الأكاديمي">
+            <select value={filters.academic_year_id} onChange={(e) => updateFilter("academic_year_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأعوام</option>
+              {lookups?.academic_years.map((year: any) => (
+                <option key={year.id} value={year.id}>{year.name}{year.is_current ? " (الحالي)" : ""}</option>
+              ))}
+            </select>
+          </ReportField>
+          <ReportField label="الفصل الدراسي">
+            <select value={filters.semester_id} onChange={(e) => updateFilter("semester_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الفصول</option>
+              {filteredSemesters.map((semester: any) => (
+                <option key={semester.id} value={semester.id}>{semester.name}{semester.code ? ` (${semester.code})` : ""}</option>
+              ))}
+            </select>
+          </ReportField>
+          <ReportField label="الحالة">
+            <select value={filters.status} onChange={(e) => updateFilter("status", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="all">كل الحالات</option>
+              <option value="active">نشط</option>
+              <option value="inactive">معطّل</option>
+              <option value="suspended">موقوف</option>
+              <option value="graduated">متخرج</option>
+              <option value="withdrawn">منسحب</option>
+              <option value="transferred">محول</option>
+            </select>
+          </ReportField>
+          <ReportField label="حساب الدخول">
+            <select value={filters.account_status} onChange={(e) => updateFilter("account_status", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="all">الكل</option>
+              <option value="with_account">لديه حساب</option>
+              <option value="without_account">بدون حساب</option>
+            </select>
+          </ReportField>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={applyFilters}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90">
+            <Search className="h-4 w-4" /> عرض التقرير
+          </button>
+          <button type="button" onClick={clearFilters}
+            className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:bg-secondary">
+            مسح الفلاتر
+          </button>
+          <button type="button" disabled={!report?.rows?.length} onClick={() => window.print()}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:bg-secondary disabled:opacity-50">
+            <Printer className="h-4 w-4" /> طباعة
+          </button>
+          <button type="button" disabled={!exportRows.length} onClick={() => downloadCsv("students_report.csv", exportRows)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:bg-secondary disabled:opacity-50">
+            <FileDown className="h-4 w-4" /> تصدير CSV
+          </button>
+        </div>
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ReportTable
-          title="الطلاب حسب البرنامج"
-          reportName="students_by_program"
-          loading={isLoading}
-          columns={[{ key: "key", label: "البرنامج" }, { key: "value", label: "عدد الطلاب", numeric: true }]}
-          rows={d?.byProgram ?? []}
-        />
-        <ReportTable
-          title="الطلاب حسب القسم"
-          reportName="students_by_department"
-          loading={isLoading}
-          columns={[{ key: "key", label: "القسم" }, { key: "value", label: "عدد الطلاب", numeric: true }]}
-          rows={d?.byDept ?? []}
-        />
-        <ReportTable
-          title="الطلاب حسب المستوى الأكاديمي"
-          reportName="students_by_level"
-          loading={isLoading}
-          columns={[{ key: "key", label: "المستوى" }, { key: "value", label: "عدد الطلاب", numeric: true }]}
-          rows={d?.byLevel ?? []}
-        />
-        <ReportTable
-          title="الطلاب حسب الحالة الأكاديمية"
-          reportName="students_by_status"
-          loading={isLoading}
-          columns={[{ key: "key", label: "الحالة" }, { key: "value", label: "عدد الطلاب", numeric: true }]}
-          rows={d?.byStatus ?? []}
-        />
+
+      {!reportEnabled ? (
+        <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
+          اختر فلترًا واحدًا على الأقل لعرض التقرير.
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm font-bold text-destructive">
+          {(error as Error).message}
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <KpiCard label="إجمالي الطلاب" value={report?.kpis.total ?? 0} icon={Users} />
+            <KpiCard label="النظام العام" value={report?.kpis.regular ?? 0} icon={GraduationCap} />
+            <KpiCard label="النفقة الخاصة" value={report?.kpis.private ?? 0} icon={GraduationCap} />
+            <KpiCard label="غير محددي النظام" value={report?.kpis.unsetStudySystem ?? 0} icon={History} />
+            <KpiCard label="لديهم حساب دخول" value={report?.kpis.withAccount ?? 0} icon={UserCheck} />
+            <KpiCard label="بدون حساب دخول" value={report?.kpis.withoutAccount ?? 0} icon={Users} />
+          </div>
+
+          <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden print:shadow-none">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h3 className="font-display text-sm font-extrabold text-primary flex items-center gap-2">
+                <FileText className="h-4 w-4 text-gold" /> نتائج كشف الطلاب
+              </h3>
+              {isFetching && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="bg-secondary/50 text-primary">
+                  <tr>
+                    <th className="px-3 py-2 text-right">الرقم الأكاديمي</th>
+                    <th className="px-3 py-2 text-right">اسم الطالب</th>
+                    <th className="px-3 py-2 text-right">القسم</th>
+                    <th className="px-3 py-2 text-right">البرنامج</th>
+                    <th className="px-3 py-2 text-right">المستوى</th>
+                    <th className="px-3 py-2 text-right">العام</th>
+                    <th className="px-3 py-2 text-right">الفصل</th>
+                    <th className="px-3 py-2 text-right">نظام الدراسة</th>
+                    <th className="px-3 py-2 text-right">الحالة</th>
+                    <th className="px-3 py-2 text-right">حساب الدخول</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report?.rows.length ? report.rows.map((row) => (
+                    <tr key={row.id} className="border-t border-border/60">
+                      <td className="px-3 py-2 font-mono">{row.academic_number}</td>
+                      <td className="px-3 py-2 font-bold">{row.full_name_ar}</td>
+                      <td className="px-3 py-2">{row.department_name ?? "—"}</td>
+                      <td className="px-3 py-2">{row.program_name ?? "—"}{row.program_code ? ` (${row.program_code})` : ""}</td>
+                      <td className="px-3 py-2">{row.level_name ?? "—"}{row.level_number != null ? ` — ${row.level_number}` : ""}</td>
+                      <td className="px-3 py-2">{row.academic_year ?? "—"}</td>
+                      <td className="px-3 py-2">{row.semester ?? "—"}</td>
+                      <td className="px-3 py-2">{studySystemLabel(row.study_system)}</td>
+                      <td className="px-3 py-2">{statusLabel(row.status)}</td>
+                      <td className="px-3 py-2">{row.has_account ? "لديه حساب" : "بدون حساب"}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground">
+                        لا توجد بيانات مطابقة.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {report && report.total > PAGE_SIZE && (
+              <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs">
+                <span className="text-muted-foreground">
+                  عرض {report.rows.length.toLocaleString("ar-EG")} من {report.total.toLocaleString("ar-EG")} سجل
+                </span>
+                <div className="flex gap-1">
+                  <button type="button" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="rounded border border-border px-3 py-1 disabled:opacity-40">السابق</button>
+                  <span className="px-2 py-1 font-mono">{page} / {Math.max(1, Math.ceil(report.total / PAGE_SIZE))}</span>
+                  <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="rounded border border-border px-3 py-1 disabled:opacity-40">التالي</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function KpiCard({ label, value, icon: Icon }: { label: string; value: number; icon: any }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-muted-foreground">{label}</span>
+        <Icon className="h-4 w-4 text-gold" />
+      </div>
+      <div className="mt-2 font-display text-2xl font-extrabold text-primary">
+        {value.toLocaleString("ar-EG")}
       </div>
     </div>
   );
 }
 
-// ===================================================================
-// TAB: PERFORMANCE
-// ===================================================================
-function PerformanceTab() {
-  const fetchReport = useServerFn(getReportsPerformance);
-  const { data, isLoading } = useQuery({
-    queryKey: ["reports-performance"],
-    queryFn: () => fetchReport(),
-  });
-
+function ComingSoonCard({ title }: { title: string }) {
   return (
-    <div className="space-y-4">
-      <ReportTable
-        title="معدلات النجاح حسب المقرر"
-        reportName="success_rate_by_course"
-        loading={isLoading}
-        columns={[
-          { key: "code", label: "الكود" },
-          { key: "name", label: "المقرر" },
-          { key: "total", label: "عدد الطلاب", numeric: true },
-          { key: "success_rate", label: "نسبة النجاح %", numeric: true },
-          { key: "avg", label: "المتوسط %", numeric: true },
-        ]}
-        rows={data?.courseRows ?? []}
-      />
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ReportTable
-          title="الطلاب المتفوقون (متوسط ≥ 85)"
-          reportName="top_students"
-          loading={isLoading}
-          columns={[
-            { key: "academic_number", label: "الرقم الأكاديمي" },
-            { key: "student_name", label: "اسم الطالب" },
-            { key: "average", label: "المتوسط %", numeric: true },
-            { key: "status", label: "الحالة" },
-          ]}
-          rows={data?.top ?? []}
-        />
-        <ReportTable
-          title="الطلاب المتعثرون (متوسط < 60)"
-          reportName="at_risk_students"
-          loading={isLoading}
-          columns={[
-            { key: "academic_number", label: "الرقم الأكاديمي" },
-            { key: "student_name", label: "اسم الطالب" },
-            { key: "average", label: "المتوسط %", numeric: true },
-            { key: "status", label: "الحالة" },
-          ]}
-          rows={data?.atRisk ?? []}
-        />
+    <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center shadow-card">
+      <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-secondary text-primary">
+        <BarChart3 className="h-5 w-5" />
       </div>
+      <h2 className="mt-3 font-display text-lg font-extrabold text-primary">{title}</h2>
+      <p className="mt-1 text-sm text-muted-foreground">سيتم تفعيل هذا القسم لاحقاً.</p>
     </div>
   );
 }
 
-// ===================================================================
-// TAB: ENROLLMENT
-// ===================================================================
-function EnrollmentTab() {
-  const fetchReport = useServerFn(getReportsEnrollment);
-  const { data, isLoading } = useQuery({
-    queryKey: ["reports-enrollment"],
-    queryFn: () => fetchReport(),
-  });
-
+function ReportField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ReportTable
-          title="التسجيلات حسب البرنامج"
-          reportName="enrollments_by_program"
-          loading={isLoading}
-          columns={[{ key: "key", label: "البرنامج" }, { key: "value", label: "عدد التسجيلات", numeric: true }]}
-          rows={data?.programRows ?? []}
-        />
-        <ReportTable
-          title="التسجيلات حسب المقرر"
-          reportName="enrollments_by_course"
-          loading={isLoading}
-          columns={[
-            { key: "code", label: "الكود" },
-            { key: "name", label: "المقرر" },
-            { key: "count", label: "عدد التسجيلات", numeric: true },
-          ]}
-          rows={data?.courseRows ?? []}
-        />
-        <ReportTable
-          title="التسجيلات حسب المجموعات الدراسيةة"
-          reportName="enrollments_by_section"
-          loading={isLoading}
-          columns={[
-            { key: "section_code", label: "كود المجموعات الدراسيةة" },
-            { key: "course", label: "المقرر" },
-            { key: "count", label: "عدد التسجيلات", numeric: true },
-          ]}
-          rows={data?.sectionRows ?? []}
-        />
-        <ReportTable
-          title="المقررات الأكثر إقبالاً"
-          reportName="most_popular_courses"
-          loading={isLoading}
-          columns={[
-            { key: "code", label: "الكود" },
-            { key: "name", label: "المقرر" },
-            { key: "count", label: "عدد التسجيلات", numeric: true },
-          ]}
-          rows={data?.mostPopular ?? []}
-        />
-        <ReportTable
-          title="المقررات الأقل إقبالاً"
-          reportName="least_popular_courses"
-          loading={isLoading}
-          columns={[
-            { key: "code", label: "الكود" },
-            { key: "name", label: "المقرر" },
-            { key: "count", label: "عدد التسجيلات", numeric: true },
-          ]}
-          rows={data?.leastPopular ?? []}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ===================================================================
-// TAB: FACULTY
-// ===================================================================
-function FacultyTab() {
-  const fetchReport = useServerFn(getReportsFaculty);
-  const { data, isLoading } = useQuery({
-    queryKey: ["reports-faculty"],
-    queryFn: () => fetchReport(),
-  });
-
-  return (
-    <div className="space-y-4">
-      <ReportTable
-        title="العبء التدريسي وعدد المجموعات الدراسية لكل عضو هيئة تدريس"
-        reportName="faculty_teaching_load"
-        loading={isLoading}
-        columns={[
-          { key: "name", label: "العضو" },
-          { key: "rank", label: "الرتبة" },
-          { key: "department", label: "القسم" },
-          { key: "sections", label: "عدد المجموعات الدراسية", numeric: true },
-          { key: "students", label: "عدد الطلاب", numeric: true },
-          { key: "status", label: "الحالة" },
-        ]}
-        rows={data?.facultyRows ?? []}
-      />
-      <ReportTable
-        title="توزيع هيئة التدريس حسب القسم"
-        reportName="faculty_by_department"
-        loading={isLoading}
-        columns={[{ key: "key", label: "القسم" }, { key: "value", label: "عدد الأعضاء", numeric: true }]}
-        rows={data?.byDept ?? []}
-      />
-    </div>
-  );
-}
-
-// ===================================================================
-// TAB: REQUESTS
-// ===================================================================
-function RequestsTab() {
-  const fetchReport = useServerFn(getReportsRequests);
-  const { data, isLoading } = useQuery({
-    queryKey: ["reports-requests"],
-    queryFn: () => fetchReport(),
-  });
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="إجمالي الطلبات" value={data?.total ?? 0} icon={FileWarning} />
-        <StatCard label="الموافَق عليها" value={data?.approvedCount ?? 0} icon={FileWarning} />
-        <StatCard label="المرفوضة" value={data?.rejectedCount ?? 0} icon={FileWarning} />
-        <StatCard label="متوسط المعالجة (أيام)" value={data?.avgDays ?? 0} icon={TrendingUp} />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ReportTable
-          title="الطلبات حسب النوع"
-          reportName="requests_by_type"
-          loading={isLoading}
-          columns={[{ key: "key", label: "النوع" }, { key: "value", label: "العدد", numeric: true }]}
-          rows={data?.byType ?? []}
-        />
-        <ReportTable
-          title="الطلبات حسب الحالة"
-          reportName="requests_by_status"
-          loading={isLoading}
-          columns={[{ key: "key", label: "الحالة" }, { key: "value", label: "العدد", numeric: true }]}
-          rows={data?.byStatus ?? []}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ===================================================================
-// TAB: FINANCIAL
-// ===================================================================
-function FinancialTab() {
-  const fetchReport = useServerFn(getReportsFinancial);
-  const { data, isLoading } = useQuery({
-    queryKey: ["reports-financial"],
-    queryFn: () => fetchReport(),
-  });
-
-  const fmt = (n: number) => n.toLocaleString("ar-EG", { maximumFractionDigits: 2 });
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="إجمالي الرسوم" value={fmt(data?.totalFees ?? 0)} icon={Wallet} />
-        <StatCard label="إجمالي المدفوعات" value={fmt(data?.totalPaid ?? 0)} icon={Wallet} />
-        <StatCard label="الرصيد المستحق" value={fmt(data?.outstanding ?? 0)} icon={FileWarning} />
-        <StatCard label="إجمالي الخصومات" value={fmt(data?.discountsTotal ?? 0)} icon={TrendingUp} />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ReportTable
-          title="الرسوم حسب البرنامج"
-          reportName="fees_by_program"
-          loading={isLoading}
-          columns={[{ key: "key", label: "البرنامج" }, { key: "value", label: "المبلغ", numeric: true }]}
-          rows={data?.feesByProgramRows ?? []}
-        />
-        <ReportTable
-          title="المسدد مقابل المستحق"
-          reportName="paid_vs_outstanding"
-          loading={isLoading}
-          columns={[{ key: "key", label: "البند" }, { key: "value", label: "المبلغ", numeric: true }]}
-          rows={data?.paidVsOutstanding ?? []}
-        />
-        <ReportTable
-          title="إحصائيات إيصالات الدفع"
-          reportName="receipts_status"
-          loading={isLoading}
-          columns={[{ key: "key", label: "الحالة" }, { key: "value", label: "العدد", numeric: true }]}
-          rows={data?.receiptStatusRows ?? []}
-        />
-        <ReportTable
-          title="توزيع الخصومات"
-          reportName="discounts_distribution"
-          loading={isLoading}
-          columns={[{ key: "key", label: "الحالة" }, { key: "value", label: "العدد", numeric: true }]}
-          rows={data?.discountsRows ?? []}
-        />
-      </div>
-    </div>
-  );
-}
-
-// ===================================================================
-// PAGE
-// ===================================================================
-function ReportsPage() {
-  const [tab, setTab] = useState<TabId>("academic");
-
-  useEffect(() => {
-    logReportView(`tab_${tab}`);
-  }, [tab]);
-
-  const content = useMemo(() => {
-    switch (tab) {
-      case "academic":    return <AcademicTab />;
-      case "performance": return <PerformanceTab />;
-      case "enrollment":  return <EnrollmentTab />;
-      case "faculty":     return <FacultyTab />;
-      case "requests":    return <RequestsTab />;
-      case "financial":   return <FinancialTab />;
-    }
-  }, [tab]);
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-extrabold text-primary">التقارير والتحليلات</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          تقارير قابلة للتصدير تعرض الأداء الأكاديمي والمالي والتشغيلي للكلية.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2 border-b border-border">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "inline-flex items-center gap-2 rounded-t-lg px-4 py-2.5 text-sm font-bold transition-all border-b-2",
-                active
-                  ? "border-gold text-primary bg-card"
-                  : "border-transparent text-muted-foreground hover:text-primary hover:bg-secondary/40",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {content}
-    </div>
+    <label className="block space-y-1">
+      <span className="text-xs font-bold text-primary">{label}</span>
+      {children}
+    </label>
   );
 }
