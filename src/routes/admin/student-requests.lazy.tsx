@@ -387,16 +387,26 @@ function AdminRequestsPage() {
                     <div className="mt-1 text-muted-foreground">الخطوة الحالية: {request.current_role_key ?? "—"}</div>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    <button type="button" onClick={() => actOnWorkflow(request.id, "approve")}
-                      className="rounded bg-emerald-600 px-2 py-1 font-bold text-white">موافقة</button>
-                    <button type="button" onClick={() => actOnWorkflow(request.id, "forward")}
-                      className="rounded border border-border px-2 py-1 font-bold">إحالة</button>
-                    <button type="button" onClick={() => actOnWorkflow(request.id, "return_for_completion")}
-                      className="rounded border border-amber-400 px-2 py-1 font-bold text-amber-800">إرجاع للاستكمال</button>
-                    <button type="button" onClick={() => actOnWorkflow(request.id, "reject")}
-                      className="rounded border border-rose-400 px-2 py-1 font-bold text-rose-700">رفض</button>
-                    <button type="button" onClick={() => actOnWorkflow(request.id, "complete")}
-                      className="rounded border border-primary/40 px-2 py-1 font-bold text-primary">إكمال التنفيذ</button>
+                    {request.allowed_actions?.includes("approve") && (
+                      <button type="button" onClick={() => actOnWorkflow(request.id, "approve")}
+                        className="rounded bg-emerald-600 px-2 py-1 font-bold text-white">موافقة</button>
+                    )}
+                    {request.allowed_actions?.includes("forward") && (
+                      <button type="button" onClick={() => actOnWorkflow(request.id, "forward")}
+                        className="rounded border border-border px-2 py-1 font-bold">إحالة</button>
+                    )}
+                    {request.allowed_actions?.includes("return_for_completion") && (
+                      <button type="button" onClick={() => actOnWorkflow(request.id, "return_for_completion")}
+                        className="rounded border border-amber-400 px-2 py-1 font-bold text-amber-800">إرجاع للاستكمال</button>
+                    )}
+                    {request.allowed_actions?.includes("reject") && (
+                      <button type="button" onClick={() => actOnWorkflow(request.id, "reject")}
+                        className="rounded border border-rose-400 px-2 py-1 font-bold text-rose-700">رفض</button>
+                    )}
+                    {request.allowed_actions?.includes("complete") && (
+                      <button type="button" onClick={() => actOnWorkflow(request.id, "complete")}
+                        className="rounded border border-primary/40 px-2 py-1 font-bold text-primary">إكمال التنفيذ</button>
+                    )}
                   </div>
                 </div>
               </div>

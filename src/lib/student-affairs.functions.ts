@@ -21,6 +21,18 @@ type WorkflowStep = {
   key: string;
   title_ar: string;
   role_key: string;
+  allowed_actions?: string[];
+  can_complete?: boolean;
+};
+
+type RequestAccessRow = {
+  id: string;
+  status: string;
+  current_step_index: number | null;
+  current_role_key: string | null;
+  student_profile_id: string;
+  request_type: string;
+  student_profile?: { user_id: string | null } | null;
 };
 
 async function currentStudentProfile(userId: string) {
@@ -48,6 +60,28 @@ async function loadRequestType(code: string) {
 function workflowSteps(type: { workflow_schema: { steps?: WorkflowStep[] } | null }): WorkflowStep[] {
   const steps = type.workflow_schema?.steps;
   return Array.isArray(steps) ? steps.filter((s) => s.key && s.role_key) : [];
+}
+
+function hasGlobalWorkflowAccess(roles: string[]) {
+  return roles.includes("admin") || roles.includes("system_admin");
+}
+
+function roleMatchesCurrentStep(roles: string[], request: Pick<RequestAccessRow, "current_role_key">) {
+  return Boolean(request.current_role_key && roles.includes(request.current_role_key));
+}
+
+function canAccessRequest(userId: string, roles: string[], request: RequestAccessRow) {
+  const isOwner = request.student_profile?.user_id === userId;
+  return isOwner || hasGlobalWorkflowAccess(roles) || roleMatchesCurrentStep(roles, request);
+}
+
+function allowedActionsForStep(step: WorkflowStep | undefined, currentIndex: number, steps: WorkflowStep[]) {
+  const explicit = step?.allowed_actions?.filter((action) => ACTIONS.includes(action as any));
+  if (explicit && explicit.length > 0) return explicit;
+  const actions = ["approve", "reject", "return_for_completion"] as string[];
+  if (currentIndex < steps.length - 1) actions.push("forward");
+  if (step?.can_complete === true || currentIndex === steps.length - 1) actions.push("complete");
+  return actions;
 }
 
 async function insertEvent(input: {
@@ -262,9 +296,7 @@ export const getStudentServiceRequestDetails = createServerFn({ method: "POST" }
     if (error) throw new Error(error.message);
     if (!req) throw new Error("الطلب غير موجود");
     const roles = await userRoles(context.userId);
-    const isOwner = (req as any).student_profile?.user_id === context.userId;
-    const isPrivileged = roles.some((r) => ADMIN_ROLES.includes(r as any));
-    if (!isOwner && !isPrivileged) throw new Error("غير مصرح");
+    if (!canAccessRequest(context.userId, roles, req as RequestAccessRow)) throw new Error("غير مصرح");
     const [steps, events, attachments] = await Promise.all([
       supabaseAdmin.from("student_service_request_steps").select("*").eq("request_id", data.requestId).order("step_index"),
       supabaseAdmin.from("student_service_request_events").select("*").eq("request_id", data.requestId).order("created_at"),
@@ -291,7 +323,20 @@ export const getPendingStudentRequestsForRole = createServerFn({ method: "POST" 
     }
     const { data, error } = await query.limit(200);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const typeCache = new Map<string, Awaited<ReturnType<typeof loadRequestType>>>();
+    return Promise.all((data ?? []).map(async (request: any) => {
+      let type = typeCache.get(request.request_type);
+      if (!type) {
+        type = await loadRequestType(request.request_type);
+        typeCache.set(request.request_type, type);
+      }
+      const steps = workflowSteps(type);
+      const currentIndex = request.current_step_index ?? 0;
+      return {
+        ...request,
+        allowed_actions: allowedActionsForStep(steps[currentIndex], currentIndex, steps),
+      };
+    }));
   });
 
 async function assertCanAct(userId: string, requestId: string) {
@@ -303,7 +348,7 @@ async function assertCanAct(userId: string, requestId: string) {
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!req) throw new Error("الطلب غير موجود");
-  const allowed = roles.includes("admin") || roles.includes("system_admin") || roles.includes(req.current_role_key ?? "");
+  const allowed = hasGlobalWorkflowAccess(roles) || roleMatchesCurrentStep(roles, req);
   if (!allowed) throw new Error("لا تملك صلاحية تنفيذ هذه الخطوة");
   if (!["submitted", "in_review", "under_review"].includes(req.status)) throw new Error("الطلب ليس في حالة قابلة للإجراء");
   return { req, roles };
@@ -323,7 +368,18 @@ async function performRequestAction(input: {
     const steps = workflowSteps(type);
     const currentIndex = req.current_step_index ?? 0;
     const nextIndex = currentIndex + 1;
+    const currentStep = steps[currentIndex];
     const next = steps[nextIndex];
+    const allowedActions = allowedActionsForStep(currentStep, currentIndex, steps);
+    if (!allowedActions.includes(input.action)) {
+      throw new Error("الإجراء غير مسموح لهذه الخطوة");
+    }
+    if ((input.action === "forward" || input.action === "approve") && !next && input.action === "forward") {
+      throw new Error("لا توجد خطوة تالية للإحالة");
+    }
+    if (input.action === "complete" && !(currentStep?.can_complete === true || currentIndex === steps.length - 1)) {
+      throw new Error("إكمال التنفيذ مسموح فقط في الخطوة النهائية");
+    }
     let newStatus = req.status === "submitted" ? "in_review" : req.status;
     let patch: Record<string, unknown> = {
       reviewed_by: input.userId,
@@ -430,11 +486,14 @@ export const getStudentRequestAttachmentSignedUrl = createServerFn({ method: "PO
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!attachment) throw new Error("المرفق غير موجود");
-    const { data: req } = await supabaseAdmin.from("student_requests").select("student_profile_id").eq("id", attachment.request_id).maybeSingle();
+    const { data: req } = await supabaseAdmin
+      .from("student_requests")
+      .select("id, status, current_step_index, current_role_key, student_profile_id, request_type, student_profile:student_profiles(user_id)")
+      .eq("id", attachment.request_id)
+      .maybeSingle();
+    if (!req) throw new Error("الطلب غير موجود");
     const roles = await userRoles(context.userId);
-    const isPriv = roles.some((r) => ADMIN_ROLES.includes(r as any));
-    const profile = await supabaseAdmin.from("student_profiles").select("user_id").eq("id", req?.student_profile_id).maybeSingle();
-    if (!isPriv && profile.data?.user_id !== context.userId) throw new Error("غير مصرح");
+    if (!canAccessRequest(context.userId, roles, req as RequestAccessRow)) throw new Error("غير مصرح");
     const signed = await supabaseAdmin.storage.from("student-request-attachments").createSignedUrl(data.path, 300);
     if (signed.error || !signed.data?.signedUrl) throw new Error(signed.error?.message ?? "تعذر فتح المرفق");
     return { signedUrl: signed.data.signedUrl };
