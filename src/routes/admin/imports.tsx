@@ -401,17 +401,25 @@ function ImportsPage() {
           </span>
         </div>
         <nav className="flex flex-wrap gap-2 border-b border-border">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => onTabChange(t.id)}
-              className={`px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-colors ${
-                tab === t.id ? "border-gold text-primary" : "border-transparent text-muted-foreground hover:text-primary"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => onTabChange(t.id)}
+                className={`relative px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-all ${
+                  active
+                    ? "border-gold text-primary bg-gold/10 shadow-[0_-4px_12px_-4px_var(--gold)]"
+                    : "border-transparent text-muted-foreground hover:text-primary hover:bg-muted/40"
+                }`}
+              >
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 bg-gold rounded-full" />
+                )}
+                {t.label}
+              </button>
+            );
+          })}
         </nav>
       </div>
 
