@@ -15,6 +15,10 @@ import {
   updateEquivalencyCourse,
   getStudentRequestAttachmentUrl,
 } from "@/lib/admin-student-requests.functions";
+import {
+  actOnStudentServiceRequest,
+  getPendingStudentRequestsForRole,
+} from "@/lib/student-affairs.functions";
 import { RequestTimelinePanel } from "@/components/student-requests/RequestTimelinePanel";
 
 export const Route = createLazyFileRoute("/admin/student-requests")({
@@ -172,6 +176,8 @@ function AdminRequestsPage() {
   const listFn = useServerFn(listStudentRequestsOverview);
   const detailsFn = useServerFn(getStudentRequestDetails);
   const updateStatusFn = useServerFn(updateStudentRequestStatus);
+  const pendingWorkflowFn = useServerFn(getPendingStudentRequestsForRole);
+  const actWorkflowFn = useServerFn(actOnStudentServiceRequest);
   const sendEmail = useServerFn(sendNotificationEmail);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
@@ -187,6 +193,10 @@ function AdminRequestsPage() {
   const programs = lookups?.programs ?? [];
   const depts = lookups?.departments ?? [];
   const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
+  const { data: workflowPending = [] } = useQuery({
+    queryKey: ["admin-student-affairs-workflow-pending"],
+    queryFn: () => pendingWorkflowFn({ data: {} }),
+  });
 
   const { data: requests = [], isLoading, isError, error: listError, refetch } = useQuery({
     queryKey: ["admin-requests-overview"],
@@ -306,6 +316,23 @@ function AdminRequestsPage() {
     }
   };
 
+  const actOnWorkflow = async (
+    requestId: string,
+    action: "approve" | "reject" | "return_for_completion" | "forward" | "complete",
+  ) => {
+    const needsNote = action === "reject" || action === "return_for_completion";
+    const notes = needsNote ? window.prompt("أدخل الملاحظة المطلوبة") : window.prompt("ملاحظة اختيارية") ?? "";
+    if (needsNote && !notes) return;
+    try {
+      await actWorkflowFn({ data: { requestId, action, notes: notes || undefined } });
+      toast.success("تم تنفيذ الإجراء");
+      qc.invalidateQueries({ queryKey: ["admin-student-affairs-workflow-pending"] });
+      qc.invalidateQueries({ queryKey: ["admin-requests-overview"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-7xl mx-auto">
       <div className="flex items-center gap-2">
@@ -337,6 +364,46 @@ function AdminRequestsPage() {
           <button type="button" onClick={() => refetch()} className="text-xs font-bold underline shrink-0">إعادة المحاولة</button>
         </div>
       )}
+
+      <div className="rounded-lg border bg-card p-3">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-extrabold text-primary">طلبات سير العمل المعلقة على دوري</h2>
+          <span className="text-xs text-muted-foreground">{workflowPending.length} طلب</span>
+        </div>
+        {workflowPending.length === 0 ? (
+          <div className="rounded border border-dashed p-4 text-center text-xs text-muted-foreground">
+            لا توجد طلبات سير عمل معلقة على أدوارك حالياً.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {workflowPending.slice(0, 20).map((request: any) => (
+              <div key={request.id} className="rounded-lg border border-border bg-background p-3 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <div className="font-bold text-primary">{request.title}</div>
+                    <div className="text-muted-foreground">
+                      {request.request_number ?? request.id} • {request.student_profile?.academic_number ?? "—"} • {request.student_profile?.full_name_ar ?? "—"}
+                    </div>
+                    <div className="mt-1 text-muted-foreground">الخطوة الحالية: {request.current_role_key ?? "—"}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    <button type="button" onClick={() => actOnWorkflow(request.id, "approve")}
+                      className="rounded bg-emerald-600 px-2 py-1 font-bold text-white">موافقة</button>
+                    <button type="button" onClick={() => actOnWorkflow(request.id, "forward")}
+                      className="rounded border border-border px-2 py-1 font-bold">إحالة</button>
+                    <button type="button" onClick={() => actOnWorkflow(request.id, "return_for_completion")}
+                      className="rounded border border-amber-400 px-2 py-1 font-bold text-amber-800">إرجاع للاستكمال</button>
+                    <button type="button" onClick={() => actOnWorkflow(request.id, "reject")}
+                      className="rounded border border-rose-400 px-2 py-1 font-bold text-rose-700">رفض</button>
+                    <button type="button" onClick={() => actOnWorkflow(request.id, "complete")}
+                      className="rounded border border-primary/40 px-2 py-1 font-bold text-primary">إكمال التنفيذ</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {statusFilter === "under_review" && submittedCount > 0 && (
         <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
