@@ -12,12 +12,20 @@ import {
   getAcademicProgramsReportForAdmin,
   getAcademicReportLookupsForAdmin,
   getCoursesReportForAdmin,
+  getCourseAssignmentsReportForAdmin,
   getImportJobErrorsForAdmin,
   getImportJobsReportForAdmin,
+  getFacultyLoadReportForAdmin,
+  getRoomUtilizationReportForAdmin,
+  getScheduleConflictIndicatorsForAdmin,
+  getScheduleReportLookupsForAdmin,
   getStudentAccountsReportForAdmin,
   getStudentsReportForAdmin,
+  getStudyGroupsReportForAdmin,
   getStudyPlanCoverageReportForAdmin,
   getStudyPlansReportForAdmin,
+  getTimetableReportForAdmin,
+  getUnassignedCoursesReportForAdmin,
 } from "@/lib/admin-reports.functions";
 
 export const Route = createFileRoute("/admin/reports")({
@@ -58,6 +66,7 @@ type StudentAccountFilters = {
 };
 
 type AcademicReportId = "programs" | "plans" | "courses" | "coverage";
+type ScheduleReportId = "assignments" | "unassigned" | "groups" | "timetable" | "rooms" | "facultyLoad" | "conflicts";
 type AcademicFilters = {
   department_id: string;
   program_id: string;
@@ -65,6 +74,24 @@ type AcademicFilters = {
   level_id: string;
   semester_code: "all" | "first" | "second";
   status: string;
+  search: string;
+};
+
+type ScheduleFilters = {
+  department_id: string;
+  program_id: string;
+  level_id: string;
+  academic_year_id: string;
+  semester_id: string;
+  faculty_profile_id: string;
+  room_id: string;
+  course_section_id: string;
+  day_of_week: string;
+  schedule_type: string;
+  assignment_status: "all" | "assigned" | "unassigned";
+  section_status: string;
+  room_type: string;
+  conflict_type: "all" | "faculty" | "room" | "group" | "missing_data";
   search: string;
 };
 
@@ -112,6 +139,24 @@ const EMPTY_ACADEMIC_FILTERS: AcademicFilters = {
   level_id: "",
   semester_code: "all",
   status: "",
+  search: "",
+};
+
+const EMPTY_SCHEDULE_FILTERS: ScheduleFilters = {
+  department_id: "",
+  program_id: "",
+  level_id: "",
+  academic_year_id: "",
+  semester_id: "",
+  faculty_profile_id: "",
+  room_id: "",
+  course_section_id: "",
+  day_of_week: "",
+  schedule_type: "",
+  assignment_status: "all",
+  section_status: "",
+  room_type: "",
+  conflict_type: "all",
   search: "",
 };
 
@@ -186,6 +231,26 @@ function hasAccountFilter(filters: StudentAccountFilters) {
   );
 }
 
+function hasScheduleReportFilter(filters: ScheduleFilters, reportId: ScheduleReportId) {
+  return Boolean(
+    filters.department_id
+    || filters.program_id
+    || filters.level_id
+    || filters.academic_year_id
+    || filters.semester_id
+    || filters.faculty_profile_id
+    || filters.room_id
+    || filters.course_section_id
+    || filters.day_of_week
+    || filters.schedule_type
+    || filters.assignment_status !== "all"
+    || filters.section_status
+    || filters.room_type
+    || filters.conflict_type !== "all"
+    || filters.search,
+  );
+}
+
 function csvEscape(value: unknown) {
   const text = value == null ? "" : String(value);
   return `"${text.replace(/"/g, '""')}"`;
@@ -216,7 +281,7 @@ function ReportsPage() {
     { id: "imports", title: "تقارير الاستيراد", icon: Upload, active: true },
     { id: "accounts", title: "تقارير حسابات الطلاب", icon: UserCheck, active: true },
     { id: "academic", title: "التقارير الأكاديمية", icon: BookOpen, active: true },
-    { id: "schedules", title: "تقارير الجداول والإسناد", icon: ClipboardList },
+    { id: "schedules", title: "تقارير الجداول والإسناد", icon: ClipboardList, active: true },
     { id: "faculty", title: "تقارير أعضاء هيئة التدريس", icon: Users },
     { id: "documents", title: "تقارير الوثائق والخدمات", icon: FileBadge },
     { id: "audit", title: "تقارير التدقيق والأمان", icon: ShieldCheck },
@@ -266,7 +331,8 @@ function ReportsPage() {
       {activeSection === "imports" && <ImportJobsReport />}
       {activeSection === "accounts" && <StudentAccountsReport />}
       {activeSection === "academic" && <AcademicReports />}
-      {!["students", "imports", "accounts", "academic"].includes(activeSection) && (
+      {activeSection === "schedules" && <ScheduleReports />}
+      {!["students", "imports", "accounts", "academic", "schedules"].includes(activeSection) && (
         <ComingSoonCard title={sections.find((section) => section.id === activeSection)?.title ?? "قسم التقارير"} />
       )}
     </div>
@@ -1297,6 +1363,474 @@ function AcademicTable({ reportId, report, loading }: { reportId: AcademicReport
                 {columns.map((column) => (
                   <td key={column.key} className="px-3 py-2">
                     {column.key === "updated_at" ? formatDateTime(row[column.key]) : row[column.key] ?? "—"}
+                  </td>
+                ))}
+              </tr>
+            )) : <EmptyTableRow colSpan={columns.length} />}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ScheduleReports() {
+  const lookupsFn = useServerFn(getScheduleReportLookupsForAdmin);
+  const assignmentsFn = useServerFn(getCourseAssignmentsReportForAdmin);
+  const unassignedFn = useServerFn(getUnassignedCoursesReportForAdmin);
+  const groupsFn = useServerFn(getStudyGroupsReportForAdmin);
+  const timetableFn = useServerFn(getTimetableReportForAdmin);
+  const roomsFn = useServerFn(getRoomUtilizationReportForAdmin);
+  const facultyLoadFn = useServerFn(getFacultyLoadReportForAdmin);
+  const conflictsFn = useServerFn(getScheduleConflictIndicatorsForAdmin);
+  const [reportId, setReportId] = useState<ScheduleReportId>("assignments");
+  const [filters, setFilters] = useState<ScheduleFilters>(EMPTY_SCHEDULE_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<ScheduleFilters>(EMPTY_SCHEDULE_FILTERS);
+  const [page, setPage] = useState(1);
+
+  const { data: lookups } = useQuery({
+    queryKey: ["schedule-report-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
+    staleTime: Infinity,
+  });
+
+  const enabled = hasScheduleReportFilter(appliedFilters, reportId);
+  const payload = {
+    department_id: appliedFilters.department_id || undefined,
+    program_id: appliedFilters.program_id || undefined,
+    level_id: appliedFilters.level_id || undefined,
+    academic_year_id: appliedFilters.academic_year_id || undefined,
+    semester_id: appliedFilters.semester_id || undefined,
+    faculty_profile_id: appliedFilters.faculty_profile_id || undefined,
+    room_id: appliedFilters.room_id || undefined,
+    course_section_id: appliedFilters.course_section_id || undefined,
+    day_of_week: appliedFilters.day_of_week || undefined,
+    schedule_type: appliedFilters.schedule_type || undefined,
+    assignment_status: appliedFilters.assignment_status,
+    section_status: appliedFilters.section_status || undefined,
+    room_type: appliedFilters.room_type || undefined,
+    conflict_type: appliedFilters.conflict_type,
+    search: appliedFilters.search || undefined,
+    page,
+    pageSize: 50,
+  };
+  const { data: report, isFetching, error } = useQuery({
+    queryKey: ["schedule-report", reportId, appliedFilters, page],
+    enabled,
+    queryFn: () => {
+      if (reportId === "assignments") return assignmentsFn({ data: payload });
+      if (reportId === "unassigned") return unassignedFn({ data: payload });
+      if (reportId === "groups") return groupsFn({ data: payload });
+      if (reportId === "timetable") return timetableFn({ data: payload });
+      if (reportId === "rooms") return roomsFn({ data: payload });
+      if (reportId === "facultyLoad") return facultyLoadFn({ data: payload });
+      return conflictsFn({ data: payload });
+    },
+  });
+
+  const filteredPrograms = filters.department_id && lookups
+    ? lookups.programs.filter((program: any) => program.department_id === filters.department_id)
+    : lookups?.programs ?? [];
+  const filteredSemesters = filters.academic_year_id && lookups
+    ? lookups.semesters.filter((semester: any) => semester.academic_year_id === filters.academic_year_id)
+    : lookups?.semesters ?? [];
+  const totalPages = Math.max(1, Math.ceil(((report as any)?.total ?? 0) / 50));
+
+  const tabs: Array<{ id: ScheduleReportId; label: string }> = [
+    { id: "assignments", label: "إسناد المقررات" },
+    { id: "unassigned", label: "المقررات غير المسندة" },
+    { id: "groups", label: "المجموعات الدراسية" },
+    { id: "timetable", label: "الجداول الدراسية" },
+    { id: "rooms", label: "استخدام القاعات" },
+    { id: "facultyLoad", label: "عبء المحاضرين" },
+    { id: "conflicts", label: "مؤشرات التعارضات" },
+  ];
+
+  const update = (key: keyof ScheduleFilters, value: string) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "department_id" ? { program_id: "" } : {}),
+      ...(key === "academic_year_id" ? { semester_id: "" } : {}),
+    }));
+  };
+  const switchReport = (next: ScheduleReportId) => {
+    setReportId(next);
+    setFilters(EMPTY_SCHEDULE_FILTERS);
+    setAppliedFilters(EMPTY_SCHEDULE_FILTERS);
+    setPage(1);
+  };
+  const apply = () => { setPage(1); setAppliedFilters(filters); };
+  const clear = () => { setFilters(EMPTY_SCHEDULE_FILTERS); setAppliedFilters(EMPTY_SCHEDULE_FILTERS); setPage(1); };
+
+  const columns = scheduleColumns(reportId);
+  const exportRows = useMemo(() => (((report as any)?.rows ?? []) as any[]).map((row) => {
+    const out: Record<string, unknown> = {};
+    for (const column of columns) out[column.label] = row[column.key] ?? "";
+    return out;
+  }), [report, columns]);
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card space-y-4">
+        <div>
+          <h2 className="font-display text-xl font-extrabold text-primary flex items-center gap-2">
+            <ClipboardList className="h-5 w-5 text-gold" /> تقارير الجداول والإسناد
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            تقارير قراءة فقط لإسناد المقررات والمجموعات الدراسية والجداول والقاعات وعبء المحاضرين.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 border-b border-border">
+          {tabs.map((tab) => (
+            <button key={tab.id} type="button" onClick={() => switchReport(tab.id)}
+              className={`rounded-t-lg border-b-2 px-3 py-2 text-xs font-bold ${
+                reportId === tab.id ? "border-gold text-primary" : "border-transparent text-muted-foreground hover:text-primary"
+              }`}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <ReportField label="القسم">
+            <select value={filters.department_id} onChange={(e) => update("department_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأقسام</option>
+              {lookups?.departments.map((department: any) => <option key={department.id} value={department.id}>{department.name_ar}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="البرنامج">
+            <select value={filters.program_id} onChange={(e) => update("program_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل البرامج</option>
+              {filteredPrograms.map((program: any) => <option key={program.id} value={program.id}>{program.name_ar}{program.code ? ` (${program.code})` : ""}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="المستوى">
+            <select value={filters.level_id} onChange={(e) => update("level_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل المستويات</option>
+              {lookups?.levels.map((level: any) => <option key={level.id} value={level.id}>{level.name}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="العام الأكاديمي">
+            <select value={filters.academic_year_id} onChange={(e) => update("academic_year_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأعوام</option>
+              {lookups?.years.map((year: any) => <option key={year.id} value={year.id}>{year.name}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="الفصل الدراسي">
+            <select value={filters.semester_id} onChange={(e) => update("semester_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الفصول</option>
+              {filteredSemesters.map((semester: any) => <option key={semester.id} value={semester.id}>{semester.name}{semester.code ? ` (${semester.code})` : ""}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="المحاضر">
+            <select value={filters.faculty_profile_id} onChange={(e) => update("faculty_profile_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل المحاضرين</option>
+              {lookups?.faculty.map((faculty: any) => <option key={faculty.id} value={faculty.id}>{faculty.full_name_ar}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="القاعة">
+            <select value={filters.room_id} onChange={(e) => update("room_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل القاعات</option>
+              {lookups?.rooms.map((room: any) => <option key={room.id} value={room.id}>{room.code} — {room.name_ar}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="المجموعة الدراسية">
+            <select value={filters.course_section_id} onChange={(e) => update("course_section_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل المجموعات الدراسية</option>
+              {lookups?.sections.map((section: any) => <option key={section.id} value={section.id}>{section.section_code}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="اليوم">
+            <select value={filters.day_of_week} onChange={(e) => update("day_of_week", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأيام</option>
+              {lookups?.days.map((day: string) => <option key={day} value={day}>{dayLabel(day)}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="نوع الجلسة">
+            <select value={filters.schedule_type} onChange={(e) => update("schedule_type", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأنواع</option>
+              {lookups?.scheduleTypes.map((type: string) => <option key={type} value={type}>{type}</option>)}
+            </select>
+          </ReportField>
+          {reportId === "assignments" && (
+            <ReportField label="حالة الإسناد">
+              <select value={filters.assignment_status} onChange={(e) => update("assignment_status", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <option value="all">الكل</option>
+                <option value="assigned">مسند</option>
+                <option value="unassigned">غير مسند</option>
+              </select>
+            </ReportField>
+          )}
+          {reportId === "groups" && (
+            <ReportField label="حالة المجموعة">
+              <input value={filters.section_status} onChange={(e) => update("section_status", e.target.value)}
+                placeholder="active / inactive"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </ReportField>
+          )}
+          {reportId === "rooms" && (
+            <ReportField label="نوع القاعة">
+              <input value={filters.room_type} onChange={(e) => update("room_type", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            </ReportField>
+          )}
+          {reportId === "conflicts" && (
+            <ReportField label="نوع التعارض">
+              <select value={filters.conflict_type} onChange={(e) => update("conflict_type", e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+                <option value="all">الكل</option>
+                <option value="faculty">محاضر</option>
+                <option value="room">قاعة</option>
+                <option value="group">مجموعة دراسية</option>
+                <option value="missing_data">بيانات ناقصة</option>
+              </select>
+            </ReportField>
+          )}
+          <ReportField label="بحث باسم أو كود المقرر">
+            <input value={filters.search} onChange={(e) => update("search", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+        </div>
+        <ReportActions
+          onApply={() => { setPage(1); setAppliedFilters(filters); }}
+          onClear={() => { setFilters(EMPTY_SCHEDULE_FILTERS); setAppliedFilters(EMPTY_SCHEDULE_FILTERS); setPage(1); }}
+          onPrint={() => window.print()}
+          onCsv={() => downloadCsv(`${reportId}_schedule_report.csv`, exportRows)}
+          csvDisabled={!exportRows.length}
+          printDisabled={!((report as any)?.rows?.length)}
+        />
+      </div>
+      {!enabled ? (
+        <EmptyReportMessage message="اختر فلترًا واحدًا على الأقل لعرض التقرير." />
+      ) : error ? (
+        <ErrorBox message={(error as Error).message} />
+      ) : (
+        <>
+          <ScheduleKpis reportId={reportId} report={report as any} />
+          {(report as any)?.message && <EmptyReportMessage message={(report as any).message} />}
+          <ScheduleTable reportId={reportId} report={report as any} loading={isFetching} columns={columns} />
+          <PaginationFooter page={page} total={(report as any)?.total ?? 0} pageSize={50} totalPages={totalPages} setPage={setPage} />
+        </>
+      )}
+    </section>
+  );
+}
+
+function dayLabel(day: string | null | undefined) {
+  const labels: Record<string, string> = {
+    saturday: "السبت",
+    sunday: "الأحد",
+    monday: "الإثنين",
+    tuesday: "الثلاثاء",
+    wednesday: "الأربعاء",
+    thursday: "الخميس",
+    friday: "الجمعة",
+  };
+  return day ? labels[day] ?? day : "—";
+}
+
+function scheduleColumns(reportId: ScheduleReportId): Array<{ key: string; label: string }> {
+  if (reportId === "assignments") return [
+    { key: "department", label: "القسم" },
+    { key: "program", label: "البرنامج" },
+    { key: "level", label: "المستوى" },
+    { key: "course", label: "المقرر" },
+    { key: "course_code", label: "كود المقرر" },
+    { key: "academic_year", label: "العام" },
+    { key: "semester", label: "الفصل" },
+    { key: "faculty", label: "المحاضر المسند" },
+    { key: "assignment_status", label: "حالة الإسناد" },
+    { key: "groups_count", label: "المجموعات الدراسية" },
+    { key: "schedule_sessions", label: "جلسات الجدول" },
+  ];
+  if (reportId === "unassigned") return [
+    { key: "department", label: "القسم" },
+    { key: "program", label: "البرنامج" },
+    { key: "level", label: "المستوى" },
+    { key: "course", label: "المقرر" },
+    { key: "course_code", label: "كود المقرر" },
+    { key: "academic_year", label: "العام" },
+    { key: "semester", label: "الفصل" },
+    { key: "expected_students", label: "الطلاب المتوقعون" },
+    { key: "groups_count", label: "المجموعات الدراسية" },
+    { key: "note", label: "ملاحظة" },
+  ];
+  if (reportId === "groups") return [
+    { key: "section_code", label: "رمز المجموعة" },
+    { key: "section_name", label: "اسم المجموعة" },
+    { key: "department", label: "القسم" },
+    { key: "program", label: "البرنامج" },
+    { key: "level", label: "المستوى" },
+    { key: "academic_year", label: "العام" },
+    { key: "semester", label: "الفصل" },
+    { key: "expected_students", label: "الطلاب المتوقعون" },
+    { key: "courses_count", label: "المقررات" },
+    { key: "schedule_sessions", label: "جلسات الجدول" },
+    { key: "status", label: "الحالة" },
+  ];
+  if (reportId === "timetable") return [
+    { key: "day", label: "اليوم" },
+    { key: "start_time", label: "البداية" },
+    { key: "end_time", label: "النهاية" },
+    { key: "department", label: "القسم" },
+    { key: "program", label: "البرنامج" },
+    { key: "level", label: "المستوى" },
+    { key: "section_code", label: "المجموعة الدراسية" },
+    { key: "course", label: "المقرر" },
+    { key: "faculty", label: "المحاضر" },
+    { key: "room", label: "القاعة" },
+    { key: "schedule_type", label: "نوع الجلسة" },
+    { key: "notes", label: "ملاحظات" },
+  ];
+  if (reportId === "rooms") return [
+    { key: "room", label: "القاعة" },
+    { key: "room_type", label: "نوع القاعة" },
+    { key: "capacity", label: "السعة" },
+    { key: "day", label: "اليوم" },
+    { key: "sessions_count", label: "الجلسات" },
+    { key: "scheduled_hours", label: "الساعات" },
+    { key: "first_time", label: "أول استخدام" },
+    { key: "last_time", label: "آخر استخدام" },
+    { key: "notes", label: "ملاحظات" },
+  ];
+  if (reportId === "facultyLoad") return [
+    { key: "faculty", label: "اسم المحاضر" },
+    { key: "department", label: "القسم" },
+    { key: "assigned_courses", label: "المقررات المسندة" },
+    { key: "groups_count", label: "المجموعات الدراسية" },
+    { key: "schedule_sessions", label: "جلسات الجدول" },
+    { key: "scheduled_hours", label: "الساعات المجدولة" },
+    { key: "notes", label: "ملاحظات" },
+  ];
+  return [
+    { key: "conflict_type", label: "نوع التعارض" },
+    { key: "day", label: "اليوم" },
+    { key: "start_time", label: "البداية" },
+    { key: "end_time", label: "النهاية" },
+    { key: "course", label: "المقرر" },
+    { key: "faculty", label: "المحاضر" },
+    { key: "room", label: "القاعة" },
+    { key: "section_code", label: "المجموعة الدراسية" },
+    { key: "description", label: "الوصف" },
+  ];
+}
+
+function ScheduleKpis({ reportId, report }: { reportId: ScheduleReportId; report: any }) {
+  const k = report?.kpis ?? {};
+  if (reportId === "assignments") return (
+    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <KpiCard label="إجمالي الطروحات" value={k.total ?? 0} icon={ClipboardList} />
+      <KpiCard label="المسندة" value={k.assigned ?? 0} icon={UserCheck} />
+      <KpiCard label="غير المسندة" value={k.unassigned ?? 0} icon={XCircle} />
+      <KpiCard label="المحاضرون" value={k.faculty ?? 0} icon={Users} />
+      <KpiCard label="المجموعات الدراسية" value={k.groups ?? 0} icon={Users} />
+      <KpiCard label="لديها جدول" value={k.withSchedule ?? 0} icon={ClockIconShim} />
+    </div>
+  );
+  if (reportId === "unassigned") return (
+    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <KpiCard label="إجمالي غير المسند" value={k.total ?? 0} icon={XCircle} />
+      <KpiCard label="حسب القسم" value={k.departments ?? 0} icon={BookOpen} />
+      <KpiCard label="حسب البرنامج" value={k.programs ?? 0} icon={GraduationCap} />
+      <KpiCard label="حسب المستوى" value={k.levels ?? 0} icon={History} />
+      <KpiCard label="له مجموعات" value={k.withGroups ?? 0} icon={Users} />
+      <KpiCard label="له جدول" value={k.withSchedule ?? 0} icon={ClipboardList} />
+    </div>
+  );
+  if (reportId === "groups") return (
+    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <KpiCard label="إجمالي المجموعات" value={k.total ?? 0} icon={Users} />
+      <KpiCard label="بدون طلاب متوقعين" value={k.withoutStudents ?? 0} icon={XCircle} />
+      <KpiCard label="بدون مقررات" value={k.withoutCourses ?? 0} icon={BookOpen} />
+      <KpiCard label="بدون جدول" value={k.withoutSchedule ?? 0} icon={XCircle} />
+      <KpiCard label="لديها جدول" value={k.withSchedule ?? 0} icon={ClipboardList} />
+      <KpiCard label="متوسط المقررات" value={k.avgCourses ?? 0} icon={BookOpen} />
+    </div>
+  );
+  if (reportId === "timetable") return (
+    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <KpiCard label="جلسات الجدول" value={k.total ?? 0} icon={ClipboardList} />
+      <KpiCard label="القاعات المستخدمة" value={k.rooms ?? 0} icon={BookOpen} />
+      <KpiCard label="المحاضرون" value={k.faculty ?? 0} icon={Users} />
+      <KpiCard label="المجموعات المجدولة" value={k.groups ?? 0} icon={Users} />
+      <KpiCard label="بدون قاعة" value={k.withoutRoom ?? 0} icon={XCircle} />
+      <KpiCard label="بدون محاضر" value={k.withoutFaculty ?? 0} icon={XCircle} />
+    </div>
+  );
+  if (reportId === "rooms") return (
+    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <KpiCard label="إجمالي القاعات" value={k.totalRooms ?? 0} icon={BookOpen} />
+      <KpiCard label="المستخدمة" value={k.usedRooms ?? 0} icon={UserCheck} />
+      <KpiCard label="غير المستخدمة" value={k.unusedRooms ?? 0} icon={XCircle} />
+      <KpiCard label="إجمالي الجلسات" value={k.sessions ?? 0} icon={ClipboardList} />
+      <KpiCard label="إجمالي الساعات" value={k.hours ?? 0} icon={History} />
+      <KpiCard label="متوسط الاستخدام" value={k.avgUtilization ?? 0} icon={History} />
+    </div>
+  );
+  if (reportId === "facultyLoad") return (
+    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <KpiCard label="عدد المحاضرين" value={k.faculty ?? 0} icon={Users} />
+      <KpiCard label="المقررات المسندة" value={k.assignedCourses ?? 0} icon={BookOpen} />
+      <KpiCard label="جلسات الجدول" value={k.sessions ?? 0} icon={ClipboardList} />
+      <KpiCard label="الساعات المجدولة" value={k.hours ?? 0} icon={History} />
+      <KpiCard label="أعلى عبء" value={k.maxLoad ?? 0} icon={UserCheck} />
+      <KpiCard label="بدون جدول" value={k.withoutSchedule ?? 0} icon={XCircle} />
+    </div>
+  );
+  return (
+    <div className="grid gap-3 md:grid-cols-5">
+      <KpiCard label="إجمالي المؤشرات" value={k.total ?? 0} icon={XCircle} />
+      <KpiCard label="تعارضات المحاضرين" value={k.faculty ?? 0} icon={Users} />
+      <KpiCard label="تعارضات القاعات" value={k.room ?? 0} icon={BookOpen} />
+      <KpiCard label="تعارضات المجموعات" value={k.group ?? 0} icon={Users} />
+      <KpiCard label="ناقصة البيانات" value={k.missingData ?? 0} icon={XCircle} />
+    </div>
+  );
+}
+
+function ClockIconShim(props: any) {
+  return <History {...props} />;
+}
+
+function ScheduleTable({ reportId, report, loading, columns }: {
+  reportId: ScheduleReportId;
+  report: any;
+  loading?: boolean;
+  columns: Array<{ key: string; label: string }>;
+}) {
+  const title = reportId === "assignments" ? "إسناد المقررات"
+    : reportId === "unassigned" ? "المقررات غير المسندة"
+    : reportId === "groups" ? "المجموعات الدراسية"
+    : reportId === "timetable" ? "الجداول الدراسية"
+    : reportId === "rooms" ? "استخدام القاعات"
+    : reportId === "facultyLoad" ? "عبء المحاضرين"
+    : "مؤشرات التعارضات";
+  const rows = report?.rows ?? [];
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+      <ReportHeader title={title} loading={loading} />
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-secondary/50 text-primary">
+            <tr>{columns.map((column) => <th key={column.key} className="px-3 py-2 text-right">{column.label}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.length ? rows.map((row: any) => (
+              <tr key={row.id} className="border-t border-border/60">
+                {columns.map((column) => (
+                  <td key={column.key} className="px-3 py-2">
+                    {column.key === "day" ? dayLabel(row[column.key]) : row[column.key] ?? "—"}
                   </td>
                 ))}
               </tr>
