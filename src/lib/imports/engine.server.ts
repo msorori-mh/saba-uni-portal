@@ -154,6 +154,7 @@ export async function importStudents(
       phone: p.phone,
       department_id: p.department_id,
       program_id: p.program_id,
+      study_system: p.study_system,
       status: p.status,
       must_change_password: p.must_change_password,
     }).select("id").maybeSingle();
