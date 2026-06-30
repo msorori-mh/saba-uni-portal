@@ -33,6 +33,7 @@ import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
+import { Route as StudentRequestsRouteImport } from './routes/student.requests'
 import { Route as StudentProgressRouteImport } from './routes/student.progress'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
@@ -81,6 +82,8 @@ import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-
 import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 import { Route as MobileStudentIndexRouteImport } from './routes/mobile.student.index'
+import { Route as StudentRequestsNewRouteImport } from './routes/student.requests.new'
+import { Route as StudentRequestsIdRouteImport } from './routes/student.requests.$id'
 import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
 import { Route as MobileStudentRequestsRouteImport } from './routes/mobile.student.requests'
 import { Route as MobileStudentGradesRouteImport } from './routes/mobile.student.grades'
@@ -270,6 +273,11 @@ const AdminDocumentsLazyRoute = AdminDocumentsLazyRouteImport.update({
 const StudentScheduleRoute = StudentScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentRequestsRoute = StudentRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
   getParentRoute: () => StudentRoute,
 } as any)
 const StudentProgressRoute = StudentProgressRouteImport.update({
@@ -515,6 +523,16 @@ const MobileStudentIndexRoute = MobileStudentIndexRouteImport.update({
   path: '/',
   getParentRoute: () => MobileStudentRoute,
 } as any)
+const StudentRequestsNewRoute = StudentRequestsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => StudentRequestsRoute,
+} as any)
+const StudentRequestsIdRoute = StudentRequestsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => StudentRequestsRoute,
+} as any)
 const MobileStudentScheduleRoute = MobileStudentScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
@@ -619,6 +637,7 @@ export interface FileRoutesByFullPath {
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
   '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
@@ -639,6 +658,8 @@ export interface FileRoutesByFullPath {
   '/mobile/student/grades': typeof MobileStudentGradesRoute
   '/mobile/student/requests': typeof MobileStudentRequestsRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
+  '/student/requests/$id': typeof StudentRequestsIdRoute
+  '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
 }
 export interface FileRoutesByTo {
@@ -702,6 +723,7 @@ export interface FileRoutesByTo {
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
   '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
@@ -722,6 +744,8 @@ export interface FileRoutesByTo {
   '/mobile/student/grades': typeof MobileStudentGradesRoute
   '/mobile/student/requests': typeof MobileStudentRequestsRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
+  '/student/requests/$id': typeof StudentRequestsIdRoute
+  '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student': typeof MobileStudentIndexRoute
 }
 export interface FileRoutesById {
@@ -791,6 +815,7 @@ export interface FileRoutesById {
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
+  '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
   '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
@@ -811,6 +836,8 @@ export interface FileRoutesById {
   '/mobile/student/grades': typeof MobileStudentGradesRoute
   '/mobile/student/requests': typeof MobileStudentRequestsRoute
   '/mobile/student/schedule': typeof MobileStudentScheduleRoute
+  '/student/requests/$id': typeof StudentRequestsIdRoute
+  '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
 }
 export interface FileRouteTypes {
@@ -881,6 +908,7 @@ export interface FileRouteTypes {
     | '/student/change-password'
     | '/student/notifications'
     | '/student/progress'
+    | '/student/requests'
     | '/student/schedule'
     | '/admin/documents'
     | '/admin/executive-dashboard'
@@ -901,6 +929,8 @@ export interface FileRouteTypes {
     | '/mobile/student/grades'
     | '/mobile/student/requests'
     | '/mobile/student/schedule'
+    | '/student/requests/$id'
+    | '/student/requests/new'
     | '/mobile/student/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -964,6 +994,7 @@ export interface FileRouteTypes {
     | '/student/change-password'
     | '/student/notifications'
     | '/student/progress'
+    | '/student/requests'
     | '/student/schedule'
     | '/admin/documents'
     | '/admin/executive-dashboard'
@@ -984,6 +1015,8 @@ export interface FileRouteTypes {
     | '/mobile/student/grades'
     | '/mobile/student/requests'
     | '/mobile/student/schedule'
+    | '/student/requests/$id'
+    | '/student/requests/new'
     | '/mobile/student'
   id:
     | '__root__'
@@ -1052,6 +1085,7 @@ export interface FileRouteTypes {
     | '/student/change-password'
     | '/student/notifications'
     | '/student/progress'
+    | '/student/requests'
     | '/student/schedule'
     | '/admin/documents'
     | '/admin/executive-dashboard'
@@ -1072,6 +1106,8 @@ export interface FileRouteTypes {
     | '/mobile/student/grades'
     | '/mobile/student/requests'
     | '/mobile/student/schedule'
+    | '/student/requests/$id'
+    | '/student/requests/new'
     | '/mobile/student/'
   fileRoutesById: FileRoutesById
 }
@@ -1316,6 +1352,13 @@ declare module '@tanstack/react-router' {
       path: '/schedule'
       fullPath: '/student/schedule'
       preLoaderRoute: typeof StudentScheduleRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/student/requests': {
+      id: '/student/requests'
+      path: '/requests'
+      fullPath: '/student/requests'
+      preLoaderRoute: typeof StudentRequestsRouteImport
       parentRoute: typeof StudentRoute
     }
     '/student/progress': {
@@ -1654,6 +1697,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MobileStudentIndexRouteImport
       parentRoute: typeof MobileStudentRoute
     }
+    '/student/requests/new': {
+      id: '/student/requests/new'
+      path: '/new'
+      fullPath: '/student/requests/new'
+      preLoaderRoute: typeof StudentRequestsNewRouteImport
+      parentRoute: typeof StudentRequestsRoute
+    }
+    '/student/requests/$id': {
+      id: '/student/requests/$id'
+      path: '/$id'
+      fullPath: '/student/requests/$id'
+      preLoaderRoute: typeof StudentRequestsIdRouteImport
+      parentRoute: typeof StudentRequestsRoute
+    }
     '/mobile/student/schedule': {
       id: '/mobile/student/schedule'
       path: '/schedule'
@@ -1857,10 +1914,25 @@ const StaffRouteChildren: StaffRouteChildren = {
 
 const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 
+interface StudentRequestsRouteChildren {
+  StudentRequestsIdRoute: typeof StudentRequestsIdRoute
+  StudentRequestsNewRoute: typeof StudentRequestsNewRoute
+}
+
+const StudentRequestsRouteChildren: StudentRequestsRouteChildren = {
+  StudentRequestsIdRoute: StudentRequestsIdRoute,
+  StudentRequestsNewRoute: StudentRequestsNewRoute,
+}
+
+const StudentRequestsRouteWithChildren = StudentRequestsRoute._addFileChildren(
+  StudentRequestsRouteChildren,
+)
+
 interface StudentRouteChildren {
   StudentChangePasswordRoute: typeof StudentChangePasswordRoute
   StudentNotificationsRoute: typeof StudentNotificationsRoute
   StudentProgressRoute: typeof StudentProgressRoute
+  StudentRequestsRoute: typeof StudentRequestsRouteWithChildren
   StudentScheduleRoute: typeof StudentScheduleRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
@@ -1869,6 +1941,7 @@ const StudentRouteChildren: StudentRouteChildren = {
   StudentChangePasswordRoute: StudentChangePasswordRoute,
   StudentNotificationsRoute: StudentNotificationsRoute,
   StudentProgressRoute: StudentProgressRoute,
+  StudentRequestsRoute: StudentRequestsRouteWithChildren,
   StudentScheduleRoute: StudentScheduleRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
