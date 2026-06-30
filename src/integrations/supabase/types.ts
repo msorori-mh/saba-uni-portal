@@ -3245,6 +3245,7 @@ export type Database = {
           phone: string | null
           program_id: string | null
           status: string
+          study_system: string | null
           updated_at: string
           user_id: string | null
         }
@@ -3261,6 +3262,7 @@ export type Database = {
           phone?: string | null
           program_id?: string | null
           status?: string
+          study_system?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -3277,6 +3279,7 @@ export type Database = {
           phone?: string | null
           program_id?: string | null
           status?: string
+          study_system?: string | null
           updated_at?: string
           user_id?: string | null
         }
