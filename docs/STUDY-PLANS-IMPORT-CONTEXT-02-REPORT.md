@@ -180,13 +180,30 @@ Scope: تحسين تجربة استيراد الخطط الدراسية والت
 | production data | لم يتم تعديلها |
 | delete/reset/cleanup | لم يتم |
 
-## 15. ملاحظات وقيود
+## 15. Review fix
+
+بعد مراجعة PR النهائية، تم تنفيذ إصلاح محدود:
+
+- تم فرض `studyPlanContext` إلزامياً server-side في `validateBulkImportPreview` و`runBulkImport`.
+- لم تعد واجهة `/admin/imports` هي خط الدفاع الوحيد.
+- أي استدعاء لـ `study_plans` بدون سياق مكتمل يُرفض برسالة عربية واضحة.
+- الحقول المطلوبة server-side:
+  - `departmentId`
+  - `programId`
+  - `planName`
+  - `version`
+  - `importMode`
+  - `semesterCode` عند `single_semester`
+- تم حصر تغيير revalidation بحيث تبقى المستوردات الأخرى على مسار `revalidateBulkImportRows` القديم، بينما يستخدم `study_plans` فقط سياق الاستيراد الجديد.
+- لم تتأثر مستوردات الطلاب أو المقررات أو الأقسام أو البرامج أو المستويات أو أعضاء هيئة التدريس.
+
+## 16. ملاحظات وقيود
 
 - لا يوجد حقل `notes` في `study_plan_courses` حالياً، لذلك لم يتم دعم حفظ ملاحظات مثل "يتطلب إكمال جميع مقررات الخطة السابقة".
 - حالة `draft` للخطط تُمرر إلى `study_plans.status` عند إنشاء خطة جديدة، مع `is_active=false`. إذا قرر الفريق أن draft غير معتمدة في واجهة الخطط الحالية، يمكن حصرها لاحقاً إلى `active`.
 - لا تزال المقررات الناقصة مثل `IT323` و`IT333` بحاجة إلى تعريف رسمي قبل استيراد خطة IT كاملة.
 
-## 16. القرار النهائي
+## 17. القرار النهائي
 
 `PASS WITH NOTES`
 

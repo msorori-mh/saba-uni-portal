@@ -29,6 +29,7 @@ import type { ScheduleContext, ScheduleImportReport } from "@/lib/imports/class-
 import {
   assertServerValidationPassed,
   previewBulkImportValidation,
+  revalidateBulkImportRows,
 } from "@/lib/imports/bulk-import-validation.server";
 import type { ValidatedRow } from "@/lib/imports/types";
 
@@ -150,30 +151,40 @@ function studyPlanCell(value: unknown) {
   return value == null ? "" : String(value).trim();
 }
 
+function assertStudyPlanImportContext(context: StudyPlanImportContext): NonNullable<StudyPlanImportContext> {
+  if (!context) throw new Error("يجب إكمال إعدادات سياق الخطة الدراسية قبل المتابعة.");
+  if (!context.departmentId) throw new Error("يجب اختيار القسم.");
+  if (!context.programId) throw new Error("يجب اختيار البرنامج.");
+  if (!context.planName?.trim()) throw new Error("يجب إدخال اسم الخطة.");
+  if (!context.version?.trim()) throw new Error("يجب إدخال إصدار الخطة.");
+  if (!context.importMode) throw new Error("يجب تحديد نوع الاستيراد.");
+  if (context.importMode === "single_semester" && !context.semesterCode) {
+    throw new Error("يجب تحديد الفصل الدراسي عند استيراد فصل محدد.");
+  }
+  return context;
+}
+
 async function applyStudyPlanImportContext(
   rows: Record<string, unknown>[],
   context: StudyPlanImportContext,
 ) {
-  if (!context) return rows;
-  if (context.importMode === "single_semester" && !context.semesterCode) {
-    throw new Error("يجب تحديد الفصل الدراسي عند استيراد فصل محدد.");
-  }
+  const requiredContext = assertStudyPlanImportContext(context);
 
   const [{ data: program }, { data: existingPlan }] = await Promise.all([
     supabaseAdmin
       .from("programs")
       .select("id, code, department_id")
-      .eq("id", context.programId)
+      .eq("id", requiredContext.programId)
       .maybeSingle(),
     supabaseAdmin
       .from("study_plans")
       .select("id")
-      .eq("program_id", context.programId)
-      .eq("version", context.version)
+      .eq("program_id", requiredContext.programId)
+      .eq("version", requiredContext.version)
       .maybeSingle(),
   ]);
   if (!program) throw new Error("البرنامج المختار غير موجود.");
-  if (program.department_id !== context.departmentId) {
+  if (program.department_id !== requiredContext.departmentId) {
     throw new Error("البرنامج المختار لا يتبع القسم المحدد.");
   }
   if (existingPlan) {
@@ -188,11 +199,11 @@ async function applyStudyPlanImportContext(
       throw new Error(`صف ${rowNumber}: البرنامج داخل الملف لا يطابق البرنامج المختار من الشاشة.`);
     }
     next.program_code = program.code;
-    next.plan_name = context.planName;
-    next.version = context.version;
-    next.plan_status = context.planStatus;
+    next.plan_name = requiredContext.planName;
+    next.version = requiredContext.version;
+    next.plan_status = requiredContext.planStatus;
 
-    if (context.importMode === "full_plan") {
+    if (requiredContext.importMode === "full_plan") {
       if (!studyPlanCell(next.level)) {
         throw new Error(`صف ${rowNumber}: يجب إدخال المستوى عند استيراد خطة كاملة.`);
       }
@@ -201,10 +212,10 @@ async function applyStudyPlanImportContext(
       }
     } else {
       const fileSemester = studyPlanCell(next.semester);
-      if (fileSemester && fileSemester.toLowerCase() !== context.semesterCode) {
+      if (fileSemester && fileSemester.toLowerCase() !== requiredContext.semesterCode) {
         throw new Error(`صف ${rowNumber}: الفصل الدراسي داخل الملف لا يطابق الفصل المحدد في إعدادات الاستيراد.`);
       }
-      next.semester = context.semesterCode;
+      next.semester = requiredContext.semesterCode;
     }
     return next;
   });
@@ -249,17 +260,16 @@ export const runBulkImport = createServerFn({ method: "POST" })
       await enforceRateLimit(`import:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountImport);
     }
 
-    const rawRows = data.type === "study_plans"
-      ? await applyStudyPlanImportContext(
-        (data.rows as ValidatedRow[]).map((row) => row.raw),
-        data.studyPlanContext,
-      )
-      : (data.rows as ValidatedRow[]).map((row) => row.raw);
-    const serverRows = (await previewBulkImportValidation(
-      data.type,
-      rawRows,
-      data.updateExisting,
-    )).rows;
+    const serverRows = data.type === "study_plans"
+      ? (await previewBulkImportValidation(
+        data.type,
+        await applyStudyPlanImportContext(
+          (data.rows as ValidatedRow[]).map((row) => row.raw),
+          data.studyPlanContext,
+        ),
+        data.updateExisting,
+      )).rows
+      : await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[]);
     assertServerValidationPassed(serverRows);
 
     const ctx: ServerImportContext = {
