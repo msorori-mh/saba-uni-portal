@@ -363,6 +363,7 @@ export type StudyPlanRow = {
   program_id: string;
   plan_name: string;
   version: string;
+  plan_status: "draft" | "active";
   course_id: string;
   level_id: string;
   semester_code: string;
@@ -384,8 +385,16 @@ export async function validateStudyPlans(
     const prog = lookups.programsByCode.get(normKey(str(raw.program_code)));
     if (!prog) errors.push({ row: rowNumber, column: "program_code", message: "البرنامج غير موجود" });
 
-    const course = lookups.coursesByCode.get(normKey(str(raw.course_code)));
-    if (!course) errors.push({ row: rowNumber, column: "course_code", message: "المقرر غير موجود" });
+    const courseCode = str(raw.course_code);
+    if (/^IT4XX\(E\)$/i.test(courseCode)) {
+      errors.push({
+        row: rowNumber,
+        column: "course_code",
+        message: "IT4XX(E) يبدو مقرراً اختيارياً عاماً وليس كود مقرر فعلياً؛ يجب تحديد مقرر اختياري فعلي أو إضافته كمرجع معتمد.",
+      });
+    }
+    const course = lookups.coursesByCode.get(normKey(courseCode));
+    if (!course) errors.push({ row: rowNumber, column: "course_code", message: "المقرر غير موجود في مرجع المقررات" });
 
     const levelKey = normKey(str(raw.level));
     const level_id = lookups.levelsByNumber.get(levelKey) ?? lookups.levelsByName.get(levelKey);
@@ -394,13 +403,33 @@ export async function validateStudyPlans(
     const plan_name = str(raw.plan_name);
     if (!plan_name) errors.push({ row: rowNumber, column: "plan_name", message: "اسم الخطة مطلوب" });
     const version = str(raw.version) || "1.0";
+    const planStatusRaw = str(raw.plan_status) || "active";
+    const plan_status = planStatusRaw === "draft" ? "draft" : "active";
 
     const preReqCode = str(raw.prerequisite_course_code);
     let prereq_id: string | null = null;
     if (preReqCode) {
-      const p = lookups.coursesByCode.get(normKey(preReqCode));
-      if (!p) errors.push({ row: rowNumber, column: "prerequisite_course_code", message: "المتطلب السابق غير موجود" });
-      else prereq_id = p.id;
+      let shouldLookupPrerequisite = true;
+      if (normKey(preReqCode) === "all") {
+        errors.push({
+          row: rowNumber,
+          column: "prerequisite_course_code",
+          message: "القيمة All ليست كود مقرر؛ ضعها في الملاحظات.",
+        });
+        shouldLookupPrerequisite = false;
+      } else if (/^IT4XX\(E\)$/i.test(preReqCode)) {
+        errors.push({
+          row: rowNumber,
+          column: "prerequisite_course_code",
+          message: "IT4XX(E) يبدو مقرراً اختيارياً عاماً وليس كود مقرر فعلياً؛ يجب تحديد مقرر اختياري فعلي أو إضافته كمرجع معتمد.",
+        });
+        shouldLookupPrerequisite = false;
+      }
+      if (shouldLookupPrerequisite) {
+        const p = lookups.coursesByCode.get(normKey(preReqCode));
+        if (!p) errors.push({ row: rowNumber, column: "prerequisite_course_code", message: "المتطلب السابق غير موجود" });
+        else prereq_id = p.id;
+      }
     }
 
     const dedupKey = `${prog?.id}|${plan_name}|${version}|${course?.id}`;
@@ -415,7 +444,7 @@ export async function validateStudyPlans(
     out.push({
       rowNumber, raw, errors,
       parsed: errors.length ? null : {
-        program_id: prog!.id, plan_name, version,
+        program_id: prog!.id, plan_name, version, plan_status,
         course_id: course!.id, level_id: level_id!,
         semester_code, is_required, prerequisite_course_id: prereq_id, sort_order,
       },

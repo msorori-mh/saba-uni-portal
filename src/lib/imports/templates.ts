@@ -85,10 +85,13 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
     headers: ["program_code","plan_name","version","course_code","level","semester","required","prerequisite_course_code","sort_order"],
     sample: ["IT","خطة 2024","1.0","CS101","1","first","true","",1],
     instructions: [
-      "program_code, plan_name, course_code, level حقول مطلوبة",
-      "version افتراضي 1.0 إن لم يُدخل",
+      "سياق القسم والبرنامج واسم الخطة والإصدار يحدد من شاشة الاستيراد قبل رفع الملف.",
+      "program_code و plan_name و version تبقى للتوافق، ويتم تعبئتها/التحقق منها من سياق الشاشة.",
+      "course_code و level حقول مطلوبة عند استيراد خطة كاملة",
+      "semester مطلوب داخل الملف عند استيراد خطة كاملة، ويؤخذ من الشاشة عند استيراد فصل محدد",
       "required = true/false أو نعم/لا",
       "prerequisite_course_code اختياري — يجب أن يكون موجوداً إن تم إدخاله",
+      "لا تستخدم All أو IT4XX(E) ككود مقرر؛ ضع الملاحظة خارج prerequisite_course_code.",
     ],
   },
   departments: {
