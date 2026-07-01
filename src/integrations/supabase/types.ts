@@ -3953,6 +3953,14 @@ export type Database = {
         Returns: undefined
       }
       audit_resolve_role: { Args: { _user_id: string }; Returns: string }
+      can_access_student_service_request: {
+        Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_act_on_student_service_request: {
+        Args: { _request_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_manage_study_plan: {
         Args: { _study_plan_id: string; _user_id: string }
         Returns: boolean
