@@ -119,13 +119,107 @@ const inputSchema = z.object({
   rows: z.array(validatedRowSchema).max(5000),
   dryRun: z.boolean().default(false),
   updateExisting: z.boolean().default(false),
+  studyPlanContext: z.object({
+    departmentId: z.string().uuid(),
+    programId: z.string().uuid(),
+    planName: z.string().trim().min(1).max(200),
+    version: z.string().trim().min(1).max(50),
+    planStatus: z.enum(["draft", "active"]).default("active"),
+    importMode: z.enum(["full_plan", "single_semester"]),
+    semesterCode: z.enum(["first", "second"]).optional().nullable(),
+  }).optional(),
 });
 
 const previewInputSchema = z.object({
   type: importTypeSchema,
   rows: z.array(z.record(z.string(), z.unknown())).max(5000),
   updateExisting: z.boolean().default(false),
+  studyPlanContext: z.object({
+    departmentId: z.string().uuid(),
+    programId: z.string().uuid(),
+    planName: z.string().trim().min(1).max(200),
+    version: z.string().trim().min(1).max(50),
+    planStatus: z.enum(["draft", "active"]).default("active"),
+    importMode: z.enum(["full_plan", "single_semester"]),
+    semesterCode: z.enum(["first", "second"]).optional().nullable(),
+  }).optional(),
 });
+
+type StudyPlanImportContext = z.infer<typeof previewInputSchema>["studyPlanContext"];
+
+function studyPlanCell(value: unknown) {
+  return value == null ? "" : String(value).trim();
+}
+
+function assertStudyPlanImportContext(context: StudyPlanImportContext): NonNullable<StudyPlanImportContext> {
+  if (!context) throw new Error("يجب إكمال إعدادات سياق الخطة الدراسية قبل المتابعة.");
+  if (!context.departmentId) throw new Error("يجب اختيار القسم.");
+  if (!context.programId) throw new Error("يجب اختيار البرنامج.");
+  if (!context.planName?.trim()) throw new Error("يجب إدخال اسم الخطة.");
+  if (!context.version?.trim()) throw new Error("يجب إدخال إصدار الخطة.");
+  if (!context.importMode) throw new Error("يجب تحديد نوع الاستيراد.");
+  if (context.importMode === "single_semester" && !context.semesterCode) {
+    throw new Error("يجب تحديد الفصل الدراسي عند استيراد فصل محدد.");
+  }
+  return context;
+}
+
+async function applyStudyPlanImportContext(
+  rows: Record<string, unknown>[],
+  context: StudyPlanImportContext,
+) {
+  const requiredContext = assertStudyPlanImportContext(context);
+
+  const [{ data: program }, { data: existingPlan }] = await Promise.all([
+    supabaseAdmin
+      .from("programs")
+      .select("id, code, department_id")
+      .eq("id", requiredContext.programId)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("study_plans")
+      .select("id")
+      .eq("program_id", requiredContext.programId)
+      .eq("version", requiredContext.version)
+      .maybeSingle(),
+  ]);
+  if (!program) throw new Error("البرنامج المختار غير موجود.");
+  if (program.department_id !== requiredContext.departmentId) {
+    throw new Error("البرنامج المختار لا يتبع القسم المحدد.");
+  }
+  if (existingPlan) {
+    throw new Error("توجد خطة مسبقاً لهذا البرنامج والإصدار.");
+  }
+
+  return rows.map((row, idx) => {
+    const rowNumber = idx + 2;
+    const next = { ...row };
+    const fileProgramCode = studyPlanCell(next.program_code);
+    if (fileProgramCode && fileProgramCode.toLowerCase() !== String(program.code ?? "").toLowerCase()) {
+      throw new Error(`صف ${rowNumber}: البرنامج داخل الملف لا يطابق البرنامج المختار من الشاشة.`);
+    }
+    next.program_code = program.code;
+    next.plan_name = requiredContext.planName;
+    next.version = requiredContext.version;
+    next.plan_status = requiredContext.planStatus;
+
+    if (requiredContext.importMode === "full_plan") {
+      if (!studyPlanCell(next.level)) {
+        throw new Error(`صف ${rowNumber}: يجب إدخال المستوى عند استيراد خطة كاملة.`);
+      }
+      if (!studyPlanCell(next.semester)) {
+        throw new Error(`صف ${rowNumber}: يجب إدخال الفصل الدراسي عند استيراد خطة كاملة.`);
+      }
+    } else {
+      const fileSemester = studyPlanCell(next.semester);
+      if (fileSemester && fileSemester.toLowerCase() !== requiredContext.semesterCode) {
+        throw new Error(`صف ${rowNumber}: الفصل الدراسي داخل الملف لا يطابق الفصل المحدد في إعدادات الاستيراد.`);
+      }
+      next.semester = requiredContext.semesterCode;
+    }
+    return next;
+  });
+}
 
 export const validateBulkImportPreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -141,7 +235,10 @@ export const validateBulkImportPreview = createServerFn({ method: "POST" })
       IMPORT_ROLES_BY_TYPE[data.type],
       "ليس لديك صلاحية استيراد هذا النوع من البيانات",
     );
-    return previewBulkImportValidation(data.type, data.rows, data.updateExisting);
+    const rows = data.type === "study_plans"
+      ? await applyStudyPlanImportContext(data.rows, data.studyPlanContext)
+      : data.rows;
+    return previewBulkImportValidation(data.type, rows, data.updateExisting);
   });
 
 export const runBulkImport = createServerFn({ method: "POST" })
@@ -163,7 +260,16 @@ export const runBulkImport = createServerFn({ method: "POST" })
       await enforceRateLimit(`import:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountImport);
     }
 
-    const serverRows = await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[]);
+    const serverRows = data.type === "study_plans"
+      ? (await previewBulkImportValidation(
+        data.type,
+        await applyStudyPlanImportContext(
+          (data.rows as ValidatedRow[]).map((row) => row.raw),
+          data.studyPlanContext,
+        ),
+        data.updateExisting,
+      )).rows
+      : await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[]);
     assertServerValidationPassed(serverRows);
 
     const ctx: ServerImportContext = {
@@ -328,6 +434,42 @@ export const getStudentImportContextOptions = createServerFn({ method: "POST" })
         academic_year_id: semester.academic_year_id,
         is_current: semester.is_current,
       })),
+    };
+  });
+
+export const getStudyPlanImportContextOptions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAnyRole(
+      context.userId,
+      IMPORT_PANEL_ROLES,
+      "ليس لديك صلاحية الوصول إلى الاستيراد",
+    );
+    await assertAnyRole(
+      context.userId,
+      IMPORT_ROLES_BY_TYPE.study_plans,
+      "ليس لديك صلاحية استيراد الخطط الدراسية",
+    );
+
+    const [departmentsRes, programsRes, levelsRes, yearsRes, semestersRes, plansRes] = await Promise.all([
+      supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
+      supabaseAdmin.from("programs").select("id, code, name_ar, department_id").eq("is_active", true).order("sort_order"),
+      supabaseAdmin.from("academic_levels").select("id, name, level_number").eq("status", "active").order("level_number"),
+      supabaseAdmin.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false }),
+      supabaseAdmin.from("semesters").select("id, name, code, academic_year_id, is_current").order("start_date", { ascending: false }),
+      supabaseAdmin.from("study_plans").select("id, name, version, program_id, status, is_active").order("updated_at", { ascending: false }),
+    ]);
+    const firstError = [departmentsRes, programsRes, levelsRes, yearsRes, semestersRes, plansRes]
+      .find((res) => res.error)?.error;
+    if (firstError) throw new Error(firstError.message);
+
+    return {
+      departments: departmentsRes.data ?? [],
+      programs: programsRes.data ?? [],
+      levels: levelsRes.data ?? [],
+      academicYears: yearsRes.data ?? [],
+      semesters: semestersRes.data ?? [],
+      studyPlans: plansRes.data ?? [],
     };
   });
 

@@ -236,7 +236,7 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
     id: "study_plans",
     fileName: "template_study_plans.xlsx",
     title: "الخطط الدراسية",
-    description: "مقررات الخطة الدراسية مرتبة حسب المستوى والفصل.",
+    description: "مقررات الخطة الدراسية مرتبة حسب المستوى والفصل. يحدد القسم والبرنامج واسم الخطة والإصدار من شاشة الاستيراد عند استخدام الاستيراد الموجه.",
     category: "courses",
     importerKey: "study_plans",
     hasValidator: true,

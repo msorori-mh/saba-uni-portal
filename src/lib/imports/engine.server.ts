@@ -350,14 +350,14 @@ export async function importStudyPlans(rows: ValidatedRow<StudyPlanRow>[], dryRu
   const valid = splitRows(rows, report);
 
   const planCache = new Map<string, string>();
-  async function getOrCreatePlan(program_id: string, name: string, version: string): Promise<string | null> {
+  async function getOrCreatePlan(program_id: string, name: string, version: string, status: "draft" | "active"): Promise<string | null> {
     const key = `${program_id}|${name}|${version}`;
     if (planCache.has(key)) return planCache.get(key)!;
     const { data: existing } = await sb.from("study_plans")
       .select("id").eq("program_id", program_id).eq("name", name).eq("version", version).maybeSingle();
     if (existing) { planCache.set(key, existing.id); return existing.id; }
     const { data: created, error } = await sb.from("study_plans")
-      .insert({ program_id, name, version, status: "active", is_active: true })
+      .insert({ program_id, name, version, status, is_active: status === "active" })
       .select("id").maybeSingle();
     if (error || !created) return null;
     planCache.set(key, created.id);
@@ -365,7 +365,7 @@ export async function importStudyPlans(rows: ValidatedRow<StudyPlanRow>[], dryRu
   }
 
   for (const r of valid) {
-    const planId = await getOrCreatePlan(r.parsed.program_id, r.parsed.plan_name, r.parsed.version);
+    const planId = await getOrCreatePlan(r.parsed.program_id, r.parsed.plan_name, r.parsed.version, r.parsed.plan_status);
     if (!planId) {
       report.rows_failed += 1;
       report.errors.push({ row: r.rowNumber, message: "تعذر إنشاء أو إيجاد الخطة" });

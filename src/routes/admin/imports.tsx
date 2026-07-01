@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import {
   runBulkImport, getImportStats, listImportHistory, validateBulkImportPreview,
-  getStudentImportContextOptions,
+  getStudentImportContextOptions, getStudyPlanImportContextOptions,
 } from "@/lib/imports.functions";
 import { parseExcel, downloadTemplate, type StudentTemplateOverrides } from "@/lib/imports/templates";
 import {
@@ -70,6 +70,7 @@ const SERVER_PREVIEW_ERROR =
 const STUDENT_CONTEXT_REQUIRED_MESSAGE = "يرجى إكمال إعدادات قالب الطلاب قبل التنزيل.";
 const STUDENT_CONTEXT_PARTIAL_MESSAGE =
   "يرجى إكمال إعدادات قالب الطلاب قبل رفع الملف أو امسح الاختيارات للمتابعة بالقالب العام.";
+const STUDY_PLAN_CONTEXT_REQUIRED_MESSAGE = "يرجى إكمال إعدادات سياق الخطة الدراسية قبل المتابعة.";
 
 const STUDENT_CONTEXT_MISMATCH_MESSAGES = {
   study_system: "قيمة نظام الدراسة في الملف لا تطابق نظام الدراسة المحدد في إعدادات الاستيراد.",
@@ -79,6 +80,16 @@ const STUDENT_CONTEXT_MISMATCH_MESSAGES = {
   academic_year: "قيمة العام الجامعي في الملف لا تطابق العام المحدد في إعدادات الاستيراد.",
   semester: "قيمة الفصل في الملف لا تطابق الفصل المحدد في إعدادات الاستيراد.",
 } as const;
+
+type StudyPlanImportContextState = {
+  departmentId: string;
+  programId: string;
+  planName: string;
+  version: string;
+  planStatus: "draft" | "active";
+  importMode: "full_plan" | "single_semester" | "";
+  semesterCode: "first" | "second" | "";
+};
 
 type StudentImportContextState = {
   studySystem: string;
@@ -105,6 +116,15 @@ type StudentImportContextOptions = {
   semesters: Array<{ id?: string; name: string; code?: string; academic_year_id?: string | null; is_current?: boolean }>;
 };
 
+type StudyPlanImportContextOptions = {
+  departments: Array<{ id: string; name_ar: string }>;
+  programs: Array<{ id: string; code: string; name_ar: string; department_id: string | null }>;
+  levels: Array<{ id: string; name: string; level_number: number }>;
+  academicYears: Array<{ id: string; name: string; is_current?: boolean }>;
+  semesters: Array<{ id: string; name: string; code: string; academic_year_id?: string | null; is_current?: boolean }>;
+  studyPlans: Array<{ id: string; name: string; version: string; program_id: string; status: string; is_active: boolean }>;
+};
+
 const EMPTY_STUDENT_IMPORT_CONTEXT: StudentImportContextState = {
   studySystem: "",
   departmentId: "",
@@ -112,6 +132,16 @@ const EMPTY_STUDENT_IMPORT_CONTEXT: StudentImportContextState = {
   levelId: "",
   academicYearId: "",
   semesterId: "",
+};
+
+const EMPTY_STUDY_PLAN_IMPORT_CONTEXT: StudyPlanImportContextState = {
+  departmentId: "",
+  programId: "",
+  planName: "",
+  version: "1.0",
+  planStatus: "active",
+  importMode: "",
+  semesterCode: "",
 };
 
 const cellText = (value: unknown) => (value == null ? "" : String(value).trim());
@@ -198,11 +228,82 @@ function applyStudentContextToRows(
   });
 }
 
+function hasAnyStudyPlanContextValue(context: StudyPlanImportContextState) {
+  return Boolean(
+    context.departmentId
+    || context.programId
+    || context.planName.trim()
+    || context.version.trim()
+    || context.importMode
+    || context.semesterCode,
+  );
+}
+
+function studyPlanContextReady(context: StudyPlanImportContextState) {
+  return Boolean(
+    context.departmentId
+    && context.programId
+    && context.planName.trim()
+    && context.version.trim()
+    && context.importMode
+    && (context.importMode !== "single_semester" || context.semesterCode),
+  );
+}
+
+function studyPlanContextPayload(context: StudyPlanImportContextState) {
+  if (!studyPlanContextReady(context)) return undefined;
+  return {
+    departmentId: context.departmentId,
+    programId: context.programId,
+    planName: context.planName.trim(),
+    version: context.version.trim(),
+    planStatus: context.planStatus,
+    importMode: context.importMode as "full_plan" | "single_semester",
+    semesterCode: context.importMode === "single_semester" ? context.semesterCode : null,
+  };
+}
+
+function applyStudyPlanContextToRows(
+  rows: Record<string, unknown>[],
+  context: StudyPlanImportContextState,
+  options?: StudyPlanImportContextOptions,
+): Record<string, unknown>[] {
+  if (!studyPlanContextReady(context)) throw new Error(STUDY_PLAN_CONTEXT_REQUIRED_MESSAGE);
+  const program = options?.programs.find((item) => item.id === context.programId);
+  if (!program) throw new Error("البرنامج المختار غير موجود.");
+  if (program.department_id !== context.departmentId) throw new Error("البرنامج المختار لا يتبع القسم المحدد.");
+  return rows.map((row, index) => {
+    const rowNumber = index + 2;
+    const next = { ...row };
+    const programCode = cellText(next.program_code);
+    if (programCode && compareKey(programCode) !== compareKey(program.code)) {
+      throw new Error(`صف ${rowNumber}: البرنامج داخل الملف لا يطابق البرنامج المختار من الشاشة.`);
+    }
+    next.program_code = program.code;
+    next.plan_name = context.planName.trim();
+    next.version = context.version.trim();
+    next.plan_status = context.planStatus;
+
+    if (context.importMode === "full_plan") {
+      if (!cellText(next.level)) throw new Error(`صف ${rowNumber}: يجب إدخال المستوى عند استيراد خطة كاملة.`);
+      if (!cellText(next.semester)) throw new Error(`صف ${rowNumber}: يجب إدخال الفصل الدراسي عند استيراد خطة كاملة.`);
+    } else {
+      const fileSemester = cellText(next.semester);
+      if (fileSemester && compareKey(fileSemester) !== compareKey(context.semesterCode)) {
+        throw new Error(`صف ${rowNumber}: الفصل الدراسي داخل الملف لا يطابق الفصل المحدد في إعدادات الاستيراد.`);
+      }
+      next.semester = context.semesterCode;
+    }
+    return next;
+  });
+}
+
 function ImportsPage() {
   usePagePerf("/admin/imports");
   const runBulkImportFn = useServerFn(runBulkImport);
   const previewFn = useServerFn(validateBulkImportPreview);
   const studentContextOptionsFn = useServerFn(getStudentImportContextOptions);
+  const studyPlanContextOptionsFn = useServerFn(getStudyPlanImportContextOptions);
   const [tab, setTab] = useState<TabId>("students");
   const [file, setFile] = useState<File | null>(null);
   const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
@@ -218,6 +319,9 @@ function ImportsPage() {
   const [studentImportContext, setStudentImportContext] = useState<StudentImportContextState>(
     EMPTY_STUDENT_IMPORT_CONTEXT,
   );
+  const [studyPlanImportContext, setStudyPlanImportContext] = useState<StudyPlanImportContextState>(
+    EMPTY_STUDY_PLAN_IMPORT_CONTEXT,
+  );
   const qc = useQueryClient();
 
   const { data: rawStudentContextOptions, isLoading: studentContextOptionsLoading } = useQuery({
@@ -226,6 +330,12 @@ function ImportsPage() {
     enabled: tab === "students",
   });
   const studentContextOptions = rawStudentContextOptions as StudentImportContextOptions | undefined;
+  const { data: rawStudyPlanContextOptions, isLoading: studyPlanContextOptionsLoading } = useQuery({
+    queryKey: ["study-plan-import-context-options"],
+    queryFn: () => studyPlanContextOptionsFn({ data: {} }),
+    enabled: tab === "study_plans",
+  });
+  const studyPlanContextOptions = rawStudyPlanContextOptions as StudyPlanImportContextOptions | undefined;
 
   const reset = () => {
     setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
@@ -246,6 +356,16 @@ function ImportsPage() {
 
   const isSpecialTab = tab === "faculty_accounts" || tab === "class_schedule";
   const isStructureTab = !isSpecialTab && STRUCTURE_TYPES.has(tab as ImportType);
+  const isStudyPlanContextReady = studyPlanContextReady(studyPlanImportContext);
+  const selectedStudyPlanProgram = studyPlanContextOptions?.programs.find((program) => program.id === studyPlanImportContext.programId);
+  const existingStudyPlanConflict = Boolean(
+    studyPlanImportContext.programId
+    && studyPlanImportContext.version.trim()
+    && studyPlanContextOptions?.studyPlans.some((plan) =>
+      plan.program_id === studyPlanImportContext.programId
+      && compareKey(plan.version) === compareKey(studyPlanImportContext.version),
+    ),
+  );
   const studentTemplateOverrides = useMemo(
     () => resolveStudentTemplateOverrides(studentImportContext, studentContextOptions),
     [studentImportContext, studentContextOptions],
@@ -270,6 +390,7 @@ function ImportsPage() {
           type: tab as ImportType,
           rows: parsed,
           updateExisting: updateExistingFlag,
+          studyPlanContext: tab === "study_plans" ? studyPlanContextPayload(studyPlanImportContext) : undefined,
         },
       });
     } catch (e) {
@@ -281,6 +402,11 @@ function ImportsPage() {
 
   const updateStudentImportContext = (next: StudentImportContextState) => {
     setStudentImportContext(next);
+    reset();
+  };
+
+  const updateStudyPlanImportContext = (next: StudyPlanImportContextState) => {
+    setStudyPlanImportContext(next);
     reset();
   };
 
@@ -301,6 +427,18 @@ function ImportsPage() {
     return applyStudentContextToRows(parsed, studentTemplateOverrides);
   };
 
+  const prepareParsedRowsForPreview = (parsed: Record<string, unknown>[]) => {
+    if (tab === "students") return prepareRowsForPreview(parsed);
+    if (tab === "study_plans") {
+      if (!hasAnyStudyPlanContextValue(studyPlanImportContext) || !isStudyPlanContextReady) {
+        throw new Error(STUDY_PLAN_CONTEXT_REQUIRED_MESSAGE);
+      }
+      if (existingStudyPlanConflict) throw new Error("توجد خطة مسبقاً لهذا البرنامج والإصدار.");
+      return applyStudyPlanContextToRows(parsed, studyPlanImportContext, studyPlanContextOptions);
+    }
+    return parsed;
+  };
+
   const onFile = async (f: File) => {
     if (isSpecialTab) return;
     const t = tab as ImportType;
@@ -308,7 +446,7 @@ function ImportsPage() {
     setValidating(true);
     try {
       const parsed = await parseExcel(f);
-      const rowsForPreview = prepareRowsForPreview(parsed);
+      const rowsForPreview = prepareParsedRowsForPreview(parsed);
       setRows(rowsForPreview);
       const res = await runServerPreview(rowsForPreview, updateExisting);
       setValidation(res);
@@ -361,6 +499,7 @@ function ImportsPage() {
           rows: validation.rows as any[],
           dryRun,
           updateExisting,
+          studyPlanContext: t === "study_plans" ? studyPlanContextPayload(studyPlanImportContext) : undefined,
         },
       });
       const duration = Math.round(performance.now() - t0);
@@ -438,6 +577,16 @@ function ImportsPage() {
             isReady={studentContextReady}
             onChange={updateStudentImportContext}
             onDownload={downloadCustomStudentTemplate}
+          />
+        )}
+        {tab === "study_plans" && (
+          <StudyPlanImportContextWizard
+            options={studyPlanContextOptions}
+            value={studyPlanImportContext}
+            isLoading={studyPlanContextOptionsLoading}
+            isReady={isStudyPlanContextReady && !existingStudyPlanConflict}
+            existingPlanConflict={existingStudyPlanConflict}
+            onChange={updateStudyPlanImportContext}
           />
         )}
 
@@ -534,7 +683,17 @@ function ImportsPage() {
         )}
 
         {validation && (
-          <PreviewBlock validation={validation} />
+          <>
+            {tab === "study_plans" && (
+              <StudyPlanPreviewSummary
+                context={studyPlanImportContext}
+                departmentName={studyPlanContextOptions?.departments.find((d) => d.id === studyPlanImportContext.departmentId)?.name_ar}
+                programLabel={selectedStudyPlanProgram ? `${selectedStudyPlanProgram.name_ar} (${selectedStudyPlanProgram.code})` : undefined}
+                validation={validation}
+              />
+            )}
+            <PreviewBlock validation={validation} />
+          </>
         )}
 
         {report && (
@@ -804,6 +963,203 @@ function StudentContextSelect({
         ))}
       </select>
     </label>
+  );
+}
+
+function StudyPlanImportContextWizard({
+  options,
+  value,
+  isLoading,
+  isReady,
+  existingPlanConflict,
+  onChange,
+}: {
+  options?: StudyPlanImportContextOptions;
+  value: StudyPlanImportContextState;
+  isLoading: boolean;
+  isReady: boolean;
+  existingPlanConflict: boolean;
+  onChange: (next: StudyPlanImportContextState) => void;
+}) {
+  const departments = options?.departments ?? [];
+  const programs = options?.programs ?? [];
+  const filteredPrograms = value.departmentId
+    ? programs.filter((program) => program.department_id === value.departmentId)
+    : [];
+
+  const set = (patch: Partial<StudyPlanImportContextState>) => onChange({ ...value, ...patch });
+
+  return (
+    <div className="rounded-xl border border-gold/40 bg-gold/5 p-4 space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-display text-base font-extrabold text-primary">إعداد سياق الخطة الدراسية</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            اختر القسم والبرنامج والخطة قبل رفع ملف Excel. القسم والبرنامج يحددان من الشاشة ولا يُكتبان داخل الملف.
+          </p>
+        </div>
+        {isLoading && <span className="text-xs text-muted-foreground">جارٍ تحميل الخيارات...</span>}
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <StudentContextSelect
+          label="القسم"
+          value={value.departmentId}
+          onChange={(departmentId) => set({ departmentId, programId: "" })}
+          options={departments.map((department) => ({ value: department.id, label: department.name_ar }))}
+          disabled={isLoading}
+          placeholder="اختر القسم"
+        />
+        <StudentContextSelect
+          label="البرنامج"
+          value={value.programId}
+          onChange={(programId) => set({ programId })}
+          options={filteredPrograms.map((program) => ({ value: program.id, label: `${program.name_ar} (${program.code})` }))}
+          disabled={isLoading || !value.departmentId}
+          placeholder="اختر البرنامج"
+        />
+        <StudentContextSelect
+          label="حالة الخطة"
+          value={value.planStatus}
+          onChange={(planStatus) => set({ planStatus: planStatus as "draft" | "active" })}
+          options={[
+            { value: "active", label: "نشطة" },
+            { value: "draft", label: "مسودة" },
+          ]}
+          disabled={isLoading}
+          placeholder="اختر الحالة"
+        />
+        <label className="space-y-1 text-xs font-bold text-primary">
+          <span>اسم الخطة</span>
+          <input
+            value={value.planName}
+            onChange={(event) => set({ planName: event.target.value })}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            placeholder="مثال: خطة بكالوريوس تكنولوجيا المعلومات"
+          />
+        </label>
+        <label className="space-y-1 text-xs font-bold text-primary">
+          <span>الإصدار</span>
+          <input
+            value={value.version}
+            onChange={(event) => set({ version: event.target.value || "1.0" })}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+            dir="ltr"
+            placeholder="1.0"
+          />
+        </label>
+        <StudentContextSelect
+          label="نوع الاستيراد"
+          value={value.importMode}
+          onChange={(importMode) => set({
+            importMode: importMode as StudyPlanImportContextState["importMode"],
+            semesterCode: importMode === "single_semester" ? value.semesterCode : "",
+          })}
+          options={[
+            { value: "full_plan", label: "خطة كاملة" },
+            { value: "single_semester", label: "فصل محدد" },
+          ]}
+          disabled={isLoading}
+          placeholder="اختر نوع الاستيراد"
+        />
+        {value.importMode === "single_semester" && (
+          <StudentContextSelect
+            label="الفصل الدراسي"
+            value={value.semesterCode}
+            onChange={(semesterCode) => set({ semesterCode: semesterCode as "first" | "second" })}
+            options={[
+              { value: "first", label: "الفصل الأول" },
+              { value: "second", label: "الفصل الثاني" },
+            ]}
+            disabled={isLoading}
+            placeholder="اختر الفصل"
+          />
+        )}
+      </div>
+
+      {existingPlanConflict && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs font-bold text-destructive">
+          توجد خطة مسبقاً لهذا البرنامج والإصدار. لا يتم الاستبدال الصامت في هذه المرحلة.
+        </div>
+      )}
+      {!isReady && !existingPlanConflict && (
+        <div className="text-xs text-muted-foreground">
+          يجب اختيار القسم والبرنامج واسم الخطة والإصدار ونوع الاستيراد قبل المعاينة أو الاستيراد.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StudyPlanPreviewSummary({
+  context,
+  departmentName,
+  programLabel,
+  validation,
+}: {
+  context: StudyPlanImportContextState;
+  departmentName?: string;
+  programLabel?: string;
+  validation: ValidationResult<unknown>;
+}) {
+  const missingCourses = new Set<string>();
+  const missingPrereqs = new Set<string>();
+  validation.rows.forEach((row) => {
+    row.errors.forEach((error) => {
+      if (error.column === "course_code") {
+        const value = cellText(row.raw.course_code);
+        if (value) missingCourses.add(value);
+      }
+      if (error.column === "prerequisite_course_code") {
+        const value = cellText(row.raw.prerequisite_course_code);
+        if (value) missingPrereqs.add(value);
+      }
+    });
+  });
+
+  return (
+    <div className="rounded-xl border border-border bg-secondary/20 p-4 text-xs space-y-3">
+      <div className="grid gap-2 md:grid-cols-3">
+        <SummaryItem label="القسم" value={departmentName ?? "—"} />
+        <SummaryItem label="البرنامج" value={programLabel ?? "—"} />
+        <SummaryItem label="اسم الخطة" value={context.planName || "—"} />
+        <SummaryItem label="الإصدار" value={context.version || "—"} />
+        <SummaryItem label="نوع الاستيراد" value={context.importMode === "single_semester" ? "فصل محدد" : "خطة كاملة"} />
+        <SummaryItem label="الفصل الدراسي" value={context.importMode === "single_semester" ? context.semesterCode || "—" : "متعدد حسب الملف"} />
+        <SummaryItem label="إجمالي الصفوف" value={String(validation.totalRows)} />
+        <SummaryItem label="صفوف صالحة" value={String(validation.validRows)} />
+        <SummaryItem label="صفوف بأخطاء" value={String(validation.invalidRows)} />
+      </div>
+      {(missingCourses.size > 0 || missingPrereqs.size > 0) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <MissingList title="المقررات غير الموجودة" values={[...missingCourses]} />
+          <MissingList title="المتطلبات السابقة غير الموجودة/غير الصالحة" values={[...missingPrereqs]} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded border border-border bg-background px-3 py-2">
+      <div className="text-muted-foreground">{label}</div>
+      <div className="mt-0.5 font-bold text-primary">{value}</div>
+    </div>
+  );
+}
+
+function MissingList({ title, values }: { title: string; values: string[] }) {
+  if (values.length === 0) return null;
+  return (
+    <div className="rounded border border-destructive/30 bg-destructive/5 p-3">
+      <div className="font-bold text-destructive">{title}</div>
+      <div className="mt-1 flex flex-wrap gap-1">
+        {values.map((value) => (
+          <span key={value} className="rounded bg-background px-2 py-0.5 font-mono text-[11px]">{value}</span>
+        ))}
+      </div>
+    </div>
   );
 }
 
