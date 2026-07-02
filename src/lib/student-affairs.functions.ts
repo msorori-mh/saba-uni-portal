@@ -472,6 +472,7 @@ export const actOnStudentServiceRequest = createServerFn({ method: "POST" })
       requestId: data.requestId,
       action: data.action,
       notes: data.notes ?? null,
+      sessionClient: context.supabase,
     });
   });
 
@@ -483,6 +484,7 @@ export const returnStudentServiceRequestForCompletion = createServerFn({ method:
     requestId: data.requestId,
     action: "return_for_completion",
     notes: data.notes,
+    sessionClient: context.supabase,
   }));
 
 export const cancelStudentServiceRequest = createServerFn({ method: "POST" })
