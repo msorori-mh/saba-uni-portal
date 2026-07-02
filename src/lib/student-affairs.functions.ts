@@ -258,7 +258,7 @@ export const submitStudentServiceRequest = createServerFn({ method: "POST" })
     const first = steps[0];
     await initializeSteps(req.id, steps);
     // User-scoped client so auth.uid() populates for trg_sr_protect + RLS.
-    const { error } = await context.supabase
+    const { data: updated, error } = await context.supabase
       .from("student_requests")
       .update({
         status: "submitted",
@@ -267,8 +267,11 @@ export const submitStudentServiceRequest = createServerFn({ method: "POST" })
         current_role_key: first?.role_key ?? null,
         rejection_reason: null,
       } as any)
-      .eq("id", req.id);
+      .eq("id", req.id)
+      .select("id,status,current_role_key,updated_at")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!updated) throw new Error("Failed to update student request; RLS may have blocked the operation");
     await insertEvent({ requestId: req.id, actorId: context.userId, eventType: "submitted", fromStatus: req.status, toStatus: "submitted", toStep: 0 });
     await audit({ actorId: context.userId, requestId: req.id, action: "request_submitted", oldValues: { status: req.status }, newValues: { status: "submitted" } });
     return { ok: true as const };
