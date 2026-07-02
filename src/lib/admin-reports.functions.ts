@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+﻿import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { assertAnyRole, assertStudentRead, REPORTS_ROLES } from "@/lib/authz.server";
@@ -8,7 +8,7 @@ async function assertReportsAccess(userId: string) {
   await assertAnyRole(
     userId,
     REPORTS_ROLES,
-    "ليس لديك صلاحية عرض التقارير",
+    "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø§Ø±ÙŠØ±",
   );
 }
 
@@ -37,7 +37,7 @@ async function fetchAll<T = Record<string, unknown>>(
 function groupCount<T>(items: T[], keyFn: (x: T) => string | null | undefined) {
   const m = new Map<string, number>();
   for (const it of items) {
-    const k = keyFn(it) ?? "—";
+    const k = keyFn(it) ?? "â€”";
     m.set(k, (m.get(k) ?? 0) + 1);
   }
   return Array.from(m.entries()).map(([key, value]) => ({ key, value }));
@@ -139,11 +139,11 @@ async function fetchPerformanceReport() {
   const top = studentRows.filter((s) => s.average >= 85)
     .sort((a, b) => b.average - a.average)
     .slice(0, 50)
-    .map((s) => ({ ...s, status: "متفوق" }));
+    .map((s) => ({ ...s, status: "Ù…ØªÙÙˆÙ‚" }));
   const atRisk = studentRows.filter((s) => s.average < 60)
     .sort((a, b) => a.average - b.average)
     .slice(0, 50)
-    .map((s) => ({ ...s, status: "متعثر" }));
+    .map((s) => ({ ...s, status: "Ù…ØªØ¹Ø«Ø±" }));
 
   return { courseRows, top, atRisk };
 }
@@ -180,7 +180,7 @@ async function fetchEnrollmentReport() {
       perCourse.set(c.id, cur);
     }
     if (off?.program_id) {
-      const pn = programMap.get(off.program_id) ?? "—";
+      const pn = programMap.get(off.program_id) ?? "â€”";
       perProgram.set(pn, (perProgram.get(pn) ?? 0) + 1);
     }
   }
@@ -194,8 +194,8 @@ async function fetchEnrollmentReport() {
     const off = s ? offeringMap.get(s.course_offering_id) : undefined;
     const c = off ? courseMap.get(off.course_id) : undefined;
     return {
-      section_code: s?.section_code ?? "—",
-      course: c ? `${c.code} — ${c.name_ar}` : "—",
+      section_code: s?.section_code ?? "â€”",
+      course: c ? `${c.code} â€” ${c.name_ar}` : "â€”",
       count,
     };
   }).sort((a, b) => b.count - a.count);
@@ -233,8 +233,8 @@ async function fetchFacultyReport() {
   }
   const facultyRows = faculty.map((f) => ({
     name: f.full_name_ar,
-    rank: f.academic_rank ?? "—",
-    department: deptMap.get(f.department_id) ?? "—",
+    rank: f.academic_rank ?? "â€”",
+    department: deptMap.get(f.department_id) ?? "â€”",
     sections: sectionsByFaculty.get(f.id) ?? 0,
     students: studentsByFaculty.get(f.id) ?? 0,
     status: f.status,
@@ -247,23 +247,23 @@ async function fetchFacultyReport() {
 }
 
 const REQ_TYPE_AR: Record<string, string> = {
-  absence_excuse: "عذر غياب",
-  enrollment_suspension: "إيقاف قيد",
-  enrollment_reinstatement: "إعادة قيد",
-  extra_chance: "فرصة إضافية",
-  transfer: "تحويل",
-  equivalency: "معادلة",
-  grade_appeal: "تظلم درجات",
-  official_transcript: "سجل أكاديمي رسمي",
+  absence_excuse: "Ø¹Ø°Ø± ØºÙŠØ§Ø¨",
+  enrollment_suspension: "Ø¥ÙŠÙ‚Ø§Ù Ù‚ÙŠØ¯",
+  enrollment_reinstatement: "Ø¥Ø¹Ø§Ø¯Ø© Ù‚ÙŠØ¯",
+  extra_chance: "ÙØ±ØµØ© Ø¥Ø¶Ø§ÙÙŠØ©",
+  transfer: "ØªØ­ÙˆÙŠÙ„",
+  equivalency: "Ù…Ø¹Ø§Ø¯Ù„Ø©",
+  grade_appeal: "ØªØ¸Ù„Ù… Ø¯Ø±Ø¬Ø§Øª",
+  official_transcript: "Ø³Ø¬Ù„ Ø£ÙƒØ§Ø¯ÙŠÙ…ÙŠ Ø±Ø³Ù…ÙŠ",
 };
 const REQ_STATUS_AR: Record<string, string> = {
-  draft: "مسودة",
-  submitted: "مقدّم",
-  under_review: "قيد المراجعة",
-  returned: "يحتاج استكمال",
-  approved: "موافَق عليه",
-  rejected: "مرفوض",
-  cancelled: "ملغى",
+  draft: "Ù…Ø³ÙˆØ¯Ø©",
+  submitted: "Ù…Ù‚Ø¯Ù‘Ù…",
+  under_review: "Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©",
+  returned: "ÙŠØ­ØªØ§Ø¬ Ø§Ø³ØªÙƒÙ…Ø§Ù„",
+  approved: "Ù…ÙˆØ§ÙÙŽÙ‚ Ø¹Ù„ÙŠÙ‡",
+  rejected: "Ù…Ø±ÙÙˆØ¶",
+  cancelled: "Ù…Ù„ØºÙ‰",
 };
 
 async function fetchRequestsReport() {
@@ -321,7 +321,7 @@ async function fetchFinancialReport() {
   const feesByProgram = new Map<string, number>();
   for (const f of fees) {
     const pid = studentProgram.get(f.student_profile_id);
-    const pname = pid ? (programMap.get(pid) ?? "—") : "—";
+    const pname = pid ? (programMap.get(pid) ?? "â€”") : "â€”";
     feesByProgram.set(pname, (feesByProgram.get(pname) ?? 0) + Number(f.amount ?? 0));
   }
   const feesByProgramRows = Array.from(feesByProgram.entries())
@@ -332,8 +332,8 @@ async function fetchFinancialReport() {
   const discountsRows = groupCount(discounts, (d) => d.status);
 
   const paidVsOutstanding = [
-    { key: "مسددة", value: Math.round(totalPaid * 100) / 100 },
-    { key: "غير مسددة", value: Math.round(outstanding * 100) / 100 },
+    { key: "Ù…Ø³Ø¯Ø¯Ø©", value: Math.round(totalPaid * 100) / 100 },
+    { key: "ØºÙŠØ± Ù…Ø³Ø¯Ø¯Ø©", value: Math.round(outstanding * 100) / 100 },
   ];
 
   return {
@@ -402,7 +402,7 @@ export const getStudentsReportForAdmin = createServerFn({ method: "POST" })
           withAccount: 0,
           withoutAccount: 0,
         },
-        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير.",
+        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±.",
       };
     }
 
@@ -609,7 +609,7 @@ export const getImportJobsReportForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => importReportSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, IMPORT_REPORT_ROLES, "ليس لديك صلاحية عرض تقارير الاستيراد");
+    await assertAnyRole(context.userId, IMPORT_REPORT_ROLES, "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ø¹Ø±Ø¶ ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ø§Ø³ØªÙŠØ±Ø§Ø¯");
 
     if (!hasImportReportFilter(data)) {
       return {
@@ -618,7 +618,7 @@ export const getImportJobsReportForAdmin = createServerFn({ method: "POST" })
         page: data.page,
         pageSize: data.pageSize,
         kpis: { total: 0, completed: 0, failed: 0, rowsTotal: 0, errorsTotal: 0 },
-        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير.",
+        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±.",
       };
     }
 
@@ -704,14 +704,14 @@ export const getImportJobErrorsForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => importJobErrorsSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(context.userId, IMPORT_REPORT_ROLES, "ليس لديك صلاحية عرض تقارير الاستيراد");
+    await assertAnyRole(context.userId, IMPORT_REPORT_ROLES, "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ø¹Ø±Ø¶ ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ø§Ø³ØªÙŠØ±Ø§Ø¯");
     const { data: row, error } = await supabaseAdmin
       .from("import_logs")
       .select("id, created_at, created_by, import_type, file_name, rows_total, rows_success, rows_failed, status, notes")
       .eq("id", data.import_log_id)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!row) throw new Error("عملية الاستيراد غير موجودة");
+    if (!row) throw new Error("Ø¹Ù…Ù„ÙŠØ© Ø§Ù„Ø§Ø³ØªÙŠØ±Ø§Ø¯ ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯Ø©");
     return {
       job: row,
       errors: parseImportNotes((row as any).notes),
@@ -728,7 +728,7 @@ const studentAccountsReportSchema = z.object({
   study_system: z.enum(["all", "regular", "private", "unset"]).default("all"),
   account_status: z.enum(["all", "with_account", "without_account"]).default("all"),
   status: z.enum(["all", "active", "inactive", "suspended", "graduated", "withdrawn", "transferred"]).default("all"),
-  academic_number: z.string().trim().max(32).regex(/^[A-Za-z0-9_-]*$/, "الرقم الأكاديمي يحتوي على أحرف غير صحيحة").optional(),
+  academic_number: z.string().trim().max(32).regex(/^[A-Za-z0-9_-]*$/, "Ø§Ù„Ø±Ù‚Ù… Ø§Ù„Ø£ÙƒØ§Ø¯ÙŠÙ…ÙŠ ÙŠØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ Ø£Ø­Ø±Ù ØºÙŠØ± ØµØ­ÙŠØ­Ø©").optional(),
   student_name: z.string().trim().max(120).optional(),
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(50),
@@ -760,7 +760,7 @@ export const getStudentAccountsReportForAdmin = createServerFn({ method: "POST" 
         page: data.page,
         pageSize: data.pageSize,
         kpis: { total: 0, withAccount: 0, withoutAccount: 0, regular: 0, private: 0, unsetStudySystem: 0 },
-        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير.",
+        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±.",
       };
     }
 
@@ -947,8 +947,8 @@ export const getAcademicReportLookupsForAdmin = createServerFn({ method: "POST" 
       levels: levels.data ?? [],
       studyPlans: plans.data ?? [],
       semesters: [
-        { code: "first", name: "الفصل الأول" },
-        { code: "second", name: "الفصل الثاني" },
+        { code: "first", name: "Ø§Ù„ÙØµÙ„ Ø§Ù„Ø£ÙˆÙ„" },
+        { code: "second", name: "Ø§Ù„ÙØµÙ„ Ø§Ù„Ø«Ø§Ù†ÙŠ" },
       ],
     };
   });
@@ -965,7 +965,7 @@ export const getAcademicProgramsReportForAdmin = createServerFn({ method: "POST"
     if (!hasAcademicFilter(data)) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { total: 0, active: 0, inactive: 0, withoutPlans: 0, withStudents: 0 },
-        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     }
 
     let query = supabaseAdmin
@@ -1027,7 +1027,7 @@ export const getStudyPlansReportForAdmin = createServerFn({ method: "POST" })
     if (!hasAcademicFilter(data)) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { total: 0, active: 0, withoutCourses: 0, avgCourses: 0, totalHours: 0 },
-        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     }
 
     let programIds: string[] | null = null;
@@ -1099,7 +1099,7 @@ export const getCoursesReportForAdmin = createServerFn({ method: "POST" })
     if (!hasFilter) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { total: 0, missingCode: 0, withoutPlan: 0, withoutLevel: 0, withoutSemester: 0, complete: 0, incomplete: 0 },
-        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     }
     let scopedCourseIds: string[] | null = null;
     if (data.program_id || data.level_id || data.semester_code !== "all") {
@@ -1146,12 +1146,12 @@ export const getCoursesReportForAdmin = createServerFn({ method: "POST" })
         name: course.name_ar,
         department: course.departments?.name_ar ?? null,
         plan_or_program: firstLink?.study_plans?.programs?.name_ar ?? firstLink?.study_plans?.name ?? null,
-        level: firstLink?.level_id ? "محدد" : null,
+        level: firstLink?.level_id ? "Ù…Ø­Ø¯Ø¯" : null,
         semester: firstLink?.semester_code ?? null,
         theory_hours: course.theory_hours ?? 0,
         practical_hours: course.practical_hours ?? 0,
         credit_hours: course.credit_hours ?? 0,
-        data_status: incomplete ? "ناقص" : "مكتمل",
+        data_status: incomplete ? "Ù†Ø§Ù‚Øµ" : "Ù…ÙƒØªÙ…Ù„",
         links_count: courseLinks.length,
       };
     });
@@ -1166,8 +1166,8 @@ export const getCoursesReportForAdmin = createServerFn({ method: "POST" })
         withoutPlan: rows.filter((row) => row.links_count === 0).length,
         withoutLevel: rows.filter((row) => !row.level).length,
         withoutSemester: rows.filter((row) => !row.semester).length,
-        complete: rows.filter((row) => row.data_status === "مكتمل").length,
-        incomplete: rows.filter((row) => row.data_status === "ناقص").length,
+        complete: rows.filter((row) => row.data_status === "Ù…ÙƒØªÙ…Ù„").length,
+        incomplete: rows.filter((row) => row.data_status === "Ù†Ø§Ù‚Øµ").length,
       },
       message: null,
     };
@@ -1182,7 +1182,7 @@ export const getStudyPlanCoverageReportForAdmin = createServerFn({ method: "POST
     if (!hasFilter) {
       return { rows: [], total: 0, page: data.page, pageSize: data.pageSize,
         kpis: { plans: 0, filledSlots: 0, emptySlots: 0, courses: 0, hours: 0 },
-        message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+        message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     }
     let programIds: string[] | null = null;
     if (data.department_id) {
@@ -1228,7 +1228,7 @@ export const getStudyPlanCoverageReportForAdmin = createServerFn({ method: "POST
         semester,
         courses_count: current.count,
         total_hours: current.hours,
-        notes: current.count === 0 ? "لا توجد مقررات" : current.hours === 0 ? "لا توجد ساعات" : "توزيع مكتمل",
+        notes: current.count === 0 ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ù‚Ø±Ø±Ø§Øª" : current.hours === 0 ? "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø³Ø§Ø¹Ø§Øª" : "ØªÙˆØ²ÙŠØ¹ Ù…ÙƒØªÙ…Ù„",
       };
     })));
     const from = (data.page - 1) * data.pageSize;
@@ -1272,7 +1272,7 @@ const scheduleReportSchema = z.object({
 });
 
 async function assertScheduleReportsAccess(userId: string) {
-  await assertAnyRole(userId, SCHEDULE_REPORT_ROLES, "ليس لديك صلاحية عرض تقارير الجداول والإسناد");
+  await assertAnyRole(userId, SCHEDULE_REPORT_ROLES, "Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ ØµÙ„Ø§Ø­ÙŠØ© Ø¹Ø±Ø¶ ØªÙ‚Ø§Ø±ÙŠØ± Ø§Ù„Ø¬Ø¯Ø§ÙˆÙ„ ÙˆØ§Ù„Ø¥Ø³Ù†Ø§Ø¯");
 }
 
 function hasScheduleFilter(data: z.infer<typeof scheduleReportSchema>, extra = false) {
@@ -1403,7 +1403,7 @@ export const getCourseAssignmentsReportForAdmin = createServerFn({ method: "POST
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertScheduleReportsAccess(context.userId);
-    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
     let rows = (base.offerings as any[]).filter((offering) => offeringMatches(offering, data)).map((offering) => {
@@ -1421,13 +1421,13 @@ export const getCourseAssignmentsReportForAdmin = createServerFn({ method: "POST
         academic_year: offering.academic_years?.name ?? null,
         semester: offering.semesters?.name ?? offering.semesters?.code ?? null,
         faculty: faculty?.full_name_ar ?? null,
-        assignment_status: assignedSections.length > 0 ? "مسند" : "غير مسند",
+        assignment_status: assignedSections.length > 0 ? "Ù…Ø³Ù†Ø¯" : "ØºÙŠØ± Ù…Ø³Ù†Ø¯",
         groups_count: sections.length,
         schedule_sessions: scheduleCount,
       };
     });
-    if (data.assignment_status === "assigned") rows = rows.filter((row) => row.assignment_status === "مسند");
-    if (data.assignment_status === "unassigned") rows = rows.filter((row) => row.assignment_status === "غير مسند");
+    if (data.assignment_status === "assigned") rows = rows.filter((row) => row.assignment_status === "Ù…Ø³Ù†Ø¯");
+    if (data.assignment_status === "unassigned") rows = rows.filter((row) => row.assignment_status === "ØºÙŠØ± Ù…Ø³Ù†Ø¯");
     if (data.faculty_profile_id) {
       const offeringIds = new Set((base.sections as any[]).filter((section) => section.faculty_profile_id === data.faculty_profile_id).map((section) => section.course_offering_id));
       rows = rows.filter((row) => offeringIds.has(row.id));
@@ -1441,8 +1441,8 @@ export const getCourseAssignmentsReportForAdmin = createServerFn({ method: "POST
       pageSize: data.pageSize,
       kpis: {
         total,
-        assigned: rows.filter((row) => row.assignment_status === "مسند").length,
-        unassigned: rows.filter((row) => row.assignment_status === "غير مسند").length,
+        assigned: rows.filter((row) => row.assignment_status === "Ù…Ø³Ù†Ø¯").length,
+        unassigned: rows.filter((row) => row.assignment_status === "ØºÙŠØ± Ù…Ø³Ù†Ø¯").length,
         faculty: facultyIds.size,
         groups: rows.reduce((sum, row) => sum + row.groups_count, 0),
         withSchedule: rows.filter((row) => row.schedule_sessions > 0).length,
@@ -1456,7 +1456,7 @@ export const getUnassignedCoursesReportForAdmin = createServerFn({ method: "POST
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertScheduleReportsAccess(context.userId);
-    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
     const rows = (base.offerings as any[])
@@ -1477,7 +1477,7 @@ export const getUnassignedCoursesReportForAdmin = createServerFn({ method: "POST
           expected_students: null,
           groups_count: sections.length,
           has_schedule: scheduleCount > 0,
-          note: sections.length > 0 ? "غير مسند وله مجموعات دراسية" : "غير مسند",
+          note: sections.length > 0 ? "ØºÙŠØ± Ù…Ø³Ù†Ø¯ ÙˆÙ„Ù‡ Ù…Ø¬Ù…ÙˆØ¹Ø§Øª Ø¯Ø±Ø§Ø³ÙŠØ©" : "ØºÙŠØ± Ù…Ø³Ù†Ø¯",
           assigned,
         };
       })
@@ -1507,7 +1507,7 @@ export const getStudyGroupsReportForAdmin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertScheduleReportsAccess(context.userId);
-    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
     let rows = (base.sections as any[]).map((section) => {
@@ -1554,7 +1554,7 @@ export const getTimetableReportForAdmin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertScheduleReportsAccess(context.userId);
-    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
     let rows = (base.schedules as any[]).map((session) => {
@@ -1575,7 +1575,7 @@ export const getTimetableReportForAdmin = createServerFn({ method: "POST" })
         course: offering?.courses?.name_ar ?? null,
         course_code: offering?.courses?.code ?? null,
         faculty: faculty?.full_name_ar ?? null,
-        room: room ? `${room.code} — ${room.name_ar}` : null,
+        room: room ? `${room.code} â€” ${room.name_ar}` : null,
         schedule_type: session.schedule_type,
         notes: null as string | null,
         offering,
@@ -1617,7 +1617,7 @@ export const getRoomUtilizationReportForAdmin = createServerFn({ method: "POST" 
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertScheduleReportsAccess(context.userId);
-    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
     const filteredSessions = (base.schedules as any[]).filter((session) => {
@@ -1648,7 +1648,7 @@ export const getRoomUtilizationReportForAdmin = createServerFn({ method: "POST" 
       const day = data.day_of_week ?? (slots[0]?.day_of_week ?? null);
       return {
         id: room.id,
-        room: `${room.code} — ${room.name_ar}`,
+        room: `${room.code} â€” ${room.name_ar}`,
         room_type: room.room_type,
         capacity: room.capacity,
         day,
@@ -1656,7 +1656,7 @@ export const getRoomUtilizationReportForAdmin = createServerFn({ method: "POST" 
         scheduled_hours: Math.round(hours * 10) / 10,
         first_time: first,
         last_time: last,
-        notes: sessions.length === 0 ? "غير مستخدمة ضمن الفلاتر" : hours === 0 ? "بيانات ناقصة" : "مستخدمة",
+        notes: sessions.length === 0 ? "ØºÙŠØ± Ù…Ø³ØªØ®Ø¯Ù…Ø© Ø¶Ù…Ù† Ø§Ù„ÙÙ„Ø§ØªØ±" : hours === 0 ? "Ø¨ÙŠØ§Ù†Ø§Øª Ù†Ø§Ù‚ØµØ©" : "Ù…Ø³ØªØ®Ø¯Ù…Ø©",
       };
     });
     rows = rows.filter((row) => row.sessions_count > 0 || data.room_id || data.room_type);
@@ -1682,7 +1682,7 @@ export const getFacultyLoadReportForAdmin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertScheduleReportsAccess(context.userId);
-    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
     const facultyRows = (base.faculty as any[]).filter((faculty) => {
@@ -1706,7 +1706,7 @@ export const getFacultyLoadReportForAdmin = createServerFn({ method: "POST" })
         return sum + timeDiffHours(slot?.start_time, slot?.end_time);
       }, 0);
       const courses = new Set(matchingSections.map((section) => section.course_offering_id)).size;
-      const note = sessions.length === 0 ? "بدون جدول" : hours < 4 ? "عبء منخفض" : hours > 18 ? "عبء مرتفع" : "طبيعي";
+      const note = sessions.length === 0 ? "Ø¨Ø¯ÙˆÙ† Ø¬Ø¯ÙˆÙ„" : hours < 4 ? "Ø¹Ø¨Ø¡ Ù…Ù†Ø®ÙØ¶" : hours > 18 ? "Ø¹Ø¨Ø¡ Ù…Ø±ØªÙØ¹" : "Ø·Ø¨ÙŠØ¹ÙŠ";
       return {
         id: faculty.id,
         faculty: faculty.full_name_ar,
@@ -1740,7 +1740,7 @@ export const getScheduleConflictIndicatorsForAdmin = createServerFn({ method: "P
   .inputValidator((input: unknown) => scheduleReportSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertScheduleReportsAccess(context.userId);
-    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "اختر فلترًا واحدًا على الأقل لعرض التقرير." };
+    if (!hasScheduleFilter(data)) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: {}, message: "Ø§Ø®ØªØ± ÙÙ„ØªØ±Ù‹Ø§ ÙˆØ§Ø­Ø¯Ù‹Ø§ Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„ Ù„Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ±." };
     const base = await loadScheduleBase();
     const maps = enrichScheduleMaps(base);
     const sessions = (base.schedules as any[]).map((session) => {
@@ -1754,9 +1754,9 @@ export const getScheduleConflictIndicatorsForAdmin = createServerFn({ method: "P
       .filter((item) => !data.day_of_week || item.slot?.day_of_week === data.day_of_week);
     const indicators: any[] = [];
     const groups = [
-      { type: "faculty", label: "تعارض محاضر", key: (x: any) => x.faculty?.id },
-      { type: "room", label: "تعارض قاعة", key: (x: any) => x.room?.id },
-      { type: "group", label: "تعارض مجموعة دراسية", key: (x: any) => x.section?.id },
+      { type: "faculty", label: "ØªØ¹Ø§Ø±Ø¶ Ù…Ø­Ø§Ø¶Ø±", key: (x: any) => x.faculty?.id },
+      { type: "room", label: "ØªØ¹Ø§Ø±Ø¶ Ù‚Ø§Ø¹Ø©", key: (x: any) => x.room?.id },
+      { type: "group", label: "ØªØ¹Ø§Ø±Ø¶ Ù…Ø¬Ù…ÙˆØ¹Ø© Ø¯Ø±Ø§Ø³ÙŠØ©", key: (x: any) => x.section?.id },
     ];
     for (const g of groups) {
       const map = new Map<string, any[]>();
@@ -1779,9 +1779,9 @@ export const getScheduleConflictIndicatorsForAdmin = createServerFn({ method: "P
             end_time: first.slot.end_time,
             course: first.offering?.courses?.name_ar ?? null,
             faculty: first.faculty?.full_name_ar ?? null,
-            room: first.room ? `${first.room.code} — ${first.room.name_ar}` : null,
+            room: first.room ? `${first.room.code} â€” ${first.room.name_ar}` : null,
             section_code: first.section?.section_code ?? null,
-            description: `${g.label}: ${arr.length} جلسات في نفس الوقت`,
+            description: `${g.label}: ${arr.length} Ø¬Ù„Ø³Ø§Øª ÙÙŠ Ù†ÙØ³ Ø§Ù„ÙˆÙ‚Øª`,
           });
         }
       }
@@ -1790,25 +1790,25 @@ export const getScheduleConflictIndicatorsForAdmin = createServerFn({ method: "P
       if (!item.room || !item.faculty || !item.slot?.start_time || !item.slot?.end_time) {
         indicators.push({
           id: `missing-${item.session.id}`,
-          conflict_type: "جلسة ناقصة البيانات",
+          conflict_type: "Ø¬Ù„Ø³Ø© Ù†Ø§Ù‚ØµØ© Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª",
           day: item.slot?.day_of_week ?? null,
           start_time: item.slot?.start_time ?? null,
           end_time: item.slot?.end_time ?? null,
           course: item.offering?.courses?.name_ar ?? null,
           faculty: item.faculty?.full_name_ar ?? null,
-          room: item.room ? `${item.room.code} — ${item.room.name_ar}` : null,
+          room: item.room ? `${item.room.code} â€” ${item.room.name_ar}` : null,
           section_code: item.section?.section_code ?? null,
-          description: "جلسة بدون قاعة أو محاضر أو وقت مكتمل",
+          description: "Ø¬Ù„Ø³Ø© Ø¨Ø¯ÙˆÙ† Ù‚Ø§Ø¹Ø© Ø£Ùˆ Ù…Ø­Ø§Ø¶Ø± Ø£Ùˆ ÙˆÙ‚Øª Ù…ÙƒØªÙ…Ù„",
         });
       }
     }
     const filtered = data.conflict_type === "all"
       ? indicators
       : indicators.filter((item) =>
-        data.conflict_type === "faculty" ? item.conflict_type === "تعارض محاضر"
-          : data.conflict_type === "room" ? item.conflict_type === "تعارض قاعة"
-          : data.conflict_type === "group" ? item.conflict_type === "تعارض مجموعة دراسية"
-          : item.conflict_type === "جلسة ناقصة البيانات");
+        data.conflict_type === "faculty" ? item.conflict_type === "ØªØ¹Ø§Ø±Ø¶ Ù…Ø­Ø§Ø¶Ø±"
+          : data.conflict_type === "room" ? item.conflict_type === "ØªØ¹Ø§Ø±Ø¶ Ù‚Ø§Ø¹Ø©"
+          : data.conflict_type === "group" ? item.conflict_type === "ØªØ¹Ø§Ø±Ø¶ Ù…Ø¬Ù…ÙˆØ¹Ø© Ø¯Ø±Ø§Ø³ÙŠØ©"
+          : item.conflict_type === "Ø¬Ù„Ø³Ø© Ù†Ø§Ù‚ØµØ© Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª");
     return {
       rows: paginateRows(filtered, data.page, data.pageSize),
       total: filtered.length,
@@ -1816,11 +1816,12 @@ export const getScheduleConflictIndicatorsForAdmin = createServerFn({ method: "P
       pageSize: data.pageSize,
       kpis: {
         total: filtered.length,
-        faculty: filtered.filter((item) => item.conflict_type === "تعارض محاضر").length,
-        room: filtered.filter((item) => item.conflict_type === "تعارض قاعة").length,
-        group: filtered.filter((item) => item.conflict_type === "تعارض مجموعة دراسية").length,
-        missingData: filtered.filter((item) => item.conflict_type === "جلسة ناقصة البيانات").length,
+        faculty: filtered.filter((item) => item.conflict_type === "ØªØ¹Ø§Ø±Ø¶ Ù…Ø­Ø§Ø¶Ø±").length,
+        room: filtered.filter((item) => item.conflict_type === "ØªØ¹Ø§Ø±Ø¶ Ù‚Ø§Ø¹Ø©").length,
+        group: filtered.filter((item) => item.conflict_type === "ØªØ¹Ø§Ø±Ø¶ Ù…Ø¬Ù…ÙˆØ¹Ø© Ø¯Ø±Ø§Ø³ÙŠØ©").length,
+        missingData: filtered.filter((item) => item.conflict_type === "Ø¬Ù„Ø³Ø© Ù†Ø§Ù‚ØµØ© Ø§Ù„Ø¨ÙŠØ§Ù†Ø§Øª").length,
       },
-      message: sessions.length === 0 ? "لا تتوفر بيانات كافية لاستخراج مؤشرات التعارضات لهذا النطاق." : null,
+      message: sessions.length === 0 ? "Ù„Ø§ ØªØªÙˆÙØ± Ø¨ÙŠØ§Ù†Ø§Øª ÙƒØ§ÙÙŠØ© Ù„Ø§Ø³ØªØ®Ø±Ø§Ø¬ Ù…Ø¤Ø´Ø±Ø§Øª Ø§Ù„ØªØ¹Ø§Ø±Ø¶Ø§Øª Ù„Ù‡Ø°Ø§ Ø§Ù„Ù†Ø·Ø§Ù‚." : null,
     };
   });
+

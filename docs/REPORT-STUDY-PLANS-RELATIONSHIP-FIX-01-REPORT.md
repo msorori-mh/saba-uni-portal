@@ -1,45 +1,74 @@
-# REPORT-STUDY-PLANS-RELATIONSHIP-FIX-01
+﻿# REPORT-STUDY-PLANS-RELATIONSHIP-FIX-01
 
-## سبب المشكلة
-جدول `study_plan_courses` يمتلك مفتاحين أجنبيين نحو `courses`:
-- `study_plan_courses_course_id_fkey` (course_id)
-- `study_plan_courses_prerequisite_course_id_fkey` (prerequisite_course_id)
+## Summary
 
-استعلامات PostgREST التي كانت تكتب `courses(...)` كـ embed ضمني تسببت في خطأ:
-> Could not embed because more than one relationship was found for 'study_plan_courses' and 'courses'
+This fix resolves the ambiguous PostgREST relationship error in study plan reports.
 
-نتيجةً لذلك فشل تحميل KPIs تقرير الخطط وتبويب "تغطية الخطط بالمقررات"، فظهرت القيم صفراً رغم أن قاعدة البيانات تحوي 41 صفاً صحيحاً لخطة IT بمجموع 115 ساعة.
+## Problem
 
-## الاستعلامات المسببة
-`src/lib/admin-reports.functions.ts`:
-- سطر 1054: `select("study_plan_id, courses(credit_hours)")`
-- سطر 1206: `select("study_plan_id, level_id, semester_code, courses(credit_hours)")`
+The UI showed the IT study plan as having:
 
-## الإصلاح
-استخدام اسم العلاقة الصريح المؤكد من `types.ts`:
-`courses:courses!study_plan_courses_course_id_fkey(credit_hours)`
+- 0 courses
+- 0 total hours
+- 1 plan without courses
 
-هذا هو نفس النمط المستخدم بنجاح في `src/routes/student.index.tsx:187`.
+However, the database audit confirmed that the IT study plan has:
 
-- الطريقة: **FK صريح** (لا حاجة لفصل الاستعلامات).
-- منطق KPIs لم يتغير — كان صحيحاً بالفعل: `courses_count` من عدد الصفوف، `total_hours` من مجموع `courses.credit_hours` مع fallback لـ `plan.total_credit_hours` عند غياب الروابط، `withoutCourses` من `courses_count === 0`.
+- 41 rows in study_plan_courses
+- 115 total credit hours
+- 0 orphan course links
 
-## الملفات المعدلة
-- `src/lib/admin-reports.functions.ts` (سطران فقط)
-- `docs/REPORT-STUDY-PLANS-RELATIONSHIP-FIX-01-REPORT.md` (جديد)
+The "Study Plan Coverage" tab also showed this error:
 
-## قائمة تحقق
-| البند | القيمة |
-|---|---|
-| تعديل DB | ❌ لا |
-| Migration | ❌ لا |
-| Import | ❌ لا |
-| تعديل بيانات الإنتاج | ❌ لا |
-| استخدام service role من المتصفح | ❌ لا |
-| Schema changes | ❌ لا |
+Could not embed because more than one relationship was found for 'study_plan_courses' and 'courses'
 
-## نتيجة Build
-سيتم التحقق تلقائياً عبر خط CI بعد الدمج.
+## Root Cause
 
-## القرار
-**PASS**
+The table study_plan_courses has more than one foreign key relationship to courses:
+
+- course_id
+- prerequisite_course_id
+
+The report query used an implicit embed:
+
+courses(credit_hours)
+
+PostgREST could not determine which relationship to use.
+
+## Fix
+
+The query now uses the explicit foreign key relationship:
+
+courses:courses!study_plan_courses_course_id_fkey(credit_hours)
+
+This ensures that reports use the actual course_id relationship, not the prerequisite relationship.
+
+## Files Changed
+
+- src/lib/admin-reports.functions.ts
+- docs/REPORT-STUDY-PLANS-RELATIONSHIP-FIX-01-REPORT.md
+
+## Scope
+
+- Code/report fix only.
+- No import.
+- No production data changes.
+- No database insert/update/delete.
+- No migrations.
+- No schema changes.
+- No cleanup/reset/delete.
+- No change to study plans data.
+
+## Expected Result After Deploy
+
+For the IT study plan:
+
+- Courses: 41
+- Total hours: 115
+- Without courses: 0
+
+The "Study Plan Coverage" tab should no longer show the ambiguous relationship error.
+
+## Final Decision
+
+PASS
