@@ -322,7 +322,7 @@ function AdminDashboard() {
               );
               const cls = "rounded-xl bg-card border border-border p-5 shadow-card flex items-center justify-between";
               return c.to ? (
-                <Link key={c.label} to={c.to} className={cls + " hover:border-gold transition-all"}>
+                <Link key={c.label} to={c.to} search={c.search as any} className={cls + " hover:border-gold transition-all"}>
                   {inner}
                 </Link>
               ) : (
