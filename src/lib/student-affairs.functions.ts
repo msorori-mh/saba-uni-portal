@@ -291,13 +291,19 @@ export const getStudentServiceRequestDetails = createServerFn({ method: "POST" }
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ requestId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: req, error } = await supabaseAdmin
+    const { data: reqRow, error } = await supabaseAdmin
       .from("student_requests")
-      .select("*, student_profile:student_profiles(id, user_id, academic_number, full_name_ar)")
+      .select("*")
       .eq("id", data.requestId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!req) throw new Error("الطلب غير موجود");
+    if (!reqRow) throw new Error("الطلب غير موجود");
+    const { data: profile } = await supabaseAdmin
+      .from("student_profiles")
+      .select("id, user_id, academic_number, full_name_ar")
+      .eq("id", (reqRow as any).student_profile_id)
+      .maybeSingle();
+    const req = { ...(reqRow as any), student_profile: profile ?? null };
     const roles = await userRoles(context.userId);
     if (!canAccessRequest(context.userId, roles, req as RequestAccessRow)) throw new Error("غير مصرح");
     const [steps, events, attachments] = await Promise.all([
