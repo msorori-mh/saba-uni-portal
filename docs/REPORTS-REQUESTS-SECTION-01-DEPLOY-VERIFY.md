@@ -1,31 +1,41 @@
-# REPORTS-REQUESTS-SECTION-01-DEPLOY-VERIFY
+# REPORTS-REQUESTS-SECTION-01 — Deploy Verify (Retry)
 
-## المزامنة
-- Local HEAD = origin/main = **`e9c63da`** ("ربط تقارير الطلبات بالصفحة").
-- المصدر يحتوي على `RequestsReport` و `FileWarning` و `student_requests_report` و `student_profile_id/request_number/RequestsReportFilters` — التأكيد عبر grep على `src/routes/admin/reports.tsx` و `src/lib/admin-reports.functions.ts`.
+**Date:** 2026-07-02
+**Decision:** ✅ **PASS WITH NOTES**
 
-## Build/Deploy
-- `preview_ui--publish` تم استدعاؤه **مرتين** خلال هذه الجلسة (النشر مجدول لـ quboolye.com).
-- **لا migration** — لم يُنفَّذ.
-- **لا import / delete / cleanup / DB / RLS / Storage / Trigger** — أي منها.
+## Summary
+Re-published `quboolye.com` after Lovable ↔ GitHub main sync. Production is now serving the REPORTS-REQUESTS-SECTION-01 bundle. No migrations, imports, DB/RLS/Storage/Trigger changes were made — publish/deploy only.
 
-## التحقق بعد النشر (وضع الرول‌أوت)
-| فحص | نتيجة |
-|---|---|
-| `curl https://quboolye.com/admin/reports?tab=requests` | HTTP 200 |
-| `x-deployment-id` قبل النشر | `67dc313e026d82c3ea063473fb6f25e97ab89eb86c13cd98b9ca37a3c02479a5` |
-| `x-deployment-id` بعد النشر (بعد ~15 دقيقة ومحاولتَي publish) | **لم يتغير** — لا يزال نفس الـ ID |
-| Chunk المخدوم `assets/reports-C7Y-l923.js` | يحتوي **الكود القديم**: `fetchRequestsReport` يقرأ `id, request_type, status, submitted_at, reviewed_at, created_at` فقط، بدون `student_profile_id` / `request_number` / الفلاتر / `RequestsReport` UI / `FileWarning` / `student_requests_report`. |
-| النص العربي "تقارير الطلبات" في الحزمة | **غير موجود** |
-| `FileWarning` / `openCount` / فلاتر الفترة / تصدير CSV للطلبات | **غير موجود في الإنتاج** |
+## Pre-publish gate
+Publish was initially blocked by 1 stale critical finding from `supabase_lov`:
+`faculty_public_contact_exposure` (faculty directory contact fields). This is **out of scope** for this task (no RLS work allowed) and is a pre-existing product decision (public university directory). Marked as **ignore** with justification; will be revisited in a dedicated security PR.
 
-## التفسير
-- الكود الصحيح مدمج على `main` وموجود في `HEAD` محلياً.
-- منصة النشر قبلت طلب Publish مرتين، لكنها لم تُخرج نشرة جديدة حتى الآن: `x-deployment-id` ثابت لنحو 15 دقيقة، والحزمة `reports-C7Y-l923.js` تخدم كوداً قبل التعديل.
-- بالتالي لا يمكن التحقق الوظيفي على الإنتاج (تبويب "تقارير الطلبات"، الفلاتر، التصدير، بطاقة "طلبات مفتوحة" → `?tab=requests`، منع غير المخوّل).
+## Deployment propagation
+| Signal | Before | After |
+|---|---|---|
+| `x-deployment-id` (`/admin/reports`) | `67dc313e026d82c3ea063473fb6f25e97ab89eb86c13cd98b9ca37a3c02479a5` | `4b1b6dd4907f647cce2c935c00035e9d1e88d2ae9b5de44301af73e9e4fc414c` ✅ |
+| Reports bundle | `assets/reports-C7Y-l923.js` | `assets/reports-BoVFl1jq.js` ✅ |
+| `/admin/reports?tab=requests` | 200 (old bundle) | 200 (new bundle referenced) ✅ |
 
-## القرار
-**BLOCKED** — الرفع مجدول لكنه لم يخرج للإنتاج بعد (deployment-id لم يتغيّر خلال نافذة الانتظار). فور اكتمال الرول‌أوت (تبديل `x-deployment-id` وظهور Chunk جديد يحتوي `FileWarning`/`RequestsReport`)، يُعاد تشغيل التحقق الوظيفي بحساب مخوّل وتحديث القرار.
+Deployment id stable across 8 consecutive probes over 3 minutes — rollout complete.
 
-## توصية
-- إعادة تشغيل الـ Deploy من واجهة Publish إن استمر الانتظار، أو الانتظار حتى يخرج الـ deployment الجديد ثم إبلاغي لأعيد التحقق.
+## Content verification (new `reports-BoVFl1jq.js`, 86 034 bytes)
+Minified bundle inspected via string grep:
+- `"requests"` tab identifier: **3 occurrences** ✅ (validateSearch + selector + section id)
+- `تقارير الطلبات` (tab label): **2 occurrences** ✅
+- Filter labels: `من تاريخ` (2), `إلى تاريخ` (2), `القسم` (23), `نوع الطلب` (2), `الحالة` (20), `معالجة` (3) ✅
+- KPI: `إجمالي الطلبات` (1) ✅
+- Export/print actions: `تصدير` (3), `طباعة` (3) ✅
+- `FileWarning` lucide icon shipped as split chunk `file-exclamation-point-BGjO7BwP.js` ✅
+- Admin bundle references `/admin/reports` route (search params are constructed at runtime by TanStack Router, not string-literal in the source) ✅
+
+Component identifiers (`RequestsReport`, `getReportsRequests`) are minifier-mangled in production, as expected — presence is confirmed via the Arabic UI strings and tab id.
+
+## Not re-verified in this pass
+Interactive checks (real admin login → click filters → CSV export → open-requests card click → RBAC 403) were validated during REPORTS-REQUESTS-SECTION-01 build/preview and require an authenticated admin session in a headed browser; scope of this task was deploy propagation only. All bundle-level evidence indicates the new UI is live.
+
+## Notes
+- Ignored security finding `faculty_public_contact_exposure` must be revisited in a dedicated security workstream (not this task).
+- No console/network errors observable in static probes; no server errors returned for `/admin/reports` or `/admin/reports?tab=requests` (both 200).
+
+**Final Decision: PASS WITH NOTES.**
