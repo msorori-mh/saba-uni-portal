@@ -43,8 +43,13 @@ function StudentRequestDetailsPage() {
   };
 
   const resubmit = async () => {
-    await submitFn({ data: { requestId: id } });
-    qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
+    try {
+      await submitFn({ data: { requestId: id } });
+      toast.success("تمت إعادة الإرسال", { description: "انتقل الطلب إلى: مُرسَل — بانتظار المراجعة." });
+      qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
+    } catch (e) {
+      toast.error("تعذر إعادة الإرسال", { description: (e as Error).message });
+    }
   };
 
   if (isLoading) {
