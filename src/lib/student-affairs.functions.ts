@@ -291,13 +291,19 @@ export const getStudentServiceRequestDetails = createServerFn({ method: "POST" }
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ requestId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { data: req, error } = await supabaseAdmin
+    const { data: reqRow, error } = await supabaseAdmin
       .from("student_requests")
-      .select("*, student_profile:student_profiles(id, user_id, academic_number, full_name_ar)")
+      .select("*")
       .eq("id", data.requestId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!req) throw new Error("الطلب غير موجود");
+    if (!reqRow) throw new Error("الطلب غير موجود");
+    const { data: profile } = await supabaseAdmin
+      .from("student_profiles")
+      .select("id, user_id, academic_number, full_name_ar")
+      .eq("id", (reqRow as any).student_profile_id)
+      .maybeSingle();
+    const req = { ...(reqRow as any), student_profile: profile ?? null };
     const roles = await userRoles(context.userId);
     if (!canAccessRequest(context.userId, roles, req as RequestAccessRow)) throw new Error("غير مصرح");
     const [steps, events, attachments] = await Promise.all([
@@ -318,7 +324,7 @@ export const getPendingStudentRequestsForRole = createServerFn({ method: "POST" 
     if (!roles.some((r) => ADMIN_ROLES.includes(r as any))) throw new Error("ليس لديك صلاحية");
     let query = supabaseAdmin
       .from("student_requests")
-      .select("id, request_number, request_type, title, status, current_step_index, current_role_key, submitted_at, created_at, student_profile:student_profiles(academic_number, full_name_ar, department_id, program_id)")
+      .select("id, request_number, request_type, title, status, current_step_index, current_role_key, submitted_at, created_at, student_profile_id")
       .in("status", ["submitted", "in_review", "under_review"])
       .order("created_at", { ascending: false });
     if (!roles.includes("admin") && !roles.includes("system_admin")) {
@@ -326,6 +332,15 @@ export const getPendingStudentRequestsForRole = createServerFn({ method: "POST" 
     }
     const { data, error } = await query.limit(200);
     if (error) throw new Error(error.message);
+    const profileIds = Array.from(new Set((data ?? []).map((r: any) => r.student_profile_id).filter(Boolean)));
+    const profilesById = new Map<string, any>();
+    if (profileIds.length > 0) {
+      const { data: profs } = await supabaseAdmin
+        .from("student_profiles")
+        .select("id, academic_number, full_name_ar, department_id, program_id")
+        .in("id", profileIds);
+      for (const p of profs ?? []) profilesById.set((p as any).id, p);
+    }
     const typeCache = new Map<string, Awaited<ReturnType<typeof loadRequestType>>>();
     return Promise.all((data ?? []).map(async (request: any) => {
       let type = typeCache.get(request.request_type);
@@ -337,6 +352,7 @@ export const getPendingStudentRequestsForRole = createServerFn({ method: "POST" 
       const currentIndex = request.current_step_index ?? 0;
       return {
         ...request,
+        student_profile: profilesById.get(request.student_profile_id) ?? null,
         allowed_actions: allowedActionsForStep(steps[currentIndex], currentIndex, steps),
       };
     }));
@@ -489,12 +505,18 @@ export const getStudentRequestAttachmentSignedUrl = createServerFn({ method: "PO
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!attachment) throw new Error("المرفق غير موجود");
-    const { data: req } = await supabaseAdmin
+    const { data: reqBase } = await supabaseAdmin
       .from("student_requests")
-      .select("id, status, current_step_index, current_role_key, student_profile_id, request_type, student_profile:student_profiles(user_id)")
+      .select("id, status, current_step_index, current_role_key, student_profile_id, request_type")
       .eq("id", attachment.request_id)
       .maybeSingle();
-    if (!req) throw new Error("الطلب غير موجود");
+    if (!reqBase) throw new Error("الطلب غير موجود");
+    const { data: sp } = await supabaseAdmin
+      .from("student_profiles")
+      .select("user_id")
+      .eq("id", (reqBase as any).student_profile_id)
+      .maybeSingle();
+    const req = { ...(reqBase as any), student_profile: sp ?? null };
     const roles = await userRoles(context.userId);
     if (!canAccessRequest(context.userId, roles, req as RequestAccessRow)) throw new Error("غير مصرح");
     const signed = await supabaseAdmin.storage.from("student-request-attachments").createSignedUrl(data.path, 300);
