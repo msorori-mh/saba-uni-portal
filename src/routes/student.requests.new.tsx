@@ -54,10 +54,17 @@ function NewStudentRequestPage() {
           studentNotes: details,
         },
       });
-      if (submit) await submitFn({ data: { requestId: created.id } });
+      if (submit) {
+        await submitFn({ data: { requestId: created.id } });
+        toast.success("تم إرسال الطلب", { description: "انتقل الطلب إلى حالة: مُرسَل — بانتظار المراجعة." });
+      } else {
+        toast.success("تم حفظ المسودة");
+      }
       navigate({ to: "/student/requests/$id", params: { id: created.id } });
     } catch (e) {
-      setError((e as Error).message);
+      const msg = (e as Error).message;
+      setError(msg);
+      toast.error("تعذر تنفيذ العملية", { description: msg });
     } finally {
       setBusy(null);
     }
