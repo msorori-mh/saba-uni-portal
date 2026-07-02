@@ -496,7 +496,7 @@ export const cancelStudentServiceRequest = createServerFn({ method: "POST" })
     if (reqErr) throw new Error(reqErr.message);
     if (!req || req.student_profile_id !== profile.id) throw new Error("غير مصرح");
     if (["approved", "completed"].includes(req.status)) throw new Error("لا يمكن إلغاء طلب مكتمل أو معتمد");
-    const { error } = await supabaseAdmin.from("student_requests").update({ status: "cancelled", cancelled_at: new Date().toISOString() } as any).eq("id", data.requestId);
+    const { error } = await context.supabase.from("student_requests").update({ status: "cancelled", cancelled_at: new Date().toISOString() } as any).eq("id", data.requestId);
     if (error) throw new Error(error.message);
     await insertEvent({ requestId: data.requestId, actorId: context.userId, eventType: "cancelled", fromStatus: req.status, toStatus: "cancelled" });
     return { ok: true as const };
