@@ -1,11 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   BarChart3, BookOpen, ClipboardList, FileBadge, FileDown, FileSearch,
   FileText, GraduationCap, History, Loader2, Printer, Search, ShieldCheck,
-  Upload, UserCheck, Users, XCircle, Eye,
+  Upload, UserCheck, Users, XCircle, Eye, FileWarning,
 } from "lucide-react";
 import { getStudentLookups } from "@/lib/admin-students.functions";
 import {
@@ -16,6 +16,7 @@ import {
   getImportJobErrorsForAdmin,
   getImportJobsReportForAdmin,
   getFacultyLoadReportForAdmin,
+  getReportsRequests,
   getRoomUtilizationReportForAdmin,
   getScheduleConflictIndicatorsForAdmin,
   getScheduleReportLookupsForAdmin,
@@ -27,8 +28,16 @@ import {
   getTimetableReportForAdmin,
   getUnassignedCoursesReportForAdmin,
 } from "@/lib/admin-reports.functions";
+import { logReportEvent } from "@/lib/reports/report-audit.functions";
+
+const VALID_TABS = ["students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
+type TabId = typeof VALID_TABS[number];
 
 export const Route = createFileRoute("/admin/reports")({
+  validateSearch: (search: Record<string, unknown>): { tab?: TabId } => {
+    const raw = typeof search.tab === "string" ? search.tab : undefined;
+    return { tab: raw && (VALID_TABS as readonly string[]).includes(raw) ? (raw as TabId) : undefined };
+  },
   component: ReportsPage,
 });
 
