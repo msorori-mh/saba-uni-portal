@@ -352,6 +352,7 @@ export const getPendingStudentRequestsForRole = createServerFn({ method: "POST" 
       const currentIndex = request.current_step_index ?? 0;
       return {
         ...request,
+        student_profile: profilesById.get(request.student_profile_id) ?? null,
         allowed_actions: allowedActionsForStep(steps[currentIndex], currentIndex, steps),
       };
     }));
