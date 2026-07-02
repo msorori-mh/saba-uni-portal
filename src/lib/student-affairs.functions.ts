@@ -186,7 +186,8 @@ export const createStudentServiceRequest = createServerFn({ method: "POST" })
     const type = await loadRequestType(data.requestType);
     if (!type.student_visible) throw new Error("نوع الطلب غير متاح للطالب");
     const requestNumber = `SR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-    const { data: created, error } = await supabaseAdmin
+    // Use the user-scoped client so auth.uid() is populated for RLS + trg_sr_protect.
+    const { data: created, error } = await context.supabase
       .from("student_requests")
       .insert({
         request_number: requestNumber,
@@ -224,7 +225,8 @@ export const saveStudentServiceRequestDraft = createServerFn({ method: "POST" })
     if (reqErr) throw new Error(reqErr.message);
     if (!req || req.student_profile_id !== profile.id) throw new Error("غير مصرح");
     if (!["draft", "returned", "returned_for_completion"].includes(req.status)) throw new Error("لا يمكن تعديل الطلب بعد إرساله");
-    const { error } = await supabaseAdmin
+    // User-scoped client so auth.uid() populates for trg_sr_protect + RLS.
+    const { error } = await context.supabase
       .from("student_requests")
       .update({
         title: data.title,
@@ -255,7 +257,8 @@ export const submitStudentServiceRequest = createServerFn({ method: "POST" })
     const steps = workflowSteps(type);
     const first = steps[0];
     await initializeSteps(req.id, steps);
-    const { error } = await supabaseAdmin
+    // User-scoped client so auth.uid() populates for trg_sr_protect + RLS.
+    const { error } = await context.supabase
       .from("student_requests")
       .update({
         status: "submitted",
