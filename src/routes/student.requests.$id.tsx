@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FileText, Loader2, Send } from "lucide-react";
+import { toast } from "sonner";
 import {
   getStudentServiceRequestDetails,
   getStudentRequestAttachmentSignedUrl,
@@ -42,8 +43,13 @@ function StudentRequestDetailsPage() {
   };
 
   const resubmit = async () => {
-    await submitFn({ data: { requestId: id } });
-    qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
+    try {
+      await submitFn({ data: { requestId: id } });
+      toast.success("تمت إعادة الإرسال", { description: "انتقل الطلب إلى: مُرسَل — بانتظار المراجعة." });
+      qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
+    } catch (e) {
+      toast.error("تعذر إعادة الإرسال", { description: (e as Error).message });
+    }
   };
 
   if (isLoading) {
