@@ -81,6 +81,7 @@ import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
 import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
+import { Route as StudentRequestsIndexRouteImport } from './routes/student.requests.index'
 import { Route as MobileStudentIndexRouteImport } from './routes/mobile.student.index'
 import { Route as StudentRequestsNewRouteImport } from './routes/student.requests.new'
 import { Route as StudentRequestsIdRouteImport } from './routes/student.requests.$id'
@@ -518,6 +519,11 @@ const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   path: '/academic-core',
   getParentRoute: () => AdminRoute,
 } as any)
+const StudentRequestsIndexRoute = StudentRequestsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudentRequestsRoute,
+} as any)
 const MobileStudentIndexRoute = MobileStudentIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -661,6 +667,7 @@ export interface FileRoutesByFullPath {
   '/student/requests/$id': typeof StudentRequestsIdRoute
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
+  '/student/requests/': typeof StudentRequestsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -723,7 +730,6 @@ export interface FileRoutesByTo {
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
-  '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
   '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
@@ -747,6 +753,7 @@ export interface FileRoutesByTo {
   '/student/requests/$id': typeof StudentRequestsIdRoute
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student': typeof MobileStudentIndexRoute
+  '/student/requests': typeof StudentRequestsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -839,6 +846,7 @@ export interface FileRoutesById {
   '/student/requests/$id': typeof StudentRequestsIdRoute
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
+  '/student/requests/': typeof StudentRequestsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -932,6 +940,7 @@ export interface FileRouteTypes {
     | '/student/requests/$id'
     | '/student/requests/new'
     | '/mobile/student/'
+    | '/student/requests/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -994,7 +1003,6 @@ export interface FileRouteTypes {
     | '/student/change-password'
     | '/student/notifications'
     | '/student/progress'
-    | '/student/requests'
     | '/student/schedule'
     | '/admin/documents'
     | '/admin/executive-dashboard'
@@ -1018,6 +1026,7 @@ export interface FileRouteTypes {
     | '/student/requests/$id'
     | '/student/requests/new'
     | '/mobile/student'
+    | '/student/requests'
   id:
     | '__root__'
     | '/'
@@ -1109,6 +1118,7 @@ export interface FileRouteTypes {
     | '/student/requests/$id'
     | '/student/requests/new'
     | '/mobile/student/'
+    | '/student/requests/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1690,6 +1700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAcademicCoreRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/student/requests/': {
+      id: '/student/requests/'
+      path: '/'
+      fullPath: '/student/requests/'
+      preLoaderRoute: typeof StudentRequestsIndexRouteImport
+      parentRoute: typeof StudentRequestsRoute
+    }
     '/mobile/student/': {
       id: '/mobile/student/'
       path: '/'
@@ -1917,11 +1934,13 @@ const StaffRouteWithChildren = StaffRoute._addFileChildren(StaffRouteChildren)
 interface StudentRequestsRouteChildren {
   StudentRequestsIdRoute: typeof StudentRequestsIdRoute
   StudentRequestsNewRoute: typeof StudentRequestsNewRoute
+  StudentRequestsIndexRoute: typeof StudentRequestsIndexRoute
 }
 
 const StudentRequestsRouteChildren: StudentRequestsRouteChildren = {
   StudentRequestsIdRoute: StudentRequestsIdRoute,
   StudentRequestsNewRoute: StudentRequestsNewRoute,
+  StudentRequestsIndexRoute: StudentRequestsIndexRoute,
 }
 
 const StudentRequestsRouteWithChildren = StudentRequestsRoute._addFileChildren(
@@ -1999,13 +2018,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
