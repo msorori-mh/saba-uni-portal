@@ -509,7 +509,7 @@ function PlansTab() {
                   <div className="min-w-0">
                     <div className="font-display font-bold text-primary truncate">{p.name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {prog?.name_ar ?? "—"} • إصدار {p.version} • {p.total_credit_hours} ساعة
+                      {prog?.name_ar ?? "—"} • إصدار {p.version} • {(p.computed_credit_hours ?? 0) > 0 ? p.computed_credit_hours : p.total_credit_hours} ساعة
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">
