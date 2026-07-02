@@ -323,13 +323,20 @@ function AdminRequestsPage() {
     const needsNote = action === "reject" || action === "return_for_completion";
     const notes = needsNote ? window.prompt("أدخل الملاحظة المطلوبة") : window.prompt("ملاحظة اختيارية") ?? "";
     if (needsNote && !notes) return;
+    const TRANSITION: Record<typeof action, string> = {
+      approve: "تمت الموافقة — انتقل الطلب إلى: مقبول",
+      reject: "تم الرفض — انتقل الطلب إلى: مرفوض",
+      return_for_completion: "تم الإرجاع للطالب — انتقل الطلب إلى: يحتاج استكمال",
+      forward: "تمت الإحالة إلى الدور التالي",
+      complete: "تم إكمال التنفيذ — انتقل الطلب إلى: مكتمل",
+    };
     try {
       await actWorkflowFn({ data: { requestId, action, notes: notes || undefined } });
-      toast.success("تم تنفيذ الإجراء");
+      toast.success(TRANSITION[action]);
       qc.invalidateQueries({ queryKey: ["admin-student-affairs-workflow-pending"] });
       qc.invalidateQueries({ queryKey: ["admin-requests-overview"] });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error("تعذر تنفيذ الإجراء", { description: (e as Error).message });
     }
   };
 
