@@ -1376,30 +1376,56 @@ function paginateRows<T>(rows: T[], page: number, pageSize: number) {
 }
 
 async function loadScheduleBase() {
-  const [offeringsRes, sectionsRes, scheduleRes, roomsRes, slotsRes, facultyRes] = await Promise.all([
-    supabaseAdmin.from("course_offerings").select(`
-      id, academic_year_id, semester_id, program_id, level_id, status,
-      courses(id, code, name_ar, department_id, credit_hours, departments(name_ar)),
-      programs(id, name_ar, code, department_id, departments(name_ar)),
-      academic_levels(id, name, level_number),
-      academic_years(id, name),
-      semesters(id, name, code)
-    `).limit(5000),
+  const [offeringsRes, sectionsRes, scheduleRes, roomsRes, slotsRes, facultyRes, coursesRes, programsRes, levelsRes, yearsRes, semestersRes, departmentsRes] = await Promise.all([
+    supabaseAdmin.from("course_offerings").select(`id, course_id, academic_year_id, semester_id, program_id, level_id, status`).limit(5000),
     supabaseAdmin.from("course_sections").select("id, course_offering_id, section_code, faculty_profile_id, capacity, status").limit(5000),
     supabaseAdmin.from("class_schedule").select("id, course_section_id, faculty_profile_id, room_id, time_slot_id, schedule_type, status").limit(10000),
     supabaseAdmin.from("rooms").select("id, code, name_ar, room_type, capacity, is_active").limit(2000),
     supabaseAdmin.from("time_slots").select("id, day_of_week, start_time, end_time, name_ar").limit(2000),
-    supabaseAdmin.from("faculty_profiles").select("id, full_name_ar, employee_number, department_id, departments(name_ar)").limit(3000),
+    supabaseAdmin.from("faculty_profiles").select("id, full_name_ar, employee_number, department_id").limit(3000),
+    supabaseAdmin.from("courses").select("id, code, name_ar, department_id, credit_hours").limit(5000),
+    supabaseAdmin.from("programs").select("id, name_ar, code, department_id").limit(2000),
+    supabaseAdmin.from("academic_levels").select("id, name, level_number").limit(200),
+    supabaseAdmin.from("academic_years").select("id, name").limit(200),
+    supabaseAdmin.from("semesters").select("id, name, code").limit(500),
+    supabaseAdmin.from("departments").select("id, name_ar").limit(500),
   ]);
-  const firstError = [offeringsRes, sectionsRes, scheduleRes, roomsRes, slotsRes, facultyRes].find((res) => res.error)?.error;
+  const all = [offeringsRes, sectionsRes, scheduleRes, roomsRes, slotsRes, facultyRes, coursesRes, programsRes, levelsRes, yearsRes, semestersRes, departmentsRes];
+  const firstError = all.find((res) => res.error)?.error;
   if (firstError) throw new Error(firstError.message);
+
+  const coursesById = new Map((coursesRes.data ?? []).map((r: any) => [r.id, r]));
+  const programsById = new Map((programsRes.data ?? []).map((r: any) => [r.id, r]));
+  const levelsById = new Map((levelsRes.data ?? []).map((r: any) => [r.id, r]));
+  const yearsById = new Map((yearsRes.data ?? []).map((r: any) => [r.id, r]));
+  const semestersById = new Map((semestersRes.data ?? []).map((r: any) => [r.id, r]));
+  const departmentsById = new Map((departmentsRes.data ?? []).map((r: any) => [r.id, r]));
+
+  const offerings = (offeringsRes.data ?? []).map((o: any) => {
+    const course: any = coursesById.get(o.course_id) ?? null;
+    const program: any = programsById.get(o.program_id) ?? null;
+    return {
+      ...o,
+      courses: course ? { ...course, departments: course.department_id ? departmentsById.get(course.department_id) ?? null : null } : null,
+      programs: program ? { ...program, departments: program.department_id ? departmentsById.get(program.department_id) ?? null : null } : null,
+      academic_levels: levelsById.get(o.level_id) ?? null,
+      academic_years: yearsById.get(o.academic_year_id) ?? null,
+      semesters: semestersById.get(o.semester_id) ?? null,
+    };
+  });
+
+  const faculty = (facultyRes.data ?? []).map((f: any) => ({
+    ...f,
+    departments: f.department_id ? departmentsById.get(f.department_id) ?? null : null,
+  }));
+
   return {
-    offerings: offeringsRes.data ?? [],
+    offerings,
     sections: sectionsRes.data ?? [],
     schedules: scheduleRes.data ?? [],
     rooms: roomsRes.data ?? [],
     slots: slotsRes.data ?? [],
-    faculty: facultyRes.data ?? [],
+    faculty,
   };
 }
 
