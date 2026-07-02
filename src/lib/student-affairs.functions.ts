@@ -324,7 +324,7 @@ export const getPendingStudentRequestsForRole = createServerFn({ method: "POST" 
     if (!roles.some((r) => ADMIN_ROLES.includes(r as any))) throw new Error("ليس لديك صلاحية");
     let query = supabaseAdmin
       .from("student_requests")
-      .select("id, request_number, request_type, title, status, current_step_index, current_role_key, submitted_at, created_at, student_profile:student_profiles(academic_number, full_name_ar, department_id, program_id)")
+      .select("id, request_number, request_type, title, status, current_step_index, current_role_key, submitted_at, created_at, student_profile_id")
       .in("status", ["submitted", "in_review", "under_review"])
       .order("created_at", { ascending: false });
     if (!roles.includes("admin") && !roles.includes("system_admin")) {
@@ -332,6 +332,15 @@ export const getPendingStudentRequestsForRole = createServerFn({ method: "POST" 
     }
     const { data, error } = await query.limit(200);
     if (error) throw new Error(error.message);
+    const profileIds = Array.from(new Set((data ?? []).map((r: any) => r.student_profile_id).filter(Boolean)));
+    const profilesById = new Map<string, any>();
+    if (profileIds.length > 0) {
+      const { data: profs } = await supabaseAdmin
+        .from("student_profiles")
+        .select("id, academic_number, full_name_ar, department_id, program_id")
+        .in("id", profileIds);
+      for (const p of profs ?? []) profilesById.set((p as any).id, p);
+    }
     const typeCache = new Map<string, Awaited<ReturnType<typeof loadRequestType>>>();
     return Promise.all((data ?? []).map(async (request: any) => {
       let type = typeCache.get(request.request_type);
