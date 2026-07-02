@@ -48,6 +48,7 @@ type Level = { id: string; name: string; level_number: number };
 type Plan = {
   id: string; program_id: string; name: string; version: string;
   total_credit_hours: number; status: string; is_active: boolean;
+  computed_credit_hours?: number;
 };
 type PlanCourse = {
   id: string; study_plan_id: string; course_id: string; level_id: string;
@@ -508,7 +509,7 @@ function PlansTab() {
                   <div className="min-w-0">
                     <div className="font-display font-bold text-primary truncate">{p.name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {prog?.name_ar ?? "—"} • إصدار {p.version} • {p.total_credit_hours} ساعة
+                      {prog?.name_ar ?? "—"} • إصدار {p.version} • {(p.computed_credit_hours ?? 0) > 0 ? p.computed_credit_hours : p.total_credit_hours} ساعة
                     </div>
                   </div>
                   <div className="flex gap-1 shrink-0">

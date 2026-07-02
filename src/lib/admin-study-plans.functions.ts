@@ -121,6 +121,21 @@ export const deleteCourse = createServerFn({ method: "POST" })
 
 // ── Study plans ────────────────────────────────────────────────────────────
 
+async function computeHoursForPlans(planIds: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (planIds.length === 0) return map;
+  const { data, error } = await supabaseAdmin
+    .from("study_plan_courses")
+    .select("study_plan_id, courses:courses!study_plan_courses_course_id_fkey(credit_hours)")
+    .in("study_plan_id", planIds);
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as Array<{ study_plan_id: string; courses: { credit_hours: number | null } | null }>) {
+    const hrs = Number(row.courses?.credit_hours ?? 0) || 0;
+    map.set(row.study_plan_id, (map.get(row.study_plan_id) ?? 0) + hrs);
+  }
+  return map;
+}
+
 export const listStudyPlans = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -130,7 +145,9 @@ export const listStudyPlans = createServerFn({ method: "POST" })
       .select("*")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return data ?? [];
+    const rows = data ?? [];
+    const hours = await computeHoursForPlans(rows.map((p) => p.id));
+    return rows.map((p) => ({ ...p, computed_credit_hours: hours.get(p.id) ?? 0 }));
   });
 
 export const listStudyPlansByProgram = createServerFn({ method: "POST" })
@@ -146,8 +163,11 @@ export const listStudyPlansByProgram = createServerFn({ method: "POST" })
       .eq("program_id", data.programId)
       .order("version", { ascending: false });
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const list = rows ?? [];
+    const hours = await computeHoursForPlans(list.map((p) => p.id));
+    return list.map((p) => ({ ...p, computed_credit_hours: hours.get(p.id) ?? 0 }));
   });
+
 
 const studyPlanPayloadSchema = z.object({
   program_id: z.string().uuid(),
