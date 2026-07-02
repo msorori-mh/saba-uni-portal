@@ -283,14 +283,26 @@ function downloadCsv(fileName: string, rows: Array<Record<string, unknown>>) {
 }
 
 function ReportsPage() {
-  const [activeSection, setActiveSection] = useState("students");
+  const { tab } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const [activeSection, setActiveSection] = useState<TabId>(tab ?? "students");
 
-  const sections = [
+  useEffect(() => {
+    if (tab && tab !== activeSection) setActiveSection(tab);
+  }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectSection = (id: TabId) => {
+    setActiveSection(id);
+    navigate({ search: { tab: id }, replace: true });
+  };
+
+  const sections: Array<{ id: TabId; title: string; icon: any; active?: boolean }> = [
     { id: "students", title: "تقارير الطلاب", icon: GraduationCap, active: true },
     { id: "imports", title: "تقارير الاستيراد", icon: Upload, active: true },
     { id: "accounts", title: "تقارير حسابات الطلاب", icon: UserCheck, active: true },
     { id: "academic", title: "التقارير الأكاديمية", icon: BookOpen, active: true },
     { id: "schedules", title: "تقارير الجداول والإسناد", icon: ClipboardList, active: true },
+    { id: "requests", title: "تقارير الطلبات", icon: FileWarning, active: true },
     { id: "faculty", title: "تقارير أعضاء هيئة التدريس", icon: Users },
     { id: "documents", title: "تقارير الوثائق والخدمات", icon: FileBadge },
     { id: "audit", title: "تقارير التدقيق والأمان", icon: ShieldCheck },
@@ -315,7 +327,7 @@ function ReportsPage() {
             <button
               key={section.id}
               type="button"
-              onClick={() => setActiveSection(section.id)}
+              onClick={() => selectSection(section.id)}
               className={`rounded-xl border p-4 text-right shadow-card transition ${
                 isActive ? "border-gold bg-gold/10" : "border-border bg-card hover:border-gold/60"
               }`}
@@ -341,12 +353,254 @@ function ReportsPage() {
       {activeSection === "accounts" && <StudentAccountsReport />}
       {activeSection === "academic" && <AcademicReports />}
       {activeSection === "schedules" && <ScheduleReports />}
-      {!["students", "imports", "accounts", "academic", "schedules"].includes(activeSection) && (
+      {activeSection === "requests" && <RequestsReport />}
+      {!["students", "imports", "accounts", "academic", "schedules", "requests"].includes(activeSection) && (
         <ComingSoonCard title={sections.find((section) => section.id === activeSection)?.title ?? "قسم التقارير"} />
       )}
     </div>
   );
 }
+
+const REQ_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "draft", label: "مسودة" },
+  { value: "submitted", label: "مقدَّم" },
+  { value: "under_review", label: "قيد المراجعة" },
+  { value: "returned", label: "يحتاج استكمال" },
+  { value: "approved", label: "موافَق عليه" },
+  { value: "rejected", label: "مرفوض" },
+  { value: "cancelled", label: "ملغى" },
+];
+
+const REQ_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "grade_appeal", label: "تظلم على درجة" },
+  { value: "absence_excuse", label: "عذر غياب" },
+  { value: "extra_chance", label: "فرصة إضافية" },
+  { value: "equivalency", label: "معادلة مقررات" },
+  { value: "transfer", label: "تحويل" },
+  { value: "enrollment_suspension", label: "وقف قيد" },
+  { value: "enrollment_reinstatement", label: "إعادة قيد" },
+  { value: "official_transcript", label: "سجل أكاديمي رسمي" },
+];
+
+type RequestsFilters = {
+  from_date: string;
+  to_date: string;
+  department_id: string;
+  program_id: string;
+  status: string;
+  request_type: string;
+};
+
+const EMPTY_REQUESTS_FILTERS: RequestsFilters = {
+  from_date: "", to_date: "", department_id: "", program_id: "", status: "", request_type: "",
+};
+
+function RequestsReport() {
+  const lookupsFn = useServerFn(getAcademicReportLookupsForAdmin);
+  const reportFn = useServerFn(getReportsRequests);
+  const auditFn = useServerFn(logReportEvent);
+  const [filters, setFilters] = useState<RequestsFilters>(EMPTY_REQUESTS_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<RequestsFilters>(EMPTY_REQUESTS_FILTERS);
+
+  const { data: lookups } = useQuery({
+    queryKey: ["academic-reports-lookups"],
+    queryFn: () => lookupsFn({ data: {} }),
+    staleTime: Infinity,
+  });
+
+  const payload = {
+    from_date: appliedFilters.from_date || undefined,
+    to_date: appliedFilters.to_date || undefined,
+    department_id: appliedFilters.department_id || undefined,
+    program_id: appliedFilters.program_id || undefined,
+    status: appliedFilters.status || undefined,
+    request_type: appliedFilters.request_type || undefined,
+  };
+
+  const { data: report, isFetching, error } = useQuery({
+    queryKey: ["admin-requests-report", appliedFilters],
+    queryFn: async () => {
+      const res = await reportFn({ data: payload });
+      auditFn({ data: { reportName: "student_requests_report", action: "report_viewed", filters: payload as Record<string, any> } }).catch(() => {});
+      return res;
+    },
+  });
+
+  const filteredPrograms = filters.department_id && lookups
+    ? lookups.programs.filter((program: any) => program.department_id === filters.department_id)
+    : lookups?.programs ?? [];
+
+  const update = (key: keyof RequestsFilters, value: string) => {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === "department_id" ? { program_id: "" } : {}),
+    }));
+  };
+  const apply = () => setAppliedFilters(filters);
+  const clear = () => { setFilters(EMPTY_REQUESTS_FILTERS); setAppliedFilters(EMPTY_REQUESTS_FILTERS); };
+
+  const exportRows = useMemo(() => (report?.rows ?? []).map((row: any) => ({
+    "رقم الطلب": row.request_number ?? "",
+    "اسم الطالب": row.student_name ?? "",
+    "الرقم الأكاديمي": row.academic_number ?? "",
+    "نوع الطلب": row.request_type_ar ?? row.request_type ?? "",
+    "الحالة": row.status_ar ?? row.status ?? "",
+    "تاريخ الإنشاء": formatDateTime(row.created_at),
+    "تاريخ التقديم": formatDateTime(row.submitted_at),
+    "تاريخ المراجعة": formatDateTime(row.reviewed_at),
+  })), [report]);
+
+  const doExport = () => {
+    downloadCsv("student_requests_report.csv", exportRows);
+    auditFn({ data: { reportName: "student_requests_report", action: "report_exported", format: "csv", rowCount: exportRows.length, filters: payload as Record<string, any> } }).catch(() => {});
+  };
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-card space-y-4">
+        <div>
+          <h2 className="font-display text-xl font-extrabold text-primary flex items-center gap-2">
+            <FileWarning className="h-5 w-5 text-gold" /> تقارير الطلبات
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            نظرة شاملة على طلبات الطلاب حسب النوع والحالة والقسم والبرنامج.
+          </p>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <ReportField label="من تاريخ">
+            <input type="date" value={filters.from_date} onChange={(e) => update("from_date", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+          <ReportField label="إلى تاريخ">
+            <input type="date" value={filters.to_date} onChange={(e) => update("to_date", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </ReportField>
+          <ReportField label="القسم">
+            <select value={filters.department_id} onChange={(e) => update("department_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأقسام</option>
+              {lookups?.departments.map((d: any) => <option key={d.id} value={d.id}>{d.name_ar}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="البرنامج">
+            <select value={filters.program_id} onChange={(e) => update("program_id", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل البرامج</option>
+              {filteredPrograms.map((p: any) => <option key={p.id} value={p.id}>{p.name_ar}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="الحالة">
+            <select value={filters.status} onChange={(e) => update("status", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الحالات</option>
+              {REQ_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </ReportField>
+          <ReportField label="نوع الطلب">
+            <select value={filters.request_type} onChange={(e) => update("request_type", e.target.value)}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
+              <option value="">كل الأنواع</option>
+              {REQ_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </ReportField>
+        </div>
+
+        <ReportActions
+          onApply={apply}
+          onClear={clear}
+          onPrint={() => window.print()}
+          onCsv={doExport}
+          csvDisabled={!exportRows.length}
+          printDisabled={!report?.rows?.length}
+        />
+      </div>
+
+      {error ? (
+        <ErrorBox message={(error as Error).message} />
+      ) : (
+        <>
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <KpiCard label="إجمالي الطلبات" value={report?.total ?? 0} icon={FileText} />
+            <KpiCard label="مفتوحة" value={report?.openCount ?? 0} icon={FileWarning} />
+            <KpiCard label="مقبولة" value={report?.approvedCount ?? 0} icon={UserCheck} />
+            <KpiCard label="مرفوضة" value={report?.rejectedCount ?? 0} icon={XCircle} />
+            <KpiCard label="متوسط أيام المعالجة" value={report?.avgDays ?? 0} icon={History} />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <BreakdownCard title="حسب الحالة" rows={report?.byStatus ?? []} />
+            <BreakdownCard title="حسب النوع" rows={report?.byType ?? []} />
+          </div>
+
+          <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+            <ReportHeader title="آخر الطلبات" loading={isFetching} />
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary/40 text-xs">
+                  <tr>
+                    <th className="px-3 py-2 text-right">رقم الطلب</th>
+                    <th className="px-3 py-2 text-right">الطالب</th>
+                    <th className="px-3 py-2 text-right">الرقم الأكاديمي</th>
+                    <th className="px-3 py-2 text-right">النوع</th>
+                    <th className="px-3 py-2 text-right">الحالة</th>
+                    <th className="px-3 py-2 text-right">أنشئ</th>
+                    <th className="px-3 py-2 text-right">قُدِّم</th>
+                    <th className="px-3 py-2 text-right">روجع</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(report?.rows ?? []).length === 0 ? (
+                    <EmptyTableRow colSpan={8} />
+                  ) : (
+                    (report?.rows ?? []).slice(0, 200).map((row: any) => (
+                      <tr key={row.id} className="border-t border-border">
+                        <td className="px-3 py-2 font-mono text-xs">{row.request_number}</td>
+                        <td className="px-3 py-2">{row.student_name}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{row.academic_number}</td>
+                        <td className="px-3 py-2">{row.request_type_ar}</td>
+                        <td className="px-3 py-2">{row.status_ar}</td>
+                        <td className="px-3 py-2 text-xs">{formatDateTime(row.created_at)}</td>
+                        <td className="px-3 py-2 text-xs">{formatDateTime(row.submitted_at)}</td>
+                        <td className="px-3 py-2 text-xs">{formatDateTime(row.reviewed_at)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function BreakdownCard({ title, rows }: { title: string; rows: Array<{ key: string; value: number }> }) {
+  const total = rows.reduce((a, r) => a + r.value, 0);
+  return (
+    <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+      <h3 className="font-display text-sm font-extrabold text-primary mb-3">{title}</h3>
+      {rows.length === 0 ? (
+        <div className="text-xs text-muted-foreground">لا توجد بيانات.</div>
+      ) : (
+        <ul className="space-y-1.5">
+          {rows.map((r) => (
+            <li key={r.key} className="flex items-center justify-between text-sm">
+              <span>{r.key}</span>
+              <span className="font-bold text-primary">
+                {r.value}
+                {total > 0 && <span className="mr-1 text-xs text-muted-foreground">({Math.round((r.value / total) * 100)}%)</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 
 function StudentsReport() {
   const lookupsFn = useServerFn(getStudentLookups);
