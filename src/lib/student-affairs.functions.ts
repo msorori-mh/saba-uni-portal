@@ -505,12 +505,18 @@ export const getStudentRequestAttachmentSignedUrl = createServerFn({ method: "PO
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!attachment) throw new Error("المرفق غير موجود");
-    const { data: req } = await supabaseAdmin
+    const { data: reqBase } = await supabaseAdmin
       .from("student_requests")
-      .select("id, status, current_step_index, current_role_key, student_profile_id, request_type, student_profile:student_profiles(user_id)")
+      .select("id, status, current_step_index, current_role_key, student_profile_id, request_type")
       .eq("id", attachment.request_id)
       .maybeSingle();
-    if (!req) throw new Error("الطلب غير موجود");
+    if (!reqBase) throw new Error("الطلب غير موجود");
+    const { data: sp } = await supabaseAdmin
+      .from("student_profiles")
+      .select("user_id")
+      .eq("id", (reqBase as any).student_profile_id)
+      .maybeSingle();
+    const req = { ...(reqBase as any), student_profile: sp ?? null };
     const roles = await userRoles(context.userId);
     if (!canAccessRequest(context.userId, roles, req as RequestAccessRow)) throw new Error("غير مصرح");
     const signed = await supabaseAdmin.storage.from("student-request-attachments").createSignedUrl(data.path, 300);
