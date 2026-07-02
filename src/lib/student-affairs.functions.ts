@@ -378,6 +378,9 @@ async function performRequestAction(input: {
   requestId: string;
   action: (typeof ACTIONS)[number];
   notes?: string | null;
+  // Session-scoped Supabase client so the DB trigger `trg_sr_protect`
+  // sees the real `auth.uid()` for the acting admin/dean/officer.
+  sessionClient: { from: (table: string) => any };
 }) {
     const { req } = await assertCanAct(input.userId, input.requestId);
     if ((input.action === "reject" || input.action === "return_for_completion") && !input.notes) {
@@ -417,9 +420,10 @@ async function performRequestAction(input: {
     } else {
       patch = { ...patch, status: "approved" };
     }
-    const { error } = await supabaseAdmin.from("student_requests").update(patch as any).eq("id", input.requestId);
+    // Use the session client so `trg_sr_protect` receives auth.uid() = actor.
+    const { error } = await input.sessionClient.from("student_requests").update(patch as any).eq("id", input.requestId);
     if (error) throw new Error(error.message);
-    await supabaseAdmin
+    const { error: stepErr } = await input.sessionClient
       .from("student_service_request_steps")
       .update({
         status: input.action === "approve" || input.action === "forward" ? "approved" : input.action === "complete" ? "completed" : input.action === "reject" ? "rejected" : "returned",
@@ -430,12 +434,14 @@ async function performRequestAction(input: {
       } as any)
       .eq("request_id", input.requestId)
       .eq("step_index", currentIndex);
+    if (stepErr) throw new Error(stepErr.message);
     if ((input.action === "approve" || input.action === "forward") && next) {
-      await supabaseAdmin
+      const { error: nextErr } = await input.sessionClient
         .from("student_service_request_steps")
         .update({ status: "active" } as any)
         .eq("request_id", input.requestId)
         .eq("step_index", nextIndex);
+      if (nextErr) throw new Error(nextErr.message);
     }
     await insertEvent({
       requestId: input.requestId,
@@ -466,6 +472,7 @@ export const actOnStudentServiceRequest = createServerFn({ method: "POST" })
       requestId: data.requestId,
       action: data.action,
       notes: data.notes ?? null,
+      sessionClient: context.supabase,
     });
   });
 
@@ -477,6 +484,7 @@ export const returnStudentServiceRequestForCompletion = createServerFn({ method:
     requestId: data.requestId,
     action: "return_for_completion",
     notes: data.notes,
+    sessionClient: context.supabase,
   }));
 
 export const cancelStudentServiceRequest = createServerFn({ method: "POST" })
@@ -488,7 +496,7 @@ export const cancelStudentServiceRequest = createServerFn({ method: "POST" })
     if (reqErr) throw new Error(reqErr.message);
     if (!req || req.student_profile_id !== profile.id) throw new Error("غير مصرح");
     if (["approved", "completed"].includes(req.status)) throw new Error("لا يمكن إلغاء طلب مكتمل أو معتمد");
-    const { error } = await supabaseAdmin.from("student_requests").update({ status: "cancelled", cancelled_at: new Date().toISOString() } as any).eq("id", data.requestId);
+    const { error } = await context.supabase.from("student_requests").update({ status: "cancelled", cancelled_at: new Date().toISOString() } as any).eq("id", data.requestId);
     if (error) throw new Error(error.message);
     await insertEvent({ requestId: data.requestId, actorId: context.userId, eventType: "cancelled", fromStatus: req.status, toStatus: "cancelled" });
     return { ok: true as const };
