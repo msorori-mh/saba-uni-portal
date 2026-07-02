@@ -48,6 +48,7 @@ type Level = { id: string; name: string; level_number: number };
 type Plan = {
   id: string; program_id: string; name: string; version: string;
   total_credit_hours: number; status: string; is_active: boolean;
+  computed_credit_hours?: number;
 };
 type PlanCourse = {
   id: string; study_plan_id: string; course_id: string; level_id: string;
