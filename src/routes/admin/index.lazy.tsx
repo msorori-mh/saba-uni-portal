@@ -129,7 +129,7 @@ function AdminDashboard() {
 
   const sections_: Array<{
     title: string;
-    cards: Array<{ label: string; value: number; icon: any; to?: string }>;
+    cards: Array<{ label: string; value: number; icon: any; to?: string; search?: Record<string, string> }>;
   }> = [
     {
       title: "مؤشرات الأداء",
@@ -137,7 +137,7 @@ function AdminDashboard() {
         { label: "الطلاب", value: counts.students, icon: ClipboardList, to: "/admin/reports" },
         { label: "نسبة النجاح %", value: kpis?.successRate ?? 0, icon: TrendingUp, to: "/admin/reports" },
         { label: "الرسوم المستحقة", value: kpis?.outstanding ?? 0, icon: Wallet, to: "/admin/reports" },
-        { label: "طلبات مفتوحة", value: kpis?.openRequests ?? 0, icon: FileWarning, to: "/admin/reports" },
+        { label: "طلبات مفتوحة", value: kpis?.openRequests ?? 0, icon: FileWarning, to: "/admin/reports", search: { tab: "requests" } },
       ],
     },
     {
