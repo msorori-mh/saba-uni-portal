@@ -1051,7 +1051,7 @@ export const getStudyPlansReportForAdmin = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const planIds = (plans ?? []).map((plan: any) => plan.id);
     const { data: planCourses } = planIds.length
-      ? await supabaseAdmin.from("study_plan_courses").select("study_plan_id, courses(credit_hours)").in("study_plan_id", planIds)
+      ? await supabaseAdmin.from("study_plan_courses").select("study_plan_id, courses:courses!study_plan_courses_course_id_fkey(credit_hours)").in("study_plan_id", planIds)
       : { data: [] as any[] };
     const courseCount = new Map<string, number>();
     const hoursByPlan = new Map<string, number>();
@@ -1203,7 +1203,7 @@ export const getStudyPlanCoverageReportForAdmin = createServerFn({ method: "POST
     if (planIds.length === 0) return { rows: [], total: 0, page: data.page, pageSize: data.pageSize, kpis: { plans: 0, filledSlots: 0, emptySlots: 0, courses: 0, hours: 0 }, message: null };
     const [{ data: levels }, { data: links, error: linksErr }] = await Promise.all([
       supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
-      supabaseAdmin.from("study_plan_courses").select("study_plan_id, level_id, semester_code, courses(credit_hours)").in("study_plan_id", planIds),
+      supabaseAdmin.from("study_plan_courses").select("study_plan_id, level_id, semester_code, courses:courses!study_plan_courses_course_id_fkey(credit_hours)").in("study_plan_id", planIds),
     ]);
     if (linksErr) throw new Error(linksErr.message);
     const selectedLevels = (levels ?? []).filter((level: any) => !data.level_id || level.id === data.level_id);
