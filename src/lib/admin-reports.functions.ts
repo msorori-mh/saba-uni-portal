@@ -266,31 +266,89 @@ const REQ_STATUS_AR: Record<string, string> = {
   cancelled: "Ù…Ù„ØºÙ‰",
 };
 
-async function fetchRequestsReport() {
+export type RequestsReportFilters = {
+  from_date?: string | null;
+  to_date?: string | null;
+  department_id?: string | null;
+  program_id?: string | null;
+  status?: string | null;
+  request_type?: string | null;
+};
+
+const OPEN_STATUSES = new Set(["submitted", "under_review", "returned", "draft"]);
+
+async function fetchRequestsReport(filters: RequestsReportFilters = {}) {
   const rows = await fetchAll<{
     id: string;
+    request_number: string | null;
     request_type: string;
     status: string;
+    student_profile_id: string;
     submitted_at: string | null;
     reviewed_at: string | null;
     created_at: string;
-  }>("student_requests", (q) =>
-    q.select("id, request_type, status, submitted_at, reviewed_at, created_at"));
-  const byType = groupCount(rows, (r) => REQ_TYPE_AR[r.request_type] ?? r.request_type);
-  const byStatus = groupCount(rows, (r) => REQ_STATUS_AR[r.status] ?? r.status);
-  const approved = rows.filter((r) => r.status === "approved");
-  const rejected = rows.filter((r) => r.status === "rejected");
-  const reviewed = rows.filter((r) => r.submitted_at && r.reviewed_at);
+  }>("student_requests", (q) => {
+    let s = q.select("id, request_number, request_type, status, student_profile_id, submitted_at, reviewed_at, created_at");
+    if (filters.status) s = s.eq("status", filters.status);
+    if (filters.request_type) s = s.eq("request_type", filters.request_type);
+    if (filters.from_date) s = s.gte("created_at", filters.from_date);
+    if (filters.to_date) s = s.lte("created_at", `${filters.to_date}T23:59:59.999Z`);
+    return s;
+  });
+
+  const profileIds = Array.from(new Set(rows.map((r) => r.student_profile_id).filter(Boolean)));
+  const profiles = profileIds.length
+    ? await fetchAll<{ id: string; academic_number: string | null; full_name_ar: string | null; program_id: string | null; department_id: string | null }>(
+        "student_profiles", (q) => q.select("id, academic_number, full_name_ar, program_id, department_id").in("id", profileIds))
+    : [];
+  const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
+  const filtered = rows.filter((r) => {
+    const p = profileMap.get(r.student_profile_id);
+    if (filters.department_id && p?.department_id !== filters.department_id) return false;
+    if (filters.program_id && p?.program_id !== filters.program_id) return false;
+    return true;
+  });
+
+  const byType = groupCount(filtered, (r) => REQ_TYPE_AR[r.request_type] ?? r.request_type);
+  const byStatus = groupCount(filtered, (r) => REQ_STATUS_AR[r.status] ?? r.status);
+  const approved = filtered.filter((r) => r.status === "approved");
+  const rejected = filtered.filter((r) => r.status === "rejected");
+  const open = filtered.filter((r) => OPEN_STATUSES.has(r.status));
+  const reviewed = filtered.filter((r) => r.submitted_at && r.reviewed_at);
   const avgMs = reviewed.length
     ? reviewed.reduce((acc, r) => acc + (new Date(r.reviewed_at!).getTime() - new Date(r.submitted_at!).getTime()), 0) / reviewed.length
     : 0;
   const avgDays = Math.round((avgMs / (1000 * 60 * 60 * 24)) * 10) / 10;
+
+  const detailRows = filtered
+    .slice()
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .map((r) => {
+      const p = profileMap.get(r.student_profile_id);
+      return {
+        id: r.id,
+        request_number: r.request_number ?? "",
+        request_type: r.request_type,
+        request_type_ar: REQ_TYPE_AR[r.request_type] ?? r.request_type,
+        status: r.status,
+        status_ar: REQ_STATUS_AR[r.status] ?? r.status,
+        student_name: p?.full_name_ar ?? "",
+        academic_number: p?.academic_number ?? "",
+        created_at: r.created_at,
+        submitted_at: r.submitted_at,
+        reviewed_at: r.reviewed_at,
+      };
+    });
+
   return {
-    total: rows.length,
+    total: filtered.length,
     approvedCount: approved.length,
     rejectedCount: rejected.length,
+    openCount: open.length,
     avgDays,
     byType, byStatus,
+    rows: detailRows,
   };
 }
 
