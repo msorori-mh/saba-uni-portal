@@ -413,7 +413,23 @@ export const getReportsAcademic = reportsHandler(fetchAcademicReport);
 export const getReportsPerformance = reportsHandler(fetchPerformanceReport);
 export const getReportsEnrollment = reportsHandler(fetchEnrollmentReport);
 export const getReportsFaculty = reportsHandler(fetchFacultyReport);
-export const getReportsRequests = reportsHandler(fetchRequestsReport);
+
+const requestsReportSchema = z.object({
+  from_date: z.string().optional().nullable(),
+  to_date: z.string().optional().nullable(),
+  department_id: z.string().uuid().optional().nullable(),
+  program_id: z.string().uuid().optional().nullable(),
+  status: z.string().optional().nullable(),
+  request_type: z.string().optional().nullable(),
+}).default({});
+
+export const getReportsRequests = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => requestsReportSchema.parse(input ?? {}))
+  .handler(async ({ data, context }) => {
+    await assertReportsAccess(context.userId);
+    return fetchRequestsReport(data ?? {});
+  });
 export const getReportsFinancial = reportsHandler(fetchFinancialReport);
 
 const studentsReportSchema = z.object({
