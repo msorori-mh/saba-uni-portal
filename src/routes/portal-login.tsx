@@ -24,7 +24,7 @@ const REDIRECT_AFTER_LOGIN: Record<AccountType, string> = {
 
 const COPY: Record<AccountType, { title: string; idLabel: string; idPlaceholder: string; subtitle: string; Icon: typeof User }> = {
   student: { title: "دخول بوابة الطالب",    idLabel: "الرقم الأكاديمي", idPlaceholder: "20230001", subtitle: "بوابة الطالب الإلكترونية", Icon: GraduationCap },
-  faculty: { title: "دخول بوابة أعضاء هيئة التدريس", idLabel: "رقم الموظف",     idPlaceholder: "F0001",     subtitle: "بوابة أعضاء هيئة التدريس", Icon: BookOpen },
+  faculty: { title: "دخول بوابة أعضاء هيئة التدريس", idLabel: "اسم المستخدم",     idPlaceholder: "F0001",     subtitle: "بوابة أعضاء هيئة التدريس", Icon: BookOpen },
   staff:   { title: "دخول بوابة الموظفين",     idLabel: "رقم الموظف",     idPlaceholder: "S0001",     subtitle: "بوابة الموظفين الإداريين", Icon: Briefcase },
 };
 
