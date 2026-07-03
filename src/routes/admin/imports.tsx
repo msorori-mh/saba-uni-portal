@@ -81,6 +81,11 @@ const STUDENT_CONTEXT_MISMATCH_MESSAGES = {
   semester: "قيمة الفصل في الملف لا تطابق الفصل المحدد في إعدادات الاستيراد.",
 } as const;
 
+const STUDY_SYSTEM_FILENAME_PART: Record<string, string> = {
+  regular: "regular",
+  private: "parallel",
+};
+
 type StudyPlanImportContextState = {
   departmentId: string;
   programId: string;
@@ -152,6 +157,26 @@ const normalizeStudySystemCell = (value: unknown) => {
   if (key === "private" || key === "نفقة خاصة" || key === "نظام نفقة خاصة" || key === "private_expense") return "private";
   return cellText(value);
 };
+
+function sanitizeFileNamePart(value: unknown, fallback: string) {
+  const sanitized = cellText(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+  return sanitized || fallback;
+}
+
+function studentTemplateFileName(overrides: StudentTemplateOverrides) {
+  const program = sanitizeFileNamePart(overrides.program_code, "program");
+  const level = sanitizeFileNamePart(overrides.academic_level, "level");
+  const studySystem = STUDY_SYSTEM_FILENAME_PART[overrides.study_system || ""]
+    || sanitizeFileNamePart(overrides.study_system, "study_system");
+  const academicYear = sanitizeFileNamePart(overrides.academic_year, "year");
+  const semester = sanitizeFileNamePart(overrides.semester, "semester");
+  return `students_${program}_level_${level}_${studySystem}_${academicYear}_${semester}.xlsx`;
+}
 
 function hasAnyStudentImportContextValue(context: StudentImportContextState) {
   return Object.values(context).some(Boolean);
@@ -415,7 +440,9 @@ function ImportsPage() {
       alert(STUDENT_CONTEXT_REQUIRED_MESSAGE);
       return;
     }
-    void downloadTemplate("students", studentTemplateOverrides);
+    void downloadTemplate("students", studentTemplateOverrides, {
+      fileName: studentTemplateFileName(studentTemplateOverrides),
+    });
   };
 
   const prepareRowsForPreview = (parsed: Record<string, unknown>[]) => {
