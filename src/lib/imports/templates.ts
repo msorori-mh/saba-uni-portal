@@ -17,6 +17,10 @@ export type StudentTemplateOverrides = {
   semester?: string;
 };
 
+type TemplateDownloadOptions = {
+  fileName?: string;
+};
+
 const TEMPLATES: Record<ImportType, TemplateDef> = {
   students: {
     sheetName: "Students",
@@ -239,7 +243,11 @@ function applyStudentTemplateOverrides(
   });
 }
 
-export async function downloadTemplate(type: ImportType, studentOverrides?: StudentTemplateOverrides) {
+export async function downloadTemplate(
+  type: ImportType,
+  studentOverrides?: StudentTemplateOverrides,
+  options?: TemplateDownloadOptions,
+) {
   const XLSX = await loadXLSX();
   const def = TEMPLATES[type];
   const wb = XLSX.utils.book_new();
@@ -262,7 +270,7 @@ export async function downloadTemplate(type: ImportType, studentOverrides?: Stud
   wsi["!cols"] = [{ wch: 90 }];
   XLSX.utils.book_append_sheet(wb, wsi, "Instructions");
 
-  XLSX.writeFile(wb, `template_${type}.xlsx`);
+  XLSX.writeFile(wb, options?.fileName || `template_${type}.xlsx`);
 }
 
 export function parseExcel(file: File): Promise<Record<string, unknown>[]> {
