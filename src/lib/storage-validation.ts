@@ -73,21 +73,37 @@ export type ValidationResult =
   | { ok: true }
   | { ok: false; message: string };
 
+// PILOT-MEDIUM-FIX-01 (F-06): Arabic upload error messages made explicit —
+// each rejection tells the user the exact reason, the allowed formats, and
+// the maximum size for the given policy, so the message alone is enough to
+// self-correct without contacting support.
+export function policyHint(policyKey: UploadPolicyKey): string {
+  const p = POLICIES[policyKey];
+  return `الصيغ المقبولة: ${p.allowedExt.join(", ").toUpperCase()} — الحد الأقصى للحجم: ${formatBytes(p.maxBytes)}.`;
+}
+
 export function validateUpload(file: File, policyKey: UploadPolicyKey): ValidationResult {
   const policy = POLICIES[policyKey];
-  if (!file) return { ok: false, message: "لم يتم اختيار ملف." };
+  const hint = policyHint(policyKey);
+
+  if (!file) return { ok: false, message: `تعذر رفع الملف: لم يتم اختيار ملف. ${hint}` };
 
   const ext = getExt(file.name);
-  if (!ext) return { ok: false, message: "اسم الملف لا يحتوي على امتداد." };
+  if (!ext) {
+    return { ok: false, message: `تعذر رفع الملف: اسم الملف لا يحتوي على امتداد واضح. ${hint}` };
+  }
 
   if (BLOCKED_EXT.has(ext)) {
-    return { ok: false, message: `نوع الملف غير مسموح به (${ext}).` };
+    return {
+      ok: false,
+      message: `تعذر رفع الملف: نوع الملف (.${ext}) محظور لأسباب أمنية. ${hint}`,
+    };
   }
 
   if (!policy.allowedExt.includes(ext)) {
     return {
       ok: false,
-      message: `صيغة الملف غير مسموحة. الصيغ المقبولة لـ${policy.label}: ${policy.allowedExt.join(", ")}.`,
+      message: `تعذر رفع الملف: صيغة (.${ext}) غير مقبولة لـ${policy.label}. ${hint}`,
     };
   }
 
@@ -95,19 +111,19 @@ export function validateUpload(file: File, policyKey: UploadPolicyKey): Validati
   if (file.type && !policy.allowedMime.includes(file.type)) {
     return {
       ok: false,
-      message: `نوع المحتوى (${file.type}) لا يطابق الصيغ المقبولة لـ${policy.label}.`,
+      message: `تعذر رفع الملف: نوع المحتوى (${file.type}) لا يطابق صيغة ${policy.label}. ${hint}`,
     };
+  }
+
+  if (file.size === 0) {
+    return { ok: false, message: `تعذر رفع الملف: الملف فارغ (0 بايت). يرجى اختيار ملف صالح. ${hint}` };
   }
 
   if (file.size > policy.maxBytes) {
     return {
       ok: false,
-      message: `حجم الملف ${formatBytes(file.size)} يتجاوز الحد المسموح (${formatBytes(policy.maxBytes)}) لـ${policy.label}.`,
+      message: `تعذر رفع الملف: الحجم ${formatBytes(file.size)} أكبر من الحد المسموح (${formatBytes(policy.maxBytes)}) لـ${policy.label}. يرجى ضغط الملف أو تقليل جودته ثم إعادة المحاولة.`,
     };
-  }
-
-  if (file.size === 0) {
-    return { ok: false, message: "الملف فارغ." };
   }
 
   return { ok: true };
