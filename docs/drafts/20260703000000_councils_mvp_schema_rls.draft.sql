@@ -1,6 +1,6 @@
 -- =====================================================================
 -- DRAFT MIGRATION — FOR HUMAN REVIEW ONLY. DO NOT APPLY.
--- Phase: COUNCILS-MIGRATION-PREP-01
+-- Phase: COUNCILS-MIGRATION-PREP-01 + COUNCILS-MIGRATION-DRAFT-REVISION-01
 -- Module: بوابة إدارة المجالس الأكاديمية (Academic Councils)
 -- Scope:  MVP schema + RLS + helper functions + safety triggers
 -- Source: docs/COUNCILS-DB-RLS-DESIGN-REVIEW-01-REPORT.md
@@ -126,12 +126,21 @@ CREATE TABLE public.academic_council_meetings (
   created_by         uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
   updated_by         uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at         timestamptz NOT NULL DEFAULT now(),
-  updated_at         timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (council_id, academic_year_id, meeting_number)
+  updated_at         timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_acmeet_council ON public.academic_council_meetings(council_id);
 CREATE INDEX idx_acmeet_status ON public.academic_council_meetings(status);
+
+-- Partial uniques: plain UNIQUE(council_id, academic_year_id, meeting_number) allows
+-- duplicate meeting_number when academic_year_id IS NULL (PostgreSQL NULL semantics).
+CREATE UNIQUE INDEX idx_acmeet_council_year_number
+  ON public.academic_council_meetings(council_id, academic_year_id, meeting_number)
+  WHERE academic_year_id IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_acmeet_council_number_without_year
+  ON public.academic_council_meetings(council_id, meeting_number)
+  WHERE academic_year_id IS NULL;
 
 GRANT SELECT, INSERT, UPDATE ON public.academic_council_meetings TO authenticated;
 GRANT ALL ON public.academic_council_meetings TO service_role;
@@ -313,6 +322,19 @@ AS $$
       OR public.has_council_role(_user, _council, 'chair'::public.academic_council_member_role)
       OR public.has_council_role(_user, _council, 'secretary'::public.academic_council_member_role);
 $$;
+
+-- RLS policies invoke these helpers; authenticated must EXECUTE (not anon).
+REVOKE ALL ON FUNCTION public.is_council_admin(uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.is_council_member(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.has_council_role(uuid, uuid, public.academic_council_member_role) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.can_manage_council(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.can_write_council_agenda(uuid, uuid) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.is_council_admin(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.is_council_member(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.has_council_role(uuid, uuid, public.academic_council_member_role) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_manage_council(uuid, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.can_write_council_agenda(uuid, uuid) TO authenticated, service_role;
 
 
 -- =====================================================================
@@ -510,6 +532,8 @@ CREATE POLICY "decisions_insert"
     )
   );
 
+-- MVP: responsible_user_id may SELECT only (decisions_select). Updates are chair/secretary/admin
+-- via can_write_council_agenda until academic_council_decision_followups (COUNCILS-DECISIONS-FOLLOWUP-01).
 CREATE POLICY "decisions_update"
   ON public.academic_council_decisions FOR UPDATE TO authenticated
   USING (
@@ -518,7 +542,6 @@ CREATE POLICY "decisions_update"
       WHERE mt.id = meeting_id
         AND public.can_write_council_agenda(auth.uid(), mt.council_id)
     )
-    OR responsible_user_id = auth.uid()
   )
   WITH CHECK (
     EXISTS (
@@ -526,7 +549,6 @@ CREATE POLICY "decisions_update"
       WHERE mt.id = meeting_id
         AND public.can_write_council_agenda(auth.uid(), mt.council_id)
     )
-    OR responsible_user_id = auth.uid()
   );
 
 
