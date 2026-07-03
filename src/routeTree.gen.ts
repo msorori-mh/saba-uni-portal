@@ -80,6 +80,7 @@ import { Route as AdminAutomationRouteImport } from './routes/admin/automation'
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
 import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
+import { Route as AdminAcademicCouncilsRouteImport } from './routes/admin/academic-councils'
 import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 import { Route as StudentRequestsIndexRouteImport } from './routes/student.requests.index'
 import { Route as MobileStudentIndexRouteImport } from './routes/mobile.student.index'
@@ -514,6 +515,11 @@ const AdminAcademicOperationsRoute = AdminAcademicOperationsRouteImport.update({
   path: '/academic-operations',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAcademicCouncilsRoute = AdminAcademicCouncilsRouteImport.update({
+  id: '/academic-councils',
+  path: '/academic-councils',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
   id: '/academic-core',
   path: '/academic-core',
@@ -597,6 +603,7 @@ export interface FileRoutesByFullPath {
   '/student': typeof StudentRouteWithChildren
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/academic-councils': typeof AdminAcademicCouncilsRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
@@ -685,6 +692,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/academic-councils': typeof AdminAcademicCouncilsRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
@@ -776,6 +784,7 @@ export interface FileRoutesById {
   '/student': typeof StudentRouteWithChildren
   '/verify-document': typeof VerifyDocumentRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
+  '/admin/academic-councils': typeof AdminAcademicCouncilsRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
   '/admin/at-risk-students': typeof AdminAtRiskStudentsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
@@ -870,6 +879,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/verify-document'
     | '/admin/academic-core'
+    | '/admin/academic-councils'
     | '/admin/academic-operations'
     | '/admin/at-risk-students'
     | '/admin/audit-log'
@@ -958,6 +968,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/verify-document'
     | '/admin/academic-core'
+    | '/admin/academic-councils'
     | '/admin/academic-operations'
     | '/admin/at-risk-students'
     | '/admin/audit-log'
@@ -1048,6 +1059,7 @@ export interface FileRouteTypes {
     | '/student'
     | '/verify-document'
     | '/admin/academic-core'
+    | '/admin/academic-councils'
     | '/admin/academic-operations'
     | '/admin/at-risk-students'
     | '/admin/audit-log'
@@ -1693,6 +1705,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAcademicOperationsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/academic-councils': {
+      id: '/admin/academic-councils'
+      path: '/academic-councils'
+      fullPath: '/admin/academic-councils'
+      preLoaderRoute: typeof AdminAcademicCouncilsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/academic-core': {
       id: '/admin/academic-core'
       path: '/academic-core'
@@ -1782,6 +1801,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
+  AdminAcademicCouncilsRoute: typeof AdminAcademicCouncilsRoute
   AdminAcademicOperationsRoute: typeof AdminAcademicOperationsRoute
   AdminAtRiskStudentsRoute: typeof AdminAtRiskStudentsRoute
   AdminAuditLogRoute: typeof AdminAuditLogRoute
@@ -1830,6 +1850,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAcademicCoreRoute: AdminAcademicCoreRoute,
+  AdminAcademicCouncilsRoute: AdminAcademicCouncilsRoute,
   AdminAcademicOperationsRoute: AdminAcademicOperationsRoute,
   AdminAtRiskStudentsRoute: AdminAtRiskStudentsRoute,
   AdminAuditLogRoute: AdminAuditLogRoute,
