@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileText, Loader2, Send } from "lucide-react";
+import { AlertCircle, FileText, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
   getStudentServiceRequestDetails,
@@ -62,6 +62,18 @@ function StudentRequestDetailsPage() {
   const request: any = data.request;
   const canResubmit = request.status === "returned_for_completion" || request.status === "returned";
 
+  // PILOT-MEDIUM-FIX-01 (F-07): surface the latest "return for completion"
+  // reason at the top of the page so the student can act without hunting
+  // through the timeline.
+  const lastReturnEvent = [...(data.events ?? [])]
+    .reverse()
+    .find((event: any) => {
+      const type = String(event.event_type ?? "").toLowerCase();
+      return type.includes("return") || type.includes("استكمال") || type === "returned_for_completion";
+    });
+  const lastReturnReason: string | null = lastReturnEvent?.notes ?? null;
+  const showReturnBanner = canResubmit;
+
   return (
     <div dir="rtl" className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -79,6 +91,32 @@ function StudentRequestDetailsPage() {
           </button>
         )}
       </header>
+
+      {showReturnBanner && (
+        <div
+          role="alert"
+          className="rounded-xl border-2 border-orange-300 bg-orange-50 p-4 shadow-card"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-orange-600" />
+            <div className="flex-1 space-y-1.5">
+              <div className="font-display text-base font-extrabold text-orange-900">
+                طلبك أُعيد إليك للاستكمال
+              </div>
+              <div className="text-sm text-orange-900/90">
+                {lastReturnReason
+                  ? <>سبب الإرجاع: <span className="font-bold">{lastReturnReason}</span></>
+                  : "يرجى مراجعة سجل الحركة أدناه للاطلاع على تفاصيل الإرجاع، ثم إكمال المطلوب وإعادة الإرسال."}
+              </div>
+              {lastReturnEvent?.created_at && (
+                <div className="text-xs text-orange-800/80">
+                  بتاريخ: {new Date(lastReturnEvent.created_at).toLocaleString("ar-EG")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-card">
         <h2 className="font-bold text-primary">{request.title}</h2>

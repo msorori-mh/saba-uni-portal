@@ -2157,12 +2157,31 @@ function ReportActions({
 }
 
 function ReportHeader({ title, loading }: { title: string; loading?: boolean }) {
+  // PILOT-MEDIUM-FIX-01 (F-13): clearer loading affordance — spinner + label,
+  // plus an indeterminate progress bar so wide-filter loads (schedule reports)
+  // feel responsive instead of "stuck".
   return (
-    <div className="flex items-center justify-between border-b border-border px-4 py-3">
-      <h3 className="font-display text-sm font-extrabold text-primary flex items-center gap-2">
-        <FileText className="h-4 w-4 text-gold" /> {title}
-      </h3>
-      {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+    <div className="border-b border-border">
+      <div className="flex items-center justify-between px-4 py-3">
+        <h3 className="font-display text-sm font-extrabold text-primary flex items-center gap-2">
+          <FileText className="h-4 w-4 text-gold" /> {title}
+        </h3>
+        {loading && (
+          <span className="inline-flex items-center gap-2 text-xs font-bold text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            جاري تحميل التقرير...
+          </span>
+        )}
+      </div>
+      {loading && (
+        <div
+          className="h-0.5 w-full overflow-hidden bg-secondary/50"
+          role="progressbar"
+          aria-label="جاري تحميل التقرير"
+        >
+          <div className="h-full w-1/3 animate-[report-progress_1.2s_ease-in-out_infinite] bg-primary/70" />
+        </div>
+      )}
     </div>
   );
 }
