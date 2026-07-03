@@ -106,8 +106,9 @@ export const getCouncilsSummary = createServerFn({ method: "POST" })
         .select("id", { count: "exact", head: true })
         .eq("status", "under_review" as never),
       supabaseAdmin
-        .from("academic_council_agenda_items")
-        .select("id", { count: "exact", head: true }),
+        .from("academic_council_topics")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "accepted_for_agenda" as never),
       supabaseAdmin
         .from("academic_council_topics")
         .select("id", { count: "exact", head: true })
