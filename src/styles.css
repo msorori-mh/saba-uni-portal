@@ -137,3 +137,10 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-float-up { animation: float-up 0.7s ease-out both; }
+
+/* PILOT-MEDIUM-FIX-01 (F-13): indeterminate progress bar for report loading */
+@keyframes report-progress {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(150%); }
+  100% { transform: translateX(350%); }
+}
