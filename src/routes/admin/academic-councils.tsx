@@ -1,114 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   ScrollText, Users2, CalendarClock, FilePlus2, ListChecks, FileText,
   ClipboardCheck, Archive, Bell, Info, Lock, LayoutDashboard, BarChart3,
-  AlertTriangle, ArrowRight,
+  AlertTriangle, ArrowRight, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getCouncilsSummary, type CouncilsSummary } from "@/lib/admin-councils.functions";
 
 export const Route = createFileRoute("/admin/academic-councils")({
   head: () => ({
     meta: [
-      { title: "بوابة إدارة المجالس الأكاديمية — قيد التأسيس" },
+      { title: "بوابة إدارة المجالس الأكاديمية" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  component: AcademicCouncilsScaffoldPage,
+  component: AcademicCouncilsPage,
 });
-
-// ============================================================================
-// STATIC DEMO DATA — for presentation/design only. Never fetched from DB.
-// ============================================================================
-
-const KPIS = [
-  { label: "الاجتماعات القادمة", value: "قيد التأسيس", icon: CalendarClock },
-  { label: "الموضوعات المرفوعة", value: "قيد التأسيس", icon: FilePlus2 },
-  { label: "القرارات قيد المتابعة", value: "قيد التأسيس", icon: ClipboardCheck },
-  { label: "القرارات المتأخرة", value: "قيد التأسيس", icon: AlertTriangle },
-] as const;
-
-const COUNCIL_OVERVIEW = [
-  {
-    name: "مجلس الكلية",
-    type: "college" as const,
-    members: "— عضو",
-    lastMeeting: "—",
-    nextMeeting: "—",
-    status: "قيد التأسيس",
-  },
-  {
-    name: "مجلس قسم تقنية المعلومات",
-    type: "department" as const,
-    members: "— عضو",
-    lastMeeting: "—",
-    nextMeeting: "—",
-    status: "قيد التأسيس",
-  },
-  {
-    name: "مجلس قسم علوم الحاسوب",
-    type: "department" as const,
-    members: "— عضو",
-    lastMeeting: "—",
-    nextMeeting: "—",
-    status: "قيد التأسيس",
-  },
-];
-
-const UPCOMING_MEETINGS_PLACEHOLDER = [
-  { title: "الاجتماع الدوري لمجلس الكلية", when: "—", where: "—" },
-  { title: "الاجتماع الدوري لمجلس القسم", when: "—", where: "—" },
-];
-
-const AGENDA_STAGES = [
-  { label: "دراسة المقترح", count: "—" },
-  { label: "قيد المراجعة", count: "—" },
-  { label: "معتمد على جدول الأعمال", count: "—" },
-  { label: "مؤجَّل", count: "—" },
-];
-
-const CONCEPT_CARDS = [
-  {
-    icon: LayoutDashboard,
-    title: "هدف البوابة",
-    desc: "توحيد إدارة مجلس الكلية ومجالس الأقسام في بيئة رقمية آمنة تحفظ سرية القرارات وتحدد الصلاحيات.",
-  },
-  {
-    icon: Users2,
-    title: "مجلس الكلية",
-    desc: "مجلس واحد على مستوى الكلية يضم العمادة ورؤساء الأقسام وأعضاء التمثيل الأكاديمي.",
-  },
-  {
-    icon: Users2,
-    title: "مجالس الأقسام",
-    desc: "مجلس لكل قسم أكاديمي معزول عن باقي الأقسام وفق سياسة العزل بالقسم.",
-  },
-  {
-    icon: FilePlus2,
-    title: "دورة الموضوع",
-    desc: "من الرفع إلى المراجعة إلى الاعتماد على جدول الأعمال أو التأجيل أو الرفض.",
-  },
-  {
-    icon: CalendarClock,
-    title: "دورة الاجتماع",
-    desc: "من الجدولة إلى فتح استقبال المواضيع إلى الجلسة إلى إغلاق المحضر والأرشفة.",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "دورة القرار والمتابعة",
-    desc: "إصدار القرار، إسناد المسؤول، تتبع التنفيذ، وإغلاقه رسمياً بعد الإنجاز.",
-  },
-  {
-    icon: Bell,
-    title: "الجدولة والتنبيهات المستقبلية",
-    desc: "قواعد جدولة دورية وتنبيهات آلية للأعضاء قبل الاجتماعات وعند فتح الاستقبال.",
-  },
-  {
-    icon: Archive,
-    title: "الأرشفة والتقارير",
-    desc: "أرشيف كامل للمحاضر والقرارات وتقارير أداء المجالس ونسب تنفيذ التوصيات.",
-  },
-];
 
 // ============================================================================
 // SHARED UI PIECES
@@ -151,7 +61,7 @@ function LockedAction({ label, hint }: { label: string; hint?: string }) {
         {label}
       </Button>
       <span className="text-[11px] text-muted-foreground">
-        {hint ?? "سيتاح بعد تفعيل قاعدة بيانات المجالس والصلاحيات."}
+        {hint ?? "سيتاح بعد اكتمال اعتماد صلاحيات الكتابة على بوابة المجالس."}
       </span>
     </div>
   );
@@ -165,11 +75,60 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
+function formatDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("ar", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 // ============================================================================
 // PAGE
 // ============================================================================
 
-function AcademicCouncilsScaffoldPage() {
+const EMPTY_SUMMARY: CouncilsSummary = {
+  councils: [],
+  kpis: {
+    upcoming_meetings: 0,
+    submitted_topics: 0,
+    open_decisions: 0,
+    overdue_decisions: 0,
+  },
+  agenda_stages: { draft: 0, under_review: 0, approved: 0, deferred: 0 },
+  upcoming_meetings: [],
+};
+
+function AcademicCouncilsPage() {
+  const fetchSummary = useServerFn(getCouncilsSummary);
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["admin", "academic-councils", "summary"],
+    queryFn: () => fetchSummary(),
+    staleTime: 30_000,
+  });
+
+  const summary: CouncilsSummary = data ?? EMPTY_SUMMARY;
+  const collegeCouncils = summary.councils.filter((c) => c.council_type === "college");
+  const departmentCouncils = summary.councils.filter((c) => c.council_type === "department");
+
+  const kpis = [
+    { label: "الاجتماعات القادمة", value: summary.kpis.upcoming_meetings, icon: CalendarClock },
+    { label: "الموضوعات المرفوعة", value: summary.kpis.submitted_topics, icon: FilePlus2 },
+    { label: "القرارات قيد المتابعة", value: summary.kpis.open_decisions, icon: ClipboardCheck },
+    { label: "القرارات المتأخرة", value: summary.kpis.overdue_decisions, icon: AlertTriangle },
+  ] as const;
+
+  const agendaStages = [
+    { label: "دراسة المقترح", count: summary.agenda_stages.draft },
+    { label: "قيد المراجعة", count: summary.agenda_stages.under_review },
+    { label: "معتمد على جدول الأعمال", count: summary.agenda_stages.approved },
+    { label: "مؤجَّل", count: summary.agenda_stages.deferred },
+  ];
+
   return (
     <div className="space-y-6" dir="rtl">
       {/* Header */}
@@ -182,8 +141,8 @@ function AcademicCouncilsScaffoldPage() {
             <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-primary">
               بوابة إدارة المجالس الأكاديمية
             </h1>
-            <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800">
-              قيد التأسيس
+            <Badge variant="outline" className="border-emerald-400 bg-emerald-50 text-emerald-800">
+              قراءة فقط
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground max-w-3xl leading-relaxed">
@@ -194,32 +153,41 @@ function AcademicCouncilsScaffoldPage() {
         </div>
       </div>
 
-      {/* Prominent notice */}
+      {/* Notice */}
       <div className="rounded-xl border-2 border-dashed border-amber-300 bg-amber-50 p-4 flex items-start gap-3 text-amber-900">
         <Info className="h-5 w-5 shrink-0 mt-0.5 text-amber-700" />
         <div className="text-sm">
-          <div className="font-bold">تنبيه عرض</div>
+          <div className="font-bold">وضع القراءة فقط</div>
           <div className="mt-0.5 leading-relaxed">
-            هذه البوابة في مرحلة التأسيس، والبيانات المعروضة لأغراض العرض والتصميم فقط،
-            ولا تمثل بيانات رسمية. لا يوجد اتصال بأي قاعدة بيانات للمجالس في هذه المرحلة.
+            تم تفعيل قراءة بيانات المجالس من قاعدة البيانات. جميع عمليات الإنشاء والتعديل
+            والإصدار وإرسال التنبيهات لا تزال معطّلة ريثما يعتمد الفريق التنفيذي مرحلة
+            الكتابة الآمنة.
           </div>
         </div>
       </div>
+
+      {isError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          تعذّر تحميل بيانات المجالس حالياً. يرجى إعادة المحاولة لاحقاً.
+        </div>
+      ) : null}
 
       {/* KPI strip */}
       <SectionCard
         icon={BarChart3}
         title="لوحة المجالس"
-        subtitle="مؤشرات عامة عن نشاط المجالس — عرض توضيحي فقط."
+        subtitle="مؤشرات مباشرة من قاعدة بيانات المجالس."
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {KPIS.map((k) => (
+          {kpis.map((k) => (
             <div key={k.label} className="rounded-lg border border-border bg-background p-3">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <k.icon className="h-4 w-4" />
                 <span className="text-xs">{k.label}</span>
               </div>
-              <div className="mt-1 font-bold text-primary">{k.value}</div>
+              <div className="mt-1 font-bold text-primary">
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : k.value}
+              </div>
             </div>
           ))}
         </div>
@@ -232,22 +200,30 @@ function AcademicCouncilsScaffoldPage() {
           title="مجلس الكلية"
           subtitle="مجلس واحد على مستوى الكلية."
         >
-          <ul className="space-y-2">
-            {COUNCIL_OVERVIEW.filter((c) => c.type === "college").map((c) => (
-              <li
-                key={c.name}
-                className="flex items-center justify-between rounded-lg border border-border bg-background p-3"
-              >
-                <div>
-                  <div className="font-bold text-primary text-sm">{c.name}</div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    الأعضاء: {c.members} · الاجتماع القادم: {c.nextMeeting}
+          {isLoading ? (
+            <EmptyState text="جاري تحميل بيانات مجلس الكلية…" />
+          ) : collegeCouncils.length === 0 ? (
+            <EmptyState text="لا يوجد مجلس كلية مفعّل حالياً." />
+          ) : (
+            <ul className="space-y-2">
+              {collegeCouncils.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-background p-3"
+                >
+                  <div>
+                    <div className="font-bold text-primary text-sm">{c.name}</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      الأعضاء: {c.members_count} · الاجتماع القادم: {formatDateTime(c.next_meeting_at)}
+                    </div>
                   </div>
-                </div>
-                <Badge variant="secondary" className="text-[11px]">{c.status}</Badge>
-              </li>
-            ))}
-          </ul>
+                  <Badge variant={c.is_active ? "secondary" : "outline"} className="text-[11px]">
+                    {c.is_active ? "مفعّل" : "غير مفعّل"}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </SectionCard>
 
         <SectionCard
@@ -255,22 +231,30 @@ function AcademicCouncilsScaffoldPage() {
           title="مجالس الأقسام"
           subtitle="مجلس لكل قسم أكاديمي داخل الكلية."
         >
-          <ul className="space-y-2">
-            {COUNCIL_OVERVIEW.filter((c) => c.type === "department").map((c) => (
-              <li
-                key={c.name}
-                className="flex items-center justify-between rounded-lg border border-border bg-background p-3"
-              >
-                <div>
-                  <div className="font-bold text-primary text-sm">{c.name}</div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    الأعضاء: {c.members} · الاجتماع القادم: {c.nextMeeting}
+          {isLoading ? (
+            <EmptyState text="جاري تحميل بيانات مجالس الأقسام…" />
+          ) : departmentCouncils.length === 0 ? (
+            <EmptyState text="لا توجد مجالس أقسام مفعّلة حالياً." />
+          ) : (
+            <ul className="space-y-2">
+              {departmentCouncils.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-background p-3"
+                >
+                  <div>
+                    <div className="font-bold text-primary text-sm">{c.name}</div>
+                    <div className="mt-0.5 text-[11px] text-muted-foreground">
+                      الأعضاء: {c.members_count} · الاجتماع القادم: {formatDateTime(c.next_meeting_at)}
+                    </div>
                   </div>
-                </div>
-                <Badge variant="secondary" className="text-[11px]">{c.status}</Badge>
-              </li>
-            ))}
-          </ul>
+                  <Badge variant={c.is_active ? "secondary" : "outline"} className="text-[11px]">
+                    {c.is_active ? "مفعّل" : "غير مفعّل"}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          )}
         </SectionCard>
       </div>
 
@@ -278,24 +262,31 @@ function AcademicCouncilsScaffoldPage() {
       <SectionCard
         icon={CalendarClock}
         title="الاجتماعات القادمة"
-        subtitle="جدولة الاجتماعات وإرسال الدعوات."
+        subtitle="أقرب خمسة اجتماعات مجدولة."
       >
-        <ul className="space-y-2">
-          {UPCOMING_MEETINGS_PLACEHOLDER.map((m) => (
-            <li
-              key={m.title}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border bg-background p-3"
-            >
-              <div>
-                <div className="font-bold text-primary text-sm">{m.title}</div>
-                <div className="mt-0.5 text-[11px] text-muted-foreground">
-                  الموعد: {m.when} · المكان: {m.where}
+        {isLoading ? (
+          <EmptyState text="جاري تحميل الاجتماعات…" />
+        ) : summary.upcoming_meetings.length === 0 ? (
+          <EmptyState text="لا توجد اجتماعات مجدولة حالياً." />
+        ) : (
+          <ul className="space-y-2">
+            {summary.upcoming_meetings.map((m) => (
+              <li
+                key={m.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background p-3"
+              >
+                <div>
+                  <div className="font-bold text-primary text-sm">{m.title}</div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">
+                    {m.council_name} · الموعد: {formatDateTime(m.scheduled_at)} ·
+                    المكان: {m.location ?? "—"}
+                  </div>
                 </div>
-              </div>
-              <Badge variant="outline" className="text-[11px]">قيد التأسيس</Badge>
-            </li>
-          ))}
-        </ul>
+                <Badge variant="outline" className="text-[11px]">مجدول</Badge>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="mt-4">
           <LockedAction label="إنشاء اجتماع" />
         </div>
@@ -307,23 +298,25 @@ function AcademicCouncilsScaffoldPage() {
         title="رفع موضوع جديد"
         subtitle="استقبال الموضوعات المقترحة للإدراج في جدول الأعمال."
       >
-        <EmptyState text="نموذج رفع الموضوع سيتاح بعد تفعيل قاعدة بيانات المجالس." />
+        <EmptyState text="نموذج رفع الموضوع سيتاح بعد اعتماد مرحلة الكتابة." />
         <div className="mt-4">
           <LockedAction label="رفع موضوع جديد" />
         </div>
       </SectionCard>
 
-      {/* Agenda */}
+      {/* Agenda stages */}
       <SectionCard
         icon={ListChecks}
         title="جدول الأعمال"
-        subtitle="إعداد وترتيب بنود جدول الأعمال لكل اجتماع."
+        subtitle="توزيع الموضوعات على مراحل جدول الأعمال."
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {AGENDA_STAGES.map((s) => (
+          {agendaStages.map((s) => (
             <div key={s.label} className="rounded-lg border border-border bg-background p-3">
               <div className="text-xs text-muted-foreground">{s.label}</div>
-              <div className="mt-1 font-bold text-primary">{s.count}</div>
+              <div className="mt-1 font-bold text-primary">
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : s.count}
+              </div>
             </div>
           ))}
         </div>
@@ -338,7 +331,7 @@ function AcademicCouncilsScaffoldPage() {
         title="المحاضر والقرارات"
         subtitle="توثيق المحاضر واعتماد القرارات رسمياً."
       >
-        <EmptyState text="لا توجد محاضر أو قرارات لعرضها في المرحلة الحالية." />
+        <EmptyState text="لا توجد محاضر أو قرارات لعرضها حالياً." />
         <div className="mt-4">
           <LockedAction label="إصدار قرار" />
         </div>
@@ -350,7 +343,16 @@ function AcademicCouncilsScaffoldPage() {
         title="متابعة تنفيذ القرارات"
         subtitle="تتبع حالة تنفيذ التوصيات والقرارات."
       >
-        <EmptyState text="لا توجد قرارات قيد المتابعة في المرحلة الحالية." />
+        {isLoading ? (
+          <EmptyState text="جاري تحميل بيانات المتابعة…" />
+        ) : summary.kpis.open_decisions === 0 ? (
+          <EmptyState text="لا توجد قرارات قيد المتابعة حالياً." />
+        ) : (
+          <div className="rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground">
+            يوجد {summary.kpis.open_decisions} قرار قيد المتابعة، منها
+            {" "}{summary.kpis.overdue_decisions} متأخرة.
+          </div>
+        )}
       </SectionCard>
 
       {/* Archive + Reports */}
@@ -368,7 +370,7 @@ function AcademicCouncilsScaffoldPage() {
           title="التقارير"
           subtitle="تقارير أداء المجالس ونسب تنفيذ التوصيات."
         >
-          <EmptyState text="ستُتاح التقارير بعد تفعيل قاعدة بيانات المجالس." />
+          <EmptyState text="ستُتاح التقارير بعد تفعيل مرحلة الكتابة والقرارات." />
         </SectionCard>
       </div>
 
@@ -393,10 +395,17 @@ function AcademicCouncilsScaffoldPage() {
       <SectionCard
         icon={Info}
         title="نظرة معمارية على البوابة"
-        subtitle="بطاقات تعريفية للتصميم المقترح."
+        subtitle="بطاقات تعريفية للتصميم المعتمد."
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {CONCEPT_CARDS.map((c) => (
+          {[
+            { icon: LayoutDashboard, title: "هدف البوابة", desc: "توحيد إدارة مجلس الكلية ومجالس الأقسام في بيئة رقمية آمنة تحفظ سرية القرارات وتحدد الصلاحيات." },
+            { icon: Users2, title: "مجلس الكلية", desc: "مجلس واحد على مستوى الكلية يضم العمادة ورؤساء الأقسام وأعضاء التمثيل الأكاديمي." },
+            { icon: Users2, title: "مجالس الأقسام", desc: "مجلس لكل قسم أكاديمي معزول عن باقي الأقسام وفق سياسة العزل بالقسم." },
+            { icon: FilePlus2, title: "دورة الموضوع", desc: "من الرفع إلى المراجعة إلى الاعتماد على جدول الأعمال أو التأجيل أو الرفض." },
+            { icon: CalendarClock, title: "دورة الاجتماع", desc: "من الجدولة إلى فتح استقبال المواضيع إلى الجلسة إلى إغلاق المحضر والأرشفة." },
+            { icon: ClipboardCheck, title: "دورة القرار والمتابعة", desc: "إصدار القرار، إسناد المسؤول، تتبع التنفيذ، وإغلاقه رسمياً بعد الإنجاز." },
+          ].map((c) => (
             <div key={c.title} className="rounded-lg border border-border bg-background p-3">
               <div className="flex items-center gap-2">
                 <div className="grid h-8 w-8 place-items-center rounded-md bg-secondary text-primary shrink-0">
@@ -415,8 +424,7 @@ function AcademicCouncilsScaffoldPage() {
         <ArrowRight className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
         <div>
           الوظائف التشغيلية (إنشاء المجالس، جدولة الاجتماعات، استقبال الموضوعات، إصدار
-          القرارات، إرسال التنبيهات) ستُفعَّل في مراحل لاحقة بعد اعتماد قاعدة البيانات
-          الخاصة بالمجالس والصلاحيات المرتبطة بها.
+          القرارات، إرسال التنبيهات) ستُفعَّل في مرحلة الكتابة الآمنة بعد اعتمادها.
         </div>
       </div>
     </div>
