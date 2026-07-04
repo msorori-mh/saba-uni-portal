@@ -43,6 +43,7 @@ import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-
 import { Route as MobileStudentRouteImport } from './routes/mobile.student'
 import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
+import { Route as FacultyPortalAcademicCouncilsRouteImport } from './routes/faculty-portal.academic-councils'
 import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
 import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -326,6 +327,12 @@ const FacultyPortalChangePasswordRoute =
   FacultyPortalChangePasswordRouteImport.update({
     id: '/change-password',
     path: '/change-password',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
+const FacultyPortalAcademicCouncilsRoute =
+  FacultyPortalAcademicCouncilsRouteImport.update({
+    id: '/academic-councils',
+    path: '/academic-councils',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
 const DocumentViewIdRoute = DocumentViewIdRouteImport.update({
@@ -641,6 +648,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
+  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
@@ -730,6 +738,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
+  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
@@ -822,6 +831,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/departments/$code': typeof DepartmentsCodeRoute
   '/document-view/$id': typeof DocumentViewIdRoute
+  '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
@@ -917,6 +927,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
+    | '/faculty-portal/academic-councils'
     | '/faculty-portal/change-password'
     | '/faculty-portal/schedule'
     | '/mobile/student'
@@ -1006,6 +1017,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
+    | '/faculty-portal/academic-councils'
     | '/faculty-portal/change-password'
     | '/faculty-portal/schedule'
     | '/mobile/student-login'
@@ -1097,6 +1109,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/departments/$code'
     | '/document-view/$id'
+    | '/faculty-portal/academic-councils'
     | '/faculty-portal/change-password'
     | '/faculty-portal/schedule'
     | '/mobile/student'
@@ -1444,6 +1457,13 @@ declare module '@tanstack/react-router' {
       path: '/change-password'
       fullPath: '/faculty-portal/change-password'
       preLoaderRoute: typeof FacultyPortalChangePasswordRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/faculty-portal/academic-councils': {
+      id: '/faculty-portal/academic-councils'
+      path: '/academic-councils'
+      fullPath: '/faculty-portal/academic-councils'
+      preLoaderRoute: typeof FacultyPortalAcademicCouncilsRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
     '/document-view/$id': {
@@ -1912,6 +1932,7 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
 )
 
 interface FacultyPortalRouteChildren {
+  FacultyPortalAcademicCouncilsRoute: typeof FacultyPortalAcademicCouncilsRoute
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
   FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
@@ -1919,6 +1940,7 @@ interface FacultyPortalRouteChildren {
 }
 
 const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
+  FacultyPortalAcademicCouncilsRoute: FacultyPortalAcademicCouncilsRoute,
   FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
   FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
