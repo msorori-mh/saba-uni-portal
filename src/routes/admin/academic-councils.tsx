@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -61,14 +61,22 @@ function SectionCard({
   title,
   subtitle,
   children,
+  id,
+  sectionRef,
 }: {
   icon: typeof ScrollText;
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  id?: string;
+  sectionRef?: React.RefObject<HTMLElement | null>;
 }) {
   return (
-    <section className="rounded-xl border border-border bg-card shadow-card">
+    <section
+      id={id}
+      ref={sectionRef}
+      className="rounded-xl border border-border bg-card shadow-card"
+    >
       <header className="flex items-start gap-3 border-b border-border/60 p-4">
         <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary shrink-0">
           <Icon className="h-5 w-5" />
@@ -487,10 +495,12 @@ function CouncilPickerRow({
   council,
   selected,
   onSelect,
+  onManageMembership,
 }: {
   council: CouncilsOverviewItem;
   selected: boolean;
   onSelect: () => void;
+  onManageMembership: () => void;
 }) {
   return (
     <li
@@ -520,7 +530,10 @@ function CouncilPickerRow({
             size="sm"
             variant={selected ? "default" : "outline"}
             className="gap-1.5 text-xs"
-            onClick={onSelect}
+            onClick={(e) => {
+              e.stopPropagation();
+              onManageMembership();
+            }}
           >
             <Users2 className="h-3.5 w-3.5" />
             إدارة العضويات
@@ -561,6 +574,8 @@ function AcademicCouncilsPage() {
   const allCouncils = summary.councils;
 
   const [selectedCouncilId, setSelectedCouncilId] = useState<string | null>(null);
+  const [pendingMembershipFocus, setPendingMembershipFocus] = useState(false);
+  const membershipPanelRef = useRef<HTMLElement>(null);
   const selectedCouncil = useMemo(
     () => allCouncils.find((c) => c.id === selectedCouncilId) ?? null,
     [allCouncils, selectedCouncilId],
@@ -568,11 +583,26 @@ function AcademicCouncilsPage() {
 
   const selectCouncil = (id: string) => setSelectedCouncilId(id);
 
+  const selectCouncilAndFocusMembership = (id: string) => {
+    setSelectedCouncilId(id);
+    setPendingMembershipFocus(true);
+  };
+
   useEffect(() => {
     if (!isLoading && allCouncils.length === 1 && selectedCouncilId === null) {
       setSelectedCouncilId(allCouncils[0].id);
     }
   }, [isLoading, allCouncils, selectedCouncilId]);
+
+  useEffect(() => {
+    if (!pendingMembershipFocus || !selectedCouncilId) return;
+    setPendingMembershipFocus(false);
+    const panel = membershipPanelRef.current;
+    if (!panel) return;
+    requestAnimationFrame(() => {
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [pendingMembershipFocus, selectedCouncilId]);
 
   const kpis = [
     { label: "الاجتماعات القادمة", value: summary.kpis.upcoming_meetings, icon: CalendarClock },
@@ -673,6 +703,7 @@ function AcademicCouncilsPage() {
                   council={c}
                   selected={selectedCouncilId === c.id}
                   onSelect={() => selectCouncil(c.id)}
+                  onManageMembership={() => selectCouncilAndFocusMembership(c.id)}
                 />
               ))}
             </ul>
@@ -696,6 +727,7 @@ function AcademicCouncilsPage() {
                   council={c}
                   selected={selectedCouncilId === c.id}
                   onSelect={() => selectCouncil(c.id)}
+                  onManageMembership={() => selectCouncilAndFocusMembership(c.id)}
                 />
               ))}
             </ul>
@@ -705,6 +737,8 @@ function AcademicCouncilsPage() {
 
       {/* Membership administration */}
       <SectionCard
+        id="council-membership-panel"
+        sectionRef={membershipPanelRef}
         icon={Users2}
         title="إدارة عضويات المجلس"
         subtitle="أضف أعضاء هيئة التدريس إلى المجلس، أو عطّل العضويات دون حذف."

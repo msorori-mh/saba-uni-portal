@@ -131,6 +131,14 @@ function normalizeAdminPath(pathname: string): string {
   return trimmed;
 }
 
+/** Ensures admin sidebar links stay absolute (prevents /admin/admin/... from relative paths). */
+export function resolveAdminNavHref(to: string): string {
+  if (to.startsWith("/")) return to;
+  const stripped = to.replace(/^\.\//, "");
+  if (stripped.startsWith("admin/")) return `/${stripped}`;
+  return `/admin/${stripped}`;
+}
+
 /** Resolve RBAC roles for an admin (or /messages) path via exact or longest-prefix match. */
 export function resolveAdminRouteRoles(pathname: string): readonly string[] | null {
   if (pathname === "/admin/login") return null;
