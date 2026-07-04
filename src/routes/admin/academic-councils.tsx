@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -257,14 +257,16 @@ function CouncilMembershipPanel({
   return (
     <div className="space-y-4">
       {/* Link form */}
-      <div className="rounded-lg border border-border bg-background p-4 space-y-3">
-        <div className="font-bold text-primary text-sm flex items-center gap-2">
-          <UserPlus className="h-4 w-4" />
-          ربط عضو جديد — {council.name}
+      <div className="rounded-lg border-2 border-primary/20 bg-background p-4 space-y-3">
+        <div className="font-bold text-primary text-base flex items-center gap-2">
+          <UserPlus className="h-5 w-5" />
+          إضافة عضو إلى المجلس — {council.name}
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs text-muted-foreground">البحث عن أكاديمي (حرفان على الأقل)</label>
+          <label className="text-xs font-medium text-foreground">
+            ابحث باسم عضو هيئة التدريس أو البريد أو الرقم الأكاديمي
+          </label>
           <div className="relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -273,7 +275,7 @@ function CouncilMembershipPanel({
                 setSearchQuery(e.target.value);
                 setSelectedCandidate(null);
               }}
-              placeholder="الاسم، البريد، أو الرقم الأكاديمي"
+              placeholder="ابحث باسم عضو هيئة التدريس أو البريد أو الرقم الأكاديمي"
               className="pr-9"
               dir="rtl"
             />
@@ -355,7 +357,7 @@ function CouncilMembershipPanel({
                 onClick={handleLink}
               >
                 {linkBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                حفظ الربط
+                حفظ العضوية
               </Button>
             </div>
           </div>
@@ -491,26 +493,40 @@ function CouncilPickerRow({
   onSelect: () => void;
 }) {
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onSelect}
-        className={`w-full flex items-center justify-between rounded-lg border p-3 text-right transition-colors ${
-          selected
-            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-            : "border-border bg-background hover:bg-muted/30"
-        }`}
-      >
-        <div>
+    <li
+      className={`rounded-lg border p-3 transition-colors ${
+        selected
+          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+          : "border-border bg-background"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onSelect}
+          className="flex-1 min-w-0 text-right hover:opacity-90 transition-opacity"
+        >
           <div className="font-bold text-primary text-sm">{council.name}</div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
             الأعضاء: {council.members_count} · الاجتماع القادم: {formatDateTime(council.next_meeting_at)}
           </div>
+        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Badge variant={council.is_active ? "secondary" : "outline"} className="text-[11px]">
+            {council.is_active ? "مفعّل" : "غير مفعّل"}
+          </Badge>
+          <Button
+            type="button"
+            size="sm"
+            variant={selected ? "default" : "outline"}
+            className="gap-1.5 text-xs"
+            onClick={onSelect}
+          >
+            <Users2 className="h-3.5 w-3.5" />
+            إدارة العضويات
+          </Button>
         </div>
-        <Badge variant={council.is_active ? "secondary" : "outline"} className="text-[11px] shrink-0">
-          {council.is_active ? "مفعّل" : "غير مفعّل"}
-        </Badge>
-      </button>
+      </div>
     </li>
   );
 }
@@ -551,6 +567,12 @@ function AcademicCouncilsPage() {
   );
 
   const selectCouncil = (id: string) => setSelectedCouncilId(id);
+
+  useEffect(() => {
+    if (!isLoading && allCouncils.length === 1 && selectedCouncilId === null) {
+      setSelectedCouncilId(allCouncils[0].id);
+    }
+  }, [isLoading, allCouncils, selectedCouncilId]);
 
   const kpis = [
     { label: "الاجتماعات القادمة", value: summary.kpis.upcoming_meetings, icon: CalendarClock },
@@ -685,10 +707,22 @@ function AcademicCouncilsPage() {
       <SectionCard
         icon={Users2}
         title="إدارة عضويات المجلس"
-        subtitle="اختر مجلساً من القوائم أعلاه لعرض العضويات وربط أعضاء هيئة التدريس أو تعطيل العضويات."
+        subtitle="أضف أعضاء هيئة التدريس إلى المجلس، أو عطّل العضويات دون حذف."
       >
+        {selectedCouncil ? (
+          <p className="mb-4 text-xs text-muted-foreground">
+            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
+          </p>
+        ) : null}
         {!selectedCouncil ? (
-          <EmptyState text="اختر مجلساً من قسم مجلس الكلية أو مجالس الأقسام لبدء إدارة العضويات." />
+          <div className="rounded-lg border border-dashed border-amber-300/60 bg-amber-50/50 p-6 text-center space-y-3">
+            <p className="text-sm text-foreground font-medium">
+              اضغط على بطاقة مجلس الكلية أو زر «إدارة العضويات» للبدء.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              بعد اختيار المجلس ستظهر: البحث عن الأكاديمي، اختيار الدور، وزر «حفظ العضوية».
+            </p>
+          </div>
         ) : (
           <CouncilMembershipPanel council={selectedCouncil} />
         )}
