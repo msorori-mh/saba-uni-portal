@@ -4387,6 +4387,10 @@ export type Database = {
         Args: { _recipient: string; _sender: string }
         Returns: boolean
       }
+      can_submit_council_topic: {
+        Args: { _council: string; _user: string }
+        Returns: boolean
+      }
       can_write_council_agenda: {
         Args: { _council: string; _user: string }
         Returns: boolean
@@ -4562,6 +4566,10 @@ export type Database = {
         Returns: Json
       }
       verify_document: { Args: { _query: string }; Returns: Json }
+      was_council_member_on: {
+        Args: { _council: string; _date: string; _user: string }
+        Returns: boolean
+      }
     }
     Enums: {
       academic_council_decision_status:
