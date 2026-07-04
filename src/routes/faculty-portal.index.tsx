@@ -179,7 +179,7 @@ function FacultyDashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-primary">مجالسي الأكاديمية</div>
                   <div className="text-xs text-muted-foreground">
-                    الدخول إلى المجالس الأكاديمية المرتبط بها حسابك، ومتابعة الاجتماعات والموضوعات والقرارات عند تفعيلها.
+                    الدخول إلى المجالس الأكاديمية المرتبط بها حسابك.
                   </div>
                   <span className="mt-2 inline-flex items-center rounded-md border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-primary-deep">
                     دخول مجالسي الأكاديمية
