@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck } from "lucide-react";
+import { LogOut, User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck, ScrollText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
@@ -164,6 +164,26 @@ function FacultyDashboard() {
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-primary">جدول التدريس الأسبوعي</div>
                   <div className="text-xs text-muted-foreground">عرض الفترات الزمنية والقاعات والمحاضرات المسندة إليك.</div>
+                </div>
+              </div>
+            </Link>
+
+            <Link
+              to="/faculty-portal/academic-councils"
+              className="mt-3 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                  <ScrollText className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-primary">مجالسي الأكاديمية</div>
+                  <div className="text-xs text-muted-foreground">
+                    الدخول إلى المجالس الأكاديمية المرتبط بها حسابك، ومتابعة الاجتماعات والموضوعات والقرارات عند تفعيلها.
+                  </div>
+                  <span className="mt-2 inline-flex items-center rounded-md border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-primary-deep">
+                    دخول مجالسي الأكاديمية
+                  </span>
                 </div>
               </div>
             </Link>
