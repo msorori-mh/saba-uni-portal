@@ -7,7 +7,8 @@ export type UploadPolicyKey =
   | "public_image"        // news, events, departments, faculty (2 MB, image only)
   | "student_attachment"  // student-request-attachments (5 MB, pdf/jpg/png)
   | "payment_receipt"     // payment-receipts (5 MB, pdf/jpg/png)
-  | "research_pdf";       // research-pdfs (10 MB, pdf only)
+  | "research_pdf"        // research-pdfs (10 MB, pdf only)
+  | "council_topic_attachment"; // council-topic-attachments (10 MB, office + images)
 
 type Policy = {
   maxBytes: number;
@@ -40,6 +41,21 @@ const POLICIES: Record<UploadPolicyKey, Policy> = {
     allowedMime: ["application/pdf"],
     allowedExt: ["pdf"],
     label: "ملف بحث (PDF)",
+  },
+  council_topic_attachment: {
+    maxBytes: 10 * 1024 * 1024,
+    allowedMime: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ],
+    allowedExt: ["jpg", "jpeg", "png", "webp", "pdf", "doc", "docx", "xls", "xlsx"],
+    label: "مرفق موضوع المجلس",
   },
 };
 
@@ -131,4 +147,68 @@ export function validateUpload(file: File, policyKey: UploadPolicyKey): Validati
 
 export function getPolicy(policyKey: UploadPolicyKey): Readonly<Policy> {
   return POLICIES[policyKey];
+}
+
+export type UploadMetadata = {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+};
+
+/** Server-side metadata validation (no File/Blob required). */
+export function validateUploadMetadata(
+  meta: UploadMetadata,
+  policyKey: UploadPolicyKey,
+): ValidationResult {
+  const policy = POLICIES[policyKey];
+  const hint = policyHint(policyKey);
+  const fileName = meta.fileName?.trim() ?? "";
+
+  if (!fileName) {
+    return { ok: false, message: `تعذر رفع الملف: اسم الملف مطلوب. ${hint}` };
+  }
+
+  const ext = getExt(fileName);
+  if (!ext) {
+    return { ok: false, message: `تعذر رفع الملف: اسم الملف لا يحتوي على امتداد واضح. ${hint}` };
+  }
+
+  if (BLOCKED_EXT.has(ext)) {
+    return {
+      ok: false,
+      message: `تعذر رفع الملف: نوع الملف (.${ext}) محظور لأسباب أمنية. ${hint}`,
+    };
+  }
+
+  if (!policy.allowedExt.includes(ext)) {
+    return {
+      ok: false,
+      message: `تعذر رفع الملف: صيغة (.${ext}) غير مقبولة لـ${policy.label}. ${hint}`,
+    };
+  }
+
+  const mime = meta.mimeType?.trim() ?? "";
+  if (!mime) {
+    return { ok: false, message: `تعذر رفع الملف: نوع المحتوى (MIME) مطلوب. ${hint}` };
+  }
+
+  if (!policy.allowedMime.includes(mime)) {
+    return {
+      ok: false,
+      message: `تعذر رفع الملف: نوع المحتوى (${mime}) لا يطابق صيغة ${policy.label}. ${hint}`,
+    };
+  }
+
+  if (!Number.isFinite(meta.fileSize) || meta.fileSize <= 0) {
+    return { ok: false, message: `تعذر رفع الملف: حجم الملف غير صالح. ${hint}` };
+  }
+
+  if (meta.fileSize > policy.maxBytes) {
+    return {
+      ok: false,
+      message: `تعذر رفع الملف: الحجم ${formatBytes(meta.fileSize)} أكبر من الحد المسموح (${formatBytes(policy.maxBytes)}) لـ${policy.label}. يرجى ضغط الملف أو تقليل جودته ثم إعادة المحاولة.`,
+    };
+  }
+
+  return { ok: true };
 }
