@@ -35,6 +35,17 @@ const TOPIC_ATTACHMENT_UPLOAD_STATUSES = new Set([
   "submitted",
 ]);
 
+const TOPIC_SUBMIT_ROLES = new Set([
+  "chair",
+  "vice_chair",
+  "secretary",
+  "member",
+]);
+
+const MEETINGS_LOAD_FAILED_MESSAGE = "تعذر تحميل الاجتماعات.";
+const SESSION_EXPIRED_MESSAGE =
+  "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
+
 // ============================================================================
 // TYPES — legacy (unchanged shape for existing UI)
 // ============================================================================
@@ -87,6 +98,30 @@ export type MyCouncilMeetingItem = {
 export type MyCouncilMeetingsResult = {
   upcomingMeetings: MyCouncilMeetingItem[];
   previousMeetings: MyCouncilMeetingItem[];
+};
+
+export type CouncilMeetingV2Item = {
+  meeting_id: string;
+  council_id: string;
+  council_name: string;
+  meeting_number: number;
+  meeting_title: string;
+  scheduled_at: string;
+  status: string;
+  location: string | null;
+  intake_opens_at: string | null;
+  intake_closes_at: string | null;
+  notes: string | null;
+  agenda_summary: string | null;
+  minutes_summary: string | null;
+  user_membership_role: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MyCouncilMeetingsV2Result = {
+  upcomingMeetings: CouncilMeetingV2Item[];
+  previousMeetings: CouncilMeetingV2Item[];
 };
 
 export type MyCouncilTopicItem = {
@@ -183,6 +218,100 @@ function buildAgendaSummary(
   const titles = sorted.map((i) => i.title);
   if (titles.length <= 3) return titles.join(" · ");
   return `${titles.length} بنود: ${titles.slice(0, 2).join("، ")}…`;
+}
+
+function isSessionExpiredError(error: { code?: string; message: string }): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    error.code === "PGRST301" ||
+    msg.includes("jwt expired") ||
+    msg.includes("invalid jwt") ||
+    msg.includes("token is expired")
+  );
+}
+
+function throwMeetingsLoadError(error: { code?: string; message: string }): never {
+  if (isSessionExpiredError(error)) {
+    throw new Error(SESSION_EXPIRED_MESSAGE);
+  }
+  throw new Error(MEETINGS_LOAD_FAILED_MESSAGE);
+}
+
+type MeetingRow = {
+  id: string;
+  council_id: string;
+  title: string;
+  scheduled_at: string;
+  status: string;
+  location: string | null;
+  meeting_number: number;
+  intake_opens_at: string | null;
+  intake_closes_at: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  council: { name: string } | { name: string }[] | null;
+};
+
+async function loadMeetingAgendaAndMinutes(
+  sb: FacultySupabase,
+  meetingIds: string[],
+): Promise<{
+  agendaByMeeting: Map<string, Array<{ title: string; order_index: number }>>;
+  minutesByMeeting: Map<string, string>;
+}> {
+  const agendaByMeeting = new Map<string, Array<{ title: string; order_index: number }>>();
+  const minutesByMeeting = new Map<string, string>();
+
+  if (meetingIds.length === 0) {
+    return { agendaByMeeting, minutesByMeeting };
+  }
+
+  const [agendaRes, minutesRes] = await Promise.all([
+    sb
+      .from("academic_council_agenda_items")
+      .select("meeting_id, title, order_index")
+      .in("meeting_id", meetingIds),
+    sb
+      .from("academic_council_minutes")
+      .select("meeting_id, body")
+      .in("meeting_id", meetingIds),
+  ]);
+
+  if (agendaRes.error) throwMeetingsLoadError(agendaRes.error);
+  if (minutesRes.error) throwMeetingsLoadError(minutesRes.error);
+
+  for (const item of agendaRes.data ?? []) {
+    const mid = item.meeting_id as string;
+    const list = agendaByMeeting.get(mid) ?? [];
+    list.push({
+      title: item.title as string,
+      order_index: item.order_index as number,
+    });
+    agendaByMeeting.set(mid, list);
+  }
+
+  for (const minute of minutesRes.data ?? []) {
+    const body = (minute.body as string) ?? "";
+    if (body.trim()) {
+      minutesByMeeting.set(minute.meeting_id as string, truncateSummary(body));
+    }
+  }
+
+  return { agendaByMeeting, minutesByMeeting };
+}
+
+function splitMeetingsBySchedule<T extends { scheduled_at: string }>(
+  items: T[],
+  nowIso: string,
+): { upcomingMeetings: T[]; previousMeetings: T[] } {
+  const upcomingMeetings = items
+    .filter((m) => m.scheduled_at >= nowIso)
+    .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+  const previousMeetings = items
+    .filter((m) => m.scheduled_at < nowIso)
+    .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
+  return { upcomingMeetings, previousMeetings };
 }
 
 type MembershipRoleRow = {
@@ -543,46 +672,14 @@ export const getMyCouncilMeetings = createServerFn({ method: "POST" })
         .order("scheduled_at", { ascending: false }),
     ]);
 
-    if (meetingsRes.error) throw new Error("تعذّر تحميل اجتماعات المجالس");
+    if (meetingsRes.error) throwMeetingsLoadError(meetingsRes.error);
 
     const meetings = meetingsRes.data ?? [];
     const meetingIds = meetings.map((m) => m.id as string);
-
-    const agendaByMeeting = new Map<string, Array<{ title: string; order_index: number }>>();
-    const minutesByMeeting = new Map<string, string>();
-
-    if (meetingIds.length > 0) {
-      const [agendaRes, minutesRes] = await Promise.all([
-        sb
-          .from("academic_council_agenda_items")
-          .select("meeting_id, title, order_index")
-          .in("meeting_id", meetingIds),
-        sb
-          .from("academic_council_minutes")
-          .select("meeting_id, body")
-          .in("meeting_id", meetingIds),
-      ]);
-
-      if (agendaRes.error) throwDbError(agendaRes.error);
-      if (minutesRes.error) throwDbError(minutesRes.error);
-
-      for (const item of agendaRes.data ?? []) {
-        const mid = item.meeting_id as string;
-        const list = agendaByMeeting.get(mid) ?? [];
-        list.push({
-          title: item.title as string,
-          order_index: item.order_index as number,
-        });
-        agendaByMeeting.set(mid, list);
-      }
-
-      for (const minute of minutesRes.data ?? []) {
-        const body = (minute.body as string) ?? "";
-        if (body.trim()) {
-          minutesByMeeting.set(minute.meeting_id as string, truncateSummary(body));
-        }
-      }
-    }
+    const { agendaByMeeting, minutesByMeeting } = await loadMeetingAgendaAndMinutes(
+      sb,
+      meetingIds,
+    );
 
     const nowIso = new Date().toISOString();
     const items: MyCouncilMeetingItem[] = meetings.map((row) => {
@@ -617,6 +714,62 @@ export const getMyCouncilMeetings = createServerFn({ method: "POST" })
       .sort((a, b) => b.meeting_date.localeCompare(a.meeting_date));
 
     return { upcomingMeetings, previousMeetings };
+  });
+
+export const getMyCouncilMeetingsV2 = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<MyCouncilMeetingsV2Result> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const [membershipRows, meetingsRes] = await Promise.all([
+      loadMembershipRoleRows(sb, context.userId),
+      sb
+        .from("academic_council_meetings")
+        .select(
+          "id, council_id, meeting_number, title, scheduled_at, status, location, intake_opens_at, intake_closes_at, notes, created_at, updated_at, council:academic_councils(name)",
+        )
+        .order("scheduled_at", { ascending: false }),
+    ]);
+
+    if (meetingsRes.error) throwMeetingsLoadError(meetingsRes.error);
+
+    const meetings = (meetingsRes.data ?? []) as MeetingRow[];
+    const meetingIds = meetings.map((m) => m.id);
+    const { agendaByMeeting, minutesByMeeting } = await loadMeetingAgendaAndMinutes(
+      sb,
+      meetingIds,
+    );
+
+    const nowIso = new Date().toISOString();
+    const items: CouncilMeetingV2Item[] = meetings.map((row) => {
+      const council = unwrapCouncil(row.council);
+      const scheduledAt = row.scheduled_at;
+      return {
+        meeting_id: row.id,
+        council_id: row.council_id,
+        council_name: council?.name ?? "",
+        meeting_number: row.meeting_number,
+        meeting_title: row.title,
+        scheduled_at: scheduledAt,
+        status: row.status,
+        location: row.location,
+        intake_opens_at: row.intake_opens_at,
+        intake_closes_at: row.intake_closes_at,
+        notes: row.notes,
+        agenda_summary: buildAgendaSummary(agendaByMeeting.get(row.id) ?? []),
+        minutes_summary: minutesByMeeting.get(row.id) ?? null,
+        user_membership_role: membershipRoleAt(
+          membershipRows,
+          row.council_id,
+          scheduledAt,
+        ),
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      };
+    });
+
+    return splitMeetingsBySchedule(items, nowIso);
   });
 
 // ============================================================================

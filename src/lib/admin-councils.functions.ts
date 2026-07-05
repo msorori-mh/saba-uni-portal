@@ -621,3 +621,363 @@ export const deactivateCouncilMembership = createServerFn({ method: "POST" })
 
     return { ok: true as const, membershipId: updated.id as string };
   });
+
+// ============================================================================
+// MEETINGS — read / schedule / update (context.supabase + RLS; no service role)
+// ============================================================================
+
+const MEETING_SCHEDULE_DENIED_MESSAGE =
+  "لا تملك صلاحية جدولة اجتماع لهذا المجلس.";
+const MEETING_UPDATE_DENIED_MESSAGE =
+  "لا تملك صلاحية تعديل هذا الاجتماع.";
+const SESSION_EXPIRED_MESSAGE =
+  "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
+const MEETINGS_LOAD_FAILED_MESSAGE = "تعذر تحميل الاجتماعات.";
+const MEETING_SAVE_FAILED_MESSAGE = "تعذر حفظ الاجتماع.";
+
+const MEETING_STATUS_VALUES = [
+  "scheduled",
+  "intake_open",
+  "intake_closed",
+  "agenda_ready",
+  "in_session",
+  "minutes_draft",
+  "minutes_locked",
+  "archived",
+  "cancelled",
+] as const;
+
+type MeetingStatus = (typeof MEETING_STATUS_VALUES)[number];
+
+const scheduleCouncilMeetingSchema = z.object({
+  councilId: councilIdSchema,
+  title: z
+    .string()
+    .trim()
+    .min(3, "عنوان الاجتماع قصير جداً")
+    .max(500, "عنوان الاجتماع طويل جداً"),
+  scheduledAt: z.string().datetime({ message: "موعد الاجتماع غير صالح" }),
+  location: z.string().trim().max(500).optional(),
+  intakeOpensAt: z.string().datetime({ message: "موعد فتح الاستقبال غير صالح" }).optional(),
+  intakeClosesAt: z.string().datetime({ message: "موعد إغلاق الاستقبال غير صالح" }).optional(),
+  notes: z.string().trim().max(4000).optional(),
+});
+
+const updateCouncilMeetingSchema = z.object({
+  meetingId: z.string().uuid("معرّف الاجتماع غير صالح"),
+  title: z.string().trim().min(3).max(500).optional(),
+  scheduledAt: z.string().datetime({ message: "موعد الاجتماع غير صالح" }).optional(),
+  location: z.string().trim().max(500).nullable().optional(),
+  intakeOpensAt: z.string().datetime({ message: "موعد فتح الاستقبال غير صالح" }).nullable().optional(),
+  intakeClosesAt: z.string().datetime({ message: "موعد إغلاق الاستقبال غير صالح" }).nullable().optional(),
+  notes: z.string().trim().max(4000).nullable().optional(),
+  status: z.enum(MEETING_STATUS_VALUES).optional(),
+});
+
+function isSessionExpiredError(error: { code?: string; message: string }): boolean {
+  const msg = error.message.toLowerCase();
+  return (
+    error.code === "PGRST301" ||
+    msg.includes("jwt expired") ||
+    msg.includes("invalid jwt") ||
+    msg.includes("token is expired")
+  );
+}
+
+function mapMeetingDbError(
+  error: { code?: string; message: string },
+  mode: "schedule" | "update" | "load",
+): never {
+  if (isSessionExpiredError(error)) {
+    throw new Error(SESSION_EXPIRED_MESSAGE);
+  }
+
+  const msg = error.message.toLowerCase();
+  if (
+    error.code === "42501" ||
+    msg.includes("policy") ||
+    msg.includes("permission denied") ||
+    msg.includes("row-level security")
+  ) {
+    if (mode === "schedule") throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
+    if (mode === "update") throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+    throw new Error(RLS_DENIED_MESSAGE);
+  }
+
+  if (mode === "load") throw new Error(MEETINGS_LOAD_FAILED_MESSAGE);
+  throw new Error(MEETING_SAVE_FAILED_MESSAGE);
+}
+
+function rejectMeetingClientOverrides(input: unknown, blockedKeys: string[]) {
+  if (typeof input !== "object" || input === null) return;
+  const raw = input as Record<string, unknown>;
+  for (const key of blockedKeys) {
+    if (key in raw) {
+      throw new Error(`لا يمكن تمرير ${key} من الواجهة`);
+    }
+  }
+}
+
+async function assertCanScheduleCouncilMeeting(
+  sb: SupabaseClient<Database>,
+  userId: string,
+  councilId: string,
+): Promise<void> {
+  const { data: rpcAllowed, error: rpcErr } = await sb.rpc(
+    "can_schedule_council_meeting" as never,
+    { _user: userId, _council: councilId } as never,
+  );
+
+  if (!rpcErr && typeof rpcAllowed === "boolean") {
+    if (!rpcAllowed) throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
+    return;
+  }
+
+  const [adminRes, chairRes] = await Promise.all([
+    sb.rpc("is_council_admin", { _user: userId }),
+    sb.rpc("has_council_role", {
+      _user: userId,
+      _council: councilId,
+      _role: "chair" as Database["public"]["Enums"]["academic_council_member_role"],
+    }),
+  ]);
+
+  if (adminRes.error) mapMeetingDbError(adminRes.error, "schedule");
+  if (chairRes.error) mapMeetingDbError(chairRes.error, "schedule");
+
+  if (adminRes.data === true || chairRes.data === true) return;
+
+  throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
+}
+
+async function resolveNextMeetingNumber(
+  sb: SupabaseClient<Database>,
+  councilId: string,
+): Promise<number> {
+  const { data, error } = await sb
+    .from("academic_council_meetings")
+    .select("meeting_number")
+    .eq("council_id", councilId)
+    .order("meeting_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) mapMeetingDbError(error, "load");
+  return ((data?.meeting_number as number | undefined) ?? 0) + 1;
+}
+
+function unwrapCouncilName(
+  council: { name: string; council_type: string } | { name: string; council_type: string }[] | null,
+): { name: string; council_type: string } | null {
+  if (!council) return null;
+  return Array.isArray(council) ? council[0] ?? null : council;
+}
+
+export type AdminCouncilMeetingItem = {
+  meeting_id: string;
+  council_id: string;
+  council_name: string;
+  council_type: string;
+  meeting_number: number;
+  title: string;
+  scheduled_at: string;
+  status: MeetingStatus | string;
+  location: string | null;
+  intake_opens_at: string | null;
+  intake_closes_at: string | null;
+  notes: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GetCouncilMeetingsForAdminResult = {
+  upcomingMeetings: AdminCouncilMeetingItem[];
+  previousMeetings: AdminCouncilMeetingItem[];
+};
+
+export type ScheduleCouncilMeetingResult = {
+  ok: true;
+  meeting_id: string;
+  meeting_number: number;
+  status: MeetingStatus;
+};
+
+export type UpdateCouncilMeetingResult = {
+  ok: true;
+  meeting_id: string;
+  status: MeetingStatus | string;
+};
+
+export const getCouncilMeetingsForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        councilId: councilIdSchema.optional(),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<GetCouncilMeetingsForAdminResult> => {
+    await assertCouncilsReader(context.userId);
+    const sb = context.supabase;
+
+    let query = sb
+      .from("academic_council_meetings")
+      .select(
+        "id, council_id, meeting_number, title, scheduled_at, status, location, intake_opens_at, intake_closes_at, notes, created_by, created_at, updated_at, council:academic_councils(name, council_type)",
+      )
+      .order("scheduled_at", { ascending: false });
+
+    if (data.councilId) {
+      query = query.eq("council_id", data.councilId);
+    }
+
+    const { data: rows, error } = await query;
+    if (error) mapMeetingDbError(error, "load");
+
+    const nowIso = new Date().toISOString();
+    const items: AdminCouncilMeetingItem[] = (rows ?? []).map((row) => {
+      const council = unwrapCouncilName(
+        row.council as
+          | { name: string; council_type: string }
+          | { name: string; council_type: string }[]
+          | null,
+      );
+      return {
+        meeting_id: row.id as string,
+        council_id: row.council_id as string,
+        council_name: council?.name ?? "",
+        council_type: council?.council_type ?? "",
+        meeting_number: row.meeting_number as number,
+        title: row.title as string,
+        scheduled_at: row.scheduled_at as string,
+        status: row.status as string,
+        location: (row.location as string | null) ?? null,
+        intake_opens_at: (row.intake_opens_at as string | null) ?? null,
+        intake_closes_at: (row.intake_closes_at as string | null) ?? null,
+        notes: (row.notes as string | null) ?? null,
+        created_by: row.created_by as string,
+        created_at: row.created_at as string,
+        updated_at: row.updated_at as string,
+      };
+    });
+
+    const upcomingMeetings = items
+      .filter((m) => m.scheduled_at >= nowIso)
+      .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
+    const previousMeetings = items
+      .filter((m) => m.scheduled_at < nowIso)
+      .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
+
+    return { upcomingMeetings, previousMeetings };
+  });
+
+export const scheduleCouncilMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => {
+    rejectMeetingClientOverrides(input, [
+      "created_by",
+      "createdBy",
+      "meeting_number",
+      "meetingNumber",
+      "status",
+      "council_id",
+      "updated_by",
+      "updatedBy",
+    ]);
+    return scheduleCouncilMeetingSchema.parse(input);
+  })
+  .handler(async ({ data, context }): Promise<ScheduleCouncilMeetingResult> => {
+    const sb = context.supabase;
+    await assertCanScheduleCouncilMeeting(sb, context.userId, data.councilId);
+
+    const meetingNumber = await resolveNextMeetingNumber(sb, data.councilId);
+
+    const { data: inserted, error } = await sb
+      .from("academic_council_meetings")
+      .insert({
+        council_id: data.councilId,
+        title: data.title,
+        scheduled_at: data.scheduledAt,
+        location: data.location?.trim() || null,
+        intake_opens_at: data.intakeOpensAt ?? null,
+        intake_closes_at: data.intakeClosesAt ?? null,
+        notes: data.notes?.trim() || null,
+        meeting_number: meetingNumber,
+        status: "scheduled",
+        created_by: context.userId,
+      } as Database["public"]["Tables"]["academic_council_meetings"]["Insert"])
+      .select("id, meeting_number, status")
+      .maybeSingle();
+
+    if (error) mapMeetingDbError(error, "schedule");
+    if (!inserted) throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
+
+    return {
+      ok: true,
+      meeting_id: inserted.id as string,
+      meeting_number: inserted.meeting_number as number,
+      status: inserted.status as MeetingStatus,
+    };
+  });
+
+export const updateCouncilMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => {
+    rejectMeetingClientOverrides(input, [
+      "council_id",
+      "councilId",
+      "created_by",
+      "createdBy",
+      "meeting_number",
+      "meetingNumber",
+      "updated_by",
+      "updatedBy",
+    ]);
+    return updateCouncilMeetingSchema.parse(input);
+  })
+  .handler(async ({ data, context }): Promise<UpdateCouncilMeetingResult> => {
+    const sb = context.supabase;
+
+    const { data: existing, error: readErr } = await sb
+      .from("academic_council_meetings")
+      .select("id, council_id, status")
+      .eq("id", data.meetingId)
+      .maybeSingle();
+    if (readErr) mapMeetingDbError(readErr, "load");
+    if (!existing) throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+
+    await assertCanScheduleCouncilMeeting(
+      sb,
+      context.userId,
+      existing.council_id as string,
+    );
+
+    const patch: Database["public"]["Tables"]["academic_council_meetings"]["Update"] = {
+      updated_by: context.userId,
+    };
+
+    if (data.title !== undefined) patch.title = data.title;
+    if (data.scheduledAt !== undefined) patch.scheduled_at = data.scheduledAt;
+    if (data.location !== undefined) patch.location = data.location;
+    if (data.intakeOpensAt !== undefined) patch.intake_opens_at = data.intakeOpensAt;
+    if (data.intakeClosesAt !== undefined) patch.intake_closes_at = data.intakeClosesAt;
+    if (data.notes !== undefined) patch.notes = data.notes;
+    if (data.status !== undefined) patch.status = data.status;
+
+    const { data: updated, error } = await sb
+      .from("academic_council_meetings")
+      .update(patch)
+      .eq("id", data.meetingId)
+      .select("id, status")
+      .maybeSingle();
+
+    if (error) mapMeetingDbError(error, "update");
+    if (!updated) throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+
+    return {
+      ok: true,
+      meeting_id: updated.id as string,
+      status: updated.status as string,
+    };
+  });
