@@ -230,11 +230,20 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_acta_enforce ON public.academic_council_topic_attachments;
-CREATE TRIGGER trg_acta_enforce
-  BEFORE INSERT ON public.academic_council_topic_attachments
-  FOR EACH ROW
-  EXECUTE FUNCTION public.tg_enforce_council_topic_attachment();
+DO $mig$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'trg_acta_enforce'
+      AND tgrelid = 'public.academic_council_topic_attachments'::regclass
+  ) THEN
+    CREATE TRIGGER trg_acta_enforce
+      BEFORE INSERT ON public.academic_council_topic_attachments
+      FOR EACH ROW
+      EXECUTE FUNCTION public.tg_enforce_council_topic_attachment();
+  END IF;
+END $mig$;
 
 -- ============================================================================
 -- 5) GRANTS
@@ -263,27 +272,44 @@ GRANT EXECUTE ON FUNCTION public.can_upload_council_topic_attachment(uuid, uuid,
 
 ALTER TABLE public.academic_council_topic_attachments ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS acta_select ON public.academic_council_topic_attachments;
-CREATE POLICY acta_select
-  ON public.academic_council_topic_attachments
-  FOR SELECT
-  TO authenticated
-  USING (
-    deleted_at IS NULL
-    AND public.can_read_council_topic_attachment(auth.uid(), topic_id, council_id)
-  );
+DO $mig$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_topic_attachments'
+      AND policyname = 'acta_select'
+  ) THEN
+    CREATE POLICY acta_select
+      ON public.academic_council_topic_attachments
+      FOR SELECT
+      TO authenticated
+      USING (
+        deleted_at IS NULL
+        AND public.can_read_council_topic_attachment(auth.uid(), topic_id, council_id)
+      );
+  END IF;
 
-DROP POLICY IF EXISTS acta_insert ON public.academic_council_topic_attachments;
-CREATE POLICY acta_insert
-  ON public.academic_council_topic_attachments
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    uploaded_by = auth.uid()
-    AND deleted_at IS NULL
-    AND public.can_upload_council_topic_attachment(auth.uid(), topic_id, council_id)
-    AND public.can_add_council_topic_attachment(topic_id)
-  );
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_topic_attachments'
+      AND policyname = 'acta_insert'
+  ) THEN
+    CREATE POLICY acta_insert
+      ON public.academic_council_topic_attachments
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (
+        uploaded_by = auth.uid()
+        AND deleted_at IS NULL
+        AND public.can_upload_council_topic_attachment(auth.uid(), topic_id, council_id)
+        AND public.can_add_council_topic_attachment(topic_id)
+      );
+  END IF;
+END $mig$;
 
 -- No UPDATE or DELETE policies in MVP.
 
@@ -315,39 +341,56 @@ ON CONFLICT (id) DO UPDATE SET
 
 -- Path: council-topics/{council_id}/{topic_id}/{attachment_id}-{safe_filename}
 
-DROP POLICY IF EXISTS acta_storage_select ON storage.objects;
-CREATE POLICY acta_storage_select
-  ON storage.objects
-  FOR SELECT
-  TO authenticated
-  USING (
-    bucket_id = 'council-topic-attachments'
-    AND EXISTS (
-      SELECT 1
-      FROM public.academic_council_topic_attachments att
-      WHERE att.file_path = storage.objects.name
-        AND att.deleted_at IS NULL
-        AND att.storage_bucket = 'council-topic-attachments'
-        AND public.can_read_council_topic_attachment(
-          auth.uid(), att.topic_id, att.council_id
+DO $mig$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'acta_storage_select'
+  ) THEN
+    CREATE POLICY acta_storage_select
+      ON storage.objects
+      FOR SELECT
+      TO authenticated
+      USING (
+        bucket_id = 'council-topic-attachments'
+        AND EXISTS (
+          SELECT 1
+          FROM public.academic_council_topic_attachments att
+          WHERE att.file_path = storage.objects.name
+            AND att.deleted_at IS NULL
+            AND att.storage_bucket = 'council-topic-attachments'
+            AND public.can_read_council_topic_attachment(
+              auth.uid(), att.topic_id, att.council_id
+            )
         )
-    )
-  );
+      );
+  END IF;
 
-DROP POLICY IF EXISTS acta_storage_insert ON storage.objects;
-CREATE POLICY acta_storage_insert
-  ON storage.objects
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    bucket_id = 'council-topic-attachments'
-    AND (storage.foldername(name))[1] = 'council-topics'
-    AND coalesce(array_length(storage.foldername(name), 1), 0) = 4
-    AND public.can_upload_council_topic_attachment(
-      auth.uid(),
-      ((storage.foldername(name))[3])::uuid,
-      ((storage.foldername(name))[2])::uuid
-    )
-  );
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'acta_storage_insert'
+  ) THEN
+    CREATE POLICY acta_storage_insert
+      ON storage.objects
+      FOR INSERT
+      TO authenticated
+      WITH CHECK (
+        bucket_id = 'council-topic-attachments'
+        AND (storage.foldername(name))[1] = 'council-topics'
+        AND coalesce(array_length(storage.foldername(name), 1), 0) = 4
+        AND public.can_upload_council_topic_attachment(
+          auth.uid(),
+          ((storage.foldername(name))[3])::uuid,
+          ((storage.foldername(name))[2])::uuid
+        )
+      );
+  END IF;
+END $mig$;
 
 -- No storage UPDATE or DELETE policies in MVP.

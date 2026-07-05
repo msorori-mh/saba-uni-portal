@@ -251,9 +251,13 @@ AND can_add_council_topic_attachment(topic_id)
 | الجدول | `CREATE TABLE IF NOT EXISTS` |
 | الفهارس | `CREATE INDEX IF NOT EXISTS` |
 | الدوال | `CREATE OR REPLACE FUNCTION` |
-| Trigger | `DROP TRIGGER IF EXISTS` ثم `CREATE` |
-| Policies | `DROP POLICY IF EXISTS` ثم `CREATE` |
+| Trigger | `DO` block يتحقق من `pg_trigger` ثم `CREATE TRIGGER` |
+| Policies | `DO` block يتحقق من `pg_policies` ثم `CREATE POLICY` |
 | Bucket | `ON CONFLICT (id) DO UPDATE` |
+
+### إصلاح Migration Review (PR #85)
+
+تم إصلاح فحص GitHub Migration Review بإزالة جميع أوامر `DROP POLICY` و`DROP TRIGGER` واستبدالها بإنشاء السياسات والـ trigger عبر `DO` blocks تتحقق من `pg_policies` / `pg_trigger` دون إسقاط أي كائن موجود. **لم يُطبَّق** على Supabase.
 
 ---
 
