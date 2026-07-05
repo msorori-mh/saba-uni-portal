@@ -86,6 +86,55 @@ const TOPIC_STATUS_LABELS: Record<string, string> = {
 const SUBMIT_ELIGIBLE_ROLES = new Set<string>(["chair", "secretary", "member", "vice_chair"]);
 
 const PERMISSION_DENIED_MESSAGE = "لا تملك صلاحية تقديم موضوع لهذا المجلس.";
+const SESSION_EXPIRED_MESSAGE =
+  "انتهت جلسة تسجيل الدخول، يرجى تسجيل الخروج ثم تسجيل الدخول مرة أخرى.";
+const SUBMIT_GENERIC_ERROR_MESSAGE = "تعذّر إرسال الموضوع. يرجى المحاولة مرة أخرى.";
+
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  return "";
+}
+
+function isSessionExpiredError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("jwt has expired") ||
+    lower.includes("jwt expired") ||
+    lower.includes("invalid jwt") ||
+    lower.includes("refresh token") ||
+    lower.includes("session expired") ||
+    lower.includes("session has expired") ||
+    lower.includes("authapierror") ||
+    lower.includes("token expired") ||
+    lower.includes("not authenticated") ||
+    lower.includes("invalid claim") ||
+    (lower.includes("jwt") && lower.includes("expir"))
+  );
+}
+
+function mapSubmitError(message: string): string {
+  if (isSessionExpiredError(message)) return SESSION_EXPIRED_MESSAGE;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("مطّلع") ||
+    lower.includes("viewer") ||
+    lower.includes("صلاحية") ||
+    lower.includes("policy") ||
+    lower.includes("permission") ||
+    lower.includes("row-level security")
+  ) {
+    return PERMISSION_DENIED_MESSAGE;
+  }
+  if (lower.includes("jwt") || lower.includes("authapi") || lower.includes("refresh token")) {
+    return SESSION_EXPIRED_MESSAGE;
+  }
+  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+    return SUBMIT_GENERIC_ERROR_MESSAGE;
+  }
+  if (message.trim().length > 0) return message;
+  return SUBMIT_GENERIC_ERROR_MESSAGE;
+}
 
 function formatDate(iso: string): string {
   try {
@@ -120,21 +169,6 @@ function meetingStatusLabel(status: string): string {
 
 function topicStatusLabel(status: string): string {
   return TOPIC_STATUS_LABELS[status] ?? status;
-}
-
-function mapSubmitError(message: string): string {
-  const lower = message.toLowerCase();
-  if (
-    lower.includes("مطّلع") ||
-    lower.includes("viewer") ||
-    lower.includes("صلاحية") ||
-    lower.includes("policy") ||
-    lower.includes("permission") ||
-    lower.includes("row-level security")
-  ) {
-    return PERMISSION_DENIED_MESSAGE;
-  }
-  return message;
 }
 
 function SectionShell({
@@ -561,6 +595,7 @@ function SubmitTopicForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sessionExpiredHint, setSessionExpiredHint] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -583,8 +618,12 @@ function SubmitTopicForm({
       });
       setTitle("");
       setDescription("");
+      setSessionExpiredHint(false);
     } catch (err) {
-      toast.error(mapSubmitError(err instanceof Error ? err.message : PERMISSION_DENIED_MESSAGE));
+      const raw = extractErrorMessage(err);
+      const mapped = mapSubmitError(raw);
+      if (isSessionExpiredError(raw)) setSessionExpiredHint(true);
+      toast.error(mapped);
     } finally {
       setBusy(false);
     }
@@ -593,6 +632,17 @@ function SubmitTopicForm({
   return (
     <SectionShell icon={Send} title="تقديم موضوع جديد للمجلس">
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+        {sessionExpiredHint ? (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-2">
+            <p>{SESSION_EXPIRED_MESSAGE}</p>
+            <Link
+              to="/portal-login"
+              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+            >
+              العودة إلى تسجيل الدخول
+            </Link>
+          </div>
+        ) : null}
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-foreground">المجلس</label>
           <Select value={councilId} onValueChange={setCouncilId} dir="rtl">
