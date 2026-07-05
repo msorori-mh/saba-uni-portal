@@ -4451,6 +4451,10 @@ export type Database = {
         Args: { _council_id: string; _topic_id: string; _user: string }
         Returns: boolean
       }
+      can_schedule_council_meeting: {
+        Args: { _council: string; _user: string }
+        Returns: boolean
+      }
       can_send_internal_message: {
         Args: { _recipient: string; _sender: string }
         Returns: boolean
