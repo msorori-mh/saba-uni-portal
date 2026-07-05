@@ -6,11 +6,19 @@ import { toast } from "sonner";
 import {
   ScrollText, Users2, CalendarClock, FilePlus2, ListChecks, FileText,
   ClipboardCheck, Archive, Bell, Info, Lock, LayoutDashboard, BarChart3,
-  AlertTriangle, ArrowRight, Loader2, UserPlus, UserMinus, Search,
+  AlertTriangle, ArrowRight, Loader2, UserPlus, UserMinus, Search, Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -34,12 +42,16 @@ import {
   searchAcademicsForCouncilLink,
   linkAcademicToCouncil,
   deactivateCouncilMembership,
+  getCouncilMeetingsForAdmin,
+  scheduleCouncilMeeting,
+  updateCouncilMeeting,
   COUNCIL_LINK_MEMBER_ROLES,
   type CouncilsSummary,
   type CouncilsOverviewItem,
   type CouncilMembershipItem,
   type AcademicLinkCandidate,
   type CouncilLinkMemberRole,
+  type AdminCouncilMeetingItem,
 } from "@/lib/admin-councils.functions";
 
 export const Route = createFileRoute("/admin/academic-councils")({
@@ -145,6 +157,91 @@ const MEMBER_ROLE_LABELS: Record<CouncilLinkMemberRole, string> = {
 
 const RLS_USER_MESSAGE =
   "تعذر تنفيذ العملية بسبب قيود الصلاحيات الحالية. قد تتطلب هذه العملية تفعيل صلاحيات إضافية من قاعدة البيانات.";
+
+const MEETING_STATUS_LABELS: Record<string, string> = {
+  scheduled: "مجدول",
+  intake_open: "استقبال الموضوعات مفتوح",
+  intake_closed: "استقبال الموضوعات مغلق",
+  agenda_ready: "جدول الأعمال جاهز",
+  in_session: "جلسة قيد الانعقاد",
+  minutes_draft: "مسودة محضر",
+  minutes_locked: "محضر مقفل",
+  archived: "مؤرشف",
+  cancelled: "ملغى",
+};
+
+const MEETING_STATUS_OPTIONS = [
+  "scheduled",
+  "intake_open",
+  "intake_closed",
+  "agenda_ready",
+  "in_session",
+  "minutes_draft",
+  "minutes_locked",
+  "archived",
+  "cancelled",
+] as const;
+
+const MEETING_SCHEDULE_DENIED_UI =
+  "لا تملك صلاحية جدولة اجتماع لهذا المجلس.";
+const MEETING_UPDATE_DENIED_UI =
+  "لا تملك صلاحية تعديل هذا الاجتماع.";
+const MEETINGS_LOAD_FAILED_UI = "تعذر تحميل الاجتماعات.";
+const MEETING_SAVE_FAILED_UI = "تعذر حفظ الاجتماع.";
+const SESSION_EXPIRED_UI =
+  "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
+
+function meetingStatusLabel(status: string): string {
+  return MEETING_STATUS_LABELS[status] ?? status;
+}
+
+function toDatetimeLocalValue(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function toIsoFromDatetimeLocal(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toISOString();
+}
+
+function mapMeetingUiError(message: string, mode: "schedule" | "update" | "load"): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("jwt expired") ||
+    lower.includes("invalid jwt") ||
+    lower.includes("token is expired") ||
+    lower.includes("انتهت جلسة تسجيل الدخول")
+  ) {
+    return SESSION_EXPIRED_UI;
+  }
+  if (message.includes(MEETING_SCHEDULE_DENIED_UI)) return MEETING_SCHEDULE_DENIED_UI;
+  if (message.includes(MEETING_UPDATE_DENIED_UI)) return MEETING_UPDATE_DENIED_UI;
+  if (message.includes(MEETINGS_LOAD_FAILED_UI)) return MEETINGS_LOAD_FAILED_UI;
+  if (message.includes(MEETING_SAVE_FAILED_UI)) return MEETING_SAVE_FAILED_UI;
+  if (
+    lower.includes("policy") ||
+    lower.includes("permission denied") ||
+    lower.includes("row-level security") ||
+    lower.includes("صلاحية")
+  ) {
+    if (mode === "schedule") return MEETING_SCHEDULE_DENIED_UI;
+    if (mode === "update") return MEETING_UPDATE_DENIED_UI;
+    return RLS_USER_MESSAGE;
+  }
+  if (mode === "load") return MEETINGS_LOAD_FAILED_UI;
+  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+    return MEETING_SAVE_FAILED_UI;
+  }
+  if (message.trim().length > 0) return message;
+  return MEETING_SAVE_FAILED_UI;
+}
 
 function mapMembershipError(message: string): string {
   const lower = message.toLowerCase();
@@ -491,6 +588,369 @@ function CouncilMembershipPanel({
   );
 }
 
+// ============================================================================
+// MEETINGS ADMIN
+// ============================================================================
+
+function CouncilMeetingsPanel({
+  council,
+}: {
+  council: CouncilsOverviewItem;
+}) {
+  const qc = useQueryClient();
+  const fetchMeetings = useServerFn(getCouncilMeetingsForAdmin);
+  const scheduleMeeting = useServerFn(scheduleCouncilMeeting);
+  const updateMeeting = useServerFn(updateCouncilMeeting);
+
+  const [title, setTitle] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [location, setLocation] = useState("");
+  const [intakeOpensAt, setIntakeOpensAt] = useState("");
+  const [intakeClosesAt, setIntakeClosesAt] = useState("");
+  const [notes, setNotes] = useState("");
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<AdminCouncilMeetingItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editScheduledAt, setEditScheduledAt] = useState("");
+  const [editLocation, setEditLocation] = useState("");
+  const [editIntakeOpensAt, setEditIntakeOpensAt] = useState("");
+  const [editIntakeClosesAt, setEditIntakeClosesAt] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editStatus, setEditStatus] = useState<string>("scheduled");
+  const [editBusy, setEditBusy] = useState(false);
+
+  const {
+    data: meetingsData,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["admin", "academic-councils", "meetings", council.id],
+    queryFn: () => fetchMeetings({ data: { councilId: council.id } }),
+    staleTime: 15_000,
+  });
+
+  const allMeetings = useMemo(() => {
+    const upcoming = meetingsData?.upcomingMeetings ?? [];
+    const previous = meetingsData?.previousMeetings ?? [];
+    return [...upcoming, ...previous];
+  }, [meetingsData]);
+
+  const refreshMeetings = () => {
+    qc.invalidateQueries({ queryKey: ["admin", "academic-councils", "meetings", council.id] });
+    qc.invalidateQueries({ queryKey: ["admin", "academic-councils", "summary"] });
+  };
+
+  const openEdit = (m: AdminCouncilMeetingItem) => {
+    setEditTarget(m);
+    setEditTitle(m.title);
+    setEditScheduledAt(toDatetimeLocalValue(m.scheduled_at));
+    setEditLocation(m.location ?? "");
+    setEditIntakeOpensAt(toDatetimeLocalValue(m.intake_opens_at));
+    setEditIntakeClosesAt(toDatetimeLocalValue(m.intake_closes_at));
+    setEditNotes(m.notes ?? "");
+    setEditStatus(m.status);
+  };
+
+  const handleSchedule = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length < 3) {
+      toast.error("عنوان الاجتماع قصير جداً");
+      return;
+    }
+    const scheduledIso = toIsoFromDatetimeLocal(scheduledAt);
+    if (!scheduledIso) {
+      toast.error("أدخل تاريخاً ووقتاً صالحين للاجتماع");
+      return;
+    }
+    setScheduleBusy(true);
+    try {
+      await scheduleMeeting({
+        data: {
+          councilId: council.id,
+          title: trimmedTitle,
+          scheduledAt: scheduledIso,
+          location: location.trim() || undefined,
+          intakeOpensAt: toIsoFromDatetimeLocal(intakeOpensAt),
+          intakeClosesAt: toIsoFromDatetimeLocal(intakeClosesAt),
+          notes: notes.trim() || undefined,
+        },
+      });
+      toast.success("تم جدولة الاجتماع بنجاح");
+      setTitle("");
+      setScheduledAt("");
+      setLocation("");
+      setIntakeOpensAt("");
+      setIntakeClosesAt("");
+      setNotes("");
+      refreshMeetings();
+    } catch (err) {
+      toast.error(
+        mapMeetingUiError(err instanceof Error ? err.message : "", "schedule"),
+      );
+    } finally {
+      setScheduleBusy(false);
+    }
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    const trimmedTitle = editTitle.trim();
+    if (trimmedTitle.length < 3) {
+      toast.error("عنوان الاجتماع قصير جداً");
+      return;
+    }
+    const scheduledIso = toIsoFromDatetimeLocal(editScheduledAt);
+    if (!scheduledIso) {
+      toast.error("أدخل تاريخاً ووقتاً صالحين للاجتماع");
+      return;
+    }
+    setEditBusy(true);
+    try {
+      await updateMeeting({
+        data: {
+          meetingId: editTarget.meeting_id,
+          title: trimmedTitle,
+          scheduledAt: scheduledIso,
+          location: editLocation.trim() || null,
+          intakeOpensAt: editIntakeOpensAt.trim()
+            ? toIsoFromDatetimeLocal(editIntakeOpensAt) ?? null
+            : null,
+          intakeClosesAt: editIntakeClosesAt.trim()
+            ? toIsoFromDatetimeLocal(editIntakeClosesAt) ?? null
+            : null,
+          notes: editNotes.trim() || null,
+          status: editStatus as (typeof MEETING_STATUS_OPTIONS)[number],
+        },
+      });
+      toast.success("تم تحديث الاجتماع بنجاح");
+      setEditTarget(null);
+      refreshMeetings();
+    } catch (err) {
+      toast.error(
+        mapMeetingUiError(err instanceof Error ? err.message : "", "update"),
+      );
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <form
+        onSubmit={(e) => void handleSchedule(e)}
+        className="rounded-lg border-2 border-primary/20 bg-background p-4 space-y-3"
+      >
+        <div className="font-bold text-primary text-base flex items-center gap-2">
+          <CalendarClock className="h-5 w-5" />
+          جدولة اجتماع — {council.name}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-medium">عنوان الاجتماع</label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="عنوان الاجتماع"
+              dir="rtl"
+              maxLength={500}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">تاريخ ووقت الاجتماع</label>
+            <Input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">المكان (اختياري)</label>
+            <Input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="قاعة الاجتماع"
+              dir="rtl"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">فتح استقبال الموضوعات من (اختياري)</label>
+            <Input
+              type="datetime-local"
+              value={intakeOpensAt}
+              onChange={(e) => setIntakeOpensAt(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">إغلاق استقبال الموضوعات في (اختياري)</label>
+            <Input
+              type="datetime-local"
+              value={intakeClosesAt}
+              onChange={(e) => setIntakeClosesAt(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-medium">ملاحظات (اختياري)</label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              dir="rtl"
+              maxLength={4000}
+            />
+          </div>
+        </div>
+        <Button type="submit" size="sm" className="gap-1.5" disabled={scheduleBusy}>
+          {scheduleBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
+          حفظ الاجتماع
+        </Button>
+      </form>
+
+      <div className="rounded-lg border border-border overflow-hidden">
+        <div className="bg-muted/30 px-3 py-2 text-xs font-bold text-primary border-b border-border">
+          اجتماعات المجلس
+        </div>
+        {isLoading ? (
+          <div className="p-6 grid place-items-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : isError ? (
+          <div className="p-4 text-xs text-destructive">{MEETINGS_LOAD_FAILED_UI}</div>
+        ) : allMeetings.length === 0 ? (
+          <div className="p-6 text-center text-xs text-muted-foreground">
+            لا توجد اجتماعات مسجّلة لهذا المجلس حتى الآن.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-right">
+              <thead className="bg-muted/20 text-muted-foreground">
+                <tr>
+                  <th className="p-2 font-medium">رقم</th>
+                  <th className="p-2 font-medium">العنوان</th>
+                  <th className="p-2 font-medium">الموعد</th>
+                  <th className="p-2 font-medium">المكان</th>
+                  <th className="p-2 font-medium">الحالة</th>
+                  <th className="p-2 font-medium">فتح الاستقبال</th>
+                  <th className="p-2 font-medium">إغلاق الاستقبال</th>
+                  <th className="p-2 font-medium">ملاحظات</th>
+                  <th className="p-2 font-medium">إجراء</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allMeetings.map((m) => (
+                  <tr key={m.meeting_id} className="border-t border-border/60 align-top">
+                    <td className="p-2 font-mono">{m.meeting_number}</td>
+                    <td className="p-2 font-medium text-primary">{m.title}</td>
+                    <td className="p-2 whitespace-nowrap">{formatDateTime(m.scheduled_at)}</td>
+                    <td className="p-2">{m.location ?? "—"}</td>
+                    <td className="p-2">
+                      <Badge variant="outline" className="text-[10px]">
+                        {meetingStatusLabel(m.status)}
+                      </Badge>
+                    </td>
+                    <td className="p-2 whitespace-nowrap">{formatDateTime(m.intake_opens_at)}</td>
+                    <td className="p-2 whitespace-nowrap">{formatDateTime(m.intake_closes_at)}</td>
+                    <td className="p-2 max-w-[12rem] truncate" title={m.notes ?? undefined}>
+                      {m.notes ?? "—"}
+                    </td>
+                    <td className="p-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 gap-1 text-[10px]"
+                        onClick={() => openEdit(m)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                        تعديل
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Dialog
+        open={editTarget !== null}
+        onOpenChange={(open) => !open && !editBusy && setEditTarget(null)}
+      >
+        <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>تعديل الاجتماع</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleUpdate(e)} className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">العنوان</label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} dir="rtl" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">تاريخ ووقت الاجتماع</label>
+              <Input
+                type="datetime-local"
+                value={editScheduledAt}
+                onChange={(e) => setEditScheduledAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">المكان</label>
+              <Input value={editLocation} onChange={(e) => setEditLocation(e.target.value)} dir="rtl" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">فتح استقبال الموضوعات</label>
+              <Input
+                type="datetime-local"
+                value={editIntakeOpensAt}
+                onChange={(e) => setEditIntakeOpensAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">إغلاق استقبال الموضوعات</label>
+              <Input
+                type="datetime-local"
+                value={editIntakeClosesAt}
+                onChange={(e) => setEditIntakeClosesAt(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">الحالة</label>
+              <Select value={editStatus} onValueChange={setEditStatus} dir="rtl">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent dir="rtl">
+                  {MEETING_STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {meetingStatusLabel(s)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">ملاحظات</label>
+              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} dir="rtl" />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" disabled={editBusy} onClick={() => setEditTarget(null)}>
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={editBusy} className="gap-1.5">
+                {editBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                حفظ التعديلات
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function CouncilPickerRow({
   council,
   selected,
@@ -631,10 +1091,10 @@ function AcademicCouncilsPage() {
               بوابة إدارة المجالس الأكاديمية
             </h1>
             <Badge variant="outline" className="border-emerald-400 bg-emerald-50 text-emerald-800">
-              عضويات مفعّلة
+              عضويات + اجتماعات مفعّلة
             </Badge>
             <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
-              باقي الوظائف — قراءة فقط
+              الموضوعات والقرارات — قراءة فقط
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground max-w-3xl leading-relaxed">
@@ -649,10 +1109,10 @@ function AcademicCouncilsPage() {
       <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-4 flex items-start gap-3 text-emerald-900">
         <Info className="h-5 w-5 shrink-0 mt-0.5 text-emerald-700" />
         <div className="text-sm">
-          <div className="font-bold">إدارة العضويات مفعّلة</div>
+          <div className="font-bold">إدارة العضويات والاجتماعات مفعّلة</div>
           <div className="mt-0.5 leading-relaxed">
-            يمكنك اختيار مجلس وإدارة عضوياته (بحث، ربط، تعطيل دون حذف). عمليات الاجتماعات
-            والموضوعات والقرارات والتنبيهات لا تزال في وضع القراءة فقط.
+            يمكنك اختيار مجلس وإدارة عضوياته وجدولة اجتماعاته وتعديلها. عمليات الموضوعات
+            والقرارات والتنبيهات لا تزال في وضع القراءة فقط.
           </div>
         </div>
       </div>
@@ -762,38 +1222,26 @@ function AcademicCouncilsPage() {
         )}
       </SectionCard>
 
-      {/* Upcoming meetings */}
+      {/* Meetings administration */}
       <SectionCard
         icon={CalendarClock}
-        title="الاجتماعات القادمة"
-        subtitle="أقرب خمسة اجتماعات مجدولة."
+        title="الاجتماعات"
+        subtitle="جدولة وتعديل اجتماعات المجلس المحدد (للأدمن ورئيس المجلس عبر الصلاحيات)."
       >
-        {isLoading ? (
-          <EmptyState text="جاري تحميل الاجتماعات…" />
-        ) : summary.upcoming_meetings.length === 0 ? (
-          <EmptyState text="لا توجد اجتماعات مجدولة حالياً." />
+        {selectedCouncil ? (
+          <p className="mb-4 text-xs text-muted-foreground">
+            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
+          </p>
+        ) : null}
+        {!selectedCouncil ? (
+          <div className="rounded-lg border border-dashed border-amber-300/60 bg-amber-50/50 p-6 text-center space-y-3">
+            <p className="text-sm text-foreground font-medium">
+              اختر مجلساً من القائمة أعلاه لعرض اجتماعاته وجدولة اجتماع جديد.
+            </p>
+          </div>
         ) : (
-          <ul className="space-y-2">
-            {summary.upcoming_meetings.map((m) => (
-              <li
-                key={m.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background p-3"
-              >
-                <div>
-                  <div className="font-bold text-primary text-sm">{m.title}</div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {m.council_name} · الموعد: {formatDateTime(m.scheduled_at)} ·
-                    المكان: {m.location ?? "—"}
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-[11px]">مجدول</Badge>
-              </li>
-            ))}
-          </ul>
+          <CouncilMeetingsPanel council={selectedCouncil} />
         )}
-        <div className="mt-4">
-          <LockedAction label="إنشاء اجتماع" />
-        </div>
       </SectionCard>
 
       {/* Submit topic */}
@@ -927,8 +1375,8 @@ function AcademicCouncilsPage() {
       <div className="rounded-lg border border-dashed border-border bg-card p-4 flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
         <ArrowRight className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
         <div>
-          الوظائف التشغيلية الأخرى (جدولة الاجتماعات، استقبال الموضوعات، إصدار القرارات،
-          إرسال التنبيهات) ستُفعَّل في مراحل لاحقة. إدارة العضويات متاحة الآن ضمن هذا القسم.
+          الوظائف التشغيلية الأخرى (استقبال الموضوعات، إصدار القرارات، إرسال التنبيهات)
+          ستُفعَّل في مراحل لاحقة. إدارة العضويات والاجتماعات متاحة الآن ضمن هذا القسم.
         </div>
       </div>
     </div>
