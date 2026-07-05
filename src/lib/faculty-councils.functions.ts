@@ -6,6 +6,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import type { CouncilLinkMemberRole } from "@/lib/admin-councils.functions";
+import {
+  getExt,
+  safeFileName,
+  validateUploadMetadata,
+} from "@/lib/storage-validation";
 
 type FacultySupabase = SupabaseClient<Database>;
 
@@ -16,7 +21,19 @@ const VIEWER_SUBMIT_DENIED_MESSAGE =
 const NOT_ACTIVE_MEMBER_MESSAGE =
   "لا يمكن تقديم موضوع لمجلس لست عضواً فعّالاً فيه بدور يسمح بالتقديم.";
 
-const TOPIC_SUBMIT_ROLES = new Set<string>(["chair", "secretary", "member", "vice_chair"]);
+const VIEWER_UPLOAD_DENIED_MESSAGE =
+  "لا تملك صلاحية رفع مرفقات لهذا الموضوع.";
+const ATTACHMENT_READ_DENIED_MESSAGE =
+  "لا تملك صلاحية فتح هذا المرفق.";
+const MAX_TOPIC_ATTACHMENTS = 5;
+const COUNCIL_TOPIC_ATTACHMENTS_BUCKET = "council-topic-attachments";
+const SIGNED_URL_EXPIRES_SECONDS = 300;
+
+const TOPIC_ATTACHMENT_UPLOAD_STATUSES = new Set([
+  "draft",
+  "needs_completion",
+  "submitted",
+]);
 
 // ============================================================================
 // TYPES — legacy (unchanged shape for existing UI)
@@ -97,6 +114,31 @@ export type SubmitCouncilTopicResult = {
   ok: true;
   topic_id: string;
   status: "submitted";
+};
+
+export type CouncilTopicAttachmentItem = {
+  id: string;
+  topic_id: string;
+  council_id: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  file_ext: string;
+  created_at: string;
+  uploaded_by: string;
+};
+
+export type PrepareCouncilTopicAttachmentUploadResult = {
+  attachment_id: string;
+  bucket: string;
+  file_path: string;
+};
+
+export type CouncilTopicAttachmentSignedUrlResult = {
+  signedUrl: string;
+  expiresIn: number;
+  fileName: string;
+  mimeType: string;
 };
 
 // ============================================================================
@@ -284,6 +326,103 @@ async function assertCanSubmitCouncilTopic(
     throw new Error(VIEWER_SUBMIT_DENIED_MESSAGE);
   }
 }
+
+function mapAttachmentDbError(error: { code?: string; message: string }): never {
+  const msg = error.message.toLowerCase();
+  if (
+    msg.includes("maximum 5 active attachments") ||
+    msg.includes("maximum 5 attachments")
+  ) {
+    throw new Error("لا يمكن إرفاق أكثر من 5 ملفات لكل موضوع.");
+  }
+  if (msg.includes("topic status does not allow attachments")) {
+    throw new Error("لا يمكن إرفاق ملفات لهذا الموضوع في حالته الحالية.");
+  }
+  if (msg.includes("uploaded_by must match topic submitted_by")) {
+    throw new Error(VIEWER_UPLOAD_DENIED_MESSAGE);
+  }
+  return throwDbError(error);
+}
+
+async function assertCanUploadCouncilTopicAttachment(
+  sb: FacultySupabase,
+  userId: string,
+  topicId: string,
+  councilId: string,
+): Promise<void> {
+  const { data: rpcAllowed, error: rpcErr } = await sb.rpc(
+    "can_upload_council_topic_attachment" as never,
+    { _user: userId, _topic_id: topicId, _council_id: councilId } as never,
+  );
+
+  if (!rpcErr && typeof rpcAllowed === "boolean") {
+    if (!rpcAllowed) {
+      const { data: membership } = await sb
+        .from("academic_council_members")
+        .select("member_role")
+        .eq("user_id", userId)
+        .eq("council_id", councilId)
+        .eq("is_active", true)
+        .is("active_to", null)
+        .maybeSingle();
+
+      if (membership?.member_role === "viewer") {
+        throw new Error(VIEWER_UPLOAD_DENIED_MESSAGE);
+      }
+      throw new Error(VIEWER_UPLOAD_DENIED_MESSAGE);
+    }
+    return;
+  }
+
+  const { data: topic, error: topicErr } = await sb
+    .from("academic_council_topics")
+    .select("id, council_id, submitted_by, status")
+    .eq("id", topicId)
+    .maybeSingle();
+  if (topicErr) throwDbError(topicErr);
+  if (!topic || topic.council_id !== councilId) {
+    throw new Error(VIEWER_UPLOAD_DENIED_MESSAGE);
+  }
+  if (topic.submitted_by !== userId) {
+    throw new Error(VIEWER_UPLOAD_DENIED_MESSAGE);
+  }
+  if (!TOPIC_ATTACHMENT_UPLOAD_STATUSES.has(topic.status as string)) {
+    throw new Error("لا يمكن إرفاق ملفات لهذا الموضوع في حالته الحالية.");
+  }
+
+  await assertCanSubmitCouncilTopic(sb, userId, councilId);
+}
+
+function buildCouncilTopicAttachmentPath(
+  councilId: string,
+  topicId: string,
+  attachmentId: string,
+  originalFileName: string,
+): string {
+  const safeName = safeFileName(originalFileName);
+  return `council-topics/${councilId}/${topicId}/${attachmentId}-${safeName}`;
+}
+
+const topicIdSchema = z.object({
+  topic_id: z.string().uuid("معرّف الموضوع غير صالح"),
+});
+
+const attachmentIdSchema = z.object({
+  attachment_id: z.string().uuid("معرّف المرفق غير صالح"),
+});
+
+const prepareCouncilTopicAttachmentUploadSchema = z.object({
+  topic_id: z.string().uuid("معرّف الموضوع غير صالح"),
+  council_id: z.string().uuid("معرّف المجلس غير صالح"),
+  file_name: z.string().trim().min(1, "اسم الملف مطلوب").max(255, "اسم الملف طويل جداً"),
+  file_size: z
+    .number()
+    .int("حجم الملف يجب أن يكون عدداً صحيحاً")
+    .positive("حجم الملف غير صالح")
+    .max(10 * 1024 * 1024, "حجم الملف أكبر من 10 م.ب"),
+  mime_type: z.string().trim().min(1, "نوع الملف مطلوب"),
+  file_ext: z.string().trim().min(1, "امتداد الملف مطلوب").max(10),
+});
 
 const submitCouncilTopicSchema = z.object({
   council_id: z.string().uuid("معرّف المجلس غير صالح"),
@@ -593,5 +732,158 @@ export const submitCouncilTopic = createServerFn({ method: "POST" })
       ok: true,
       topic_id: inserted.id as string,
       status: "submitted",
+    };
+  });
+
+// ============================================================================
+// TOPIC ATTACHMENTS — read + prepare upload + signed URL (context.supabase only)
+// ============================================================================
+
+export const getCouncilTopicAttachments = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => topicIdSchema.parse(input))
+  .handler(async ({ data, context }): Promise<CouncilTopicAttachmentItem[]> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: rows, error } = await sb
+      .from("academic_council_topic_attachments")
+      .select(
+        "id, topic_id, council_id, file_name, file_size, mime_type, file_ext, created_at, uploaded_by",
+      )
+      .eq("topic_id", data.topic_id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true });
+    if (error) throwDbError(error);
+
+    return (rows ?? []).map((row) => ({
+      id: row.id as string,
+      topic_id: row.topic_id as string,
+      council_id: row.council_id as string,
+      file_name: row.file_name as string,
+      file_size: row.file_size as number,
+      mime_type: row.mime_type as string,
+      file_ext: row.file_ext as string,
+      created_at: row.created_at as string,
+      uploaded_by: row.uploaded_by as string,
+    }));
+  });
+
+export const getCouncilTopicAttachmentSignedUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => attachmentIdSchema.parse(input))
+  .handler(async ({ data, context }): Promise<CouncilTopicAttachmentSignedUrlResult> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: row, error } = await sb
+      .from("academic_council_topic_attachments")
+      .select("id, file_name, file_path, mime_type, storage_bucket")
+      .eq("id", data.attachment_id)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (error) throwDbError(error);
+    if (!row) throw new Error(ATTACHMENT_READ_DENIED_MESSAGE);
+
+    const bucket = row.storage_bucket as string;
+    const filePath = row.file_path as string;
+
+    const { data: signed, error: signErr } = await sb.storage
+      .from(bucket)
+      .createSignedUrl(filePath, SIGNED_URL_EXPIRES_SECONDS);
+
+    if (signErr || !signed?.signedUrl) {
+      throw new Error(ATTACHMENT_READ_DENIED_MESSAGE);
+    }
+
+    return {
+      signedUrl: signed.signedUrl,
+      expiresIn: SIGNED_URL_EXPIRES_SECONDS,
+      fileName: row.file_name as string,
+      mimeType: row.mime_type as string,
+    };
+  });
+
+export const prepareCouncilTopicAttachmentUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => {
+    const parsed = prepareCouncilTopicAttachmentUploadSchema.parse(input);
+    if (typeof input === "object" && input !== null) {
+      const raw = input as Record<string, unknown>;
+      if ("file_path" in raw || "attachment_id" in raw || "storage_bucket" in raw) {
+        throw new Error("لا يمكن تمرير مسار التخزين أو معرّف المرفق من الواجهة");
+      }
+    }
+    return parsed;
+  })
+  .handler(async ({ data, context }): Promise<PrepareCouncilTopicAttachmentUploadResult> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+    await assertCanUploadCouncilTopicAttachment(
+      sb,
+      context.userId,
+      data.topic_id,
+      data.council_id,
+    );
+
+    const extFromName = getExt(data.file_name);
+    const normalizedExt = data.file_ext.trim().toLowerCase();
+    if (!extFromName || extFromName !== normalizedExt) {
+      throw new Error("امتداد الملف لا يطابق اسم الملف المرفوع.");
+    }
+
+    const validation = validateUploadMetadata(
+      {
+        fileName: data.file_name,
+        fileSize: data.file_size,
+        mimeType: data.mime_type,
+      },
+      "council_topic_attachment",
+    );
+    if (!validation.ok) throw new Error(validation.message);
+
+    const { count, error: countErr } = await sb
+      .from("academic_council_topic_attachments")
+      .select("id", { count: "exact", head: true })
+      .eq("topic_id", data.topic_id)
+      .is("deleted_at", null);
+    if (countErr) throwDbError(countErr);
+    if ((count ?? 0) >= MAX_TOPIC_ATTACHMENTS) {
+      throw new Error("لا يمكن إرفاق أكثر من 5 ملفات لكل موضوع.");
+    }
+
+    const attachmentId = crypto.randomUUID();
+    const filePath = buildCouncilTopicAttachmentPath(
+      data.council_id,
+      data.topic_id,
+      attachmentId,
+      data.file_name,
+    );
+
+    const { data: inserted, error: insertErr } = await sb
+      .from("academic_council_topic_attachments")
+      .insert({
+        id: attachmentId,
+        topic_id: data.topic_id,
+        council_id: data.council_id,
+        uploaded_by: context.userId,
+        file_name: data.file_name,
+        file_path: filePath,
+        file_size: data.file_size,
+        mime_type: data.mime_type,
+        file_ext: normalizedExt,
+        storage_bucket: COUNCIL_TOPIC_ATTACHMENTS_BUCKET,
+      })
+      .select("id, file_path, storage_bucket")
+      .maybeSingle();
+
+    if (insertErr) mapAttachmentDbError(insertErr);
+    if (!inserted) throw new Error(RLS_DENIED_MESSAGE);
+
+    return {
+      attachment_id: inserted.id as string,
+      bucket: inserted.storage_bucket as string,
+      file_path: inserted.file_path as string,
     };
   });
