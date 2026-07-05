@@ -8,11 +8,20 @@ import {
   CalendarClock,
   FilePlus2,
   Loader2,
+  Paperclip,
   ScrollText,
   Users2,
   Archive,
   Send,
+  X,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  formatBytes,
+  getExt,
+  policyHint,
+  validateUpload,
+} from "@/lib/storage-validation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,10 +34,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  getCouncilTopicAttachmentSignedUrl,
+  getCouncilTopicAttachments,
   getMyAcademicCouncilMembershipsV2,
   getMyCouncilMeetings,
   getMyCouncilTopics,
+  prepareCouncilTopicAttachmentUpload,
   submitCouncilTopic,
+  type CouncilTopicAttachmentItem,
   type MyCouncilMembershipV2,
   type MyCouncilMeetingItem,
   type MyCouncilTopicItem,
@@ -89,6 +102,14 @@ const PERMISSION_DENIED_MESSAGE = "لا تملك صلاحية تقديم موض�
 const SESSION_EXPIRED_MESSAGE =
   "انتهت جلسة تسجيل الدخول، يرجى تسجيل الخروج ثم تسجيل الدخول مرة أخرى.";
 const SUBMIT_GENERIC_ERROR_MESSAGE = "تعذّر إرسال الموضوع. يرجى المحاولة مرة أخرى.";
+const MAX_TOPIC_ATTACHMENTS = 5;
+const PARTIAL_UPLOAD_MESSAGE =
+  "تم إنشاء الموضوع، لكن تعذر رفع بعض المرفقات. يرجى المحاولة لاحقاً أو التواصل مع الإدارة.";
+const ATTACHMENT_UPLOAD_DENIED_MESSAGE = "لا تملك صلاحية رفع مرفقات لهذا الموضوع.";
+const ATTACHMENT_OPEN_ERROR_MESSAGE = "تعذر فتح المرفق حالياً.";
+
+const ATTACHMENT_ACCEPT =
+  ".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -134,6 +155,44 @@ function mapSubmitError(message: string): string {
   }
   if (message.trim().length > 0) return message;
   return SUBMIT_GENERIC_ERROR_MESSAGE;
+}
+
+function mapAttachmentError(message: string): string {
+  if (isSessionExpiredError(message)) return SESSION_EXPIRED_MESSAGE;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("لا تملك صلاحية رفع مرفقات") ||
+    lower.includes("مطّلع") ||
+    lower.includes("viewer")
+  ) {
+    return ATTACHMENT_UPLOAD_DENIED_MESSAGE;
+  }
+  if (
+    lower.includes("لا تملك صلاحية فتح") ||
+    lower.includes("permission") ||
+    lower.includes("policy")
+  ) {
+    return ATTACHMENT_OPEN_ERROR_MESSAGE;
+  }
+  if (lower.includes("5 ملفات") || lower.includes("maximum 5")) {
+    return "لا يمكن رفع أكثر من 5 مرفقات للموضوع.";
+  }
+  if (lower.includes("jwt") || lower.includes("authapi") || lower.includes("refresh token")) {
+    return SESSION_EXPIRED_MESSAGE;
+  }
+  if (message.includes("تعذر رفع الملف") || message.includes("لا يمكن إرفاق")) {
+    return message;
+  }
+  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+    return ATTACHMENT_OPEN_ERROR_MESSAGE;
+  }
+  if (message.trim().length > 0) return message;
+  return ATTACHMENT_OPEN_ERROR_MESSAGE;
+}
+
+function mimeLabel(mime: string, ext: string): string {
+  if (mime) return mime;
+  return ext ? `.${ext.toUpperCase()}` : "—";
 }
 
 function formatDate(iso: string): string {
@@ -216,11 +275,9 @@ function EmptyBlock({ text }: { text: string }) {
 }
 
 function FacultyAcademicCouncilsPage() {
-  const qc = useQueryClient();
   const fetchMembershipsV2 = useServerFn(getMyAcademicCouncilMembershipsV2);
   const fetchMeetings = useServerFn(getMyCouncilMeetings);
   const fetchTopics = useServerFn(getMyCouncilTopics);
-  const submitTopic = useServerFn(submitCouncilTopic);
 
   const membershipsQuery = useQuery({
     queryKey: ["faculty", "my-council-memberships-v2"],
@@ -396,14 +453,7 @@ function FacultyAcademicCouncilsPage() {
                 صلاحيتك الحالية قراءة فقط، ولا يمكنك تقديم موضوعات لهذا المجلس.
               </div>
             ) : submitEligibleMemberships.length > 0 ? (
-              <SubmitTopicForm
-                eligibleMemberships={submitEligibleMemberships}
-                onSubmit={async (payload) => {
-                  await submitTopic({ data: payload });
-                  toast.success("تم إرسال الموضوع إلى المجلس بنجاح");
-                  await qc.invalidateQueries({ queryKey: ["faculty", "my-council-topics"] });
-                }}
-              />
+              <SubmitTopicForm eligibleMemberships={submitEligibleMemberships} />
             ) : null}
           </>
         )}
@@ -579,23 +629,159 @@ function TopicCard({
             <dd className="font-medium text-foreground mt-0.5">{topic.agenda_order}</dd>
           </div>
         ) : null}
+        <TopicAttachmentsList topicId={topic.topic_id} />
       </dl>
     </li>
   );
 }
 
+function TopicAttachmentsList({ topicId }: { topicId: string }) {
+  const fetchAttachments = useServerFn(getCouncilTopicAttachments);
+  const fetchSignedUrl = useServerFn(getCouncilTopicAttachmentSignedUrl);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  const attachmentsQuery = useQuery({
+    queryKey: ["faculty", "council-topic-attachments", topicId],
+    queryFn: () => fetchAttachments({ data: { topic_id: topicId } }),
+    staleTime: 30_000,
+  });
+
+  const handleOpen = async (attachment: CouncilTopicAttachmentItem) => {
+    setOpeningId(attachment.id);
+    try {
+      const result = await fetchSignedUrl({ data: { attachment_id: attachment.id } });
+      window.open(result.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      const raw = extractErrorMessage(err);
+      toast.error(mapAttachmentError(raw));
+    } finally {
+      setOpeningId(null);
+    }
+  };
+
+  return (
+    <div className="pt-1">
+      <dt className="text-muted-foreground mb-1.5">المرفقات</dt>
+      {attachmentsQuery.isLoading ? (
+        <dd className="text-muted-foreground text-[11px]">جاري تحميل المرفقات…</dd>
+      ) : attachmentsQuery.isError ? (
+        <dd className="text-destructive text-[11px]">تعذّر تحميل المرفقات.</dd>
+      ) : (attachmentsQuery.data ?? []).length === 0 ? (
+        <dd className="text-muted-foreground text-[11px]">لا توجد مرفقات.</dd>
+      ) : (
+        <dd>
+          <ul className="space-y-2">
+            {(attachmentsQuery.data ?? []).map((att) => (
+              <li
+                key={att.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/70 bg-muted/20 px-2.5 py-2"
+              >
+                <div className="min-w-0 text-[11px]">
+                  <p className="font-medium text-foreground truncate">{att.file_name}</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    {formatBytes(att.file_size)} · {mimeLabel(att.mime_type, att.file_ext)} ·{" "}
+                    {formatDateTime(att.created_at)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[10px] shrink-0 gap-1"
+                  disabled={openingId === att.id}
+                  onClick={() => void handleOpen(att)}
+                >
+                  {openingId === att.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Paperclip className="h-3 w-3" />
+                  )}
+                  فتح / تحميل
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </dd>
+      )}
+    </div>
+  );
+}
+
 function SubmitTopicForm({
   eligibleMemberships,
-  onSubmit,
 }: {
   eligibleMemberships: MyCouncilMembershipV2[];
-  onSubmit: (payload: { council_id: string; title: string; description?: string }) => Promise<void>;
 }) {
+  const qc = useQueryClient();
+  const submitTopic = useServerFn(submitCouncilTopic);
+  const prepareUpload = useServerFn(prepareCouncilTopicAttachmentUpload);
+
   const [councilId, setCouncilId] = useState(eligibleMemberships[0]?.council_id ?? "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [sessionExpiredHint, setSessionExpiredHint] = useState(false);
+
+  const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (incoming.length === 0) return;
+
+    const next = [...selectedFiles];
+    for (const file of incoming) {
+      if (next.length >= MAX_TOPIC_ATTACHMENTS) {
+        toast.error("لا يمكن رفع أكثر من 5 مرفقات للموضوع.");
+        break;
+      }
+      const check = validateUpload(file, "council_topic_attachment");
+      if (!check.ok) {
+        toast.error(check.message);
+        continue;
+      }
+      next.push(file);
+    }
+    setSelectedFiles(next);
+  };
+
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const uploadTopicAttachments = async (topicId: string, files: File[]) => {
+    let failures = 0;
+    for (const file of files) {
+      try {
+        const ext = getExt(file.name);
+        const prep = await prepareUpload({
+          data: {
+            topic_id: topicId,
+            council_id: councilId,
+            file_name: file.name,
+            file_size: file.size,
+            mime_type: file.type,
+            file_ext: ext,
+          },
+        });
+
+        const { error: uploadErr } = await supabase.storage
+          .from(prep.bucket)
+          .upload(prep.file_path, file, {
+            contentType: file.type || undefined,
+            upsert: false,
+          });
+
+        if (uploadErr) {
+          failures += 1;
+        }
+      } catch (err) {
+        failures += 1;
+        const raw = extractErrorMessage(err);
+        if (isSessionExpiredError(raw)) throw err;
+      }
+    }
+    return failures;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -608,17 +794,45 @@ function SubmitTopicForm({
       toast.error("اختر المجلس أولاً");
       return;
     }
+    if (selectedFiles.length > MAX_TOPIC_ATTACHMENTS) {
+      toast.error("لا يمكن رفع أكثر من 5 مرفقات للموضوع.");
+      return;
+    }
 
     setBusy(true);
     try {
-      await onSubmit({
-        council_id: councilId,
-        title: trimmedTitle,
-        description: description.trim() || undefined,
+      const result = await submitTopic({
+        data: {
+          council_id: councilId,
+          title: trimmedTitle,
+          description: description.trim() || undefined,
+        },
       });
+
+      const topicId = result.topic_id;
+      let uploadFailures = 0;
+
+      if (selectedFiles.length > 0) {
+        uploadFailures = await uploadTopicAttachments(topicId, selectedFiles);
+      }
+
+      if (uploadFailures > 0) {
+        toast.warning(PARTIAL_UPLOAD_MESSAGE);
+      } else if (selectedFiles.length > 0) {
+        toast.success("تم تقديم الموضوع ورفع المرفقات بنجاح");
+      } else {
+        toast.success("تم إرسال الموضوع إلى المجلس بنجاح");
+      }
+
       setTitle("");
       setDescription("");
+      setSelectedFiles([]);
       setSessionExpiredHint(false);
+
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["faculty", "my-council-topics"] }),
+        qc.invalidateQueries({ queryKey: ["faculty", "council-topic-attachments"] }),
+      ]);
     } catch (err) {
       const raw = extractErrorMessage(err);
       const mapped = mapSubmitError(raw);
@@ -682,6 +896,57 @@ function SubmitTopicForm({
             rows={4}
             maxLength={8000}
           />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-xs font-medium text-foreground">
+              المرفقات الداعمة{" "}
+              <span className="text-muted-foreground">(اختياري — حتى {MAX_TOPIC_ATTACHMENTS} ملفات)</span>
+            </label>
+            <span className="text-[10px] text-muted-foreground">
+              {selectedFiles.length}/{MAX_TOPIC_ATTACHMENTS}
+            </span>
+          </div>
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            {policyHint("council_topic_attachment")}
+          </p>
+          <Input
+            type="file"
+            multiple
+            accept={ATTACHMENT_ACCEPT}
+            disabled={busy || selectedFiles.length >= MAX_TOPIC_ATTACHMENTS}
+            onChange={handleFilesSelected}
+            className="text-xs cursor-pointer"
+          />
+          {selectedFiles.length > 0 ? (
+            <ul className="space-y-2 rounded-lg border border-border/70 bg-muted/10 p-2">
+              {selectedFiles.map((file, index) => (
+                <li
+                  key={`${file.name}-${file.size}-${index}`}
+                  className="flex flex-wrap items-center justify-between gap-2 text-[11px]"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground truncate">{file.name}</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {formatBytes(file.size)} · {mimeLabel(file.type, getExt(file.name))}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[10px] text-destructive hover:text-destructive gap-1"
+                    disabled={busy}
+                    onClick={() => removeSelectedFile(index)}
+                  >
+                    <X className="h-3 w-3" />
+                    إزالة
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
 
         <Button type="submit" className="gap-2" disabled={busy}>
