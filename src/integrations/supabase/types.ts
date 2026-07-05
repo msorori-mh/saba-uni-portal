@@ -342,6 +342,66 @@ export type Database = {
           },
         ]
       }
+      academic_council_topic_attachments: {
+        Row: {
+          council_id: string
+          created_at: string
+          deleted_at: string | null
+          file_ext: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          mime_type: string
+          storage_bucket: string
+          topic_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          council_id: string
+          created_at?: string
+          deleted_at?: string | null
+          file_ext: string
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          mime_type: string
+          storage_bucket?: string
+          topic_id: string
+          uploaded_by: string
+        }
+        Update: {
+          council_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          file_ext?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          storage_bucket?: string
+          topic_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academic_council_topic_attachments_council_id_fkey"
+            columns: ["council_id"]
+            isOneToOne: false
+            referencedRelation: "academic_councils"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academic_council_topic_attachments_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "academic_council_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academic_council_topics: {
         Row: {
           body: string
@@ -4375,6 +4435,10 @@ export type Database = {
         Args: { _request_id: string; _user_id: string }
         Returns: boolean
       }
+      can_add_council_topic_attachment: {
+        Args: { _topic_id: string }
+        Returns: boolean
+      }
       can_manage_council: {
         Args: { _council: string; _user: string }
         Returns: boolean
@@ -4383,12 +4447,20 @@ export type Database = {
         Args: { _study_plan_id: string; _user_id: string }
         Returns: boolean
       }
+      can_read_council_topic_attachment: {
+        Args: { _council_id: string; _topic_id: string; _user: string }
+        Returns: boolean
+      }
       can_send_internal_message: {
         Args: { _recipient: string; _sender: string }
         Returns: boolean
       }
       can_submit_council_topic: {
         Args: { _council: string; _user: string }
+        Returns: boolean
+      }
+      can_upload_council_topic_attachment: {
+        Args: { _council_id: string; _topic_id: string; _user: string }
         Returns: boolean
       }
       can_write_council_agenda: {
@@ -4413,6 +4485,10 @@ export type Database = {
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
+      council_topic_attachment_count: {
+        Args: { _topic_id: string }
+        Returns: number
+      }
       count_admins: { Args: never; Returns: number }
       create_notification: {
         Args: {
