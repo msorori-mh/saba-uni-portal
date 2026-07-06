@@ -7,11 +7,13 @@ import {
   ScrollText, Users2, CalendarClock, FilePlus2, ListChecks, FileText,
   ClipboardCheck, Archive, Bell, Info, Lock, LayoutDashboard, BarChart3,
   AlertTriangle, ArrowRight, Loader2, UserPlus, UserMinus, Search, Pencil,
+  ChevronUp, ChevronDown, CheckCircle2, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +47,13 @@ import {
   getCouncilMeetingsForAdmin,
   scheduleCouncilMeeting,
   updateCouncilMeeting,
+  getAgendaItemsForMeeting,
+  getAvailableTopicsForAgenda,
+  addTopicToAgenda,
+  addManualAgendaItem,
+  updateAgendaItem,
+  reorderAgendaItems,
+  finalizeMeetingAgenda,
   COUNCIL_LINK_MEMBER_ROLES,
   type CouncilsSummary,
   type CouncilsOverviewItem,
@@ -52,6 +61,8 @@ import {
   type AcademicLinkCandidate,
   type CouncilLinkMemberRole,
   type AdminCouncilMeetingItem,
+  type CouncilAgendaItem,
+  type AvailableTopicForAgenda,
 } from "@/lib/admin-councils.functions";
 
 export const Route = createFileRoute("/admin/academic-councils")({
@@ -191,6 +202,17 @@ const MEETING_SAVE_FAILED_UI = "تعذر حفظ الاجتماع.";
 const SESSION_EXPIRED_UI =
   "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
 
+const AGENDA_LOAD_FAILED_UI = "تعذر تحميل جدول الأعمال.";
+const AGENDA_TOPICS_LOAD_FAILED_UI = "تعذر تحميل الموضوعات المتاحة.";
+const AGENDA_WRITE_DENIED_UI =
+  "لا تملك صلاحية إدارة جدول أعمال هذا المجلس.";
+const AGENDA_TOPIC_ALREADY_ADDED_UI =
+  "هذا الموضوع مضاف مسبقاً إلى جدول الأعمال.";
+const AGENDA_REORDER_FAILED_UI = "تعذر حفظ ترتيب جدول الأعمال.";
+const AGENDA_FINALIZE_DENIED_UI =
+  "لا تملك صلاحية اعتماد جدول الأعمال.";
+const AGENDA_SAVE_FAILED_UI = "تعذر حفظ جدول الأعمال.";
+
 function meetingStatusLabel(status: string): string {
   return MEETING_STATUS_LABELS[status] ?? status;
 }
@@ -241,6 +263,48 @@ function mapMeetingUiError(message: string, mode: "schedule" | "update" | "load"
   }
   if (message.trim().length > 0) return message;
   return MEETING_SAVE_FAILED_UI;
+}
+
+function mapAgendaUiError(
+  message: string,
+  mode: "load" | "topics_load" | "write" | "reorder" | "finalize",
+): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("jwt expired") ||
+    lower.includes("invalid jwt") ||
+    lower.includes("token is expired") ||
+    lower.includes("انتهت جلسة تسجيل الدخول")
+  ) {
+    return SESSION_EXPIRED_UI;
+  }
+  if (message.includes(AGENDA_LOAD_FAILED_UI)) return AGENDA_LOAD_FAILED_UI;
+  if (message.includes(AGENDA_TOPICS_LOAD_FAILED_UI)) return AGENDA_TOPICS_LOAD_FAILED_UI;
+  if (message.includes(AGENDA_WRITE_DENIED_UI)) return AGENDA_WRITE_DENIED_UI;
+  if (message.includes(AGENDA_TOPIC_ALREADY_ADDED_UI)) return AGENDA_TOPIC_ALREADY_ADDED_UI;
+  if (message.includes(AGENDA_REORDER_FAILED_UI)) return AGENDA_REORDER_FAILED_UI;
+  if (message.includes(AGENDA_FINALIZE_DENIED_UI)) return AGENDA_FINALIZE_DENIED_UI;
+  if (
+    lower.includes("policy") ||
+    lower.includes("permission denied") ||
+    lower.includes("row-level security") ||
+    lower.includes("صلاحية")
+  ) {
+    if (mode === "finalize") return AGENDA_FINALIZE_DENIED_UI;
+    if (mode === "load") return AGENDA_LOAD_FAILED_UI;
+    if (mode === "topics_load") return AGENDA_TOPICS_LOAD_FAILED_UI;
+    if (mode === "reorder") return AGENDA_REORDER_FAILED_UI;
+    return AGENDA_WRITE_DENIED_UI;
+  }
+  if (mode === "load") return AGENDA_LOAD_FAILED_UI;
+  if (mode === "topics_load") return AGENDA_TOPICS_LOAD_FAILED_UI;
+  if (mode === "reorder") return AGENDA_REORDER_FAILED_UI;
+  if (mode === "finalize") return AGENDA_FINALIZE_DENIED_UI;
+  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+    return AGENDA_SAVE_FAILED_UI;
+  }
+  if (message.trim().length > 0) return message;
+  return AGENDA_SAVE_FAILED_UI;
 }
 
 function mapMembershipError(message: string): string {
@@ -951,6 +1015,541 @@ function CouncilMeetingsPanel({
   );
 }
 
+// ============================================================================
+// AGENDA ADMIN
+// ============================================================================
+
+function swapAgendaOrder(
+  items: CouncilAgendaItem[],
+  itemId: string,
+  direction: "up" | "down",
+): CouncilAgendaItem[] {
+  const sorted = [...items].sort((a, b) => a.order_index - b.order_index);
+  const idx = sorted.findIndex((i) => i.id === itemId);
+  if (idx < 0) return items;
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= sorted.length) return items;
+  const next = [...sorted];
+  [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+  return next.map((item, i) => ({ ...item, order_index: i + 1 }));
+}
+
+function CouncilAgendaPanel({
+  council,
+}: {
+  council: CouncilsOverviewItem;
+}) {
+  const qc = useQueryClient();
+  const fetchMeetings = useServerFn(getCouncilMeetingsForAdmin);
+  const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
+  const fetchAvailableTopics = useServerFn(getAvailableTopicsForAgenda);
+  const addTopic = useServerFn(addTopicToAgenda);
+  const addManual = useServerFn(addManualAgendaItem);
+  const updateItem = useServerFn(updateAgendaItem);
+  const reorderItems = useServerFn(reorderAgendaItems);
+  const finalizeAgenda = useServerFn(finalizeMeetingAgenda);
+
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualOrder, setManualOrder] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
+  const [addTopicBusyId, setAddTopicBusyId] = useState<string | null>(null);
+  const [reorderBusy, setReorderBusy] = useState(false);
+  const [finalizeBusy, setFinalizeBusy] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<CouncilAgendaItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editOrder, setEditOrder] = useState("");
+  const [editApproved, setEditApproved] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+
+  const meetingsQuery = useQuery({
+    queryKey: ["admin", "academic-councils", "meetings", council.id],
+    queryFn: () => fetchMeetings({ data: { councilId: council.id } }),
+    staleTime: 15_000,
+  });
+
+  const councilMeetings = useMemo(() => {
+    const upcoming = meetingsQuery.data?.upcomingMeetings ?? [];
+    const previous = meetingsQuery.data?.previousMeetings ?? [];
+    return [...upcoming, ...previous];
+  }, [meetingsQuery.data]);
+
+  const selectedMeeting = useMemo(
+    () => councilMeetings.find((m) => m.meeting_id === selectedMeetingId) ?? null,
+    [councilMeetings, selectedMeetingId],
+  );
+
+  const agendaQuery = useQuery({
+    queryKey: ["admin", "academic-councils", "agenda", selectedMeetingId],
+    queryFn: () => fetchAgenda({ data: { meetingId: selectedMeetingId! } }),
+    enabled: Boolean(selectedMeetingId),
+    staleTime: 10_000,
+  });
+
+  const topicsQuery = useQuery({
+    queryKey: ["admin", "academic-councils", "agenda-topics", selectedMeetingId],
+    queryFn: () => fetchAvailableTopics({ data: { meetingId: selectedMeetingId! } }),
+    enabled: Boolean(selectedMeetingId),
+    staleTime: 10_000,
+  });
+
+  const agendaItems = agendaQuery.data?.items ?? [];
+  const availableTopics = topicsQuery.data?.topics ?? [];
+
+  const refreshAgenda = () => {
+    if (selectedMeetingId) {
+      qc.invalidateQueries({ queryKey: ["admin", "academic-councils", "agenda", selectedMeetingId] });
+      qc.invalidateQueries({
+        queryKey: ["admin", "academic-councils", "agenda-topics", selectedMeetingId],
+      });
+    }
+    qc.invalidateQueries({ queryKey: ["admin", "academic-councils", "meetings", council.id] });
+    qc.invalidateQueries({ queryKey: ["admin", "academic-councils", "summary"] });
+  };
+
+  const persistReorder = async (items: CouncilAgendaItem[]) => {
+    if (!selectedMeetingId) return;
+    setReorderBusy(true);
+    try {
+      await reorderItems({
+        data: {
+          meetingId: selectedMeetingId,
+          items: items.map((i) => ({
+            agendaItemId: i.id,
+            orderIndex: i.order_index,
+          })),
+        },
+      });
+      toast.success("تم حفظ ترتيب جدول الأعمال.");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(
+        mapAgendaUiError(err instanceof Error ? err.message : "", "reorder"),
+      );
+    } finally {
+      setReorderBusy(false);
+    }
+  };
+
+  const handleMove = (itemId: string, direction: "up" | "down") => {
+    const next = swapAgendaOrder(agendaItems, itemId, direction);
+    if (next === agendaItems) return;
+    void persistReorder(next);
+  };
+
+  const handleAddTopic = async (topic: AvailableTopicForAgenda) => {
+    if (!selectedMeetingId) return;
+    setAddTopicBusyId(topic.topic_id);
+    try {
+      await addTopic({
+        data: { meetingId: selectedMeetingId, topicId: topic.topic_id },
+      });
+      toast.success("تمت إضافة الموضوع إلى جدول الأعمال.");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(err instanceof Error ? err.message : "", "write"));
+    } finally {
+      setAddTopicBusyId(null);
+    }
+  };
+
+  const handleManualAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMeetingId) return;
+    const trimmed = manualTitle.trim();
+    if (trimmed.length < 3) {
+      toast.error("عنوان البند قصير جداً");
+      return;
+    }
+    setManualBusy(true);
+    try {
+      await addManual({
+        data: {
+          meetingId: selectedMeetingId,
+          title: trimmed,
+          notes: manualNotes.trim() || undefined,
+          orderIndex: manualOrder.trim() ? Number(manualOrder) : undefined,
+        },
+      });
+      toast.success("تمت إضافة البند.");
+      setManualTitle("");
+      setManualNotes("");
+      setManualOrder("");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(err instanceof Error ? err.message : "", "write"));
+    } finally {
+      setManualBusy(false);
+    }
+  };
+
+  const openEdit = (item: CouncilAgendaItem) => {
+    setEditTarget(item);
+    setEditTitle(item.title);
+    setEditNotes(item.notes ?? "");
+    setEditOrder(String(item.order_index));
+    setEditApproved(item.is_approved);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    const trimmed = editTitle.trim();
+    if (trimmed.length < 3) {
+      toast.error("عنوان البند قصير جداً");
+      return;
+    }
+    const orderNum = Number(editOrder);
+    if (!Number.isInteger(orderNum) || orderNum < 1) {
+      toast.error("رقم الترتيب غير صالح");
+      return;
+    }
+    setEditBusy(true);
+    try {
+      await updateItem({
+        data: {
+          agendaItemId: editTarget.id,
+          title: trimmed,
+          notes: editNotes.trim() || null,
+          orderIndex: orderNum,
+          isApproved: editApproved,
+        },
+      });
+      toast.success("تم تحديث البند.");
+      setEditTarget(null);
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(err instanceof Error ? err.message : "", "write"));
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const handleFinalize = async () => {
+    if (!selectedMeetingId) return;
+    setFinalizeBusy(true);
+    try {
+      await finalizeAgenda({ data: { meetingId: selectedMeetingId } });
+      toast.success("تم اعتماد جدول الأعمال.");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(err instanceof Error ? err.message : "", "finalize"));
+    } finally {
+      setFinalizeBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+        <label className="text-xs font-medium text-primary">اختر اجتماعاً</label>
+        {meetingsQuery.isLoading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            جاري تحميل الاجتماعات…
+          </div>
+        ) : councilMeetings.length === 0 ? (
+          <p className="text-xs text-muted-foreground">لا توجد اجتماعات لهذا المجلس حتى الآن.</p>
+        ) : (
+          <Select
+            value={selectedMeetingId ?? ""}
+            onValueChange={(v) => setSelectedMeetingId(v || null)}
+            dir="rtl"
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="اختر اجتماعاً لإدارة جدول أعماله" />
+            </SelectTrigger>
+            <SelectContent dir="rtl">
+              {councilMeetings.map((m) => (
+                <SelectItem key={m.meeting_id} value={m.meeting_id}>
+                  #{m.meeting_number} — {m.title} — {formatDateTime(m.scheduled_at)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {!selectedMeetingId ? (
+        <EmptyState text="اختر اجتماعاً لعرض وإدارة جدول أعماله." />
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+            <div className="text-xs">
+              <span className="font-bold text-primary">{selectedMeeting?.title}</span>
+              <span className="text-muted-foreground mx-2">·</span>
+              <span className="text-muted-foreground">
+                {meetingStatusLabel(selectedMeeting?.status ?? "")}
+              </span>
+              <span className="text-muted-foreground mx-2">·</span>
+              <span className="text-muted-foreground">
+                {agendaItems.length} بند
+                {" "}
+                ({agendaItems.filter((i) => i.is_approved).length} معتمد)
+              </span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="gap-1.5"
+              disabled={finalizeBusy || selectedMeeting?.status === "agenda_ready"}
+              onClick={() => void handleFinalize()}
+            >
+              {finalizeBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              اعتماد جدول الأعمال
+            </Button>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="bg-muted/30 px-3 py-2 text-xs font-bold text-primary border-b border-border">
+                بنود جدول الأعمال
+              </div>
+              {agendaQuery.isLoading ? (
+                <div className="p-6 grid place-items-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : agendaQuery.isError ? (
+                <div className="p-4 text-xs text-destructive">{AGENDA_LOAD_FAILED_UI}</div>
+              ) : agendaItems.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  لا توجد بنود في جدول الأعمال حتى الآن.
+                </div>
+              ) : (
+                <ul className="divide-y divide-border/60">
+                  {agendaItems.map((item, idx) => (
+                    <li key={item.id} className="p-3 space-y-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px] font-mono">
+                              {item.order_index}
+                            </Badge>
+                            <span className="font-bold text-primary text-sm">{item.title}</span>
+                            {item.is_approved ? (
+                              <Badge variant="secondary" className="text-[10px]">
+                                معتمد
+                              </Badge>
+                            ) : null}
+                          </div>
+                          {item.topic ? (
+                            <p className="mt-1 text-[11px] text-muted-foreground">
+                              موضوع مرتبط: {item.topic.title}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-[11px] text-muted-foreground">بند يدوي</p>
+                          )}
+                          {item.notes ? (
+                            <p className="mt-1 text-[11px] text-foreground/80">{item.notes}</p>
+                          ) : null}
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            أُنشئ {formatDateTime(item.created_at)}
+                            {item.updated_at !== item.created_at
+                              ? ` · آخر تحديث ${formatDateTime(item.updated_at)}`
+                              : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={reorderBusy || idx === 0}
+                            onClick={() => handleMove(item.id, "up")}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={reorderBusy || idx === agendaItems.length - 1}
+                            onClick={() => handleMove(item.id, "down")}
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 gap-1 text-[10px]"
+                            onClick={() => openEdit(item)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                            تعديل
+                          </Button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border overflow-hidden">
+                <div className="bg-muted/30 px-3 py-2 text-xs font-bold text-primary border-b border-border">
+                  موضوعات متاحة للإضافة
+                </div>
+                {topicsQuery.isLoading ? (
+                  <div className="p-4 grid place-items-center">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : topicsQuery.isError ? (
+                  <div className="p-4 text-xs text-destructive">{AGENDA_TOPICS_LOAD_FAILED_UI}</div>
+                ) : availableTopics.length === 0 ? (
+                  <div className="p-4 text-xs text-muted-foreground text-center">
+                    لا توجد موضوعات بحالة «مقبول للجدول» جاهزة للإضافة.
+                  </div>
+                ) : (
+                  <ul className="divide-y divide-border/60 max-h-64 overflow-y-auto">
+                    {availableTopics.map((t) => (
+                      <li
+                        key={t.topic_id}
+                        className="flex flex-wrap items-center justify-between gap-2 p-3"
+                      >
+                        <div className="min-w-0 text-xs">
+                          <div className="font-medium text-primary">{t.title}</div>
+                          <div className="text-muted-foreground mt-0.5">
+                            {topicStatusLabelAdmin(t.status)}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 text-[10px] gap-1 shrink-0"
+                          disabled={addTopicBusyId === t.topic_id}
+                          onClick={() => void handleAddTopic(t)}
+                        >
+                          {addTopicBusyId === t.topic_id ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Plus className="h-3 w-3" />
+                          )}
+                          إضافة إلى جدول الأعمال
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="px-3 py-2 text-[10px] text-muted-foreground border-t border-border/60">
+                  تُعرض فقط الموضوعات بحالة accepted_for_agenda غير المضافة مسبقاً لهذا الاجتماع.
+                </p>
+              </div>
+
+              <form
+                onSubmit={(e) => void handleManualAdd(e)}
+                className="rounded-lg border-2 border-dashed border-primary/20 bg-background p-4 space-y-3"
+              >
+                <div className="font-bold text-primary text-sm flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  إضافة بند يدوي
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">العنوان</label>
+                  <Input
+                    value={manualTitle}
+                    onChange={(e) => setManualTitle(e.target.value)}
+                    dir="rtl"
+                    maxLength={500}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">ملاحظات (اختياري)</label>
+                  <Textarea
+                    value={manualNotes}
+                    onChange={(e) => setManualNotes(e.target.value)}
+                    rows={2}
+                    dir="rtl"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">الترتيب (اختياري)</label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={manualOrder}
+                    onChange={(e) => setManualOrder(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" size="sm" disabled={manualBusy} className="gap-1.5">
+                  {manualBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  إضافة البند
+                </Button>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
+
+      <Dialog
+        open={editTarget !== null}
+        onOpenChange={(open) => !open && !editBusy && setEditTarget(null)}
+      >
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل بند الأجندة</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleEdit(e)} className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">العنوان</label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} dir="rtl" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">ملاحظات</label>
+              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} dir="rtl" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">رقم الترتيب</label>
+              <Input
+                type="number"
+                min={1}
+                value={editOrder}
+                onChange={(e) => setEditOrder(e.target.value)}
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <Checkbox
+                checked={editApproved}
+                onCheckedChange={(v) => setEditApproved(v === true)}
+              />
+              معتمد على جدول الأعمال
+            </label>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" disabled={editBusy} onClick={() => setEditTarget(null)}>
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={editBusy} className="gap-1.5">
+                {editBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                حفظ
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function topicStatusLabelAdmin(status: string): string {
+  const labels: Record<string, string> = {
+    accepted_for_agenda: "مقبول للجدول",
+    submitted: "مقدّم",
+    under_review: "قيد المراجعة",
+  };
+  return labels[status] ?? status;
+}
+
 function CouncilPickerRow({
   council,
   selected,
@@ -1091,7 +1690,7 @@ function AcademicCouncilsPage() {
               بوابة إدارة المجالس الأكاديمية
             </h1>
             <Badge variant="outline" className="border-emerald-400 bg-emerald-50 text-emerald-800">
-              عضويات + اجتماعات مفعّلة
+              عضويات + اجتماعات + جدول أعمال
             </Badge>
             <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
               الموضوعات والقرارات — قراءة فقط
@@ -1109,10 +1708,10 @@ function AcademicCouncilsPage() {
       <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-4 flex items-start gap-3 text-emerald-900">
         <Info className="h-5 w-5 shrink-0 mt-0.5 text-emerald-700" />
         <div className="text-sm">
-          <div className="font-bold">إدارة العضويات والاجتماعات مفعّلة</div>
+          <div className="font-bold">إدارة العضويات والاجتماعات وجدول الأعمال مفعّلة</div>
           <div className="mt-0.5 leading-relaxed">
-            يمكنك اختيار مجلس وإدارة عضوياته وجدولة اجتماعاته وتعديلها. عمليات الموضوعات
-            والقرارات والتنبيهات لا تزال في وضع القراءة فقط.
+            يمكنك اختيار مجلس وإدارة عضوياته وجدولة اجتماعاته وإعداد جدول الأعمال.
+            عمليات رفع الموضوعات والقرارات والتنبيهات لا تزال في وضع القراءة فقط.
           </div>
         </div>
       </div>
@@ -1256,13 +1855,13 @@ function AcademicCouncilsPage() {
         </div>
       </SectionCard>
 
-      {/* Agenda stages */}
+      {/* Agenda */}
       <SectionCard
         icon={ListChecks}
         title="جدول الأعمال"
-        subtitle="توزيع الموضوعات على مراحل جدول الأعمال."
+        subtitle="إعداد وترتيب واعتماد جدول أعمال اجتماع المجلس المحدد."
       >
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {agendaStages.map((s) => (
             <div key={s.label} className="rounded-lg border border-border bg-background p-3">
               <div className="text-xs text-muted-foreground">{s.label}</div>
@@ -1272,9 +1871,16 @@ function AcademicCouncilsPage() {
             </div>
           ))}
         </div>
-        <div className="mt-4">
-          <LockedAction label="اعتماد جدول أعمال" />
-        </div>
+        {selectedCouncil ? (
+          <p className="mb-4 text-xs text-muted-foreground">
+            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
+          </p>
+        ) : null}
+        {!selectedCouncil ? (
+          <EmptyState text="اختر مجلساً من القائمة أعلاه لإدارة جدول أعمال اجتماعاته." />
+        ) : (
+          <CouncilAgendaPanel council={selectedCouncil} />
+        )}
       </SectionCard>
 
       {/* Minutes & decisions */}
