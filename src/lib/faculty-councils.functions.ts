@@ -5,7 +5,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import type { CouncilLinkMemberRole } from "@/lib/admin-councils.functions";
+import type {
+  CouncilAgendaItem,
+  CouncilLinkMemberRole,
+  GetAgendaItemsForMeetingResult,
+} from "@/lib/admin-councils.functions";
 import {
   getExt,
   safeFileName,
@@ -43,6 +47,7 @@ const TOPIC_SUBMIT_ROLES = new Set([
 ]);
 
 const MEETINGS_LOAD_FAILED_MESSAGE = "تعذر تحميل الاجتماعات.";
+const AGENDA_LOAD_FAILED_MESSAGE = "تعذر تحميل جدول الأعمال.";
 const SESSION_EXPIRED_MESSAGE =
   "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
 
@@ -1038,5 +1043,95 @@ export const prepareCouncilTopicAttachmentUpload = createServerFn({ method: "POS
       attachment_id: inserted.id as string,
       bucket: inserted.storage_bucket as string,
       file_path: inserted.file_path as string,
+    };
+  });
+
+// ============================================================================
+// AGENDA — read-only for faculty council members (context.supabase + RLS)
+// ============================================================================
+
+const meetingIdSchema = z.string().uuid("معرّف الاجتماع غير صالح");
+
+function mapFacultyAgendaLoadError(error: { code?: string; message: string }): never {
+  if (isSessionExpiredError(error)) {
+    throw new Error(SESSION_EXPIRED_MESSAGE);
+  }
+  throw new Error(AGENDA_LOAD_FAILED_MESSAGE);
+}
+
+function mapFacultyAgendaItemRow(row: Record<string, unknown>): CouncilAgendaItem {
+  const topicRaw = row.topic as Record<string, unknown> | Record<string, unknown>[] | null;
+  const topicRow = Array.isArray(topicRaw) ? topicRaw[0] ?? null : topicRaw;
+
+  return {
+    id: row.id as string,
+    meeting_id: row.meeting_id as string,
+    topic_id: (row.topic_id as string | null) ?? null,
+    title: row.title as string,
+    order_index: row.order_index as number,
+    notes: (row.notes as string | null) ?? null,
+    is_approved: Boolean(row.is_approved),
+    approved_by: (row.approved_by as string | null) ?? null,
+    approved_at: (row.approved_at as string | null) ?? null,
+    created_by: row.created_by as string,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+    updated_by: (row.updated_by as string | null) ?? null,
+    topic: topicRow
+      ? {
+          id: topicRow.id as string,
+          title: topicRow.title as string,
+          status: topicRow.status as string,
+          submitted_by: topicRow.submitted_by as string,
+          submitted_at: (topicRow.submitted_at as string | null) ?? null,
+          review_note: (topicRow.review_note as string | null) ?? null,
+        }
+      : null,
+  };
+}
+
+export const getAgendaItemsForMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ meetingId: meetingIdSchema }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<GetAgendaItemsForMeetingResult> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: meetingRow, error: meetingErr } = await sb
+      .from("academic_council_meetings")
+      .select(
+        "id, council_id, title, scheduled_at, status, council:academic_councils(name, council_type)",
+      )
+      .eq("id", data.meetingId)
+      .maybeSingle();
+    if (meetingErr) mapFacultyAgendaLoadError(meetingErr);
+    if (!meetingRow) throw new Error(AGENDA_LOAD_FAILED_MESSAGE);
+
+    const council = unwrapCouncil(
+      meetingRow.council as { name: string; council_type: string } | { name: string; council_type: string }[] | null,
+    );
+
+    const { data: rows, error } = await sb
+      .from("academic_council_agenda_items")
+      .select(
+        "id, meeting_id, topic_id, title, order_index, notes, is_approved, approved_by, approved_at, created_by, created_at, updated_at, updated_by, topic:academic_council_topics(id, title, status, submitted_by, submitted_at, review_note)",
+      )
+      .eq("meeting_id", data.meetingId)
+      .order("order_index", { ascending: true });
+    if (error) mapFacultyAgendaLoadError(error);
+
+    return {
+      meeting: {
+        id: meetingRow.id as string,
+        council_id: meetingRow.council_id as string,
+        title: meetingRow.title as string,
+        scheduled_at: meetingRow.scheduled_at as string,
+        status: meetingRow.status as string,
+        council_name: council?.name ?? "",
+        council_type: council?.council_type ?? "",
+      },
+      items: (rows ?? []).map((row) => mapFacultyAgendaItemRow(row as Record<string, unknown>)),
     };
   });
