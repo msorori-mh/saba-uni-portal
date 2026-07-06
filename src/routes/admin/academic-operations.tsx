@@ -226,7 +226,7 @@ function AcademicOpsPage() {
           <QuickLink to="/admin/academic-core" icon={CalendarRange} label="البنية الأكاديمية" desc="السنوات والفصول والمستويات" />
           <QuickLink to="/admin/study-plans" icon={BookMarked} label="الخطط والمقررات" desc="إدارة المقررات والخطط الدراسية" />
           <QuickLink to="/admin/course-offerings" icon={CalendarDays} label="إسناد المقررات والمجموعات الدراسية" desc="فتح/إغلاق المجموعات الدراسية وتعيين الأساتذة" />
-          <QuickLink to="/admin/enrollments" icon={ClipboardList} label="تسجيل الطلاب" desc="تسجيل الطلاب في المجموعات الدراسية" />
+          <QuickLink to="/admin/enrollments" icon={ClipboardList} label="تقسيم المجموعات" desc="تقسيم الطلاب على المجموعات الدراسية" />
           <QuickLink to="/admin/grades" icon={ClipboardCheck} label="الدرجات" desc="رصد وإدارة الدرجات" />
           <QuickLink to="/admin/transcripts" icon={FileText} label="السجلات الأكاديمية" desc="إصدار سجلات الطلاب" />
           <QuickLink to="/admin/imports" icon={ClipboardList} label="الاستيراد الجماعي" desc="استيراد البيانات من ملفات Excel" />

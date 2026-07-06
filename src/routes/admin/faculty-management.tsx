@@ -309,6 +309,7 @@ function AddFacultyModal({
     academic_rank: RANKS[2],
     position_title: "",
     email: "",
+    academic_number: "",
     phone: "",
     status: "active" as "active" | "inactive",
     create_login: true,
@@ -330,6 +331,7 @@ function AddFacultyModal({
         program_id: form.program_id || undefined,
         position_title: form.position_title || undefined,
         email: form.email || undefined,
+        academic_number: form.academic_number || undefined,
         phone: form.phone || undefined,
       } as any });
       onCreated(res);
@@ -399,9 +401,15 @@ function AddFacultyModal({
                   <option value="inactive">معطّل</option>
                 </select>
               </Field>
-              <Field label="البريد الإلكتروني">
+              <Field label="الإيميل الجامعي">
                 <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} dir="ltr"
+                  placeholder="faculty@faculty.usr.edu.ye"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              </Field>
+              <Field label="الرقم الأكاديمي (للمرور المؤقتة)">
+                <input value={form.academic_number} onChange={(e) => update("academic_number", e.target.value)} dir="ltr"
+                  placeholder="اختياري — إن تُرك فارغاً يُستخدم الرقم الوظيفي"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono" />
               </Field>
               <Field label="الهاتف">
                 <input value={form.phone} onChange={(e) => update("phone", e.target.value)} dir="ltr"
@@ -417,7 +425,8 @@ function AddFacultyModal({
               <div className="text-sm">
                 <div className="font-bold text-primary">إنشاء حساب دخول</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  سيتم إنشاء بريد <span dir="ltr" className="font-mono">[رقم]@faculty.usr.edu.ye</span> وكلمة مرور أولية = الرقم الوظيفي،
+                  يتم تسجيل الدخول باستخدام الإيميل الجامعي.
+                  كلمة المرور المؤقتة = الرقم الأكاديمي (أو الرقم الوظيفي إن لم يُدخل رقم أكاديمي)،
                   مع إجبار العضو على تغييرها عند أول دخول.
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
+import { normalizeUniversityLoginEmail } from "@/lib/university-email-auth";
 import type { ImportReport, ImportType, ValidatedRow } from "./types";
 import type {
   CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
@@ -152,6 +153,7 @@ export async function importStudents(
       full_name_en: p.full_name_en,
       national_id: p.national_id,
       phone: p.phone,
+      email: p.university_email,
       department_id: p.department_id,
       program_id: p.program_id,
       study_system: p.study_system,
@@ -185,6 +187,7 @@ export async function importStudents(
           await provisionStudentLoginServer(ctx, {
             profile_id: prof.id,
             academic_number: p.academic_number,
+            university_email: p.university_email,
             must_change_password: p.must_change_password,
           });
           report.rows_created = (report.rows_created ?? 0) + 1;
@@ -202,9 +205,17 @@ export async function importStudents(
 
 async function provisionStudentLoginServer(
   ctx: ServerImportContext,
-  data: { profile_id: string; academic_number: string; must_change_password: boolean },
+  data: {
+    profile_id: string;
+    academic_number: string;
+    university_email: string | null;
+    must_change_password: boolean;
+  },
 ) {
-  const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
+  if (!data.university_email) {
+    throw new Error("الإيميل الجامعي مطلوب لإنشاء حساب الدخول");
+  }
+  const email = normalizeUniversityLoginEmail(data.university_email);
   const password = generateTemporaryPassword();
 
   const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({

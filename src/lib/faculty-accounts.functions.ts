@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
+import { facultyTemporaryPassword } from "@/lib/university-email-auth";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
 
 /** Matches admin-nav `/admin/faculty-accounts`. */
@@ -316,10 +317,20 @@ const ImportRowSchema = z.object({
   row_number: z.number().int().min(1),
   employee_number: z.string().trim().min(1).max(40),
   email: z.string().trim().email().max(160),
-  initial_password: z.string().min(8).max(72),
+  academic_number: z.string().trim().max(40).optional().nullable(),
+  initial_password: z.string().max(72).optional().nullable(),
   full_name_ar: z.string().trim().max(160).optional().nullable(),
   role: z.string().trim().max(40).optional().nullable(),
   force_password_change: z.union([z.boolean(), z.string()]).optional().nullable(),
+}).superRefine((row, ctx) => {
+  const pwd = row.initial_password?.trim() || facultyTemporaryPassword(row.academic_number, row.employee_number);
+  if (!pwd) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "يجب إدخال initial_password أو academic_number",
+      path: ["initial_password"],
+    });
+  }
 });
 
 type ImportRowInput = z.infer<typeof ImportRowSchema>;
@@ -361,6 +372,7 @@ export const importFacultyAccountsRows = createServerFn({ method: "POST" })
         row_number: rowNum,
         employee_number: String(raw?.employee_number ?? "").trim(),
         email: String(raw?.email ?? "").trim().toLowerCase(),
+        academic_number: String(raw?.academic_number ?? "").trim(),
         initial_password: String(raw?.initial_password ?? ""),
         full_name_ar: raw?.full_name_ar ? String(raw.full_name_ar).trim() : null,
         role: raw?.role ? String(raw.role).trim() : null,
@@ -385,6 +397,8 @@ export const importFacultyAccountsRows = createServerFn({ method: "POST" })
 
       const forceChange = parseBool(parsed.force_password_change, true);
       const role = (parsed.role && parsed.role.length > 0) ? parsed.role : "faculty_member";
+      const initialPassword = parsed.initial_password?.trim()
+        || facultyTemporaryPassword(parsed.academic_number, parsed.employee_number);
 
       try {
         // 1. Find profile by employee_number
@@ -458,7 +472,7 @@ export const importFacultyAccountsRows = createServerFn({ method: "POST" })
         // 4. Create new auth
         const { data: createdUser, error: cErr } = await supabaseAdmin.auth.admin.createUser({
           email: parsed.email,
-          password: parsed.initial_password,
+          password: initialPassword,
           email_confirm: true,
           user_metadata: { full_name_ar: profileName, kind: "faculty" },
         });

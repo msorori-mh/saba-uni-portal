@@ -4,6 +4,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
+import {
+  facultyTemporaryPassword,
+  isValidUniversityLoginEmail,
+  normalizeUniversityLoginEmail,
+} from "@/lib/university-email-auth";
 
 // ---------- Authorization ----------
 
@@ -62,10 +67,22 @@ const createFacultySchema = z.object({
   program_id: z.string().uuid().optional().nullable(),
   academic_rank: z.string().trim().min(1).max(80),
   position_title: z.string().trim().max(120).optional().nullable(),
+  academic_number: z.string().trim().max(32).optional().nullable(),
   email: z.string().trim().email().max(160).optional().or(z.literal("")).nullable(),
   phone: z.string().trim().max(32).optional().nullable(),
   status: z.enum(["active", "inactive"]).default("active"),
   create_login: z.boolean().default(false),
+}).superRefine((data, ctx) => {
+  if (data.create_login) {
+    const email = String(data.email ?? "").trim();
+    if (!email || !isValidUniversityLoginEmail(email)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "الإيميل الجامعي مطلوب عند إنشاء حساب الدخول",
+        path: ["email"],
+      });
+    }
+  }
 });
 
 export const createFacultyMember = createServerFn({ method: "POST" })
@@ -124,8 +141,11 @@ export const createFacultyMember = createServerFn({ method: "POST" })
     let credentials: { email: string; password: string } | null = null;
 
     if (data.create_login) {
-      const loginEmail = `${data.employee_number.toLowerCase()}@faculty.usr.edu.ye`;
-      const password = generateTemporaryPassword();
+      const loginEmail = normalizeUniversityLoginEmail(data.email!);
+      const password = facultyTemporaryPassword(data.academic_number, data.employee_number);
+      if (!password) {
+        throw new Error("يجب توفير الرقم الأكاديمي أو الوظيفي لكلمة المرور المؤقتة");
+      }
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email: loginEmail,
         password,
@@ -251,8 +271,13 @@ export const getFacultyMember = createServerFn({ method: "POST" })
 // STAFF MANAGEMENT
 // =====================================================
 
+import {
+  ALLOWED_STAFF_ROLE_TYPES,
+  ALLOWED_STAFF_ROLE_TYPES_UPDATE,
+  staffRoleToAppRole,
+} from "@/lib/staff-role-types";
+
 const STAFF_ROLES = ["admin", "system_admin", "dean", "hr_officer"];
-const ALLOWED_STAFF_ROLE_TYPES = ["registrar", "student_affairs", "finance_officer", "hr_officer"] as const;
 type StaffDepartmentScope = "all" | "specific";
 
 function normalizeStaffDepartmentInput(input: {
@@ -335,7 +360,18 @@ const createStaffSchema = z.object({
   phone: z.string().trim().max(32).optional().nullable(),
   status: z.enum(["active", "inactive"]).default("active"),
   create_login: z.boolean().default(false),
-}).and(staffDepartmentFieldsSchema);
+}).and(staffDepartmentFieldsSchema).superRefine((data, ctx) => {
+  if (data.create_login) {
+    const email = String(data.email ?? "").trim();
+    if (!email || !isValidUniversityLoginEmail(email)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "الإيميل الجامعي مطلوب عند إنشاء حساب الدخول",
+        path: ["email"],
+      });
+    }
+  }
+});
 
 export const createStaffMember = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -374,7 +410,7 @@ export const createStaffMember = createServerFn({ method: "POST" })
     let credentials: { email: string; password: string } | null = null;
 
     if (data.create_login) {
-      const loginEmail = `${data.employee_number.toLowerCase()}@staff.usr.edu.ye`;
+      const loginEmail = normalizeUniversityLoginEmail(data.email!);
       const password = generateTemporaryPassword();
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email: loginEmail,
@@ -393,7 +429,10 @@ export const createStaffMember = createServerFn({ method: "POST" })
       if (linkErr) {
         throw new Error(`تم إنشاء الملف لكن تعذّر ربط حساب الدخول: ${linkErr.message}`);
       }
-      await supabaseAdmin.from("user_roles").insert({ user_id: newUserId, role: data.role_type as any });
+      await supabaseAdmin.from("user_roles").insert({
+        user_id: newUserId,
+        role: staffRoleToAppRole(data.role_type) as any,
+      });
       credentials = { email: loginEmail, password };
     }
 
@@ -419,7 +458,7 @@ const updateStaffSchema = z.object({
   full_name_ar: z.string().trim().min(2).max(160),
   full_name_en: z.string().trim().max(160).optional().nullable(),
   job_title: z.string().trim().min(1).max(120),
-  role_type: z.enum(ALLOWED_STAFF_ROLE_TYPES),
+  role_type: z.enum(ALLOWED_STAFF_ROLE_TYPES_UPDATE),
   email: z.string().trim().email().max(160).optional().or(z.literal("")).nullable(),
   phone: z.string().trim().max(32).optional().nullable(),
   status: z.enum(["active", "inactive"]),
@@ -453,14 +492,17 @@ export const updateStaffMember = createServerFn({ method: "POST" })
 
     // Sync role: if role_type changed and account exists, swap user_roles
     if ((old as any).role_type !== data.role_type && (old as any).user_id) {
+      const userId = (old as any).user_id as string;
+      const prevAppRole = staffRoleToAppRole((old as any).role_type);
+      const nextAppRole = staffRoleToAppRole(data.role_type);
       await supabaseAdmin
         .from("user_roles")
         .delete()
-        .eq("user_id", (old as any).user_id)
-        .eq("role", (old as any).role_type as any);
+        .eq("user_id", userId)
+        .eq("role", prevAppRole as any);
       await supabaseAdmin.from("user_roles").insert({
-        user_id: (old as any).user_id,
-        role: data.role_type as any,
+        user_id: userId,
+        role: nextAppRole as any,
       });
     }
 

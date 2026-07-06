@@ -38,6 +38,15 @@ function docTypeLabel(t: string) {
   return DOC_TYPE_LABELS[t] ?? t;
 }
 
+/** ADMIN-DASHBOARD-CARDS-RENAME-HIDE-01 — hidden from main admin dashboard only */
+const HIDDEN_ADMIN_DASHBOARD_CARD_LABELS = new Set([
+  "مرشحو التخرج",
+  "المرشحين للتخرج",
+  "المرشحون للتخرج",
+  "الخصومات",
+  "الترفيعات",
+]);
+
 function AdminDashboard() {
   usePagePerf("/admin");
   const fetchActive = useServerFn(activeUserCounts);
@@ -284,7 +293,7 @@ function AdminDashboard() {
     { to: "/admin/study-plans", label: "إضافة مقرر", icon: BookOpen },
     { to: "/admin/study-plans", label: "إنشاء خطة دراسية", icon: ListTree },
     { to: "/admin/course-offerings", label: "إنشاء مجموعة دراسية", icon: CalendarDays },
-    { to: "/admin/enrollments", label: "تسجيل طالب", icon: ClipboardList },
+    { to: "/admin/enrollments", label: "تقسيم المجموعات", icon: ClipboardList },
     { to: "/admin/grades", label: "إدخال درجات", icon: ClipboardCheck },
     { to: "/admin/student-requests", label: "مراجعة الطلبات", icon: FileWarning },
     { to: "/admin/news", label: "خبر جديد", icon: Newspaper },
@@ -301,11 +310,16 @@ function AdminDashboard() {
       </div>
 
       {/* Stats grouped sections */}
-      {sections_.map((sec) => (
+      {sections_.map((sec) => {
+        const visibleCards = sec.cards.filter(
+          (c) => !HIDDEN_ADMIN_DASHBOARD_CARD_LABELS.has(c.label),
+        );
+        if (visibleCards.length === 0) return null;
+        return (
         <section key={sec.title} className="space-y-3">
           <h2 className="font-display text-base font-bold text-primary">{sec.title}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {sec.cards.map((c) => {
+            {visibleCards.map((c) => {
               const Icon = c.icon;
               const inner = (
                 <>
@@ -331,7 +345,8 @@ function AdminDashboard() {
             })}
           </div>
         </section>
-      ))}
+        );
+      })}
 
       {/* Recent Official Documents */}
       <section className="space-y-3">

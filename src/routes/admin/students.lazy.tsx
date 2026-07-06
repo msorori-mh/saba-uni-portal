@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX, Printer,
-  GraduationCap, Upload, CheckCircle2, Copy, Unlink, AlertTriangle,
+  GraduationCap, Upload, CheckCircle2, Copy, Unlink, AlertTriangle, FileSpreadsheet,
 } from "lucide-react";
 import { createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
 import { canWriteStudents, studentsNavLabel } from "@/lib/admin-nav";
@@ -16,6 +16,7 @@ const UNLINK_LOGIN_CONFIRM =
 import {
   getStudentLookups, createStudent, updateStudent, getStudent,
   listStudentLoginBackfillCandidates, provisionStudentLogin, listStudentsForAdmin,
+  exportFilteredStudentsToExcel,
 } from "@/lib/admin-students.functions";
 
 export const Route = createLazyFileRoute("/admin/students")({
@@ -70,6 +71,7 @@ function StudentsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // PERFORMANCE-FIX-02A: server-side pagination
   const PAGE_SIZE = 25;
@@ -82,6 +84,7 @@ function StudentsPage() {
   } | null>(null);
 
   const listStudents = useServerFn(listStudentsForAdmin);
+  const exportStudents = useServerFn(exportFilteredStudentsToExcel);
   const create = useServerFn(createAccount);
   const reset = useServerFn(resetPassword);
   const toggle = useServerFn(setActive);
@@ -129,6 +132,28 @@ function StudentsPage() {
     page,
     pageSize: PAGE_SIZE,
   });
+
+  const appliedStudentExportPayload = () => ({
+    academic_number: appliedStudentQuery.academic_number || undefined,
+    study_system: appliedStudentQuery.study_system,
+    department_id: appliedStudentQuery.department_id || undefined,
+    program_id: appliedStudentQuery.program_id || undefined,
+    level_id: appliedStudentQuery.level_id || undefined,
+    academic_year_id: appliedStudentQuery.academic_year_id || undefined,
+    semester_id: appliedStudentQuery.semester_id || undefined,
+    status: appliedStudentQuery.status,
+  });
+
+  const hasAppliedStudentExportFilters = () => Boolean(
+    appliedStudentQuery.academic_number?.trim()
+    || (appliedStudentQuery.study_system && appliedStudentQuery.study_system !== "all")
+    || appliedStudentQuery.department_id
+    || appliedStudentQuery.program_id
+    || appliedStudentQuery.level_id
+    || appliedStudentQuery.academic_year_id
+    || appliedStudentQuery.semester_id
+    || (appliedStudentQuery.status && appliedStudentQuery.status !== "all"),
+  );
 
   // Reset page when a new search/filter query is applied.
   useEffect(() => { setPage(1); }, [appliedStudentQuery]);
@@ -216,6 +241,40 @@ function StudentsPage() {
     setError(null);
   };
 
+  const downloadExportFile = (fileBase64: string, filename: string) => {
+    const binary = atob(fileBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleExportStudents = async () => {
+    if (!hasAppliedStudentExportFilters()) {
+      setError("اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي قبل التصدير");
+      return;
+    }
+    setExportLoading(true);
+    setError(null);
+    try {
+      const res = await exportStudents({ data: appliedStudentExportPayload() });
+      downloadExportFile(res.fileBase64, res.filename);
+    } catch (e: any) {
+      setError(e?.message ?? "تعذّر تجهيز ملف Excel");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   const updateBackfillFilter = (key: keyof typeof backfillFilters, value: string) => {
     setBackfillFilters((current) => ({
       ...current,
@@ -274,10 +333,17 @@ function StudentsPage() {
   const createBackfillLogin = async (candidate: BackfillCandidate) => {
     const guard = await ensureStillWithoutLogin(candidate);
     if (!guard.ok) return { skipped: true as const, reason: guard.reason };
+    if (!candidate.email) {
+      return {
+        skipped: true as const,
+        reason: "لا يوجد إيميل جامعي في ملف الطالب — يرجى تحديث البيانات أولاً",
+      };
+    }
     const res = await provisionLogin({
       data: {
         profile_id: candidate.id,
         academic_number: candidate.academic_number,
+        university_email: candidate.email,
         must_change_password: true,
       },
     });
@@ -289,9 +355,9 @@ function StudentsPage() {
   };
 
   const runBackfillSingleTest = async () => {
-    const candidate = backfillPreview?.rows.find((row) => !row.has_user_id);
+    const candidate = backfillPreview?.rows.find((row) => !row.has_user_id && row.email);
     if (!candidate) {
-      setError("لا يوجد طالب بدون حساب في نتائج المعاينة.");
+      setError("لا يوجد طالب بدون حساب ولديه إيميل جامعي في نتائج المعاينة.");
       return;
     }
     setBusy(`backfill-test-${candidate.id}`);
@@ -557,6 +623,7 @@ function StudentsPage() {
                     <tr>
                       <th className="px-3 py-2 text-right">الرقم الأكاديمي</th>
                       <th className="px-3 py-2 text-right">الاسم</th>
+                      <th className="px-3 py-2 text-right">الإيميل الجامعي</th>
                       <th className="px-3 py-2 text-right">البرنامج</th>
                       <th className="px-3 py-2 text-right">المستوى</th>
                       <th className="px-3 py-2 text-right">الحالة</th>
@@ -568,6 +635,9 @@ function StudentsPage() {
                       <tr key={row.id} className="border-t border-border/60">
                         <td className="px-3 py-2 font-mono">{row.academic_number}</td>
                         <td className="px-3 py-2 font-bold">{row.full_name_ar}</td>
+                        <td className={`px-3 py-2 font-mono ${row.email ? "" : "text-destructive font-bold"}`}>
+                          {row.email ?? "غير مسجل"}
+                        </td>
                         <td className="px-3 py-2">{row.program_name ?? "—"}{row.program_code ? ` (${row.program_code})` : ""}</td>
                         <td className="px-3 py-2">{row.level_name ?? "—"}{row.level_number != null ? ` — ${row.level_number}` : ""}</td>
                         <td className="px-3 py-2">{row.status}</td>
@@ -575,7 +645,7 @@ function StudentsPage() {
                       </tr>
                     ))}
                     {backfillPreview.rows.length === 0 && (
-                      <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">لا توجد نتائج مطابقة.</td></tr>
+                      <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">لا توجد نتائج مطابقة.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -652,7 +722,7 @@ function StudentsPage() {
                       <thead className="bg-emerald-100">
                         <tr>
                           <th className="px-2 py-1 text-right">الرقم الأكاديمي</th>
-                          <th className="px-2 py-1 text-right">البريد</th>
+                          <th className="px-2 py-1 text-right">الإيميل الجامعي (اسم الدخول)</th>
                           <th className="px-2 py-1 text-right">كلمة المرور المؤقتة</th>
                         </tr>
                       </thead>
@@ -802,6 +872,18 @@ function StudentsPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
           >
             <Search className="h-4 w-4" /> استعراض الطلاب
+          </button>
+          <button
+            type="button"
+            onClick={handleExportStudents}
+            disabled={exportLoading || !hasAppliedStudentExportFilters()}
+            title={!hasAppliedStudentExportFilters() ? "طبّق فلترًا واحدًا على الأقل قبل التصدير" : undefined}
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
+          >
+            {exportLoading
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <FileSpreadsheet className="h-4 w-4" />}
+            {exportLoading ? "جاري تجهيز ملف Excel..." : "تصدير Excel"}
           </button>
           <button
             type="button"
@@ -1129,9 +1211,9 @@ function AddStudentModal({
                   dir="ltr" placeholder="+967..."
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
               </Field>
-              <Field label="البريد الإلكتروني الشخصي">
+              <Field label="الإيميل الجامعي">
                 <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)}
-                  dir="ltr"
+                  dir="ltr" placeholder="student@students.usr.edu.ye"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
               </Field>
             </div>
@@ -1198,7 +1280,8 @@ function AddStudentModal({
               <div className="text-sm">
                 <div className="font-bold text-primary">إنشاء حساب دخول للطالب</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  اسم الدخول للطالب هو الرقم الأكاديمي. تُنشأ كلمة مرور مؤقتة عشوائية وتُعرض للمسؤول مرة واحدة فقط، ويجب على الطالب تغييرها عند أول دخول.
+                  يتم تسجيل الدخول باستخدام الإيميل الجامعي فقط (مطلوب عند تفعيل هذا الخيار).
+                  تُنشأ كلمة مرور مؤقتة عشوائية وتُعرض للمسؤول مرة واحدة، ويجب على الطالب تغييرها عند أول دخول.
                 </div>
               </div>
             </label>
@@ -1402,11 +1485,11 @@ function CredentialsSlip({
       <div class="box">
         <div class="row"><span class="k">الاسم:</span><span>${slip.full_name_ar}</span></div>
         <div class="row"><span class="k">الرقم الأكاديمي:</span><span class="v">${slip.academic_number}</span></div>
-        <div class="row"><span class="k">اسم الدخول:</span><span class="v">${slip.academic_number}</span></div>
+        <div class="row"><span class="k">الإيميل الجامعي (اسم الدخول):</span><span class="v">${slip.email}</span></div>
         <div class="row"><span class="k">كلمة المرور المؤقتة:</span><span class="v">${slip.password}</span></div>
       </div>
       <p class="note">
-        • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong> واختيار «طالب».<br>
+        • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong> واختيار «طالب» باستخدام الإيميل الجامعي.<br>
         • تُنشأ كلمة المرور المؤقتة عشوائياً وتُعرض للمسؤول مرة واحدة فقط.<br>
         • سيُطلب من الطالب تغيير كلمة المرور عند أول دخول.<br>
         • لا تشارك بيانات الدخول مع أي شخص.
@@ -1430,7 +1513,7 @@ function CredentialsSlip({
           <div className="rounded-lg border-2 border-primary/20 bg-secondary/30 p-4 space-y-2.5 text-sm">
             <SlipRow label="الاسم" value={slip.full_name_ar} />
             <SlipRow label="الرقم الأكاديمي" value={slip.academic_number} mono onCopy={() => copy(slip.academic_number)} />
-            <SlipRow label="اسم الدخول" value={slip.academic_number} mono onCopy={() => copy(slip.academic_number)} />
+            <SlipRow label="الإيميل الجامعي (اسم الدخول)" value={slip.email} mono onCopy={() => copy(slip.email)} />
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
             
           </div>

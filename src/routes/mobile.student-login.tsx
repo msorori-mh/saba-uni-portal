@@ -1,13 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { GraduationCap, Loader2, ArrowLeft, ShieldCheck } from "lucide-react";
+import { GraduationCap, Loader2, ArrowLeft, ShieldCheck, Mail } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { IdentifierInput, friendlyAuthError } from "@/components/auth/IdentifierInput";
+import { friendlyAuthError } from "@/components/auth/IdentifierInput";
+import { validateUniversityLoginEmailInput, normalizeUniversityLoginEmail } from "@/lib/university-email-auth";
 import { checkRateLimit, RATE_LIMIT_POLICIES, RATE_LIMIT_MESSAGE, describeBlockedFor } from "@/lib/rate-limit";
 
-const STUDENT_DOMAIN = "students.usr.edu.ye";
 const REDIRECT_AFTER_LOGIN = "/mobile/student";
 
 export const Route = createFileRoute("/mobile/student-login")({
@@ -52,13 +52,6 @@ function MobileStudentLoginPage() {
     };
   }, [navigate]);
 
-  const buildEmail = (raw: string): string => {
-    const v = raw.trim().toLowerCase();
-    if (!v) return "";
-    if (v.includes("@")) return v;
-    return `${v}@${STUDENT_DOMAIN}`;
-  };
-
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -66,7 +59,14 @@ function MobileStudentLoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const trimmedId = identifier.trim().toLowerCase();
+      const emailError = validateUniversityLoginEmailInput(identifier);
+      if (emailError) {
+        setError(emailError);
+        setLoading(false);
+        return;
+      }
+
+      const trimmedId = normalizeUniversityLoginEmail(identifier);
       const rl = await checkRateLimit(
         `login:mobile-student:${trimmedId}`,
         RATE_LIMIT_POLICIES.loginAttempt,
@@ -78,9 +78,8 @@ function MobileStudentLoginPage() {
         return;
       }
 
-      const email = buildEmail(identifier);
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: trimmedId,
         password,
       });
       if (signInError) throw signInError;
@@ -155,29 +154,31 @@ function MobileStudentLoginPage() {
                 htmlFor="m-student-id"
                 className="block text-sm font-semibold mb-1.5"
               >
-                الرقم الأكاديمي
+                الإيميل الجامعي
               </label>
-              <IdentifierInput
-                id="m-student-id"
-                ref={identifierRef}
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                onClear={() => {
-                  setIdentifier("");
-                  identifierRef.current?.focus();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    passwordRef.current?.focus();
-                  }
-                }}
-                placeholder="20230001"
-                autoComplete="username"
-                required
-              />
+              <div className="relative">
+                <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                <input
+                  id="m-student-id"
+                  ref={identifierRef}
+                  type="email"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      passwordRef.current?.focus();
+                    }
+                  }}
+                  placeholder="student@students.usr.edu.ye"
+                  autoComplete="username"
+                  dir="ltr"
+                  required
+                  className="w-full rounded-md border border-input bg-background pr-10 pl-3 py-3 text-sm text-right outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+                />
+              </div>
               <p className="mt-1 text-[10px] text-muted-foreground">
-                أدخل رقمك الأكاديمي.
+                يتم تسجيل الدخول باستخدام الإيميل الجامعي فقط.
               </p>
             </div>
 

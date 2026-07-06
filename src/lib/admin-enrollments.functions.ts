@@ -19,7 +19,7 @@ async function assertEnrollmentsAdmin(userId: string) {
   await assertAnyRole(
     userId,
     ENROLLMENTS_ADMIN_ROLES,
-    "ليس لديك صلاحية إدارة تسجيل الطلاب",
+    "ليس لديك صلاحية إدارة تقسيم المجموعات",
   );
 }
 

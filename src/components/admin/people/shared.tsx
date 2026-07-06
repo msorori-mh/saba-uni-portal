@@ -45,13 +45,12 @@ export function CredentialsSlip({
       <h2>${PORTAL_LABEL[slip.portal]} — بيانات الدخول</h2>
       <div class="box">
         <div class="row"><span class="k">الاسم:</span><span>${slip.full_name_ar}</span></div>
-        <div class="row"><span class="k">الرقم:</span><span class="v">${slip.identifier}</span></div>
-        <div class="row"><span class="k">اسم الدخول:</span><span class="v">${slip.identifier}</span></div>
+        <div class="row"><span class="k">الإيميل الجامعي (اسم الدخول):</span><span class="v">${slip.email}</span></div>
         <div class="row"><span class="k">كلمة المرور المؤقتة:</span><span class="v">${slip.password}</span></div>
-        <div class="row"><span class="k">البريد:</span><span class="v">${slip.email}</span></div>
+        <div class="row"><span class="k">الرقم الإداري:</span><span class="v">${slip.identifier}</span></div>
       </div>
       <p class="note">
-        • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong>.<br>
+        • يُرجى الدخول إلى البوابة عبر <strong>/portal-login</strong> باستخدام الإيميل الجامعي.<br>
         • سيتم طلب تغيير كلمة المرور عند أول دخول.<br>
         • لا تشارك بيانات الدخول مع أي شخص.
       </p>
@@ -71,10 +70,9 @@ export function CredentialsSlip({
           <p className="text-sm text-muted-foreground">احفظ بيانات الدخول التالية وسلّمها للمستخدم:</p>
           <div className="rounded-lg border-2 border-primary/20 bg-secondary/30 p-4 space-y-2.5 text-sm">
             <SlipRow label="الاسم" value={slip.full_name_ar} />
-            <SlipRow label="الرقم" value={slip.identifier} mono onCopy={() => copy(slip.identifier)} />
-            <SlipRow label="اسم الدخول" value={slip.identifier} mono onCopy={() => copy(slip.identifier)} />
+            <SlipRow label="الرقم الإداري" value={slip.identifier} mono onCopy={() => copy(slip.identifier)} />
+            <SlipRow label="الإيميل الجامعي (اسم الدخول)" value={slip.email} mono onCopy={() => copy(slip.email)} />
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
-            <SlipRow label="البريد" value={slip.email} mono onCopy={() => copy(slip.email)} />
           </div>
           <p className="text-xs text-muted-foreground">سيُطلب من المستخدم تغيير كلمة المرور عند أول دخول.</p>
         </div>

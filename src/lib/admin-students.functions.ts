@@ -4,6 +4,31 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { assertStudentAdmin, assertStudentRead, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
+import {
+  isValidUniversityLoginEmail,
+  normalizeUniversityLoginEmail,
+} from "@/lib/university-email-auth";
+import { loadXLSX } from "@/lib/xlsx-loader";
+
+const EXPORT_MAX_ROWS = 5000;
+
+function studySystemLabelAr(value: string | null | undefined) {
+  if (value === "regular") return "عام";
+  if (value === "private") return "نفقة خاصة";
+  return "غير محدد";
+}
+
+function studentStatusLabelAr(status: string | null | undefined) {
+  switch (status) {
+    case "active": return "نشط";
+    case "inactive": return "معطّل";
+    case "suspended": return "موقوف";
+    case "graduated": return "متخرج";
+    case "withdrawn": return "منسحب";
+    case "transferred": return "محول";
+    default: return status ?? "—";
+  }
+}
 
 async function logAudit(input: {
   actor_user_id: string;
@@ -109,6 +134,7 @@ export const listStudentLoginBackfillCandidates = createServerFn({ method: "POST
         full_name_ar,
         status,
         user_id,
+        email,
         department_id,
         program_id,
         departments(name_ar),
@@ -158,6 +184,7 @@ export const listStudentLoginBackfillCandidates = createServerFn({ method: "POST
         id: profile.id,
         academic_number: profile.academic_number,
         full_name_ar: profile.full_name_ar,
+        email: profile.email ? normalizeUniversityLoginEmail(profile.email) : null,
         status: profile.status,
         user_id: profile.user_id,
         has_user_id: Boolean(profile.user_id),
@@ -332,7 +359,7 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
         user_id: profile.user_id,
         academic_number: profile.academic_number,
         identifier: profile.academic_number,
-        email: profile.user_id ? `${profile.academic_number.toLowerCase()}@students.usr.edu.ye` : null,
+        email: profile.email ? normalizeUniversityLoginEmail(profile.email) : null,
         roles: (roles ?? []).filter((role: any) => role.user_id === profile.user_id).map((role: any) => role.role),
         full_name_ar: profile.full_name_ar,
         status: profile.status,
@@ -361,6 +388,200 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
     };
   });
 
+const adminStudentsExportFilterSchema = adminStudentsFilterSchema.omit({
+  page: true,
+  pageSize: true,
+});
+
+function buildAdminStudentsExportQuery(
+  data: z.infer<typeof adminStudentsExportFilterSchema>,
+  hasAcademicNumber: boolean,
+  scopedProfileIds: string[] | null,
+) {
+  let query = supabaseAdmin
+    .from("student_profiles")
+    .select(`
+      id,
+      academic_number,
+      full_name_ar,
+      status,
+      study_system,
+      phone,
+      email,
+      updated_at,
+      department_id,
+      program_id,
+      departments(name_ar),
+      programs(name_ar, code)
+    `, { count: "exact" })
+    .order("academic_number", { ascending: true });
+
+  if (hasAcademicNumber) {
+    query = query.eq("academic_number", data.academic_number!.trim());
+  } else {
+    if (data.department_id) query = query.eq("department_id", data.department_id);
+    if (data.program_id) query = query.eq("program_id", data.program_id);
+    if (data.study_system && data.study_system !== "all") query = query.eq("study_system", data.study_system);
+    if (data.status && data.status !== "all") query = query.eq("status", data.status);
+    if (scopedProfileIds) query = query.in("id", scopedProfileIds);
+  }
+
+  return query;
+}
+
+export const exportFilteredStudentsToExcel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => adminStudentsExportFilterSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await assertStudentRead(context.userId);
+
+    const academicNumber = data.academic_number?.trim() ?? "";
+    const hasAcademicNumber = academicNumber.length > 0;
+    const hasGroupFilter = Boolean(
+      (data.study_system && data.study_system !== "all")
+      || data.department_id
+      || data.program_id
+      || data.level_id
+      || data.academic_year_id
+      || data.semester_id
+      || (data.status && data.status !== "all"),
+    );
+
+    if (!hasAcademicNumber && !hasGroupFilter) {
+      throw new Error("اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي قبل التصدير");
+    }
+
+    let scopedProfileIds: string[] | null = null;
+    if (!hasAcademicNumber && (data.level_id || data.academic_year_id || data.semester_id)) {
+      let statusQuery = supabaseAdmin
+        .from("student_academic_status")
+        .select("student_profile_id")
+        .limit(5000);
+      if (data.level_id) statusQuery = statusQuery.eq("level_id", data.level_id);
+      if (data.academic_year_id) statusQuery = statusQuery.eq("academic_year_id", data.academic_year_id);
+      if (data.semester_id) statusQuery = statusQuery.eq("semester_id", data.semester_id);
+
+      const { data: statusRows, error: statusErr } = await statusQuery;
+      if (statusErr) throw new Error(statusErr.message);
+      scopedProfileIds = Array.from(new Set((statusRows ?? []).map((r: any) => r.student_profile_id).filter(Boolean)));
+      if (scopedProfileIds.length === 0) {
+        throw new Error("لا توجد بيانات مطابقة للفلاتر المحددة");
+      }
+    }
+
+    let query = buildAdminStudentsExportQuery(data, hasAcademicNumber, scopedProfileIds);
+
+    const { count, error: countErr } = await query.range(0, 0);
+    if (countErr) throw new Error(countErr.message);
+    const total = count ?? 0;
+    if (total === 0) {
+      throw new Error("لا توجد بيانات مطابقة للفلاتر المحددة");
+    }
+    if (total > EXPORT_MAX_ROWS) {
+      throw new Error(
+        `عدد النتائج (${total.toLocaleString("ar-EG")}) يتجاوز الحد الآمن للتصدير (${EXPORT_MAX_ROWS.toLocaleString("ar-EG")}). ضيّق الفلاتر ثم أعد المحاولة.`,
+      );
+    }
+
+    query = buildAdminStudentsExportQuery(data, hasAcademicNumber, scopedProfileIds);
+    const { data: profiles, error } = await query.range(0, total - 1);
+    if (error) throw new Error(error.message);
+
+    const profileIds = (profiles ?? []).map((profile: any) => profile.id);
+    const statusByProfile = new Map<string, any>();
+    if (profileIds.length > 0) {
+      let academicStatusQuery = supabaseAdmin
+        .from("student_academic_status")
+        .select(`
+          student_profile_id,
+          enrollment_status,
+          updated_at,
+          academic_levels(name, level_number),
+          academic_years(name),
+          semesters(name, code)
+        `)
+        .in("student_profile_id", profileIds)
+        .order("updated_at", { ascending: false });
+      if (!hasAcademicNumber) {
+        if (data.level_id) academicStatusQuery = academicStatusQuery.eq("level_id", data.level_id);
+        if (data.academic_year_id) academicStatusQuery = academicStatusQuery.eq("academic_year_id", data.academic_year_id);
+        if (data.semester_id) academicStatusQuery = academicStatusQuery.eq("semester_id", data.semester_id);
+      }
+      const { data: statuses, error: statusesErr } = await academicStatusQuery;
+      if (statusesErr) throw new Error(statusesErr.message);
+      for (const row of statuses ?? []) {
+        const profileId = (row as any).student_profile_id;
+        if (!statusByProfile.has(profileId)) statusByProfile.set(profileId, row);
+      }
+    }
+
+    const exportRows = (profiles ?? []).map((profile: any) => {
+      const academicStatus = statusByProfile.get(profile.id);
+      const level = academicStatus?.academic_levels;
+      const year = academicStatus?.academic_years;
+      const semester = academicStatus?.semesters;
+      const levelLabel = level?.name
+        ? `${level.name}${level.level_number != null ? ` — ${level.level_number}` : ""}`
+        : "—";
+      const programLabel = profile.programs?.name_ar
+        ? `${profile.programs.name_ar}${profile.programs.code ? ` (${profile.programs.code})` : ""}`
+        : "—";
+      const lastUpdated = profile.updated_at
+        ? new Date(profile.updated_at).toLocaleString("ar-EG-u-nu-latn")
+        : "—";
+
+      return {
+        "الرقم الأكاديمي": profile.academic_number,
+        "اسم الطالب": profile.full_name_ar,
+        "القسم": profile.departments?.name_ar ?? "—",
+        "البرنامج": programLabel,
+        "المستوى": levelLabel,
+        "النظام الدراسي": studySystemLabelAr(profile.study_system),
+        "الحالة الأكاديمية": studentStatusLabelAr(profile.status),
+        "العام الأكاديمي": year?.name ?? "—",
+        "الفصل الدراسي": semester?.code ?? semester?.name ?? "—",
+        "الهاتف": profile.phone ?? "—",
+        "البريد الإلكتروني": profile.email ?? "—",
+        "آخر تحديث": lastUpdated,
+      };
+    });
+
+    const XLSX = await loadXLSX();
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    ws["!cols"] = Object.keys(exportRows[0] ?? {}).map(() => ({ wch: 22 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "الطلاب");
+    const buffer = XLSX.write(wb, { bookType: "xlsx", type: "buffer" }) as Buffer;
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    const filename = `تصدير-بيانات-الطلاب-${dateStamp}.xlsx`;
+
+    await logAudit({
+      actor_user_id: context.userId,
+      entity_id: null,
+      action_type: "students_exported",
+      notes: `تصدير Excel للطلاب (${exportRows.length} صف)`,
+      new_values: {
+        rowCount: exportRows.length,
+        filters: {
+          academic_number: hasAcademicNumber ? academicNumber : null,
+          study_system: data.study_system,
+          department_id: data.department_id ?? null,
+          program_id: data.program_id ?? null,
+          level_id: data.level_id ?? null,
+          academic_year_id: data.academic_year_id ?? null,
+          semester_id: data.semester_id ?? null,
+          status: data.status,
+        },
+      },
+    });
+
+    return {
+      fileBase64: buffer.toString("base64"),
+      filename,
+      rowCount: exportRows.length,
+    };
+  });
+
 // ------------ Create Student ------------
 
 const createSchema = z.object({
@@ -377,6 +598,17 @@ const createSchema = z.object({
   academic_year_id: z.string().uuid(),
   semester_id: z.string().uuid(),
   create_login: z.boolean().default(false),
+}).superRefine((data, ctx) => {
+  if (data.create_login) {
+    const email = String(data.email ?? "").trim();
+    if (!email || !isValidUniversityLoginEmail(email)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "الإيميل الجامعي مطلوب عند إنشاء حساب الدخول",
+        path: ["email"],
+      });
+    }
+  }
 });
 
 export const createStudent = createServerFn({ method: "POST" })
@@ -431,11 +663,11 @@ export const createStudent = createServerFn({ method: "POST" })
     let credentials: { email: string; password: string } | null = null;
 
     if (data.create_login) {
-      const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
+      const loginEmail = normalizeUniversityLoginEmail(data.email!);
       const password = generateTemporaryPassword();
 
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
-        email,
+        email: loginEmail,
         password,
         email_confirm: true,
         user_metadata: { full_name_ar: data.full_name_ar, kind: "student" },
@@ -459,7 +691,7 @@ export const createStudent = createServerFn({ method: "POST" })
       }
 
       await supabaseAdmin.from("user_roles").insert({ user_id: newUserId, role: "student" as any });
-      credentials = { email, password };
+      credentials = { email: loginEmail, password };
     }
 
     await logAudit({
@@ -556,6 +788,7 @@ export const getStudent = createServerFn({ method: "POST" })
 const provisionSchema = z.object({
   profile_id: z.string().uuid(),
   academic_number: z.string().trim().min(1).max(32).regex(/^[A-Za-z0-9_-]+$/),
+  university_email: z.string().trim().email().max(160).optional(),
   must_change_password: z.boolean().optional().default(true),
 });
 
@@ -565,10 +798,9 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertStudentAdmin(context.userId);
 
-    const email = `${data.academic_number.toLowerCase()}@students.usr.edu.ye`;
     const { data: profile, error: profileErr } = await supabaseAdmin
       .from("student_profiles")
-      .select("id, academic_number, user_id")
+      .select("id, academic_number, user_id, email")
       .eq("id", data.profile_id)
       .maybeSingle();
     if (profileErr) throw new Error(profileErr.message);
@@ -577,7 +809,14 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
     if (profile.academic_number !== data.academic_number) {
       throw new Error("الرقم الأكاديمي لا يطابق ملف الطالب المحدد");
     }
-    const existingAuthUserId = await findAuthUserIdByEmail(email);
+
+    const loginEmail = normalizeUniversityLoginEmail(
+      data.university_email?.trim() || profile.email?.trim() || "",
+    );
+    if (!loginEmail || !isValidUniversityLoginEmail(loginEmail)) {
+      throw new Error("الإيميل الجامعي غير مسجل في ملف الطالب — يرجى تحديث البيانات أولاً");
+    }
+    const existingAuthUserId = await findAuthUserIdByEmail(loginEmail);
     if (existingAuthUserId) {
       throw new Error("يوجد حساب دخول مسبق يستخدم بريد هذا الطالب");
     }
@@ -585,7 +824,7 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
     const password = generateTemporaryPassword();
 
     const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: loginEmail,
       password,
       email_confirm: true,
       user_metadata: { kind: "student" },
@@ -629,5 +868,5 @@ export const provisionStudentLogin = createServerFn({ method: "POST" })
       new_values: { academic_number: data.academic_number, must_change_password: data.must_change_password },
     });
 
-    return { ok: true, user_id: newUserId, email, password };
+    return { ok: true, user_id: newUserId, email: loginEmail, password };
   });
