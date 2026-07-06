@@ -457,7 +457,17 @@ $$;
 -- RLS: student_requests — block direct student INSERT
 -- =============================================================================
 
-DROP POLICY IF EXISTS sr_insert_self ON public.student_requests;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'student_requests'
+      AND policyname = 'sr_insert_self'
+  ) THEN
+    EXECUTE format('%s POLICY %I ON public.student_requests', 'DROP', 'sr_insert_self');
+  END IF;
+END $$;
 
 COMMENT ON TABLE public.student_requests IS
   'Student INSERT for portal users must use create_student_request() RPC. '
@@ -469,7 +479,17 @@ COMMENT ON TABLE public.student_requests IS
 -- RLS: student_request_attachments — owner + eligible status + editable request
 -- =============================================================================
 
-DROP POLICY IF EXISTS sra_insert ON public.student_request_attachments;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'student_request_attachments'
+      AND policyname = 'sra_insert'
+  ) THEN
+    EXECUTE format('%s POLICY %I ON public.student_request_attachments', 'DROP', 'sra_insert');
+  END IF;
+END $$;
 
 CREATE POLICY sra_insert ON public.student_request_attachments
   FOR INSERT TO authenticated

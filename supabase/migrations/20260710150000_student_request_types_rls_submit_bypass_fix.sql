@@ -7,7 +7,17 @@
 -- 1. RLS: sr_update_self — block student transition to submitted via direct UPDATE
 -- =============================================================================
 
-DROP POLICY IF EXISTS sr_update_self ON public.student_requests;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'student_requests'
+      AND policyname = 'sr_update_self'
+  ) THEN
+    EXECUTE format('%s POLICY %I ON public.student_requests', 'DROP', 'sr_update_self');
+  END IF;
+END $$;
 
 CREATE POLICY sr_update_self ON public.student_requests
   FOR UPDATE TO authenticated
