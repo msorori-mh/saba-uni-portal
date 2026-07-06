@@ -15,6 +15,12 @@ import {
   Archive,
   Send,
   X,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  Plus,
+  CheckCircle2,
+  ListChecks,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -27,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -44,7 +51,15 @@ import {
 import {
   scheduleCouncilMeeting,
   updateCouncilMeeting,
+  getAvailableTopicsForAgenda,
+  addTopicToAgenda,
+  addManualAgendaItem,
+  updateAgendaItem,
+  reorderAgendaItems,
+  finalizeMeetingAgenda,
   type CouncilLinkMemberRole,
+  type CouncilAgendaItem,
+  type AvailableTopicForAgenda,
 } from "@/lib/admin-councils.functions";
 import {
   getCouncilTopicAttachmentSignedUrl,
@@ -52,6 +67,7 @@ import {
   getMyAcademicCouncilMembershipsV2,
   getMyCouncilMeetingsV2,
   getMyCouncilTopics,
+  getAgendaItemsForMeeting,
   prepareCouncilTopicAttachmentUpload,
   submitCouncilTopic,
   type CouncilTopicAttachmentItem,
@@ -114,6 +130,18 @@ const MEETING_UPDATE_DENIED_UI =
   "لا تملك صلاحية تعديل هذا الاجتماع.";
 const MEETINGS_LOAD_FAILED_UI = "تعذر تحميل الاجتماعات.";
 const MEETING_SAVE_FAILED_UI = "تعذر حفظ الاجتماع.";
+const AGENDA_LOAD_FAILED_UI = "تعذر تحميل جدول الأعمال.";
+const AGENDA_TOPICS_LOAD_FAILED_UI = "تعذر تحميل الموضوعات المتاحة.";
+const AGENDA_WRITE_DENIED_UI =
+  "لا تملك صلاحية إدارة جدول أعمال هذا المجلس.";
+const AGENDA_TOPIC_ALREADY_ADDED_UI =
+  "هذا الموضوع مضاف مسبقاً إلى جدول الأعمال.";
+const AGENDA_REORDER_FAILED_UI = "تعذر حفظ ترتيب جدول الأعمال.";
+const AGENDA_FINALIZE_DENIED_UI =
+  "لا تملك صلاحية اعتماد جدول الأعمال.";
+const AGENDA_SAVE_FAILED_UI = "تعذر حفظ جدول الأعمال.";
+const SESSION_EXPIRED_UI =
+  "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
 
 const MEETING_STATUS_OPTIONS = [
   "scheduled",
@@ -285,6 +313,41 @@ function mapMeetingUiError(message: string, mode: "schedule" | "update" | "load"
   return MEETING_SAVE_FAILED_UI;
 }
 
+function mapAgendaUiError(
+  message: string,
+  mode: "load" | "topics_load" | "write" | "reorder" | "finalize",
+): string {
+  if (isSessionExpiredError(message)) return SESSION_EXPIRED_UI;
+  if (message.includes(AGENDA_LOAD_FAILED_UI)) return AGENDA_LOAD_FAILED_UI;
+  if (message.includes(AGENDA_TOPICS_LOAD_FAILED_UI)) return AGENDA_TOPICS_LOAD_FAILED_UI;
+  if (message.includes(AGENDA_WRITE_DENIED_UI)) return AGENDA_WRITE_DENIED_UI;
+  if (message.includes(AGENDA_TOPIC_ALREADY_ADDED_UI)) return AGENDA_TOPIC_ALREADY_ADDED_UI;
+  if (message.includes(AGENDA_REORDER_FAILED_UI)) return AGENDA_REORDER_FAILED_UI;
+  if (message.includes(AGENDA_FINALIZE_DENIED_UI)) return AGENDA_FINALIZE_DENIED_UI;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("policy") ||
+    lower.includes("permission") ||
+    lower.includes("row-level security") ||
+    lower.includes("صلاحية")
+  ) {
+    if (mode === "finalize") return AGENDA_FINALIZE_DENIED_UI;
+    if (mode === "load") return AGENDA_LOAD_FAILED_UI;
+    if (mode === "topics_load") return AGENDA_TOPICS_LOAD_FAILED_UI;
+    if (mode === "reorder") return AGENDA_REORDER_FAILED_UI;
+    return AGENDA_WRITE_DENIED_UI;
+  }
+  if (mode === "load") return AGENDA_LOAD_FAILED_UI;
+  if (mode === "topics_load") return AGENDA_TOPICS_LOAD_FAILED_UI;
+  if (mode === "reorder") return AGENDA_REORDER_FAILED_UI;
+  if (mode === "finalize") return AGENDA_FINALIZE_DENIED_UI;
+  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+    return AGENDA_SAVE_FAILED_UI;
+  }
+  if (message.trim().length > 0) return message;
+  return AGENDA_SAVE_FAILED_UI;
+}
+
 function roleLabel(role: string): string {
   return MEMBER_ROLE_LABELS[role as CouncilLinkMemberRole] ?? role;
 }
@@ -393,6 +456,11 @@ function FacultyAcademicCouncilsPage() {
     [chairMemberships],
   );
 
+  const agendaWriteMemberships = useMemo(
+    () => currentMemberships.filter((m) => m.role === "chair" || m.role === "secretary"),
+    [currentMemberships],
+  );
+
   const viewerOnly =
     currentMemberships.length > 0 &&
     currentMemberships.every((m) => m.role === "viewer");
@@ -471,6 +539,14 @@ function FacultyAcademicCouncilsPage() {
                 onScheduled={() => {
                   void meetingsQuery.refetch();
                 }}
+              />
+            ) : null}
+
+            {agendaWriteMemberships.length > 0 ? (
+              <ChairAgendaEditorSection
+                writeMemberships={agendaWriteMemberships}
+                upcomingMeetings={upcomingMeetings}
+                onUpdated={() => void meetingsQuery.refetch()}
               />
             ) : null}
 
@@ -627,6 +703,466 @@ function PreviousMembershipCard({ membership }: { membership: MyCouncilMembershi
   );
 }
 
+function swapFacultyAgendaOrder(
+  items: CouncilAgendaItem[],
+  itemId: string,
+  direction: "up" | "down",
+): CouncilAgendaItem[] {
+  const sorted = [...items].sort((a, b) => a.order_index - b.order_index);
+  const idx = sorted.findIndex((i) => i.id === itemId);
+  if (idx < 0) return items;
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= sorted.length) return items;
+  const next = [...sorted];
+  [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+  return next.map((item, i) => ({ ...item, order_index: i + 1 }));
+}
+
+function MeetingAgendaExpandable({ meetingId }: { meetingId: string }) {
+  const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
+  const [expanded, setExpanded] = useState(false);
+
+  const agendaQuery = useQuery({
+    queryKey: ["faculty", "meeting-agenda", meetingId],
+    queryFn: () => fetchAgenda({ data: { meetingId } }),
+    enabled: expanded,
+    staleTime: 15_000,
+  });
+
+  const items = agendaQuery.data?.items ?? [];
+
+  return (
+    <div className="mt-3 border-t border-border/60 pt-3">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+      >
+        <ListChecks className="h-3.5 w-3.5" />
+        جدول الأعمال
+        <ChevronLeft
+          className={`h-3.5 w-3.5 transition-transform ${expanded ? "-rotate-90" : "rotate-180"}`}
+        />
+      </button>
+      {expanded ? (
+        <div className="mt-2">
+          {agendaQuery.isLoading ? (
+            <p className="text-[11px] text-muted-foreground">جاري تحميل جدول الأعمال…</p>
+          ) : agendaQuery.isError ? (
+            <p className="text-[11px] text-destructive">{AGENDA_LOAD_FAILED_UI}</p>
+          ) : items.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground">لا توجد بنود في جدول الأعمال حتى الآن.</p>
+          ) : (
+            <ol className="space-y-2 list-none">
+              {items.map((item) => (
+                <li
+                  key={item.id}
+                  className="rounded-md border border-border/70 bg-muted/10 px-2.5 py-2 text-[11px]"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono font-bold text-primary">{item.order_index}.</span>
+                    <span className="font-medium text-foreground">{item.title}</span>
+                    {item.is_approved ? (
+                      <Badge variant="secondary" className="text-[9px]">
+                        معتمد
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {item.topic ? (
+                    <p className="mt-1 text-muted-foreground">موضوع: {item.topic.title}</p>
+                  ) : null}
+                  {item.notes ? <p className="mt-1 text-foreground/80">{item.notes}</p> : null}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ChairAgendaEditorSection({
+  writeMemberships,
+  upcomingMeetings,
+  onUpdated,
+}: {
+  writeMemberships: MyCouncilMembershipV2[];
+  upcomingMeetings: CouncilMeetingV2Item[];
+  onUpdated: () => void;
+}) {
+  const qc = useQueryClient();
+  const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
+  const fetchAvailableTopics = useServerFn(getAvailableTopicsForAgenda);
+  const addTopic = useServerFn(addTopicToAgenda);
+  const addManual = useServerFn(addManualAgendaItem);
+  const updateItem = useServerFn(updateAgendaItem);
+  const reorderItems = useServerFn(reorderAgendaItems);
+  const finalizeAgenda = useServerFn(finalizeMeetingAgenda);
+
+  const writeCouncilIds = useMemo(
+    () => new Set(writeMemberships.map((m) => m.council_id)),
+    [writeMemberships],
+  );
+  const chairCouncilIds = useMemo(
+    () => new Set(writeMemberships.filter((m) => m.role === "chair").map((m) => m.council_id)),
+    [writeMemberships],
+  );
+
+  const eligibleMeetings = useMemo(
+    () => upcomingMeetings.filter((m) => writeCouncilIds.has(m.council_id)),
+    [upcomingMeetings, writeCouncilIds],
+  );
+
+  const [selectedMeetingId, setSelectedMeetingId] = useState(
+    eligibleMeetings[0]?.meeting_id ?? "",
+  );
+  const [manualTitle, setManualTitle] = useState("");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
+  const [addTopicBusyId, setAddTopicBusyId] = useState<string | null>(null);
+  const [reorderBusy, setReorderBusy] = useState(false);
+  const [finalizeBusy, setFinalizeBusy] = useState(false);
+
+  const [editTarget, setEditTarget] = useState<CouncilAgendaItem | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editOrder, setEditOrder] = useState("");
+  const [editApproved, setEditApproved] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+
+  const selectedMeeting = eligibleMeetings.find((m) => m.meeting_id === selectedMeetingId) ?? null;
+  const canFinalize = selectedMeeting
+    ? chairCouncilIds.has(selectedMeeting.council_id)
+    : false;
+
+  const agendaQuery = useQuery({
+    queryKey: ["faculty", "chair-agenda", selectedMeetingId],
+    queryFn: () => fetchAgenda({ data: { meetingId: selectedMeetingId } }),
+    enabled: Boolean(selectedMeetingId),
+    staleTime: 10_000,
+  });
+
+  const topicsQuery = useQuery({
+    queryKey: ["faculty", "chair-agenda-topics", selectedMeetingId],
+    queryFn: () => fetchAvailableTopics({ data: { meetingId: selectedMeetingId } }),
+    enabled: Boolean(selectedMeetingId),
+    staleTime: 10_000,
+  });
+
+  const agendaItems = agendaQuery.data?.items ?? [];
+  const availableTopics = topicsQuery.data?.topics ?? [];
+
+  const refreshAgenda = () => {
+    if (selectedMeetingId) {
+      qc.invalidateQueries({ queryKey: ["faculty", "chair-agenda", selectedMeetingId] });
+      qc.invalidateQueries({ queryKey: ["faculty", "chair-agenda-topics", selectedMeetingId] });
+      qc.invalidateQueries({ queryKey: ["faculty", "meeting-agenda", selectedMeetingId] });
+    }
+    onUpdated();
+  };
+
+  const persistReorder = async (items: CouncilAgendaItem[]) => {
+    if (!selectedMeetingId) return;
+    setReorderBusy(true);
+    try {
+      await reorderItems({
+        data: {
+          meetingId: selectedMeetingId,
+          items: items.map((i) => ({ agendaItemId: i.id, orderIndex: i.order_index })),
+        },
+      });
+      toast.success("تم حفظ ترتيب جدول الأعمال.");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(extractErrorMessage(err), "reorder"));
+    } finally {
+      setReorderBusy(false);
+    }
+  };
+
+  const handleAddTopic = async (topic: AvailableTopicForAgenda) => {
+    if (!selectedMeetingId) return;
+    setAddTopicBusyId(topic.topic_id);
+    try {
+      await addTopic({ data: { meetingId: selectedMeetingId, topicId: topic.topic_id } });
+      toast.success("تمت إضافة الموضوع إلى جدول الأعمال.");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(extractErrorMessage(err), "write"));
+    } finally {
+      setAddTopicBusyId(null);
+    }
+  };
+
+  const handleManualAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMeetingId || manualTitle.trim().length < 3) return;
+    setManualBusy(true);
+    try {
+      await addManual({
+        data: {
+          meetingId: selectedMeetingId,
+          title: manualTitle.trim(),
+          notes: manualNotes.trim() || undefined,
+        },
+      });
+      toast.success("تمت إضافة البند.");
+      setManualTitle("");
+      setManualNotes("");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(extractErrorMessage(err), "write"));
+    } finally {
+      setManualBusy(false);
+    }
+  };
+
+  const openEdit = (item: CouncilAgendaItem) => {
+    setEditTarget(item);
+    setEditTitle(item.title);
+    setEditNotes(item.notes ?? "");
+    setEditOrder(String(item.order_index));
+    setEditApproved(item.is_approved);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget || editTitle.trim().length < 3) return;
+    const orderNum = Number(editOrder);
+    if (!Number.isInteger(orderNum) || orderNum < 1) return;
+    setEditBusy(true);
+    try {
+      await updateItem({
+        data: {
+          agendaItemId: editTarget.id,
+          title: editTitle.trim(),
+          notes: editNotes.trim() || null,
+          orderIndex: orderNum,
+          isApproved: editApproved,
+        },
+      });
+      toast.success("تم تحديث البند.");
+      setEditTarget(null);
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(extractErrorMessage(err), "write"));
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
+  const handleFinalize = async () => {
+    if (!selectedMeetingId) return;
+    setFinalizeBusy(true);
+    try {
+      await finalizeAgenda({ data: { meetingId: selectedMeetingId } });
+      toast.success("تم اعتماد جدول الأعمال.");
+      refreshAgenda();
+    } catch (err) {
+      toast.error(mapAgendaUiError(extractErrorMessage(err), "finalize"));
+    } finally {
+      setFinalizeBusy(false);
+    }
+  };
+
+  const sectionTitle = writeMemberships.some((m) => m.role === "chair")
+    ? "جدول الأعمال (رئيس المجلس)"
+    : "جدول الأعمال (إعداد)";
+
+  return (
+    <SectionShell icon={ListChecks} title={sectionTitle}>
+      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+        يمكنك إعداد وترتيب جدول الأعمال للمجالس التي تملك صلاحية الكتابة عليها.
+        {canFinalize
+          ? " بصفتك رئيس مجلس يمكنك اعتماد جدول الأعمال."
+          : " اعتماد جدول الأعمال متاح لرئيس المجلس فقط."}
+      </p>
+      {eligibleMeetings.length === 0 ? (
+        <EmptyBlock text="لا توجد اجتماعات قادمة في مجالسك لإعداد جدول الأعمال." />
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium">الاجتماع</label>
+            <Select value={selectedMeetingId} onValueChange={setSelectedMeetingId} dir="rtl">
+              <SelectTrigger>
+                <SelectValue placeholder="اختر اجتماعاً" />
+              </SelectTrigger>
+              <SelectContent dir="rtl">
+                {eligibleMeetings.map((m) => (
+                  <SelectItem key={m.meeting_id} value={m.meeting_id}>
+                    {m.council_name} — {m.meeting_title} — {formatDateTime(m.scheduled_at)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {selectedMeetingId ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {agendaItems.length} بند · {meetingStatusLabel(selectedMeeting?.status ?? "")}
+                </span>
+                {canFinalize ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="gap-1.5 h-8 text-xs"
+                    disabled={finalizeBusy || selectedMeeting?.status === "agenda_ready"}
+                    onClick={() => void handleFinalize()}
+                  >
+                    {finalizeBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+                    اعتماد جدول الأعمال
+                  </Button>
+                ) : null}
+              </div>
+
+              {agendaQuery.isLoading ? (
+                <LoadingBlock />
+              ) : agendaQuery.isError ? (
+                <ErrorBlock message={AGENDA_LOAD_FAILED_UI} />
+              ) : (
+                <ul className="space-y-2">
+                  {agendaItems.map((item, idx) => (
+                    <li
+                      key={item.id}
+                      className="rounded-lg border border-border bg-background p-3 text-xs"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <span className="font-mono font-bold text-primary">{item.order_index}. </span>
+                          <span className="font-bold">{item.title}</span>
+                          {item.is_approved ? (
+                            <Badge variant="secondary" className="text-[9px] mr-2">
+                              معتمد
+                            </Badge>
+                          ) : null}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={reorderBusy || idx === 0}
+                            onClick={() => void persistReorder(swapFacultyAgendaOrder(agendaItems, item.id, "up"))}
+                          >
+                            <ChevronUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-7 w-7"
+                            disabled={reorderBusy || idx === agendaItems.length - 1}
+                            onClick={() =>
+                              void persistReorder(swapFacultyAgendaOrder(agendaItems, item.id, "down"))
+                            }
+                          >
+                            <ChevronDown className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[10px]"
+                            onClick={() => openEdit(item)}
+                          >
+                            تعديل
+                          </Button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {topicsQuery.data && availableTopics.length > 0 ? (
+                <div className="rounded-lg border border-border p-3 space-y-2">
+                  <div className="text-xs font-bold text-primary">موضوعات متاحة</div>
+                  <ul className="space-y-2">
+                    {availableTopics.map((t) => (
+                      <li key={t.topic_id} className="flex justify-between gap-2 items-center text-xs">
+                        <span>{t.title}</span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 text-[10px]"
+                          disabled={addTopicBusyId === t.topic_id}
+                          onClick={() => void handleAddTopic(t)}
+                        >
+                          إضافة
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              <form onSubmit={(e) => void handleManualAdd(e)} className="space-y-2 border-t border-border pt-3">
+                <div className="text-xs font-bold text-primary">بند يدوي</div>
+                <Input
+                  value={manualTitle}
+                  onChange={(e) => setManualTitle(e.target.value)}
+                  placeholder="عنوان البند"
+                  dir="rtl"
+                />
+                <Textarea
+                  value={manualNotes}
+                  onChange={(e) => setManualNotes(e.target.value)}
+                  rows={2}
+                  placeholder="ملاحظات (اختياري)"
+                  dir="rtl"
+                />
+                <Button type="submit" size="sm" disabled={manualBusy} className="gap-1">
+                  {manualBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  إضافة بند
+                </Button>
+              </form>
+            </>
+          ) : null}
+        </div>
+      )}
+
+      <Dialog open={editTarget !== null} onOpenChange={(open) => !open && !editBusy && setEditTarget(null)}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تعديل بند الأجندة</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleEdit(e)} className="space-y-3">
+            <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} dir="rtl" />
+            <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} dir="rtl" />
+            <Input
+              type="number"
+              min={1}
+              value={editOrder}
+              onChange={(e) => setEditOrder(e.target.value)}
+            />
+            <label className="flex items-center gap-2 text-xs">
+              <Checkbox checked={editApproved} onCheckedChange={(v) => setEditApproved(v === true)} />
+              معتمد
+            </label>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={editBusy}>
+                حفظ
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </SectionShell>
+  );
+}
+
 function MeetingCard({
   meeting,
   variant,
@@ -773,6 +1309,8 @@ function MeetingCard({
           </div>
         ) : null}
       </dl>
+
+      <MeetingAgendaExpandable meetingId={meeting.meeting_id} />
 
       <Dialog open={editOpen} onOpenChange={(open) => !open && !editBusy && setEditOpen(false)}>
         <DialogContent dir="rtl" className="max-w-lg max-h-[90vh] overflow-y-auto">
