@@ -3,6 +3,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole, primaryActorRole, userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  rpcCreateStudentRequest,
+  rpcGetAvailableRequestTypes,
+  rpcGetMyStudentRequests,
+  rpcSubmitStudentRequest,
+} from "@/lib/student-request-rpc";
 
 const ADMIN_ROLES = [
   "admin",
@@ -160,15 +166,21 @@ async function initializeSteps(requestId: string, steps: WorkflowStep[]) {
 
 export const getStudentRequestTypesForStudent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
-    const { data, error } = await supabaseAdmin
-      .from("request_types")
-      .select("code, name_ar, description_ar, requires_attachment, required_documents, form_schema, workflow_schema, category")
-      .eq("is_active", true)
-      .eq("student_visible", true)
-      .order("sort_order");
-    if (error) throw new Error(error.message);
-    return data ?? [];
+  .handler(async ({ context }) => {
+    const rows = await rpcGetAvailableRequestTypes(context.supabase);
+    return rows.map((row) => ({
+      id: row.id,
+      code: row.code,
+      name_ar: row.name_ar,
+      description_ar: row.description_ar,
+      requires_attachment: row.requires_attachment,
+      request_audience: row.request_audience,
+      ineligible_display_mode: row.ineligible_display_mode,
+      is_eligible: row.is_eligible,
+      is_disabled: row.is_disabled,
+      disabled_reason: row.disabled_reason,
+      sort_order: row.sort_order,
+    }));
   });
 
 const draftSchema = z.object({
@@ -182,28 +194,32 @@ export const createStudentServiceRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => draftSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const profile = await currentStudentProfile(context.userId);
-    const type = await loadRequestType(data.requestType);
-    if (!type.student_visible) throw new Error("نوع الطلب غير متاح للطالب");
-    const requestNumber = `SR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-    // Use the user-scoped client so auth.uid() is populated for RLS + trg_sr_protect.
-    const { data: created, error } = await context.supabase
+    const requestId = await rpcCreateStudentRequest(context.supabase, {
+      requestType: data.requestType,
+      title: data.title,
+      formData: data.formData,
+      studentNotes: data.studentNotes ?? null,
+    });
+    const { data: created, error } = await supabaseAdmin
       .from("student_requests")
-      .insert({
-        request_number: requestNumber,
-        student_profile_id: profile.id,
-        request_type: type.code,
-        title: data.title,
-        description: data.studentNotes ?? null,
-        status: "draft",
-        form_data: data.formData,
-        student_notes: data.studentNotes ?? null,
-      } as any)
       .select("id, request_number")
-      .single();
+      .eq("id", requestId)
+      .maybeSingle();
     if (error) throw new Error(error.message);
-    await insertEvent({ requestId: created.id, actorId: context.userId, eventType: "created", toStatus: "draft", payload: { request_type: type.code } });
-    await audit({ actorId: context.userId, requestId: created.id, action: "request_created", newValues: { request_type: type.code, status: "draft" } });
+    if (!created) throw new Error("تعذر تحميل الطلب بعد الإنشاء");
+    await insertEvent({
+      requestId: created.id,
+      actorId: context.userId,
+      eventType: "created",
+      toStatus: "draft",
+      payload: { request_type: data.requestType },
+    });
+    await audit({
+      actorId: context.userId,
+      requestId: created.id,
+      action: "request_created",
+      newValues: { request_type: data.requestType, status: "draft" },
+    });
     return created;
   });
 
@@ -252,42 +268,44 @@ export const submitStudentServiceRequest = createServerFn({ method: "POST" })
       .maybeSingle();
     if (reqErr) throw new Error(reqErr.message);
     if (!req || req.student_profile_id !== profile.id) throw new Error("غير مصرح");
-    if (!["draft", "returned", "returned_for_completion"].includes(req.status)) throw new Error("لا يمكن إرسال هذا الطلب");
+    const priorStatus = req.status;
+    await rpcSubmitStudentRequest(context.supabase, data.requestId);
     const type = await loadRequestType(req.request_type);
     const steps = workflowSteps(type);
     const first = steps[0];
     await initializeSteps(req.id, steps);
-    // User-scoped client so auth.uid() populates for trg_sr_protect + RLS.
-    const { data: updated, error } = await context.supabase
-      .from("student_requests")
-      .update({
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
-        current_step_index: 0,
-        current_role_key: first?.role_key ?? null,
-        rejection_reason: null,
-      } as any)
-      .eq("id", req.id)
-      .select("id,status,current_role_key,updated_at")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!updated) throw new Error("Failed to update student request; RLS may have blocked the operation");
-    await insertEvent({ requestId: req.id, actorId: context.userId, eventType: "submitted", fromStatus: req.status, toStatus: "submitted", toStep: 0 });
-    await audit({ actorId: context.userId, requestId: req.id, action: "request_submitted", oldValues: { status: req.status }, newValues: { status: "submitted" } });
+    if (first) {
+      const { error: stepPatchErr } = await supabaseAdmin
+        .from("student_requests")
+        .update({
+          current_step_index: 0,
+          current_role_key: first.role_key,
+        } as any)
+        .eq("id", req.id);
+      if (stepPatchErr) throw new Error(stepPatchErr.message);
+    }
+    await insertEvent({
+      requestId: req.id,
+      actorId: context.userId,
+      eventType: "submitted",
+      fromStatus: priorStatus,
+      toStatus: "submitted",
+      toStep: 0,
+    });
+    await audit({
+      actorId: context.userId,
+      requestId: req.id,
+      action: "request_submitted",
+      oldValues: { status: priorStatus },
+      newValues: { status: "submitted" },
+    });
     return { ok: true as const };
   });
 
 export const getMyStudentServiceRequests = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const profile = await currentStudentProfile(context.userId);
-    const { data, error } = await supabaseAdmin
-      .from("student_requests")
-      .select("id, request_number, request_type, title, status, submitted_at, created_at, updated_at, current_role_key")
-      .eq("student_profile_id", profile.id)
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return data ?? [];
+    return rpcGetMyStudentRequests(context.supabase);
   });
 
 export const getStudentServiceRequestDetails = createServerFn({ method: "POST" })

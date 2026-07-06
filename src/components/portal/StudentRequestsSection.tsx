@@ -1,3 +1,7 @@
+/**
+ * @deprecated Legacy inline request forms with direct INSERT/UPDATE.
+ * Active UI: /student/requests/* — do not mount in student dashboard.
+ */
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
