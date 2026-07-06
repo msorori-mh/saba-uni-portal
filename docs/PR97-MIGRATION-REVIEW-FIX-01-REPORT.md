@@ -43,4 +43,4 @@
 | محاكاة migration-review patterns محلياً | **نجح** — لا أنماط خطرة في migrations الـ PR |
 | `npm run build` | **نجح** |
 | `git diff --check` | **نجح** |
-| GitHub checks بعد push | يُحدَّث تلقائياً — راجع PR #97 |
+| GitHub checks بعد push | **Migration Review: pass** (run `28831632455`) · **Web CI: pass** (run `28831632451`) |
