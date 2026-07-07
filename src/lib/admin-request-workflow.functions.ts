@@ -12,6 +12,13 @@ import {
   type DraftWorkflowTransition,
   type ProcessingOptionsResult,
 } from "@/lib/admin-request-workflow-rpc";
+import {
+  buildWorkflowSaveInputFromDraft,
+  buildWorkflowSaveInputFromPreview,
+  type StudentRequestWorkflowSaveInput,
+  type StudentRequestWorkflowSaveResult,
+  validateWorkflowSaveInput,
+} from "@/lib/student-requests/request-workflow-save-contract";
 
 async function assertRequestWorkflowAdmin(userId: string) {
   await assertAnyRole(
@@ -115,6 +122,71 @@ export const listRequestProcessingOptions = createServerFn({ method: "POST" })
       roles,
       message: null,
     };
+  });
+
+const workflowSaveDryRunSchema = z.object({
+  requestTypeId: z.string().uuid(),
+  requestTypeCode: z.string().min(1).max(80),
+  source: z.enum(["preview", "draft"]).default("draft"),
+  workflow: z
+    .object({
+      workflowNameAr: z.string().max(200).optional(),
+      isActive: z.boolean().optional(),
+      configVersion: z.number().int().positive().optional(),
+      expectedUpdatedAt: z.string().optional().nullable(),
+    })
+    .optional(),
+  steps: z.array(z.record(z.unknown())).optional(),
+  transitions: z.array(z.record(z.unknown())).optional(),
+  draftSteps: z.array(z.record(z.unknown())).optional(),
+  draftTransitions: z.array(z.record(z.unknown())).optional(),
+});
+
+/** Dry-run only — validates workflow save payload; never writes to DB or calls save RPC. */
+export const prepareStudentRequestWorkflowSave = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => workflowSaveDryRunSchema.parse(input))
+  .handler(async ({ data, context }): Promise<StudentRequestWorkflowSaveResult> => {
+    await assertRequestWorkflowAdmin(context.userId);
+
+    const { data: typeRow, error: typeErr } = await supabaseAdmin
+      .from("request_types")
+      .select("id, code")
+      .eq("id", data.requestTypeId)
+      .maybeSingle();
+    if (typeErr) throw new Error("تعذر التحقق من نوع الطلب");
+    if (!typeRow) throw new Error("نوع الطلب غير موجود");
+
+    let payload: Partial<StudentRequestWorkflowSaveInput>;
+
+    if (data.source === "preview") {
+      const built = buildWorkflowSaveInputFromPreview(data.requestTypeId, typeRow.code);
+      if (!built) throw new Error("لا يوجد مسار مرجعي لهذا النوع");
+      payload = built;
+    } else if (data.steps && data.steps.length > 0) {
+      payload = {
+        requestTypeId: data.requestTypeId,
+        requestTypeCode: typeRow.code,
+        workflowNameAr: data.workflow?.workflowNameAr,
+        isActive: data.workflow?.isActive,
+        configVersion: data.workflow?.configVersion,
+        expectedUpdatedAt: data.workflow?.expectedUpdatedAt,
+        steps: data.steps as StudentRequestWorkflowSaveInput["steps"],
+        transitions: (data.transitions ?? []) as StudentRequestWorkflowSaveInput["transitions"],
+        parallelGroups: [],
+      };
+    } else {
+      const draftSteps = (data.draftSteps ?? []) as DraftWorkflowStep[];
+      const draftTransitions = (data.draftTransitions ?? []) as DraftWorkflowTransition[];
+      payload = buildWorkflowSaveInputFromDraft(
+        data.requestTypeId,
+        typeRow.code,
+        draftSteps,
+        draftTransitions,
+      );
+    }
+
+    return validateWorkflowSaveInput(payload);
   });
 
 export const saveAdminRequestWorkflowConfig = createServerFn({ method: "POST" })
