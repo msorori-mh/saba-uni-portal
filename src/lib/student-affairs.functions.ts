@@ -8,7 +8,16 @@ import {
   rpcGetAvailableRequestTypes,
   rpcGetMyStudentRequests,
   rpcSubmitStudentRequest,
+  STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG,
+  STUDENT_REQUEST_SERVICE_UPDATING_MSG,
 } from "@/lib/student-request-rpc";
+import {
+  buildStudentRequestSubmitPayload,
+  type CanonicalStudentRequestSubmitInput,
+  type CanonicalStudentRequestSubmitResult,
+  validateStudentRequestSubmitInput,
+} from "@/lib/student-requests/student-request-submit-contract";
+import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 
 const ADMIN_ROLES = [
   "admin",
@@ -201,6 +210,281 @@ export const getStudentRequestUiContext = createServerFn({ method: "POST" })
     };
   });
 
+async function assertStudentEligibleForRequestType(
+  client: { rpc: RpcClient["rpc"] },
+  requestTypeCode: string,
+): Promise<void> {
+  let rows: Awaited<ReturnType<typeof rpcGetAvailableRequestTypes>>;
+  try {
+    rows = await rpcGetAvailableRequestTypes(client);
+  } catch {
+    throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+  }
+
+  const normalized = normalizeStudentRequestTypeCode(requestTypeCode);
+  const match = rows.find((row) => normalizeStudentRequestTypeCode(row.code) === normalized);
+  if (!match) {
+    throw new Error("نوع الطلب غير متاح");
+  }
+  if (!match.is_eligible || match.is_disabled) {
+    throw new Error(match.disabled_reason ?? STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG);
+  }
+}
+
+type RpcClient = {
+  rpc: (
+    fn: string,
+    args?: Record<string, unknown>,
+  ) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
+  from: (table: string) => {
+    update: (values: Record<string, unknown>) => { eq: (col: string, val: string) => Promise<{ error: { message?: string } | null }> };
+  };
+};
+
+async function fallbackCreateStudentRequestDraft(input: {
+  profileId: string;
+  requestType: string;
+  title: string;
+  formData: Record<string, unknown>;
+  studentNotes: string | null;
+  description: string | null;
+}): Promise<string> {
+  const { data: typeRow, error: typeErr } = await supabaseAdmin
+    .from("request_types")
+    .select("code, is_active, student_visible")
+    .eq("code", input.requestType)
+    .maybeSingle();
+  if (typeErr) throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+  if (!typeRow?.is_active || !typeRow.student_visible) {
+    throw new Error("نوع الطلب غير متاح");
+  }
+
+  const requestNumber = `SR-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const { data: created, error } = await supabaseAdmin
+    .from("student_requests")
+    .insert({
+      request_number: requestNumber,
+      student_profile_id: input.profileId,
+      request_type: input.requestType,
+      title: input.title,
+      description: input.description ?? input.studentNotes,
+      status: "draft",
+      form_data: input.formData,
+      student_notes: input.studentNotes,
+    } as any)
+    .select("id")
+    .single();
+  if (error) throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+  return created.id as string;
+}
+
+async function fallbackSubmitStudentRequest(input: {
+  requestId: string;
+  profileId: string;
+}): Promise<void> {
+  const { data: req, error: reqErr } = await supabaseAdmin
+    .from("student_requests")
+    .select("id, status, student_profile_id")
+    .eq("id", input.requestId)
+    .maybeSingle();
+  if (reqErr || !req) throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+  if (req.student_profile_id !== input.profileId) throw new Error("غير مصرح");
+  if (!["draft", "returned", "returned_for_completion"].includes(req.status)) {
+    throw new Error("لا يمكن إرسال هذا الطلب في حالته الحالية");
+  }
+
+  const { error } = await supabaseAdmin
+    .from("student_requests")
+    .update({
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+      rejection_reason: null,
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", input.requestId);
+  if (error) throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+}
+
+async function createDraftViaRpcOrFallback(input: {
+  sessionClient: RpcClient;
+  profileId: string;
+  requestType: string;
+  title: string;
+  formData: Record<string, unknown>;
+  studentNotes: string | null;
+  description: string | null;
+}): Promise<string> {
+  const rpcResult = await rpcCreateStudentRequest(input.sessionClient, {
+    requestType: input.requestType,
+    title: input.title,
+    formData: input.formData,
+    studentNotes: input.studentNotes,
+  });
+  if (!rpcResult.rpcUnavailable) return rpcResult.id;
+
+  return fallbackCreateStudentRequestDraft({
+    profileId: input.profileId,
+    requestType: input.requestType,
+    title: input.title,
+    formData: input.formData,
+    studentNotes: input.studentNotes,
+    description: input.description,
+  });
+}
+
+async function submitViaRpcOrFallback(input: {
+  sessionClient: RpcClient;
+  requestId: string;
+  profileId: string;
+}): Promise<void> {
+  const rpcResult = await rpcSubmitStudentRequest(input.sessionClient, input.requestId);
+  if (!rpcResult.rpcUnavailable) return;
+
+  await fallbackSubmitStudentRequest({
+    requestId: input.requestId,
+    profileId: input.profileId,
+  });
+}
+
+async function loadCreatedRequestMeta(requestId: string) {
+  const { data: created, error } = await supabaseAdmin
+    .from("student_requests")
+    .select("id, request_number, status")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!created) throw new Error("تعذر تحميل الطلب بعد الإنشاء");
+  return created;
+}
+
+export async function submitCanonicalStudentRequestCore(input: {
+  userId: string;
+  sessionClient: RpcClient;
+  raw: CanonicalStudentRequestSubmitInput;
+}): Promise<CanonicalStudentRequestSubmitResult> {
+  const validation = validateStudentRequestSubmitInput(input.raw);
+  if (!validation.ok) throw new Error(validation.message);
+
+  const profile = await currentStudentProfile(input.userId);
+  await assertStudentEligibleForRequestType(input.sessionClient, validation.normalized.requestTypeCode);
+
+  const payload = buildStudentRequestSubmitPayload(validation.normalized);
+  let requestId = validation.normalized.existingRequestId;
+  let priorStatus = "draft";
+
+  if (requestId) {
+    const { data: existing, error: existingErr } = await supabaseAdmin
+      .from("student_requests")
+      .select("id, status, student_profile_id, request_type")
+      .eq("id", requestId)
+      .maybeSingle();
+    if (existingErr) throw new Error(existingErr.message);
+    if (!existing || existing.student_profile_id !== profile.id) throw new Error("غير مصرح");
+    if (
+      !["draft", "returned", "returned_for_completion"].includes(existing.status)
+    ) {
+      throw new Error("لا يمكن إرسال هذا الطلب في حالته الحالية");
+    }
+    priorStatus = existing.status;
+    const storedType = normalizeStudentRequestTypeCode(existing.request_type);
+    if (storedType !== validation.normalized.requestTypeCode) {
+      throw new Error("نوع الطلب لا يطابق الطلب المحفوظ");
+    }
+
+    const { error: updateErr } = await input.sessionClient
+      .from("student_requests")
+      .update({
+        title: payload.title,
+        description: payload.description ?? payload.studentNotes,
+        form_data: payload.formData,
+        student_notes: payload.studentNotes,
+      } as any)
+      .eq("id", requestId);
+    if (updateErr) throw new Error(updateErr.message);
+  } else {
+    requestId = await createDraftViaRpcOrFallback({
+      sessionClient: input.sessionClient,
+      profileId: profile.id,
+      requestType: payload.requestType,
+      title: payload.title,
+      formData: payload.formData,
+      studentNotes: payload.studentNotes,
+      description: payload.description,
+    });
+  }
+
+  await submitViaRpcOrFallback({
+    sessionClient: input.sessionClient,
+    requestId,
+    profileId: profile.id,
+  });
+
+  const created = await loadCreatedRequestMeta(requestId);
+
+  const isResubmit = validation.normalized.existingRequestId != null;
+
+  await insertEvent({
+    requestId,
+    actorId: input.userId,
+    eventType: isResubmit ? "resubmitted" : "submitted",
+    fromStatus: priorStatus,
+    toStatus: "submitted",
+    payload: {
+      request_type: payload.requestType,
+      client_request_id: validation.normalized.clientRequestId,
+    },
+  });
+  await audit({
+    actorId: input.userId,
+    requestId,
+    action: isResubmit ? "request_resubmitted" : "request_submitted",
+    oldValues: { status: priorStatus },
+    newValues: { status: "submitted", request_type: payload.requestType },
+  });
+
+  return {
+    id: created.id,
+    requestNumber: (created as { request_number?: string | null }).request_number ?? null,
+    status: "submitted",
+    submitted: true,
+    workflowInitialized: false,
+    clientRequestId: validation.normalized.clientRequestId,
+  };
+}
+
+const canonicalSubmitSchema = z.object({
+  requestTypeId: z.string().uuid().optional().nullable(),
+  requestTypeCode: z.string().min(1).max(80),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(4000).optional().nullable(),
+  studentNotes: z.string().trim().max(4000).optional().nullable(),
+  formData: z.record(z.string(), z.unknown()).optional().nullable(),
+  attachments: z
+    .array(
+      z.object({
+        key: z.string().min(1).max(120),
+        fileName: z.string().max(255).optional().nullable(),
+        mimeType: z.string().max(120).optional().nullable(),
+        sizeBytes: z.number().int().nonnegative().optional().nullable(),
+      }),
+    )
+    .optional()
+    .nullable(),
+  clientRequestId: z.string().trim().max(120).optional().nullable(),
+  existingRequestId: z.string().uuid().optional().nullable(),
+});
+
+export const submitCanonicalStudentRequest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => canonicalSubmitSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    return submitCanonicalStudentRequestCore({
+      userId: context.userId,
+      sessionClient: context.supabase,
+      raw: data,
+    });
+  });
+
 const draftSchema = z.object({
   requestType: z.string().min(1).max(80),
   title: z.string().trim().min(1).max(200),
@@ -212,33 +496,34 @@ export const createStudentServiceRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => draftSchema.parse(input))
   .handler(async ({ data, context }) => {
-    const requestId = await rpcCreateStudentRequest(context.supabase, {
-      requestType: data.requestType,
+    const profile = await currentStudentProfile(context.userId);
+    const requestType = normalizeStudentRequestTypeCode(data.requestType);
+    await assertStudentEligibleForRequestType(context.supabase, requestType);
+
+    const requestId = await createDraftViaRpcOrFallback({
+      sessionClient: context.supabase,
+      profileId: profile.id,
+      requestType,
       title: data.title,
       formData: data.formData,
       studentNotes: data.studentNotes ?? null,
+      description: data.studentNotes ?? null,
     });
-    const { data: created, error } = await supabaseAdmin
-      .from("student_requests")
-      .select("id, request_number")
-      .eq("id", requestId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!created) throw new Error("تعذر تحميل الطلب بعد الإنشاء");
+    const created = await loadCreatedRequestMeta(requestId);
     await insertEvent({
       requestId: created.id,
       actorId: context.userId,
       eventType: "created",
       toStatus: "draft",
-      payload: { request_type: data.requestType },
+      payload: { request_type: requestType },
     });
     await audit({
       actorId: context.userId,
       requestId: created.id,
       action: "request_created",
-      newValues: { request_type: data.requestType, status: "draft" },
+      newValues: { request_type: requestType, status: "draft" },
     });
-    return created;
+    return { id: created.id, request_number: (created as { request_number?: string | null }).request_number ?? null };
   });
 
 export const saveStudentServiceRequestDraft = createServerFn({ method: "POST" })
@@ -281,43 +566,24 @@ export const submitStudentServiceRequest = createServerFn({ method: "POST" })
     const profile = await currentStudentProfile(context.userId);
     const { data: req, error: reqErr } = await supabaseAdmin
       .from("student_requests")
-      .select("id, status, student_profile_id, request_type")
+      .select("id, status, student_profile_id, request_type, title, description, form_data, student_notes")
       .eq("id", data.requestId)
       .maybeSingle();
     if (reqErr) throw new Error(reqErr.message);
     if (!req || req.student_profile_id !== profile.id) throw new Error("غير مصرح");
-    const priorStatus = req.status;
-    await rpcSubmitStudentRequest(context.supabase, data.requestId);
-    const type = await loadRequestType(req.request_type);
-    const steps = workflowSteps(type);
-    const first = steps[0];
-    await initializeSteps(req.id, steps);
-    if (first) {
-      const { error: stepPatchErr } = await supabaseAdmin
-        .from("student_requests")
-        .update({
-          current_step_index: 0,
-          current_role_key: first.role_key,
-        } as any)
-        .eq("id", req.id);
-      if (stepPatchErr) throw new Error(stepPatchErr.message);
-    }
-    await insertEvent({
-      requestId: req.id,
-      actorId: context.userId,
-      eventType: "submitted",
-      fromStatus: priorStatus,
-      toStatus: "submitted",
-      toStep: 0,
+
+    return submitCanonicalStudentRequestCore({
+      userId: context.userId,
+      sessionClient: context.supabase,
+      raw: {
+        requestTypeCode: req.request_type,
+        title: req.title,
+        description: req.description,
+        studentNotes: req.student_notes ?? req.description,
+        formData: (req.form_data as Record<string, unknown> | null) ?? {},
+        existingRequestId: req.id,
+      },
     });
-    await audit({
-      actorId: context.userId,
-      requestId: req.id,
-      action: "request_submitted",
-      oldValues: { status: priorStatus },
-      newValues: { status: "submitted" },
-    });
-    return { ok: true as const };
   });
 
 export const getMyStudentServiceRequests = createServerFn({ method: "POST" })

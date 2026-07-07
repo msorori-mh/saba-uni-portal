@@ -77,6 +77,7 @@ function MobileStudentRequests() {
       code: string;
       name_ar: string;
       description_ar: string | null;
+      requires_attachment?: boolean;
       is_eligible: boolean;
       is_disabled: boolean;
       disabled_reason: string | null;
@@ -106,8 +107,8 @@ function MobileStudentRequests() {
           <FileWarning className="h-5 w-5 text-gold" /> الطلبات الطلابية
         </h1>
         <p className="text-[11px] text-muted-foreground mt-0.5">
-          تتبع طلباتك وحالتها. النماذج التفصيلية والتحقق من الأهلية متاح حالياً من بوابة
-          المتصفح.
+          تتبع طلباتك وحالتها. تقديم الطلبات الجديدة يتم عبر بوابة المتصفح — بمسار إرسال
+          موحّد. أنواع تتطلب مرفقات غير متاحة للإرسال حتى يُفعَّل نظام الرفع.
         </p>
       </header>
 
@@ -147,14 +148,23 @@ function MobileStudentRequests() {
                         {t.disabled_reason}
                       </div>
                     )}
+                    {t.requires_attachment && !disabled && (
+                      <div className="text-[10px] font-bold text-amber-800 mt-1">
+                        يتطلب مرفقاً — غير متاح للإرسال حالياً
+                      </div>
+                    )}
                   </div>
-                  {!disabled ? (
+                  {!disabled && !t.requires_attachment ? (
                     <Link
                       to="/student/requests/new"
                       className="shrink-0 inline-flex items-center gap-1 rounded-md bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-bold"
                     >
                       <Plus className="h-3 w-3" /> تقديم
                     </Link>
+                  ) : !disabled && t.requires_attachment ? (
+                    <span className="shrink-0 text-[10px] font-bold text-amber-800 px-2 py-0.5">
+                      يتطلب مرفق
+                    </span>
                   ) : (
                     <span className="shrink-0 text-[10px] font-bold text-muted-foreground px-2 py-0.5">
                       غير متاح
