@@ -272,10 +272,11 @@ export const getFacultyMember = createServerFn({ method: "POST" })
 // =====================================================
 
 import {
-  ALLOWED_STAFF_ROLE_TYPES,
+  ALLOWED_STAFF_ROLE_TYPES_CREATE,
   ALLOWED_STAFF_ROLE_TYPES_UPDATE,
-  staffRoleToAppRole,
-} from "@/lib/staff-role-types";
+  staffFunctionalRoleToAppRole,
+  staffRoleTypeSupportsLogin,
+} from "@/lib/staff-functional-roles";
 
 const STAFF_ROLES = ["admin", "system_admin", "dean", "hr_officer"];
 type StaffDepartmentScope = "all" | "specific";
@@ -355,7 +356,7 @@ const createStaffSchema = z.object({
   full_name_ar: z.string().trim().min(2).max(160),
   full_name_en: z.string().trim().max(160).optional().nullable(),
   job_title: z.string().trim().min(1).max(120),
-  role_type: z.enum(ALLOWED_STAFF_ROLE_TYPES),
+  role_type: z.enum(ALLOWED_STAFF_ROLE_TYPES_CREATE),
   email: z.string().trim().email().max(160).optional().or(z.literal("")).nullable(),
   phone: z.string().trim().max(32).optional().nullable(),
   status: z.enum(["active", "inactive"]).default("active"),
@@ -368,6 +369,13 @@ const createStaffSchema = z.object({
         code: z.ZodIssueCode.custom,
         message: "الإيميل الجامعي مطلوب عند إنشاء حساب الدخول",
         path: ["email"],
+      });
+    }
+    if (!staffRoleTypeSupportsLogin(data.role_type)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "هذا الدور الوظيفي لا يدعم إنشاء حساب دخول حالياً — يحتاج توسيع صلاحيات النظام (app_role)",
+        path: ["role_type"],
       });
     }
   }
@@ -411,6 +419,10 @@ export const createStaffMember = createServerFn({ method: "POST" })
 
     if (data.create_login) {
       const loginEmail = normalizeUniversityLoginEmail(data.email!);
+      const appRole = staffFunctionalRoleToAppRole(data.role_type);
+      if (!appRole) {
+        throw new Error("هذا الدور الوظيفي لا يدعم إنشاء حساب دخول حالياً");
+      }
       const password = generateTemporaryPassword();
       const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
         email: loginEmail,
@@ -431,7 +443,7 @@ export const createStaffMember = createServerFn({ method: "POST" })
       }
       await supabaseAdmin.from("user_roles").insert({
         user_id: newUserId,
-        role: staffRoleToAppRole(data.role_type) as any,
+        role: appRole as any,
       });
       credentials = { email: loginEmail, password };
     }
@@ -493,13 +505,18 @@ export const updateStaffMember = createServerFn({ method: "POST" })
     // Sync role: if role_type changed and account exists, swap user_roles
     if ((old as any).role_type !== data.role_type && (old as any).user_id) {
       const userId = (old as any).user_id as string;
-      const prevAppRole = staffRoleToAppRole((old as any).role_type);
-      const nextAppRole = staffRoleToAppRole(data.role_type);
-      await supabaseAdmin
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", prevAppRole as any);
+      const prevAppRole = staffFunctionalRoleToAppRole((old as any).role_type);
+      const nextAppRole = staffFunctionalRoleToAppRole(data.role_type);
+      if (!nextAppRole) {
+        throw new Error("الدور الوظيفي الجديد لا يدعم حساب دخول — اختر دوراً له صلاحية نظام معروفة");
+      }
+      if (prevAppRole) {
+        await supabaseAdmin
+          .from("user_roles")
+          .delete()
+          .eq("user_id", userId)
+          .eq("role", prevAppRole as any);
+      }
       await supabaseAdmin.from("user_roles").insert({
         user_id: userId,
         role: nextAppRole as any,

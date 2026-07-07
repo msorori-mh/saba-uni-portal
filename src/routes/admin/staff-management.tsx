@@ -19,11 +19,12 @@ import {
   type StaffDepartmentScope,
 } from "@/components/admin/people/staff-department-scope";
 import {
-  STAFF_ROLE_TYPES,
-  STAFF_ROLE_FILTER_OPTIONS,
-  staffRoleTypeLabel,
-  staffRoleOptionsForForm,
-} from "@/lib/staff-role-types";
+  staffRoleFormOptionsForCreate,
+  staffRoleFilterOptions,
+  staffFunctionalRoleLabel,
+  staffFunctionalRoleDisplayLabel,
+  staffRoleFormOptionsForEdit,
+} from "@/lib/staff-functional-roles";
 
 export const Route = createFileRoute("/admin/staff-management")({
   head: () => ({ meta: [{ title: "إدارة الموظفين — لوحة الإدارة" }] }),
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/admin/staff-management")({
 type Lookups = Awaited<ReturnType<typeof getPeopleLookups>>;
 
 function roleTypeLabel(rt: string) {
-  return staffRoleTypeLabel(rt);
+  return staffFunctionalRoleDisplayLabel(rt);
 }
 
 function StaffManagementPage() {
@@ -93,7 +94,7 @@ function StaffManagementPage() {
             <Briefcase className="h-7 w-7" /> إدارة الموظفين
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            إضافة موظفي الإدارة (التسجيل، شؤون الطلاب، المالية، الموارد البشرية) وإدارة حساباتهم.
+            إضافة موظفي الإدارة بالمسميات الوظيفية المعتمدة (مسجل الكلية، شؤون الطلاب، الخريجين، الإرشيف، المالية، المكتبة، المعامل) وإدارة حساباتهم.
           </p>
         </div>
         <div className="flex gap-2">
@@ -126,7 +127,7 @@ function StaffManagementPage() {
           <select value={roleType} onChange={(e) => setRoleType(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
             <option value="all">كل الأدوار</option>
-            {STAFF_ROLE_FILTER_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {staffRoleFilterOptions().map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
           <div className="grid grid-cols-2 gap-2">
             <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}
@@ -321,7 +322,7 @@ function AddStaffModal({
     department_scope: "specific" as StaffDepartmentScope,
     department_ids: [] as string[],
     job_title: "",
-    role_type: "registrar" as typeof STAFF_ROLE_TYPES[number]["value"],
+    role_type: "registrar_general",
     email: "",
     phone: "",
     status: "active" as "active" | "inactive",
@@ -374,7 +375,7 @@ function AddStaffModal({
               <Field label="الدور الوظيفي *">
                 <select required value={form.role_type} onChange={(e) => update("role_type", e.target.value as any)}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                  {STAFF_ROLE_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  {staffRoleFormOptionsForCreate().map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </Field>
               <Field label="الاسم بالعربية *">
@@ -475,7 +476,7 @@ function EditStaffModal({
       department_scope: scope,
       department_ids: (staff as any).department_ids ?? [],
       job_title: (staff as any).job_title ?? "",
-      role_type: (staff as any).role_type ?? "registrar",
+      role_type: (staff as any).role_type ?? "registrar_general",
       email: "",
       phone: "",
       status: (staff as any).status ?? "active",
@@ -537,8 +538,8 @@ function EditStaffModal({
                 <Field label="الدور الوظيفي *">
                   <select required value={form.role_type} onChange={(e) => update("role_type", e.target.value)}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                    {staffRoleOptionsForForm(form.role_type).map((r) => (
-                      <option key={r.value} value={r.value}>{r.label}</option>
+                    {staffRoleFormOptionsForEdit(form.role_type).map((r) => (
+                      <option key={r.value} value={r.value} disabled={r.isLegacy}>{r.label}</option>
                     ))}
                   </select>
                 </Field>
