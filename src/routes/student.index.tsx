@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
 import { LogOut, User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
-import { StudentRequestsSection } from "@/components/portal/StudentRequestsSection";
+import { StudentRequestsPortalSummary } from "@/components/portal/StudentRequestsPortalSummary";
 import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection";
 import { StudentDocumentsSection } from "@/components/portal/StudentDocumentsSection";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
@@ -198,6 +199,13 @@ export const Route = createFileRoute("/student/")({
 function StudentDashboard() {
   usePagePerf("/student");
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    if (hash === "student-requests" || hash === "requests") {
+      navigate({ to: "/student/requests", replace: true });
+    }
+  }, [navigate]);
   const { data: profile, isLoading } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
@@ -365,7 +373,7 @@ function StudentDashboard() {
             </LazyMount>
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
-              <StudentRequestsSection studentProfileId={profile.id} />
+              <StudentRequestsPortalSummary />
             </LazyMount>
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>

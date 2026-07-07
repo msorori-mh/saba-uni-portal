@@ -66,7 +66,7 @@ const METHOD_LABEL: Record<string, string> = { cash: "نقداً", bank_transfer
 
 function AdminFinancePage() {
   usePagePerf("/admin/finance");
-  const [tab, setTab] = useState<"types" | "fees" | "payments" | "discounts" | "receipts">("types");
+  const [tab, setTab] = useState<"types" | "fees" | "payments" | "receipts">("types");
 
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-6xl mx-auto">
@@ -79,14 +79,13 @@ function AdminFinancePage() {
         <TabButton active={tab === "types"} onClick={() => setTab("types")} icon={Tag}>أنواع الرسوم</TabButton>
         <TabButton active={tab === "fees"} onClick={() => setTab("fees")} icon={Users}>رسوم الطلاب</TabButton>
         <TabButton active={tab === "payments"} onClick={() => setTab("payments")} icon={Receipt}>المدفوعات</TabButton>
-        <TabButton active={tab === "discounts"} onClick={() => setTab("discounts")} icon={Percent}>الخصومات والإعفاءات</TabButton>
+        {/* الخصومات — مخفية (ADMIN-DASHBOARD-CARDS-RENAME-HIDE-01); المسار والدوال الخلفية باقية */}
         <TabButton active={tab === "receipts"} onClick={() => setTab("receipts")} icon={FileText}>سندات الدفع</TabButton>
       </div>
 
       {tab === "types" && <FeeTypesTab />}
       {tab === "fees" && <StudentFeesTab />}
       {tab === "payments" && <PaymentsTab />}
-      {tab === "discounts" && <DiscountsTab />}
       {tab === "receipts" && <ReceiptsTab />}
     </div>
   );

@@ -43,30 +43,30 @@ const COPY: Record<Ctx, {
   },
   student: {
     title: "استعادة كلمة مرور الطالب",
-    description: "أدخل بريدك الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
-    hint: { label: "للطلاب: استخدم بريد", sample: "رقم_أكاديمي@students.usr.edu.ye" },
+    description: "أدخل الإيميل الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
+    hint: { label: "يتم تسجيل الدخول باستخدام الإيميل الجامعي فقط." },
     Icon: GraduationCap,
     backTo: "/portal-login",
     backLabel: "العودة لبوابة الطالب",
-    placeholder: "20230001@students.usr.edu.ye",
+    placeholder: "student@students.usr.edu.ye",
   },
   faculty: {
     title: "استعادة كلمة مرور عضو هيئة التدريس",
-    description: "أدخل بريدك الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
-    hint: { label: "لأعضاء هيئة التدريس: استخدم بريد", sample: "رقم_الموظف@faculty.usr.edu.ye" },
+    description: "أدخل الإيميل الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
+    hint: { label: "يتم تسجيل الدخول باستخدام الإيميل الجامعي فقط." },
     Icon: BookOpen,
     backTo: "/portal-login",
     backLabel: "العودة لبوابة أعضاء هيئة التدريس",
-    placeholder: "F0001@faculty.usr.edu.ye",
+    placeholder: "faculty@faculty.usr.edu.ye",
   },
   staff: {
     title: "استعادة كلمة مرور الموظف",
-    description: "أدخل بريدك الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
-    hint: { label: "للموظفين: استخدم بريد", sample: "رقم_الموظف@staff.usr.edu.ye" },
+    description: "أدخل الإيميل الجامعي وسنرسل لك رابط إعادة تعيين كلمة المرور.",
+    hint: { label: "يتم تسجيل الدخول باستخدام الإيميل الجامعي فقط." },
     Icon: Briefcase,
     backTo: "/portal-login",
     backLabel: "العودة لبوابة الموظفين",
-    placeholder: "S0001@staff.usr.edu.ye",
+    placeholder: "staff@staff.usr.edu.ye",
   },
 };
 
@@ -178,7 +178,7 @@ function ForgotPasswordPage() {
                 </div>
                 {cfg.hint && (
                   <p className="text-[11px] text-muted-foreground">
-                    {cfg.hint.label}{cfg.hint.sample ? <> <span dir="ltr">{cfg.hint.sample}</span></> : null}
+                    {cfg.hint.label}
                   </p>
                 )}
               </div>

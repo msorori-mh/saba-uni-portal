@@ -18,6 +18,7 @@ export type StudentRow = {
   national_id: string | null;
   phone: string | null;
   gender: string | null;
+  university_email: string | null;
   department_id: string;
   program_id: string;
   academic_year_id: string;
@@ -126,6 +127,15 @@ export async function validateStudents(
     const mcp = parseBool(raw.must_change_password, mcpDefault);
     if (!mcp.valid) errors.push({ row: rowNumber, column: "must_change_password", message: "must_change_password يجب أن يكون true/false" });
 
+    const university_email = str(raw.university_email).toLowerCase();
+    if (cl.value) {
+      if (!university_email) {
+        errors.push({ row: rowNumber, column: "university_email", message: "الإيميل الجامعي مطلوب عند create_login=true" });
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(university_email)) {
+        errors.push({ row: rowNumber, column: "university_email", message: "صيغة الإيميل الجامعي غير صحيحة" });
+      }
+    }
+
     if (academic_number) seenInFile.add(academic_number);
 
     result.push({
@@ -136,6 +146,7 @@ export async function validateStudents(
         national_id: str(raw.national_id) || null,
         phone: str(raw.phone) || null,
         gender,
+        university_email: university_email || null,
         department_id: dep_id!, program_id: prog!.id,
         academic_year_id: ay_id!, semester_id: sem_id!, level_id: level_id!,
         study_system,

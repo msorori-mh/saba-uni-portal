@@ -1,8 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, ListChecks, Power, Paperclip, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, ListChecks, Power, Paperclip, Plus, Pencil, Trash2, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 import {
   listRequestTypes,
@@ -165,6 +165,14 @@ function AdminRequestTypesPage() {
                 {t.description_ar && <div className="text-xs text-muted-foreground mt-0.5">{t.description_ar}</div>}
               </div>
               <div className="flex items-center gap-1.5">
+                <Link
+                  to="/admin/request-types/$id/workflow"
+                  params={{ id: t.id }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded text-xs font-bold bg-primary/10 text-primary hover:bg-primary/15"
+                  title="إعداد دورة الحياة"
+                >
+                  <GitBranch className="h-3 w-3" /> إعداد دورة الحياة
+                </Link>
                 <button
                   onClick={() => openEdit(t)}
                   className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-muted text-muted-foreground"

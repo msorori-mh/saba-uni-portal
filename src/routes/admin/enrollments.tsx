@@ -184,8 +184,8 @@ function EnrollmentsPage() {
           <ClipboardList className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="font-display text-xl font-extrabold text-primary">تسجيل الطلاب في المجموعات الدراسية</h1>
-          <p className="text-xs text-muted-foreground">إدارة تسجيل الطلاب يدوياً في المجموعات الدراسية المتاحة</p>
+          <h1 className="font-display text-xl font-extrabold text-primary">تقسيم المجموعات</h1>
+          <p className="text-xs text-muted-foreground">تقسيم الطلاب على المجموعات الدراسية المتاحة</p>
         </div>
       </div>
 

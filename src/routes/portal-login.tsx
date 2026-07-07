@@ -5,16 +5,12 @@ import { toast } from "sonner";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordInput } from "@/components/auth/PasswordInput";
-import { IdentifierInput, friendlyAuthError } from "@/components/auth/IdentifierInput";
+import { friendlyAuthError } from "@/components/auth/IdentifierInput";
+import { validateUniversityLoginEmailInput, normalizeUniversityLoginEmail } from "@/lib/university-email-auth";
 import { checkRateLimit, RATE_LIMIT_POLICIES, RATE_LIMIT_MESSAGE, describeBlockedFor } from "@/lib/rate-limit";
+import { Mail } from "lucide-react";
 
 type AccountType = "student" | "faculty" | "staff";
-
-const DOMAIN: Record<AccountType, string> = {
-  student: "students.usr.edu.ye",
-  faculty: "faculty.usr.edu.ye",
-  staff: "staff.usr.edu.ye",
-};
 
 const REDIRECT_AFTER_LOGIN: Record<AccountType, string> = {
   student: "/student",
@@ -23,17 +19,17 @@ const REDIRECT_AFTER_LOGIN: Record<AccountType, string> = {
 };
 
 const COPY: Record<AccountType, { title: string; idLabel: string; idPlaceholder: string; subtitle: string; Icon: typeof User }> = {
-  student: { title: "دخول بوابة الطالب",    idLabel: "الرقم الأكاديمي", idPlaceholder: "20230001", subtitle: "بوابة الطالب الإلكترونية", Icon: GraduationCap },
-  faculty: { title: "دخول بوابة أعضاء هيئة التدريس", idLabel: "اسم المستخدم",     idPlaceholder: "F0001",     subtitle: "بوابة أعضاء هيئة التدريس", Icon: BookOpen },
-  staff:   { title: "دخول بوابة الموظفين",     idLabel: "رقم الموظف",     idPlaceholder: "S0001",     subtitle: "بوابة الموظفين الإداريين", Icon: Briefcase },
+  student: { title: "دخول بوابة الطالب", idLabel: "الإيميل الجامعي", idPlaceholder: "student@students.usr.edu.ye", subtitle: "بوابة الطالب الإلكترونية", Icon: GraduationCap },
+  faculty: { title: "دخول بوابة أعضاء هيئة التدريس", idLabel: "الإيميل الجامعي", idPlaceholder: "faculty@faculty.usr.edu.ye", subtitle: "بوابة أعضاء هيئة التدريس", Icon: BookOpen },
+  staff:   { title: "دخول بوابة الموظفين", idLabel: "الإيميل الجامعي", idPlaceholder: "staff@staff.usr.edu.ye", subtitle: "بوابة الموظفين الإداريين", Icon: Briefcase },
 };
 
 const SHOW_DEMO = import.meta.env.VITE_SHOW_DEMO_LOGIN === "true";
 
 const DEMO_CREDENTIALS: Record<AccountType, { identifier: string; password: string }> = {
-  student: { identifier: "DEMO2024", password: "Demo@2024" },
-  faculty: { identifier: "DEMO-FAC", password: "Demo@2024" },
-  staff:   { identifier: "DEMO-STF", password: "Demo@2024" },
+  student: { identifier: "demo@students.usr.edu.ye", password: "Demo@2024" },
+  faculty: { identifier: "demo@faculty.usr.edu.ye", password: "Demo@2024" },
+  staff:   { identifier: "demo@staff.usr.edu.ye", password: "Demo@2024" },
 };
 
 export const Route = createFileRoute("/portal-login")({
@@ -144,7 +140,14 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
     setErrorIsCreds(false);
     setLoading(true);
     try {
-      const trimmedId = idValue.trim().toLowerCase();
+      const emailError = validateUniversityLoginEmailInput(idValue);
+      if (emailError) {
+        setError(emailError);
+        setLoading(false);
+        return;
+      }
+
+      const trimmedId = normalizeUniversityLoginEmail(idValue);
       const rl = await checkRateLimit(
         `login:portal:${accountType}:${trimmedId}`,
         RATE_LIMIT_POLICIES.loginAttempt,
@@ -156,8 +159,7 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
         return;
       }
 
-      const email = `${trimmedId}@${DOMAIN[accountType]}`;
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password: pwValue });
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email: trimmedId, password: pwValue });
       if (signInError) throw signInError;
       if (!data.user) throw new Error("invalid");
 
@@ -249,23 +251,34 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
               )}
               <div>
                 <label htmlFor="portal-identifier" className="block text-sm font-semibold mb-2">{cfg.idLabel}</label>
-                <IdentifierInput
-                  id="portal-identifier"
-                  ref={identifierRef}
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  onClear={() => { setIdentifier(""); identifierRef.current?.focus(); }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      passwordRef.current?.focus();
-                    }
-                  }}
-                  placeholder={cfg.idPlaceholder}
-                  aria-label={cfg.idLabel}
-                  autoComplete="username"
-                  required
-                />
+                <div className="relative">
+                  <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  <input
+                    id="portal-identifier"
+                    ref={identifierRef}
+                    type="email"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        passwordRef.current?.focus();
+                      }
+                    }}
+                    placeholder={cfg.idPlaceholder}
+                    aria-label={cfg.idLabel}
+                    autoComplete="username"
+                    dir="ltr"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    required
+                    className="w-full rounded-md border border-input bg-background pr-10 pl-3 py-3 text-sm text-right outline-none focus:border-gold focus:ring-2 focus:ring-gold/20"
+                  />
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  يتم تسجيل الدخول باستخدام الإيميل الجامعي فقط.
+                </p>
               </div>
 
               <div>

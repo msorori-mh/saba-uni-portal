@@ -94,6 +94,7 @@ import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.studen
 import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.student.documents'
 import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile.student.academic-record'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
+import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types.$id.workflow'
 
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
 const AdminTranscriptsLazyRouteImport = createFileRoute('/admin/transcripts')()
@@ -589,6 +590,12 @@ const FacultyPortalStudentProgressStudentIdRoute =
     path: '/student-progress/$studentId',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
+const AdminRequestTypesIdWorkflowRoute =
+  AdminRequestTypesIdWorkflowRouteImport.update({
+    id: '/$id/workflow',
+    path: '/$id/workflow',
+    getParentRoute: () => AdminRequestTypesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -635,7 +642,7 @@ export interface FileRoutesByFullPath {
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/request-types': typeof AdminRequestTypesRoute
+  '/admin/request-types': typeof AdminRequestTypesRouteWithChildren
   '/admin/research': typeof AdminResearchRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
@@ -683,6 +690,7 @@ export interface FileRoutesByFullPath {
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
+  '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -725,7 +733,7 @@ export interface FileRoutesByTo {
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/request-types': typeof AdminRequestTypesRoute
+  '/admin/request-types': typeof AdminRequestTypesRouteWithChildren
   '/admin/research': typeof AdminResearchRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
@@ -771,6 +779,7 @@ export interface FileRoutesByTo {
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student': typeof MobileStudentIndexRoute
   '/student/requests': typeof StudentRequestsIndexRoute
+  '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -818,7 +827,7 @@ export interface FileRoutesById {
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/request-types': typeof AdminRequestTypesRoute
+  '/admin/request-types': typeof AdminRequestTypesRouteWithChildren
   '/admin/research': typeof AdminResearchRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
@@ -866,6 +875,7 @@ export interface FileRoutesById {
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
+  '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -962,6 +972,7 @@ export interface FileRouteTypes {
     | '/student/requests/new'
     | '/mobile/student/'
     | '/student/requests/'
+    | '/admin/request-types/$id/workflow'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1050,6 +1061,7 @@ export interface FileRouteTypes {
     | '/student/requests/new'
     | '/mobile/student'
     | '/student/requests'
+    | '/admin/request-types/$id/workflow'
   id:
     | '__root__'
     | '/'
@@ -1144,6 +1156,7 @@ export interface FileRouteTypes {
     | '/student/requests/new'
     | '/mobile/student/'
     | '/student/requests/'
+    | '/admin/request-types/$id/workflow'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1816,8 +1829,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalStudentProgressStudentIdRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
+    '/admin/request-types/$id/workflow': {
+      id: '/admin/request-types/$id/workflow'
+      path: '/$id/workflow'
+      fullPath: '/admin/request-types/$id/workflow'
+      preLoaderRoute: typeof AdminRequestTypesIdWorkflowRouteImport
+      parentRoute: typeof AdminRequestTypesRoute
+    }
   }
 }
+
+interface AdminRequestTypesRouteChildren {
+  AdminRequestTypesIdWorkflowRoute: typeof AdminRequestTypesIdWorkflowRoute
+}
+
+const AdminRequestTypesRouteChildren: AdminRequestTypesRouteChildren = {
+  AdminRequestTypesIdWorkflowRoute: AdminRequestTypesIdWorkflowRoute,
+}
+
+const AdminRequestTypesRouteWithChildren =
+  AdminRequestTypesRoute._addFileChildren(AdminRequestTypesRouteChildren)
 
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
@@ -1846,7 +1877,7 @@ interface AdminRouteChildren {
   AdminPilotCenterRoute: typeof AdminPilotCenterRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminReportsRoute: typeof AdminReportsRoute
-  AdminRequestTypesRoute: typeof AdminRequestTypesRoute
+  AdminRequestTypesRoute: typeof AdminRequestTypesRouteWithChildren
   AdminResearchRoute: typeof AdminResearchRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminSchedulesRoute: typeof AdminSchedulesRoute
@@ -1895,7 +1926,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPilotCenterRoute: AdminPilotCenterRoute,
   AdminProgramsRoute: AdminProgramsRoute,
   AdminReportsRoute: AdminReportsRoute,
-  AdminRequestTypesRoute: AdminRequestTypesRoute,
+  AdminRequestTypesRoute: AdminRequestTypesRouteWithChildren,
   AdminResearchRoute: AdminResearchRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminSchedulesRoute: AdminSchedulesRoute,
@@ -2061,3 +2092,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

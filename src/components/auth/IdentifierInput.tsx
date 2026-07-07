@@ -54,11 +54,11 @@ export function friendlyAuthError(err: unknown): string {
   if (c === "user_banned" || m.includes("user is banned") || m.includes("banned"))
     return "هذا الحساب معطّل من قبل إدارة النظام. الرجاء التواصل مع الدعم لإعادة تفعيله.";
   if (c === "user_not_found" || m.includes("user not found"))
-    return "لا يوجد حساب مرتبط بهذا الرقم. تحقق من البيانات أو تواصل مع الدعم.";
+    return "لا يوجد حساب مرتبط بهذا الإيميل الجامعي. تحقق من البيانات أو تواصل مع الدعم.";
   if (c === "email_not_confirmed" || m.includes("email not confirmed"))
     return "لم يتم تفعيل الحساب بعد. تواصل مع الدعم الفني.";
   if (c === "invalid_credentials" || m.includes("invalid login credentials") || m.includes("invalid") || m.includes("credentials") || m === "invalid")
-    return "الرقم أو كلمة المرور غير صحيحة.";
+    return "الإيميل الجامعي أو كلمة المرور غير صحيحة.";
   if (m.includes("network") || m.includes("fetch") || m.includes("failed to fetch"))
     return "تعذر الاتصال بالخادم. تحقق من الاتصال بالإنترنت.";
   if (c === "over_request_rate_limit" || status === 429 || m.includes("rate") || m.includes("too many"))

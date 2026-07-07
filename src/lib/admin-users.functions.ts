@@ -8,6 +8,11 @@ import type { Database } from "@/integrations/supabase/types";
 import { assertAdmin, assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 import { enforceRateLimit, SERVER_RATE_LIMIT_POLICIES } from "@/lib/rate-limit.server";
+import {
+  facultyTemporaryPassword,
+  isValidUniversityLoginEmail,
+  normalizeUniversityLoginEmail,
+} from "@/lib/university-email-auth";
 
 // ------------ Helpers ------------
 
@@ -47,6 +52,7 @@ const ACCOUNT_PROVISION_ROLES: Record<AccountKind, readonly string[]> = {
   staff: ["admin", "system_admin", "dean", "hr_officer"],
 };
 
+/** @deprecated Legacy synthetic email — do not use for new logins. */
 function emailFor(kind: AccountKind, identifier: string): string {
   switch (kind) {
     case "student":
@@ -56,6 +62,61 @@ function emailFor(kind: AccountKind, identifier: string): string {
     case "staff":
       return `${identifier.toLowerCase()}@staff.usr.edu.ye`;
   }
+}
+
+async function fetchAuthEmailsByUserIds(userIds: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (!userIds.length) return map;
+  const wanted = new Set(userIds);
+  for (let page = 1; page <= 20; page++) {
+    const { data } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 200 });
+    const list = data?.users ?? [];
+    for (const u of list) {
+      if (wanted.has(u.id) && u.email) map.set(u.id, normalizeUniversityLoginEmail(u.email));
+    }
+    if (map.size >= wanted.size || list.length < 200) break;
+  }
+  return map;
+}
+
+async function resolveProfileLoginEmail(
+  kind: AccountKind,
+  profile: Record<string, unknown>,
+): Promise<string> {
+  if (kind === "student") {
+    const email = String(profile.email ?? "").trim();
+    if (!email || !isValidUniversityLoginEmail(email)) {
+      throw new Error("الإيميل الجامعي غير مسجل في ملف الطالب — يرجى تحديث البيانات أولاً");
+    }
+    return normalizeUniversityLoginEmail(email);
+  }
+
+  if (kind === "faculty") {
+    const facultyId = profile.faculty_id as string | undefined;
+    if (!facultyId) throw new Error("ملف عضو هيئة التدريس غير مكتمل");
+    const { data: fac } = await supabaseAdmin
+      .from("faculty")
+      .select("email")
+      .eq("id", facultyId)
+      .maybeSingle();
+    const email = String(fac?.email ?? "").trim();
+    if (!email || !isValidUniversityLoginEmail(email)) {
+      throw new Error("الإيميل الجامعي غير مسجل في ملف عضو هيئة التدريس — يرجى تحديث البيانات أولاً");
+    }
+    return normalizeUniversityLoginEmail(email);
+  }
+
+  const userId = profile.user_id as string | null | undefined;
+  if (userId) {
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId);
+    const email = authUser?.user?.email?.trim();
+    if (email && isValidUniversityLoginEmail(email)) {
+      return normalizeUniversityLoginEmail(email);
+    }
+  }
+  throw new Error(
+    "الإيميل الجامعي غير متوفر في ملف الموظف — يرجى إنشاء الحساب من صفحة الموظفين مع إدخال البريد الجامعي",
+  );
 }
 
 async function findAuthUserIdByEmail(email: string): Promise<string | null> {
@@ -311,7 +372,7 @@ export const listUsers = createServerFn({ method: "POST" })
     if (data.kind === "student") {
       const { data: rows, count, error } = await buildSelect(
         "student_profiles",
-        "id, user_id, academic_number, full_name_ar, status, must_change_password, department_id",
+        "id, user_id, academic_number, full_name_ar, status, must_change_password, department_id, email",
         "academic_number",
       );
       if (error) throw new Error(error.message);
@@ -322,7 +383,7 @@ export const listUsers = createServerFn({ method: "POST" })
       const mapped = (rows ?? []).map((r: any) => ({
         ...r,
         identifier: r.academic_number,
-        email: r.user_id ? emailFor("student", r.academic_number) : null,
+        email: r.email ? normalizeUniversityLoginEmail(r.email) : null,
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       }));
       return Object.assign(mapped, { __total: count ?? mapped.length, __page: page, __pageSize: pageSize });
@@ -331,10 +392,15 @@ export const listUsers = createServerFn({ method: "POST" })
     if (data.kind === "faculty") {
       const { data: rows, count, error } = await buildSelect(
         "faculty_profiles",
-        "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank",
+        "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank, faculty_id",
         "employee_number",
       );
       if (error) throw new Error(error.message);
+      const facultyIds = Array.from(new Set((rows ?? []).map((r: any) => r.faculty_id).filter(Boolean)));
+      const { data: facRows } = facultyIds.length
+        ? await supabaseAdmin.from("faculty").select("id, email").in("id", facultyIds as string[])
+        : { data: [] as { id: string; email: string | null }[] };
+      const facultyEmailById = new Map((facRows ?? []).map((f) => [f.id, f.email]));
       const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
       const { data: roles } = userIds.length
         ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
@@ -342,7 +408,10 @@ export const listUsers = createServerFn({ method: "POST" })
       const mapped = (rows ?? []).map((r: any) => ({
         ...r,
         identifier: r.employee_number ?? "",
-        email: r.user_id && r.employee_number ? emailFor("faculty", r.employee_number) : null,
+        email: (() => {
+          const raw = facultyEmailById.get(r.faculty_id);
+          return raw && isValidUniversityLoginEmail(raw) ? normalizeUniversityLoginEmail(raw) : null;
+        })(),
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       }));
       return Object.assign(mapped, { __total: count ?? mapped.length, __page: page, __pageSize: pageSize });
@@ -370,6 +439,7 @@ export const listUsers = createServerFn({ method: "POST" })
       linksByProfile.set(link.staff_profile_id, arr);
     }
     const userIds = (rows ?? []).filter((r: any) => r.user_id).map((r: any) => r.user_id as string);
+    const authEmailByUserId = await fetchAuthEmailsByUserIds(userIds);
     const { data: roles } = userIds.length
       ? await supabaseAdmin.from("user_roles").select("user_id, role").in("user_id", userIds)
       : { data: [] as any[] };
@@ -393,7 +463,7 @@ export const listUsers = createServerFn({ method: "POST" })
         department_label,
         department_names_title: department_names.length > 1 ? department_names.join("، ") : undefined,
         identifier: r.employee_number ?? "",
-        email: r.user_id && r.employee_number ? emailFor("staff", r.employee_number) : null,
+        email: r.user_id ? (authEmailByUserId.get(r.user_id) ?? null) : null,
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       };
     });
@@ -431,13 +501,7 @@ export const createAccount = createServerFn({ method: "POST" })
     if (!profile) throw new Error("الحساب غير موجود");
     if ((profile as any).user_id) throw new Error("الحساب مفعّل مسبقاً");
 
-    const identifier =
-      data.kind === "student"
-        ? (profile as any).academic_number
-        : (profile as any).employee_number;
-    if (!identifier) throw new Error("الرقم الأكاديمي/الوظيفي مفقود");
-
-    const email = emailFor(data.kind, identifier);
+    const email = await resolveProfileLoginEmail(data.kind, profile as Record<string, unknown>);
 
     // ─── FACULTY-ACCOUNT-REPAIR-02: استعلام مباشر على auth.users بدل listUsers ───
     // listUsers({perPage:200}) يحمّل كل سجلات auth دفعة واحدة وقد يفشل بالكامل
@@ -588,14 +652,19 @@ export const resetPassword = createServerFn({ method: "POST" })
       .from(table).select("*").eq("id", data.profile_id).maybeSingle();
     if (!profile) throw new Error("الحساب غير موجود");
 
-    const identifier =
-      data.kind === "student"
-        ? (profile as any).academic_number
-        : (profile as any).employee_number;
-    if (!identifier) throw new Error("الرقم الأكاديمي/الوظيفي مفقود");
-
-    const email = emailFor(data.kind, identifier);
     const profileUserId = ((profile as any).user_id as string | null) ?? null;
+    let email: string;
+    if (profileUserId) {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profileUserId);
+      const authEmail = authUser?.user?.email?.trim();
+      if (authEmail && isValidUniversityLoginEmail(authEmail)) {
+        email = normalizeUniversityLoginEmail(authEmail);
+      } else {
+        email = await resolveProfileLoginEmail(data.kind, profile as Record<string, unknown>);
+      }
+    } else {
+      email = await resolveProfileLoginEmail(data.kind, profile as Record<string, unknown>);
+    }
 
     let authUserId = await findAuthUserIdByEmail(email);
     let relinked = false;

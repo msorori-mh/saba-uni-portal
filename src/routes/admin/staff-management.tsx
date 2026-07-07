@@ -18,6 +18,12 @@ import {
   StaffDepartmentScopeFields,
   type StaffDepartmentScope,
 } from "@/components/admin/people/staff-department-scope";
+import {
+  STAFF_ROLE_TYPES,
+  STAFF_ROLE_FILTER_OPTIONS,
+  staffRoleTypeLabel,
+  staffRoleOptionsForForm,
+} from "@/lib/staff-role-types";
 
 export const Route = createFileRoute("/admin/staff-management")({
   head: () => ({ meta: [{ title: "إدارة الموظفين — لوحة الإدارة" }] }),
@@ -26,15 +32,8 @@ export const Route = createFileRoute("/admin/staff-management")({
 
 type Lookups = Awaited<ReturnType<typeof getPeopleLookups>>;
 
-const STAFF_ROLE_TYPES = [
-  { value: "registrar", label: "موظف القبول والتسجيل" },
-  { value: "student_affairs", label: "موظف شؤون الطلاب" },
-  { value: "finance_officer", label: "موظف الشؤون المالية" },
-  { value: "hr_officer", label: "موظف الموارد البشرية" },
-] as const;
-
 function roleTypeLabel(rt: string) {
-  return STAFF_ROLE_TYPES.find((r) => r.value === rt)?.label ?? rt;
+  return staffRoleTypeLabel(rt);
 }
 
 function StaffManagementPage() {
@@ -127,7 +126,7 @@ function StaffManagementPage() {
           <select value={roleType} onChange={(e) => setRoleType(e.target.value)}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
             <option value="all">كل الأدوار</option>
-            {STAFF_ROLE_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {STAFF_ROLE_FILTER_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
           <div className="grid grid-cols-2 gap-2">
             <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}
@@ -398,8 +397,9 @@ function AddStaffModal({
                 onScopeChange={(scope) => update("department_scope", scope)}
                 onDepartmentIdsChange={(ids) => update("department_ids", ids)}
               />
-              <Field label="البريد الإلكتروني">
+              <Field label="الإيميل الجامعي">
                 <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} dir="ltr"
+                  placeholder="staff@staff.usr.edu.ye"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
               </Field>
               <Field label="الهاتف">
@@ -423,8 +423,8 @@ function AddStaffModal({
               <div className="text-sm">
                 <div className="font-bold text-primary">إنشاء حساب دخول</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  سيتم إنشاء بريد <span dir="ltr" className="font-mono">[رقم]@staff.usr.edu.ye</span> وكلمة مرور أولية = الرقم الوظيفي،
-                  مع منح الموظف الدور المختار أعلاه.
+                  يتم تسجيل الدخول باستخدام الإيميل الجامعي فقط (مطلوب عند تفعيل هذا الخيار).
+                  تُنشأ كلمة مرور مؤقتة عشوائية — سياسة كلمة المرور للموظفين قابلة للتخصيص لاحقاً.
                 </div>
               </div>
             </label>
@@ -537,7 +537,9 @@ function EditStaffModal({
                 <Field label="الدور الوظيفي *">
                   <select required value={form.role_type} onChange={(e) => update("role_type", e.target.value)}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                    {STAFF_ROLE_TYPES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    {staffRoleOptionsForForm(form.role_type).map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
                   </select>
                 </Field>
                 {lookups && (

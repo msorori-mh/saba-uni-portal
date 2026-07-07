@@ -72,7 +72,7 @@ function StudentRequestsIndexPage() {
                 {data.map((request: any) => (
                   <tr key={request.id} className="border-t border-border/60">
                     <td className="px-3 py-2 font-mono">{request.request_number ?? "—"}</td>
-                    <td className="px-3 py-2 font-mono">{request.request_type}</td>
+                    <td className="px-3 py-2 font-mono">{request.request_type_name_ar ?? request.request_type}</td>
                     <td className="px-3 py-2 font-bold">{request.title}</td>
                     <td className="px-3 py-2">{STATUS_LABEL[request.status] ?? request.status}</td>
                     <td className="px-3 py-2">{request.current_role_key ?? "—"}</td>
