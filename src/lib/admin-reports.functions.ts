@@ -3,6 +3,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { assertAnyRole, assertStudentRead, REPORTS_ROLES } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  getDbCodesForRequestTypeFilter,
+  getStudentRequestTypeDisplayName,
+} from "@/lib/student-requests/request-type-registry";
 
 async function assertReportsAccess(userId: string) {
   await assertAnyRole(
@@ -246,16 +250,6 @@ async function fetchFacultyReport() {
   return { facultyRows, byDept };
 }
 
-const REQ_TYPE_AR: Record<string, string> = {
-  absence_excuse: "Ø¹Ø°Ø± ØºÙŠØ§Ø¨",
-  enrollment_suspension: "Ø¥ÙŠÙ‚Ø§Ù Ù‚ÙŠØ¯",
-  enrollment_reinstatement: "Ø¥Ø¹Ø§Ø¯Ø© Ù‚ÙŠØ¯",
-  extra_chance: "ÙØ±ØµØ© Ø¥Ø¶Ø§ÙÙŠØ©",
-  transfer: "ØªØ­ÙˆÙŠÙ„",
-  equivalency: "Ù…Ø¹Ø§Ø¯Ù„Ø©",
-  grade_appeal: "ØªØ¸Ù„Ù… Ø¯Ø±Ø¬Ø§Øª",
-  official_transcript: "Ø³Ø¬Ù„ Ø£ÙƒØ§Ø¯ÙŠÙ…ÙŠ Ø±Ø³Ù…ÙŠ",
-};
 const REQ_STATUS_AR: Record<string, string> = {
   draft: "Ù…Ø³ÙˆØ¯Ø©",
   submitted: "Ù…Ù‚Ø¯Ù‘Ù…",
@@ -290,7 +284,11 @@ async function fetchRequestsReport(filters: RequestsReportFilters = {}) {
   }>("student_requests", (q) => {
     let s = q.select("id, request_number, request_type, status, student_profile_id, submitted_at, reviewed_at, created_at");
     if (filters.status) s = s.eq("status", filters.status);
-    if (filters.request_type) s = s.eq("request_type", filters.request_type);
+    if (filters.request_type) {
+      const typeCodes = getDbCodesForRequestTypeFilter(filters.request_type);
+      if (typeCodes.length === 1) s = s.eq("request_type", typeCodes[0]);
+      else if (typeCodes.length > 1) s = s.in("request_type", typeCodes);
+    }
     if (filters.from_date) s = s.gte("created_at", filters.from_date);
     if (filters.to_date) s = s.lte("created_at", `${filters.to_date}T23:59:59.999Z`);
     return s;
@@ -310,7 +308,7 @@ async function fetchRequestsReport(filters: RequestsReportFilters = {}) {
     return true;
   });
 
-  const byType = groupCount(filtered, (r) => REQ_TYPE_AR[r.request_type] ?? r.request_type);
+  const byType = groupCount(filtered, (r) => getStudentRequestTypeDisplayName(r.request_type));
   const byStatus = groupCount(filtered, (r) => REQ_STATUS_AR[r.status] ?? r.status);
   const approved = filtered.filter((r) => r.status === "approved");
   const rejected = filtered.filter((r) => r.status === "rejected");
@@ -330,7 +328,7 @@ async function fetchRequestsReport(filters: RequestsReportFilters = {}) {
         id: r.id,
         request_number: r.request_number ?? "",
         request_type: r.request_type,
-        request_type_ar: REQ_TYPE_AR[r.request_type] ?? r.request_type,
+        request_type_ar: getStudentRequestTypeDisplayName(r.request_type),
         status: r.status,
         status_ar: REQ_STATUS_AR[r.status] ?? r.status,
         student_name: p?.full_name_ar ?? "",

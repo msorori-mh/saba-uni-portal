@@ -49,6 +49,20 @@ export function mapStudentRequestRpcError(error: RpcErrorLike): string {
   return msg || "حدث خطأ غير متوقع";
 }
 
+export function isWorkflowRpcUnavailable(error: RpcErrorLike | null | undefined): boolean {
+  if (!error) return false;
+  const msg = error.message ?? "";
+  const code = error.code ?? "";
+  return (
+    code === "42883"
+    || /function .* does not exist/i.test(msg)
+    || /could not find the function/i.test(msg)
+    || /schema cache/i.test(msg)
+    || /relation .* does not exist/i.test(msg)
+    || /student_request_workflow_steps/i.test(msg)
+  );
+}
+
 type RpcClient = {
   rpc: (
     fn: string,
@@ -107,4 +121,48 @@ export async function rpcGetMyStudentRequests(
   });
   if (error) throw new Error(mapStudentRequestRpcError(error));
   return (data ?? []) as MyStudentRequestRow[];
+}
+
+export type ActorInboxRow = {
+  workflow_step_runtime_id: string;
+  student_request_id: string;
+  request_type_code: string;
+  request_type_name_ar: string | null;
+  student_id: string;
+  student_name: string | null;
+  department_id: string | null;
+  department_name_ar: string | null;
+  step_key: string;
+  step_name_ar: string | null;
+  step_status: string;
+  processing_unit_name_ar: string | null;
+  processing_role_name_ar: string | null;
+  submitted_at: string | null;
+  is_actionable: boolean;
+};
+
+export async function rpcGetMyRequestActorInbox(
+  client: RpcClient,
+  filters: Record<string, unknown> = {},
+  limit = 100,
+  offset = 0,
+): Promise<{ rows: ActorInboxRow[]; error: RpcErrorLike | null }> {
+  const { data, error } = await client.rpc("get_my_request_actor_inbox", {
+    p_filters: filters,
+    p_limit: limit,
+    p_offset: offset,
+  });
+  if (error) return { rows: [], error };
+  return { rows: (data ?? []) as ActorInboxRow[], error: null };
+}
+
+export async function rpcGetStudentRequestDetailForActor(
+  client: RpcClient,
+  requestId: string,
+): Promise<{ detail: Record<string, unknown> | null; error: RpcErrorLike | null }> {
+  const { data, error } = await client.rpc("get_student_request_detail_for_actor", {
+    p_request_id: requestId,
+  });
+  if (error) return { detail: null, error };
+  return { detail: (data ?? null) as Record<string, unknown> | null, error: null };
 }

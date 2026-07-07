@@ -28,6 +28,7 @@ import {
   getTimetableReportForAdmin,
   getUnassignedCoursesReportForAdmin,
 } from "@/lib/admin-reports.functions";
+import { buildExtendedReportTypeOptions } from "@/lib/student-requests/request-type-registry";
 import { logReportEvent } from "@/lib/reports/report-audit.functions";
 
 const VALID_TABS = ["students", "imports", "accounts", "academic", "schedules", "requests", "faculty", "documents", "audit"] as const;
@@ -371,16 +372,7 @@ const REQ_STATUS_OPTIONS: Array<{ value: string; label: string }> = [
   { value: "cancelled", label: "ملغى" },
 ];
 
-const REQ_TYPE_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: "grade_appeal", label: "تظلم على درجة" },
-  { value: "absence_excuse", label: "عذر غياب" },
-  { value: "extra_chance", label: "فرصة إضافية" },
-  { value: "equivalency", label: "معادلة مقررات" },
-  { value: "transfer", label: "تحويل" },
-  { value: "enrollment_suspension", label: "وقف قيد" },
-  { value: "enrollment_reinstatement", label: "إعادة قيد" },
-  { value: "official_transcript", label: "سجل أكاديمي رسمي" },
-];
+const REQ_TYPE_OPTIONS = buildExtendedReportTypeOptions();
 
 type RequestsFilters = {
   from_date: string;

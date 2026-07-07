@@ -1,3 +1,5 @@
+import { resolveEffectLabelForRequestType } from "@/lib/student-requests/request-type-registry";
+
 export type TimelineEventKind =
   | "created"
   | "submitted"
@@ -128,20 +130,12 @@ export function auditLogToTimelineEvent(row: AuditLogTimelineRow): StudentReques
   };
 }
 
-const EFFECT_LABELS: Record<string, string> = {
-  absence_excuse: "تم تسجيل العذر في سجل الغياب",
-  extra_chance: "تم تسجيل الفرصة في السجل الأكاديمي",
-  equivalency: "تم تطبيق ساعات المعادلة",
-  grade_appeal: "تم اعتماد الدرجة بعد التظلم",
-  official_transcript: "تم إصدار السجل الأكاديمي الرسمي",
-};
-
 export function buildEffectTimelineEvents(
   requestType: string,
   markers: RequestEffectMarkers,
 ): StudentRequestTimelineEvent[] {
   const events: StudentRequestTimelineEvent[] = [];
-  const label = EFFECT_LABELS[requestType];
+  const label = resolveEffectLabelForRequestType(requestType);
 
   if (markers.recordAppliedAt) {
     events.push({

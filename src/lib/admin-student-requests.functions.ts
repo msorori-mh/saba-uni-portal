@@ -13,6 +13,10 @@ import {
   type RequestEffectMarkers,
   type StudentRequestTimelineEvent,
 } from "@/lib/student-request-timeline";
+import {
+  matchesStudentRequestTypeCode,
+  normalizeStudentRequestTypeCode,
+} from "@/lib/student-requests/request-type-registry";
 
 export type { StudentRequestTimelineEvent };
 
@@ -465,9 +469,10 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
     const attachments = await fetchRequestAttachments(id);
     const base = emptyRequestDetailsPayload(attachments);
     const requestType = reqMeta.request_type;
+    const normalizedType = normalizeStudentRequestTypeCode(requestType);
 
-    switch (requestType) {
-      case "absence_excuse": {
+    switch (normalizedType) {
+      case "excused_absence": {
         const absence_details = await fetchAbsenceExcuseDetails(id);
         return { ...base, absence_details };
       }
@@ -503,7 +508,7 @@ export const getStudentRequestDetails = createServerFn({ method: "POST" })
         );
         return { ...base, extra_chance_details: extra_chance_details ?? null, extra_chance_summary };
       }
-      case "transfer": {
+      case "department_transfer": {
         const { data: transfer_details, error } = await supabaseAdmin
           .from("transfer_request_details")
           .select("request_id, current_program_id, requested_program_id, current_department_id, requested_department_id, transfer_reason, notes, current_program:programs!transfer_request_details_current_program_id_fkey(name_ar), requested_program:programs!transfer_request_details_requested_program_id_fkey(name_ar), current_department:departments!transfer_request_details_current_department_id_fkey(name_ar), requested_department:departments!transfer_request_details_requested_department_id_fkey(name_ar)")
@@ -625,7 +630,7 @@ export const updateStudentRequestStatus = createServerFn({ method: "POST" })
       await assertExtraChanceCanApprove(data.requestId, reqRow.student_profile_id);
     }
 
-    if (data.status === "approved" && reqRow.request_type === "transfer") {
+    if (data.status === "approved" && matchesStudentRequestTypeCode(reqRow.request_type, "department_transfer")) {
       await assertTransferCanApprove(data.requestId, reqRow.student_profile_id);
     }
 
@@ -756,8 +761,8 @@ async function fetchRequestEffectMarkers(
   requestType: string,
   reviewedAt: string | null,
 ): Promise<RequestEffectMarkers> {
-  switch (requestType) {
-    case "absence_excuse": {
+  switch (normalizeStudentRequestTypeCode(requestType)) {
+    case "excused_absence": {
       const { data, error } = await supabaseAdmin
         .from("absence_excuse_details")
         .select("record_applied_at")

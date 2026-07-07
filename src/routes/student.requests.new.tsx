@@ -1,16 +1,31 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AlertCircle, FilePlus2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   createStudentServiceRequest,
   getStudentRequestTypesForStudent,
+  getStudentRequestUiContext,
   saveStudentServiceRequestDraft,
   submitStudentServiceRequest,
 } from "@/lib/student-affairs.functions";
 import { STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG } from "@/lib/student-request-rpc";
+import {
+  DynamicStudentRequestForm,
+  isDynamicFormSupported,
+} from "@/components/student-requests/DynamicStudentRequestForm";
+import { StudentRequestEligibilityNotice } from "@/components/student-requests/StudentRequestEligibilityNotice";
+import {
+  buildFormValuesSummary,
+  getEmptyFormValues,
+  getStudentRequestFormDefinition,
+  serializeFormValuesForStorage,
+  validateStudentRequestFormValues,
+} from "@/lib/student-requests/request-form-registry";
+import { canSubmitStudentRequestFromUi } from "@/lib/student-requests/request-eligibility-ui";
+import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
 
 export const Route = createFileRoute("/student/requests/new")({
   component: NewStudentRequestPage,
@@ -22,6 +37,8 @@ type RequestTypeOption = {
   name_ar: string;
   description_ar: string | null;
   requires_attachment: boolean;
+  request_audience?: string | null;
+  ineligible_display_mode?: string | null;
   is_eligible: boolean;
   is_disabled: boolean;
   disabled_reason: string | null;
@@ -30,12 +47,13 @@ type RequestTypeOption = {
 function NewStudentRequestPage() {
   const navigate = useNavigate();
   const typesFn = useServerFn(getStudentRequestTypesForStudent);
+  const contextFn = useServerFn(getStudentRequestUiContext);
   const createFn = useServerFn(createStudentServiceRequest);
   const saveFn = useServerFn(saveStudentServiceRequestDraft);
   const submitFn = useServerFn(submitStudentServiceRequest);
   const [requestType, setRequestType] = useState("");
   const [subject, setSubject] = useState("");
-  const [details, setDetails] = useState("");
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [busy, setBusy] = useState<"draft" | "submit" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,11 +62,40 @@ function NewStudentRequestPage() {
     queryFn: () => typesFn({ data: {} }),
   });
 
-  const typedTypes = types as RequestTypeOption[];
+  const { data: studentContext } = useQuery({
+    queryKey: ["student-affairs", "ui-context"],
+    queryFn: () => contextFn({ data: {} }),
+    staleTime: 60_000,
+  });
+
+  const typedTypes = filterStudentRequestTypesForDisplay(types as RequestTypeOption[]);
   const selectedType = useMemo(
     () => typedTypes.find((type) => type.code === requestType),
     [typedTypes, requestType],
   );
+  const formDefinition = useMemo(
+    () => (requestType ? getStudentRequestFormDefinition(requestType) : undefined),
+    [requestType],
+  );
+  const formSupported = isDynamicFormSupported(requestType);
+
+  useEffect(() => {
+    if (!requestType) {
+      setFormValues({});
+      return;
+    }
+    const def = getStudentRequestFormDefinition(requestType);
+    if (def) {
+      setFormValues(getEmptyFormValues(def));
+      if (!subject.trim()) {
+        setSubject(def.titleAr);
+      }
+    } else {
+      setFormValues({});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset when type changes only
+  }, [requestType]);
+
   const selectableTypes = typedTypes.filter((t) => t.is_eligible && !t.is_disabled);
   const allDisabled =
     typedTypes.length > 0 && typedTypes.every((t) => t.is_disabled || !t.is_eligible);
@@ -57,37 +104,84 @@ function NewStudentRequestPage() {
       ? (typedTypes[0]?.disabled_reason ?? STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG)
       : null;
 
+  const formValidation = useMemo(() => {
+    if (!formDefinition) return { valid: false, missingLabels: [] as string[] };
+    return validateStudentRequestFormValues(formDefinition, formValues);
+  }, [formDefinition, formValues]);
+
+  const eligibilityInput = useMemo(
+    () => ({
+      requestTypeCode: requestType,
+      studentContext: studentContext ?? null,
+      typePickerState: selectedType
+        ? {
+            is_eligible: selectedType.is_eligible,
+            is_disabled: selectedType.is_disabled,
+            disabled_reason: selectedType.disabled_reason,
+            request_audience: selectedType.request_audience,
+            ineligible_display_mode: selectedType.ineligible_display_mode,
+          }
+        : null,
+      formValidation,
+      serviceWindow: { checked: false },
+      formSupported,
+      hasSubject: !!subject.trim(),
+    }),
+    [requestType, studentContext, selectedType, formValidation, formSupported, subject],
+  );
+
   const canSubmitForm =
     !!selectedType &&
     selectedType.is_eligible &&
     !selectedType.is_disabled &&
-    !!subject.trim() &&
-    !!details.trim();
+    canSubmitStudentRequestFromUi(eligibilityInput);
 
   const create = async (submit: boolean) => {
-    if (!selectedType?.is_eligible || selectedType.is_disabled) return;
+    if (!selectedType?.is_eligible || selectedType.is_disabled || !formDefinition) return;
+    if (!canSubmitStudentRequestFromUi(eligibilityInput)) {
+      toast.error("لا يمكن إرسال الطلب حالياً", {
+        description: "راجع بطاقة الأهلية والتوفر أعلاه.",
+      });
+      return;
+    }
+    if (!formValidation.valid) {
+      toast.error("يرجى إكمال الحقول المطلوبة", {
+        description: formValidation.missingLabels.slice(0, 3).join("، "),
+      });
+      return;
+    }
+
     setBusy(submit ? "submit" : "draft");
     setError(null);
     try {
+      const studentNotes = buildFormValuesSummary(formDefinition, formValues);
+      const formData = {
+        ...serializeFormValuesForStorage(formValues),
+        _formCode: formDefinition.code,
+        _formVersion: "p4-foundation",
+      };
+
       const created = await createFn({
         data: {
           requestType,
           title: subject,
-          formData: { subject, details },
-          studentNotes: details,
+          formData,
+          studentNotes,
         },
       });
       await saveFn({
         data: {
           requestId: created.id,
           title: subject,
-          formData: { subject, details },
-          studentNotes: details,
+          formData,
+          studentNotes,
         },
       });
       if (submit) {
         await submitFn({ data: { requestId: created.id } });
-        toast.success("تم إرسال الطلب", { description: "انتقل الطلب إلى حالة: مُرسَل — بانتظار المراجعة." });
+        toast.success("تم إرسال الطلب", {
+          description: "انتقل الطلب إلى حالة: مُرسَل — بانتظار المراجعة.",
+        });
       } else {
         toast.success("تم حفظ المسودة");
       }
@@ -109,6 +203,7 @@ function NewStudentRequestPage() {
   const pickType = (code: string, disabled: boolean) => {
     if (disabled) return;
     setRequestType(code);
+    setSubject("");
   };
 
   return (
@@ -118,7 +213,8 @@ function NewStudentRequestPage() {
           <FilePlus2 className="h-6 w-6 text-gold" /> تقديم طلب شؤون طلاب
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          اختر نوع الطلب وأدخل البيانات الأساسية. يمكن حفظه كمسودة أو إرساله مباشرة.
+          اختر نوع الطلب وعبّئ النموذج المناسب. تُعرض حالة الأهلية والتوفر قبل الإرسال — التحقق
+          النهائي يتم لاحقاً من النظام.
         </p>
       </header>
 
@@ -191,40 +287,40 @@ function NewStudentRequestPage() {
           <p className="text-xs text-muted-foreground">اختر نوع الطلب من القائمة أعلاه للمتابعة.</p>
         )}
 
-        {selectedType && (
-          <div className="rounded-lg border border-border bg-secondary/30 p-3 text-xs text-muted-foreground">
-            <div className="font-bold text-primary mb-1">المتطلبات — {selectedType.name_ar}</div>
-            <div>
-              {selectedType.description_ar ??
-                "يرجى تعبئة بيانات الطلب بدقة وإرفاق المستندات المطلوبة إن وجدت."}
-            </div>
-            {selectedType.requires_attachment && (
-              <div className="mt-1 text-amber-700 font-bold">هذا النوع يتطلب مرفقاً داعماً.</div>
-            )}
-          </div>
+        {requestType && (
+          <StudentRequestEligibilityNotice {...eligibilityInput} />
         )}
 
-        <label className="block space-y-1">
-          <span className="text-xs font-bold text-primary">موضوع الطلب</span>
-          <input
-            required
-            disabled={!selectedType || selectedType.is_disabled}
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+        {selectedType && !formSupported && (
+          <DynamicStudentRequestForm
+            requestTypeCode={requestType}
+            value={formValues}
+            onChange={setFormValues}
+            disabled
           />
-        </label>
-        <label className="block space-y-1">
-          <span className="text-xs font-bold text-primary">تفاصيل الطلب</span>
-          <textarea
-            required
-            rows={6}
-            disabled={!selectedType || selectedType.is_disabled}
-            value={details}
-            onChange={(e) => setDetails(e.target.value)}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
-          />
-        </label>
+        )}
+
+        {selectedType && formSupported && formDefinition && (
+          <>
+            <label className="block space-y-1">
+              <span className="text-xs font-bold text-primary">موضوع الطلب</span>
+              <input
+                required
+                disabled={selectedType.is_disabled}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
+              />
+            </label>
+
+            <DynamicStudentRequestForm
+              requestTypeCode={requestType}
+              value={formValues}
+              onChange={setFormValues}
+              disabled={selectedType.is_disabled}
+            />
+          </>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button
