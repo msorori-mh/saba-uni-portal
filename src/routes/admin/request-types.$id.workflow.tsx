@@ -2,12 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, GitBranch, Loader2, Save, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, GitBranch, Loader2, Save, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   getAdminRequestWorkflowConfig,
   getRequestTypeForWorkflow,
   listRequestProcessingOptions,
+  prepareStudentRequestWorkflowSave,
   saveAdminRequestWorkflowConfig,
 } from "@/lib/admin-request-workflow.functions";
 import {
@@ -29,6 +30,7 @@ import {
   WORKFLOW_SCHEMA_UNAVAILABLE_MSG,
 } from "@/lib/student-requests/request-workflow-preview-registry";
 import { STUDENT_REQUEST_SERVICE_UPDATING_MSG } from "@/lib/student-request-rpc";
+import type { StudentRequestWorkflowSaveResult } from "@/lib/student-requests/request-workflow-save-contract";
 
 export const Route = createFileRoute("/admin/request-types/$id/workflow")({
   component: AdminRequestTypeWorkflowPage,
@@ -117,10 +119,14 @@ function AdminRequestTypeWorkflowPage() {
   const configFn = useServerFn(getAdminRequestWorkflowConfig);
   const processingFn = useServerFn(listRequestProcessingOptions);
   const saveFn = useServerFn(saveAdminRequestWorkflowConfig);
+  const dryRunFn = useServerFn(prepareStudentRequestWorkflowSave);
 
   const [draftSteps, setDraftSteps] = useState<DraftWorkflowStep[]>([]);
   const [draftTransitions, setDraftTransitions] = useState<DraftWorkflowTransition[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const [dryRunResult, setDryRunResult] = useState<StudentRequestWorkflowSaveResult | null>(null);
+  const [dryRunLoading, setDryRunLoading] = useState(false);
+  const [dryRunError, setDryRunError] = useState<string | null>(null);
 
   const { data: requestType, isLoading: typeLoading, error: typeError } = useQuery({
     queryKey: ["admin-request-type", id],
@@ -187,6 +193,48 @@ function AdminRequestTypeWorkflowPage() {
         transitions: draftTransitions,
       },
     });
+  };
+
+  const handleDryRun = async () => {
+    setDryRunLoading(true);
+    setDryRunError(null);
+    setDryRunResult(null);
+    try {
+      const result = await dryRunFn({
+        data: {
+          requestTypeId: id,
+          requestTypeCode: requestType!.code,
+          source: "draft",
+          draftSteps,
+          draftTransitions,
+        },
+      });
+      setDryRunResult(result);
+    } catch (e) {
+      setDryRunError((e as Error).message);
+    } finally {
+      setDryRunLoading(false);
+    }
+  };
+
+  const handleDryRunFromPreview = async () => {
+    setDryRunLoading(true);
+    setDryRunError(null);
+    setDryRunResult(null);
+    try {
+      const result = await dryRunFn({
+        data: {
+          requestTypeId: id,
+          requestTypeCode: requestType!.code,
+          source: "preview",
+        },
+      });
+      setDryRunResult(result);
+    } catch (e) {
+      setDryRunError((e as Error).message);
+    } finally {
+      setDryRunLoading(false);
+    }
   };
 
   const loadDraftFromCanonicalPreview = () => {
@@ -288,7 +336,12 @@ function AdminRequestTypeWorkflowPage() {
       />
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h2 className="font-bold text-sm text-primary">محرر المسودة المحلية</h2>
+        <div>
+          <h2 className="font-bold text-sm text-primary">محرر المسودة المحلية</h2>
+          <p className="text-xs text-amber-700 dark:text-amber-300 mt-0.5">
+            مسودة محلية غير محفوظة — إعادة تحميل الصفحة تعيد المعاينة الأصلية.
+          </p>
+        </div>
         {hasCanonicalWorkflowPreview(requestType.code) && (
           <Button
             type="button"
@@ -322,6 +375,97 @@ function AdminRequestTypeWorkflowPage() {
         onChange={setDraftTransitions}
       />
 
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div>
+            <p className="font-bold text-sm flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              التحقق من التكوين (dry-run)
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              تم التحقق من التكوين فقط. لم يتم حفظ أي تغييرات في قاعدة البيانات.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="gap-1"
+              disabled={dryRunLoading}
+              onClick={handleDryRun}
+            >
+              {dryRunLoading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              التحقق من التكوين
+            </Button>
+            {hasCanonicalWorkflowPreview(requestType.code) && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                disabled={dryRunLoading}
+                onClick={handleDryRunFromPreview}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                التحقق من المرجع المعياري
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {dryRunError && (
+          <p className="text-xs text-destructive bg-destructive/10 rounded p-2">{dryRunError}</p>
+        )}
+
+        {dryRunResult && (
+          <div className="space-y-2 border-t pt-3">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-bold">الحالة:</span>
+              <span
+                className={
+                  dryRunResult.status === "VALID"
+                    ? "text-emerald-700"
+                    : dryRunResult.status === "VALID_WITH_WARNINGS"
+                      ? "text-amber-700"
+                      : dryRunResult.status === "SAVE_UNAVAILABLE"
+                        ? "text-blue-700"
+                        : "text-destructive"
+                }
+              >
+                {dryRunResult.status}
+              </span>
+              <span className="text-muted-foreground">— {dryRunResult.summaryAr}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{dryRunResult.capability.messageAr}</p>
+            {dryRunResult.issues.length > 0 && (
+              <ul className="text-xs space-y-1 max-h-48 overflow-y-auto">
+                {dryRunResult.issues.map((issue, idx) => (
+                  <li
+                    key={`${issue.code}-${idx}`}
+                    className={
+                      issue.severity === "error"
+                        ? "text-destructive"
+                        : issue.severity === "warning"
+                          ? "text-amber-800 dark:text-amber-200"
+                          : "text-muted-foreground"
+                    }
+                  >
+                    {issue.severity === "error" ? "✕" : issue.severity === "warning" ? "!" : "·"}{" "}
+                    {issue.stepKey ? `«${issue.stepKey}» — ` : ""}
+                    {issue.messageAr}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div>
@@ -340,9 +484,15 @@ function AdminRequestTypeWorkflowPage() {
             حفظ دورة الحياة
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground border-t pt-2">
-          {WORKFLOW_SCHEMA_UNAVAILABLE_MSG}
-        </p>
+        <div className="flex items-center justify-between gap-2 flex-wrap border-t pt-2">
+          <p className="text-xs text-muted-foreground">
+            {WORKFLOW_SCHEMA_UNAVAILABLE_MSG}
+          </p>
+          <Button type="button" variant="outline" size="sm" disabled className="gap-1 opacity-50">
+            <Zap className="h-3.5 w-3.5" />
+            تفعيل دورة الحياة
+          </Button>
+        </div>
       </div>
     </div>
   );
