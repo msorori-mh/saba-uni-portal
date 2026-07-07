@@ -68,10 +68,13 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   staff: {
     sheetName: "Staff",
     headers: ["employee_number","full_name_ar","full_name_en","university_email","department_code","job_title","role_type","status"],
-    sample: ["S2025001","سامي علي","Sami Ali","sami@staff.usr.edu.ye","قسم تكنولوجيا المعلومات والاتصالات","سكرتير","registrar","active"],
+    sample: ["S2025001","سامي علي","Sami Ali","sami@staff.usr.edu.ye","قسم تكنولوجيا المعلومات والاتصالات","سكرتير","student_affairs_specialist","active"],
     instructions: [
       "employee_number و full_name_ar حقول مطلوبة",
       "university_email = الإيميل الجامعي (لتسجيل الدخول — ليس الرقم الوظيفي)",
+      "role_type = المفتاح الداخلي أو التسمية العربية للدور الوظيفي المعتمد (مثل registrar_general أو مختص شؤون الطلاب)",
+      "الأدوار المقبولة: المسجل العام، مدير/مختص شؤون الطلاب، مدير/مختص شؤون الخريجين، مسؤول الإرشيف، موظف الإيرادات والمالية، مسؤول المكتبة، مسؤول المعامل، أمين معمل",
+      "لا تستخدم الأسماء القديمة (موظف القبول والتسجيل، موظف شؤون الطلاب، …)",
       "department_code = اسم القسم بالعربية (اختياري)",
       "status = active / inactive",
     ],

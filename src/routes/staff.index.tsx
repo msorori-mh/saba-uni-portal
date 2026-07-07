@@ -4,6 +4,7 @@ import { LogOut, User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2 } fro
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
+import { staffFunctionalRoleLabel } from "@/lib/staff-functional-roles";
 
 type StaffProfileRow = {
   employee_number: string | null;
@@ -17,11 +18,11 @@ type StaffProfileRow = {
 const ROLE_LABEL: Record<string, string> = {
   admin: "مدير عام",
   system_admin: "مدير نظام",
-  registrar: "قبول وتسجيل",
-  student_affairs: "شؤون الطلاب",
-  finance_officer: "مسؤول مالي",
-  admin_staff: "موظف إداري",
 };
+
+function roleLabel(roleType: string) {
+  return staffFunctionalRoleLabel(roleType);
+}
 
 async function fetchMyStaffProfile(): Promise<StaffProfileRow | null> {
   const { data: auth } = await supabase.auth.getUser();
@@ -97,7 +98,7 @@ function StaffDashboard() {
               <InfoCard icon={IdCard} label="رقم الموظف" value={profile.employee_number ?? "—"} mono />
               <InfoCard icon={BadgeCheck} label="الحالة" value={statusLabel[profile.status] ?? profile.status} />
               <InfoCard icon={Briefcase} label="الوظيفة" value={profile.job_title} />
-              <InfoCard icon={ShieldCheck} label="الدور" value={ROLE_LABEL[profile.role_type] ?? profile.role_type} />
+              <InfoCard icon={ShieldCheck} label="الدور" value={roleLabel(profile.role_type)} />
             </div>
 
             <div className="mt-6">

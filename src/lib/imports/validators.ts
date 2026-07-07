@@ -1,6 +1,7 @@
 import type { LookupMaps, RowError, ValidatedRow, ValidationResult } from "./types";
 import { normKey } from "./lookups";
 import { getImportDb } from "./import-db";
+import { resolveStaffRoleTypeInput } from "@/lib/staff-functional-roles";
 
 const str = (v: unknown) => (v == null ? "" : String(v).trim());
 const num = (v: unknown) => {
@@ -282,6 +283,23 @@ export async function validateStaff(
     const dep_id = depKey ? lookups.departmentsByName.get(depKey) ?? null : null;
     if (depKey && !dep_id) errors.push({ row: rowNumber, column: "department_code", message: "القسم غير موجود" });
 
+    const roleRaw = str(raw.role_type);
+    let role_type: string | null = null;
+    if (roleRaw) {
+      const resolved = resolveStaffRoleTypeInput(roleRaw);
+      if (resolved.error) {
+        errors.push({ row: rowNumber, column: "role_type", message: resolved.error });
+      } else if (resolved.legacy) {
+        errors.push({
+          row: rowNumber,
+          column: "role_type",
+          message: resolved.error ?? "دور قديم — استخدم المفاتيح أو التسميات الوظيفية المعتمدة الجديدة",
+        });
+      } else {
+        role_type = resolved.key;
+      }
+    }
+
     if (employee_number) seen.add(employee_number);
 
     out.push({
@@ -291,7 +309,7 @@ export async function validateStaff(
         full_name_en: str(raw.full_name_en) || null,
         department_id: dep_id,
         job_title: str(raw.job_title) || null,
-        role_type: str(raw.role_type) || null,
+        role_type,
         status: str(raw.status) || "active",
       },
     });

@@ -13,6 +13,7 @@ import {
   isValidUniversityLoginEmail,
   normalizeUniversityLoginEmail,
 } from "@/lib/university-email-auth";
+import { staffFunctionalRoleToAppRole } from "@/lib/staff-functional-roles";
 
 // ------------ Helpers ------------
 
@@ -268,16 +269,8 @@ async function ensureProfileRoles(
   }
 }
 function staffRoleFor(roleType: string | null | undefined): string {
-  switch (roleType) {
-    case "registrar": return "registrar";
-    case "student_affairs": return "student_affairs";
-    case "finance": return "finance_officer";
-    case "finance_officer": return "finance_officer";
-    case "hr_officer": return "hr_officer";
-    case "dean": return "dean";
-    case "admin": return "admin";
-    default: return "registrar";
-  }
+  if (!roleType) return "registrar";
+  return staffFunctionalRoleToAppRole(roleType) ?? "registrar";
 }
 
 /** Map operational app_role (+ staff role_type) to roles_catalog code for user_role_assignments sync. */
@@ -291,11 +284,27 @@ function catalogCodeForAccount(
   switch (staffRoleType) {
     case "admin": return "admin";
     case "dean": return "dean";
-    case "registrar": return "registrar_officer";
-    case "student_affairs": return "student_affairs_officer";
-    case "finance": return "finance_officer";
-    case "finance_officer": return "finance_officer";
-    case "hr_officer": return "hr_officer";
+    case "registrar_general":
+    case "registrar":
+      return "registrar_officer";
+    case "student_affairs_manager":
+    case "student_affairs_specialist":
+    case "graduate_affairs_manager":
+    case "graduate_affairs_specialist":
+    case "archive_officer":
+    case "library_officer":
+    case "labs_manager":
+    case "lab_custodian":
+    case "student_affairs":
+    case "lab_manager":
+    case "lab_keeper":
+      return "student_affairs_officer";
+    case "revenue_finance_officer":
+    case "finance":
+    case "finance_officer":
+      return "finance_officer";
+    case "hr_officer":
+      return "hr_officer";
     default: break;
   }
   const fallback: Record<string, string> = {
