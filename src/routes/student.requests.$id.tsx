@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useRef, useState } from "react";
 import { AlertCircle, FileText, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -32,6 +33,8 @@ function StudentRequestDetailsPage() {
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
   const signedUrlFn = useServerFn(getStudentRequestAttachmentSignedUrl);
   const submitFn = useServerFn(submitStudentServiceRequest);
+  const [resubmitting, setResubmitting] = useState(false);
+  const resubmitInFlightRef = useRef(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["student-affairs", "details", id],
     queryFn: () => detailsFn({ data: { requestId: id } }),
@@ -43,12 +46,18 @@ function StudentRequestDetailsPage() {
   };
 
   const resubmit = async () => {
+    if (resubmitInFlightRef.current || resubmitting) return;
+    resubmitInFlightRef.current = true;
+    setResubmitting(true);
     try {
       await submitFn({ data: { requestId: id } });
       toast.success("تمت إعادة الإرسال", { description: "انتقل الطلب إلى: مُرسَل — بانتظار المراجعة." });
       qc.invalidateQueries({ queryKey: ["student-affairs", "details", id] });
     } catch (e) {
       toast.error("تعذر إعادة الإرسال", { description: (e as Error).message });
+    } finally {
+      resubmitInFlightRef.current = false;
+      setResubmitting(false);
     }
   };
 
@@ -86,8 +95,14 @@ function StudentRequestDetailsPage() {
           </p>
         </div>
         {canResubmit && (
-          <button onClick={resubmit} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
-            <Send className="h-4 w-4" /> إعادة إرسال بعد الاستكمال
+          <button
+            type="button"
+            disabled={resubmitting}
+            onClick={resubmit}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {resubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            إعادة إرسال بعد الاستكمال
           </button>
         )}
       </header>

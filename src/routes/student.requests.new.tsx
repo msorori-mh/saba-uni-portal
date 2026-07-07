@@ -1,15 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, FilePlus2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  createStudentServiceRequest,
   getStudentRequestTypesForStudent,
   getStudentRequestUiContext,
-  saveStudentServiceRequestDraft,
-  submitStudentServiceRequest,
+  submitCanonicalStudentRequest,
 } from "@/lib/student-affairs.functions";
 import { STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG } from "@/lib/student-request-rpc";
 import {
@@ -18,14 +16,16 @@ import {
 } from "@/components/student-requests/DynamicStudentRequestForm";
 import { StudentRequestEligibilityNotice } from "@/components/student-requests/StudentRequestEligibilityNotice";
 import {
-  buildFormValuesSummary,
   getEmptyFormValues,
   getStudentRequestFormDefinition,
-  serializeFormValuesForStorage,
   validateStudentRequestFormValues,
 } from "@/lib/student-requests/request-form-registry";
 import { canSubmitStudentRequestFromUi } from "@/lib/student-requests/request-eligibility-ui";
-import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
+import {
+  filterStudentRequestTypesForDisplay,
+  normalizeStudentRequestTypeCode,
+} from "@/lib/student-requests/request-type-registry";
+import { sanitizeFormDataForSubmit } from "@/lib/student-requests/student-request-submit-contract";
 
 export const Route = createFileRoute("/student/requests/new")({
   component: NewStudentRequestPage,
@@ -48,14 +48,14 @@ function NewStudentRequestPage() {
   const navigate = useNavigate();
   const typesFn = useServerFn(getStudentRequestTypesForStudent);
   const contextFn = useServerFn(getStudentRequestUiContext);
-  const createFn = useServerFn(createStudentServiceRequest);
-  const saveFn = useServerFn(saveStudentServiceRequestDraft);
-  const submitFn = useServerFn(submitStudentServiceRequest);
+  const submitFn = useServerFn(submitCanonicalStudentRequest);
   const [requestType, setRequestType] = useState("");
   const [subject, setSubject] = useState("");
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
-  const [busy, setBusy] = useState<"draft" | "submit" | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitInFlightRef = useRef(false);
+  const completedClientIdsRef = useRef(new Set<string>());
 
   const { data: types = [], isLoading, error: typesError } = useQuery({
     queryKey: ["student-affairs", "types"],
@@ -78,6 +78,7 @@ function NewStudentRequestPage() {
     [requestType],
   );
   const formSupported = isDynamicFormSupported(requestType);
+  const normalizedRequestType = normalizeStudentRequestTypeCode(requestType);
 
   useEffect(() => {
     if (!requestType) {
@@ -134,9 +135,11 @@ function NewStudentRequestPage() {
     !!selectedType &&
     selectedType.is_eligible &&
     !selectedType.is_disabled &&
+    !selectedType.requires_attachment &&
     canSubmitStudentRequestFromUi(eligibilityInput);
 
-  const create = async (submit: boolean) => {
+  const submitRequest = async () => {
+    if (submitInFlightRef.current || submitting) return;
     if (!selectedType?.is_eligible || selectedType.is_disabled || !formDefinition) return;
     if (!canSubmitStudentRequestFromUi(eligibilityInput)) {
       toast.error("لا يمكن إرسال الطلب حالياً", {
@@ -151,53 +154,41 @@ function NewStudentRequestPage() {
       return;
     }
 
-    setBusy(submit ? "submit" : "draft");
+    const clientRequestId = crypto.randomUUID();
+    if (completedClientIdsRef.current.has(clientRequestId)) return;
+
+    submitInFlightRef.current = true;
+    setSubmitting(true);
     setError(null);
     try {
-      const studentNotes = buildFormValuesSummary(formDefinition, formValues);
-      const formData = {
-        ...serializeFormValuesForStorage(formValues),
-        _formCode: formDefinition.code,
-        _formVersion: "p4-foundation",
-      };
-
-      const created = await createFn({
+      const formData = sanitizeFormDataForSubmit(formValues);
+      const result = await submitFn({
         data: {
-          requestType,
+          requestTypeId: selectedType.id,
+          requestTypeCode: normalizedRequestType,
           title: subject,
           formData,
-          studentNotes,
+          clientRequestId,
         },
       });
-      await saveFn({
-        data: {
-          requestId: created.id,
-          title: subject,
-          formData,
-          studentNotes,
-        },
+      completedClientIdsRef.current.add(clientRequestId);
+      toast.success("تم إرسال الطلب", {
+        description: "انتقل الطلب إلى حالة: مُرسَل — بانتظار المراجعة.",
       });
-      if (submit) {
-        await submitFn({ data: { requestId: created.id } });
-        toast.success("تم إرسال الطلب", {
-          description: "انتقل الطلب إلى حالة: مُرسَل — بانتظار المراجعة.",
-        });
-      } else {
-        toast.success("تم حفظ المسودة");
-      }
-      navigate({ to: "/student/requests/$id", params: { id: created.id } });
+      navigate({ to: "/student/requests/$id", params: { id: result.id } });
     } catch (e) {
       const msg = (e as Error).message;
       setError(msg);
-      toast.error("تعذر تنفيذ العملية", { description: msg });
+      toast.error("تعذر إرسال الطلب", { description: msg });
     } finally {
-      setBusy(null);
+      submitInFlightRef.current = false;
+      setSubmitting(false);
     }
   };
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    void create(true);
+    void submitRequest();
   };
 
   const pickType = (code: string, disabled: boolean) => {
@@ -273,7 +264,9 @@ function NewStudentRequestPage() {
                     </div>
                   )}
                   {type.requires_attachment && !disabled && (
-                    <div className="mt-1 text-[11px] font-bold text-amber-700">يتطلب مرفقاً</div>
+                    <div className="mt-1 text-[11px] font-bold text-amber-700">
+                      يتطلب مرفقاً — الرفع غير مفعّل حالياً في هذه الواجهة
+                    </div>
                   )}
                 </button>
               );
@@ -291,6 +284,16 @@ function NewStudentRequestPage() {
           <StudentRequestEligibilityNotice {...eligibilityInput} />
         )}
 
+        {selectedType?.requires_attachment && (
+          <div
+            role="note"
+            className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900"
+          >
+            هذا النوع يتطلب مرفقات. رفع الملفات غير مفعّل حالياً — لا يمكن إرسال الطلب حتى يتوفر
+            نظام المرفقات.
+          </div>
+        )}
+
         {selectedType && !formSupported && (
           <DynamicStudentRequestForm
             requestTypeCode={requestType}
@@ -306,7 +309,7 @@ function NewStudentRequestPage() {
               <span className="text-xs font-bold text-primary">موضوع الطلب</span>
               <input
                 required
-                disabled={selectedType.is_disabled}
+                disabled={selectedType.is_disabled || submitting}
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
@@ -317,26 +320,18 @@ function NewStudentRequestPage() {
               requestTypeCode={requestType}
               value={formValues}
               onChange={setFormValues}
-              disabled={selectedType.is_disabled}
+              disabled={selectedType.is_disabled || submitting}
             />
           </>
         )}
 
         <div className="flex flex-wrap gap-2">
           <button
-            type="button"
-            disabled={!!busy || !canSubmitForm}
-            onClick={() => create(false)}
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-bold text-primary disabled:opacity-50"
-          >
-            {busy === "draft" && <Loader2 className="h-4 w-4 animate-spin" />} حفظ كمسودة
-          </button>
-          <button
             type="submit"
-            disabled={!!busy || !canSubmitForm}
+            disabled={submitting || !canSubmitForm}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
           >
-            {busy === "submit" && <Loader2 className="h-4 w-4 animate-spin" />} إرسال الطلب
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />} إرسال الطلب
           </button>
         </div>
       </form>

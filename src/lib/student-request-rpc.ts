@@ -49,7 +49,7 @@ export function mapStudentRequestRpcError(error: RpcErrorLike): string {
   return msg || "حدث خطأ غير متوقع";
 }
 
-export function isWorkflowRpcUnavailable(error: RpcErrorLike | null | undefined): boolean {
+export function isStudentRequestCoreRpcUnavailable(error: RpcErrorLike | null | undefined): boolean {
   if (!error) return false;
   const msg = error.message ?? "";
   const code = error.code ?? "";
@@ -58,6 +58,15 @@ export function isWorkflowRpcUnavailable(error: RpcErrorLike | null | undefined)
     || /function .* does not exist/i.test(msg)
     || /could not find the function/i.test(msg)
     || /schema cache/i.test(msg)
+  );
+}
+
+export function isWorkflowRpcUnavailable(error: RpcErrorLike | null | undefined): boolean {
+  if (!error) return false;
+  const msg = error.message ?? "";
+  const code = error.code ?? "";
+  return (
+    isStudentRequestCoreRpcUnavailable(error)
     || /relation .* does not exist/i.test(msg)
     || /student_request_workflow_steps/i.test(msg)
   );
@@ -88,26 +97,37 @@ export async function rpcCreateStudentRequest(
     formData: Record<string, unknown>;
     studentNotes?: string | null;
   },
-): Promise<string> {
+): Promise<{ id: string; rpcUnavailable: false } | { id: null; rpcUnavailable: true; error: RpcErrorLike }> {
   const { data, error } = await client.rpc("create_student_request", {
     p_request_type: input.requestType,
     p_title: input.title,
     p_form_data: input.formData,
     p_student_notes: input.studentNotes ?? null,
   });
-  if (error) throw new Error(mapStudentRequestRpcError(error));
+  if (error) {
+    if (isStudentRequestCoreRpcUnavailable(error)) {
+      return { id: null, rpcUnavailable: true, error };
+    }
+    throw new Error(mapStudentRequestRpcError(error));
+  }
   if (!data) throw new Error("تعذر إنشاء الطلب");
-  return String(data);
+  return { id: String(data), rpcUnavailable: false };
 }
 
 export async function rpcSubmitStudentRequest(
   client: RpcClient,
   requestId: string,
-): Promise<void> {
+): Promise<{ ok: true; rpcUnavailable: false } | { ok: false; rpcUnavailable: true; error: RpcErrorLike }> {
   const { error } = await client.rpc("submit_student_request", {
     p_request_id: requestId,
   });
-  if (error) throw new Error(mapStudentRequestRpcError(error));
+  if (error) {
+    if (isStudentRequestCoreRpcUnavailable(error)) {
+      return { ok: false, rpcUnavailable: true, error };
+    }
+    throw new Error(mapStudentRequestRpcError(error));
+  }
+  return { ok: true, rpcUnavailable: false };
 }
 
 export async function rpcGetMyStudentRequests(
