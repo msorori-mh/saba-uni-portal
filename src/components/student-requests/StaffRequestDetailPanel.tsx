@@ -183,8 +183,16 @@ export function StaffRequestDetailPanel({
         />
 
         <StaffRequestActionPanel
+          requestId={detail.id}
+          requestTypeCode={detail.requestTypeCode}
+          currentStepKey={
+            detail.workflowSteps.find((s) => s.status === "current")?.stepKey ??
+            detail.currentRoleKey
+          }
           currentRoleKey={detail.currentRoleKey}
+          workflowStepRuntimeId={null}
           workflowRuntimeAvailable={workflowRuntimeAvailable}
+          requestUpdatedAt={detail.updatedAt}
         />
       </div>
     </div>

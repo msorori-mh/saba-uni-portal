@@ -271,7 +271,7 @@ export function getAvailableUiActionsForRole(
     { key: "reject", labelAr: "رفض", variant: "danger", disabled: baseDisabled, disabledReasonAr: reason },
     { key: "return_to_student", labelAr: "إعادة للطالب", variant: "secondary", disabled: baseDisabled, disabledReasonAr: reason },
     { key: "request_completion", labelAr: "طلب استكمال", variant: "secondary", disabled: baseDisabled, disabledReasonAr: reason },
-    { key: "forward", labelAr: "إحالة للخطوة التالية", variant: "primary", disabled: baseDisabled, disabledReasonAr: reason },
+    { key: "forward_to_next_step", labelAr: "إحالة للخطوة التالية", variant: "primary", disabled: baseDisabled, disabledReasonAr: reason },
     { key: "add_note", labelAr: "إضافة ملاحظة", variant: "secondary", disabled: false, disabledReasonAr: null },
   ];
   void roleKeys;

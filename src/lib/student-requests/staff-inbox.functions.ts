@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole } from "@/lib/authz.server";
+import { assertAnyRole, userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   STUDENT_REQUESTS_ADMIN_ROLES,
@@ -32,6 +32,14 @@ import {
   type StaffRequestStudentSummary,
   type StaffRequestWorkflowStep,
 } from "@/lib/student-requests/staff-inbox-ui";
+import { getCanonicalWorkflowPreview } from "@/lib/student-requests/request-workflow-preview-registry";
+import {
+  mapAppRolesToProcessingRoleKeys,
+  type StudentRequestActorContext,
+  type StudentRequestStaffActionInput,
+  type StudentRequestStaffActionResult,
+  validateStaffActionInput,
+} from "@/lib/student-requests/staff-action-contract";
 
 export type FetchStaffInboxResult = {
   available: boolean;
@@ -469,6 +477,86 @@ export const fetchStaffRequestDetail = createServerFn({ method: "POST" })
         dataSource: "legacy_admin",
       };
     }
+  });
+
+const staffActionDryRunSchema = z.object({
+  requestId: z.string().uuid(),
+  workflowStepId: z.string().uuid().optional().nullable(),
+  action: z.string().min(1).max(80),
+  note: z.string().trim().max(4000).optional().nullable(),
+  completionRequirements: z.array(z.string().trim().max(500)).optional().nullable(),
+  expectedRequestStatus: z.string().trim().max(80).optional().nullable(),
+  expectedStepStatus: z.string().trim().max(80).optional().nullable(),
+  expectedUpdatedAt: z.string().optional().nullable(),
+  clientActionId: z.string().trim().max(120).optional().nullable(),
+  stepKey: z.string().trim().max(120).optional().nullable(),
+  stepRoleKey: z.string().trim().max(120).optional().nullable(),
+});
+
+/** Dry-run only — validates staff action; never calls act_on or writes to DB. */
+export const prepareStudentRequestStaffAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => staffActionDryRunSchema.parse(input))
+  .handler(async ({ data, context }): Promise<StudentRequestStaffActionResult> => {
+    await assertStaffInboxAccess(context.userId);
+
+    const appRoles = await userRoles(context.userId);
+    const processingRoleKeys = mapAppRolesToProcessingRoleKeys(appRoles);
+
+    const { data: reqRow, error: reqErr } = await supabaseAdmin
+      .from("student_requests")
+      .select("id, status, request_type, updated_at, current_role_key")
+      .eq("id", data.requestId)
+      .maybeSingle();
+
+    if (reqErr) throw new Error(sanitizeStaffErrorMessage(reqErr.message));
+    if (!reqRow) throw new Error("الطلب غير موجود");
+
+    const requestTypeCode = normalizeStudentRequestTypeCode(String(reqRow.request_type ?? ""));
+    const currentStep = data.stepKey ?? null;
+    const stepRoleKey =
+      data.stepRoleKey ?? (reqRow as { current_role_key?: string | null }).current_role_key ?? null;
+
+    const preview = requestTypeCode ? getCanonicalWorkflowPreview(requestTypeCode) : undefined;
+    const previewStep = preview?.steps.find((s) => s.key === currentStep) ?? null;
+
+    const actor: StudentRequestActorContext = {
+      userId: context.userId,
+      appRoles,
+      processingRoleKeys,
+      departmentIds: [],
+      isStaffInboxAuthorized: true,
+      stepKey: currentStep,
+      stepRoleKey: previewStep?.roleKey ?? stepRoleKey,
+      stepStatus: data.expectedStepStatus ?? "active",
+      isCentralSignatoryStep: Boolean(previewStep?.isCentralSignatory),
+      isParallelStep: Boolean(previewStep?.isParallel),
+      parallelGroupKey: previewStep?.parallelGroupId ?? null,
+      parallelGroupComplete: previewStep?.isParallel ? false : null,
+      requestTypeCode,
+      requestStatus: String(reqRow.status ?? ""),
+      requestUpdatedAt: (reqRow as { updated_at?: string | null }).updated_at ?? null,
+    };
+
+    const payload: Partial<StudentRequestStaffActionInput> & { action: string } = {
+      requestId: data.requestId,
+      workflowStepId: data.workflowStepId,
+      action: data.action,
+      note: data.note,
+      completionRequirements: data.completionRequirements ?? undefined,
+      expectedRequestStatus: data.expectedRequestStatus,
+      expectedStepStatus: data.expectedStepStatus,
+      expectedUpdatedAt: data.expectedUpdatedAt,
+      clientActionId: data.clientActionId,
+    };
+
+    return validateStaffActionInput(payload, actor, {
+      expectedUpdatedAt: data.expectedUpdatedAt ?? null,
+      expectedStepStatus: data.expectedStepStatus ?? null,
+      expectedRequestStatus: data.expectedRequestStatus ?? null,
+      clientActionId: data.clientActionId ?? null,
+      seenClientActionIds: [],
+    });
   });
 
 export type { StaffInboxStatusFilter };
