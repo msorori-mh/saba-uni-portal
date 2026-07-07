@@ -20,9 +20,9 @@ export type StaffFunctionalRole = {
 export const STAFF_FUNCTIONAL_ROLES: readonly StaffFunctionalRole[] = [
   {
     key: "registrar_general",
-    labelAr: "المسجل العام",
+    labelAr: "مسجل الكلية",
     unitKey: "registrar",
-    unitLabelAr: "المسجل العام",
+    unitLabelAr: "مسجل الكلية",
     scopeType: "college",
     requiresLogin: true,
     appRoleFallback: "registrar",
@@ -154,6 +154,12 @@ const LEGACY_APP_ROLE_MAP: Record<LegacyStaffRoleKey, AppRole> = {
   lab_keeper: "student_affairs",
 };
 
+/** Legacy stored keys / aliases → user-facing functional label (never app_role labels). */
+const LEGACY_ROLE_DISPLAY_ALIASES: Record<string, string> = {
+  registrar: "مسجل الكلية",
+  admissions_registration: "مسجل الكلية",
+};
+
 export const STAFF_FUNCTIONAL_ROLE_KEYS = STAFF_FUNCTIONAL_ROLES.map((r) => r.key) as [
   StaffFunctionalRoleKey,
   ...StaffFunctionalRoleKey[],
@@ -185,12 +191,32 @@ export function staffFunctionalRoleByKey(key: string): StaffFunctionalRole | und
   return ROLE_BY_KEY.get(key);
 }
 
-export function staffFunctionalRoleLabel(roleType: string): string {
-  const approved = ROLE_BY_KEY.get(roleType);
+export function staffFunctionalRoleDisplayLabel(roleType: string | null | undefined): string {
+  const key = String(roleType ?? "").trim();
+  if (!key) return "—";
+
+  const alias = LEGACY_ROLE_DISPLAY_ALIASES[key];
+  if (alias) return alias;
+
+  const approved = ROLE_BY_KEY.get(key);
   if (approved) return approved.labelAr;
-  const legacy = LEGACY_STAFF_ROLE_META[roleType as LegacyStaffRoleKey];
-  if (legacy) return `دور قديم — يحتاج تحديث (${legacy.legacyLabelAr})`;
-  return roleType;
+
+  const legacy = LEGACY_STAFF_ROLE_META[key as LegacyStaffRoleKey];
+  if (legacy?.suggestedKey) {
+    return ROLE_BY_KEY.get(legacy.suggestedKey)?.labelAr ?? key;
+  }
+
+  return key;
+}
+
+/** Admin/list label — may prefix legacy profiles with a migration hint. */
+export function staffFunctionalRoleLabel(roleType: string): string {
+  const display = staffFunctionalRoleDisplayLabel(roleType);
+  if (ROLE_BY_KEY.has(roleType)) return display;
+  if (isLegacyStaffRoleKey(roleType) || LEGACY_ROLE_DISPLAY_ALIASES[roleType]) {
+    return `دور قديم — يحتاج تحديث (${display})`;
+  }
+  return display;
 }
 
 /** Maps `staff_profiles.role_type` to `user_roles.role` when creating/updating logins. */
@@ -231,7 +257,7 @@ export function staffRoleFormOptionsForEdit(currentRoleType?: string): StaffRole
 export function staffRoleFilterOptions(): StaffRoleFormOption[] {
   const legacyFilters: StaffRoleFormOption[] = LEGACY_STAFF_ROLE_KEYS.map((key) => ({
     value: key,
-    label: `${LEGACY_STAFF_ROLE_META[key].legacyLabelAr} (قديم)`,
+    label: `${staffFunctionalRoleDisplayLabel(key)} (قديم)`,
     appRole: LEGACY_APP_ROLE_MAP[key],
     isLegacy: true,
   }));

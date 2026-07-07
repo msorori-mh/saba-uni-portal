@@ -22,6 +22,7 @@ import {
   staffRoleFormOptionsForCreate,
   staffRoleFilterOptions,
   staffFunctionalRoleLabel,
+  staffFunctionalRoleDisplayLabel,
   staffRoleFormOptionsForEdit,
 } from "@/lib/staff-functional-roles";
 
@@ -33,7 +34,7 @@ export const Route = createFileRoute("/admin/staff-management")({
 type Lookups = Awaited<ReturnType<typeof getPeopleLookups>>;
 
 function roleTypeLabel(rt: string) {
-  return staffFunctionalRoleLabel(rt);
+  return staffFunctionalRoleDisplayLabel(rt);
 }
 
 function StaffManagementPage() {
@@ -93,7 +94,7 @@ function StaffManagementPage() {
             <Briefcase className="h-7 w-7" /> إدارة الموظفين
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            إضافة موظفي الإدارة بالمسميات الوظيفية المعتمدة (المسجل العام، شؤون الطلاب، الخريجين، الإرشيف، المالية، المكتبة، المعامل) وإدارة حساباتهم.
+            إضافة موظفي الإدارة بالمسميات الوظيفية المعتمدة (مسجل الكلية، شؤون الطلاب، الخريجين، الإرشيف، المالية، المكتبة، المعامل) وإدارة حساباتهم.
           </p>
         </div>
         <div className="flex gap-2">

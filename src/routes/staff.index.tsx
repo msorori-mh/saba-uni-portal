@@ -4,7 +4,7 @@ import { LogOut, User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2 } fro
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
-import { staffFunctionalRoleLabel } from "@/lib/staff-functional-roles";
+import { staffFunctionalRoleDisplayLabel } from "@/lib/staff-functional-roles";
 
 type StaffProfileRow = {
   employee_number: string | null;
@@ -15,14 +15,12 @@ type StaffProfileRow = {
   status: string;
 };
 
-const ROLE_LABEL: Record<string, string> = {
-  admin: "مدير عام",
-  system_admin: "مدير نظام",
+const STATUS_LABEL: Record<string, string> = {
+  active: "نشط",
+  on_leave: "في إجازة",
+  retired: "متقاعد",
+  suspended: "موقوف",
 };
-
-function roleLabel(roleType: string) {
-  return staffFunctionalRoleLabel(roleType);
-}
 
 async function fetchMyStaffProfile(): Promise<StaffProfileRow | null> {
   const { data: auth } = await supabase.auth.getUser();
@@ -50,10 +48,6 @@ function StaffDashboard() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate({ to: "/portal-login", replace: true });
-  };
-
-  const statusLabel: Record<string, string> = {
-    active: "نشط", on_leave: "في إجازة", retired: "متقاعد", suspended: "موقوف",
   };
 
   return (
@@ -96,9 +90,13 @@ function StaffDashboard() {
 
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               <InfoCard icon={IdCard} label="رقم الموظف" value={profile.employee_number ?? "—"} mono />
-              <InfoCard icon={BadgeCheck} label="الحالة" value={statusLabel[profile.status] ?? profile.status} />
-              <InfoCard icon={Briefcase} label="الوظيفة" value={profile.job_title} />
-              <InfoCard icon={ShieldCheck} label="الدور" value={roleLabel(profile.role_type)} />
+              <InfoCard icon={BadgeCheck} label="الحالة" value={STATUS_LABEL[profile.status] ?? profile.status} />
+              <InfoCard icon={Briefcase} label="الوظيفة" value={profile.job_title?.trim() || "—"} />
+              <InfoCard
+                icon={ShieldCheck}
+                label="الدور"
+                value={staffFunctionalRoleDisplayLabel(profile.role_type)}
+              />
             </div>
 
             <div className="mt-6">
