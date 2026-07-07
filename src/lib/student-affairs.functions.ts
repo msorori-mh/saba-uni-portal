@@ -183,6 +183,24 @@ export const getStudentRequestTypesForStudent = createServerFn({ method: "POST" 
     }));
   });
 
+/** Lightweight UI context from existing student_profiles (no new tables). */
+export const getStudentRequestUiContext = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("student_profiles")
+      .select("status")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const status = (data as { status?: string | null } | null)?.status ?? null;
+    return {
+      studentStatus: status,
+      isGraduate: status === "graduated",
+      isActiveStudent: status === "active",
+    };
+  });
+
 const draftSchema = z.object({
   requestType: z.string().min(1).max(80),
   title: z.string().trim().min(1).max(200),

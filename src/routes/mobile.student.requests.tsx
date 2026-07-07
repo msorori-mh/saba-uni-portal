@@ -13,6 +13,10 @@ import {
   getStudentRequestTypesForStudent,
 } from "@/lib/student-affairs.functions";
 import { STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG } from "@/lib/student-request-rpc";
+import {
+  filterStudentRequestTypesForDisplay,
+  getStudentRequestTypeDisplayName,
+} from "@/lib/student-requests/request-type-registry";
 
 export const Route = createFileRoute("/mobile/student/requests")({
   head: () => ({ meta: [{ title: "الطلبات" }] }),
@@ -67,15 +71,17 @@ function MobileStudentRequests() {
     );
   }
 
-  const types = (typesQuery.data ?? []) as Array<{
-    id: string;
-    code: string;
-    name_ar: string;
-    description_ar: string | null;
-    is_eligible: boolean;
-    is_disabled: boolean;
-    disabled_reason: string | null;
-  }>;
+  const types = filterStudentRequestTypesForDisplay(
+    (typesQuery.data ?? []) as Array<{
+      id: string;
+      code: string;
+      name_ar: string;
+      description_ar: string | null;
+      is_eligible: boolean;
+      is_disabled: boolean;
+      disabled_reason: string | null;
+    }>,
+  );
   const requests = (requestsQuery.data ?? []) as Array<{
     id: string;
     title: string;
@@ -100,7 +106,8 @@ function MobileStudentRequests() {
           <FileWarning className="h-5 w-5 text-gold" /> الطلبات الطلابية
         </h1>
         <p className="text-[11px] text-muted-foreground mt-0.5">
-          تتبع طلباتك وحالتها. لإنشاء طلب جديد استخدم بوابة الطلبات الموحدة.
+          تتبع طلباتك وحالتها. النماذج التفصيلية والتحقق من الأهلية متاح حالياً من بوابة
+          المتصفح.
         </p>
       </header>
 
@@ -184,7 +191,7 @@ function MobileStudentRequests() {
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-[10px] font-bold text-muted-foreground">
-                        {r.request_type_name_ar ?? r.request_type}
+                        {getStudentRequestTypeDisplayName(r.request_type, r.request_type_name_ar)}
                       </div>
                       <div className="font-bold text-sm text-primary truncate">{r.title}</div>
                     </div>

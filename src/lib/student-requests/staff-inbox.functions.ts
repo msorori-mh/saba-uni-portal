@@ -1,0 +1,474 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertAnyRole } from "@/lib/authz.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  STUDENT_REQUESTS_ADMIN_ROLES,
+} from "@/lib/admin-student-requests.functions";
+import {
+  isWorkflowRpcUnavailable,
+  rpcGetMyRequestActorInbox,
+  rpcGetStudentRequestDetailForActor,
+  type ActorInboxRow,
+} from "@/lib/student-request-rpc";
+import {
+  getStudentRequestTypeDisplayName,
+  normalizeStudentRequestTypeCode,
+} from "@/lib/student-requests/request-type-registry";
+import {
+  buildExpectedWorkflowPreview,
+  getStaffRequestStatusLabel,
+  getStaffRoleLabelAr,
+  mergeWorkflowStepsWithPreview,
+  normalizeStaffRequestInboxItem,
+  sanitizeStaffErrorMessage,
+  STAFF_INBOX_UNAVAILABLE_MSG,
+  type StaffInboxStatusFilter,
+  type StaffInboxUnavailableReason,
+  type StaffRequestAttachment,
+  type StaffRequestDetail,
+  type StaffRequestInboxItem,
+  type StaffRequestStudentSummary,
+  type StaffRequestWorkflowStep,
+} from "@/lib/student-requests/staff-inbox-ui";
+
+export type FetchStaffInboxResult = {
+  available: boolean;
+  items: StaffRequestInboxItem[];
+  reason: StaffInboxUnavailableReason | null;
+  messageAr: string | null;
+  workflowRuntimeAvailable: boolean;
+  dataSource: "actor_inbox_rpc" | "legacy_overview";
+};
+
+export type FetchStaffRequestDetailResult = {
+  available: boolean;
+  detail: StaffRequestDetail | null;
+  reason: StaffInboxUnavailableReason | null;
+  messageAr: string | null;
+  workflowRuntimeAvailable: boolean;
+  dataSource: "actor_detail_rpc" | "legacy_admin";
+};
+
+const inboxInputSchema = z.object({
+  statusFilter: z
+    .enum(["all", "new", "pending_action", "returned", "completed", "rejected", "cancelled"])
+    .optional(),
+  requestTypeCode: z.string().trim().optional(),
+  departmentId: z.string().uuid().optional(),
+  search: z.string().trim().max(200).optional(),
+});
+
+async function assertStaffInboxAccess(userId: string) {
+  await assertAnyRole(
+    userId,
+    STUDENT_REQUESTS_ADMIN_ROLES,
+    STAFF_INBOX_UNAVAILABLE_MSG.unauthorized,
+  );
+}
+
+function rpcErrorReason(message: string): StaffInboxUnavailableReason {
+  if (/permission denied|42501|RLS|violates row-level|غير مصرح/i.test(message)) {
+    return "unauthorized";
+  }
+  if (/does not exist|42883|schema cache|relation .* does not exist/i.test(message)) {
+    return "workflow_schema_unavailable";
+  }
+  return "error";
+}
+
+function mapActorInboxRow(row: ActorInboxRow): StaffRequestInboxItem {
+  return normalizeStaffRequestInboxItem({
+    id: row.student_request_id,
+    requestNumber: null,
+    requestTypeCode: row.request_type_code,
+    requestTypeNameAr: row.request_type_name_ar
+      ?? getStudentRequestTypeDisplayName(row.request_type_code),
+    title: row.request_type_name_ar ?? row.request_type_code,
+    status: row.step_status === "active" || row.step_status === "pending"
+      ? "under_review"
+      : row.step_status,
+    studentName: row.student_name,
+    academicNumber: null,
+    departmentId: row.department_id,
+    departmentNameAr: row.department_name_ar,
+    submittedAt: row.submitted_at,
+    createdAt: row.submitted_at,
+    currentStepKey: row.step_key,
+    currentStepLabelAr: row.step_name_ar ?? row.step_key,
+    currentRoleKey: row.processing_role_name_ar ?? row.step_key,
+    currentRoleLabelAr: row.processing_role_name_ar ?? row.processing_unit_name_ar,
+    waitingSince: row.submitted_at,
+    isActionable: row.is_actionable,
+    workflowStepRuntimeId: row.workflow_step_runtime_id,
+    dataSource: "actor_inbox_rpc",
+  });
+}
+
+function mapRpcWorkflowStep(raw: Record<string, unknown>): StaffRequestWorkflowStep {
+  const statusRaw = String(raw.status ?? "");
+  let status: StaffRequestWorkflowStep["status"] = "upcoming";
+  if (statusRaw === "completed") status = "completed";
+  else if (statusRaw === "active") status = "current";
+  else if (statusRaw === "skipped") status = "skipped";
+  else if (statusRaw === "pending") status = "upcoming";
+
+  const roleLabel = String(
+    raw.processing_role_name_ar ?? raw.processing_unit_name_ar ?? "",
+  ).trim();
+
+  return {
+    id: String(raw.id ?? `step:${raw.step_key}`),
+    stepKey: String(raw.step_key ?? ""),
+    labelAr: String(raw.step_name_ar ?? raw.step_key ?? "—"),
+    roleKey: null,
+    roleLabelAr: roleLabel || getStaffRoleLabelAr(String(raw.step_key ?? "")),
+    status,
+    enteredAt: (raw.entered_at as string | null) ?? null,
+    completedAt: (raw.completed_at as string | null) ?? null,
+    notes: (raw.comment as string | null) ?? null,
+  };
+}
+
+function mapRpcDetail(
+  payload: Record<string, unknown>,
+  attachments: StaffRequestAttachment[],
+): StaffRequestDetail {
+  const request = (payload.request ?? {}) as Record<string, unknown>;
+  const student = (payload.student ?? {}) as Record<string, unknown>;
+  const workflowRaw = Array.isArray(payload.workflow_steps)
+    ? (payload.workflow_steps as Record<string, unknown>[])
+    : [];
+
+  const requestTypeCode = String(request.request_type ?? "");
+  const workflowSteps = workflowRaw.map(mapRpcWorkflowStep);
+  const { steps, isPreview } = mergeWorkflowStepsWithPreview(
+    workflowSteps,
+    requestTypeCode,
+  );
+
+  const studentSummary: StaffRequestStudentSummary = {
+    id: String(student.id ?? ""),
+    fullNameAr: (student.full_name_ar as string | null) ?? null,
+    academicNumber: (student.academic_number as string | null) ?? null,
+    departmentNameAr: (student.department_name_ar as string | null) ?? null,
+    programNameAr: (student.program_name_ar as string | null) ?? null,
+    levelNameAr: (student.level_name_ar as string | null) ?? null,
+    studySystemLabelAr: (student.study_system_label_ar as string | null) ?? null,
+    enrollmentStatusLabelAr: (student.enrollment_status_label_ar as string | null) ?? null,
+    status: (student.status as string | null) ?? null,
+  };
+
+  const formData = (request.form_data ?? {}) as Record<string, unknown>;
+
+  return {
+    id: String(request.id ?? ""),
+    requestNumber: (request.request_number as string | null) ?? null,
+    requestTypeCode,
+    requestTypeNameAr: String(
+      request.request_type_name_ar
+        ?? getStudentRequestTypeDisplayName(requestTypeCode),
+    ),
+    title: String(request.title ?? "—"),
+    description: (request.description as string | null) ?? null,
+    status: String(request.status ?? "unknown"),
+    statusLabelAr: getStaffRequestStatusLabel(String(request.status ?? "")),
+    formData,
+    studentNotes: (request.student_notes as string | null) ?? null,
+    submittedAt: (request.submitted_at as string | null) ?? null,
+    createdAt: (request.created_at as string | null) ?? null,
+    updatedAt: (request.updated_at as string | null) ?? null,
+    currentStepIndex: (request.current_step_index as number | null) ?? null,
+    currentRoleKey: (request.current_role_key as string | null) ?? null,
+    student: studentSummary,
+    workflowSteps: steps,
+    workflowIsPreview: isPreview,
+    attachments,
+    privacyNoticeAr: null,
+  };
+}
+
+async function fetchLegacyInboxItems(): Promise<StaffRequestInboxItem[]> {
+  const { data: rows, error } = await supabaseAdmin
+    .from("student_requests")
+    .select(
+      "id, request_number, title, status, submitted_at, created_at, request_type, student_profile_id",
+    )
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+
+  const list = rows ?? [];
+  if (list.length === 0) return [];
+
+  const profileIds = [...new Set(list.map((r) => r.student_profile_id))];
+  const { data: profiles, error: profileErr } = await supabaseAdmin
+    .from("student_profiles")
+    .select(
+      "id, academic_number, full_name_ar, department_id, department:departments(name_ar)",
+    )
+    .in("id", profileIds);
+  if (profileErr) throw new Error(profileErr.message);
+
+  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+  return list.map((r) => {
+    const profile = profileById.get(r.student_profile_id) as {
+      academic_number?: string;
+      full_name_ar?: string;
+      department_id?: string;
+      department?: { name_ar?: string } | null;
+    } | undefined;
+    const code = normalizeStudentRequestTypeCode(r.request_type) || r.request_type;
+    return normalizeStaffRequestInboxItem({
+      id: r.id,
+      requestNumber: r.request_number ?? null,
+      requestTypeCode: code,
+      requestTypeNameAr: getStudentRequestTypeDisplayName(code),
+      title: r.title ?? "—",
+      status: r.status,
+      studentName: profile?.full_name_ar ?? null,
+      academicNumber: profile?.academic_number ?? null,
+      departmentId: profile?.department_id ?? null,
+      departmentNameAr: profile?.department?.name_ar ?? null,
+      submittedAt: r.submitted_at,
+      createdAt: r.created_at,
+      currentStepKey: null,
+      currentRoleKey: null,
+      isActionable: false,
+      workflowStepRuntimeId: null,
+      dataSource: "legacy_overview",
+    });
+  });
+}
+
+async function fetchLegacyRequestDetail(requestId: string): Promise<StaffRequestDetail> {
+  const { data: req, error: reqErr } = await supabaseAdmin
+    .from("student_requests")
+    .select(
+      "id, request_number, title, description, status, form_data, student_notes, submitted_at, created_at, updated_at, request_type, student_profile_id, current_step_index, current_role_key",
+    )
+    .eq("id", requestId)
+    .maybeSingle();
+  if (reqErr) throw new Error(reqErr.message);
+  if (!req) throw new Error("الطلب غير موجود");
+
+  const { data: profile, error: profErr } = await supabaseAdmin
+    .from("student_profiles")
+    .select(
+      "id, full_name_ar, academic_number, status, study_system, department:departments(name_ar), program:programs(name_ar)",
+    )
+    .eq("id", req.student_profile_id)
+    .maybeSingle();
+  if (profErr) throw new Error(profErr.message);
+
+  const { data: attachmentsRaw, error: attErr } = await supabaseAdmin
+    .from("student_request_attachments")
+    .select("id, file_name, file_url, uploaded_at")
+    .eq("request_id", requestId);
+  if (attErr) throw new Error(attErr.message);
+
+  const attachments: StaffRequestAttachment[] = (attachmentsRaw ?? []).map((a) => ({
+    id: a.id,
+    fileName: a.file_name,
+    fileUrl: a.file_url,
+    uploadedAt: a.uploaded_at ?? null,
+  }));
+
+  const code = normalizeStudentRequestTypeCode(req.request_type) || req.request_type;
+  const previewSteps = buildExpectedWorkflowPreview(code);
+
+  const studySystemLabels: Record<string, string> = {
+    regular: "نظامي",
+    private: "موازي",
+  };
+
+  return {
+    id: req.id,
+    requestNumber: req.request_number ?? null,
+    requestTypeCode: code,
+    requestTypeNameAr: getStudentRequestTypeDisplayName(code),
+    title: req.title ?? "—",
+    description: req.description ?? null,
+    status: req.status,
+    statusLabelAr: getStaffRequestStatusLabel(req.status),
+    formData: (req.form_data ?? {}) as Record<string, unknown>,
+    studentNotes: req.student_notes ?? null,
+    submittedAt: req.submitted_at,
+    createdAt: req.created_at,
+    updatedAt: req.updated_at,
+    currentStepIndex: req.current_step_index ?? null,
+    currentRoleKey: req.current_role_key ?? null,
+    student: {
+      id: profile?.id ?? req.student_profile_id,
+      fullNameAr: profile?.full_name_ar ?? null,
+      academicNumber: profile?.academic_number ?? null,
+      departmentNameAr: (profile?.department as { name_ar?: string } | null)?.name_ar ?? null,
+      programNameAr: (profile?.program as { name_ar?: string } | null)?.name_ar ?? null,
+      levelNameAr: null,
+      studySystemLabelAr: profile?.study_system
+        ? (studySystemLabels[profile.study_system] ?? profile.study_system)
+        : null,
+      enrollmentStatusLabelAr: null,
+      status: profile?.status ?? null,
+    },
+    workflowSteps: previewSteps,
+    workflowIsPreview: true,
+    attachments,
+    privacyNoticeAr: null,
+  };
+}
+
+export const fetchStaffInbox = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => inboxInputSchema.parse(input ?? {}))
+  .handler(async ({ data, context }): Promise<FetchStaffInboxResult> => {
+    try {
+      await assertStaffInboxAccess(context.userId);
+    } catch (e) {
+      return {
+        available: false,
+        items: [],
+        reason: "unauthorized",
+        messageAr: sanitizeStaffErrorMessage((e as Error).message),
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_overview",
+      };
+    }
+
+    const rpcFilters: Record<string, unknown> = {};
+    if (data.requestTypeCode) rpcFilters.request_type_code = data.requestTypeCode;
+    if (data.departmentId) rpcFilters.department_id = data.departmentId;
+    if (data.search) rpcFilters.search = data.search;
+
+    const { rows, error } = await rpcGetMyRequestActorInbox(
+      context.supabase,
+      rpcFilters,
+      200,
+      0,
+    );
+
+    if (!error) {
+      const items = rows.map(mapActorInboxRow);
+      return {
+        available: true,
+        items,
+        reason: null,
+        messageAr: null,
+        workflowRuntimeAvailable: true,
+        dataSource: "actor_inbox_rpc",
+      };
+    }
+
+    if (!isWorkflowRpcUnavailable(error)) {
+      const reason = rpcErrorReason(error.message ?? "");
+      return {
+        available: reason !== "unauthorized",
+        items: [],
+        reason,
+        messageAr: sanitizeStaffErrorMessage(error.message),
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_overview",
+      };
+    }
+
+    try {
+      const items = await fetchLegacyInboxItems();
+      return {
+        available: true,
+        items,
+        reason: "workflow_schema_unavailable",
+        messageAr: STAFF_INBOX_UNAVAILABLE_MSG.workflow_schema_unavailable,
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_overview",
+      };
+    } catch (e) {
+      return {
+        available: false,
+        items: [],
+        reason: "error",
+        messageAr: sanitizeStaffErrorMessage((e as Error).message),
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_overview",
+      };
+    }
+  });
+
+export const fetchStaffRequestDetail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ requestId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<FetchStaffRequestDetailResult> => {
+    try {
+      await assertStaffInboxAccess(context.userId);
+    } catch (e) {
+      return {
+        available: false,
+        detail: null,
+        reason: "unauthorized",
+        messageAr: sanitizeStaffErrorMessage((e as Error).message),
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_admin",
+      };
+    }
+
+    const { detail: rpcDetail, error } = await rpcGetStudentRequestDetailForActor(
+      context.supabase,
+      data.requestId,
+    );
+
+    if (!error && rpcDetail) {
+      const mapped = mapRpcDetail(rpcDetail, []);
+      return {
+        available: true,
+        detail: mapped,
+        reason: null,
+        messageAr: null,
+        workflowRuntimeAvailable: mapped.workflowSteps.some((s) => !s.isPreview),
+        dataSource: "actor_detail_rpc",
+      };
+    }
+
+    if (error && !isWorkflowRpcUnavailable(error)) {
+      const reason = rpcErrorReason(error.message ?? "");
+      if (reason === "unauthorized") {
+        return {
+          available: false,
+          detail: null,
+          reason,
+          messageAr: sanitizeStaffErrorMessage(error.message),
+          workflowRuntimeAvailable: false,
+          dataSource: "legacy_admin",
+        };
+      }
+    }
+
+    try {
+      const detail = await fetchLegacyRequestDetail(data.requestId);
+      return {
+        available: true,
+        detail,
+        reason: error && isWorkflowRpcUnavailable(error)
+          ? "workflow_schema_unavailable"
+          : null,
+        messageAr: error && isWorkflowRpcUnavailable(error)
+          ? STAFF_INBOX_UNAVAILABLE_MSG.workflow_schema_unavailable
+          : null,
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_admin",
+      };
+    } catch (e) {
+      return {
+        available: false,
+        detail: null,
+        reason: "error",
+        messageAr: sanitizeStaffErrorMessage((e as Error).message),
+        workflowRuntimeAvailable: false,
+        dataSource: "legacy_admin",
+      };
+    }
+  });
+
+export type { StaffInboxStatusFilter };

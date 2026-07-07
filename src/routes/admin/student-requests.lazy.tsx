@@ -20,10 +20,18 @@ import {
   getPendingStudentRequestsForRole,
 } from "@/lib/student-affairs.functions";
 import { RequestTimelinePanel } from "@/components/student-requests/RequestTimelinePanel";
+import {
+  enrichRequestTypesForDisplay,
+  getStudentRequestTypeDisplayName,
+  matchesStudentRequestTypeCode,
+} from "@/lib/student-requests/request-type-registry";
+import { StaffInboxShell } from "@/components/student-requests/StaffInboxShell";
 
 export const Route = createLazyFileRoute("/admin/student-requests")({
   component: AdminRequestsPage,
 });
+
+type AdminViewMode = "staff_inbox" | "legacy";
 
 const REASON_LABEL: Record<string, string> = {
   medical: "طبي", family: "عائلي", emergency: "طارئ", other: "أخرى",
@@ -171,6 +179,7 @@ type AdminReq = {
 
 function AdminRequestsPage() {
   usePagePerf("/admin/student-requests");
+  const [viewMode, setViewMode] = useState<AdminViewMode>("staff_inbox");
   const qc = useQueryClient();
   const lookupsFn = useServerFn(getStudentRequestLookups);
   const listFn = useServerFn(listStudentRequestsOverview);
@@ -179,6 +188,77 @@ function AdminRequestsPage() {
   const pendingWorkflowFn = useServerFn(getPendingStudentRequestsForRole);
   const actWorkflowFn = useServerFn(actOnStudentServiceRequest);
   const sendEmail = useServerFn(sendNotificationEmail);
+
+  return (
+    <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-7xl mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FileWarning className="h-5 w-5 text-gold" />
+          <h1 className="font-display text-xl font-extrabold text-primary">طلبات الطلاب</h1>
+        </div>
+        <div className="flex rounded-lg border bg-muted/30 p-0.5 text-xs font-bold">
+          <button
+            type="button"
+            onClick={() => setViewMode("staff_inbox")}
+            className={`px-3 py-1.5 rounded-md transition-colors ${
+              viewMode === "staff_inbox"
+                ? "bg-card text-primary shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            صندوق المعالجة
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("legacy")}
+            className={`px-3 py-1.5 rounded-md transition-colors ${
+              viewMode === "legacy"
+                ? "bg-card text-primary shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            العرض التقليدي
+          </button>
+        </div>
+      </div>
+
+      {viewMode === "staff_inbox" ? (
+        <StaffInboxShell />
+      ) : (
+        <LegacyAdminRequestsView
+          qc={qc}
+          lookupsFn={lookupsFn}
+          listFn={listFn}
+          detailsFn={detailsFn}
+          updateStatusFn={updateStatusFn}
+          pendingWorkflowFn={pendingWorkflowFn}
+          actWorkflowFn={actWorkflowFn}
+          sendEmail={sendEmail}
+        />
+      )}
+    </div>
+  );
+}
+
+function LegacyAdminRequestsView({
+  qc,
+  lookupsFn,
+  listFn,
+  detailsFn,
+  updateStatusFn,
+  pendingWorkflowFn,
+  actWorkflowFn,
+  sendEmail,
+}: {
+  qc: ReturnType<typeof useQueryClient>;
+  lookupsFn: ReturnType<typeof useServerFn<typeof getStudentRequestLookups>>;
+  listFn: ReturnType<typeof useServerFn<typeof listStudentRequestsOverview>>;
+  detailsFn: ReturnType<typeof useServerFn<typeof getStudentRequestDetails>>;
+  updateStatusFn: ReturnType<typeof useServerFn<typeof updateStudentRequestStatus>>;
+  pendingWorkflowFn: ReturnType<typeof useServerFn<typeof getPendingStudentRequestsForRole>>;
+  actWorkflowFn: ReturnType<typeof useServerFn<typeof actOnStudentServiceRequest>>;
+  sendEmail: ReturnType<typeof useServerFn<typeof sendNotificationEmail>>;
+}) {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [programFilter, setProgramFilter] = useState<string>("");
@@ -189,10 +269,11 @@ function AdminRequestsPage() {
     queryKey: ["admin-request-lookups"],
     queryFn: () => lookupsFn({ data: {} }),
   });
-  const requestTypes = lookups?.requestTypes ?? [];
+  const requestTypes = enrichRequestTypesForDisplay(lookups?.requestTypes ?? []);
   const programs = lookups?.programs ?? [];
   const depts = lookups?.departments ?? [];
-  const typeLabel = (code: string) => requestTypes.find((t) => t.code === code)?.name_ar ?? code;
+  const typeLabel = (code: string) =>
+    getStudentRequestTypeDisplayName(code, requestTypes.find((t) => t.code === code)?.name_ar);
   const { data: workflowPending = [] } = useQuery({
     queryKey: ["admin-student-affairs-workflow-pending"],
     queryFn: () => pendingWorkflowFn({ data: {} }),
@@ -248,7 +329,7 @@ function AdminRequestsPage() {
 
   const filtered = useMemo(() => requests.filter((r) =>
     (!statusFilter || r.status === statusFilter)
-    && (!typeFilter || r.request_type === typeFilter)
+    && (!typeFilter || matchesStudentRequestTypeCode(r.request_type, typeFilter))
     && (!programFilter || r.student?.program_id === programFilter)
     && (!deptFilter || r.student?.department_id === deptFilter)
   ), [requests, statusFilter, typeFilter, programFilter, deptFilter]);
@@ -341,12 +422,7 @@ function AdminRequestsPage() {
   };
 
   return (
-    <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-7xl mx-auto">
-      <div className="flex items-center gap-2">
-        <FileWarning className="h-5 w-5 text-gold" />
-        <h1 className="font-display text-xl font-extrabold text-primary">طلبات الطلاب</h1>
-      </div>
-
+    <>
       {/* Filters */}
       <div className="flex flex-wrap gap-2 rounded-lg border bg-card p-3">
         <FilterSelect label="نوع الطلب" value={typeFilter} onChange={setTypeFilter}
@@ -501,7 +577,7 @@ function AdminRequestsPage() {
       {selected && (
         <DetailsModal req={selected} onClose={() => setSelected(null)} onUpdateStatus={updateStatus} />
       )}
-    </div>
+    </>
   );
 }
 
@@ -587,7 +663,7 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
         return;
       }
     }
-    if (status === "approved" && req.request_type === "transfer") {
+    if (status === "approved" && matchesStudentRequestTypeCode(req.request_type, "department_transfer")) {
       if (!req.transfer_details) {
         toast.error("تفاصيل طلب التحويل غير مكتملة");
         return;
@@ -689,12 +765,12 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
               {req.transfer_details.notes && <Row label="ملاحظات" value={req.transfer_details.notes} />}
             </>
           )}
-          {req.request_type === "transfer" && req.transfer_summary && !req.transfer_summary.can_approve && (
+          {matchesStudentRequestTypeCode(req.request_type, "department_transfer") && req.transfer_summary && !req.transfer_summary.can_approve && (
             <div className="text-xs text-rose-800 bg-rose-50 border border-rose-200 rounded p-2">
               {req.transfer_summary.block_reason ?? "لا يمكن اعتماد طلب التحويل — تحقق من التفاصيل وحالة الطالب."}
             </div>
           )}
-          {req.request_type === "transfer" && req.transfer_summary && req.transfer_summary.warnings.length > 0 && (
+          {matchesStudentRequestTypeCode(req.request_type, "department_transfer") && req.transfer_summary && req.transfer_summary.warnings.length > 0 && (
             <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded p-2 space-y-1">
               <div className="font-bold">تحذيرات قبل الاعتماد</div>
               {req.transfer_summary.warnings.map((w) => (
@@ -849,7 +925,7 @@ function DetailsModal({ req, onClose, onUpdateStatus }: {
                     !req.extra_chance_details
                     || (req.extra_chance_summary != null && !req.extra_chance_summary.can_approve)
                   ))
-                  || (req.request_type === "transfer" && (
+                  || (matchesStudentRequestTypeCode(req.request_type, "department_transfer") && (
                     !req.transfer_details
                     || (req.transfer_summary != null && !req.transfer_summary.can_approve)
                   ))

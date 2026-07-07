@@ -1,0 +1,591 @@
+/**
+ * Static form definitions for canonical student request types (P4 foundation).
+ * Display-only / form_data staging — detail tables and RPC validation come later.
+ */
+
+import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+
+export type RequestFormFieldType =
+  | "text"
+  | "textarea"
+  | "select"
+  | "multi_select"
+  | "date"
+  | "date_range"
+  | "file"
+  | "checkbox"
+  | "readonly"
+  | "info";
+
+export type RequestFormFieldOption = {
+  value: string;
+  labelAr: string;
+};
+
+export type RequestFormFieldDependsOn = {
+  field: string;
+  equals?: string | boolean;
+};
+
+export type RequestFormFieldDefinition = {
+  name: string;
+  labelAr: string;
+  type: RequestFormFieldType;
+  required?: boolean;
+  options?: readonly RequestFormFieldOption[];
+  helperTextAr?: string;
+  placeholderAr?: string;
+  dependsOn?: RequestFormFieldDependsOn;
+  defaultValue?: string | boolean | readonly string[];
+};
+
+export type RequestFormSection = {
+  titleAr?: string;
+  fields: readonly RequestFormFieldDefinition[];
+};
+
+export type RequestFormAttachmentRequirement = {
+  key: string;
+  labelAr: string;
+  required?: boolean;
+};
+
+export type RequestFormDefinition = {
+  code: string;
+  titleAr: string;
+  descriptionAr?: string;
+  sections: readonly RequestFormSection[];
+  requiredAttachments?: readonly RequestFormAttachmentRequirement[];
+  warnings?: readonly string[];
+  /** When true, UI shows that full detail persistence awaits schema apply. */
+  unavailableUntilSchemaApplied: boolean;
+};
+
+const PLACEHOLDER_SEMESTERS: readonly RequestFormFieldOption[] = [
+  { value: "placeholder_fall", labelAr: "الفصل الأول (يُحمَّل لاحقاً من السياق الأكاديمي)" },
+  { value: "placeholder_spring", labelAr: "الفصل الثاني (يُحمَّل لاحقاً من السياق الأكاديمي)" },
+  { value: "placeholder_summer", labelAr: "الفصل الصيفي (يُحمَّل لاحقاً من السياق الأكاديمي)" },
+];
+
+const PLACEHOLDER_COURSES: readonly RequestFormFieldOption[] = [
+  { value: "course_placeholder_1", labelAr: "— سيتم جلب المقررات من السجل الأكاديمي —" },
+];
+
+const PLACEHOLDER_DEPARTMENTS: readonly RequestFormFieldOption[] = [
+  { value: "dept_placeholder", labelAr: "— سيتم جلب الأقسام من البيانات المرجعية —" },
+];
+
+const PLACEHOLDER_PROGRAMS: readonly RequestFormFieldOption[] = [
+  { value: "prog_placeholder", labelAr: "— سيتم جلب البرامج من البيانات المرجعية —" },
+];
+
+const COPY_COUNT_OPTIONS: readonly RequestFormFieldOption[] = [
+  { value: "1", labelAr: "نسخة واحدة" },
+  { value: "2", labelAr: "نسختان" },
+  { value: "3", labelAr: "3 نسخ" },
+  { value: "4", labelAr: "4 نسخ" },
+  { value: "5", labelAr: "5 نسخ" },
+];
+
+const SCHEMA_PENDING = true;
+
+const ENROLLMENT_SUSPENSION: RequestFormDefinition = {
+  code: "enrollment_suspension",
+  titleAr: "وقف القيد",
+  descriptionAr: "طلب إيقاف القيد لفصل أو فترة أكاديمية وفق ضوابط الكلية.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  warnings: ["الأهلية النهائية تُتحقق لاحقاً من النظام ولا تعتمد على هذا النموذج فقط."],
+  sections: [
+    {
+      titleAr: "بيانات وقف القيد",
+      fields: [
+        {
+          name: "target_semester",
+          labelAr: "الفصل المطلوب وقف القيد له",
+          type: "select",
+          required: true,
+          options: PLACEHOLDER_SEMESTERS,
+          helperTextAr: "سيُستبدل هذا الحقل بقائمة الفصول الفعلية بعد تطبيق مخطط الطلبات.",
+        },
+        {
+          name: "academic_context",
+          labelAr: "العام الجامعي / الفصل الحالي",
+          type: "readonly",
+          defaultValue: "— يُعرض تلقائياً من السياق الأكاديمي عند التفعيل —",
+        },
+        {
+          name: "suspension_reason",
+          labelAr: "سبب وقف القيد",
+          type: "textarea",
+          required: true,
+          placeholderAr: "اذكر سبب طلب وقف القيد باختصار",
+          helperTextAr: "لا يتطلب هذا النوع مرفقاً في المرحلة الحالية.",
+        },
+        {
+          name: "terms_acknowledgment",
+          labelAr: "أقرّ بأنني اطلعت على شروط وقف القيد المعتمدة في الكلية",
+          type: "checkbox",
+          required: true,
+        },
+        {
+          name: "eligibility_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue:
+            "الأهلية النهائية لوقف القيد (عدد فترات الوقف السابقة، حالة القيد، إلخ) تُتحقق لاحقاً من النظام وليس من واجهة النموذج فقط.",
+        },
+      ],
+    },
+  ],
+};
+
+const GRADE_STATEMENT_NON_GRADUATE: RequestFormDefinition = {
+  code: "grade_statement_non_graduate",
+  titleAr: "شهادة تقديرات لغير الخريجين",
+  descriptionAr: "طلب شهادة تقديرات للطلاب غير الخريجين.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  sections: [
+    {
+      fields: [
+        {
+          name: "purpose",
+          labelAr: "الغرض من الشهادة",
+          type: "textarea",
+          required: true,
+          placeholderAr: "مثال: التقديم لجهة عمل أو جهة خارجية",
+        },
+        {
+          name: "copies_count",
+          labelAr: "عدد النسخ",
+          type: "select",
+          required: true,
+          options: COPY_COUNT_OPTIONS,
+        },
+        {
+          name: "recipient",
+          labelAr: "جهة التقديم (إن وجدت)",
+          type: "text",
+          placeholderAr: "اسم الجهة أو الجهة المستلمة",
+        },
+        {
+          name: "non_graduate_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue: "هذا الطلب مخصص للطلاب غير الخريجين فقط. يُخفى عن الخريجين وفق إعدادات الجمهور.",
+        },
+      ],
+    },
+  ],
+};
+
+const ENROLLMENT_CERTIFICATE: RequestFormDefinition = {
+  code: "enrollment_certificate",
+  titleAr: "شهادة قيد",
+  descriptionAr: "طلب شهادة قيد للطالب المسجل.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  sections: [
+    {
+      fields: [
+        {
+          name: "purpose",
+          labelAr: "الغرض من شهادة القيد",
+          type: "textarea",
+          required: true,
+        },
+        {
+          name: "copies_count",
+          labelAr: "عدد النسخ",
+          type: "select",
+          required: true,
+          options: COPY_COUNT_OPTIONS,
+        },
+        {
+          name: "recipient",
+          labelAr: "جهة التقديم",
+          type: "text",
+          required: true,
+          placeholderAr: "الجهة التي تُقدَّم لها الشهادة",
+        },
+        {
+          name: "internal_only_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue:
+            "شهادة القيد خدمة داخلية للكلية ولا تحتاج توقيعات الجامعة المركزية في هذه المرحلة.",
+        },
+      ],
+    },
+  ],
+};
+
+const FILE_WITHDRAWAL: RequestFormDefinition = {
+  code: "file_withdrawal",
+  titleAr: "سحب ملف",
+  descriptionAr: "طلب سحب الملف الأكاديمي من الكلية.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  sections: [
+    {
+      fields: [
+        {
+          name: "withdrawal_reason",
+          labelAr: "سبب سحب الملف",
+          type: "textarea",
+          required: true,
+        },
+        {
+          name: "impact_acknowledgment",
+          labelAr: "أفهم أن سحب الملف له أثر أكاديمي وإداري وفق لوائح الكلية",
+          type: "checkbox",
+          required: true,
+        },
+        {
+          name: "clearance_library",
+          labelAr: "إخلاء طرف — المكتبة",
+          type: "readonly",
+          defaultValue: "يُتحقق لاحقاً من إخلاء طرف المكتبة (غير منفَّذ في هذه المرحلة).",
+        },
+        {
+          name: "clearance_labs",
+          labelAr: "إخلاء طرف — المعامل",
+          type: "readonly",
+          defaultValue: "يُتحقق لاحقاً من إخلاء طرف المعامل.",
+        },
+        {
+          name: "clearance_activities",
+          labelAr: "إخلاء طرف — الأنشطة",
+          type: "readonly",
+          defaultValue: "يُتحقق لاحقاً من إخلاء طرف الأنشطة الطلابية.",
+        },
+        {
+          name: "clearance_finance",
+          labelAr: "إخلاء طرف — الشؤون المالية",
+          type: "readonly",
+          defaultValue: "يُتحقق لاحقاً من إخلاء طرف الشؤون المالية.",
+        },
+      ],
+    },
+  ],
+};
+
+const EXCUSED_ABSENCE: RequestFormDefinition = {
+  code: "excused_absence",
+  titleAr: "غياب بعذر",
+  descriptionAr: "طلب تسجيل غياب بعذر مقبول.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  requiredAttachments: [{ key: "excuse_documents", labelAr: "مرفقات العذر (وثائق داعمة)", required: true }],
+  warnings: ["الخدمة تعتمد على فترة تفعيل يحددها الأدمن."],
+  sections: [
+    {
+      fields: [
+        {
+          name: "absence_start_date",
+          labelAr: "تاريخ بداية الغياب",
+          type: "date",
+          required: true,
+        },
+        {
+          name: "absence_end_date",
+          labelAr: "تاريخ نهاية الغياب",
+          type: "date",
+          required: true,
+        },
+        {
+          name: "absence_reason",
+          labelAr: "سبب الغياب",
+          type: "textarea",
+          required: true,
+          placeholderAr: "مثال: ظرف طبي، ظرف عائلي طارئ",
+        },
+        {
+          name: "affected_courses",
+          labelAr: "المقررات المتأثرة",
+          type: "multi_select",
+          required: true,
+          options: PLACEHOLDER_COURSES,
+          helperTextAr: "placeholder — ستُحمَّل المقررات من السجل الأكاديمي لاحقاً.",
+        },
+        {
+          name: "excuse_attachment",
+          labelAr: "مرفقات العذر",
+          type: "file",
+          required: true,
+          helperTextAr: "مطلوب في الواجهة. رفع الملفات الفعلي يُفعَّل بعد تطبيق مخطط الطلبات.",
+        },
+        {
+          name: "service_window_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue: "تقديم طلب الغياب بعذر مرتبط بفترة تفعيل الخدمة التي يحددها مسؤول شؤون الطلاب.",
+        },
+      ],
+    },
+  ],
+};
+
+const GRADE_APPEAL: RequestFormDefinition = {
+  code: "grade_appeal",
+  titleAr: "تظلم",
+  descriptionAr: "طلب تظلم على درجة مقرر.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  warnings: ["التظلم مرتبط بفترة تفعيل ونتائج منشورة."],
+  sections: [
+    {
+      fields: [
+        {
+          name: "target_semester",
+          labelAr: "الفصل / الترم المستهدف",
+          type: "select",
+          required: true,
+          options: PLACEHOLDER_SEMESTERS,
+        },
+        {
+          name: "appeal_course",
+          labelAr: "المقرر محل التظلم",
+          type: "select",
+          required: true,
+          options: PLACEHOLDER_COURSES,
+          helperTextAr: "placeholder — سيُعرض المقرر من نتائج الفصل المحدد.",
+        },
+        {
+          name: "appeal_reason",
+          labelAr: "سبب التظلم",
+          type: "textarea",
+          required: true,
+        },
+        {
+          name: "results_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue: "يُقبل التظلم فقط ضمن فترة التفعيل وبعد نشر النتائج الرسمية.",
+        },
+      ],
+    },
+  ],
+};
+
+const DEPARTMENT_TRANSFER: RequestFormDefinition = {
+  code: "department_transfer",
+  titleAr: "تحويل من قسم إلى قسم",
+  descriptionAr: "طلب التحويل بين الأقسام أو البرامج.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  requiredAttachments: [
+    { key: "secondary_certificate", labelAr: "شهادة الثانوية العامة", required: true },
+  ],
+  sections: [
+    {
+      fields: [
+        {
+          name: "current_department",
+          labelAr: "القسم الحالي",
+          type: "readonly",
+          defaultValue: "— يُعرض من ملف الطالب عند التفعيل —",
+        },
+        {
+          name: "current_program",
+          labelAr: "البرنامج الحالي",
+          type: "readonly",
+          defaultValue: "— يُعرض من ملف الطالب عند التفعيل —",
+        },
+        {
+          name: "target_department",
+          labelAr: "القسم المطلوب",
+          type: "select",
+          required: true,
+          options: PLACEHOLDER_DEPARTMENTS,
+        },
+        {
+          name: "target_program",
+          labelAr: "البرنامج المطلوب",
+          type: "select",
+          required: true,
+          options: PLACEHOLDER_PROGRAMS,
+        },
+        {
+          name: "transfer_reason",
+          labelAr: "سبب التحويل",
+          type: "textarea",
+          required: true,
+        },
+        {
+          name: "secondary_certificate_file",
+          labelAr: "مرفق شهادة الثانوية",
+          type: "file",
+          required: true,
+          helperTextAr: "مطلوب في الواجهة. الرفع الفعلي يُفعَّل لاحقاً.",
+        },
+        {
+          name: "equivalency_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue: "مراجعة المعادلة واعتمادها تتم لاحقاً من رئيس القسم المختص.",
+        },
+      ],
+    },
+  ],
+};
+
+const OCTOBER_EXAM_ENTRY: RequestFormDefinition = {
+  code: "october_exam_entry_form",
+  titleAr: "استمارة دخول دور أكتوبر",
+  descriptionAr: "طلب التقدم لامتحانات دور أكتوبر للمقررات المتبقية أو الراسبة.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  sections: [
+    {
+      fields: [
+        {
+          name: "remaining_courses",
+          labelAr: "المقررات المتبقية / الراسبة",
+          type: "multi_select",
+          required: true,
+          options: PLACEHOLDER_COURSES,
+          helperTextAr: "placeholder — ستُحمَّل من السجل الأكاديمي وفق تعريف U-OCT-1.",
+        },
+        {
+          name: "admin_limit_acknowledgment",
+          labelAr: "أقرّ بأن القبول النهائي يعتمد على الحد الأعلى للمقررات الذي يحدده الأدمن",
+          type: "checkbox",
+          required: true,
+        },
+        {
+          name: "registrar_note",
+          labelAr: "ملاحظة",
+          type: "info",
+          defaultValue: "الكشف النهائي لدخول دور أكتوبر يُصدر من مسجل الكلية بعد مراجعة الطلب.",
+        },
+      ],
+    },
+  ],
+};
+
+const FORM_BY_CANONICAL = new Map<string, RequestFormDefinition>([
+  ["enrollment_suspension", ENROLLMENT_SUSPENSION],
+  ["grade_statement_non_graduate", GRADE_STATEMENT_NON_GRADUATE],
+  ["enrollment_certificate", ENROLLMENT_CERTIFICATE],
+  ["file_withdrawal", FILE_WITHDRAWAL],
+  ["excused_absence", EXCUSED_ABSENCE],
+  ["grade_appeal", GRADE_APPEAL],
+  ["department_transfer", DEPARTMENT_TRANSFER],
+  ["october_exam_entry_form", OCTOBER_EXAM_ENTRY],
+]);
+
+export const CANONICAL_FORM_CODES = [...FORM_BY_CANONICAL.keys()] as const;
+
+export function getStudentRequestFormDefinition(
+  code: string | null | undefined,
+): RequestFormDefinition | undefined {
+  const normalized = normalizeStudentRequestTypeCode(code);
+  if (!normalized) return undefined;
+  return FORM_BY_CANONICAL.get(normalized);
+}
+
+export function hasStudentRequestFormDefinition(code: string | null | undefined): boolean {
+  return getStudentRequestFormDefinition(code) != null;
+}
+
+function fieldVisible(
+  field: RequestFormFieldDefinition,
+  values: Record<string, unknown>,
+): boolean {
+  if (!field.dependsOn) return true;
+  const current = values[field.dependsOn.field];
+  if (field.dependsOn.equals !== undefined) {
+    return current === field.dependsOn.equals;
+  }
+  return Boolean(current);
+}
+
+export function getEmptyFormValues(def: RequestFormDefinition): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const section of def.sections) {
+    for (const field of section.fields) {
+      if (field.type === "info" || field.type === "readonly") continue;
+      if (field.type === "checkbox") {
+        values[field.name] = field.defaultValue ?? false;
+      } else if (field.type === "multi_select") {
+        values[field.name] = field.defaultValue ?? [];
+      } else if (field.type === "file") {
+        values[field.name] = null;
+      } else {
+        values[field.name] = field.defaultValue ?? "";
+      }
+    }
+  }
+  return values;
+}
+
+function isEmptyValue(field: RequestFormFieldDefinition, value: unknown): boolean {
+  if (field.type === "checkbox") return value !== true;
+  if (field.type === "multi_select") return !Array.isArray(value) || value.length === 0;
+  if (field.type === "file") return value == null;
+  if (typeof value === "string") return value.trim() === "";
+  return value == null || value === "";
+}
+
+export function validateStudentRequestFormValues(
+  def: RequestFormDefinition,
+  values: Record<string, unknown>,
+): { valid: boolean; missingLabels: string[] } {
+  const missingLabels: string[] = [];
+  for (const section of def.sections) {
+    for (const field of section.fields) {
+      if (!field.required || field.type === "info" || field.type === "readonly") continue;
+      if (!fieldVisible(field, values)) continue;
+      if (isEmptyValue(field, values[field.name])) {
+        missingLabels.push(field.labelAr);
+      }
+    }
+  }
+  return { valid: missingLabels.length === 0, missingLabels };
+}
+
+function formatFieldValue(field: RequestFormFieldDefinition, value: unknown): string {
+  if (field.type === "checkbox") return value === true ? "نعم" : "لا";
+  if (field.type === "file") {
+    if (value instanceof File) return value.name;
+    return value ? String(value) : "—";
+  }
+  if (field.type === "multi_select" && Array.isArray(value)) {
+    const labels = value.map((v) => {
+      const opt = field.options?.find((o) => o.value === v);
+      return opt?.labelAr ?? String(v);
+    });
+    return labels.join("، ") || "—";
+  }
+  if (field.type === "select") {
+    const opt = field.options?.find((o) => o.value === value);
+    return opt?.labelAr ?? String(value ?? "—");
+  }
+  return String(value ?? "—");
+}
+
+/** Human-readable summary for description / student_notes (current save path). */
+export function buildFormValuesSummary(
+  def: RequestFormDefinition,
+  values: Record<string, unknown>,
+): string {
+  const lines: string[] = [`نوع الطلب: ${def.titleAr}`];
+  for (const section of def.sections) {
+    if (section.titleAr) lines.push(`\n[${section.titleAr}]`);
+    for (const field of section.fields) {
+      if (field.type === "info" || field.type === "readonly") continue;
+      if (!fieldVisible(field, values)) continue;
+      lines.push(`${field.labelAr}: ${formatFieldValue(field, values[field.name])}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/** Strip File objects for JSON form_data persistence. */
+export function serializeFormValuesForStorage(
+  values: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(values)) {
+    if (val instanceof File) {
+      out[key] = { _filePlaceholder: true, name: val.name, size: val.size };
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
+}
