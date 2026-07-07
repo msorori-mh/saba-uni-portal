@@ -2,7 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, GitBranch, Loader2, Save } from "lucide-react";
+import { ArrowRight, GitBranch, Loader2, Save, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   getAdminRequestWorkflowConfig,
   getRequestTypeForWorkflow,
@@ -11,9 +12,9 @@ import {
 } from "@/lib/admin-request-workflow.functions";
 import {
   ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE,
-  WORKFLOW_SAVE_NOT_AVAILABLE_MSG,
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
+  type WorkflowActionType,
   type WorkflowConfigStep,
   type WorkflowConfigTransition,
   type WorkflowConfigWorkflow,
@@ -21,6 +22,12 @@ import {
 import { WORKFLOW_STATUS_LABEL } from "@/components/admin/request-workflow/constants";
 import { WorkflowStepsEditor } from "@/components/admin/request-workflow/WorkflowStepsEditor";
 import { WorkflowTransitionsEditor } from "@/components/admin/request-workflow/WorkflowTransitionsEditor";
+import { RequestWorkflowPreview } from "@/components/admin/RequestWorkflowPreview";
+import {
+  canonicalPreviewToSuggestedDraftSteps,
+  hasCanonicalWorkflowPreview,
+  WORKFLOW_SCHEMA_UNAVAILABLE_MSG,
+} from "@/lib/student-requests/request-workflow-preview-registry";
 import { STUDENT_REQUEST_SERVICE_UPDATING_MSG } from "@/lib/student-request-rpc";
 
 export const Route = createFileRoute("/admin/request-types/$id/workflow")({
@@ -182,6 +189,34 @@ function AdminRequestTypeWorkflowPage() {
     });
   };
 
+  const loadDraftFromCanonicalPreview = () => {
+    if (!hasCanonicalWorkflowPreview(requestType.code)) return;
+    const suggested = canonicalPreviewToSuggestedDraftSteps(requestType.code);
+    const steps: DraftWorkflowStep[] = suggested.map((s) => ({
+      localId: crypto.randomUUID(),
+      step_key: s.step_key,
+      step_name_ar: s.step_name_ar,
+      step_order: s.step_order,
+      processing_unit_id: null,
+      processing_role_id: null,
+      action_type: s.action_type as WorkflowActionType,
+      visible_to_student: true,
+      notify_on_enter: true,
+      can_return_to_student: s.role_key === "student",
+      can_reject: s.role_key !== "student",
+      can_skip: false,
+    }));
+    const transitions: DraftWorkflowTransition[] = steps.slice(0, -1).map((s, i) => ({
+      localId: crypto.randomUUID(),
+      from_step_key: s.step_key,
+      to_step_key: steps[i + 1]?.step_key ?? null,
+      action_result: "approve",
+      is_default: true,
+    }));
+    setDraftSteps(steps);
+    setDraftTransitions(transitions);
+  };
+
   if (loading) {
     return (
       <div className="grid place-items-center py-16">
@@ -233,8 +268,8 @@ function AdminRequestTypeWorkflowPage() {
         <p className="text-muted-foreground">{workflowState.detail}</p>
         {configUnavailable && (
           <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
-            خدمة قراءة إعدادات دورة الحياة غير متاحة بعد (migration غير مطبّق). يمكنك
-            استخدام المحرر كمسودة محلية فقط.
+            {WORKFLOW_SCHEMA_UNAVAILABLE_MSG} يمكنك استخدام المحرر والمعاينة المرجعية كمسودة
+            محلية فقط.
           </p>
         )}
         {config && config.workflows.length > 0 && (
@@ -242,6 +277,29 @@ function AdminRequestTypeWorkflowPage() {
             إصدارات مسجّلة: {config.workflows.length} — خطوات: {config.steps.length} — انتقالات:{" "}
             {config.transitions.length}
           </div>
+        )}
+      </div>
+
+      <RequestWorkflowPreview
+        requestTypeCode={requestType.code}
+        draftSteps={draftSteps}
+        draftTransitions={draftTransitions}
+        schemaUnavailable={configUnavailable || !ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE}
+      />
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h2 className="font-bold text-sm text-primary">محرر المسودة المحلية</h2>
+        {hasCanonicalWorkflowPreview(requestType.code) && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={loadDraftFromCanonicalPreview}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            تحميل مسودة من المرجع (محلي)
+          </Button>
         )}
       </div>
 
@@ -283,7 +341,7 @@ function AdminRequestTypeWorkflowPage() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground border-t pt-2">
-          {WORKFLOW_SAVE_NOT_AVAILABLE_MSG}
+          {WORKFLOW_SCHEMA_UNAVAILABLE_MSG}
         </p>
       </div>
     </div>
