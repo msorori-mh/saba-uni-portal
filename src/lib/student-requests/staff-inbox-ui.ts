@@ -1,9 +1,11 @@
 /**
  * Staff inbox UI types, labels, and pure helpers (P6 foundation).
  * No DB queries — server functions map API/RPC rows into these shapes.
+ * Expected workflow paths: request-workflow-preview-registry.ts (P7 unified).
  */
 
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+import { buildStaffInboxWorkflowStepsFromPreview } from "@/lib/student-requests/request-workflow-preview-registry";
 
 export type StaffInboxStatusFilter =
   | "all"
@@ -183,94 +185,6 @@ export const STAFF_INBOX_STATUS_FILTER_OPTIONS: ReadonlyArray<{
   { value: "cancelled", labelAr: "ملغي" },
 ];
 
-type PreviewStepDef = {
-  key: string;
-  labelAr: string;
-  roleKey?: string;
-  isParallel?: boolean;
-  isCentralSignatory?: boolean;
-};
-
-const EXPECTED_WORKFLOW_BY_TYPE: Readonly<Record<string, readonly PreviewStepDef[]>> = {
-  enrollment_suspension: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "dept_head", labelAr: "رئيس القسم", roleKey: "department_head" },
-    { key: "dean", labelAr: "العميد", roleKey: "dean" },
-    { key: "sa_mgr", labelAr: "مدير شؤون الطلاب", roleKey: "student_affairs_manager" },
-    { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-    { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer" },
-  ],
-  grade_statement_non_graduate: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "sa_mgr", labelAr: "مدير شؤون الطلاب", roleKey: "student_affairs_manager" },
-    { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-    { key: "grad_mgr", labelAr: "مدير شؤون الخريجين", roleKey: "graduate_affairs_manager" },
-    {
-      key: "uni_registrar",
-      labelAr: "مسجل الجامعة العام",
-      isCentralSignatory: true,
-    },
-    { key: "dean", labelAr: "العميد", roleKey: "dean" },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-    { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer" },
-  ],
-  enrollment_certificate: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs" },
-    { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-    { key: "dean", labelAr: "العميد", roleKey: "dean" },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-    { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer" },
-  ],
-  file_withdrawal: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "dept_head", labelAr: "رئيس القسم", roleKey: "department_head" },
-    { key: "dean", labelAr: "العميد", roleKey: "dean" },
-    { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs" },
-    {
-      key: "parallel_clearance",
-      labelAr: "المالية والمكتبة والمعامل والأنشطة (بالتوازي)",
-      isParallel: true,
-    },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-    { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer" },
-  ],
-  excused_absence: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "dean", labelAr: "العميد", roleKey: "dean" },
-    { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs" },
-    { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-    { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer" },
-  ],
-  grade_appeal: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs" },
-    { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-  ],
-  department_transfer: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "target_dept", labelAr: "رئيس القسم المطلوب", roleKey: "department_head" },
-    { key: "dean", labelAr: "العميد", roleKey: "dean" },
-    { key: "equiv_dept", labelAr: "رئيس القسم المطلوب (معادلة)", roleKey: "department_head" },
-    { key: "current_dept", labelAr: "رئيس القسم الحالي", roleKey: "department_head" },
-    { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs" },
-    { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-    { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer" },
-  ],
-  october_exam_entry_form: [
-    { key: "student", labelAr: "الطالب", roleKey: "student" },
-    { key: "sa_1", labelAr: "شؤون الطلاب", roleKey: "student_affairs" },
-    { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-    { key: "sa_2", labelAr: "شؤون الطلاب (مراجعة)", roleKey: "student_affairs" },
-    { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general" },
-    { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer" },
-  ],
-};
-
 export function getStaffRequestStatusLabel(status: string | null | undefined): string {
   const s = (status ?? "").trim();
   if (!s) return "—";
@@ -330,22 +244,7 @@ export function filterInboxByStatusFilter(
 export function buildExpectedWorkflowPreview(
   requestTypeCode: string,
 ): StaffRequestWorkflowStep[] {
-  const code = normalizeStudentRequestTypeCode(requestTypeCode);
-  const defs = EXPECTED_WORKFLOW_BY_TYPE[code] ?? [];
-  return defs.map((d, idx) => ({
-    id: `preview:${code}:${d.key}`,
-    stepKey: d.key,
-    labelAr: d.labelAr,
-    roleKey: d.roleKey ?? null,
-    roleLabelAr: d.roleKey ? getStaffRoleLabelAr(d.roleKey) : d.labelAr,
-    status: idx === 0 ? "current" : "expected",
-    isParallel: d.isParallel,
-    isCentralSignatory: d.isCentralSignatory,
-    isPreview: true,
-    enteredAt: null,
-    completedAt: null,
-    notes: null,
-  }));
+  return buildStaffInboxWorkflowStepsFromPreview(requestTypeCode) as StaffRequestWorkflowStep[];
 }
 
 export function mergeWorkflowStepsWithPreview(
