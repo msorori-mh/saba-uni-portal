@@ -8,6 +8,7 @@ import { StudentRequestFormDataView } from "@/components/student-requests/Studen
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
+import { RequestDocumentArchivePanel } from "@/components/student-requests/RequestDocumentArchivePanel";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -184,6 +185,11 @@ export function StaffRequestDetailPanel({
         />
 
         <StaffRequestFinanceClearancePanel
+          requestId={detail.id}
+          requestTypeCode={detail.requestTypeCode}
+        />
+
+        <RequestDocumentArchivePanel
           requestId={detail.id}
           requestTypeCode={detail.requestTypeCode}
         />

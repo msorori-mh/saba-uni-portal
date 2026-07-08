@@ -57,6 +57,16 @@ import {
   validateClearanceMemberAction,
   validateParallelClearanceGroup,
 } from "@/lib/student-requests/parallel-clearance-contract";
+import {
+  normalizeArchiveHandoffInput,
+  normalizeDocumentGenerationInput,
+  type StudentRequestDocumentArchiveActorContext,
+  type StudentRequestDocumentArchiveDryRunResult,
+  type StudentRequestSignatoryKey,
+  validateArchiveHandoff,
+  validateDocumentGenerationInput,
+  validateSignatureRequirement,
+} from "@/lib/student-requests/request-document-archive-contract";
 
 export type FetchStaffInboxResult = {
   available: boolean;
@@ -720,6 +730,91 @@ export const prepareStudentRequestParallelClearance = createServerFn({ method: "
     }
 
     return validateParallelClearanceGroup(group, actor);
+  });
+
+const documentArchiveDryRunSchema = z.object({
+  requestId: z.string().uuid(),
+  requestTypeCode: z.string().trim().min(1).max(120),
+  mode: z.enum(["generation", "signature", "archive"]),
+  documentType: z.string().trim().max(120).optional().nullable(),
+  signatoryKey: z.string().trim().max(120).optional().nullable(),
+  parallelClearanceComplete: z.boolean().optional().nullable(),
+  finalApprovalComplete: z.boolean().optional().nullable(),
+  documentsReady: z.boolean().optional().nullable(),
+  signaturesComplete: z.boolean().optional().nullable(),
+});
+
+/** Dry-run only — validates document generation/signature/archive handoff; no DB writes, no PDF, no upload. */
+export const prepareStudentRequestDocumentArchiveAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => documentArchiveDryRunSchema.parse(input))
+  .handler(async ({ data, context }): Promise<StudentRequestDocumentArchiveDryRunResult> => {
+    await assertStaffInboxAccess(context.userId);
+
+    const appRoles = await userRoles(context.userId);
+    const processingRoleKeys = mapAppRolesToProcessingRoleKeys(appRoles);
+
+    const { data: reqRow, error: reqErr } = await supabaseAdmin
+      .from("student_requests")
+      .select("id, request_type")
+      .eq("id", data.requestId)
+      .maybeSingle();
+
+    if (reqErr) throw new Error(sanitizeStaffErrorMessage(reqErr.message));
+    if (!reqRow) throw new Error("الطلب غير موجود");
+
+    const requestTypeCode =
+      normalizeStudentRequestTypeCode(String(reqRow.request_type ?? "")) ||
+      data.requestTypeCode;
+
+    const signatoryKey = (data.signatoryKey?.trim() || null) as StudentRequestSignatoryKey | null;
+
+    const actor: StudentRequestDocumentArchiveActorContext = {
+      userId: context.userId,
+      appRoles,
+      processingRoleKeys,
+      isStaffInboxAuthorized: true,
+      requestTypeCode,
+      targetSignatoryKey: signatoryKey,
+    };
+
+    if (data.mode === "archive") {
+      return validateArchiveHandoff(
+        normalizeArchiveHandoffInput({
+          requestId: data.requestId,
+          requestTypeCode,
+          parallelClearanceComplete: data.parallelClearanceComplete,
+          finalApprovalComplete: data.finalApprovalComplete,
+          documentsReady: data.documentsReady,
+          signaturesComplete: data.signaturesComplete,
+        }),
+        actor,
+      );
+    }
+
+    if (data.mode === "signature") {
+      const docType = data.documentType?.trim();
+      if (!docType) throw new Error("نوع المستند مطلوب للتحقق من التوقيع.");
+      const normalized = normalizeDocumentGenerationInput({
+        requestId: data.requestId,
+        requestTypeCode,
+        documentType: docType,
+      });
+      const genCheck = validateDocumentGenerationInput(normalized, actor);
+      if (!genCheck.documentType) return genCheck;
+      return validateSignatureRequirement(genCheck.documentType, actor);
+    }
+
+    const docType = data.documentType?.trim();
+    if (!docType) throw new Error("نوع المستند مطلوب.");
+    return validateDocumentGenerationInput(
+      normalizeDocumentGenerationInput({
+        requestId: data.requestId,
+        requestTypeCode,
+        documentType: docType,
+      }),
+      actor,
+    );
   });
 
 export type { StaffInboxStatusFilter };
