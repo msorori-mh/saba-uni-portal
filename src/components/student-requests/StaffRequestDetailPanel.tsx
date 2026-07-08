@@ -7,6 +7,7 @@ import { getStaffRoleLabelAr } from "@/lib/student-requests/staff-inbox-ui";
 import { StudentRequestFormDataView } from "@/components/student-requests/StudentRequestFormDataView";
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
+import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -180,6 +181,11 @@ export function StaffRequestDetailPanel({
         <StaffRequestWorkflowTimeline
           steps={detail.workflowSteps}
           isPreview={detail.workflowIsPreview}
+        />
+
+        <StaffRequestFinanceClearancePanel
+          requestId={detail.id}
+          requestTypeCode={detail.requestTypeCode}
         />
 
         <StaffRequestActionPanel

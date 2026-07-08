@@ -40,6 +40,23 @@ import {
   type StudentRequestStaffActionResult,
   validateStaffActionInput,
 } from "@/lib/student-requests/staff-action-contract";
+import {
+  normalizeRevenueReceiptConfirmationInput,
+  normalizeStudentAffairsAmountInput,
+  type FinanceClearanceDryRunResult,
+  type FinanceClearanceActorContext,
+  validateRevenueReceiptConfirmation,
+  validateStudentAffairsAmountInput,
+} from "@/lib/student-requests/request-finance-clearance-contract";
+import {
+  buildDefaultClearanceGroup,
+  normalizeParallelClearanceGroup,
+  type StudentRequestClearanceActorContext,
+  type StudentRequestClearanceDryRunResult,
+  type StudentRequestClearanceMemberActionInput,
+  validateClearanceMemberAction,
+  validateParallelClearanceGroup,
+} from "@/lib/student-requests/parallel-clearance-contract";
 
 export type FetchStaffInboxResult = {
   available: boolean;
@@ -557,6 +574,152 @@ export const prepareStudentRequestStaffAction = createServerFn({ method: "POST" 
       clientActionId: data.clientActionId ?? null,
       seenClientActionIds: [],
     });
+  });
+
+const financeClearanceDryRunSchema = z.object({
+  requestId: z.string().uuid(),
+  requestTypeCode: z.string().trim().min(1).max(120),
+  action: z.enum(["set_student_affairs_amount", "confirm_revenue_received"]),
+  amount: z.number().optional().nullable(),
+  note: z.string().trim().max(4000).optional().nullable(),
+  expectedUpdatedAt: z.string().trim().max(120).optional().nullable(),
+  expectedStepStatus: z.string().trim().max(120).optional().nullable(),
+  clientActionId: z.string().trim().max(120).optional().nullable(),
+});
+
+/** Dry-run only — validates student affairs amount / revenue receipt confirmation; no DB writes. */
+export const prepareStudentRequestFinanceClearanceAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => financeClearanceDryRunSchema.parse(input))
+  .handler(async ({ data, context }): Promise<FinanceClearanceDryRunResult> => {
+    await assertStaffInboxAccess(context.userId);
+
+    const appRoles = await userRoles(context.userId);
+    const processingRoleKeys = mapAppRolesToProcessingRoleKeys(appRoles);
+
+    const { data: reqRow, error: reqErr } = await supabaseAdmin
+      .from("student_requests")
+      .select("id, request_type")
+      .eq("id", data.requestId)
+      .maybeSingle();
+
+    if (reqErr) throw new Error(sanitizeStaffErrorMessage(reqErr.message));
+    if (!reqRow) throw new Error("الطلب غير موجود");
+
+    const requestTypeCode =
+      normalizeStudentRequestTypeCode(String(reqRow.request_type ?? "")) ||
+      data.requestTypeCode;
+
+    const actor: FinanceClearanceActorContext = {
+      userId: context.userId,
+      appRoles,
+      processingRoleKeys,
+      isStaffInboxAuthorized: true,
+      requestTypeCode,
+    };
+
+    const rawExtras: Record<string, unknown> = {};
+
+    if (data.action === "set_student_affairs_amount") {
+      return validateStudentAffairsAmountInput(
+        normalizeStudentAffairsAmountInput({
+          requestId: data.requestId,
+          requestTypeCode,
+          amount: data.amount ?? Number.NaN,
+          note: data.note,
+          expectedUpdatedAt: data.expectedUpdatedAt,
+          expectedStepStatus: data.expectedStepStatus,
+          clientActionId: data.clientActionId,
+        }),
+        actor,
+        rawExtras,
+      );
+    }
+
+    return validateRevenueReceiptConfirmation(
+      normalizeRevenueReceiptConfirmationInput({
+        requestId: data.requestId,
+        requestTypeCode,
+        note: data.note,
+        expectedUpdatedAt: data.expectedUpdatedAt,
+        expectedStepStatus: data.expectedStepStatus,
+        clientActionId: data.clientActionId,
+      }),
+      actor,
+      rawExtras,
+    );
+  });
+
+const parallelClearanceDryRunSchema = z.object({
+  requestId: z.string().uuid(),
+  requestTypeCode: z.string().trim().min(1).max(120),
+  mode: z.enum(["validate_group", "member_action"]),
+  memberKey: z.string().trim().max(120).optional().nullable(),
+  action: z.enum(["clear", "waive", "reject", "block"]).optional().nullable(),
+  note: z.string().trim().max(4000).optional().nullable(),
+});
+
+/** Dry-run only — validates parallel clearance group/member action; no DB writes. */
+export const prepareStudentRequestParallelClearance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => parallelClearanceDryRunSchema.parse(input))
+  .handler(async ({ data, context }): Promise<StudentRequestClearanceDryRunResult> => {
+    await assertStaffInboxAccess(context.userId);
+
+    const appRoles = await userRoles(context.userId);
+    const processingRoleKeys = mapAppRolesToProcessingRoleKeys(appRoles);
+
+    const { data: reqRow, error: reqErr } = await supabaseAdmin
+      .from("student_requests")
+      .select("id, request_type")
+      .eq("id", data.requestId)
+      .maybeSingle();
+
+    if (reqErr) throw new Error(sanitizeStaffErrorMessage(reqErr.message));
+    if (!reqRow) throw new Error("الطلب غير موجود");
+
+    const requestTypeCode =
+      normalizeStudentRequestTypeCode(String(reqRow.request_type ?? "")) ||
+      data.requestTypeCode;
+
+    const defaultGroup = buildDefaultClearanceGroup(data.requestId, requestTypeCode);
+    const group = defaultGroup
+      ? normalizeParallelClearanceGroup(defaultGroup)
+      : normalizeParallelClearanceGroup({
+          requestId: data.requestId,
+          requestTypeCode,
+          groupKey: "clearance",
+          status: "pending",
+          members: [],
+        });
+
+    const actor: StudentRequestClearanceActorContext = {
+      userId: context.userId,
+      appRoles,
+      processingRoleKeys,
+      isStaffInboxAuthorized: true,
+      requestTypeCode,
+      targetMemberKey: data.memberKey ?? null,
+      targetRoleKey:
+        group.members.find((m) => m.memberKey === data.memberKey)?.roleKey ?? null,
+    };
+
+    if (data.mode === "member_action" && data.memberKey && data.action) {
+      const actionInput: Partial<StudentRequestClearanceMemberActionInput> & {
+        requestId: string;
+        action: string;
+      } = {
+        requestId: data.requestId,
+        requestTypeCode,
+        groupKey: group.groupKey,
+        memberKey: data.memberKey,
+        action: data.action,
+        note: data.note,
+      };
+      return validateClearanceMemberAction(actionInput, group, actor);
+    }
+
+    return validateParallelClearanceGroup(group, actor);
   });
 
 export type { StaffInboxStatusFilter };
