@@ -4,12 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Arabic fonts loaded via <link> in src/routes/__root.tsx */
+/* Arabic fonts (Cairo + Tajawal) loaded via <link> in src/routes/__root.tsx */
 
 @theme inline {
-  --font-sans: "Tajawal", system-ui, sans-serif;
-  --font-display: "Alexandria", "Tajawal", system-ui, sans-serif;
-  --font-en: "Inter", system-ui, sans-serif;
+  --font-sans: "Cairo", system-ui, sans-serif;
+  --font-display: "Tajawal", "Cairo", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -29,6 +28,8 @@
   --color-primary-dark: var(--primary-dark);
   --color-primary-deep: var(--primary-deep);
   --color-primary-soft: var(--primary-soft);
+  --color-deep: var(--deep);
+  --color-deep-foreground: var(--deep-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -36,6 +37,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
   --color-gold-dark: var(--gold-dark);
   --color-gold-soft: var(--gold-soft);
   --color-destructive: var(--destructive);
@@ -44,67 +46,86 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 :root {
   --radius: 0.5rem;
   --radius-card: 1rem;
 
-  /* Brand: Saba Region — teal primary + gold accent */
-  --background: oklch(0.98 0.005 230);       /* #F6F8F9 */
-  --foreground: oklch(0.32 0.05 230);          /* #12384D */
-  --surface: oklch(1 0 0);                     /* #FFFFFF */
+  /* Brand: Scheduling App palette — teal primary + deep header + gold accent */
+  --background: #F7F8FA;
+  --foreground: #102333;
+  --surface: #FFFFFF;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.32 0.05 230);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.32 0.05 230);
+  --card: #FFFFFF;
+  --card-foreground: #102333;
+  --popover: #FFFFFF;
+  --popover-foreground: #102333;
 
-  --primary: oklch(0.45 0.08 230);             /* #0B6384 */
-  --primary-dark: oklch(0.37 0.07 230);        /* #064B68 */
-  --primary-deep: oklch(0.32 0.05 230);        /* #12384D */
-  --primary-soft: oklch(0.96 0.015 230);       /* #EAF3F7 */
-  --primary-foreground: oklch(0.99 0.005 230);
+  --primary: #105B7D;
+  --primary-dark: #0B4864;
+  --primary-deep: #08384E;
+  --primary-soft: #E6EFF4;
+  --primary-foreground: #FFFFFF;
 
-  --gold: oklch(0.72 0.15 80);                 /* #E3A313 */
-  --gold-dark: oklch(0.55 0.13 75);            /* #A96D00 */
-  --gold-soft: oklch(0.97 0.04 85);            /* #FFF3D6 */
+  --deep: #08384E;
+  --deep-foreground: #FFFFFF;
 
-  --secondary: oklch(0.96 0.015 230);
-  --secondary-foreground: oklch(0.37 0.07 230);
-  --muted: oklch(0.95 0.01 230);
-  --muted-foreground: oklch(0.52 0.03 230);    /* #667985 */
-  --accent: oklch(0.96 0.015 230);
-  --accent-foreground: oklch(0.37 0.07 230);
+  --gold: #D99A17;
+  --gold-foreground: #102333;
+  --gold-dark: #A9760F;
+  --gold-soft: #FBEFD2;
+
+  --secondary: #E6EFF4;
+  --secondary-foreground: #08384E;
+  --muted: #EEF2F5;
+  --muted-foreground: #667985;
+  --accent: #D99A17;
+  --accent-foreground: #102333;
 
   --destructive: oklch(0.57 0.22 27);
-  --destructive-foreground: oklch(0.99 0 0);
+  --destructive-foreground: #FFFFFF;
 
-  --border: oklch(0.90 0.012 230);             /* #D9E3E8 */
-  --input: oklch(0.92 0.012 230);
-  --ring: oklch(0.72 0.15 80);
+  --border: #DDE6EA;
+  --input: #DDE6EA;
+  --ring: #D99A17;
+
+  /* Sidebar (uses deep header color) */
+  --sidebar: #08384E;
+  --sidebar-foreground: #FFFFFF;
+  --sidebar-accent: #105B7D;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #D99A17;
 
   /* Gradients & shadows */
-  --gradient-hero: linear-gradient(135deg, oklch(0.32 0.05 230) 0%, oklch(0.37 0.07 230) 50%, oklch(0.45 0.08 230) 100%);
-  --gradient-gold: linear-gradient(135deg, oklch(0.78 0.14 82) 0%, oklch(0.72 0.15 80) 50%, oklch(0.55 0.13 75) 100%);
-  --gradient-overlay: linear-gradient(180deg, oklch(0.32 0.05 230 / 0.55) 0%, oklch(0.37 0.07 230 / 0.92) 100%);
+  --gradient-hero: linear-gradient(135deg, #08384E 0%, #0B4864 50%, #105B7D 100%);
+  --gradient-gold: linear-gradient(135deg, #F2B84B 0%, #D99A17 50%, #A9760F 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(8, 56, 78, 0.55) 0%, rgba(11, 72, 100, 0.92) 100%);
 
-  --shadow-elegant: 0 20px 50px -20px oklch(0.32 0.05 230 / 0.35);
-  --shadow-gold: 0 12px 30px -10px oklch(0.72 0.15 80 / 0.45);
-  --shadow-card: 0 2px 12px -4px oklch(0.32 0.05 230 / 0.10);
+  --shadow-elegant: 0 20px 50px -20px rgba(8, 56, 78, 0.35);
+  --shadow-gold: 0 12px 30px -10px rgba(217, 154, 23, 0.45);
+  --shadow-card: 0 2px 12px -4px rgba(8, 56, 78, 0.10);
 }
 
 .dark {
-  --background: oklch(0.13 0.04 230);
-  --foreground: oklch(0.97 0.008 230);
-  --surface: oklch(0.17 0.05 230);
-  --card: oklch(0.18 0.05 230);
-  --card-foreground: oklch(0.97 0.008 230);
-  --primary: oklch(0.85 0.10 82);
-  --primary-foreground: oklch(0.15 0.05 230);
-  --border: oklch(1 0 0 / 0.10);
-  --muted: oklch(0.22 0.05 230);
-  --muted-foreground: oklch(0.72 0.02 230);
+  /* Dark theme kept as inert definitions — not activated in the app. */
+  --background: #08384E;
+  --foreground: #F7F8FA;
+  --surface: #0B4864;
+  --card: #0B4864;
+  --card-foreground: #F7F8FA;
+  --primary: #D99A17;
+  --primary-foreground: #08384E;
+  --border: rgba(255, 255, 255, 0.10);
+  --muted: #0B4864;
+  --muted-foreground: #B5C4CC;
 }
 
 @layer base {
@@ -122,10 +143,6 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     letter-spacing: -0.01em;
-  }
-
-  [dir="ltr"], .font-en {
-    font-family: var(--font-en);
   }
 }
 

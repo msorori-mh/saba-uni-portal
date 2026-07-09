@@ -1470,11 +1470,11 @@ function CredentialsSlip({
     if (!w) return;
     w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
       <style>
-        body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:32px;color:#12384D;}
+        body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:32px;color:#102333;}
         h1{font-size:18px;margin:0 0 8px;text-align:center;}
         h2{font-size:14px;margin:0 0 24px;text-align:center;color:#667985;font-weight:normal;}
-        .box{border:2px solid #0B6384;border-radius:8px;padding:20px;margin-top:16px;}
-        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #D9E3E8;font-size:14px;}
+        .box{border:2px solid #105B7D;border-radius:8px;padding:20px;margin-top:16px;}
+        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #DDE6EA;font-size:14px;}
         .row:last-child{border:0;}
         .k{color:#667985;}
         .v{font-weight:bold;font-family:'Courier New',monospace;direction:ltr;}

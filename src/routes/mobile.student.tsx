@@ -13,7 +13,7 @@ export const Route = createFileRoute("/mobile/student")({
       { title: "بوابة الطالب — كلية تكنولوجيا المعلومات وعلوم الحاسوب" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { name: "robots", content: "noindex, nofollow" },
-      { name: "theme-color", content: "#12384D" },
+      { name: "theme-color", content: "#08384E" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
