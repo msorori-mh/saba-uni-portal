@@ -3539,6 +3539,7 @@ export type Database = {
           created_at: string
           department_id: string | null
           department_scope: string
+          email: string | null
           employee_number: string | null
           full_name_ar: string
           full_name_en: string | null
@@ -3554,6 +3555,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           department_scope?: string
+          email?: string | null
           employee_number?: string | null
           full_name_ar: string
           full_name_en?: string | null
@@ -3569,6 +3571,7 @@ export type Database = {
           created_at?: string
           department_id?: string | null
           department_scope?: string
+          email?: string | null
           employee_number?: string | null
           full_name_ar?: string
           full_name_en?: string | null
