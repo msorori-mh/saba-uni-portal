@@ -2929,6 +2929,229 @@ export type Database = {
         }
         Relationships: []
       }
+      request_type_workflow_steps: {
+        Row: {
+          action_type: string
+          assignment_strategy: string
+          can_reject: boolean
+          can_return_to_student: boolean
+          can_skip: boolean
+          config: Json
+          created_at: string
+          description_ar: string | null
+          form_schema: Json
+          id: string
+          is_required: boolean
+          notify_on_complete: boolean
+          notify_on_enter: boolean
+          processing_role_id: string | null
+          processing_unit_id: string | null
+          produces_document: boolean
+          requires_attachment: boolean
+          requires_payment: boolean
+          status_on_complete: string | null
+          status_on_enter: string | null
+          step_key: string
+          step_name_ar: string
+          step_name_en: string | null
+          step_order: number
+          updated_at: string
+          visible_to_student: boolean
+          workflow_id: string
+        }
+        Insert: {
+          action_type?: string
+          assignment_strategy?: string
+          can_reject?: boolean
+          can_return_to_student?: boolean
+          can_skip?: boolean
+          config?: Json
+          created_at?: string
+          description_ar?: string | null
+          form_schema?: Json
+          id?: string
+          is_required?: boolean
+          notify_on_complete?: boolean
+          notify_on_enter?: boolean
+          processing_role_id?: string | null
+          processing_unit_id?: string | null
+          produces_document?: boolean
+          requires_attachment?: boolean
+          requires_payment?: boolean
+          status_on_complete?: string | null
+          status_on_enter?: string | null
+          step_key: string
+          step_name_ar: string
+          step_name_en?: string | null
+          step_order: number
+          updated_at?: string
+          visible_to_student?: boolean
+          workflow_id: string
+        }
+        Update: {
+          action_type?: string
+          assignment_strategy?: string
+          can_reject?: boolean
+          can_return_to_student?: boolean
+          can_skip?: boolean
+          config?: Json
+          created_at?: string
+          description_ar?: string | null
+          form_schema?: Json
+          id?: string
+          is_required?: boolean
+          notify_on_complete?: boolean
+          notify_on_enter?: boolean
+          processing_role_id?: string | null
+          processing_unit_id?: string | null
+          produces_document?: boolean
+          requires_attachment?: boolean
+          requires_payment?: boolean
+          status_on_complete?: string | null
+          status_on_enter?: string | null
+          step_key?: string
+          step_name_ar?: string
+          step_name_en?: string | null
+          step_order?: number
+          updated_at?: string
+          visible_to_student?: boolean
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_type_workflow_steps_processing_role_id_fkey"
+            columns: ["processing_role_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_type_workflow_steps_processing_unit_id_fkey"
+            columns: ["processing_unit_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_type_workflow_steps_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_type_workflow_transitions: {
+        Row: {
+          action_result: string
+          condition_schema: Json
+          created_at: string
+          from_step_id: string | null
+          id: string
+          is_default: boolean
+          label_ar: string | null
+          to_step_id: string | null
+          workflow_id: string
+        }
+        Insert: {
+          action_result: string
+          condition_schema?: Json
+          created_at?: string
+          from_step_id?: string | null
+          id?: string
+          is_default?: boolean
+          label_ar?: string | null
+          to_step_id?: string | null
+          workflow_id: string
+        }
+        Update: {
+          action_result?: string
+          condition_schema?: Json
+          created_at?: string
+          from_step_id?: string | null
+          id?: string
+          is_default?: boolean
+          label_ar?: string | null
+          to_step_id?: string | null
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_type_workflow_transitions_from_step_id_fkey"
+            columns: ["from_step_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflow_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_type_workflow_transitions_to_step_id_fkey"
+            columns: ["to_step_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflow_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_type_workflow_transitions_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_type_workflows: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description_ar: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          request_type_id: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          request_type_id: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          request_type_id?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_type_workflows_request_type_id_fkey"
+            columns: ["request_type_id"]
+            isOneToOne: false
+            referencedRelation: "request_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_types: {
         Row: {
           article_ref: string | null
@@ -4032,6 +4255,212 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: []
+      }
+      student_request_workflow_events: {
+        Row: {
+          actor_role_id: string | null
+          actor_unit_id: string | null
+          actor_user_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          message_ar: string | null
+          message_en: string | null
+          payload: Json
+          student_request_id: string
+          visible_to_student: boolean
+          workflow_step_runtime_id: string | null
+        }
+        Insert: {
+          actor_role_id?: string | null
+          actor_unit_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          message_ar?: string | null
+          message_en?: string | null
+          payload?: Json
+          student_request_id: string
+          visible_to_student?: boolean
+          workflow_step_runtime_id?: string | null
+        }
+        Update: {
+          actor_role_id?: string | null
+          actor_unit_id?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          message_ar?: string | null
+          message_en?: string | null
+          payload?: Json
+          student_request_id?: string
+          visible_to_student?: boolean
+          workflow_step_runtime_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_request_workflow_events_actor_role_id_fkey"
+            columns: ["actor_role_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_events_actor_unit_id_fkey"
+            columns: ["actor_unit_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_events_student_request_id_fkey"
+            columns: ["student_request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_events_workflow_step_runtime_id_fkey"
+            columns: ["workflow_step_runtime_id"]
+            isOneToOne: false
+            referencedRelation: "student_request_workflow_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_request_workflow_steps: {
+        Row: {
+          assigned_faculty_profile_id: string | null
+          assigned_position_assignment_id: string | null
+          assigned_staff_profile_id: string | null
+          assigned_user_id: string | null
+          comment: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          decision: string | null
+          entered_at: string | null
+          id: string
+          metadata: Json
+          processing_role_id: string | null
+          processing_unit_id: string | null
+          status: string
+          step_key: string
+          step_name_ar: string
+          step_order: number
+          student_request_id: string
+          updated_at: string
+          workflow_id: string | null
+          workflow_step_id: string | null
+        }
+        Insert: {
+          assigned_faculty_profile_id?: string | null
+          assigned_position_assignment_id?: string | null
+          assigned_staff_profile_id?: string | null
+          assigned_user_id?: string | null
+          comment?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          decision?: string | null
+          entered_at?: string | null
+          id?: string
+          metadata?: Json
+          processing_role_id?: string | null
+          processing_unit_id?: string | null
+          status?: string
+          step_key: string
+          step_name_ar: string
+          step_order: number
+          student_request_id: string
+          updated_at?: string
+          workflow_id?: string | null
+          workflow_step_id?: string | null
+        }
+        Update: {
+          assigned_faculty_profile_id?: string | null
+          assigned_position_assignment_id?: string | null
+          assigned_staff_profile_id?: string | null
+          assigned_user_id?: string | null
+          comment?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          decision?: string | null
+          entered_at?: string | null
+          id?: string
+          metadata?: Json
+          processing_role_id?: string | null
+          processing_unit_id?: string | null
+          status?: string
+          step_key?: string
+          step_name_ar?: string
+          step_order?: number
+          student_request_id?: string
+          updated_at?: string
+          workflow_id?: string | null
+          workflow_step_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "srw_steps_assigned_faculty_profile_id_fk"
+            columns: ["assigned_faculty_profile_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "srw_steps_assigned_position_assignment_id_fk"
+            columns: ["assigned_position_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "position_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "srw_steps_assigned_staff_profile_id_fk"
+            columns: ["assigned_staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_steps_processing_role_id_fkey"
+            columns: ["processing_role_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_steps_processing_unit_id_fkey"
+            columns: ["processing_unit_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_units"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_steps_student_request_id_fkey"
+            columns: ["student_request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_steps_workflow_id_fkey"
+            columns: ["workflow_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_workflow_steps_workflow_step_id_fkey"
+            columns: ["workflow_step_id"]
+            isOneToOne: false
+            referencedRelation: "request_type_workflow_steps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_requests: {
         Row: {
