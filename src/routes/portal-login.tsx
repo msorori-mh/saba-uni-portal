@@ -57,7 +57,7 @@ function PortalLoginPage() {
 function PortalSelector() {
   const cards: AccountType[] = ["student", "faculty", "staff"];
   return (
-    <section dir="rtl" className="relative min-h-[calc(100vh-200px)] bg-hero-gradient text-primary-foreground overflow-hidden flex items-center">
+    <section dir="rtl" className="relative bg-hero-gradient text-primary-foreground overflow-hidden py-12 md:py-16">
       <div className="absolute inset-0 bg-overlay-gradient" />
       <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
       <div className="absolute -right-32 -bottom-32 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />
@@ -196,7 +196,7 @@ function SinglePortalLogin({ accountType }: { accountType: AccountType }) {
   const Icon = cfg.Icon;
 
   return (
-    <section dir="rtl" className="relative min-h-[calc(100vh-200px)] bg-hero-gradient text-primary-foreground overflow-hidden flex items-center">
+    <section dir="rtl" className="relative bg-hero-gradient text-primary-foreground overflow-hidden py-12 md:py-16">
       <div className="absolute inset-0 bg-overlay-gradient" />
       <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-gold/15 blur-3xl" />
       <div className="absolute -right-32 -bottom-32 h-96 w-96 rounded-full bg-primary/30 blur-3xl" />

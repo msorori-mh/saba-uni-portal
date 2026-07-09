@@ -8,6 +8,7 @@ import {
 import collegeLogo from "@/assets/college-logo.jpg";
 import universityLogo from "@/assets/university-logo.jpeg.asset.json";
 import techPattern from "@/assets/tech-pattern.jpg";
+import { StatCard } from "@/components/brand";
 import { eventsQuery, liveCountsQuery, newsQuery, programsQuery, settingsQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
@@ -242,23 +243,15 @@ function HomePage() {
 
       {/* ============ STATS ============ */}
       <section className="container mx-auto px-4 py-10 md:py-12">
-        <div className="grid grid-cols-2 gap-3 md:gap-5 md:grid-cols-4">
+        <div className="card-grid md:grid-cols-4">
           {stats.map((s) => (
-            <div key={s.label} className="group rounded-xl border border-border bg-card p-4 md:p-5 text-center shadow-card transition-all hover:-translate-y-1 hover:shadow-elegant hover:border-gold/50">
-              <div className="mx-auto grid h-10 w-10 md:h-12 md:w-12 place-items-center rounded-full bg-secondary text-primary group-hover:bg-gold-gradient group-hover:text-primary-deep">
-                <s.Icon className="h-5 w-5 md:h-6 md:w-6" strokeWidth={2.2} />
-              </div>
-              {s.value ? (
-                <>
-                  <div className="mt-2 font-display text-2xl md:text-3xl font-extrabold text-primary">{s.value}</div>
-                  <div className="mt-0.5 text-[11px] md:text-xs font-semibold text-muted-foreground">{s.label}</div>
-                </>
-              ) : (
-                <div className="mt-2 font-display text-sm md:text-base font-extrabold text-primary leading-tight">
-                  {s.label}
-                </div>
-              )}
-            </div>
+            <StatCard
+              key={s.label}
+              icon={s.Icon}
+              label={s.label}
+              value={s.value ?? s.label}
+              className="text-center [&_p:last-of-type]:text-base [&_p:last-of-type]:md:text-lg"
+            />
           ))}
         </div>
       </section>

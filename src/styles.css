@@ -7,14 +7,16 @@
 /* Arabic fonts loaded via <link> in src/routes/__root.tsx */
 
 @theme inline {
-  --font-sans: "Cairo", system-ui, sans-serif;
-  --font-display: "Tajawal", "Cairo", system-ui, sans-serif;
+  --font-sans: "Tajawal", system-ui, sans-serif;
+  --font-display: "Alexandria", "Tajawal", system-ui, sans-serif;
+  --font-en: "Inter", system-ui, sans-serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
+  --radius-card: var(--radius-card);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -24,7 +26,9 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-dark: var(--primary-dark);
   --color-primary-deep: var(--primary-deep);
+  --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -32,6 +36,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-gold: var(--gold);
+  --color-gold-dark: var(--gold-dark);
   --color-gold-soft: var(--gold-soft);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
@@ -43,59 +48,63 @@
 
 :root {
   --radius: 0.5rem;
+  --radius-card: 1rem;
 
-  /* Brand: deep navy + gold (University of Saba Region) */
-  --background: oklch(0.985 0.005 240);
-  --foreground: oklch(0.18 0.04 255);
-  --surface: oklch(0.97 0.008 240);
+  /* Brand: Saba Region — teal primary + gold accent */
+  --background: oklch(0.98 0.005 230);       /* #F6F8F9 */
+  --foreground: oklch(0.32 0.05 230);          /* #12384D */
+  --surface: oklch(1 0 0);                     /* #FFFFFF */
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.04 255);
+  --card-foreground: oklch(0.32 0.05 230);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.04 255);
+  --popover-foreground: oklch(0.32 0.05 230);
 
-  --primary: oklch(0.28 0.08 255);        /* deep navy */
-  --primary-deep: oklch(0.20 0.07 255);   /* darker navy */
-  --primary-foreground: oklch(0.99 0.005 240);
+  --primary: oklch(0.45 0.08 230);             /* #0B6384 */
+  --primary-dark: oklch(0.37 0.07 230);        /* #064B68 */
+  --primary-deep: oklch(0.32 0.05 230);        /* #12384D */
+  --primary-soft: oklch(0.96 0.015 230);       /* #EAF3F7 */
+  --primary-foreground: oklch(0.99 0.005 230);
 
-  --gold: oklch(0.72 0.13 80);            /* warm gold */
-  --gold-soft: oklch(0.88 0.08 85);
+  --gold: oklch(0.72 0.15 80);                 /* #E3A313 */
+  --gold-dark: oklch(0.55 0.13 75);            /* #A96D00 */
+  --gold-soft: oklch(0.97 0.04 85);            /* #FFF3D6 */
 
-  --secondary: oklch(0.94 0.015 240);
-  --secondary-foreground: oklch(0.22 0.06 255);
-  --muted: oklch(0.95 0.01 240);
-  --muted-foreground: oklch(0.48 0.03 255);
-  --accent: oklch(0.92 0.025 245);
-  --accent-foreground: oklch(0.22 0.06 255);
+  --secondary: oklch(0.96 0.015 230);
+  --secondary-foreground: oklch(0.37 0.07 230);
+  --muted: oklch(0.95 0.01 230);
+  --muted-foreground: oklch(0.52 0.03 230);    /* #667985 */
+  --accent: oklch(0.96 0.015 230);
+  --accent-foreground: oklch(0.37 0.07 230);
 
   --destructive: oklch(0.57 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
 
-  --border: oklch(0.90 0.012 240);
-  --input: oklch(0.92 0.012 240);
-  --ring: oklch(0.72 0.13 80);
+  --border: oklch(0.90 0.012 230);             /* #D9E3E8 */
+  --input: oklch(0.92 0.012 230);
+  --ring: oklch(0.72 0.15 80);
 
   /* Gradients & shadows */
-  --gradient-hero: linear-gradient(135deg, oklch(0.18 0.07 255) 0%, oklch(0.28 0.10 258) 60%, oklch(0.35 0.12 260) 100%);
-  --gradient-gold: linear-gradient(135deg, oklch(0.78 0.14 82) 0%, oklch(0.65 0.13 75) 100%);
-  --gradient-overlay: linear-gradient(180deg, oklch(0.15 0.06 255 / 0.55) 0%, oklch(0.18 0.07 255 / 0.92) 100%);
+  --gradient-hero: linear-gradient(135deg, oklch(0.32 0.05 230) 0%, oklch(0.37 0.07 230) 50%, oklch(0.45 0.08 230) 100%);
+  --gradient-gold: linear-gradient(135deg, oklch(0.78 0.14 82) 0%, oklch(0.72 0.15 80) 50%, oklch(0.55 0.13 75) 100%);
+  --gradient-overlay: linear-gradient(180deg, oklch(0.32 0.05 230 / 0.55) 0%, oklch(0.37 0.07 230 / 0.92) 100%);
 
-  --shadow-elegant: 0 20px 50px -20px oklch(0.20 0.07 255 / 0.35);
-  --shadow-gold: 0 12px 30px -10px oklch(0.72 0.13 80 / 0.45);
-  --shadow-card: 0 2px 12px -4px oklch(0.20 0.07 255 / 0.10);
+  --shadow-elegant: 0 20px 50px -20px oklch(0.32 0.05 230 / 0.35);
+  --shadow-gold: 0 12px 30px -10px oklch(0.72 0.15 80 / 0.45);
+  --shadow-card: 0 2px 12px -4px oklch(0.32 0.05 230 / 0.10);
 }
 
 .dark {
-  --background: oklch(0.13 0.04 255);
-  --foreground: oklch(0.97 0.008 240);
-  --surface: oklch(0.17 0.05 255);
-  --card: oklch(0.18 0.05 255);
-  --card-foreground: oklch(0.97 0.008 240);
+  --background: oklch(0.13 0.04 230);
+  --foreground: oklch(0.97 0.008 230);
+  --surface: oklch(0.17 0.05 230);
+  --card: oklch(0.18 0.05 230);
+  --card-foreground: oklch(0.97 0.008 230);
   --primary: oklch(0.85 0.10 82);
-  --primary-foreground: oklch(0.15 0.05 255);
+  --primary-foreground: oklch(0.15 0.05 230);
   --border: oklch(1 0 0 / 0.10);
-  --muted: oklch(0.22 0.05 255);
-  --muted-foreground: oklch(0.72 0.02 240);
+  --muted: oklch(0.22 0.05 230);
+  --muted-foreground: oklch(0.72 0.02 230);
 }
 
 @layer base {
@@ -114,6 +123,10 @@
     font-family: var(--font-display);
     letter-spacing: -0.01em;
   }
+
+  [dir="ltr"], .font-en {
+    font-family: var(--font-en);
+  }
 }
 
 @layer utilities {
@@ -130,6 +143,13 @@
     width: 4rem; height: 4px; border-radius: 9999px;
     background: var(--gradient-gold);
   }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    align-items: start;
+    gap: 1rem;
+  }
 }
 
 @keyframes float-up {
@@ -138,9 +158,18 @@
 }
 .animate-float-up { animation: float-up 0.7s ease-out both; }
 
-/* PILOT-MEDIUM-FIX-01 (F-13): indeterminate progress bar for report loading */
 @keyframes report-progress {
   0%   { transform: translateX(-100%); }
   50%  { transform: translateX(150%); }
   100% { transform: translateX(350%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-float-up { animation: none; }
 }

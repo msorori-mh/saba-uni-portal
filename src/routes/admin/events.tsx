@@ -114,7 +114,7 @@ function AdminEventsPage() {
         </div>
         <Button
           onClick={() => { setEditing(null); setOpen(true); }}
-          style={{ backgroundColor: "#d4af37", color: "#000" }}
+          variant="gold"
         >
           <Plus className="ml-2 h-4 w-4" /> فعالية جديدة
         </Button>
@@ -419,7 +419,7 @@ function EventFormDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
-          <Button onClick={handleSave} disabled={saving} style={{ backgroundColor: "#d4af37", color: "#000" }}>
+          <Button onClick={handleSave} disabled={saving} variant="gold">
             {saving && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
             حفظ
           </Button>

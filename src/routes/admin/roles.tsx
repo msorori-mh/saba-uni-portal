@@ -52,7 +52,7 @@ function RolesPage() {
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm">{error}</div>
       )}
 
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-2xl border border-border bg-card shadow-card">
         {isLoading ? (
           <div className="p-8 grid place-items-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
         ) : (

@@ -25,7 +25,7 @@ export function ProgressSummary({ d }: { d: StudentProgressDTO }) {
   return (
     <div className="space-y-5">
       {/* Student summary */}
-      <div className="rounded-xl border bg-card p-4">
+      <div className="rounded-2xl border border-border bg-card shadow-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-lg bg-gold-gradient text-primary-deep">
@@ -81,7 +81,7 @@ export function DegreeAudit({ d }: { d: StudentProgressDTO }) {
   return (
     <div className="space-y-4">
       {Array.from(groups.entries()).map(([level, items]) => (
-        <div key={level} className="rounded-xl border bg-card overflow-hidden">
+        <div key={level} className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
           <div className="bg-muted/40 px-3 py-2 text-sm font-bold text-primary border-b">{level}</div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -143,7 +143,7 @@ export function EligibilityCard({ d }: { d: StudentProgressDTO }) {
       </div>
 
       {d.eligibility.missing_graduation_requirements.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-2xl border border-border bg-card shadow-card p-4">
           <div className="font-bold text-primary mb-2">أسباب عدم الأهلية</div>
           <ul className="list-disc pr-5 space-y-1 text-sm">
             {d.eligibility.missing_graduation_requirements.map((r) => <li key={r}>{r}</li>)}
@@ -161,7 +161,7 @@ export function EligibilityCard({ d }: { d: StudentProgressDTO }) {
       )}
 
       {d.eligibility.missing_required_courses.length > 0 && (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
           <div className="bg-muted/40 px-3 py-2 text-sm font-bold text-primary border-b">المقررات الإجبارية الناقصة</div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
@@ -200,7 +200,7 @@ function Stat({ label, value, accent }: { label: string; value: string | number;
     : accent === "bad" ? "text-red-700"
     : accent === "info" ? "text-sky-700" : "text-primary";
   return (
-    <div className="rounded-xl border bg-card p-3">
+    <div className="rounded-2xl border border-border bg-card shadow-card p-3">
       <div className="text-[11px] text-muted-foreground">{label}</div>
       <div className={cn("font-display text-2xl font-extrabold mt-1", accentCls)}>{value}</div>
     </div>

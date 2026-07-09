@@ -101,7 +101,7 @@ function AcademicOpsPage() {
       </div>
 
       {/* Quick actions: set current year/semester */}
-      <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-2">
+      <div className="rounded-2xl border border-border bg-card shadow-card p-4 grid gap-3 sm:grid-cols-2">
         <div>
           <div className="text-xs font-bold text-muted-foreground mb-1.5">السنة الأكاديمية الحالية</div>
           {context.isLoading ? (
@@ -220,7 +220,7 @@ function AcademicOpsPage() {
       </div>
 
       {/* Quick links */}
-      <div className="rounded-xl border bg-card">
+      <div className="rounded-2xl border border-border bg-card shadow-card">
         <div className="px-4 py-2.5 bg-muted/50 border-b text-sm font-bold text-primary">روابط سريعة</div>
         <div className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <QuickLink to="/admin/academic-core" icon={CalendarRange} label="البنية الأكاديمية" desc="السنوات والفصول والمستويات" />
@@ -247,7 +247,7 @@ function KpiCard({
   return (
     <Link
       to={to}
-      className={`group rounded-xl border bg-card p-4 hover:border-primary hover:shadow-md transition ${
+      className={`group rounded-2xl border border-border bg-card shadow-card p-4 hover:border-primary hover:shadow-md transition ${
         highlight === "warn" ? "border-amber-300 bg-amber-50/40" : ""
       }`}
     >

@@ -222,7 +222,7 @@ export function AdminShell({
       <aside
         className={cn(
           "fixed lg:sticky top-0 right-0 z-40 h-screen w-72 shrink-0 flex flex-col text-primary-foreground transition-transform duration-300",
-          "bg-[oklch(0.22_0.07_255)]",
+          "bg-primary-deep",
           mobileOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0",
         )}
       >
@@ -358,10 +358,12 @@ export function AdminShell({
               {userEmail.charAt(0).toUpperCase()}
             </div>
             <button
+              type="button"
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-bold text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              aria-label="تسجيل الخروج"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-2 text-xs font-bold text-destructive transition-colors hover:bg-destructive hover:text-destructive-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <LogOut className="h-3.5 w-3.5" /> خروج
+              <LogOut className="h-3.5 w-3.5" aria-hidden /> خروج
             </button>
           </div>
         </header>

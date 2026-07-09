@@ -111,7 +111,7 @@ function AutomationPage() {
           const s = map.get(k);
           const Icon = m.icon;
           return (
-            <div key={k} className="rounded-xl border bg-card p-4">
+            <div key={k} className="rounded-2xl border border-border bg-card shadow-card p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Icon className={`h-5 w-5 ${m.tone}`} />
@@ -135,7 +135,7 @@ function AutomationPage() {
           const s = map.get(k);
           const Icon = m.icon;
           return (
-            <div key={k} className="rounded-xl border bg-card p-5 space-y-4">
+            <div key={k} className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <Icon className={`h-6 w-6 ${m.tone} mt-0.5`} />

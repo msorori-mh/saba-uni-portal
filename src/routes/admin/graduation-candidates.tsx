@@ -72,7 +72,7 @@ function GraduationCandidatesPage() {
         </Button>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 grid gap-3 sm:grid-cols-3">
+      <div className="rounded-2xl border border-border bg-card shadow-card p-4 grid gap-3 sm:grid-cols-3">
         <FilterSelect label="البرنامج" value={programId} onChange={setProgramId} options={lookups.data?.programs.map((p) => ({ value: p.id, label: p.name_ar })) ?? []} />
         <FilterSelect label="القسم" value={departmentId} onChange={setDepartmentId} options={lookups.data?.departments.map((p) => ({ value: p.id, label: p.name_ar })) ?? []} />
         <FilterSelect label="المستوى" value={levelId} onChange={setLevelId} options={lookups.data?.levels.map((p) => ({ value: p.id, label: p.name })) ?? []} />
@@ -83,7 +83,7 @@ function GraduationCandidatesPage() {
       ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">لا يوجد مرشحون مطابقون للفلاتر.</div>
       ) : (
-        <div className="rounded-xl border bg-card overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card shadow-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead className="bg-muted/40">

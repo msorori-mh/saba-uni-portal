@@ -20,16 +20,15 @@ function NotFoundComponent() {
   return (
     <div
       dir="rtl"
-      className="flex min-h-dvh items-center justify-center px-4 text-primary-foreground"
-      style={{ background: "linear-gradient(135deg, oklch(0.22 0.07 220), oklch(0.16 0.05 230))" }}
+      className="flex min-h-dvh items-center justify-center bg-hero-gradient px-4 text-primary-foreground"
     >
       <div className="max-w-lg text-center">
         <img
           src={collegeLogo}
           alt="شعار كلية تكنولوجيا المعلومات"
-          className="mx-auto h-24 w-24 rounded-full border-2 border-[color:var(--gold,#d4af37)] object-cover shadow-2xl"
+          className="mx-auto h-24 w-24 rounded-full border-2 border-gold object-cover shadow-elegant"
         />
-        <h1 className="mt-8 text-8xl font-extrabold tracking-tight" style={{ color: "#d4af37" }}>
+        <h1 className="mt-8 text-8xl font-extrabold tracking-tight text-gold">
           404
         </h1>
         <h2 className="mt-4 text-2xl font-bold">الصفحة غير موجودة</h2>
@@ -39,8 +38,7 @@ function NotFoundComponent() {
         <div className="mt-8">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-bold shadow-lg transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
-            style={{ backgroundColor: "#d4af37", color: "#0a2540" }}
+            className="inline-flex items-center justify-center rounded-md bg-gold-gradient px-6 py-3 text-sm font-bold text-primary-deep shadow-gold transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2"
           >
             ← العودة للرئيسية
           </Link>
@@ -58,13 +56,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+    <div dir="rtl" className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center" role="alert" aria-live="assertive">
+        <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
+          تعذّر تحميل الصفحة
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          حدث خطأ أثناء التحميل. يمكنك المحاولة مرة أخرى أو العودة للرئيسية.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -72,15 +70,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Try again
+            إعادة المحاولة
           </button>
           <a
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            Go home
+            العودة للرئيسية
           </a>
         </div>
       </div>
@@ -110,7 +108,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "apple-touch-icon", href: collegeLogo },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800;900&display=swap" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600;700;800&family=Tajawal:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" },
     ],
     scripts: [{
       type: "application/ld+json",
