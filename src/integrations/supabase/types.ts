@@ -2727,6 +2727,208 @@ export type Database = {
         }
         Relationships: []
       }
+      request_processing_assignments: {
+        Row: {
+          assignment_type: string
+          created_at: string
+          department_id: string | null
+          ends_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_active: boolean
+          position_assignment_id: string | null
+          role_id: string | null
+          staff_profile_id: string | null
+          starts_at: string | null
+          unit_id: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          assignment_type: string
+          created_at?: string
+          department_id?: string | null
+          ends_at?: string | null
+          faculty_profile_id?: string | null
+          id?: string
+          is_active?: boolean
+          position_assignment_id?: string | null
+          role_id?: string | null
+          staff_profile_id?: string | null
+          starts_at?: string | null
+          unit_id: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          assignment_type?: string
+          created_at?: string
+          department_id?: string | null
+          ends_at?: string | null
+          faculty_profile_id?: string | null
+          id?: string
+          is_active?: boolean
+          position_assignment_id?: string | null
+          role_id?: string | null
+          staff_profile_id?: string | null
+          starts_at?: string | null
+          unit_id?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_processing_assignments_department_id_fk"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_processing_assignments_faculty_profile_id_fk"
+            columns: ["faculty_profile_id"]
+            isOneToOne: false
+            referencedRelation: "faculty_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_processing_assignments_position_assignment_id_fk"
+            columns: ["position_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "position_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_processing_assignments_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_processing_assignments_staff_profile_id_fk"
+            columns: ["staff_profile_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_processing_assignments_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_processing_roles: {
+        Row: {
+          app_role: string | null
+          code: string
+          created_at: string
+          description_ar: string | null
+          id: string
+          is_active: boolean
+          is_managerial: boolean
+          name_ar: string
+          name_en: string | null
+          position_code: string | null
+          sort_order: number
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          app_role?: string | null
+          code: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          is_managerial?: boolean
+          name_ar: string
+          name_en?: string | null
+          position_code?: string | null
+          sort_order?: number
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          app_role?: string | null
+          code?: string
+          created_at?: string
+          description_ar?: string | null
+          id?: string
+          is_active?: boolean
+          is_managerial?: boolean
+          name_ar?: string
+          name_en?: string | null
+          position_code?: string | null
+          sort_order?: number
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_processing_roles_position_code_fk"
+            columns: ["position_code"]
+            isOneToOne: false
+            referencedRelation: "organizational_positions"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "request_processing_roles_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      request_processing_units: {
+        Row: {
+          code: string
+          created_at: string
+          default_app_role: string | null
+          description_ar: string | null
+          id: string
+          is_academic_unit: boolean
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          portal_scope: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          default_app_role?: string | null
+          description_ar?: string | null
+          id?: string
+          is_academic_unit?: boolean
+          is_active?: boolean
+          name_ar: string
+          name_en?: string | null
+          portal_scope?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          default_app_role?: string | null
+          description_ar?: string | null
+          id?: string
+          is_academic_unit?: boolean
+          is_active?: boolean
+          name_ar?: string
+          name_en?: string | null
+          portal_scope?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       request_types: {
         Row: {
           article_ref: string | null
