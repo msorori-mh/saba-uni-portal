@@ -5015,6 +5015,19 @@ export type Database = {
       }
     }
     Functions: {
+      act_on_student_request_step: {
+        Args: {
+          p_action: string
+          p_comment?: string
+          p_payload?: Json
+          p_step_id: string
+        }
+        Returns: Json
+      }
+      admin_get_request_workflow_config: {
+        Args: { p_request_type_id: string }
+        Returns: Json
+      }
       admin_mark_faculty_password_reset: {
         Args: { _profile_id: string }
         Returns: {
@@ -5086,6 +5099,14 @@ export type Database = {
       }
       can_add_council_topic_attachment: {
         Args: { _topic_id: string }
+        Returns: boolean
+      }
+      can_current_user_access_request: {
+        Args: { p_request_id: string }
+        Returns: boolean
+      }
+      can_current_user_act_on_step: {
+        Args: { p_action: string; p_step_id: string }
         Returns: boolean
       }
       can_manage_council: {
@@ -5172,6 +5193,24 @@ export type Database = {
           profile_status: string
         }[]
       }
+      current_user_app_roles: { Args: never; Returns: string[] }
+      current_user_processing_assignments: {
+        Args: never
+        Returns: {
+          assignment_id: string
+          assignment_type: string
+          department_id: string
+          is_academic_unit: boolean
+          is_managerial: boolean
+          portal_scope: string
+          role_code: string
+          role_id: string
+          role_name_ar: string
+          unit_code: string
+          unit_id: string
+          unit_name_ar: string
+        }[]
+      }
       find_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
       generate_document_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
@@ -5195,6 +5234,28 @@ export type Database = {
         }[]
       }
       get_hardening_status: { Args: never; Returns: Json }
+      get_my_request_actor_inbox: {
+        Args: { p_filters?: Json; p_limit?: number; p_offset?: number }
+        Returns: {
+          department_id: string
+          department_name_ar: string
+          is_actionable: boolean
+          processing_role_id: string
+          processing_role_name_ar: string
+          processing_unit_id: string
+          processing_unit_name_ar: string
+          request_type_code: string
+          request_type_name_ar: string
+          step_key: string
+          step_name_ar: string
+          step_status: string
+          student_id: string
+          student_name: string
+          student_request_id: string
+          submitted_at: string
+          workflow_step_runtime_id: string
+        }[]
+      }
       get_my_student_requests: {
         Args: { p_limit?: number; p_offset?: number }
         Returns: {
@@ -5209,6 +5270,10 @@ export type Database = {
           title: string
           updated_at: string
         }[]
+      }
+      get_student_request_detail_for_actor: {
+        Args: { p_request_id: string }
+        Returns: Json
       }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
@@ -5234,6 +5299,16 @@ export type Database = {
         Args: { _council: string; _user: string }
         Returns: boolean
       }
+      is_current_user_admin_actor: { Args: never; Returns: boolean }
+      is_current_user_dean_for_student: {
+        Args: { p_student_profile_id: string }
+        Returns: boolean
+      }
+      is_current_user_department_head_for_student: {
+        Args: { p_student_profile_id: string }
+        Returns: boolean
+      }
+      is_current_user_registrar: { Args: never; Returns: boolean }
       is_department_head_of: {
         Args: { _dept_id: string; _user_id: string }
         Returns: boolean
@@ -5268,6 +5343,10 @@ export type Database = {
       }
       is_student_of_enrollment: {
         Args: { _enrollment_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_valid_actor_request_action: {
+        Args: { p_action: string }
         Returns: boolean
       }
       issue_official_document: {
@@ -5344,6 +5423,10 @@ export type Database = {
       }
       user_can_see_announcement: {
         Args: { _ann_id: string; _uid: string }
+        Returns: boolean
+      }
+      user_matches_workflow_runtime_step: {
+        Args: { p_step_id: string }
         Returns: boolean
       }
       validate_financial_transaction: {
