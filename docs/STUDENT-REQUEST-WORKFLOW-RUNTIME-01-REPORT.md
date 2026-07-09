@@ -118,8 +118,24 @@
 
 - `SECURITY DEFINER`, `set search_path = public`.
 - لا تقبل `user_id` خارجي.
-- تحقق ملكية/صلاحية: مالك الطلب أو registrar أو admin actor.
+- **Auth gate صريح:** `IF v_uid IS NULL` → `ERRCODE 28000` قبل أي استعلام حساس (G7 security remediation).
+- تحقق ملكية/صلاحية: مالك الطلب أو registrar أو admin actor (يُطبَّق دائماً بعد auth gate).
 - **لا GRANT** للعميل — داخلية تُستدعى من `submit_student_request`.
+- **REVOKE صريح** من `PUBLIC`, `anon`, `authenticated` للدوال الداخلية (انظر §9 و§15).
+
+---
+
+## 15. G7 Security Remediation (PORTAL-PRODUCTION-MIGRATIONS-G7-PRE-APPLY-SECURITY-REMEDIATION-01)
+
+| البند | التفاصيل |
+|-------|----------|
+| **السبب** | default privileges في المشروع تمنح `anon` صلاحية EXECUTE على دوال جديدة |
+| **المخاطرة** | `initialize_student_request_workflow` كانت تتخطى فحص المالك عند `auth.uid() IS NULL` |
+| **الإصلاح** | auth gate `28000` + REVOKE صريح من `anon`/`authenticated` للدوال الداخلية |
+| **ملاحظة** | `REVOKE FROM PUBLIC` وحده **غير كافٍ** — يجب سحب `anon` و`authenticated` صراحة |
+| **submit** | `REVOKE FROM PUBLIC, anon` + `GRANT EXECUTE TO authenticated` فقط |
+| **التطبيق** | ❌ لم يُطبَّق على DB — تصحيح مصدر فقط |
+| **التقرير** | `docs/PORTAL-PRODUCTION-MIGRATIONS-G7-PRE-APPLY-SECURITY-REMEDIATION-01-REPORT.md` |
 
 ---
 
@@ -176,12 +192,13 @@ RETURN true;
 
 ## 9. Grants
 
-| الدالة | PUBLIC | authenticated | ملاحظة |
-|--------|--------|---------------|--------|
-| `get_active_workflow_for_request_type(uuid)` | REVOKE ALL | — | داخلية |
-| `initialize_student_request_workflow(uuid)` | REVOKE ALL | — | داخلية |
-| `submit_student_request(uuid)` | REVOKE ALL | GRANT EXECUTE | RPC للطالب |
-| **anon** | — | ❌ لا منح | |
+| الدالة | PUBLIC | anon | authenticated | ملاحظة |
+|--------|--------|------|---------------|--------|
+| `get_active_workflow_for_request_type(uuid)` | REVOKE ALL | REVOKE ALL | REVOKE ALL | داخلية — لا GRANT |
+| `initialize_student_request_workflow(uuid)` | REVOKE ALL | REVOKE ALL | REVOKE ALL | داخلية — لا GRANT |
+| `submit_student_request(uuid)` | REVOKE ALL | REVOKE ALL | GRANT EXECUTE | RPC للطالب المسجّل فقط |
+
+**G7 remediation:** سحب صريح من `anon` و`authenticated` للدوال الداخلية لأن default privileges تمنح `anon` EXECUTE تلقائياً. `REVOKE FROM PUBLIC` وحده لا يكفي في هذا المشروع.
 
 ---
 
