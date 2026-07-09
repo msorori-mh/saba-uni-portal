@@ -2736,8 +2736,10 @@ export type Database = {
           description_ar: string | null
           form_schema: Json
           id: string
+          ineligible_display_mode: string
           is_active: boolean
           name_ar: string
+          request_audience: string
           required_documents: Json
           requires_attachment: boolean
           sort_order: number
@@ -2754,8 +2756,10 @@ export type Database = {
           description_ar?: string | null
           form_schema?: Json
           id?: string
+          ineligible_display_mode?: string
           is_active?: boolean
           name_ar: string
+          request_audience?: string
           required_documents?: Json
           requires_attachment?: boolean
           sort_order?: number
@@ -2772,8 +2776,10 @@ export type Database = {
           description_ar?: string | null
           form_schema?: Json
           id?: string
+          ineligible_display_mode?: string
           is_active?: boolean
           name_ar?: string
+          request_audience?: string
           required_documents?: Json
           requires_attachment?: boolean
           sort_order?: number
@@ -3895,7 +3901,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_requests_type_request_types_code_fk"
+            columns: ["request_type"]
+            isOneToOne: false
+            referencedRelation: "request_types"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       student_service_request_events: {
         Row: {
