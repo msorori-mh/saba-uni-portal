@@ -4,11 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Arabic fonts (Cairo + Tajawal) loaded via <link> in src/routes/__root.tsx */
+/* Arabic fonts (Cairo + Amiri) loaded via <link> in src/routes/__root.tsx */
 
 @theme inline {
   --font-sans: "Cairo", system-ui, sans-serif;
-  --font-display: "Tajawal", "Cairo", system-ui, sans-serif;
+  --font-display: "Amiri", "Times New Roman", "Cairo", serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -82,19 +82,19 @@
   --gold-dark: #5F4A1E;
   --gold-soft: #F1EADB;
 
-  --secondary: #E8EEF4;
+  --secondary: #E5E7EB;
   --secondary-foreground: #061F33;
-  --muted: #EEF2F5;
+  --muted: #F1F3F5;
   --muted-foreground: #4B5563;
-  --accent: #8A6A2B;
-  --accent-foreground: #111827;
+  --accent: #1E4E78;
+  --accent-foreground: #FFFFFF;
 
   --destructive: oklch(0.57 0.22 27);
   --destructive-foreground: #FFFFFF;
 
   --border: #D1D5DB;
   --input: #D1D5DB;
-  --ring: #8A6A2B;
+  --ring: #1E4E78;
 
   /* Sidebar (uses deep header color) */
   --sidebar: #061F33;
