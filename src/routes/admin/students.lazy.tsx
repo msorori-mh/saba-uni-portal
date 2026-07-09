@@ -1470,15 +1470,15 @@ function CredentialsSlip({
     if (!w) return;
     w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
       <style>
-        body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:32px;color:#102333;}
+        body{font-family:'Amiri','Times New Roman',serif;padding:32px;color:#111827;}
         h1{font-size:18px;margin:0 0 8px;text-align:center;}
-        h2{font-size:14px;margin:0 0 24px;text-align:center;color:#667985;font-weight:normal;}
-        .box{border:2px solid #105B7D;border-radius:8px;padding:20px;margin-top:16px;}
-        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #DDE6EA;font-size:14px;}
+        h2{font-size:14px;margin:0 0 24px;text-align:center;color:#4B5563;font-weight:normal;}
+        .box{border:2px solid #0B3D62;border-radius:8px;padding:20px;margin-top:16px;}
+        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #D1D5DB;font-size:14px;}
         .row:last-child{border:0;}
-        .k{color:#667985;}
+        .k{color:#4B5563;}
         .v{font-weight:bold;font-family:'Courier New',monospace;direction:ltr;}
-        .note{margin-top:16px;font-size:11px;color:#667985;line-height:1.7;text-align:right;}
+        .note{margin-top:16px;font-size:11px;color:#4B5563;line-height:1.7;text-align:right;}
       </style></head><body>
       <h1>كلية تكنولوجيا المعلومات وعلوم الحاسوب</h1>
       <h2>بيانات الدخول إلى البوابة الإلكترونية</h2>

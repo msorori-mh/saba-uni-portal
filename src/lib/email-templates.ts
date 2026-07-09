@@ -36,16 +36,16 @@ interface Rendered {
 
 // Brand palette (hex for email clients — no oklch). Scheduling-app aligned.
 const BRAND = {
-  primaryDeep: "#08384E",
-  primary: "#105B7D",
-  gold: "#D99A17",
-  background: "#F7F8FA",
+  primaryDeep: "#061F33",
+  primary: "#0B3D62",
+  gold: "#8A6A2B",
+  background: "#F8FAFC",
   surface: "#FFFFFF",
-  border: "#DDE6EA",
-  muted: "#667985",
-  text: "#102333",
-  mutedBg: "#E6EFF4",
-  goldSoft: "#FBEFD2",
+  border: "#D1D5DB",
+  muted: "#4B5563",
+  text: "#111827",
+  mutedBg: "#E8EEF4",
+  goldSoft: "#F1EADB",
 } as const;
 
 const shell = (title: string, bodyHtml: string, ctx: TemplateContext): string => `<!doctype html>
@@ -54,7 +54,7 @@ const shell = (title: string, bodyHtml: string, ctx: TemplateContext): string =>
 <meta charset="utf-8" />
 <title>${esc(title)}</title>
 </head>
-<body style="margin:0;padding:0;background:${BRAND.background};font-family:'Tajawal','Segoe UI',Tahoma,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:${BRAND.background};font-family:'Cairo','Segoe UI',Tahoma,Arial,sans-serif;">
   <div style="max-width:600px;margin:24px auto;background:${BRAND.surface};border-radius:12px;overflow:hidden;border:1px solid ${BRAND.border};">
     <div style="background:${BRAND.primaryDeep};color:#ffffff;padding:20px 24px;">
       <div style="font-size:13px;opacity:.85;">${esc(ctx.university_name)}</div>
