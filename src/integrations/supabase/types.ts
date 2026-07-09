@@ -4440,6 +4440,10 @@ export type Database = {
         Args: { _discount_id: string }
         Returns: undefined
       }
+      assert_student_can_use_request_type: {
+        Args: { _profile_status: string; _request_audience: string }
+        Returns: undefined
+      }
       audit_resolve_role: { Args: { _user_id: string }; Returns: string }
       can_access_student_service_request: {
         Args: { _request_id: string; _user_id: string }
@@ -4519,13 +4523,62 @@ export type Database = {
         }
         Returns: string
       }
+      create_student_request: {
+        Args: {
+          p_form_data?: Json
+          p_request_type: string
+          p_student_notes?: string
+          p_title: string
+        }
+        Returns: string
+      }
+      current_student_profile_for_auth: {
+        Args: never
+        Returns: {
+          academic_number: string
+          full_name_ar: string
+          profile_id: string
+          profile_status: string
+        }[]
+      }
       find_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
       generate_document_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
       get_admin_dashboard_kpis: { Args: never; Returns: Json }
       get_admin_progress_kpis: { Args: { _limit?: number }; Returns: Json }
       get_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
+      get_available_request_types_for_current_student: {
+        Args: never
+        Returns: {
+          code: string
+          description_ar: string
+          disabled_reason: string
+          id: string
+          ineligible_display_mode: string
+          is_disabled: boolean
+          is_eligible: boolean
+          name_ar: string
+          request_audience: string
+          requires_attachment: boolean
+          sort_order: number
+        }[]
+      }
       get_hardening_status: { Args: never; Returns: Json }
+      get_my_student_requests: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: {
+          created_at: string
+          current_role_key: string
+          id: string
+          request_number: string
+          request_type: string
+          request_type_name_ar: string
+          status: string
+          submitted_at: string
+          title: string
+          updated_at: string
+        }[]
+      }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
         Returns: boolean
@@ -4644,6 +4697,18 @@ export type Database = {
       }
       student_has_approved_grades_for_transcript: {
         Args: { _student_profile_id: string }
+        Returns: boolean
+      }
+      student_request_ineligible_status_message: {
+        Args: never
+        Returns: string
+      }
+      student_request_type_is_eligible: {
+        Args: { _profile_status: string; _request_audience: string }
+        Returns: boolean
+      }
+      submit_student_request: {
+        Args: { p_request_id: string }
         Returns: boolean
       }
       user_can_see_announcement: {
