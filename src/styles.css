@@ -104,10 +104,16 @@
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ring: #8A6A2B;
 
+  /* Legacy hero teal — retained per user request (hero sections only) */
+  --hero-deep: #08384E;
+  --hero-mid: #0B4864;
+  --hero-primary: #105B7D;
+  --hero-foreground: #FFFFFF;
+
   /* Gradients & shadows */
-  --gradient-hero: linear-gradient(135deg, #061F33 0%, #082D48 50%, #0B3D62 100%);
+  --gradient-hero: linear-gradient(135deg, var(--hero-deep) 0%, var(--hero-mid) 50%, var(--hero-primary) 100%);
   --gradient-gold: linear-gradient(135deg, #B08A3A 0%, #8A6A2B 50%, #5F4A1E 100%);
-  --gradient-overlay: linear-gradient(180deg, rgba(6, 31, 51, 0.55) 0%, rgba(8, 45, 72, 0.92) 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(8, 56, 78, 0.55) 0%, rgba(11, 72, 100, 0.92) 100%);
 
   --shadow-elegant: 0 20px 50px -20px rgba(6, 31, 51, 0.35);
   --shadow-gold: 0 12px 30px -10px rgba(138, 106, 43, 0.45);

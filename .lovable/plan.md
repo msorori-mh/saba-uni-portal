@@ -1,72 +1,46 @@
-# PORTAL-USR-FORMAL-BRAND-ADOPT-01
+# PORTAL-USR-FORMAL-BRAND-ADOPT-01 — استكمال + استثناء الهيرو
 
-## الهدف
-استبدال لوحة الألوان الحالية (Teal + Gold) بلوحة **زرقاء مؤسسية وقورة**، واستبدال خط العناوين Tajawal بخط **Amiri** الكلاسيكي الرسمي، مع إبقاء **Cairo** لنصوص المتن. التعديل يتم عبر التوكنز الدلالية في `src/styles.css` فقط، فينعكس تلقائياً على كامل الموقع العام والبوابات دون تعديل أي مكوّن أو تخطيط أو منطق.
+## الوضع
+كل التبديلات في الملفات تمّت (styles.css, __root.tsx, capacitor, manifest, email-templates, offline.html, print CSS، ملفات mobile). المتبقي: إنشاء التقرير + **استثناء الهيرو** ليحتفظ باللون السابق.
 
-## النطاق
-- الصفحة الرئيسية `/` + كامل الموقع العام (Header/Footer/News/Events/…)  
-- البوابات (Student/Faculty/Staff/Admin) ترث نفس التوكنز تلقائياً — لا تعديل مكوّنات
+## التعديل الجديد المطلوب
+الاحتفاظ بلون الهيرو السابق (Teal العميق `#08384E`/`#0B4864`/`#105B7D`) بدل الأزرق المؤسسي الجديد على أقسام الهيرو فقط.
 
-## لوحة الألوان الرسمية الجديدة
+### الأقسام المستهدفة (تستخدم `bg-hero-gradient`)
+- `src/routes/index.tsx` — Hero section (سطر 133) + بطاقات مصغرة (سطر 280) + قسم CTA (سطر 333، `bg-primary-deep`)
+- `src/components/site/PageHeader.tsx` — رأس الصفحات الفرعية
 
-| التوكن | القيمة الجديدة | الاستخدام |
-|---|---|---|
-| `--background` | `#F8FAFC` | خلفية عامة رمادي فاتح جداً |
-| `--foreground` | `#111827` | نص أساسي فحمي |
-| `--primary` | `#0B3D62` | أزرق مؤسسي داكن |
-| `--primary-dark` | `#082D48` | تحويم/أعمق |
-| `--primary-deep` | `#061F33` | الهيدر والسايدبار |
-| `--primary-soft` | `#E8EEF4` | خلفيات مساعدة |
-| `--deep` | `#061F33` | — |
-| `--gold` | `#8A6A2B` | لكنة نحاسية رصينة (بدل الذهبي البراق) |
-| `--gold-dark` | `#5F4A1E` | — |
-| `--gold-soft` | `#F1EADB` | — |
-| `--accent` | `#1E4E78` | أزرق متوسط للتأكيدات |
-| `--secondary` | `#E5E7EB` | رمادي محايد |
-| `--border` / `--input` | `#D1D5DB` | حدود رمادية باردة |
-| `--ring` | `#1E4E78` | حلقة تركيز زرقاء |
-| `--muted` | `#F1F3F5` / fg `#4B5563` | — |
-| Sidebar | `#061F33` / accent `#0B3D62` | — |
-| `--destructive` | يبقى كما هو (وظيفي) | — |
+### التقنية
+إنشاء توكن مستقل للهيرو لا يتأثر بتحديث `--primary-*`:
 
-**Gradients/Shadows** يُعاد ضبطها لتستخدم الأزرق الجديد (بدل التركوازي)، بنفس الأشكال والمسافات — لا تغيير هيكلي.
+في `src/styles.css` `:root`:
+```css
+/* Legacy hero teal — retained per user request */
+--hero-deep: #08384E;
+--hero-mid:  #0B4864;
+--hero-primary: #105B7D;
+--hero-foreground: #FFFFFF;
+--gradient-hero: linear-gradient(135deg, var(--hero-deep) 0%, var(--hero-mid) 50%, var(--hero-primary) 100%);
+--gradient-overlay: linear-gradient(180deg, rgba(8,56,78,0.55) 0%, rgba(11,72,100,0.92) 100%);
+```
 
-## الخطوط
+- `bg-hero-gradient` utility موجود مسبقاً ويقرأ `--gradient-hero` → سيعود للتيل تلقائياً بدون تعديل JSX.
+- قسم CTA (`bg-primary-deep`) في `index.tsx` سطر 333: استبداله بـ `bg-hero-gradient` ليبقى بنفس اللون الأصلي.
+- الهيدر (`Header.tsx` سطر 52 — الشريط العلوي)، السايدبار، الفوتر، وشل البوابات (`PortalShell`) يبقون على الأزرق الجديد `--primary-deep = #061F33` (طابع رسمي كما طُلب).
 
-| التوكن | قبل | بعد |
-|---|---|---|
-| `<link>` في `__root.tsx` | Cairo + Tajawal | **Amiri (400,700) + Cairo (400,500,600,700)** |
-| `--font-sans` | Cairo | **Cairo** (بدون تغيير) |
-| `--font-display` | Tajawal, Cairo | **Amiri, "Times New Roman", serif** |
-| h1–h6 | Tajawal | **Amiri** (طابع رسمي كلاسيكي) |
-| body | Cairo | **Cairo** (بدون تغيير) |
+### نطاق الاستثناء
+- ✅ الهيرو في `/` والأقسام الفرعية (PageHeader)
+- ✅ بطاقة الأخبار المصغّرة داخل الصفحة الرئيسية (نفس الـ gradient)
+- ✅ قسم CTA السفلي في الصفحة الرئيسية
+- ❌ الهيدر العام والفوتر والسايدبار وشل البوابات → أزرق مؤسسي جديد
 
-## الملفات المعدَّلة (قيم فقط — لا هيكل)
-
-1. `src/styles.css` — تحديث `:root` بالتوكنز الجديدة + gradients/shadows بالأزرق  
-2. `src/routes/__root.tsx` — استبدال رابط Google Fonts (Cairo + Amiri)  
-3. `public/manifest.webmanifest` — `theme_color: #061F33`, `background_color: #F8FAFC`  
-4. `capacitor.config.ts` — `backgroundColor` × 3 → `#061F33`  
-5. `src/routes/mobile.student.tsx` — `<meta theme-color>` → `#061F33`  
-6. `src/lib/email-templates.ts` — ثوابت `BRAND` بالقيم الجديدة  
-7. `src/components/admin/people/shared.tsx` + `src/routes/admin/students.lazy.tsx` — قيم Print CSS الجديدة  
-8. `public/offline.html` — ألوان الخلفية/العناوين الجديدة
+## الملفات المعدَّلة الآن
+1. `src/styles.css` — إضافة توكنز `--hero-*` + إعادة تعريف `--gradient-hero` و`--gradient-overlay` بها
+2. `src/routes/index.tsx` — سطر 333: `bg-primary-deep` → `bg-hero-gradient`
+3. إنشاء `docs/PORTAL-USR-FORMAL-BRAND-ADOPT-01-REPORT.md` بجميع التغييرات + استثناء الهيرو
 
 ## ما لن يُلمس
-- أي مكوّن UI (لا props، لا JSX هيكلي)
-- أي route/auth/RLS/RPC/migration/Supabase file
-- منطق العمل، API calls، layout، spacing، radius، animations
-- ملفات auto-gen (`client.ts`, `types.ts`, `routeTree.gen.ts`, `.env`)
-- الوضع الداكن يبقى معرَّفاً كحالة خاملة، محدَّث ليتوافق مع اللوحة الجديدة
-
-## التقنيات
-- Tailwind v4 CSS-first: كل الألوان عبر `@theme inline` → `var(--…)` الموجود سلفاً
-- الخطوط تُحمَّل عبر `<link>` في root head (لا `@import` URL)
-
-## التحقق
-- تشغيل بصري على `/`, `/about`, `/news`, `/portal-login`, `/student`, `/admin/login`
-- `rg` للتأكد من إزالة أي بقايا للقيم القديمة (`#105B7D`, `#D99A17`, `Tajawal` كعنوان)
-- لا Publish/Deploy
+مكوّنات UI، routes، auth، DB/RLS/RPC، Supabase، migrations، logic. لا Publish/Deploy.
 
 ## القرار المتوقع
-`PASS` — إنشاء تقرير `docs/PORTAL-USR-FORMAL-BRAND-ADOPT-01-REPORT.md` بعد التنفيذ.
+`PASS` مع ملاحظة: الهيرو محتفظ باللون التركوازي القديم بناءً على طلب المستخدم.

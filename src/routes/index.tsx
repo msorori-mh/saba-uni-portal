@@ -330,9 +330,9 @@ function HomePage() {
       </section>
 
       {/* ============ RESEARCH ============ */}
-      <section className="relative overflow-hidden bg-primary-deep text-primary-foreground">
+      <section className="relative overflow-hidden bg-hero-gradient text-primary-foreground">
         <img src={techPattern} alt="" aria-hidden loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-15" />
-        <div className="absolute inset-0 bg-gradient-to-l from-primary-deep via-primary-deep/85 to-primary-deep/40" />
+        <div className="absolute inset-0 bg-overlay-gradient" />
         <div className="container relative mx-auto px-4 py-12 md:py-16">
           <div className="grid gap-8 md:grid-cols-2 md:items-center">
             <div>
