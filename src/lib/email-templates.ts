@@ -34,18 +34,18 @@ interface Rendered {
   text: string;
 }
 
-// Brand palette (hex for email clients — no oklch)
+// Brand palette (hex for email clients — no oklch). Scheduling-app aligned.
 const BRAND = {
-  primaryDeep: "#12384D",
-  primary: "#0B6384",
-  gold: "#E3A313",
-  background: "#F6F8F9",
+  primaryDeep: "#08384E",
+  primary: "#105B7D",
+  gold: "#D99A17",
+  background: "#F7F8FA",
   surface: "#FFFFFF",
-  border: "#D9E3E8",
+  border: "#DDE6EA",
   muted: "#667985",
-  text: "#12384D",
-  mutedBg: "#EAF3F7",
-  goldSoft: "#FFF3D6",
+  text: "#102333",
+  mutedBg: "#E6EFF4",
+  goldSoft: "#FBEFD2",
 } as const;
 
 const shell = (title: string, bodyHtml: string, ctx: TemplateContext): string => `<!doctype html>
