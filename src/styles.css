@@ -4,11 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Arabic fonts (Cairo + Tajawal) loaded via <link> in src/routes/__root.tsx */
+/* Arabic fonts (Cairo + Amiri) loaded via <link> in src/routes/__root.tsx */
 
 @theme inline {
   --font-sans: "Cairo", system-ui, sans-serif;
-  --font-display: "Tajawal", "Cairo", system-ui, sans-serif;
+  --font-display: "Amiri", "Times New Roman", "Cairo", serif;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -59,72 +59,72 @@
   --radius-card: 1rem;
 
   /* Brand: Scheduling App palette — teal primary + deep header + gold accent */
-  --background: #F7F8FA;
-  --foreground: #102333;
+  --background: #F8FAFC;
+  --foreground: #111827;
   --surface: #FFFFFF;
 
   --card: #FFFFFF;
-  --card-foreground: #102333;
+  --card-foreground: #111827;
   --popover: #FFFFFF;
-  --popover-foreground: #102333;
+  --popover-foreground: #111827;
 
-  --primary: #105B7D;
-  --primary-dark: #0B4864;
-  --primary-deep: #08384E;
-  --primary-soft: #E6EFF4;
+  --primary: #0B3D62;
+  --primary-dark: #082D48;
+  --primary-deep: #061F33;
+  --primary-soft: #E8EEF4;
   --primary-foreground: #FFFFFF;
 
-  --deep: #08384E;
+  --deep: #061F33;
   --deep-foreground: #FFFFFF;
 
-  --gold: #D99A17;
-  --gold-foreground: #102333;
-  --gold-dark: #A9760F;
-  --gold-soft: #FBEFD2;
+  --gold: #8A6A2B;
+  --gold-foreground: #111827;
+  --gold-dark: #5F4A1E;
+  --gold-soft: #F1EADB;
 
-  --secondary: #E6EFF4;
-  --secondary-foreground: #08384E;
-  --muted: #EEF2F5;
-  --muted-foreground: #667985;
-  --accent: #D99A17;
-  --accent-foreground: #102333;
+  --secondary: #E5E7EB;
+  --secondary-foreground: #061F33;
+  --muted: #F1F3F5;
+  --muted-foreground: #4B5563;
+  --accent: #1E4E78;
+  --accent-foreground: #FFFFFF;
 
   --destructive: oklch(0.57 0.22 27);
   --destructive-foreground: #FFFFFF;
 
-  --border: #DDE6EA;
-  --input: #DDE6EA;
-  --ring: #D99A17;
+  --border: #D1D5DB;
+  --input: #D1D5DB;
+  --ring: #1E4E78;
 
   /* Sidebar (uses deep header color) */
-  --sidebar: #08384E;
+  --sidebar: #061F33;
   --sidebar-foreground: #FFFFFF;
-  --sidebar-accent: #105B7D;
+  --sidebar-accent: #0B3D62;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border: rgba(255, 255, 255, 0.08);
-  --sidebar-ring: #D99A17;
+  --sidebar-ring: #8A6A2B;
 
   /* Gradients & shadows */
-  --gradient-hero: linear-gradient(135deg, #08384E 0%, #0B4864 50%, #105B7D 100%);
-  --gradient-gold: linear-gradient(135deg, #F2B84B 0%, #D99A17 50%, #A9760F 100%);
-  --gradient-overlay: linear-gradient(180deg, rgba(8, 56, 78, 0.55) 0%, rgba(11, 72, 100, 0.92) 100%);
+  --gradient-hero: linear-gradient(135deg, #061F33 0%, #082D48 50%, #0B3D62 100%);
+  --gradient-gold: linear-gradient(135deg, #B08A3A 0%, #8A6A2B 50%, #5F4A1E 100%);
+  --gradient-overlay: linear-gradient(180deg, rgba(6, 31, 51, 0.55) 0%, rgba(8, 45, 72, 0.92) 100%);
 
-  --shadow-elegant: 0 20px 50px -20px rgba(8, 56, 78, 0.35);
-  --shadow-gold: 0 12px 30px -10px rgba(217, 154, 23, 0.45);
-  --shadow-card: 0 2px 12px -4px rgba(8, 56, 78, 0.10);
+  --shadow-elegant: 0 20px 50px -20px rgba(6, 31, 51, 0.35);
+  --shadow-gold: 0 12px 30px -10px rgba(138, 106, 43, 0.45);
+  --shadow-card: 0 2px 12px -4px rgba(6, 31, 51, 0.10);
 }
 
 .dark {
   /* Dark theme kept as inert definitions — not activated in the app. */
-  --background: #08384E;
-  --foreground: #F7F8FA;
-  --surface: #0B4864;
-  --card: #0B4864;
-  --card-foreground: #F7F8FA;
-  --primary: #D99A17;
-  --primary-foreground: #08384E;
+  --background: #061F33;
+  --foreground: #F8FAFC;
+  --surface: #082D48;
+  --card: #082D48;
+  --card-foreground: #F8FAFC;
+  --primary: #8A6A2B;
+  --primary-foreground: #061F33;
   --border: rgba(255, 255, 255, 0.10);
-  --muted: #0B4864;
+  --muted: #082D48;
   --muted-foreground: #B5C4CC;
 }
 
