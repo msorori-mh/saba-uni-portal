@@ -5214,6 +5214,29 @@ export type Database = {
       find_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
       generate_document_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
+      get_active_workflow_for_request_type: {
+        Args: { p_request_type_id: string }
+        Returns: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description_ar: string | null
+          id: string
+          is_active: boolean
+          name_ar: string
+          name_en: string | null
+          request_type_id: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "request_type_workflows"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_admin_dashboard_kpis: { Args: never; Returns: Json }
       get_admin_progress_kpis: { Args: { _limit?: number }; Returns: Json }
       get_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
@@ -5293,6 +5316,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      initialize_student_request_workflow: {
+        Args: { p_request_id: string }
+        Returns: Json
       }
       is_council_admin: { Args: { _user: string }; Returns: boolean }
       is_council_member: {
