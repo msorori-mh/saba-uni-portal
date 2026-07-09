@@ -68,6 +68,11 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'يجب تسجيل الدخول'
+      USING ERRCODE = '28000';
+  END IF;
+
   SELECT * INTO v_req
   FROM public.student_requests sr
   WHERE sr.id = p_request_id;
@@ -78,13 +83,11 @@ BEGIN
   END IF;
 
   -- Callable from submit_student_request (student owner) or privileged staff path.
-  IF v_uid IS NOT NULL THEN
-    IF NOT public.is_owner_of_request(v_uid, p_request_id)
-       AND NOT public.is_current_user_registrar()
-       AND NOT public.is_current_user_admin_actor() THEN
-      RAISE EXCEPTION 'غير مصرح بتهيئة workflow لهذا الطلب'
-        USING ERRCODE = '42501';
-    END IF;
+  IF NOT public.is_owner_of_request(v_uid, p_request_id)
+     AND NOT public.is_current_user_registrar()
+     AND NOT public.is_current_user_admin_actor() THEN
+    RAISE EXCEPTION 'غير مصرح بتهيئة workflow لهذا الطلب'
+      USING ERRCODE = '42501';
   END IF;
 
   SELECT count(*)::integer INTO v_existing_count
@@ -354,17 +357,19 @@ COMMENT ON FUNCTION public.submit_student_request(uuid) IS
   'Legacy workflow tables are not modified in this RPC.';
 
 -- =============================================================================
--- 4. Grants
+-- 4. Grants — explicit REVOKE from anon/authenticated (default privileges)
 -- =============================================================================
 
-REVOKE ALL ON FUNCTION public.get_active_workflow_for_request_type(uuid) FROM PUBLIC;
--- Internal helper: no GRANT to authenticated.
+REVOKE ALL ON FUNCTION public.get_active_workflow_for_request_type(uuid)
+  FROM PUBLIC, anon, authenticated;
 
-REVOKE ALL ON FUNCTION public.initialize_student_request_workflow(uuid) FROM PUBLIC;
--- Internal: invoked only from submit_student_request (same SECURITY DEFINER owner).
+REVOKE ALL ON FUNCTION public.initialize_student_request_workflow(uuid)
+  FROM PUBLIC, anon, authenticated;
 
-REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.submit_student_request(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.submit_student_request(uuid)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.submit_student_request(uuid)
+  TO authenticated;
 
 -- =============================================================================
 -- 5. RLS — no new policies
