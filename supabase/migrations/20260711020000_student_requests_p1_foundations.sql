@@ -620,11 +620,11 @@ BEGIN
       );
     END IF;
 
-    IF v_study_status IS NOT NULL AND v_study_status <> 'new' THEN
+    IF v_study_status IS DISTINCT FROM 'new' THEN
       v_is_eligible := false;
       v_reasons := array_append(
         v_reasons,
-        'وقف القيد متاح للطلاب المستجدين فقط (student_study_status = new).'
+        'وقف القيد متاح للطلاب المستجدين فقط، ويجب استكمال student_study_status بقيمة new.'
       );
     END IF;
 
@@ -685,10 +685,17 @@ ALTER TABLE public.student_request_parallel_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.student_request_parallel_group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.central_signatory_references ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON FUNCTION public.assert_can_read_student_eligibility_context(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.get_student_request_eligibility_context(uuid) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.check_student_request_basic_eligibility(text, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.assert_can_read_student_eligibility_context(uuid)
+  FROM PUBLIC, anon, authenticated;
 
-GRANT EXECUTE ON FUNCTION public.assert_can_read_student_eligibility_context(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.get_student_request_eligibility_context(uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.check_student_request_basic_eligibility(text, uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_student_request_eligibility_context(uuid)
+  FROM PUBLIC, anon;
+
+REVOKE ALL ON FUNCTION public.check_student_request_basic_eligibility(text, uuid)
+  FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.get_student_request_eligibility_context(uuid)
+  TO authenticated;
+
+GRANT EXECUTE ON FUNCTION public.check_student_request_basic_eligibility(text, uuid)
+  TO authenticated;

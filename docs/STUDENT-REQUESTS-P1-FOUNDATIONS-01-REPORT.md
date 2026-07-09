@@ -117,7 +117,15 @@ Comments بالعربية/الإنجليزية — حقول **افتتاحية/�
 | `get_student_request_eligibility_context(uuid)` | JSON: profile + academic status + decision refs | لا |
 | `check_student_request_basic_eligibility(text, uuid)` | audience + U-SUSP-1 rules لـ `enrollment_suspension` | لا |
 
-**Security:** `SECURITY DEFINER`, `SET search_path = public, pg_temp`, `REVOKE ALL FROM PUBLIC`, `GRANT EXECUTE TO authenticated`.
+**Security:** `SECURITY DEFINER`, `SET search_path = public, pg_temp`.
+
+- **Internal helper** `assert_can_read_student_eligibility_context` — `REVOKE ALL FROM PUBLIC, anon, authenticated`; **لا GRANT** لـ `authenticated` (استدعاء داخلي فقط عبر الدالتين القابلتين للقراءة).
+- **Client-readable** `get_student_request_eligibility_context` و `check_student_request_basic_eligibility` — `REVOKE ALL FROM PUBLIC, anon` ثم `GRANT EXECUTE TO authenticated` فقط.
+- **لماذا لا يكفي `REVOKE FROM PUBLIC` وحده؟** في Supabase/PostgreSQL، `default privileges` قد تمنح `anon` و`authenticated` صلاحية `EXECUTE` تلقائياً على الدوال الجديدة؛ لذلك يجب `REVOKE` صريح من `anon` (و`authenticated` للدالة الداخلية) وليس الاعتماد على سحب `PUBLIC` فقط.
+
+**NULL `student_study_status`:** شرط `IS DISTINCT FROM 'new'` يعامل القيمة الناقصة كغير مؤهلة لـ `enrollment_suspension` — يجب استكمال الحقل بقيمة `new` قبل التشغيل العملي.
+
+**أعمدة default الانتقالية:** `transferred_current_year`, `previous_suspension_semesters_count`, `consecutive_suspension_years_count` لها defaults (`false`/`0`) لكن **لا يجب** تشغيل فحص الأهلية عملياً قبل اكتمال بيانات الاستيراد — القيم الافتراضية ليست بديلاً عن بيانات الطالب الحقيقية.
 
 **Sample return keys:** `is_eligible`, `reasons[]`, `context`, `foundation_phase: 'P1'`.
 
@@ -129,7 +137,9 @@ Comments بالعربية/الإنجليزية — حقول **افتتاحية/�
 |-------|--------|
 | RLS enabled على الجداول الخمسة الجديدة | ✅ |
 | Policies | ❌ none — closed by default |
-| anon access | ❌ no grants to anon |
+| anon access | ❌ no grants to anon — `REVOKE` صريح من الدوال الثلاث |
+| internal helper ACL | ❌ `assert_can_read_student_eligibility_context` — لا GRANT لـ `authenticated` |
+| authenticated RPC access | ✅ `get_*` و `check_*` فقط — EXECUTE |
 | service role in browser | ❌ not required |
 | data writes in RPC stubs | ❌ read-only |
 | `student_profiles` new columns | existing RLS unchanged |
