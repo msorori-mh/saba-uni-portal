@@ -132,7 +132,7 @@ function MobileStudentRequests() {
               return (
                 <div
                   key={t.id}
-                  className={`rounded-xl border bg-card p-3 shadow-card flex items-center justify-between gap-2 ${
+                  className={`rounded-2xl border border-border bg-card shadow-card p-3 shadow-card flex items-center justify-between gap-2 ${
                     disabled ? "opacity-60" : ""
                   }`}
                 >
@@ -196,7 +196,7 @@ function MobileStudentRequests() {
                   key={r.id}
                   to="/student/requests/$id"
                   params={{ id: r.id }}
-                  className="block rounded-xl border bg-card p-3 shadow-card"
+                  className="block rounded-2xl border border-border bg-card shadow-card p-3 shadow-card"
                 >
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="min-w-0">

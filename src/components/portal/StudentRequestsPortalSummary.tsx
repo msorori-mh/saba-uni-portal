@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ClipboardList, FileText, Loader2, Plus } from "lucide-react";
 import { getMyStudentServiceRequests } from "@/lib/student-affairs.functions";
+import { StandardCard } from "@/components/brand";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "مسودة",
@@ -32,7 +33,7 @@ export function StudentRequestsPortalSummary() {
   ).length;
 
   return (
-    <div id="student-requests" className="mt-6 rounded-xl border border-border bg-card p-5 shadow-card">
+    <StandardCard id="student-requests" className="mt-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
@@ -97,6 +98,6 @@ export function StudentRequestsPortalSummary() {
           <ClipboardList className="h-3.5 w-3.5" /> إدارة الطلبات
         </Link>
       </div>
-    </div>
+    </StandardCard>
   );
 }

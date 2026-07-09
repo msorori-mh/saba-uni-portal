@@ -31,15 +31,15 @@ export function CredentialsSlip({
     if (!w) return;
     w.document.write(`<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><title>بيانات الدخول</title>
       <style>
-        body{font-family:Tahoma,Arial,sans-serif;padding:32px;color:#0f172a;}
+        body{font-family:'Tajawal',Tahoma,Arial,sans-serif;padding:32px;color:#12384D;}
         h1{font-size:18px;margin:0 0 8px;text-align:center;}
-        h2{font-size:14px;margin:0 0 24px;text-align:center;color:#64748b;font-weight:normal;}
-        .box{border:2px solid #0f3460;border-radius:8px;padding:20px;margin-top:16px;}
-        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #e2e8f0;font-size:14px;}
+        h2{font-size:14px;margin:0 0 24px;text-align:center;color:#667985;font-weight:normal;}
+        .box{border:2px solid #0B6384;border-radius:8px;padding:20px;margin-top:16px;}
+        .row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed #D9E3E8;font-size:14px;}
         .row:last-child{border:0;}
-        .k{color:#64748b;}
+        .k{color:#667985;}
         .v{font-weight:bold;font-family:'Courier New',monospace;direction:ltr;}
-        .note{margin-top:16px;font-size:11px;color:#64748b;line-height:1.7;text-align:right;}
+        .note{margin-top:16px;font-size:11px;color:#667985;line-height:1.7;text-align:right;}
       </style></head><body>
       <h1>كلية تكنولوجيا المعلومات وعلوم الحاسوب</h1>
       <h2>${PORTAL_LABEL[slip.portal]} — بيانات الدخول</h2>

@@ -163,8 +163,7 @@ function AdminResearchPage() {
             setEditing(null);
             setOpen(true);
           }}
-          className="bg-[hsl(var(--gold,45_85%_55%))] text-black hover:opacity-90"
-          style={{ backgroundColor: "#d4af37", color: "#000" }}
+          variant="gold"
         >
           <Plus className="ml-2 h-4 w-4" /> بحث جديد
         </Button>
@@ -655,7 +654,7 @@ function ResearchFormDialog({
           <Button
             onClick={handleSave}
             disabled={saving || uploading}
-            style={{ backgroundColor: "#d4af37", color: "#000" }}
+            variant="gold"
           >
             {(saving || uploading) && (
               <Loader2 className="ml-2 h-4 w-4 animate-spin" />

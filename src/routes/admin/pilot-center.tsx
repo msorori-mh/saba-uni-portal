@@ -112,7 +112,7 @@ function PilotCenterPage() {
 
 function Kpi({ label, value, tone, icon: Icon }: { label: string; value: string | number; tone?: string; icon: typeof Rocket }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-2xl border border-border bg-card shadow-card p-4">
       <div className="flex items-center justify-between">
         <div className="text-xs text-muted-foreground">{label}</div>
         <Icon className="h-4 w-4 text-muted-foreground" />
@@ -168,7 +168,7 @@ function ParticipantsTab({ canManage }: { canManage: boolean }) {
         )}
       </div>
       {list.isLoading ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : (
-        <div className="rounded-xl border bg-card overflow-x-auto">
+        <div className="rounded-2xl border border-border bg-card shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs">
               <tr><th className="p-2 text-right">الاسم</th><th className="p-2 text-right">الدور</th><th className="p-2 text-right">الحالة</th><th className="p-2 text-right">تاريخ الإضافة</th><th className="p-2"></th></tr>
@@ -311,7 +311,7 @@ function ScenariosTab({ canManage }: { canManage: boolean }) {
         )}
       </div>
       {Object.entries(grouped).map(([cat, items]) => (
-        <div key={cat} className="rounded-xl border bg-card">
+        <div key={cat} className="rounded-2xl border border-border bg-card shadow-card">
           <div className="px-4 py-2 border-b bg-muted/30 font-bold">{CATEGORY_LABEL[cat] ?? cat}</div>
           <div className="divide-y">
             {items.map((s) => (
@@ -377,7 +377,7 @@ function ChecklistTab({ canManage }: { canManage: boolean }) {
   return (
     <div className="grid md:grid-cols-3 gap-3">
       {Object.entries(grouped).map(([period, items]) => (
-        <div key={period} className="rounded-xl border bg-card">
+        <div key={period} className="rounded-2xl border border-border bg-card shadow-card">
           <div className="px-4 py-2 border-b bg-muted/30 font-bold text-sm">{PERIOD_LABEL[period] ?? period}</div>
           <div className="p-3 space-y-2">
             {items.map((i) => (
@@ -450,7 +450,7 @@ function IssuesTab({ canManage }: { canManage: boolean }) {
         )}
       </div>
       {list.isLoading ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : (
-        <div className="rounded-xl border bg-card overflow-x-auto">
+        <div className="rounded-2xl border border-border bg-card shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs">
               <tr>
@@ -557,7 +557,7 @@ function FeedbackTab({ canManage }: { canManage: boolean }) {
         )}
       </div>
       {list.isLoading ? <Loader2 className="h-5 w-5 animate-spin text-primary" /> : (
-        <div className="rounded-xl border bg-card overflow-x-auto">
+        <div className="rounded-2xl border border-border bg-card shadow-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-xs">
               <tr>
@@ -631,7 +631,7 @@ function ConfigTab({ cfg, canManage }: { cfg: any; canManage: boolean }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["pilot-overview"] }),
   });
   return (
-    <div className="rounded-xl border bg-card p-5 space-y-4 max-w-xl">
+    <div className="rounded-2xl border border-border bg-card shadow-card p-5 space-y-4 max-w-xl">
       <div className="space-y-1">
         <label className="text-xs font-bold">حالة التشغيل التجريبي</label>
         <Select value={status} onValueChange={setStatus} disabled={!canManage}>
@@ -710,7 +710,7 @@ function ReportsTab() {
   return (
     <div className="grid md:grid-cols-3 gap-3">
       {REPORTS.map((r) => (
-        <div key={r.key} className="rounded-xl border bg-card p-4 space-y-3">
+        <div key={r.key} className="rounded-2xl border border-border bg-card shadow-card p-4 space-y-3">
           <div className="font-bold text-sm">{r.label}</div>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" onClick={() => exp(r.key, "csv")}><FileDown className="h-3.5 w-3.5 ml-1" />CSV</Button>

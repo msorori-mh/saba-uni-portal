@@ -72,7 +72,7 @@ function AdminStudentProgressPage() {
         <p className="text-sm text-muted-foreground">ابحث بالاسم أو الرقم الأكاديمي لعرض الملخص، تدقيق التخرج، والأهلية.</p>
       </div>
 
-      <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="rounded-2xl border border-border bg-card shadow-card p-4 space-y-3">
         <div className="relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="رقم أكاديمي أو اسم الطالب" className="pr-10" />

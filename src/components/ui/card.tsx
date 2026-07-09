@@ -1,14 +1,32 @@
 import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
-      ref={ref}
-      className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
-      {...props}
-    />
+const cardVariants = cva("border bg-card text-card-foreground", {
+  variants: {
+    variant: {
+      default: "rounded-xl shadow",
+      brand: "rounded-2xl shadow-card",
+      compact: "rounded-xl shadow-card",
+    },
+    padding: {
+      default: "",
+      none: "p-0",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+    padding: "default",
+  },
+});
+
+export interface CardProps
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant, padding, ...props }, ref) => (
+    <div ref={ref} className={cn(cardVariants({ variant, padding, className }))} {...props} />
   ),
 );
 Card.displayName = "Card";
@@ -24,7 +42,7 @@ const CardTitle = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivE
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("font-semibold leading-none tracking-tight", className)}
+      className={cn("font-display font-semibold leading-none tracking-tight", className)}
       {...props}
     />
   ),
@@ -47,9 +65,9 @@ CardContent.displayName = "CardContent";
 
 const CardFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex items-center p-6 pt-0", className)} {...props} />
+    <div ref={ref} className={cn("flex items-center gap-2 p-6 pt-0", className)} {...props} />
   ),
 );
 CardFooter.displayName = "CardFooter";
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent };
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent, cardVariants };

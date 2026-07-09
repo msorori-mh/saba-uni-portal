@@ -127,7 +127,7 @@ function MobileStudentDocuments() {
         {docs.map((d) => {
           const st = STATUS[d.status] ?? { text: d.status, cls: "bg-muted text-foreground" };
           return (
-            <div key={d.id} className="rounded-xl border bg-card p-3 shadow-card">
+            <div key={d.id} className="rounded-2xl border border-border bg-card shadow-card p-3 shadow-card">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2 min-w-0">
                   <div className="grid h-9 w-9 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">

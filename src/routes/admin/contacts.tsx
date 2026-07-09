@@ -234,7 +234,7 @@ function AdminContactsPage() {
             <Button variant="outline" onClick={() => setViewing(null)}>إغلاق</Button>
             <Button
               onClick={() => viewing && handleReply(viewing)}
-              style={{ backgroundColor: "#d4af37", color: "#000" }}
+              variant="gold"
             >
               <Mail className="ml-2 h-4 w-4" /> الرد عبر البريد
             </Button>

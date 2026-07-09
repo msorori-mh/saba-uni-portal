@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FileText, Loader2, Eye, ShieldCheck, Printer, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { StandardCard } from "@/components/brand";
 
 function openDoc(id: string, withPrint = false) {
   const url = withPrint ? `/document-view/${id}?print=1` : `/document-view/${id}`;
@@ -39,13 +40,13 @@ export function StudentDocumentsSection({ studentProfileId }: { studentProfileId
       </h2>
 
       {isLoading ? (
-        <div className="rounded-xl border border-border bg-card p-6 grid place-items-center">
+        <StandardCard className="grid place-items-center">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
+        </StandardCard>
       ) : docs.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card p-6 text-center text-sm text-muted-foreground">
+        <StandardCard className="border-dashed text-center text-sm text-muted-foreground">
           لا توجد وثائق رسمية صادرة لك حالياً. يمكنك طلبها من شؤون الطلاب.
-        </div>
+        </StandardCard>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {docs.map((d: { id: string; document_type: string; document_number: string; verification_code: string; status: string; issued_at: string }) => (

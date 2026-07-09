@@ -219,7 +219,7 @@ function MobileStudentFinance() {
               const paid = Number(f.paid ?? 0);
               const remaining = Math.max(0, Number(f.amount) - paid);
               return (
-                <div key={f.id} className="rounded-xl border bg-card p-3 shadow-card">
+                <div key={f.id} className="rounded-2xl border border-border bg-card shadow-card p-3 shadow-card">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="font-bold text-sm text-primary">{f.fee_type?.name_ar ?? "—"}</div>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
@@ -247,7 +247,7 @@ function MobileStudentFinance() {
         ) : (
           <div className="space-y-2">
             {payments.map((p) => (
-              <div key={p.id} className="rounded-xl border bg-card p-3 shadow-card">
+              <div key={p.id} className="rounded-2xl border border-border bg-card shadow-card p-3 shadow-card">
                 <div className="flex items-baseline justify-between gap-2">
                   <div className="font-bold text-[13px] text-primary">{p.fee?.fee_type?.name_ar ?? "دفعة"}</div>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
@@ -277,7 +277,7 @@ function MobileStudentFinance() {
             {receipts.map((r) => {
               const st = REC_STATUS[r.status] ?? { text: r.status, cls: "bg-muted" };
               return (
-                <div key={r.id} className="rounded-xl border bg-card p-3 shadow-card">
+                <div key={r.id} className="rounded-2xl border border-border bg-card shadow-card p-3 shadow-card">
                   <div className="flex items-baseline justify-between gap-2">
                     <div className="font-bold text-[13px] text-primary">
                       {r.student_fee?.fee_type?.name_ar ?? "—"}
