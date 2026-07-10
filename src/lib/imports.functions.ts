@@ -20,6 +20,7 @@ import {
   importStudentGrades,
   importStudentFees,
   importStudentDiscounts,
+  importStudentEligibility,
   importDocuments,
   type ServerImportContext,
 } from "@/lib/imports/engine.server";
@@ -42,11 +43,7 @@ const IMPORT_PANEL_ROLES = [
 ] as const;
 
 /** Roles allowed to execute class_schedule import writes (matches class_schedule RLS). */
-export const SCHEDULE_IMPORT_WRITE_ROLES = [
-  "admin",
-  "system_admin",
-  "registrar",
-] as const;
+export const SCHEDULE_IMPORT_WRITE_ROLES = ["admin", "system_admin", "registrar"] as const;
 
 /** Roles allowed to open schedule import UI (preview); write requires SCHEDULE_IMPORT_WRITE_ROLES. */
 export const SCHEDULE_IMPORT_PANEL_ROLES = [
@@ -70,22 +67,15 @@ const importTypeSchema = z.enum([
   "student_grades",
   "student_fees",
   "student_discounts",
+  "student_eligibility",
   "documents",
 ]);
 
-const ACADEMIC_IMPORT_ROLES = [
-  "admin",
-  "system_admin",
-  "registrar",
-  "student_affairs",
-] as const;
+const ACADEMIC_IMPORT_ROLES = ["admin", "system_admin", "registrar", "student_affairs"] as const;
 
 const FINANCE_IMPORT_ROLES = ["admin", "system_admin", "finance_officer"] as const;
 
-const IMPORT_ROLES_BY_TYPE: Record<
-  z.infer<typeof importTypeSchema>,
-  readonly string[]
-> = {
+const IMPORT_ROLES_BY_TYPE: Record<z.infer<typeof importTypeSchema>, readonly string[]> = {
   students: ACADEMIC_IMPORT_ROLES,
   student_enrollments: ACADEMIC_IMPORT_ROLES,
   student_grades: ACADEMIC_IMPORT_ROLES,
@@ -98,6 +88,7 @@ const IMPORT_ROLES_BY_TYPE: Record<
   course_sections: ACADEMIC_IMPORT_ROLES,
   student_fees: FINANCE_IMPORT_ROLES,
   student_discounts: FINANCE_IMPORT_ROLES,
+  student_eligibility: ACADEMIC_IMPORT_ROLES,
   faculty: ["admin", "system_admin", "registrar"],
   staff: ["admin", "system_admin", "registrar"],
 };
@@ -106,11 +97,13 @@ const validatedRowSchema = z.object({
   rowNumber: z.number().int().positive(),
   raw: z.record(z.string(), z.unknown()),
   parsed: z.unknown().nullable(),
-  errors: z.array(z.object({
-    row: z.number().int(),
-    column: z.string().optional(),
-    message: z.string(),
-  })),
+  errors: z.array(
+    z.object({
+      row: z.number().int(),
+      column: z.string().optional(),
+      message: z.string(),
+    }),
+  ),
 });
 
 const inputSchema = z.object({
@@ -119,30 +112,34 @@ const inputSchema = z.object({
   rows: z.array(validatedRowSchema).max(5000),
   dryRun: z.boolean().default(false),
   updateExisting: z.boolean().default(false),
-  studyPlanContext: z.object({
-    departmentId: z.string().uuid(),
-    programId: z.string().uuid(),
-    planName: z.string().trim().min(1).max(200),
-    version: z.string().trim().min(1).max(50),
-    planStatus: z.enum(["draft", "active"]).default("active"),
-    importMode: z.enum(["full_plan", "single_semester"]),
-    semesterCode: z.enum(["first", "second"]).optional().nullable(),
-  }).optional(),
+  studyPlanContext: z
+    .object({
+      departmentId: z.string().uuid(),
+      programId: z.string().uuid(),
+      planName: z.string().trim().min(1).max(200),
+      version: z.string().trim().min(1).max(50),
+      planStatus: z.enum(["draft", "active"]).default("active"),
+      importMode: z.enum(["full_plan", "single_semester"]),
+      semesterCode: z.enum(["first", "second"]).optional().nullable(),
+    })
+    .optional(),
 });
 
 const previewInputSchema = z.object({
   type: importTypeSchema,
   rows: z.array(z.record(z.string(), z.unknown())).max(5000),
   updateExisting: z.boolean().default(false),
-  studyPlanContext: z.object({
-    departmentId: z.string().uuid(),
-    programId: z.string().uuid(),
-    planName: z.string().trim().min(1).max(200),
-    version: z.string().trim().min(1).max(50),
-    planStatus: z.enum(["draft", "active"]).default("active"),
-    importMode: z.enum(["full_plan", "single_semester"]),
-    semesterCode: z.enum(["first", "second"]).optional().nullable(),
-  }).optional(),
+  studyPlanContext: z
+    .object({
+      departmentId: z.string().uuid(),
+      programId: z.string().uuid(),
+      planName: z.string().trim().min(1).max(200),
+      version: z.string().trim().min(1).max(50),
+      planStatus: z.enum(["draft", "active"]).default("active"),
+      importMode: z.enum(["full_plan", "single_semester"]),
+      semesterCode: z.enum(["first", "second"]).optional().nullable(),
+    })
+    .optional(),
 });
 
 type StudyPlanImportContext = z.infer<typeof previewInputSchema>["studyPlanContext"];
@@ -151,7 +148,9 @@ function studyPlanCell(value: unknown) {
   return value == null ? "" : String(value).trim();
 }
 
-function assertStudyPlanImportContext(context: StudyPlanImportContext): NonNullable<StudyPlanImportContext> {
+function assertStudyPlanImportContext(
+  context: StudyPlanImportContext,
+): NonNullable<StudyPlanImportContext> {
   if (!context) throw new Error("يجب إكمال إعدادات سياق الخطة الدراسية قبل المتابعة.");
   if (!context.departmentId) throw new Error("يجب اختيار القسم.");
   if (!context.programId) throw new Error("يجب اختيار البرنامج.");
@@ -195,7 +194,10 @@ async function applyStudyPlanImportContext(
     const rowNumber = idx + 2;
     const next = { ...row };
     const fileProgramCode = studyPlanCell(next.program_code);
-    if (fileProgramCode && fileProgramCode.toLowerCase() !== String(program.code ?? "").toLowerCase()) {
+    if (
+      fileProgramCode &&
+      fileProgramCode.toLowerCase() !== String(program.code ?? "").toLowerCase()
+    ) {
       throw new Error(`صف ${rowNumber}: البرنامج داخل الملف لا يطابق البرنامج المختار من الشاشة.`);
     }
     next.program_code = program.code;
@@ -213,7 +215,9 @@ async function applyStudyPlanImportContext(
     } else {
       const fileSemester = studyPlanCell(next.semester);
       if (fileSemester && fileSemester.toLowerCase() !== requiredContext.semesterCode) {
-        throw new Error(`صف ${rowNumber}: الفصل الدراسي داخل الملف لا يطابق الفصل المحدد في إعدادات الاستيراد.`);
+        throw new Error(
+          `صف ${rowNumber}: الفصل الدراسي داخل الملف لا يطابق الفصل المحدد في إعدادات الاستيراد.`,
+        );
       }
       next.semester = requiredContext.semesterCode;
     }
@@ -225,19 +229,16 @@ export const validateBulkImportPreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => previewInputSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      IMPORT_PANEL_ROLES,
-      "ليس لديك صلاحية الوصول إلى الاستيراد",
-    );
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية الوصول إلى الاستيراد");
     await assertAnyRole(
       context.userId,
       IMPORT_ROLES_BY_TYPE[data.type],
       "ليس لديك صلاحية استيراد هذا النوع من البيانات",
     );
-    const rows = data.type === "study_plans"
-      ? await applyStudyPlanImportContext(data.rows, data.studyPlanContext)
-      : data.rows;
+    const rows =
+      data.type === "study_plans"
+        ? await applyStudyPlanImportContext(data.rows, data.studyPlanContext)
+        : data.rows;
     return previewBulkImportValidation(data.type, rows, data.updateExisting);
   });
 
@@ -245,11 +246,7 @@ export const runBulkImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => inputSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      IMPORT_PANEL_ROLES,
-      "ليس لديك صلاحية الوصول إلى الاستيراد",
-    );
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية الوصول إلى الاستيراد");
     await assertAnyRole(
       context.userId,
       IMPORT_ROLES_BY_TYPE[data.type],
@@ -260,16 +257,19 @@ export const runBulkImport = createServerFn({ method: "POST" })
       await enforceRateLimit(`import:${context.userId}`, SERVER_RATE_LIMIT_POLICIES.accountImport);
     }
 
-    const serverRows = data.type === "study_plans"
-      ? (await previewBulkImportValidation(
-        data.type,
-        await applyStudyPlanImportContext(
-          (data.rows as ValidatedRow[]).map((row) => row.raw),
-          data.studyPlanContext,
-        ),
-        data.updateExisting,
-      )).rows
-      : await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[]);
+    const serverRows =
+      data.type === "study_plans"
+        ? (
+            await previewBulkImportValidation(
+              data.type,
+              await applyStudyPlanImportContext(
+                (data.rows as ValidatedRow[]).map((row) => row.raw),
+                data.studyPlanContext,
+              ),
+              data.updateExisting,
+            )
+          ).rows
+        : await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[]);
     assertServerValidationPassed(serverRows);
 
     const ctx: ServerImportContext = {
@@ -322,6 +322,12 @@ export const runBulkImport = createServerFn({ method: "POST" })
       case "student_discounts":
         report = await importStudentDiscounts(vrows, data.dryRun, data.updateExisting);
         break;
+      case "student_eligibility":
+        report = await importStudentEligibility(vrows, data.dryRun, {
+          userId: context.userId,
+          fileName: data.fileName,
+        });
+        break;
       case "documents":
         report = await importDocuments(vrows, data.dryRun, ctx);
         break;
@@ -350,9 +356,18 @@ export const getImportStats = createServerFn({ method: "POST" })
     const todayIso = startOfToday.toISOString();
     const [all, today, completed, failed] = await Promise.all([
       supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }),
-      supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }).gte("created_at", todayIso),
-      supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "completed"),
-      supabaseAdmin.from("import_logs").select("id", { count: "exact", head: true }).eq("status", "failed"),
+      supabaseAdmin
+        .from("import_logs")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", todayIso),
+      supabaseAdmin
+        .from("import_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "completed"),
+      supabaseAdmin
+        .from("import_logs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "failed"),
     ]);
     const total = all.count ?? 0;
     const okCount = completed.count ?? 0;
@@ -363,11 +378,7 @@ export const getImportStats = createServerFn({ method: "POST" })
 export const getStudentImportContextOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(
-      context.userId,
-      IMPORT_PANEL_ROLES,
-      "ليس لديك صلاحية الوصول إلى الاستيراد",
-    );
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية الوصول إلى الاستيراد");
 
     const [depsRes, progsRes, levelsRes, yearsRes, semsRes] = await Promise.all([
       supabaseAdmin
@@ -395,7 +406,9 @@ export const getStudentImportContextOptions = createServerFn({ method: "POST" })
         .order("start_date", { ascending: false }),
     ]);
 
-    const firstError = [depsRes, progsRes, levelsRes, yearsRes, semsRes].find((res) => res.error)?.error;
+    const firstError = [depsRes, progsRes, levelsRes, yearsRes, semsRes].find(
+      (res) => res.error,
+    )?.error;
     if (firstError) throw new Error(firstError.message);
 
     return {
@@ -440,27 +453,51 @@ export const getStudentImportContextOptions = createServerFn({ method: "POST" })
 export const getStudyPlanImportContextOptions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAnyRole(
-      context.userId,
-      IMPORT_PANEL_ROLES,
-      "ليس لديك صلاحية الوصول إلى الاستيراد",
-    );
+    await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية الوصول إلى الاستيراد");
     await assertAnyRole(
       context.userId,
       IMPORT_ROLES_BY_TYPE.study_plans,
       "ليس لديك صلاحية استيراد الخطط الدراسية",
     );
 
-    const [departmentsRes, programsRes, levelsRes, yearsRes, semestersRes, plansRes] = await Promise.all([
-      supabaseAdmin.from("departments").select("id, name_ar").eq("is_active", true).order("sort_order"),
-      supabaseAdmin.from("programs").select("id, code, name_ar, department_id").eq("is_active", true).order("sort_order"),
-      supabaseAdmin.from("academic_levels").select("id, name, level_number").eq("status", "active").order("level_number"),
-      supabaseAdmin.from("academic_years").select("id, name, is_current").order("start_date", { ascending: false }),
-      supabaseAdmin.from("semesters").select("id, name, code, academic_year_id, is_current").order("start_date", { ascending: false }),
-      supabaseAdmin.from("study_plans").select("id, name, version, program_id, status, is_active").order("updated_at", { ascending: false }),
-    ]);
-    const firstError = [departmentsRes, programsRes, levelsRes, yearsRes, semestersRes, plansRes]
-      .find((res) => res.error)?.error;
+    const [departmentsRes, programsRes, levelsRes, yearsRes, semestersRes, plansRes] =
+      await Promise.all([
+        supabaseAdmin
+          .from("departments")
+          .select("id, name_ar")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabaseAdmin
+          .from("programs")
+          .select("id, code, name_ar, department_id")
+          .eq("is_active", true)
+          .order("sort_order"),
+        supabaseAdmin
+          .from("academic_levels")
+          .select("id, name, level_number")
+          .eq("status", "active")
+          .order("level_number"),
+        supabaseAdmin
+          .from("academic_years")
+          .select("id, name, is_current")
+          .order("start_date", { ascending: false }),
+        supabaseAdmin
+          .from("semesters")
+          .select("id, name, code, academic_year_id, is_current")
+          .order("start_date", { ascending: false }),
+        supabaseAdmin
+          .from("study_plans")
+          .select("id, name, version, program_id, status, is_active")
+          .order("updated_at", { ascending: false }),
+      ]);
+    const firstError = [
+      departmentsRes,
+      programsRes,
+      levelsRes,
+      yearsRes,
+      semestersRes,
+      plansRes,
+    ].find((res) => res.error)?.error;
     if (firstError) throw new Error(firstError.message);
 
     return {
@@ -479,7 +516,9 @@ export const listImportHistory = createServerFn({ method: "POST" })
     await assertAnyRole(context.userId, IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
     const { data, error } = await supabaseAdmin
       .from("import_logs")
-      .select("id, created_at, import_type, file_name, rows_total, rows_success, rows_failed, status, notes")
+      .select(
+        "id, created_at, import_type, file_name, rows_total, rows_success, rows_failed, status, notes",
+      )
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) throw new Error(error.message);
@@ -493,7 +532,11 @@ export const getScheduleImportLookups = createServerFn({ method: "POST" })
     const [yearsRes, semRes, progRes, lvlRes] = await Promise.all([
       supabaseAdmin.from("academic_years").select("id, name").order("name", { ascending: false }),
       supabaseAdmin.from("semesters").select("id, name, code").order("name"),
-      supabaseAdmin.from("programs").select("id, code, name_ar").eq("is_active", true).order("name_ar"),
+      supabaseAdmin
+        .from("programs")
+        .select("id, code, name_ar")
+        .eq("is_active", true)
+        .order("name_ar"),
       supabaseAdmin.from("academic_levels").select("id, name, level_number").order("level_number"),
     ]);
     if (yearsRes.error) throw new Error(yearsRes.error.message);
@@ -511,14 +554,16 @@ export const getScheduleImportLookups = createServerFn({ method: "POST" })
 export const logScheduleImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      fileName: z.string().min(1),
-      rowsTotal: z.number().int().min(0),
-      rowsSuccess: z.number().int().min(0),
-      rowsFailed: z.number().int().min(0),
-      status: z.enum(["completed", "failed", "partial"]),
-      notes: z.string().nullable().optional(),
-    }).parse(input),
+    z
+      .object({
+        fileName: z.string().min(1),
+        rowsTotal: z.number().int().min(0),
+        rowsSuccess: z.number().int().min(0),
+        rowsFailed: z.number().int().min(0),
+        status: z.enum(["completed", "failed", "partial"]),
+        notes: z.string().nullable().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     await assertAnyRole(context.userId, SCHEDULE_IMPORT_PANEL_ROLES, "ليس لديك صلاحية");
@@ -554,11 +599,17 @@ async function logScheduleImportResult(
   fileName: string,
   rep: ScheduleImportReport,
 ) {
-  const status = rep.aborted ? "failed" as const
-    : rep.rows_failed === 0 ? "completed" as const
-    : "partial" as const;
-  const notes = (rep.abortReason ? `[ABORT] ${rep.abortReason} | ` : "")
-    + rep.errors.slice(0, 30).map((e) => `R${e.row}: ${e.message}`).join(" | ") || null;
+  const status = rep.aborted
+    ? ("failed" as const)
+    : rep.rows_failed === 0
+      ? ("completed" as const)
+      : ("partial" as const);
+  const notes =
+    (rep.abortReason ? `[ABORT] ${rep.abortReason} | ` : "") +
+      rep.errors
+        .slice(0, 30)
+        .map((e) => `R${e.row}: ${e.message}`)
+        .join(" | ") || null;
 
   await supabaseAdmin.from("import_logs").insert({
     created_by: userId,

@@ -3,10 +3,21 @@ import { runWithImportDb } from "@/lib/imports/import-db";
 import { loadLookups } from "@/lib/imports/lookups";
 import type { ImportType, ValidatedRow, ValidationResult } from "@/lib/imports/types";
 import {
-  validateStudents, validateFaculty, validateStaff, validateCourses, validateStudyPlans,
-  validateDepartments, validatePrograms, validateLevels, validateCourseSections,
-  validateStudentEnrollments, validateStudentGrades, validateStudentFees,
-  validateStudentDiscounts, validateDocuments,
+  validateStudents,
+  validateFaculty,
+  validateStaff,
+  validateCourses,
+  validateStudyPlans,
+  validateDepartments,
+  validatePrograms,
+  validateLevels,
+  validateCourseSections,
+  validateStudentEnrollments,
+  validateStudentGrades,
+  validateStudentFees,
+  validateStudentDiscounts,
+  validateStudentEligibility,
+  validateDocuments,
 } from "@/lib/imports/validators";
 
 /** Server-side bulk import preview — uses supabaseAdmin via runWithImportDb (no writes). */
@@ -44,6 +55,8 @@ export async function previewBulkImportValidation(
         return validateStudentFees(rawRows, lookups, updateExisting);
       case "student_discounts":
         return validateStudentDiscounts(rawRows, lookups, updateExisting);
+      case "student_eligibility":
+        return validateStudentEligibility(rawRows, lookups);
       case "documents":
         return validateDocuments(rawRows, lookups);
       default:

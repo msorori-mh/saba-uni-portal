@@ -5,26 +5,52 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { importFacultyAccountsRows } from "@/lib/faculty-accounts.functions";
 import {
-  Upload, Download, CheckCircle2, XCircle, Loader2, FileSpreadsheet,
-  AlertTriangle, History, FileDown, FlaskConical, BarChart3, ChevronDown, ChevronUp,
+  Upload,
+  Download,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  FileSpreadsheet,
+  AlertTriangle,
+  History,
+  FileDown,
+  FlaskConical,
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
-  runBulkImport, getImportStats, listImportHistory, validateBulkImportPreview,
-  getStudentImportContextOptions, getStudyPlanImportContextOptions,
+  runBulkImport,
+  getImportStats,
+  listImportHistory,
+  validateBulkImportPreview,
+  getStudentImportContextOptions,
+  getStudyPlanImportContextOptions,
 } from "@/lib/imports.functions";
-import { parseExcel, downloadTemplate, type StudentTemplateOverrides } from "@/lib/imports/templates";
 import {
-  auditImportStarted, auditImportValidated, auditImportFailed,
-} from "@/lib/imports/engine";
+  parseExcel,
+  downloadTemplate,
+  type StudentTemplateOverrides,
+} from "@/lib/imports/templates";
+import { auditImportStarted, auditImportValidated, auditImportFailed } from "@/lib/imports/engine";
 import { downloadValidationReport, downloadImportReport } from "@/lib/imports/reports";
-import { IMPORT_TYPE_LABEL_AR, IMPORT_LOG_STATUS_AR, getReportStatLabels } from "@/lib/imports/labels";
+import {
+  IMPORT_TYPE_LABEL_AR,
+  IMPORT_LOG_STATUS_AR,
+  getReportStatLabels,
+} from "@/lib/imports/labels";
 import type { ImportReport, ImportType, ValidationResult, ValidatedRow } from "@/lib/imports/types";
 import { MasterTemplatesLibrary } from "@/components/admin/MasterTemplatesLibrary";
 import { downloadMasterTemplate } from "@/lib/imports/master-templates";
 import { ScheduleImportPanel } from "@/components/admin/ScheduleImportPanel";
 
 export const Route = createFileRoute("/admin/imports")({
-  head: () => ({ meta: [{ title: "الاستيراد الجماعي — لوحة الإدارة" }, { name: "robots", content: "noindex,nofollow" }] }),
+  head: () => ({
+    meta: [
+      { title: "الاستيراد الجماعي — لوحة الإدارة" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+  }),
   component: ImportsPage,
 });
 
@@ -42,6 +68,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "course_sections", label: "مجموعات المقررات" },
   { id: "student_enrollments", label: "تسجيلات الطلاب" },
   { id: "student_grades", label: "درجات الطلاب" },
+  { id: "student_eligibility", label: "بيانات أهلية الطلبات" },
   { id: "student_fees", label: "رسوم الطلاب" },
   { id: "student_discounts", label: "خصومات الطلاب" },
   { id: "documents", label: "الوثائق الرسمية" },
@@ -51,18 +78,27 @@ const TABS: { id: TabId; label: string }[] = [
 
 const TYPE_LABEL = IMPORT_TYPE_LABEL_AR;
 
+const IMPORT_TAB_INFO: Partial<Record<ImportType, { description: string; warning: string }>> = {
+  student_eligibility: {
+    description:
+      "تحديث بيانات أهلية الطلبات للطلاب الموجودين من كشف رسمي معتمد. لا ينشئ طلابًا أو حسابات دخول.",
+    warning:
+      "هذه البيانات تؤثر مستقبلاً في قبول أو رفض طلبات الطلاب. يجب استخدام ملف رسمي معتمد ومراجعة نتيجة التحقق قبل التنفيذ.",
+  },
+};
+
 const STRUCTURE_TYPES = new Set<ImportType>([
-  "departments", "programs", "levels", "course_sections", "student_enrollments", "student_grades", "student_fees", "student_discounts",
+  "departments",
+  "programs",
+  "levels",
+  "course_sections",
+  "student_enrollments",
+  "student_grades",
+  "student_fees",
+  "student_discounts",
 ]);
 
-const STEPS = [
-  "تنزيل القالب",
-  "رفع الملف",
-  "المعاينة",
-  "التحقق",
-  "الاستيراد",
-  "التقرير",
-] as const;
+const STEPS = ["تنزيل القالب", "رفع الملف", "المعاينة", "التحقق", "الاستيراد", "التقرير"] as const;
 
 const SERVER_PREVIEW_ERROR =
   "تعذر تنفيذ التحقق على الخادم. يرجى المحاولة مرة أخرى أو التواصل مع مدير النظام.";
@@ -118,7 +154,13 @@ type StudentImportContextOptions = {
   }>;
   levels: Array<{ id?: string; code?: string; name?: string; level_number?: number }>;
   academicYears: Array<{ id?: string; name: string; is_current?: boolean }>;
-  semesters: Array<{ id?: string; name: string; code?: string; academic_year_id?: string | null; is_current?: boolean }>;
+  semesters: Array<{
+    id?: string;
+    name: string;
+    code?: string;
+    academic_year_id?: string | null;
+    is_current?: boolean;
+  }>;
 };
 
 type StudyPlanImportContextOptions = {
@@ -126,8 +168,21 @@ type StudyPlanImportContextOptions = {
   programs: Array<{ id: string; code: string; name_ar: string; department_id: string | null }>;
   levels: Array<{ id: string; name: string; level_number: number }>;
   academicYears: Array<{ id: string; name: string; is_current?: boolean }>;
-  semesters: Array<{ id: string; name: string; code: string; academic_year_id?: string | null; is_current?: boolean }>;
-  studyPlans: Array<{ id: string; name: string; version: string; program_id: string; status: string; is_active: boolean }>;
+  semesters: Array<{
+    id: string;
+    name: string;
+    code: string;
+    academic_year_id?: string | null;
+    is_current?: boolean;
+  }>;
+  studyPlans: Array<{
+    id: string;
+    name: string;
+    version: string;
+    program_id: string;
+    status: string;
+    is_active: boolean;
+  }>;
 };
 
 const EMPTY_STUDENT_IMPORT_CONTEXT: StudentImportContextState = {
@@ -153,8 +208,15 @@ const cellText = (value: unknown) => (value == null ? "" : String(value).trim())
 const compareKey = (value: unknown) => cellText(value).toLowerCase();
 const normalizeStudySystemCell = (value: unknown) => {
   const key = compareKey(value);
-  if (key === "regular" || key === "عام" || key === "نظام عام" || key === "general") return "regular";
-  if (key === "private" || key === "نفقة خاصة" || key === "نظام نفقة خاصة" || key === "private_expense") return "private";
+  if (key === "regular" || key === "عام" || key === "نظام عام" || key === "general")
+    return "regular";
+  if (
+    key === "private" ||
+    key === "نفقة خاصة" ||
+    key === "نظام نفقة خاصة" ||
+    key === "private_expense"
+  )
+    return "private";
   return cellText(value);
 };
 
@@ -171,8 +233,9 @@ function sanitizeFileNamePart(value: unknown, fallback: string) {
 function studentTemplateFileName(overrides: StudentTemplateOverrides) {
   const program = sanitizeFileNamePart(overrides.program_code, "program");
   const level = sanitizeFileNamePart(overrides.academic_level, "level");
-  const studySystem = STUDY_SYSTEM_FILENAME_PART[overrides.study_system || ""]
-    || sanitizeFileNamePart(overrides.study_system, "study_system");
+  const studySystem =
+    STUDY_SYSTEM_FILENAME_PART[overrides.study_system || ""] ||
+    sanitizeFileNamePart(overrides.study_system, "study_system");
   const academicYear = sanitizeFileNamePart(overrides.academic_year, "year");
   const semester = sanitizeFileNamePart(overrides.semester, "semester");
   return `students_${program}_level_${level}_${studySystem}_${academicYear}_${semester}.xlsx`;
@@ -183,11 +246,13 @@ function hasAnyStudentImportContextValue(context: StudentImportContextState) {
 }
 
 function isStudentContextClientError(message: string) {
-  return message === STUDENT_CONTEXT_REQUIRED_MESSAGE
-    || message === STUDENT_CONTEXT_PARTIAL_MESSAGE
-    || Object.values(STUDENT_CONTEXT_MISMATCH_MESSAGES).includes(
+  return (
+    message === STUDENT_CONTEXT_REQUIRED_MESSAGE ||
+    message === STUDENT_CONTEXT_PARTIAL_MESSAGE ||
+    Object.values(STUDENT_CONTEXT_MISMATCH_MESSAGES).includes(
       message as (typeof STUDENT_CONTEXT_MISMATCH_MESSAGES)[keyof typeof STUDENT_CONTEXT_MISMATCH_MESSAGES],
-    );
+    )
+  );
 }
 
 function resolveStudentTemplateOverrides(
@@ -202,9 +267,8 @@ function resolveStudentTemplateOverrides(
   const semester = options.semesters.find((item) => item.id === context.semesterId);
   if (!department || !program || !level || !academicYear || !semester) return null;
 
-  const academicLevel = level.level_number != null
-    ? String(level.level_number)
-    : (level.code || level.name || "");
+  const academicLevel =
+    level.level_number != null ? String(level.level_number) : level.code || level.name || "";
 
   return {
     study_system: context.studySystem,
@@ -225,12 +289,36 @@ function applyStudentContextToRows(
     value: string | undefined;
     message: string;
   }> = [
-    { column: "study_system", value: context.study_system, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.study_system },
-    { column: "department_code", value: context.department_code, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.department_code },
-    { column: "program_code", value: context.program_code, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.program_code },
-    { column: "academic_level", value: context.academic_level, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.academic_level },
-    { column: "academic_year", value: context.academic_year, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.academic_year },
-    { column: "semester", value: context.semester, message: STUDENT_CONTEXT_MISMATCH_MESSAGES.semester },
+    {
+      column: "study_system",
+      value: context.study_system,
+      message: STUDENT_CONTEXT_MISMATCH_MESSAGES.study_system,
+    },
+    {
+      column: "department_code",
+      value: context.department_code,
+      message: STUDENT_CONTEXT_MISMATCH_MESSAGES.department_code,
+    },
+    {
+      column: "program_code",
+      value: context.program_code,
+      message: STUDENT_CONTEXT_MISMATCH_MESSAGES.program_code,
+    },
+    {
+      column: "academic_level",
+      value: context.academic_level,
+      message: STUDENT_CONTEXT_MISMATCH_MESSAGES.academic_level,
+    },
+    {
+      column: "academic_year",
+      value: context.academic_year,
+      message: STUDENT_CONTEXT_MISMATCH_MESSAGES.academic_year,
+    },
+    {
+      column: "semester",
+      value: context.semester,
+      message: STUDENT_CONTEXT_MISMATCH_MESSAGES.semester,
+    },
   ];
 
   return rows.map((row) => {
@@ -242,8 +330,10 @@ function applyStudentContextToRows(
         next[column] = value;
         return;
       }
-      const existingComparable = column === "study_system" ? normalizeStudySystemCell(existing) : compareKey(existing);
-      const valueComparable = column === "study_system" ? normalizeStudySystemCell(value) : compareKey(value);
+      const existingComparable =
+        column === "study_system" ? normalizeStudySystemCell(existing) : compareKey(existing);
+      const valueComparable =
+        column === "study_system" ? normalizeStudySystemCell(value) : compareKey(value);
       if (existingComparable !== valueComparable) {
         throw new Error(message);
       }
@@ -255,23 +345,23 @@ function applyStudentContextToRows(
 
 function hasAnyStudyPlanContextValue(context: StudyPlanImportContextState) {
   return Boolean(
-    context.departmentId
-    || context.programId
-    || context.planName.trim()
-    || context.version.trim()
-    || context.importMode
-    || context.semesterCode,
+    context.departmentId ||
+    context.programId ||
+    context.planName.trim() ||
+    context.version.trim() ||
+    context.importMode ||
+    context.semesterCode,
   );
 }
 
 function studyPlanContextReady(context: StudyPlanImportContextState) {
   return Boolean(
-    context.departmentId
-    && context.programId
-    && context.planName.trim()
-    && context.version.trim()
-    && context.importMode
-    && (context.importMode !== "single_semester" || context.semesterCode),
+    context.departmentId &&
+    context.programId &&
+    context.planName.trim() &&
+    context.version.trim() &&
+    context.importMode &&
+    (context.importMode !== "single_semester" || context.semesterCode),
   );
 }
 
@@ -296,7 +386,8 @@ function applyStudyPlanContextToRows(
   if (!studyPlanContextReady(context)) throw new Error(STUDY_PLAN_CONTEXT_REQUIRED_MESSAGE);
   const program = options?.programs.find((item) => item.id === context.programId);
   if (!program) throw new Error("البرنامج المختار غير موجود.");
-  if (program.department_id !== context.departmentId) throw new Error("البرنامج المختار لا يتبع القسم المحدد.");
+  if (program.department_id !== context.departmentId)
+    throw new Error("البرنامج المختار لا يتبع القسم المحدد.");
   return rows.map((row, index) => {
     const rowNumber = index + 2;
     const next = { ...row };
@@ -310,12 +401,16 @@ function applyStudyPlanContextToRows(
     next.plan_status = context.planStatus;
 
     if (context.importMode === "full_plan") {
-      if (!cellText(next.level)) throw new Error(`صف ${rowNumber}: يجب إدخال المستوى عند استيراد خطة كاملة.`);
-      if (!cellText(next.semester)) throw new Error(`صف ${rowNumber}: يجب إدخال الفصل الدراسي عند استيراد خطة كاملة.`);
+      if (!cellText(next.level))
+        throw new Error(`صف ${rowNumber}: يجب إدخال المستوى عند استيراد خطة كاملة.`);
+      if (!cellText(next.semester))
+        throw new Error(`صف ${rowNumber}: يجب إدخال الفصل الدراسي عند استيراد خطة كاملة.`);
     } else {
       const fileSemester = cellText(next.semester);
       if (fileSemester && compareKey(fileSemester) !== compareKey(context.semesterCode)) {
-        throw new Error(`صف ${rowNumber}: الفصل الدراسي داخل الملف لا يطابق الفصل المحدد في إعدادات الاستيراد.`);
+        throw new Error(
+          `صف ${rowNumber}: الفصل الدراسي داخل الملف لا يطابق الفصل المحدد في إعدادات الاستيراد.`,
+        );
       }
       next.semester = context.semesterCode;
     }
@@ -360,14 +455,25 @@ function ImportsPage() {
     queryFn: () => studyPlanContextOptionsFn({ data: {} }),
     enabled: tab === "study_plans",
   });
-  const studyPlanContextOptions = rawStudyPlanContextOptions as StudyPlanImportContextOptions | undefined;
+  const studyPlanContextOptions = rawStudyPlanContextOptions as
+    | StudyPlanImportContextOptions
+    | undefined;
 
   const reset = () => {
-    setFile(null); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
+    setFile(null);
+    setRows(null);
+    setValidation(null);
+    setReport(null);
+    setPerfMs(null);
     setDryRunCompleted(false);
   };
 
-  const onTabChange = (t: TabId) => { setTab(t); reset(); setUpdateExisting(false); setDryRun(false); };
+  const onTabChange = (t: TabId) => {
+    setTab(t);
+    reset();
+    setUpdateExisting(false);
+    setDryRun(false);
+  };
 
   // Determine current step (0..5)
   const step = useMemo(() => {
@@ -382,13 +488,16 @@ function ImportsPage() {
   const isSpecialTab = tab === "faculty_accounts" || tab === "class_schedule";
   const isStructureTab = !isSpecialTab && STRUCTURE_TYPES.has(tab as ImportType);
   const isStudyPlanContextReady = studyPlanContextReady(studyPlanImportContext);
-  const selectedStudyPlanProgram = studyPlanContextOptions?.programs.find((program) => program.id === studyPlanImportContext.programId);
+  const selectedStudyPlanProgram = studyPlanContextOptions?.programs.find(
+    (program) => program.id === studyPlanImportContext.programId,
+  );
   const existingStudyPlanConflict = Boolean(
-    studyPlanImportContext.programId
-    && studyPlanImportContext.version.trim()
-    && studyPlanContextOptions?.studyPlans.some((plan) =>
-      plan.program_id === studyPlanImportContext.programId
-      && compareKey(plan.version) === compareKey(studyPlanImportContext.version),
+    studyPlanImportContext.programId &&
+    studyPlanImportContext.version.trim() &&
+    studyPlanContextOptions?.studyPlans.some(
+      (plan) =>
+        plan.program_id === studyPlanImportContext.programId &&
+        compareKey(plan.version) === compareKey(studyPlanImportContext.version),
     ),
   );
   const studentTemplateOverrides = useMemo(
@@ -396,13 +505,13 @@ function ImportsPage() {
     [studentImportContext, studentContextOptions],
   );
   const studentContextReady = Boolean(
-    studentImportContext.studySystem
-    && studentImportContext.departmentId
-    && studentImportContext.programId
-    && studentImportContext.levelId
-    && studentImportContext.academicYearId
-    && studentImportContext.semesterId
-    && studentTemplateOverrides,
+    studentImportContext.studySystem &&
+    studentImportContext.departmentId &&
+    studentImportContext.programId &&
+    studentImportContext.levelId &&
+    studentImportContext.academicYearId &&
+    studentImportContext.semesterId &&
+    studentTemplateOverrides,
   );
 
   const runServerPreview = async (
@@ -415,7 +524,8 @@ function ImportsPage() {
           type: tab as ImportType,
           rows: parsed,
           updateExisting: updateExistingFlag,
-          studyPlanContext: tab === "study_plans" ? studyPlanContextPayload(studyPlanImportContext) : undefined,
+          studyPlanContext:
+            tab === "study_plans" ? studyPlanContextPayload(studyPlanImportContext) : undefined,
         },
       });
     } catch (e) {
@@ -469,7 +579,11 @@ function ImportsPage() {
   const onFile = async (f: File) => {
     if (isSpecialTab) return;
     const t = tab as ImportType;
-    setFile(f); setRows(null); setValidation(null); setReport(null); setPerfMs(null);
+    setFile(f);
+    setRows(null);
+    setValidation(null);
+    setReport(null);
+    setPerfMs(null);
     setValidating(true);
     try {
       const parsed = await parseExcel(f);
@@ -478,14 +592,20 @@ function ImportsPage() {
       const res = await runServerPreview(rowsForPreview, updateExisting);
       setValidation(res);
       void auditImportValidated(t, f.name, {
-        total: res.totalRows, valid: res.validRows, invalid: res.invalidRows,
+        total: res.totalRows,
+        valid: res.validRows,
+        invalid: res.invalidRows,
       });
     } catch (e) {
       void auditImportFailed(t, f.name, (e as Error).message);
       const msg = (e as Error).message;
-      alert(isStudentContextClientError(msg) || msg === SERVER_PREVIEW_ERROR || /صلاحية|Unauthorized/i.test(msg)
-        ? msg
-        : "تعذر قراءة الملف: " + msg);
+      alert(
+        isStudentContextClientError(msg) ||
+          msg === SERVER_PREVIEW_ERROR ||
+          /صلاحية|Unauthorized/i.test(msg)
+          ? msg
+          : "تعذر قراءة الملف: " + msg,
+      );
     } finally {
       setValidating(false);
     }
@@ -526,7 +646,8 @@ function ImportsPage() {
           rows: validation.rows as any[],
           dryRun,
           updateExisting,
-          studyPlanContext: t === "study_plans" ? studyPlanContextPayload(studyPlanImportContext) : undefined,
+          studyPlanContext:
+            t === "study_plans" ? studyPlanContextPayload(studyPlanImportContext) : undefined,
         },
       });
       const duration = Math.round(performance.now() - t0);
@@ -550,7 +671,8 @@ function ImportsPage() {
           <FileSpreadsheet className="h-6 w-6 text-gold" /> الاستيراد الجماعي
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          استورد بيانات حقيقية من ملفات Excel مع التحقق المسبق، الوضع التجريبي، وتقارير قابلة للتنزيل.
+          استورد بيانات حقيقية من ملفات Excel مع التحقق المسبق، الوضع التجريبي، وتقارير قابلة
+          للتنزيل.
         </p>
       </header>
 
@@ -562,8 +684,9 @@ function ImportsPage() {
         <div className="flex items-start gap-2 rounded-lg bg-secondary/40 border border-border px-3 py-2 text-xs text-primary">
           <AlertTriangle className="h-4 w-4 text-gold shrink-0 mt-0.5" />
           <span>
-            الأنواع الظاهرة في التبويبات أدناه هي <strong>المستوردات المتاحة فعلياً</strong> للرفع والاستيراد.
-            بعض القوالب الإضافية متاحة للتنزيل من قسم «قوالب الاستيراد الرسمية» في الأسفل.
+            الأنواع الظاهرة في التبويبات أدناه هي <strong>المستوردات المتاحة فعلياً</strong> للرفع
+            والاستيراد. بعض القوالب الإضافية متاحة للتنزيل من قسم «قوالب الاستيراد الرسمية» في
+            الأسفل.
           </span>
         </div>
         <nav className="flex flex-wrap gap-2 border-b border-border">
@@ -589,152 +712,193 @@ function ImportsPage() {
         </nav>
       </div>
 
-
       {tab === "faculty_accounts" ? (
         <FacultyAccountsImportPanel />
       ) : tab === "class_schedule" ? (
         <ScheduleImportPanel />
       ) : (
-      <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
-        {tab === "students" && (
-          <StudentImportContextWizard
-            options={studentContextOptions}
-            value={studentImportContext}
-            isLoading={studentContextOptionsLoading}
-            isReady={studentContextReady}
-            onChange={updateStudentImportContext}
-            onDownload={downloadCustomStudentTemplate}
-          />
-        )}
-        {tab === "study_plans" && (
-          <StudyPlanImportContextWizard
-            options={studyPlanContextOptions}
-            value={studyPlanImportContext}
-            isLoading={studyPlanContextOptionsLoading}
-            isReady={isStudyPlanContextReady && !existingStudyPlanConflict}
-            existingPlanConflict={existingStudyPlanConflict}
-            onChange={updateStudyPlanImportContext}
-          />
-        )}
-
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => downloadTemplate(tab as ImportType)}
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold"
-          >
-            <Download className="h-4 w-4" /> {tab === "students" ? "تنزيل القالب العام" : "تنزيل القالب"}
-          </button>
-
-          <label className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground cursor-pointer hover:opacity-90">
-            <Upload className="h-4 w-4" />
-            رفع ملف Excel
-            <input
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
-            />
-          </label>
-
-          {file && (
-            <span className="text-xs text-muted-foreground">
-              الملف: <span className="font-mono">{file.name}</span>
-            </span>
-          )}
-
-          {validation && (
-            <button
-              onClick={() => downloadValidationReport(tab as ImportType, file?.name ?? "file.xlsx", validation)}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold"
-            >
-              <FileDown className="h-3.5 w-3.5" /> تقرير التحقق
-            </button>
-          )}
-
-          {validation && !report && (
-            <div className="ml-auto flex flex-col items-end gap-2">
-              {!dryRun && !dryRunCompleted && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 max-w-md text-right">
-                  <strong>خطوة مطلوبة:</strong> شغّل <strong>الوضع التجريبي (Dry Run)</strong> مرة واحدة قبل التنفيذ الفعلي للتأكد من النتائج المتوقعة.
-                </div>
-              )}
-              {dryRunCompleted && !dryRun && (
-                <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                  <CheckCircle2 className="inline h-3.5 w-3.5 ml-1" />
-                  اكتمل التشغيل التجريبي — يمكنك تنفيذ الاستيراد الفعلي الآن.
-                </div>
-              )}
-              <div className="flex flex-wrap items-center gap-3">
-              {isStructureTab && (
-                <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 accent-gold"
-                    checked={updateExisting}
-                    onChange={(e) => onToggleUpdateExisting(e.target.checked)}
-                  />
-                  تحديث القائم (Update Existing)
-                </label>
-              )}
-              <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-gold"
-                  checked={dryRun}
-                  onChange={(e) => setDryRun(e.target.checked)}
-                />
-                <FlaskConical className="h-3.5 w-3.5 text-gold" /> وضع التحقق فقط (Dry Run)
-              </label>
-              <button
-                onClick={runImport}
-                disabled={importing || validation.validRows === 0 || (!dryRun && !dryRunCompleted)}
-                title={!dryRun && !dryRunCompleted ? "شغّل الوضع التجريبي أولاً" : undefined}
-                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50 ${
-                  dryRun ? "bg-amber-600" : "bg-emerald-600"
-                }`}
-              >
-                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                {dryRun ? "تشغيل تجريبي" : "تنفيذ الاستيراد"} ({validation.validRows} صف)
-              </button>
+        <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
+          {IMPORT_TAB_INFO[tab as ImportType] && (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {IMPORT_TAB_INFO[tab as ImportType]!.description}
+              </p>
+              <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>{IMPORT_TAB_INFO[tab as ImportType]!.warning}</span>
               </div>
             </div>
           )}
-        </div>
+          {tab === "students" && (
+            <StudentImportContextWizard
+              options={studentContextOptions}
+              value={studentImportContext}
+              isLoading={studentContextOptionsLoading}
+              isReady={studentContextReady}
+              onChange={updateStudentImportContext}
+              onDownload={downloadCustomStudentTemplate}
+            />
+          )}
+          {tab === "study_plans" && (
+            <StudyPlanImportContextWizard
+              options={studyPlanContextOptions}
+              value={studyPlanImportContext}
+              isLoading={studyPlanContextOptionsLoading}
+              isReady={isStudyPlanContextReady && !existingStudyPlanConflict}
+              existingPlanConflict={existingStudyPlanConflict}
+              onChange={updateStudyPlanImportContext}
+            />
+          )}
 
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => downloadTemplate(tab as ImportType)}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold"
+            >
+              <Download className="h-4 w-4" />{" "}
+              {tab === "students" ? "تنزيل القالب العام" : "تنزيل القالب"}
+            </button>
 
-
-        {validating && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> جارٍ التحقق من البيانات...
-          </div>
-        )}
-
-        {validation && (
-          <>
-            {tab === "study_plans" && (
-              <StudyPlanPreviewSummary
-                context={studyPlanImportContext}
-                departmentName={studyPlanContextOptions?.departments.find((d) => d.id === studyPlanImportContext.departmentId)?.name_ar}
-                programLabel={selectedStudyPlanProgram ? `${selectedStudyPlanProgram.name_ar} (${selectedStudyPlanProgram.code})` : undefined}
-                validation={validation}
+            <label className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground cursor-pointer hover:opacity-90">
+              <Upload className="h-4 w-4" />
+              رفع ملف Excel
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onFile(f);
+                }}
               />
-            )}
-            <PreviewBlock validation={validation} />
-          </>
-        )}
+            </label>
 
-        {report && (
-          <ReportBlock
-            report={report}
-            type={tab as ImportType}
-            dryRun={dryRun}
-            durationMs={perfMs}
-            onDownload={() => downloadImportReport(tab as ImportType, file?.name ?? "file.xlsx", report, { dryRun, durationMs: perfMs })}
-            onContinueRealImport={dryRun ? () => { setReport(null); setDryRun(false); } : undefined}
-            onStartOver={() => reset()}
-          />
-        )}
-      </section>
+            {file && (
+              <span className="text-xs text-muted-foreground">
+                الملف: <span className="font-mono">{file.name}</span>
+              </span>
+            )}
+
+            {validation && (
+              <button
+                onClick={() =>
+                  downloadValidationReport(tab as ImportType, file?.name ?? "file.xlsx", validation)
+                }
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold"
+              >
+                <FileDown className="h-3.5 w-3.5" /> تقرير التحقق
+              </button>
+            )}
+
+            {validation && !report && (
+              <div className="ml-auto flex flex-col items-end gap-2">
+                {!dryRun && !dryRunCompleted && (
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 max-w-md text-right">
+                    <strong>خطوة مطلوبة:</strong> شغّل <strong>الوضع التجريبي (Dry Run)</strong> مرة
+                    واحدة قبل التنفيذ الفعلي للتأكد من النتائج المتوقعة.
+                  </div>
+                )}
+                {dryRunCompleted && !dryRun && (
+                  <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                    <CheckCircle2 className="inline h-3.5 w-3.5 ml-1" />
+                    اكتمل التشغيل التجريبي — يمكنك تنفيذ الاستيراد الفعلي الآن.
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  {isStructureTab && (
+                    <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-gold"
+                        checked={updateExisting}
+                        onChange={(e) => onToggleUpdateExisting(e.target.checked)}
+                      />
+                      تحديث القائم (Update Existing)
+                    </label>
+                  )}
+                  <label className="inline-flex items-center gap-2 text-xs font-bold text-primary cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-gold"
+                      checked={dryRun}
+                      onChange={(e) => setDryRun(e.target.checked)}
+                    />
+                    <FlaskConical className="h-3.5 w-3.5 text-gold" /> وضع التحقق فقط (Dry Run)
+                  </label>
+                  <button
+                    onClick={runImport}
+                    disabled={
+                      importing || validation.validRows === 0 || (!dryRun && !dryRunCompleted)
+                    }
+                    title={!dryRun && !dryRunCompleted ? "شغّل الوضع التجريبي أولاً" : undefined}
+                    className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50 ${
+                      dryRun ? "bg-amber-600" : "bg-emerald-600"
+                    }`}
+                  >
+                    {importing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}
+                    {dryRun ? "تشغيل تجريبي" : "تنفيذ الاستيراد"} ({validation.validRows} صف)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {validating && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> جارٍ التحقق من البيانات...
+            </div>
+          )}
+
+          {validation && (
+            <>
+              {tab === "study_plans" && (
+                <StudyPlanPreviewSummary
+                  context={studyPlanImportContext}
+                  departmentName={
+                    studyPlanContextOptions?.departments.find(
+                      (d) => d.id === studyPlanImportContext.departmentId,
+                    )?.name_ar
+                  }
+                  programLabel={
+                    selectedStudyPlanProgram
+                      ? `${selectedStudyPlanProgram.name_ar} (${selectedStudyPlanProgram.code})`
+                      : undefined
+                  }
+                  validation={validation}
+                />
+              )}
+              <PreviewBlock validation={validation} />
+            </>
+          )}
+
+          {report && (
+            <ReportBlock
+              report={report}
+              type={tab as ImportType}
+              dryRun={dryRun}
+              durationMs={perfMs}
+              onDownload={() =>
+                downloadImportReport(tab as ImportType, file?.name ?? "file.xlsx", report, {
+                  dryRun,
+                  durationMs: perfMs,
+                })
+              }
+              onContinueRealImport={
+                dryRun
+                  ? () => {
+                      setReport(null);
+                      setDryRun(false);
+                    }
+                  : undefined
+              }
+              onStartOver={() => reset()}
+            />
+          )}
+        </section>
       )}
 
       <MasterTemplatesLibrary />
@@ -767,23 +931,30 @@ function StudentImportContextWizard({
   const levels = options?.levels ?? [];
   const academicYears = options?.academicYears ?? [];
 
-  const filteredDepartments = useMemo(() => departments.filter((department) =>
-    !department.study_system || department.study_system === value.studySystem,
-  ), [departments, value.studySystem]);
+  const filteredDepartments = useMemo(
+    () =>
+      departments.filter(
+        (department) => !department.study_system || department.study_system === value.studySystem,
+      ),
+    [departments, value.studySystem],
+  );
 
   const selectedDepartment = departments.find((department) => department.id === value.departmentId);
 
   const filteredPrograms = useMemo(() => {
     if (!selectedDepartment) return [];
     return programs.filter((program) => {
-      const matchesDepartmentId = Boolean(selectedDepartment.id && program.department_id === selectedDepartment.id);
+      const matchesDepartmentId = Boolean(
+        selectedDepartment.id && program.department_id === selectedDepartment.id,
+      );
       const selectedDepartmentCode = selectedDepartment.code || selectedDepartment.name;
       const matchesDepartmentCode = Boolean(
-        program.department_code
-        && selectedDepartmentCode
-        && compareKey(program.department_code) === compareKey(selectedDepartmentCode),
+        program.department_code &&
+        selectedDepartmentCode &&
+        compareKey(program.department_code) === compareKey(selectedDepartmentCode),
       );
-      const matchesStudySystem = !program.study_system || program.study_system === value.studySystem;
+      const matchesStudySystem =
+        !program.study_system || program.study_system === value.studySystem;
       return matchesStudySystem && (matchesDepartmentId || matchesDepartmentCode);
     });
   }, [programs, selectedDepartment, value.studySystem]);
@@ -791,8 +962,9 @@ function StudentImportContextWizard({
   const filteredSemesters = useMemo(() => {
     const semesters = options?.semesters ?? [];
     if (!value.academicYearId) return [];
-    return semesters.filter((semester) =>
-      !semester.academic_year_id || semester.academic_year_id === value.academicYearId,
+    return semesters.filter(
+      (semester) =>
+        !semester.academic_year_id || semester.academic_year_id === value.academicYearId,
     );
   }, [options?.semesters, value.academicYearId]);
 
@@ -856,7 +1028,8 @@ function StudentImportContextWizard({
             إعداد قالب بيانات الطلاب
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            اختر سياق الاستيراد من بيانات النظام لتجهيز القالب بالقسم والبرنامج والمستوى والعام والفصل الصحيحين.
+            اختر سياق الاستيراد من بيانات النظام لتجهيز القالب بالقسم والبرنامج والمستوى والعام
+            والفصل الصحيحين.
           </p>
         </div>
         {isLoading && (
@@ -1020,9 +1193,12 @@ function StudyPlanImportContextWizard({
     <div className="rounded-xl border border-gold/40 bg-gold/5 p-4 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="font-display text-base font-extrabold text-primary">إعداد سياق الخطة الدراسية</h2>
+          <h2 className="font-display text-base font-extrabold text-primary">
+            إعداد سياق الخطة الدراسية
+          </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            اختر القسم والبرنامج والخطة قبل رفع ملف Excel. القسم والبرنامج يحددان من الشاشة ولا يُكتبان داخل الملف.
+            اختر القسم والبرنامج والخطة قبل رفع ملف Excel. القسم والبرنامج يحددان من الشاشة ولا
+            يُكتبان داخل الملف.
           </p>
         </div>
         {isLoading && <span className="text-xs text-muted-foreground">جارٍ تحميل الخيارات...</span>}
@@ -1033,7 +1209,10 @@ function StudyPlanImportContextWizard({
           label="القسم"
           value={value.departmentId}
           onChange={(departmentId) => set({ departmentId, programId: "" })}
-          options={departments.map((department) => ({ value: department.id, label: department.name_ar }))}
+          options={departments.map((department) => ({
+            value: department.id,
+            label: department.name_ar,
+          }))}
           disabled={isLoading}
           placeholder="اختر القسم"
         />
@@ -1041,7 +1220,10 @@ function StudyPlanImportContextWizard({
           label="البرنامج"
           value={value.programId}
           onChange={(programId) => set({ programId })}
-          options={filteredPrograms.map((program) => ({ value: program.id, label: `${program.name_ar} (${program.code})` }))}
+          options={filteredPrograms.map((program) => ({
+            value: program.id,
+            label: `${program.name_ar} (${program.code})`,
+          }))}
           disabled={isLoading || !value.departmentId}
           placeholder="اختر البرنامج"
         />
@@ -1078,10 +1260,12 @@ function StudyPlanImportContextWizard({
         <StudentContextSelect
           label="نوع الاستيراد"
           value={value.importMode}
-          onChange={(importMode) => set({
-            importMode: importMode as StudyPlanImportContextState["importMode"],
-            semesterCode: importMode === "single_semester" ? value.semesterCode : "",
-          })}
+          onChange={(importMode) =>
+            set({
+              importMode: importMode as StudyPlanImportContextState["importMode"],
+              semesterCode: importMode === "single_semester" ? value.semesterCode : "",
+            })
+          }
           options={[
             { value: "full_plan", label: "خطة كاملة" },
             { value: "single_semester", label: "فصل محدد" },
@@ -1151,8 +1335,18 @@ function StudyPlanPreviewSummary({
         <SummaryItem label="البرنامج" value={programLabel ?? "—"} />
         <SummaryItem label="اسم الخطة" value={context.planName || "—"} />
         <SummaryItem label="الإصدار" value={context.version || "—"} />
-        <SummaryItem label="نوع الاستيراد" value={context.importMode === "single_semester" ? "فصل محدد" : "خطة كاملة"} />
-        <SummaryItem label="الفصل الدراسي" value={context.importMode === "single_semester" ? context.semesterCode || "—" : "متعدد حسب الملف"} />
+        <SummaryItem
+          label="نوع الاستيراد"
+          value={context.importMode === "single_semester" ? "فصل محدد" : "خطة كاملة"}
+        />
+        <SummaryItem
+          label="الفصل الدراسي"
+          value={
+            context.importMode === "single_semester"
+              ? context.semesterCode || "—"
+              : "متعدد حسب الملف"
+          }
+        />
         <SummaryItem label="إجمالي الصفوف" value={String(validation.totalRows)} />
         <SummaryItem label="صفوف صالحة" value={String(validation.validRows)} />
         <SummaryItem label="صفوف بأخطاء" value={String(validation.invalidRows)} />
@@ -1160,7 +1354,10 @@ function StudyPlanPreviewSummary({
       {(missingCourses.size > 0 || missingPrereqs.size > 0) && (
         <div className="grid gap-3 md:grid-cols-2">
           <MissingList title="المقررات غير الموجودة" values={[...missingCourses]} />
-          <MissingList title="المتطلبات السابقة غير الموجودة/غير الصالحة" values={[...missingPrereqs]} />
+          <MissingList
+            title="المتطلبات السابقة غير الموجودة/غير الصالحة"
+            values={[...missingPrereqs]}
+          />
         </div>
       )}
     </div>
@@ -1183,7 +1380,9 @@ function MissingList({ title, values }: { title: string; values: string[] }) {
       <div className="font-bold text-destructive">{title}</div>
       <div className="mt-1 flex flex-wrap gap-1">
         {values.map((value) => (
-          <span key={value} className="rounded bg-background px-2 py-0.5 font-mono text-[11px]">{value}</span>
+          <span key={value} className="rounded bg-background px-2 py-0.5 font-mono text-[11px]">
+            {value}
+          </span>
         ))}
       </div>
     </div>
@@ -1204,15 +1403,36 @@ function FacultyAccountsImportPanel() {
   const downloadAccountsTemplate = async () => {
     const { loadXLSX } = await import("@/lib/xlsx-loader");
     const XLSX = await loadXLSX();
-    const headers = ["employee_number","email","initial_password","full_name_ar","department_name","academic_rank","role","force_password_change"];
-    const sample = ["F2025001","faculty@example.com","TempPass!23","د. أحمد","قسم علوم الحاسوب","Assistant Professor","faculty_member","true"];
+    const headers = [
+      "employee_number",
+      "email",
+      "initial_password",
+      "full_name_ar",
+      "department_name",
+      "academic_rank",
+      "role",
+      "force_password_change",
+    ];
+    const sample = [
+      "F2025001",
+      "faculty@example.com",
+      "TempPass!23",
+      "د. أحمد",
+      "قسم علوم الحاسوب",
+      "Assistant Professor",
+      "faculty_member",
+      "true",
+    ];
     const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
     ws["!cols"] = headers.map(() => ({ wch: 22 }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Faculty Accounts");
-    const inst = [["التعليمات"],
+    const inst = [
+      ["التعليمات"],
       ["الأعمدة المطلوبة: employee_number, email, initial_password"],
-      ["الأعمدة الاختيارية: full_name_ar, department_name, academic_rank, role, force_password_change, status"],
+      [
+        "الأعمدة الاختيارية: full_name_ar, department_name, academic_rank, role, force_password_change, status",
+      ],
       ["role فارغ = faculty_member"],
       ["force_password_change فارغ = true"],
       ["الربط يتم عبر employee_number فقط"],
@@ -1222,12 +1442,16 @@ function FacultyAccountsImportPanel() {
   };
 
   const onFile = async (f: File) => {
-    setFile(f); setResult(null); setError(null);
+    setFile(f);
+    setResult(null);
+    setError(null);
   };
 
   const runImport = async () => {
     if (!file) return;
-    setBusy(true); setError(null); setResult(null);
+    setBusy(true);
+    setError(null);
+    setResult(null);
     try {
       const parsed = await parseExcel(file);
       const rows = parsed.map((r, idx) => ({ ...r, row_number: idx + 2 }));
@@ -1245,7 +1469,10 @@ function FacultyAccountsImportPanel() {
     const { loadXLSX } = await import("@/lib/xlsx-loader");
     const XLSX = await loadXLSX();
     const STATUS_AR: Record<string, string> = {
-      created: "تم الإنشاء", linked: "تم الربط", already_linked: "مربوط مسبقاً", failed: "فشل",
+      created: "تم الإنشاء",
+      linked: "تم الربط",
+      already_linked: "مربوط مسبقاً",
+      failed: "فشل",
     };
     const data = result.results.map((r: FacultyImportRow) => ({
       row: r.row_number,
@@ -1258,42 +1485,70 @@ function FacultyAccountsImportPanel() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Import Report");
-    XLSX.writeFile(wb, `faculty_accounts_import_report_${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.writeFile(
+      wb,
+      `faculty_accounts_import_report_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
   };
 
   return (
     <section className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
       <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-        نوع استيراد خاص لربط/إنشاء حسابات أعضاء هيئة التدريس عبر البريد الإلكتروني الرسمي. لا يتم توليد أي بريد افتراضي.
+        نوع استيراد خاص لربط/إنشاء حسابات أعضاء هيئة التدريس عبر البريد الإلكتروني الرسمي. لا يتم
+        توليد أي بريد افتراضي.
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <button onClick={downloadAccountsTemplate}
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold">
+        <button
+          onClick={downloadAccountsTemplate}
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-bold text-primary hover:border-gold"
+        >
           <Download className="h-4 w-4" /> تنزيل القالب
         </button>
         <label className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground cursor-pointer hover:opacity-90">
           <Upload className="h-4 w-4" /> رفع ملف Excel
-          <input type="file" accept=".xlsx,.xls" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }} />
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onFile(f);
+            }}
+          />
         </label>
-        {file && <span className="text-xs text-muted-foreground">الملف: <span className="font-mono">{file.name}</span></span>}
+        {file && (
+          <span className="text-xs text-muted-foreground">
+            الملف: <span className="font-mono">{file.name}</span>
+          </span>
+        )}
         {file && !result && (
-          <button onClick={runImport} disabled={busy}
-            className="ml-auto inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          <button
+            onClick={runImport}
+            disabled={busy}
+            className="ml-auto inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
             تنفيذ الاستيراد
           </button>
         )}
         {result && (
-          <button onClick={downloadResultReport}
-            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold">
+          <button
+            onClick={downloadResultReport}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-bold text-primary hover:border-gold"
+          >
             <FileDown className="h-3.5 w-3.5" /> تصدير التقرير Excel
           </button>
         )}
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
       )}
 
       {result && (
@@ -1324,14 +1579,22 @@ function FacultyAccountsImportPanel() {
                     <td className="px-2 py-1 font-mono">{r.employee_number}</td>
                     <td className="px-2 py-1">{r.full_name_ar ?? "—"}</td>
                     <td className="px-2 py-1 font-mono">{r.email}</td>
-                    <td className={`px-2 py-1 font-bold ${
-                      r.status === "created" || r.status === "linked" ? "text-emerald-700" :
-                      r.status === "already_linked" ? "text-amber-700" : "text-destructive"
-                    }`}>
-                      {r.status === "created" ? "تم الإنشاء"
-                        : r.status === "linked" ? "تم الربط"
-                        : r.status === "already_linked" ? "مربوط مسبقاً"
-                        : "فشل"}
+                    <td
+                      className={`px-2 py-1 font-bold ${
+                        r.status === "created" || r.status === "linked"
+                          ? "text-emerald-700"
+                          : r.status === "already_linked"
+                            ? "text-amber-700"
+                            : "text-destructive"
+                      }`}
+                    >
+                      {r.status === "created"
+                        ? "تم الإنشاء"
+                        : r.status === "linked"
+                          ? "تم الربط"
+                          : r.status === "already_linked"
+                            ? "مربوط مسبقاً"
+                            : "فشل"}
                     </td>
                     <td className="px-2 py-1 text-muted-foreground">{r.reason ?? "—"}</td>
                   </tr>
@@ -1345,11 +1608,6 @@ function FacultyAccountsImportPanel() {
   );
 }
 
-
-
-
-
-
 function Stepper({ current }: { current: number }) {
   return (
     <ol className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-card">
@@ -1358,10 +1616,22 @@ function Stepper({ current }: { current: number }) {
         const active = i === current;
         return (
           <li key={label} className="flex items-center gap-2">
-            <div className={`grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold ${
-              done ? "bg-emerald-600 text-white" : active ? "bg-gold text-primary" : "bg-secondary text-muted-foreground"
-            }`}>{i + 1}</div>
-            <span className={`text-xs font-bold ${active ? "text-primary" : done ? "text-emerald-700" : "text-muted-foreground"}`}>{label}</span>
+            <div
+              className={`grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold ${
+                done
+                  ? "bg-emerald-600 text-white"
+                  : active
+                    ? "bg-gold text-primary"
+                    : "bg-secondary text-muted-foreground"
+              }`}
+            >
+              {i + 1}
+            </div>
+            <span
+              className={`text-xs font-bold ${active ? "text-primary" : done ? "text-emerald-700" : "text-muted-foreground"}`}
+            >
+              {label}
+            </span>
             {i < STEPS.length - 1 && <span className="mx-1 hidden h-px w-6 bg-border sm:block" />}
           </li>
         );
@@ -1442,8 +1712,19 @@ function PreviewBlock({ validation }: { validation: ValidationResult<any> }) {
   );
 }
 
-function ReportBlock({ report, type, dryRun, durationMs, onDownload, onContinueRealImport, onStartOver }: {
-  report: ImportReport; type: ImportType; dryRun: boolean; durationMs: number | null;
+function ReportBlock({
+  report,
+  type,
+  dryRun,
+  durationMs,
+  onDownload,
+  onContinueRealImport,
+  onStartOver,
+}: {
+  report: ImportReport;
+  type: ImportType;
+  dryRun: boolean;
+  durationMs: number | null;
   onDownload: () => void;
   onContinueRealImport?: () => void;
   onStartOver?: () => void;
@@ -1459,7 +1740,9 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload, onContinueR
       <div className={`flex items-center justify-between gap-2 ${titleClass}`}>
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5" />
-          {dryRun ? "تشغيل تجريبي مكتمل (لم تتم أي تغييرات)" : `تم تنفيذ استيراد ${TYPE_LABEL[type]}`}
+          {dryRun
+            ? "تشغيل تجريبي مكتمل (لم تتم أي تغييرات)"
+            : `تم تنفيذ استيراد ${TYPE_LABEL[type]}`}
         </div>
         <button
           onClick={onDownload}
@@ -1468,7 +1751,9 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload, onContinueR
           <FileDown className="h-3.5 w-3.5" /> تنزيل التقرير
         </button>
       </div>
-      <div className={`grid gap-3 ${statLabels.showUpdated ? "grid-cols-2 md:grid-cols-6" : "grid-cols-2 md:grid-cols-5"}`}>
+      <div
+        className={`grid gap-3 ${statLabels.showUpdated ? "grid-cols-2 md:grid-cols-6" : "grid-cols-2 md:grid-cols-5"}`}
+      >
         <Stat label="إجمالي" value={report.rows_total} tone="neutral" />
         <Stat label="نجح" value={report.rows_success} tone="ok" />
         <Stat label="فشل" value={report.rows_failed} tone="bad" />
@@ -1476,14 +1761,44 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload, onContinueR
         {statLabels.showUpdated && (
           <Stat label={statLabels.updated} value={report.rows_updated ?? 0} tone="neutral" />
         )}
+        {type === "student_eligibility" && report.eligibility_summary && (
+          <>
+            <Stat label="مستجد" value={report.eligibility_summary.new_count} tone="neutral" />
+            <Stat
+              label="باقي/إعادة"
+              value={report.eligibility_summary.repeat_count}
+              tone="neutral"
+            />
+            <Stat
+              label="محوّلون"
+              value={report.eligibility_summary.transferred_count}
+              tone="neutral"
+            />
+            <Stat
+              label="سابق إيقاف"
+              value={report.eligibility_summary.prior_suspension_count}
+              tone="neutral"
+            />
+            <Stat
+              label="مراجع مصدر"
+              value={report.eligibility_summary.distinct_source_references}
+              tone="neutral"
+            />
+          </>
+        )}
         <Stat label="الزمن (ms)" value={durationMs ?? 0} tone="neutral" />
       </div>
       {report.errors.length > 0 && (
         <details className="text-xs">
-          <summary className="cursor-pointer font-bold text-destructive">أخطاء ({report.errors.length})</summary>
+          <summary className="cursor-pointer font-bold text-destructive">
+            أخطاء ({report.errors.length})
+          </summary>
           <ul className="mt-2 list-disc pr-5 space-y-1 max-h-40 overflow-y-auto">
             {report.errors.slice(0, 100).map((e, i) => (
-              <li key={i}>صف {e.row}{e.column ? ` [${e.column}]` : ""}: {e.message}</li>
+              <li key={i}>
+                صف {e.row}
+                {e.column ? ` [${e.column}]` : ""}: {e.message}
+              </li>
             ))}
           </ul>
         </details>
@@ -1499,10 +1814,7 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload, onContinueR
             </button>
           )}
           {onStartOver && (
-            <button
-              onClick={onStartOver}
-              className="text-xs font-bold text-primary underline"
-            >
+            <button onClick={onStartOver} className="text-xs font-bold text-primary underline">
               رفع ملف جديد
             </button>
           )}
@@ -1512,8 +1824,17 @@ function ReportBlock({ report, type, dryRun, durationMs, onDownload, onContinueR
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: number; tone: "ok" | "bad" | "neutral" }) {
-  const toneClass = tone === "ok" ? "text-emerald-700" : tone === "bad" ? "text-destructive" : "text-primary";
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: "ok" | "bad" | "neutral";
+}) {
+  const toneClass =
+    tone === "ok" ? "text-emerald-700" : tone === "bad" ? "text-destructive" : "text-primary";
   return (
     <div className="rounded-lg border border-border bg-background p-3">
       <div className="text-[11px] text-muted-foreground">{label}</div>
@@ -1523,8 +1844,15 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "ok"
 }
 
 type HistoryRow = {
-  id: string; created_at: string; import_type: ImportType; file_name: string;
-  rows_total: number; rows_success: number; rows_failed: number; status: string; notes: string | null;
+  id: string;
+  created_at: string;
+  import_type: ImportType;
+  file_name: string;
+  rows_total: number;
+  rows_success: number;
+  rows_failed: number;
+  status: string;
+  notes: string | null;
 };
 
 function ImportHistory() {
@@ -1572,23 +1900,36 @@ function ImportHistory() {
                             className="text-primary"
                             aria-label="تفاصيل"
                           >
-                            {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                            {isOpen ? (
+                              <ChevronUp className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
                           </button>
                         ) : null}
                       </td>
-                      <td className="py-2 px-2 text-xs">{new Date(r.created_at).toLocaleString("ar-EG")}</td>
-                      <td className="py-2 px-2">{TYPE_LABEL[r.import_type as ImportType] ?? r.import_type}</td>
+                      <td className="py-2 px-2 text-xs">
+                        {new Date(r.created_at).toLocaleString("ar-EG")}
+                      </td>
+                      <td className="py-2 px-2">
+                        {TYPE_LABEL[r.import_type as ImportType] ?? r.import_type}
+                      </td>
                       <td className="py-2 px-2 font-mono text-xs">{r.file_name}</td>
                       <td className="py-2 px-2">{r.rows_total}</td>
                       <td className="py-2 px-2 text-emerald-700 font-bold">{r.rows_success}</td>
                       <td className="py-2 px-2 text-destructive font-bold">{r.rows_failed}</td>
                       <td className="py-2 px-2">
-                        <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
-                          r.status === "completed" ? "bg-emerald-100 text-emerald-700" :
-                          r.status === "dry_run" ? "bg-amber-100 text-amber-700" :
-                          r.status === "partial" ? "bg-amber-100 text-amber-700" :
-                          "bg-destructive/10 text-destructive"
-                        }`}>
+                        <span
+                          className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold ${
+                            r.status === "completed"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : r.status === "dry_run"
+                                ? "bg-amber-100 text-amber-700"
+                                : r.status === "partial"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
                           {IMPORT_LOG_STATUS_AR[r.status] ?? r.status}
                         </span>
                       </td>
@@ -1615,4 +1956,3 @@ function ImportHistory() {
     </section>
   );
 }
-

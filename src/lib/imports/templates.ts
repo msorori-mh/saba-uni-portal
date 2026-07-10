@@ -25,17 +25,42 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   students: {
     sheetName: "Students",
     headers: [
-      "academic_number","full_name_ar","full_name_en",
+      "academic_number",
+      "full_name_ar",
+      "full_name_en",
       "university_email",
-      "department_code","program_code","academic_level","academic_year","semester",
-      "study_system","status","phone","gender","national_id",
-      "create_login","must_change_password","notes",
+      "department_code",
+      "program_code",
+      "academic_level",
+      "academic_year",
+      "semester",
+      "study_system",
+      "status",
+      "phone",
+      "gender",
+      "national_id",
+      "create_login",
+      "must_change_password",
+      "notes",
     ],
     sample: [
-      "20251001","أحمد محمد علي","Ahmed Mohammed","ahmed@students.usr.edu.ye",
-      "قسم تكنولوجيا المعلومات والاتصالات","IT","1","2025-2026","first",
-      "regular","active","777000111","male","12345678901",
-      "true","true","ملاحظة اختيارية",
+      "20251001",
+      "أحمد محمد علي",
+      "Ahmed Mohammed",
+      "ahmed@students.usr.edu.ye",
+      "قسم تكنولوجيا المعلومات والاتصالات",
+      "IT",
+      "1",
+      "2025-2026",
+      "first",
+      "regular",
+      "active",
+      "777000111",
+      "male",
+      "12345678901",
+      "true",
+      "true",
+      "ملاحظة اختيارية",
     ],
     instructions: [
       "الحقول المطلوبة: academic_number, full_name_ar, department_code, program_code, academic_level, academic_year, semester",
@@ -56,8 +81,26 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   faculty: {
     sheetName: "Faculty",
-    headers: ["employee_number","full_name_ar","full_name_en","department_code","program_code","academic_rank","position_title","status"],
-    sample: ["F2025001","د. خالد عبدالله","Dr. Khalid","قسم علوم الحاسوب","CS","Assistant Professor","عضو هيئة تدريس","active"],
+    headers: [
+      "employee_number",
+      "full_name_ar",
+      "full_name_en",
+      "department_code",
+      "program_code",
+      "academic_rank",
+      "position_title",
+      "status",
+    ],
+    sample: [
+      "F2025001",
+      "د. خالد عبدالله",
+      "Dr. Khalid",
+      "قسم علوم الحاسوب",
+      "CS",
+      "Assistant Professor",
+      "عضو هيئة تدريس",
+      "active",
+    ],
     instructions: [
       "employee_number و full_name_ar حقول مطلوبة",
       "department_code = اسم القسم بالعربية",
@@ -67,8 +110,26 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   staff: {
     sheetName: "Staff",
-    headers: ["employee_number","full_name_ar","full_name_en","university_email","department_code","job_title","role_type","status"],
-    sample: ["S2025001","سامي علي","Sami Ali","sami@staff.usr.edu.ye","قسم تكنولوجيا المعلومات والاتصالات","سكرتير","student_affairs_specialist","active"],
+    headers: [
+      "employee_number",
+      "full_name_ar",
+      "full_name_en",
+      "university_email",
+      "department_code",
+      "job_title",
+      "role_type",
+      "status",
+    ],
+    sample: [
+      "S2025001",
+      "سامي علي",
+      "Sami Ali",
+      "sami@staff.usr.edu.ye",
+      "قسم تكنولوجيا المعلومات والاتصالات",
+      "سكرتير",
+      "student_affairs_specialist",
+      "active",
+    ],
     instructions: [
       "employee_number و full_name_ar حقول مطلوبة",
       "university_email = الإيميل الجامعي (لتسجيل الدخول — ليس الرقم الوظيفي)",
@@ -81,8 +142,26 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   courses: {
     sheetName: "Courses",
-    headers: ["code","name_ar","name_en","credit_hours","theory_hours","practical_hours","department_code","status"],
-    sample: ["CS101","مقدمة في البرمجة","Intro to Programming",3,2,2,"قسم علوم الحاسوب","active"],
+    headers: [
+      "code",
+      "name_ar",
+      "name_en",
+      "credit_hours",
+      "theory_hours",
+      "practical_hours",
+      "department_code",
+      "status",
+    ],
+    sample: [
+      "CS101",
+      "مقدمة في البرمجة",
+      "Intro to Programming",
+      3,
+      2,
+      2,
+      "قسم علوم الحاسوب",
+      "active",
+    ],
     instructions: [
       "code و name_ar حقول مطلوبة",
       "theory_hours و practical_hours أرقام >= 0",
@@ -92,8 +171,18 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   study_plans: {
     sheetName: "StudyPlans",
-    headers: ["program_code","plan_name","version","course_code","level","semester","required","prerequisite_course_code","sort_order"],
-    sample: ["IT","خطة 2024","1.0","CS101","1","first","true","",1],
+    headers: [
+      "program_code",
+      "plan_name",
+      "version",
+      "course_code",
+      "level",
+      "semester",
+      "required",
+      "prerequisite_course_code",
+      "sort_order",
+    ],
+    sample: ["IT", "خطة 2024", "1.0", "CS101", "1", "first", "true", "", 1],
     instructions: [
       "سياق القسم والبرنامج واسم الخطة والإصدار يحدد من شاشة الاستيراد قبل رفع الملف.",
       "program_code و plan_name و version تبقى للتوافق، ويتم تعبئتها/التحقق منها من سياق الشاشة.",
@@ -106,8 +195,20 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   departments: {
     sheetName: "Departments",
-    headers: ["department_code","department_name_ar","department_name_en","description","is_active"],
-    sample: ["IT","قسم تكنولوجيا المعلومات والاتصالات","Information Technology","قسم تقني","true"],
+    headers: [
+      "department_code",
+      "department_name_ar",
+      "department_name_en",
+      "description",
+      "is_active",
+    ],
+    sample: [
+      "IT",
+      "قسم تكنولوجيا المعلومات والاتصالات",
+      "Information Technology",
+      "قسم تقني",
+      "true",
+    ],
     instructions: [
       "department_code و department_name_ar حقول مطلوبة",
       "department_code يُستخدم كمعرّف فريد للقسم (يُطابق name_ar داخل النظام)",
@@ -117,8 +218,24 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   programs: {
     sheetName: "Programs",
-    headers: ["program_code","program_name_ar","program_name_en","department_code","degree_type","duration_years","is_active"],
-    sample: ["IT","تكنولوجيا المعلومات","Information Technology","قسم تكنولوجيا المعلومات والاتصالات","bachelor",4,"true"],
+    headers: [
+      "program_code",
+      "program_name_ar",
+      "program_name_en",
+      "department_code",
+      "degree_type",
+      "duration_years",
+      "is_active",
+    ],
+    sample: [
+      "IT",
+      "تكنولوجيا المعلومات",
+      "Information Technology",
+      "قسم تكنولوجيا المعلومات والاتصالات",
+      "bachelor",
+      4,
+      "true",
+    ],
     instructions: [
       "program_code, program_name_ar, department_code, degree_type حقول مطلوبة",
       "department_code = اسم القسم بالعربية كما هو مسجل",
@@ -128,8 +245,8 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   levels: {
     sheetName: "Levels",
-    headers: ["level_code","level_name","level_number"],
-    sample: ["L1","المستوى الأول",1],
+    headers: ["level_code", "level_name", "level_number"],
+    sample: ["L1", "المستوى الأول", 1],
     instructions: [
       "level_code, level_name, level_number حقول مطلوبة",
       "level_number رقم صحيح فريد",
@@ -139,10 +256,17 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   course_sections: {
     sheetName: "CourseSections",
     headers: [
-      "course_code","academic_year","semester","program_code","level",
-      "section_code","faculty_employee_number","capacity","status",
+      "course_code",
+      "academic_year",
+      "semester",
+      "program_code",
+      "level",
+      "section_code",
+      "faculty_employee_number",
+      "capacity",
+      "status",
     ],
-    sample: ["CS101","2026-2027","first","IT","1","A","F2025001",30,"active"],
+    sample: ["CS101", "2026-2027", "first", "IT", "1", "A", "F2025001", 30, "active"],
     instructions: [
       "course_code, academic_year, semester, program_code, level, section_code حقول مطلوبة",
       "section_code = رمز المجموعة (A / B / C)",
@@ -156,9 +280,14 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   student_enrollments: {
     sheetName: "StudentEnrollments",
     headers: [
-      "academic_number","course_code","section_code","academic_year","semester","enrollment_status",
+      "academic_number",
+      "course_code",
+      "section_code",
+      "academic_year",
+      "semester",
+      "enrollment_status",
     ],
-    sample: ["2026001","CS101","A","2026-2027","first","enrolled"],
+    sample: ["2026001", "CS101", "A", "2026-2027", "first", "enrolled"],
     instructions: [
       "academic_number, course_code, section_code, academic_year, semester حقول مطلوبة",
       "يُستنتج البرنامج والمستوى من ملف الطالب وحالته الأكاديمية للفصل",
@@ -169,10 +298,16 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   student_grades: {
     sheetName: "StudentGrades",
     headers: [
-      "academic_number","course_code","section_code","academic_year","semester",
-      "component_name","score","status",
+      "academic_number",
+      "course_code",
+      "section_code",
+      "academic_year",
+      "semester",
+      "component_name",
+      "score",
+      "status",
     ],
-    sample: ["2026001","CS101","A","2026-2027","first","نهائي",45,"submitted"],
+    sample: ["2026001", "CS101", "A", "2026-2027", "first", "نهائي", 45, "submitted"],
     instructions: [
       "academic_number, course_code, section_code, academic_year, semester, component_name, score حقول مطلوبة",
       "يجب أن يكون الطالب مسجلاً في المجموعة وأن يوجد مكوّن التقييم لها مسبقاً",
@@ -184,10 +319,15 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   student_fees: {
     sheetName: "StudentFees",
     headers: [
-      "academic_number","fee_type_code","academic_year","semester",
-      "amount","due_date","status",
+      "academic_number",
+      "fee_type_code",
+      "academic_year",
+      "semester",
+      "amount",
+      "due_date",
+      "status",
     ],
-    sample: ["2026001","TUITION","2026-2027","first",50000,"2026-10-15","pending"],
+    sample: ["2026001", "TUITION", "2026-2027", "first", 50000, "2026-10-15", "pending"],
     instructions: [
       "academic_number, fee_type_code, academic_year, semester, amount حقول مطلوبة",
       "fee_type_code = كود نوع الرسم النشط في النظام (مثل TUITION)",
@@ -200,10 +340,15 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   student_discounts: {
     sheetName: "StudentDiscounts",
     headers: [
-      "academic_number","discount_type_code","academic_year","semester",
-      "value","reason","status",
+      "academic_number",
+      "discount_type_code",
+      "academic_year",
+      "semester",
+      "value",
+      "reason",
+      "status",
     ],
-    sample: ["2026001","SCHOLARSHIP","2026-2027","first",25,"تفوق دراسي","active"],
+    sample: ["2026001", "SCHOLARSHIP", "2026-2027", "first", 25, "تفوق دراسي", "active"],
     instructions: [
       "academic_number, discount_type_code, academic_year, semester, value حقول مطلوبة",
       "discount_type_code = كود نوع الخصم النشط (مثل SCHOLARSHIP)",
@@ -214,11 +359,33 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "فعّل (تحديث القائم) لتحديث خصم موجود",
     ],
   },
+  student_eligibility: {
+    sheetName: "StudentEligibility",
+    headers: [
+      "academic_number",
+      "student_study_status",
+      "transferred_current_year",
+      "previous_suspension_semesters_count",
+      "consecutive_suspension_years_count",
+      "source_reference",
+      "notes",
+    ],
+    sample: ["2026001", "new", "false", 0, 0, "SA-2026-TERM1", ""],
+    instructions: [
+      "هذا القالب لتحديث بيانات أهلية الطلبات للطلاب المسجّلين مسبقاً فقط — لا يُنشئ طلاباً جدداً.",
+      "academic_number (مطلوب): الرقم الأكاديمي للطالب الموجود في النظام — نص وليس UUID.",
+      "student_study_status (مطلوب): new أو repeat — أو بالعربية: مستجد / باقي للإعادة / إعادة.",
+      "transferred_current_year (مطلوب): true/false أو 1/0 أو yes/no أو نعم/لا — لا تترك الخانة فارغة.",
+      "previous_suspension_semesters_count (مطلوب): عدد صحيح >= 0 — عدد فصول الإيقاف السابقة المعتمدة رسمياً.",
+      "consecutive_suspension_years_count (مطلوب): عدد صحيح >= 0 — عدد سنوات الإيقاف المتتالية المعتمدة رسمياً.",
+      "source_reference (مطلوب): مرجع المصدر الرسمي (3–250 حرفاً) — يُسجَّل في التدقيق ولا يُخزَّن في ملف الطالب.",
+      "notes (اختياري): ملاحظات داخلية — لا تُخزَّن في حقول أهلية الطلب.",
+      "تحذير: لا تستخدم هذا المستورد لإنشاء طلاب أو حسابات دخول أو طلبات — تحديث الحقول الأربعة فقط.",
+    ],
+  },
   documents: {
     sheetName: "Documents",
-    headers: [
-      "academic_number", "document_type", "issue_date", "purpose", "notes",
-    ],
+    headers: ["academic_number", "document_type", "issue_date", "purpose", "notes"],
     sample: ["2026001", "enrollment_letter", "2026-10-01", "لتقديمها للجهات الرسمية", ""],
     instructions: [
       "academic_number, document_type حقول مطلوبة",
@@ -257,21 +424,25 @@ export async function downloadTemplate(
   const XLSX = await loadXLSX();
   const def = TEMPLATES[type];
   const wb = XLSX.utils.book_new();
-  const sample = type === "students"
-    ? applyStudentTemplateOverrides(def, studentOverrides)
-    : def.sample;
+  const sample =
+    type === "students" ? applyStudentTemplateOverrides(def, studentOverrides) : def.sample;
   const wsData = [def.headers, sample];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   ws["!cols"] = def.headers.map(() => ({ wch: 22 }));
   XLSX.utils.book_append_sheet(wb, ws, def.sheetName);
 
-  const extraInstructions = type === "students" && studentOverrides
-    ? [
-      "تم تجهيز هذا القالب بسياق استيراد الطلاب المحدد من الواجهة.",
-      "لا تغيّر قيم study_system أو department_code أو program_code أو academic_level أو academic_year أو semester إلا إذا غيّرت إعدادات الاستيراد قبل الرفع.",
-    ]
-    : [];
-  const instructions = [["التعليمات"], ...def.instructions.map((i) => [i]), ...extraInstructions.map((i) => [i])];
+  const extraInstructions =
+    type === "students" && studentOverrides
+      ? [
+          "تم تجهيز هذا القالب بسياق استيراد الطلاب المحدد من الواجهة.",
+          "لا تغيّر قيم study_system أو department_code أو program_code أو academic_level أو academic_year أو semester إلا إذا غيّرت إعدادات الاستيراد قبل الرفع.",
+        ]
+      : [];
+  const instructions = [
+    ["التعليمات"],
+    ...def.instructions.map((i) => [i]),
+    ...extraInstructions.map((i) => [i]),
+  ];
   const wsi = XLSX.utils.aoa_to_sheet(instructions);
   wsi["!cols"] = [{ wch: 90 }];
   XLSX.utils.book_append_sheet(wb, wsi, "Instructions");
@@ -288,7 +459,10 @@ export function parseExcel(file: File): Promise<Record<string, unknown>[]> {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: "array" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: null, raw: false });
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+          defval: null,
+          raw: false,
+        });
         resolve(rows);
       } catch (err) {
         reject(err);
