@@ -766,6 +766,42 @@ export type Database = {
         }
         Relationships: []
       }
+      central_signatory_references: {
+        Row: {
+          code: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name_ar: string
+          scope: string
+          title_ar: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name_ar: string
+          scope?: string
+          title_ar: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name_ar?: string
+          scope?: string
+          title_ar?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       class_schedule: {
         Row: {
           course_section_id: string
@@ -4163,6 +4199,7 @@ export type Database = {
       student_profiles: {
         Row: {
           academic_number: string
+          consecutive_suspension_years_count: number
           created_at: string
           department_id: string | null
           email: string | null
@@ -4172,14 +4209,18 @@ export type Database = {
           must_change_password: boolean
           national_id: string | null
           phone: string | null
+          previous_suspension_semesters_count: number
           program_id: string | null
           status: string
+          student_study_status: string | null
           study_system: string | null
+          transferred_current_year: boolean
           updated_at: string
           user_id: string | null
         }
         Insert: {
           academic_number: string
+          consecutive_suspension_years_count?: number
           created_at?: string
           department_id?: string | null
           email?: string | null
@@ -4189,14 +4230,18 @@ export type Database = {
           must_change_password?: boolean
           national_id?: string | null
           phone?: string | null
+          previous_suspension_semesters_count?: number
           program_id?: string | null
           status?: string
+          student_study_status?: string | null
           study_system?: string | null
+          transferred_current_year?: boolean
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           academic_number?: string
+          consecutive_suspension_years_count?: number
           created_at?: string
           department_id?: string | null
           email?: string | null
@@ -4206,9 +4251,12 @@ export type Database = {
           must_change_password?: boolean
           national_id?: string | null
           phone?: string | null
+          previous_suspension_semesters_count?: number
           program_id?: string | null
           status?: string
+          student_study_status?: string | null
           study_system?: string | null
+          transferred_current_year?: boolean
           updated_at?: string
           user_id?: string | null
         }
@@ -4258,6 +4306,254 @@ export type Database = {
           uploaded_by?: string | null
         }
         Relationships: []
+      }
+      student_request_fee_assessments: {
+        Row: {
+          amount: number
+          assessed_at: string
+          assessed_by: string | null
+          created_at: string
+          currency: string
+          hafiza_reference: string | null
+          id: string
+          notes: string | null
+          payment_confirmed_at: string | null
+          payment_confirmed_by: string | null
+          payment_status: string
+          request_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          assessed_at?: string
+          assessed_by?: string | null
+          created_at?: string
+          currency?: string
+          hafiza_reference?: string | null
+          id?: string
+          notes?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_status?: string
+          request_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          assessed_at?: string
+          assessed_by?: string | null
+          created_at?: string
+          currency?: string
+          hafiza_reference?: string | null
+          id?: string
+          notes?: string | null
+          payment_confirmed_at?: string | null
+          payment_confirmed_by?: string | null
+          payment_status?: string
+          request_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_request_fee_assessments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_request_parallel_group_members: {
+        Row: {
+          acted_at: string | null
+          acted_by: string | null
+          created_at: string
+          group_id: string
+          id: string
+          notes: string | null
+          processing_role_id: string | null
+          processing_unit_id: string | null
+          role_key: string | null
+          status: string
+          unit_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          acted_at?: string | null
+          acted_by?: string | null
+          created_at?: string
+          group_id: string
+          id?: string
+          notes?: string | null
+          processing_role_id?: string | null
+          processing_unit_id?: string | null
+          role_key?: string | null
+          status?: string
+          unit_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acted_at?: string | null
+          acted_by?: string | null
+          created_at?: string
+          group_id?: string
+          id?: string
+          notes?: string | null
+          processing_role_id?: string | null
+          processing_unit_id?: string | null
+          role_key?: string | null
+          status?: string
+          unit_key?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_request_parallel_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "student_request_parallel_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_parallel_group_members_processing_role_id_fkey"
+            columns: ["processing_role_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_parallel_group_members_processing_unit_id_fkey"
+            columns: ["processing_unit_id"]
+            isOneToOne: false
+            referencedRelation: "request_processing_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_request_parallel_groups: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          group_key: string
+          id: string
+          mode: string
+          status: string
+          student_request_id: string
+          student_request_workflow_step_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          group_key: string
+          id?: string
+          mode?: string
+          status?: string
+          student_request_id: string
+          student_request_workflow_step_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          group_key?: string
+          id?: string
+          mode?: string
+          status?: string
+          student_request_id?: string
+          student_request_workflow_step_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_request_parallel_grou_student_request_workflow_ste_fkey"
+            columns: ["student_request_workflow_step_id"]
+            isOneToOne: false
+            referencedRelation: "student_request_workflow_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_parallel_groups_student_request_id_fkey"
+            columns: ["student_request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_request_service_windows: {
+        Row: {
+          academic_year_id: string | null
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          id: string
+          is_active: boolean
+          max_allowed_courses: number | null
+          notes: string | null
+          request_type_code: string
+          semester_id: string | null
+          starts_at: string
+          target_semester_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          academic_year_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          id?: string
+          is_active?: boolean
+          max_allowed_courses?: number | null
+          notes?: string | null
+          request_type_code: string
+          semester_id?: string | null
+          starts_at: string
+          target_semester_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          academic_year_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          id?: string
+          is_active?: boolean
+          max_allowed_courses?: number | null
+          notes?: string | null
+          request_type_code?: string
+          semester_id?: string | null
+          starts_at?: string
+          target_semester_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_request_service_windows_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_service_windows_request_type_code_fk"
+            columns: ["request_type_code"]
+            isOneToOne: false
+            referencedRelation: "request_types"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "student_request_service_windows_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_service_windows_target_semester_id_fkey"
+            columns: ["target_semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_request_workflow_events: {
         Row: {
@@ -5087,6 +5383,10 @@ export type Database = {
         Args: { _discount_id: string }
         Returns: undefined
       }
+      assert_can_read_student_eligibility_context: {
+        Args: { p_student_profile_id: string }
+        Returns: undefined
+      }
       assert_student_can_use_request_type: {
         Args: { _profile_status: string; _request_audience: string }
         Returns: undefined
@@ -5156,6 +5456,10 @@ export type Database = {
           p_max_attempts: number
           p_window_minutes: number
         }
+        Returns: Json
+      }
+      check_student_request_basic_eligibility: {
+        Args: { p_request_type_code: string; p_student_profile_id: string }
         Returns: Json
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: number }
@@ -5299,6 +5603,10 @@ export type Database = {
       }
       get_student_request_detail_for_actor: {
         Args: { p_request_id: string }
+        Returns: Json
+      }
+      get_student_request_eligibility_context: {
+        Args: { p_student_profile_id: string }
         Returns: Json
       }
       has_any_role: {
