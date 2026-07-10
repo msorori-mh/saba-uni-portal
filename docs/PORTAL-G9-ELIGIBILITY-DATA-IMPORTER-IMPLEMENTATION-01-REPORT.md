@@ -194,7 +194,7 @@ Audit best-effort عبر `safeAudit` — فشل audit لا يخفي فشل تح�
 
 | الأمر | النتيجة | ملاحظات |
 |-------|---------|---------|
-| `bun test tests/imports/student-eligibility-importer.test.ts` | **PASS** | 19 pass، 0 fail (Bun 1.3.14) |
+| `bun test tests/imports/student-eligibility-importer.test.ts tests/imports/eligibility-import-readonly-policy.test.ts` | **PASS** | 31 pass، 0 fail (Bun 1.3.14) |
 | `bunx tsc --noEmit` | **PASS** | exit 0 |
 | `bun run lint` | **FAIL (محلي Windows — CRLF/prettier)** | exit 1 (~87k prettier \r على المستودع بالكامل). CI: lint **advisory** (لا يفشل الـ job). ملفات الـ PR بعد prettier: 1 خطأ 
 o-explicit-any سابق (`imports.tsx:1460`) + 2 تحذير hooks |
