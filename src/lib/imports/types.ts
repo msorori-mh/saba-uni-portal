@@ -12,7 +12,17 @@ export type ImportType =
   | "student_grades"
   | "student_fees"
   | "student_discounts"
+  | "student_eligibility"
   | "documents";
+
+/** Aggregate stats for student_eligibility dry-run / import reports (no PII). */
+export type EligibilityImportSummary = {
+  new_count: number;
+  repeat_count: number;
+  transferred_count: number;
+  prior_suspension_count: number;
+  distinct_source_references: number;
+};
 
 export type RowError = { row: number; column?: string; message: string };
 
@@ -36,6 +46,7 @@ export type ImportReport = {
   rows_failed: number;
   rows_created?: number;
   rows_updated?: number;
+  eligibility_summary?: EligibilityImportSummary;
   errors: RowError[];
 };
 

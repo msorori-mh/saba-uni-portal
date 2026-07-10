@@ -1,10 +1,23 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateTemporaryPassword } from "@/lib/password.server";
 import { normalizeUniversityLoginEmail } from "@/lib/university-email-auth";
-import type { ImportReport, ImportType, ValidatedRow } from "./types";
+import type { ImportReport, ImportType, ValidatedRow, EligibilityImportSummary } from "./types";
 import type {
-  CourseRow, FacultyRow, StaffRow, StudentRow, StudyPlanRow,
-  DepartmentRow, ProgramRow, LevelRow, CourseSectionRow, StudentEnrollmentRow, StudentGradeRow, StudentFeeRow, StudentDiscountRow, DocumentRow,
+  CourseRow,
+  FacultyRow,
+  StaffRow,
+  StudentRow,
+  StudyPlanRow,
+  DepartmentRow,
+  ProgramRow,
+  LevelRow,
+  CourseSectionRow,
+  StudentEnrollmentRow,
+  StudentGradeRow,
+  StudentFeeRow,
+  StudentDiscountRow,
+  DocumentRow,
+  StudentEligibilityRow,
 } from "./validators";
 
 export type ServerImportContext = {
@@ -13,9 +26,13 @@ export type ServerImportContext = {
   userSupabase: any;
 };
 
+export type StudentEligibilityImportContext = {
+  userId: string;
+  fileName: string;
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const sb = supabaseAdmin as any;
-
 
 const CHUNK = 200;
 
@@ -34,7 +51,11 @@ function splitRows<T>(rows: ValidatedRow<T>[], report: ImportReport): ParsedRow<
   return valid;
 }
 
-async function safeAudit(action: string, entityId: string | null, payload: Record<string, unknown>) {
+async function safeAudit(
+  action: string,
+  entityId: string | null,
+  payload: Record<string, unknown>,
+) {
   try {
     await sb.rpc("log_audit", {
       _entity_type: "import",
@@ -49,7 +70,11 @@ async function safeAudit(action: string, entityId: string | null, payload: Recor
   }
 }
 
-async function safeDocumentAudit(action: string, documentId: string, payload: Record<string, unknown>) {
+async function safeDocumentAudit(
+  action: string,
+  documentId: string,
+  payload: Record<string, unknown>,
+) {
   try {
     await sb.rpc("log_audit", {
       _entity_type: "document",
@@ -92,7 +117,12 @@ async function insertBatched<T>(
 // Dry-run helper — counts valid rows as success, no DB writes.
 // ============================================================
 function dryRunReport<T>(rows: ValidatedRow<T>[]): ImportReport {
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    errors: [],
+  };
   for (const r of rows) {
     if (r.parsed === null) {
       report.rows_failed += 1;
@@ -111,14 +141,23 @@ export async function importStudents(
   ctx?: ServerImportContext,
 ): Promise<ImportReport> {
   // Pre-compute the create_login / no-account split for both modes.
-  const valid = rows.filter((r) => r.parsed !== null) as Array<ValidatedRow<StudentRow> & { parsed: StudentRow }>;
+  const valid = rows.filter((r) => r.parsed !== null) as Array<
+    ValidatedRow<StudentRow> & { parsed: StudentRow }
+  >;
   const accountsToCreate = valid.filter((r) => r.parsed.create_login).length;
   const withoutAccount = valid.length - accountsToCreate;
   // Duplicate academic_numbers are already flagged by the validator; surface a count here.
-  const dupErrors = rows.flatMap((r) => r.errors).filter((e) => e.column === "academic_number" && /مكرر|موجود/.test(e.message));
+  const dupErrors = rows
+    .flatMap((r) => r.errors)
+    .filter((e) => e.column === "academic_number" && /مكرر|موجود/.test(e.message));
 
   if (dryRun) {
-    const rep: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+    const rep: ImportReport = {
+      rows_total: rows.length,
+      rows_success: 0,
+      rows_failed: 0,
+      errors: [],
+    };
     for (const r of rows) {
       if (r.parsed === null) {
         rep.rows_failed += 1;
@@ -132,12 +171,23 @@ export async function importStudents(
     rep.rows_created = accountsToCreate;
     rep.rows_updated = withoutAccount;
     if (dupErrors.length) {
-      rep.errors.unshift({ row: 0, column: "academic_number", message: `أرقام أكاديمية مكررة/موجودة: ${dupErrors.length}` });
+      rep.errors.unshift({
+        row: 0,
+        column: "academic_number",
+        message: `أرقام أكاديمية مكررة/موجودة: ${dupErrors.length}`,
+      });
     }
     return rep;
   }
 
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, rows_created: 0, rows_updated: 0, errors: [] };
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    rows_created: 0,
+    rows_updated: 0,
+    errors: [],
+  };
   for (const r of rows) {
     if (r.parsed === null) {
       report.rows_failed += 1;
@@ -147,19 +197,23 @@ export async function importStudents(
 
   for (const r of valid) {
     const p = r.parsed;
-    const { data: prof, error: pErr } = await sb.from("student_profiles").insert({
-      academic_number: p.academic_number,
-      full_name_ar: p.full_name_ar,
-      full_name_en: p.full_name_en,
-      national_id: p.national_id,
-      phone: p.phone,
-      email: p.university_email,
-      department_id: p.department_id,
-      program_id: p.program_id,
-      study_system: p.study_system,
-      status: p.status,
-      must_change_password: p.must_change_password,
-    }).select("id").maybeSingle();
+    const { data: prof, error: pErr } = await sb
+      .from("student_profiles")
+      .insert({
+        academic_number: p.academic_number,
+        full_name_ar: p.full_name_ar,
+        full_name_en: p.full_name_en,
+        national_id: p.national_id,
+        phone: p.phone,
+        email: p.university_email,
+        department_id: p.department_id,
+        program_id: p.program_id,
+        study_system: p.study_system,
+        status: p.status,
+        must_change_password: p.must_change_password,
+      })
+      .select("id")
+      .maybeSingle();
     if (pErr || !prof) {
       report.rows_failed += 1;
       report.errors.push({ row: r.rowNumber, message: pErr?.message ?? "تعذّر إنشاء ملف الطالب" });
@@ -192,7 +246,10 @@ export async function importStudents(
           });
           report.rows_created = (report.rows_created ?? 0) + 1;
         } catch (e) {
-          report.errors.push({ row: r.rowNumber, message: `إنشاء الحساب: ${(e as Error).message}` });
+          report.errors.push({
+            row: r.rowNumber,
+            message: `إنشاء الحساب: ${(e as Error).message}`,
+          });
         }
       }
     } else {
@@ -229,10 +286,10 @@ async function provisionStudentLoginServer(
   }
 
   const newUserId = created.user.id;
-  const { error: linkErr } = await ctx.userSupabase.rpc(
-    "link_student_user_account",
-    { _profile_id: data.profile_id, _target_user_id: newUserId },
-  );
+  const { error: linkErr } = await ctx.userSupabase.rpc("link_student_user_account", {
+    _profile_id: data.profile_id,
+    _target_user_id: newUserId,
+  });
   if (linkErr) {
     await supabaseAdmin.auth.admin.deleteUser(newUserId);
     throw new Error(linkErr.message);
@@ -241,10 +298,9 @@ async function provisionStudentLoginServer(
   await supabaseAdmin.from("user_roles").insert({ user_id: newUserId, role: "student" });
 
   if (data.must_change_password) {
-    const { error: mErr } = await ctx.userSupabase.rpc(
-      "admin_mark_student_password_reset",
-      { _profile_id: data.profile_id },
-    );
+    const { error: mErr } = await ctx.userSupabase.rpc("admin_mark_student_password_reset", {
+      _profile_id: data.profile_id,
+    });
     if (mErr) {
       throw new Error(`تم إنشاء الحساب لكن تعذّر ضبط must_change_password: ${mErr.message}`);
     }
@@ -268,21 +324,32 @@ async function provisionStudentLoginServer(
   }
 }
 
-
-export async function importFaculty(rows: ValidatedRow<FacultyRow>[], dryRun = false): Promise<ImportReport> {
+export async function importFaculty(
+  rows: ValidatedRow<FacultyRow>[],
+  dryRun = false,
+): Promise<ImportReport> {
   if (dryRun) return dryRunReport(rows);
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    errors: [],
+  };
   const valid = splitRows(rows, report);
 
   for (const r of valid) {
-    const { data: fac, error: e1 } = await sb.from("faculty").insert({
-      employee_id: r.parsed.employee_number,
-      full_name_ar: r.parsed.full_name_ar,
-      full_name_en: r.parsed.full_name_en,
-      category: "faculty",
-      rank: r.parsed.academic_rank,
-      is_active: r.parsed.status === "active",
-    }).select("id").maybeSingle();
+    const { data: fac, error: e1 } = await sb
+      .from("faculty")
+      .insert({
+        employee_id: r.parsed.employee_number,
+        full_name_ar: r.parsed.full_name_ar,
+        full_name_en: r.parsed.full_name_en,
+        category: "faculty",
+        rank: r.parsed.academic_rank,
+        is_active: r.parsed.status === "active",
+      })
+      .select("id")
+      .maybeSingle();
     if (e1 || !fac) {
       report.rows_failed += 1;
       report.errors.push({ row: r.rowNumber, message: e1?.message ?? "faculty insert failed" });
@@ -309,17 +376,29 @@ export async function importFaculty(rows: ValidatedRow<FacultyRow>[], dryRun = f
   return report;
 }
 
-export async function importStaff(rows: ValidatedRow<StaffRow>[], dryRun = false): Promise<ImportReport> {
+export async function importStaff(
+  rows: ValidatedRow<StaffRow>[],
+  dryRun = false,
+): Promise<ImportReport> {
   if (dryRun) return dryRunReport(rows);
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    errors: [],
+  };
   const valid = splitRows(rows, report);
-  await insertBatched("staff_profiles", valid.map((r) => ({
-    rowNumber: r.rowNumber,
-    payload: {
-      ...r.parsed,
-      department_scope: r.parsed!.department_id ? "specific" : "specific",
-    },
-  })), report);
+  await insertBatched(
+    "staff_profiles",
+    valid.map((r) => ({
+      rowNumber: r.rowNumber,
+      payload: {
+        ...r.parsed,
+        department_scope: r.parsed!.department_id ? "specific" : "specific",
+      },
+    })),
+    report,
+  );
 
   const withDept = valid.filter((r) => r.parsed?.department_id);
   if (withDept.length) {
@@ -328,7 +407,12 @@ export async function importStaff(rows: ValidatedRow<StaffRow>[], dryRun = false
       .from("staff_profiles")
       .select("id, employee_number")
       .in("employee_number", empNums);
-    const byEmp = new Map((profiles ?? []).map((p: { id: string; employee_number: string }) => [p.employee_number, p.id]));
+    const byEmp = new Map(
+      (profiles ?? []).map((p: { id: string; employee_number: string }) => [
+        p.employee_number,
+        p.id,
+      ]),
+    );
     const links = withDept.flatMap((r) => {
       const profileId = byEmp.get(r.parsed!.employee_number);
       const depId = r.parsed!.department_id;
@@ -344,39 +428,79 @@ export async function importStaff(rows: ValidatedRow<StaffRow>[], dryRun = false
   return report;
 }
 
-export async function importCourses(rows: ValidatedRow<CourseRow>[], dryRun = false): Promise<ImportReport> {
+export async function importCourses(
+  rows: ValidatedRow<CourseRow>[],
+  dryRun = false,
+): Promise<ImportReport> {
   if (dryRun) return dryRunReport(rows);
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    errors: [],
+  };
   const valid = splitRows(rows, report);
-  await insertBatched("courses", valid.map((r) => ({
-    rowNumber: r.rowNumber,
-    payload: { ...r.parsed },
-  })), report);
+  await insertBatched(
+    "courses",
+    valid.map((r) => ({
+      rowNumber: r.rowNumber,
+      payload: { ...r.parsed },
+    })),
+    report,
+  );
   return report;
 }
 
-export async function importStudyPlans(rows: ValidatedRow<StudyPlanRow>[], dryRun = false): Promise<ImportReport> {
+export async function importStudyPlans(
+  rows: ValidatedRow<StudyPlanRow>[],
+  dryRun = false,
+): Promise<ImportReport> {
   if (dryRun) return dryRunReport(rows);
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, errors: [] };
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    errors: [],
+  };
   const valid = splitRows(rows, report);
 
   const planCache = new Map<string, string>();
-  async function getOrCreatePlan(program_id: string, name: string, version: string, status: "draft" | "active"): Promise<string | null> {
+  async function getOrCreatePlan(
+    program_id: string,
+    name: string,
+    version: string,
+    status: "draft" | "active",
+  ): Promise<string | null> {
     const key = `${program_id}|${name}|${version}`;
     if (planCache.has(key)) return planCache.get(key)!;
-    const { data: existing } = await sb.from("study_plans")
-      .select("id").eq("program_id", program_id).eq("name", name).eq("version", version).maybeSingle();
-    if (existing) { planCache.set(key, existing.id); return existing.id; }
-    const { data: created, error } = await sb.from("study_plans")
+    const { data: existing } = await sb
+      .from("study_plans")
+      .select("id")
+      .eq("program_id", program_id)
+      .eq("name", name)
+      .eq("version", version)
+      .maybeSingle();
+    if (existing) {
+      planCache.set(key, existing.id);
+      return existing.id;
+    }
+    const { data: created, error } = await sb
+      .from("study_plans")
       .insert({ program_id, name, version, status, is_active: status === "active" })
-      .select("id").maybeSingle();
+      .select("id")
+      .maybeSingle();
     if (error || !created) return null;
     planCache.set(key, created.id);
     return created.id;
   }
 
   for (const r of valid) {
-    const planId = await getOrCreatePlan(r.parsed.program_id, r.parsed.plan_name, r.parsed.version, r.parsed.plan_status);
+    const planId = await getOrCreatePlan(
+      r.parsed.program_id,
+      r.parsed.plan_name,
+      r.parsed.version,
+      r.parsed.plan_status,
+    );
     if (!planId) {
       report.rows_failed += 1;
       report.errors.push({ row: r.rowNumber, message: "تعذر إنشاء أو إيجاد الخطة" });
@@ -414,17 +538,24 @@ export async function finalizeImportServer(opts: {
   durationMs?: number;
 }) {
   if (opts.dryRun) {
-    const { data: logRow } = await sb.from("import_logs").insert({
-      created_by: opts.userId,
-      import_type: opts.type,
-      file_name: opts.fileName,
-      rows_total: opts.report.rows_total,
-      rows_success: opts.report.rows_success,
-      rows_failed: opts.report.rows_failed,
-      status: "dry_run",
-      notes: opts.report.errors.slice(0, 30)
-        .map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`).join(" | ") || "تشغيل تجريبي — لم تُجرَ أي تغييرات",
-    }).select("id").maybeSingle();
+    const { data: logRow } = await sb
+      .from("import_logs")
+      .insert({
+        created_by: opts.userId,
+        import_type: opts.type,
+        file_name: opts.fileName,
+        rows_total: opts.report.rows_total,
+        rows_success: opts.report.rows_success,
+        rows_failed: opts.report.rows_failed,
+        status: "dry_run",
+        notes:
+          opts.report.errors
+            .slice(0, 30)
+            .map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`)
+            .join(" | ") || "تشغيل تجريبي — لم تُجرَ أي تغييرات",
+      })
+      .select("id")
+      .maybeSingle();
 
     await safeAudit("import_validated", logRow?.id ?? null, {
       import_type: opts.type,
@@ -438,18 +569,30 @@ export async function finalizeImportServer(opts: {
     return { logId: (logRow?.id ?? null) as string | null };
   }
 
-  const status = opts.report.rows_failed === 0 ? "completed" : opts.report.rows_success === 0 ? "failed" : "partial";
-  const { data: logRow } = await sb.from("import_logs").insert({
-    created_by: opts.userId,
-    import_type: opts.type,
-    file_name: opts.fileName,
-    rows_total: opts.report.rows_total,
-    rows_success: opts.report.rows_success,
-    rows_failed: opts.report.rows_failed,
-    status,
-    notes: opts.report.errors.slice(0, 50)
-      .map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`).join(" | ") || null,
-  }).select("id").maybeSingle();
+  const status =
+    opts.report.rows_failed === 0
+      ? "completed"
+      : opts.report.rows_success === 0
+        ? "failed"
+        : "partial";
+  const { data: logRow } = await sb
+    .from("import_logs")
+    .insert({
+      created_by: opts.userId,
+      import_type: opts.type,
+      file_name: opts.fileName,
+      rows_total: opts.report.rows_total,
+      rows_success: opts.report.rows_success,
+      rows_failed: opts.report.rows_failed,
+      status,
+      notes:
+        opts.report.errors
+          .slice(0, 50)
+          .map((e) => `R${e.row}${e.column ? ` [${e.column}]` : ""}: ${e.message}`)
+          .join(" | ") || null,
+    })
+    .select("id")
+    .maybeSingle();
 
   const actionMap: Record<ImportType, string> = {
     students: "students_imported",
@@ -465,6 +608,7 @@ export async function finalizeImportServer(opts: {
     student_grades: "student_grades_imported",
     student_fees: "student_fees_imported",
     student_discounts: "student_discounts_imported",
+    student_eligibility: "student_eligibility_data_imported",
     documents: "documents_imported",
   };
 
@@ -478,13 +622,24 @@ export async function finalizeImportServer(opts: {
   };
 
   await safeAudit(actionMap[opts.type], logRow?.id ?? null, payload);
-  await safeAudit(status === "failed" ? "import_failed" : "import_completed", logRow?.id ?? null, payload);
+  await safeAudit(
+    status === "failed" ? "import_failed" : "import_completed",
+    logRow?.id ?? null,
+    payload,
+  );
 
   return { logId: (logRow?.id ?? null) as string | null };
 }
 
 export function emptyReport(): ImportReport {
-  return { rows_total: 0, rows_success: 0, rows_failed: 0, rows_created: 0, rows_updated: 0, errors: [] };
+  return {
+    rows_total: 0,
+    rows_success: 0,
+    rows_failed: 0,
+    rows_created: 0,
+    rows_updated: 0,
+    errors: [],
+  };
 }
 
 // ============================================================
@@ -493,7 +648,14 @@ export function emptyReport(): ImportReport {
 // ============================================================
 
 function emptyStructReport(total: number): ImportReport {
-  return { rows_total: total, rows_success: 0, rows_failed: 0, rows_created: 0, rows_updated: 0, errors: [] };
+  return {
+    rows_total: total,
+    rows_success: 0,
+    rows_failed: 0,
+    rows_created: 0,
+    rows_updated: 0,
+    errors: [],
+  };
 }
 
 function structDryRun<T extends { _existingId: string | null }>(
@@ -539,12 +701,22 @@ export async function importDepartments(
     };
     if (p._existingId) {
       const { error } = await sb.from("departments").update(payload).eq("id", p._existingId);
-      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
-      else { report.rows_success += 1; report.rows_updated! += 1; }
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_updated! += 1;
+      }
     } else {
       const { error } = await sb.from("departments").insert(payload);
-      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
-      else { report.rows_success += 1; report.rows_created! += 1; }
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_created! += 1;
+      }
     }
   }
   return report;
@@ -576,12 +748,22 @@ export async function importPrograms(
     };
     if (p._existingId) {
       const { error } = await sb.from("programs").update(payload).eq("id", p._existingId);
-      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
-      else { report.rows_success += 1; report.rows_updated! += 1; }
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_updated! += 1;
+      }
     } else {
       const { error } = await sb.from("programs").insert(payload);
-      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
-      else { report.rows_success += 1; report.rows_created! += 1; }
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_created! += 1;
+      }
     }
   }
   return report;
@@ -604,12 +786,22 @@ export async function importLevels(
     const payload = { name: p.name, level_number: p.level_number };
     if (p._existingId) {
       const { error } = await sb.from("academic_levels").update(payload).eq("id", p._existingId);
-      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
-      else { report.rows_success += 1; report.rows_updated! += 1; }
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_updated! += 1;
+      }
     } else {
       const { error } = await sb.from("academic_levels").insert(payload);
-      if (error) { report.rows_failed += 1; report.errors.push({ row: r.rowNumber, message: error.message }); }
-      else { report.rows_success += 1; report.rows_created! += 1; }
+      if (error) {
+        report.rows_failed += 1;
+        report.errors.push({ row: r.rowNumber, message: error.message });
+      } else {
+        report.rows_success += 1;
+        report.rows_created! += 1;
+      }
     }
   }
   return report;
@@ -637,14 +829,19 @@ export async function importCourseSections(
 
   async function resolveOffering(p: CourseSectionRow): Promise<string | null> {
     const key = sectionOfferingKey(
-      p.course_id, p.academic_year_id, p.semester_id, p.program_id, p.level_id,
+      p.course_id,
+      p.academic_year_id,
+      p.semester_id,
+      p.program_id,
+      p.level_id,
     );
     if (offeringCache.has(key)) return offeringCache.get(key)!;
     if (p.course_offering_id) {
       offeringCache.set(key, p.course_offering_id);
       return p.course_offering_id;
     }
-    const { data: created, error } = await sb.from("course_offerings")
+    const { data: created, error } = await sb
+      .from("course_offerings")
       .insert({
         course_id: p.course_id,
         academic_year_id: p.academic_year_id,
@@ -683,9 +880,7 @@ export async function importCourseSections(
     };
 
     if (p._existingId) {
-      const { error } = await sb.from("course_sections")
-        .update(payload)
-        .eq("id", p._existingId);
+      const { error } = await sb.from("course_sections").update(payload).eq("id", p._existingId);
       if (error) {
         report.rows_failed += 1;
         report.errors.push({ row: r.rowNumber, message: error.message });
@@ -729,7 +924,8 @@ export async function importStudentEnrollments(
     };
 
     if (p._existingId) {
-      const { error } = await sb.from("student_enrollments")
+      const { error } = await sb
+        .from("student_enrollments")
         .update({ enrollment_status: p.enrollment_status })
         .eq("id", p._existingId);
       if (error) {
@@ -920,6 +1116,148 @@ export async function importStudentDiscounts(
   return report;
 }
 
+export function computeEligibilityImportSummary(
+  rows: ValidatedRow<StudentEligibilityRow>[],
+): EligibilityImportSummary {
+  const valid = rows.filter((r) => r.parsed !== null) as Array<
+    ValidatedRow<StudentEligibilityRow> & { parsed: StudentEligibilityRow }
+  >;
+  const sourceRefs = new Set<string>();
+  let newCount = 0;
+  let repeatCount = 0;
+  let transferredCount = 0;
+  let priorSuspensionCount = 0;
+
+  for (const row of valid) {
+    const p = row.parsed;
+    sourceRefs.add(p.source_reference);
+    if (p.student_study_status === "new") newCount += 1;
+    else repeatCount += 1;
+    if (p.transferred_current_year) transferredCount += 1;
+    if (p.previous_suspension_semesters_count > 0 || p.consecutive_suspension_years_count > 0) {
+      priorSuspensionCount += 1;
+    }
+  }
+
+  return {
+    new_count: newCount,
+    repeat_count: repeatCount,
+    transferred_count: transferredCount,
+    prior_suspension_count: priorSuspensionCount,
+    distinct_source_references: sourceRefs.size,
+  };
+}
+
+function eligibilityDryRunReport(rows: ValidatedRow<StudentEligibilityRow>[]): ImportReport {
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    rows_created: 0,
+    rows_updated: 0,
+    errors: [],
+  };
+
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+    } else {
+      report.rows_success += 1;
+      report.rows_updated! += 1;
+    }
+  }
+
+  report.eligibility_summary = computeEligibilityImportSummary(rows);
+  return report;
+}
+
+export async function importStudentEligibility(
+  rows: ValidatedRow<StudentEligibilityRow>[],
+  dryRun = false,
+  ctx?: StudentEligibilityImportContext,
+): Promise<ImportReport> {
+  if (dryRun) return eligibilityDryRunReport(rows);
+
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    rows_created: 0,
+    rows_updated: 0,
+    errors: [],
+  };
+
+  for (const r of rows) {
+    if (r.parsed === null) {
+      report.rows_failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+
+    const p = r.parsed;
+    const { data: existing, error: fetchErr } = await sb
+      .from("student_profiles")
+      .select(
+        "id, student_study_status, transferred_current_year, previous_suspension_semesters_count, consecutive_suspension_years_count",
+      )
+      .eq("id", p.student_profile_id)
+      .maybeSingle();
+
+    if (fetchErr || !existing) {
+      report.rows_failed += 1;
+      report.errors.push({
+        row: r.rowNumber,
+        column: "academic_number",
+        message: fetchErr?.message ?? "الطالب غير موجود — لم يُحدَّث أي سجل",
+      });
+      continue;
+    }
+
+    const payload = {
+      student_study_status: p.student_study_status,
+      transferred_current_year: p.transferred_current_year,
+      previous_suspension_semesters_count: p.previous_suspension_semesters_count,
+      consecutive_suspension_years_count: p.consecutive_suspension_years_count,
+    };
+
+    const { data: updated, error: updateErr } = await sb
+      .from("student_profiles")
+      .update(payload)
+      .eq("id", p.student_profile_id)
+      .select("id");
+
+    if (updateErr || !updated || updated.length !== 1) {
+      report.rows_failed += 1;
+      report.errors.push({
+        row: r.rowNumber,
+        column: "academic_number",
+        message: updateErr?.message ?? "فشل تحديث سجل الطالب — لم يُحدَّث بالضبط صف واحد",
+      });
+      continue;
+    }
+
+    report.rows_success += 1;
+    report.rows_updated! += 1;
+
+    await safeAudit("student_eligibility_data_imported", p.student_profile_id, {
+      old: {
+        student_study_status: existing.student_study_status,
+        transferred_current_year: existing.transferred_current_year,
+        previous_suspension_semesters_count: existing.previous_suspension_semesters_count,
+        consecutive_suspension_years_count: existing.consecutive_suspension_years_count,
+      },
+      new: payload,
+      source_reference: p.source_reference,
+      import_file_name: ctx?.fileName ?? null,
+      actor_user_id: ctx?.userId ?? null,
+    });
+  }
+
+  report.eligibility_summary = computeEligibilityImportSummary(rows);
+  return report;
+}
+
 const DOC_AUDIT_ACTION: Record<string, string> = {
   enrollment_certificate: "certificate_generated",
   student_status_certificate: "certificate_generated",
@@ -933,7 +1271,13 @@ export async function importDocuments(
   ctx?: ServerImportContext,
 ): Promise<ImportReport> {
   if (dryRun) return dryRunReport(rows);
-  const report: ImportReport = { rows_total: rows.length, rows_success: 0, rows_failed: 0, rows_created: 0, errors: [] };
+  const report: ImportReport = {
+    rows_total: rows.length,
+    rows_success: 0,
+    rows_failed: 0,
+    rows_created: 0,
+    errors: [],
+  };
 
   for (const r of rows) {
     if (r.parsed === null) {
@@ -946,26 +1290,36 @@ export async function importDocuments(
     const { data: docNum, error: numErr } = await sb.rpc("generate_document_number");
     if (numErr || !docNum) {
       report.rows_failed += 1;
-      report.errors.push({ row: r.rowNumber, message: numErr?.message ?? "تعذّر توليد رقم الوثيقة" });
+      report.errors.push({
+        row: r.rowNumber,
+        message: numErr?.message ?? "تعذّر توليد رقم الوثيقة",
+      });
       continue;
     }
     const { data: verCode, error: codeErr } = await sb.rpc("generate_verification_code");
     if (codeErr || !verCode) {
       report.rows_failed += 1;
-      report.errors.push({ row: r.rowNumber, message: codeErr?.message ?? "تعذّر توليد رمز التحقق" });
+      report.errors.push({
+        row: r.rowNumber,
+        message: codeErr?.message ?? "تعذّر توليد رمز التحقق",
+      });
       continue;
     }
 
-    const { data: inserted, error } = await sb.from("official_documents").insert({
-      student_profile_id: p.student_profile_id,
-      document_type: p.document_type,
-      document_number: docNum,
-      verification_code: verCode,
-      issued_by: ctx?.userId ?? null,
-      issued_at: p.issued_at ?? new Date().toISOString(),
-      status: "issued",
-      metadata: p.metadata,
-    }).select("id").maybeSingle();
+    const { data: inserted, error } = await sb
+      .from("official_documents")
+      .insert({
+        student_profile_id: p.student_profile_id,
+        document_type: p.document_type,
+        document_number: docNum,
+        verification_code: verCode,
+        issued_by: ctx?.userId ?? null,
+        issued_at: p.issued_at ?? new Date().toISOString(),
+        status: "issued",
+        metadata: p.metadata,
+      })
+      .select("id")
+      .maybeSingle();
 
     if (error || !inserted) {
       report.rows_failed += 1;
@@ -986,4 +1340,3 @@ export async function importDocuments(
   }
   return report;
 }
-

@@ -93,6 +93,14 @@ export async function downloadImportReport(
   if (statLabels.showUpdated && report.rows_updated != null) {
     summary.push([statLabels.updated, report.rows_updated]);
   }
+  if (type === "student_eligibility" && report.eligibility_summary) {
+    const s = report.eligibility_summary;
+    summary.push(["عدد مستجد", s.new_count]);
+    summary.push(["عدد باقي/إعادة", s.repeat_count]);
+    summary.push(["عدد محوّلين للعام الحالي", s.transferred_count]);
+    summary.push(["عدد بسجل إيقاف سابق", s.prior_suspension_count]);
+    summary.push(["مراجع مصدر مميزة", s.distinct_source_references]);
+  }
   if (opts?.durationMs != null) {
     summary.push(["الزمن (مللي ثانية)", opts.durationMs]);
   }
@@ -111,12 +119,14 @@ export async function downloadImportReport(
   const ws = XLSX.utils.json_to_sheet(
     errRows.length
       ? errRows
-      : [{
-          [VALIDATION_REPORT_HEADERS.row_number]: "",
-          [VALIDATION_REPORT_HEADERS.status]: REPORT_STATUS_AR.none,
-          [VALIDATION_REPORT_HEADERS.column]: "",
-          [VALIDATION_REPORT_HEADERS.error_message]: "لا توجد أخطاء",
-        }],
+      : [
+          {
+            [VALIDATION_REPORT_HEADERS.row_number]: "",
+            [VALIDATION_REPORT_HEADERS.status]: REPORT_STATUS_AR.none,
+            [VALIDATION_REPORT_HEADERS.column]: "",
+            [VALIDATION_REPORT_HEADERS.error_message]: "لا توجد أخطاء",
+          },
+        ],
     { header: headers },
   );
   ws["!cols"] = [{ wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 60 }];
