@@ -33,6 +33,10 @@ import {
   type StudentTemplateOverrides,
 } from "@/lib/imports/templates";
 import { auditImportStarted, auditImportValidated, auditImportFailed } from "@/lib/imports/engine";
+import {
+  isEligibilityReadOnlyDryRun,
+  shouldSkipEligibilityClientLifecycleAudit,
+} from "@/lib/imports/eligibility-import-policy";
 import { downloadValidationReport, downloadImportReport } from "@/lib/imports/reports";
 import {
   IMPORT_TYPE_LABEL_AR,
@@ -591,13 +595,17 @@ function ImportsPage() {
       setRows(rowsForPreview);
       const res = await runServerPreview(rowsForPreview, updateExisting);
       setValidation(res);
-      void auditImportValidated(t, f.name, {
-        total: res.totalRows,
-        valid: res.validRows,
-        invalid: res.invalidRows,
-      });
+      if (!shouldSkipEligibilityClientLifecycleAudit(t)) {
+        void auditImportValidated(t, f.name, {
+          total: res.totalRows,
+          valid: res.validRows,
+          invalid: res.invalidRows,
+        });
+      }
     } catch (e) {
-      void auditImportFailed(t, f.name, (e as Error).message);
+      if (!shouldSkipEligibilityClientLifecycleAudit(t)) {
+        void auditImportFailed(t, f.name, (e as Error).message);
+      }
       const msg = (e as Error).message;
       alert(
         isStudentContextClientError(msg) ||
@@ -637,7 +645,9 @@ function ImportsPage() {
     setPerfMs(null);
     const t0 = performance.now();
     try {
-      void auditImportStarted(t, file.name, validation.totalRows, dryRun);
+      if (!isEligibilityReadOnlyDryRun(t, dryRun)) {
+        void auditImportStarted(t, file.name, validation.totalRows, dryRun);
+      }
       const rep = await runBulkImportFn({
         data: {
           type: t,
@@ -657,7 +667,9 @@ function ImportsPage() {
       qc.invalidateQueries({ queryKey: ["import-history"] });
       qc.invalidateQueries({ queryKey: ["import-stats"] });
     } catch (e) {
-      void auditImportFailed(t, file.name, (e as Error).message);
+      if (!isEligibilityReadOnlyDryRun(t, dryRun)) {
+        void auditImportFailed(t, file.name, (e as Error).message);
+      }
       alert("فشل الاستيراد: " + (e as Error).message);
     } finally {
       setImporting(false);

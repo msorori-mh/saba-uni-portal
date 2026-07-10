@@ -121,14 +121,31 @@
 
 ## dry-run guarantee
 
-عند `dryRun=true`:
+عند `dryRun=true` للمسار الكامل (`preview` + `dry run` + orchestration):
 
 - لا `UPDATE` على `student_profiles`.
-- لا `log_audit` / RPC write.
+- لا `INSERT` في `import_logs`.
+- لا `log_audit` (لا من الخادم ولا من lifecycle audit في الواجهة).
+- لا `auditImportValidated` / `auditImportFailed` أثناء preview.
+- لا `auditImportStarted` / `auditImportFailed` أثناء dry run.
+- لا `finalizeImportServer` (يُتخطى عبر `shouldSkipEligibilityFinalizeServer`).
 - لا login provisioning.
-- يُرجع تقريرًا + `eligibility_summary` (إجمالي، صالح، مرفوض، new/repeat، محوّلون، سابق إيقاف، مراجع مصدر).
+- يُرجع تقريرًا + `eligibility_summary` فقط (إجمالي، صالح، مرفوض، new/repeat، محوّلون، سابق إيقاف، مراجع مصدر).
+
+عند `dryRun=false` (استيراد فعلي): يبقى `finalizeImportServer` وlifecycle audit مفعّلين.
+
+السياسة في: `src/lib/imports/eligibility-import-policy.ts`
 
 ---
+
+## PR #114 remediation (dry-run read-only)
+
+| المسار | الإصلاح |
+|--------|---------|
+| Preview (`onFile`) | تخطي `auditImportValidated` / `auditImportFailed` لـ`student_eligibility` |
+| Dry run UI (`runImport`) | تخطي `auditImportStarted` / `auditImportFailed` عند `student_eligibility && dryRun` |
+| Server (`runBulkImport`) | تخطي `finalizeImportServer` عند `student_eligibility && dryRun` |
+
 
 ## audit behavior
 
@@ -152,6 +169,14 @@ Audit best-effort عبر `safeAudit` — فشل audit لا يخفي فشل تح�
 - dry run: لا استدعاء `from`/`rpc`.
 - execution mock: تحديث الحقول الأربعة فقط + فشل عند ≠ 1 row.
 - summary: إحصاءات بدون PII.
+
+`tests/imports/eligibility-import-readonly-policy.test.ts`:
+
+- preview لـ`student_eligibility` لا lifecycle audit.
+- dry run لا `auditImportStarted`/`auditImportFailed`.
+- server orchestration لا `finalizeImportServer` في eligibility dryRun.
+- الاستيراد الفعلي `dryRun=false` ما زال يمر عبر finalize/audit.
+- بقية أنواع الاستيراد لم يتغير سلوكها.
 
 ---
 

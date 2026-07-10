@@ -25,6 +25,7 @@ import {
   type ServerImportContext,
 } from "@/lib/imports/engine.server";
 import type { ImportReport, ImportType } from "@/lib/imports/types";
+import { shouldSkipEligibilityFinalizeServer } from "@/lib/imports/eligibility-import-policy";
 import { executeScheduleImport } from "@/lib/imports/class-schedule.server";
 import type { ScheduleContext, ScheduleImportReport } from "@/lib/imports/class-schedule";
 import {
@@ -335,14 +336,16 @@ export const runBulkImport = createServerFn({ method: "POST" })
         throw new Error("نوع استيراد غير مدعوم");
     }
 
-    await finalizeImportServer({
-      type: data.type as ImportType,
-      fileName: data.fileName,
-      report,
-      userId: context.userId,
-      dryRun: data.dryRun,
-      durationMs: Date.now() - t0,
-    });
+    if (!shouldSkipEligibilityFinalizeServer(data.type, data.dryRun)) {
+      await finalizeImportServer({
+        type: data.type as ImportType,
+        fileName: data.fileName,
+        report,
+        userId: context.userId,
+        dryRun: data.dryRun,
+        durationMs: Date.now() - t0,
+      });
+    }
 
     return report;
   });
