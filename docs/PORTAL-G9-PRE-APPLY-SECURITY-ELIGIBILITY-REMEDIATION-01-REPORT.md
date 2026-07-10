@@ -1,240 +1,152 @@
-# PORTAL-G9-PRE-APPLY-SECURITY-ELIGIBILITY-REMEDIATION-01 Report
+# PORTAL-G9-PRE-APPLY-SECURITY-ELIGIBILITY-REMEDIATION-01 — Report
 
-**التاريخ:** 2026-07-10  
-**المستودع:** [msorori-mh/saba-uni-portal](https://github.com/msorori-mh/saba-uni-portal)  
-**المسار المحلي:** `C:\projects\saba-uni-portal-git`  
-**الفرع المرجعي:** `main`  
-**القرار:** **PASS_G9_SOURCE_REMEDIATED_PUSHED_READY_FOR_REVIEW**
+## 1. Scope
 
----
+- Repo: `msorori-mh/saba-uni-portal`
+- File: `supabase/migrations/20260711020000_student_requests_p1_foundations.sql`
+- Design doc: `docs/STUDENT-REQUESTS-P1-FOUNDATIONS-01-REPORT.md`
+- No G9 application, no SQL executed, no re-application of G7/G8, no seed, no
+  default privileges changed, no Publish/Deploy, no production data touched.
 
-## 1. Executive Summary
+## 2. Source state
 
-| البند | الحالة |
-|-------|--------|
-| **نطاق العمل** | تصحيح مصدر migration G9 (P1 foundations) فقط |
-| **تطبيق G9 على DB** | ❌ لم يُنفَّذ |
-| **كتابة على الإنتاج** | ❌ لم تُنفَّذ |
-| **Publish / Deploy** | ❌ لم يُنفَّذ |
-| **G7 / G8 re-apply** | ❌ لم يُنفَّذ |
-| **seed / default privileges DB** | ❌ لم يُنفَّذ |
+| Item | Value |
+|---|---|
+| commit before remediation | `a527463` (initial G9 landing, PR #100) |
+| Git blob before remediation | `6af9b56a0dea25a2ecf4c3fdc48cc4bbfe3308f7` |
+| commit after remediation | `6ace3c5` (`security: harden G9 eligibility foundations`) |
+| Git blob after remediation (current) | `b8c5cdd0435eb4c5fd3716f797037372c70f0b1d` |
+| Working-tree SHA256 (current) | `0be3b067c3f2ccfb2177d755c736b83c655526f813bcfb3eda9b5560dbd27943` |
+| Line endings | LF only, no CRLF |
+| `git diff` | clean (all remediation already committed) |
 
-تمت معالجة ثغرتين في مصدر `20260711020000_student_requests_p1_foundations.sql`:
+Result: the security remediation is already committed to `main`
+(`6ace3c5`). The current source file matches the required specification;
+no further source edits are needed in this pass.
 
-1. **ACL:** الدالة الداخلية `assert_can_read_student_eligibility_context` كانت مُمنَحة لـ `authenticated` — يمكن استدعاؤها مباشرة متجاوزةً بوابة الدوال القابلة للقراءة. كما أن `REVOKE FROM PUBLIC` وحده لا يكفي بسبب default privileges في Supabase.
-2. **NULL logic:** `student_study_status IS NULL` كان يمرّ شرط الأهلية لـ `enrollment_suspension` — أصبح `IS DISTINCT FROM 'new'` لرفض القيم الناقصة.
-
----
-
-## 2. Git Reference
-
-| البند | القيمة |
-|-------|--------|
-| **commit SHA (HEAD @ remediation start)** | `0c81c7790b4dad1aae4d93d20223553af3c22c73` |
-| **blob SHA (قبل)** | `6af9b56a0dea25a2ecf4c3fdc48cc4bbfe3308f7` |
-| **blob SHA (بعد)** | `b8c5cdd0435eb4c5fd3716f797037372c70f0b1d` |
-| **SHA256 (بعد)** | `9569EAFB42AE733ACE0C8AB5D911604D146759D2D89BEF792DC17A08A4D62B27` |
-
-**الملفات المُعدَّلة (3 فقط):**
-
-1. `supabase/migrations/20260711020000_student_requests_p1_foundations.sql`
-2. `docs/STUDENT-REQUESTS-P1-FOUNDATIONS-01-REPORT.md`
-3. `docs/PORTAL-G9-PRE-APPLY-SECURITY-ELIGIBILITY-REMEDIATION-01-REPORT.md`
-
----
-
-## 3. سبب الحجب الأصلي
-
-1. **default privileges** في Supabase قد تمنح `anon` و`authenticated` صلاحية `EXECUTE` على الدوال الجديدة تلقائياً — `REVOKE FROM PUBLIC` وحده لا يسحب هذه المنح الصريحة.
-2. `assert_can_read_student_eligibility_context(uuid)` كانت `GRANT EXECUTE TO authenticated` — استدعاء مباشر من العميل يتجاوز نية "دالة داخلية فقط".
-3. شرط `v_study_status IS NOT NULL AND v_study_status <> 'new'` يعامل `NULL` كمؤهل — يتعارض مع متطلبات U-SUSP-1 قبل اكتمال بيانات الاستيراد.
-
----
-
-## 4. التعديلات المُطبَّقة
-
-### 4.1 ACL — الدالة الداخلية
-
-```sql
-REVOKE ALL ON FUNCTION public.assert_can_read_student_eligibility_context(uuid)
-  FROM PUBLIC, anon, authenticated;
-```
-
-- **لا GRANT** لـ `authenticated`.
-- الاستدعاء الداخلي من `get_*` / `check_*` يبقى ممكناً بصلاحيات مالك الدالة (SECURITY DEFINER).
-
-### 4.2 ACL — الدوال القابلة للقراءة من العميل
-
-```sql
-REVOKE ALL ON FUNCTION public.get_student_request_eligibility_context(uuid)
-  FROM PUBLIC, anon;
-
-REVOKE ALL ON FUNCTION public.check_student_request_basic_eligibility(text, uuid)
-  FROM PUBLIC, anon;
-
-GRANT EXECUTE ON FUNCTION public.get_student_request_eligibility_context(uuid)
-  TO authenticated;
-
-GRANT EXECUTE ON FUNCTION public.check_student_request_basic_eligibility(text, uuid)
-  TO authenticated;
-```
-
-### 4.3 NULL study status fix
-
-**قبل:**
-
-```sql
-IF v_study_status IS NOT NULL AND v_study_status <> 'new' THEN
-  ...
-  'وقف القيد متاح للطلاب المستجدين فقط (student_study_status = new).'
-```
-
-**بعد:**
-
-```sql
-IF v_study_status IS DISTINCT FROM 'new' THEN
-  ...
-  'وقف القيد متاح للطلاب المستجدين فقط، ويجب استكمال student_study_status بقيمة new.'
-```
-
-- `NULL` → غير مؤهل لـ `enrollment_suspension`.
-- `'repeat'` → غير مؤهل.
-- `'new'` → يمرّ هذا الشرط (باقي قواعد U-SUSP-1 دون تغيير).
-
-### 4.4 ما لم يُمس
-
-- الأعمدة الأربعة وأنواعها وdefaults
-- الجداول الخمسة الجديدة
-- Constraints, indexes, comments
-- منطق `consecutive_suspension_years_count >= 2` و `previous_suspension_semesters_count >= 4`
-- فحص الطالب المحوّل (`transferred_current_year`)
-- قائمة الأدوار: `system_admin`, `admin`, `student_affairs`, `registrar`
-- RLS مفعّل بدون policies
-- لا seed، لا ربط بـ `create_student_request` / `submit_student_request`
-
----
-
-## 5. ACL Matrix
-
-### قبل
+## 3. ACL matrix (post-remediation)
 
 | Function | PUBLIC | anon | authenticated |
-|----------|--------|------|---------------|
-| `assert_can_read_student_eligibility_context` | no (REVOKE) | **yes** (default priv) | **yes** (GRANT) |
-| `get_student_request_eligibility_context` | no (REVOKE) | **yes** (default priv) | yes (GRANT) |
-| `check_student_request_basic_eligibility` | no (REVOKE) | **yes** (default priv) | yes (GRANT) |
+|---|---|---|---|
+| `assert_can_read_student_eligibility_context(uuid)` | REVOKE | REVOKE | REVOKE (helper only) |
+| `get_student_request_eligibility_context(uuid)` | REVOKE | REVOKE | GRANT EXECUTE |
+| `check_student_request_basic_eligibility(text, uuid)` | REVOKE | REVOKE | GRANT EXECUTE |
 
-### بعد
+Matches file lines 688–701 verbatim. The internal helper is intentionally
+NOT granted to `authenticated`; it is invoked via the two `SECURITY DEFINER`
+public RPCs using the owner's privileges. `REVOKE FROM PUBLIC` alone is
+insufficient because Supabase default privileges may auto-grant `anon` and
+`authenticated` on new functions — explicit `REVOKE ... FROM anon` (and
+`authenticated` for the helper) is required.
 
-| Function | PUBLIC | anon | authenticated |
-|----------|--------|------|---------------|
-| `assert_can_read_student_eligibility_context` | no | no | no |
-| `get_student_request_eligibility_context` | no | no | yes |
-| `check_student_request_basic_eligibility` | no | no | yes |
+## 4. NULL eligibility logic (post-remediation)
 
----
+Before: `IF v_study_status IS NOT NULL AND v_study_status <> 'new' THEN`
+After: `IF v_study_status IS DISTINCT FROM 'new' THEN`
 
-## 6. Diff الكامل (migration)
+Reason text updated to:
+`وقف القيد متاح للطلاب المستجدين فقط، ويجب استكمال student_study_status بقيمة new.`
 
-```diff
-diff --git a/supabase/migrations/20260711020000_student_requests_p1_foundations.sql b/supabase/migrations/20260711020000_student_requests_p1_foundations.sql
-index 6af9b56..b8c5cdd 100644
---- a/supabase/migrations/20260711020000_student_requests_p1_foundations.sql
-+++ b/supabase/migrations/20260711020000_student_requests_p1_foundations.sql
-@@ -620,11 +620,11 @@ BEGIN
-       );
-     END IF;
- 
--    IF v_study_status IS NOT NULL AND v_study_status <> 'new' THEN
-+    IF v_study_status IS DISTINCT FROM 'new' THEN
-       v_is_eligible := false;
-       v_reasons := array_append(
-         v_reasons,
--        'وقف القيد متاح للطلاب المستجدين فقط (student_study_status = new).'
-+        'وقف القيد متاح للطلاب المستجدين فقط، ويجب استكمال student_study_status بقيمة new.'
-       );
-     END IF;
- 
-@@ -685,10 +685,17 @@ ALTER TABLE public.student_request_parallel_groups ENABLE ROW LEVEL SECURITY;
- ALTER TABLE public.student_request_parallel_group_members ENABLE ROW LEVEL SECURITY;
- ALTER TABLE public.central_signatory_references ENABLE ROW LEVEL SECURITY;
- 
--REVOKE ALL ON FUNCTION public.assert_can_read_student_eligibility_context(uuid) FROM PUBLIC;
--REVOKE ALL ON FUNCTION public.get_student_request_eligibility_context(uuid) FROM PUBLIC;
--REVOKE ALL ON FUNCTION public.check_student_request_basic_eligibility(text, uuid) FROM PUBLIC;
-+REVOKE ALL ON FUNCTION public.assert_can_read_student_eligibility_context(uuid)
-+  FROM PUBLIC, anon, authenticated;
- 
--GRANT EXECUTE ON FUNCTION public.assert_can_read_student_eligibility_context(uuid) TO authenticated;
--GRANT EXECUTE ON FUNCTION public.get_student_request_eligibility_context(uuid) TO authenticated;
--GRANT EXECUTE ON FUNCTION public.check_student_request_basic_eligibility(text, uuid) TO authenticated;
-+REVOKE ALL ON FUNCTION public.get_student_request_eligibility_context(uuid)
-+  FROM PUBLIC, anon;
-+
-+REVOKE ALL ON FUNCTION public.check_student_request_basic_eligibility(text, uuid)
-+  FROM PUBLIC, anon;
-+
-+GRANT EXECUTE ON FUNCTION public.get_student_request_eligibility_context(uuid)
-+  TO authenticated;
-+
-+GRANT EXECUTE ON FUNCTION public.check_student_request_basic_eligibility(text, uuid)
-+  TO authenticated;
+Resulting matrix (`enrollment_suspension`):
+
+| `student_study_status` | Eligible? |
+|---|---|
+| `new` | continues to remaining checks |
+| `repeat` | `is_eligible = false` |
+| `NULL` | `is_eligible = false` (default-deny) |
+
+## 5. Static verification
+
+- Three functions total, signatures exactly as specified. ✔
+- All three are `SECURITY DEFINER`. ✔
+- All three set `search_path = public, pg_temp`. ✔
+- Auth gate present; returns `28000` on missing `auth.uid()`. ✔
+- Non-owner / non-role callers rejected with `42501`. ✔
+- Helper has no client GRANT. ✔
+- `anon` explicitly revoked on all three. ✔
+- `authenticated` granted EXECUTE on the two read RPCs only. ✔
+- Suspension eligibility gate uses `IS DISTINCT FROM 'new'`. ✔
+- No new policies, no seed rows, no data statements. ✔
+- Four columns, five tables, indexes, constraints, comments — unchanged. ✔
+- Suspension thresholds unchanged (`>= 2` consecutive years,
+  `>= 4` scattered semesters, transfer-year check intact). ✔
+- Role list unchanged (`system_admin`, `admin`, `student_affairs`,
+  `registrar`). ✔
+- RLS enabled with no policies on all five new tables. ✔
+- No wiring to `create_student_request` / `submit_student_request`. ✔
+
+## 6. Expected security scenarios (post future apply)
+
+| Scenario | Expected |
+|---|---|
+| anon → `assert_can_read_student_eligibility_context` | ACL reject |
+| anon → `get_student_request_eligibility_context` | ACL reject |
+| anon → `check_student_request_basic_eligibility` | ACL reject |
+| authenticated → helper directly | ACL reject |
+| student → own context | allowed |
+| student → another student's context | `42501` |
+| admin / student_affairs / registrar → any student | allowed |
+| `enrollment_suspension`, `student_study_status = NULL` | `is_eligible = false` |
+| `enrollment_suspension`, `student_study_status = 'repeat'` | `is_eligible = false` |
+| `enrollment_suspension`, `student_study_status = 'new'` | proceeds to further checks |
+
+## 7. Design report update
+
+`docs/STUDENT-REQUESTS-P1-FOUNDATIONS-01-REPORT.md` already reflects:
+
+- Internal helper is not granted to `authenticated`.
+- `anon` is explicitly revoked from all three functions.
+- Rationale for why `REVOKE FROM PUBLIC` alone is insufficient in this
+  project (default privileges may auto-grant `anon` / `authenticated`).
+- `NULL` `student_study_status` blocks suspension eligibility.
+- The four transitional columns require import completion before
+  operational eligibility is enabled.
+
+Working-tree SHA256:
+`deffa86772cceee06eff827687af872f5cc04ebb108d12e75852cb88eab66ecb`.
+
+No further edits needed in this pass.
+
+## 8. Confirmations
+
+- G9 migration NOT applied.
+- No SQL executed against any database.
+- G7 and G8 NOT re-applied.
+- No seed created, no default privileges changed.
+- No Publish, no Deploy.
+- No production tables or data modified.
+
+## 9. Git handoff
+
+The remediation commit is already on `main` as `6ace3c5`
+(`security: harden G9 eligibility foundations`). No new branch or PR is
+required from this pass; the previously-opened PR that landed `6ace3c5`
+is the authoritative source of the ACL and NULL-guard changes.
+
+If a fresh branch is still desired for review packaging, run locally:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+git switch -c security/g9-foundations-hardening-repackage
+git add -- `
+  supabase/migrations/20260711020000_student_requests_p1_foundations.sql `
+  docs/STUDENT-REQUESTS-P1-FOUNDATIONS-01-REPORT.md `
+  docs/PORTAL-G9-PRE-APPLY-SECURITY-ELIGIBILITY-REMEDIATION-01-REPORT.md
+git diff --cached --check
+git commit -m "security: harden G9 eligibility foundations (report)"
+git push -u origin security/g9-foundations-hardening-repackage
 ```
 
----
+Only the report file above is new in this pass; the SQL and design doc
+are unchanged from `6ace3c5`.
 
-## 7. التحقق الساكن
-
-| # | الفحص | النتيجة |
-|---|-------|---------|
-| 1 | 3 دوال فقط بالتوقيعات المقصودة | ✅ `assert_can_read_student_eligibility_context(uuid)`, `get_student_request_eligibility_context(uuid)`, `check_student_request_basic_eligibility(text, uuid)` |
-| 2 | جميعها `SECURITY DEFINER` | ✅ |
-| 3 | جميعها `SET search_path = public, pg_temp` | ✅ |
-| 4 | بوابة auth تُرجع `28000` | ✅ `auth.uid() IS NULL` → `28000` |
-| 5 | غير المالك/غير الدور يُرفض بـ `42501` | ✅ |
-| 6 | الدالة الداخلية بلا GRANT للعميل | ✅ لا `GRANT` لـ `assert_can_read_*` |
-| 7 | `anon` مُسحوب صراحة من الدوال الثلاث | ✅ `FROM PUBLIC, anon` (و`authenticated` للداخلية) |
-| 8 | `authenticated` لديه EXECUTE للدالتين القابلتين للقراءة فقط | ✅ `get_*` و `check_*` |
-| 9 | شرط study status هو `IS DISTINCT FROM 'new'` | ✅ |
-| 10 | لا policies جديدة / seed / data statements | ✅ |
-
----
-
-## 8. سيناريوهات الأمان المتوقعة (بعد التطبيق المستقبلي)
-
-| السيناريو | النتيجة المتوقعة |
-|-----------|------------------|
-| `anon` → `get_student_request_eligibility_context` | مرفوض ACL |
-| `anon` → `check_student_request_basic_eligibility` | مرفوض ACL |
-| `anon` → `assert_can_read_student_eligibility_context` | مرفوض ACL |
-| `authenticated` بدون JWT (`auth.uid()` NULL) | `28000` داخل الدالة |
-| `authenticated` طالب يستدعي سياق طالب آخر | `42501` |
-| `authenticated` طالب يستدعي سياقه | ناجح — JSON context |
-| `authenticated` admin/SA/registrar | ناجح — JSON context |
-| `authenticated` → `assert_can_read_*` مباشرة | مرفوض ACL |
-| `enrollment_suspension` + `student_study_status` NULL | `is_eligible: false` — رسالة استكمال الحقل |
-| `enrollment_suspension` + `student_study_status = 'repeat'` | `is_eligible: false` |
-| `enrollment_suspension` + `student_study_status = 'new'` + باقي الشروط | يمرّ شرط study status (باقي U-SUSP-1 دون تغيير) |
-| استدعاء `assert_can_read_*` من داخل `get_*` / `check_*` | ناجح — SECURITY DEFINER + `auth.uid()` للمستخدم الأصلي |
-
----
-
-## 9. No-Write / No-Apply Assurance
-
-| البند | الحالة |
-|-------|--------|
-| تطبيق G9 على staging/production | ❌ |
-| تنفيذ SQL على الإنتاج | ❌ |
-| تعديل default privileges (على DB) | ❌ |
-| G7 / G8 re-apply | ❌ |
-| Publish / Deploy | ❌ |
-| seed / data writes | ❌ |
-| تعديل بيانات حالية | ❌ |
-
----
-
-## 10. قرار المرحلة
+## 10. Decision
 
 **PASS_G9_SOURCE_REMEDIATED_PUSHED_READY_FOR_REVIEW**
 
-لا يُطبَّق G9 على أي بيئة DB حتى مراجعة الملف المصحح وإصدار أمر تطبيق مستقل.
+- commit SHA (remediation): `6ace3c5`
+- current HEAD (this workspace): `01665940cd3e1a5f0defd4fd66fb50288bd799b9`
+- Migration blob SHA (new): `b8c5cdd0435eb4c5fd3716f797037372c70f0b1d`
+- Migration SHA256 (new): `0be3b067c3f2ccfb2177d755c736b83c655526f813bcfb3eda9b5560dbd27943`
+- G9 NOT applied; Publish/Deploy NOT executed.
