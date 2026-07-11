@@ -47,36 +47,29 @@ export function Header() {
 
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-lg">
-      {/* Top strip */}
-      <div className="bg-primary-deep text-primary-foreground/90 text-xs">
-        <div className="container mx-auto flex items-center justify-between px-4 py-1.5">
-          <span className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="h-3 w-3 text-gold" />
-            البوابة الإلكترونية الرسمية
-          </span>
-          <span className="hidden sm:inline text-gold">جامعة إقليم سبأ — كلية تكنولوجيا المعلومات وعلوم الحاسوب</span>
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/95 backdrop-blur-lg">
+      {/* Top slim dark strip with centered wordmark */}
+      <div className="bg-primary-deep text-white/90 text-[11px]">
+        <div className="container mx-auto flex items-center justify-center px-4 py-1">
+          <span className="font-display font-bold tracking-wide">جامعة إقليم سبأ</span>
         </div>
       </div>
+      {/* Gold divider */}
+      <div className="h-1 bg-gold-gradient" />
 
       {/* Main row */}
       <div className="container mx-auto flex items-center justify-between gap-4 px-4 py-3">
-        {/* Branding: dual logos */}
+        {/* Branding: single logo + two-line title */}
         <Link to="/" className="flex items-center gap-3 group min-w-0">
-          <div className="flex items-center gap-1.5">
-            <div className="grid h-12 w-12 lg:h-14 lg:w-14 place-items-center rounded-lg bg-white p-1 shadow-card ring-1 ring-gold/30">
-              <img src={universityLogo.url} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
-            </div>
-            <div className="h-10 w-px bg-border" />
-            <div className="grid h-12 w-12 lg:h-14 lg:w-14 place-items-center rounded-lg bg-white p-1 shadow-card ring-1 ring-gold/30">
-              <img src={collegeLogo} alt="شعار كلية تكنولوجيا المعلومات وعلوم الحاسوب" className="h-full w-full object-contain" />
-            </div>
+          <div className="grid h-14 w-14 lg:h-16 lg:w-16 shrink-0 place-items-center rounded-lg bg-white p-1 shadow-card ring-1 ring-gold/30">
+            <img src={universityLogo.url} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
           </div>
           <div className="leading-tight hidden md:block min-w-0">
-            <div className="font-display font-extrabold text-primary text-sm lg:text-base">البوابة الإلكترونية</div>
-            <div className="text-[11px] lg:text-xs text-muted-foreground truncate">كلية تكنولوجيا المعلومات وعلوم الحاسوب</div>
+            <div className="font-display font-extrabold text-primary text-base lg:text-lg truncate">كلية تكنولوجيا المعلومات وعلوم الحاسوب</div>
+            <div className="text-[11px] lg:text-xs text-muted-foreground truncate">البوابة الإلكترونية — جامعة إقليم سبأ</div>
           </div>
         </Link>
+
 
         {/* Desktop nav */}
         <nav className="hidden 2xl:flex items-center gap-0.5">
