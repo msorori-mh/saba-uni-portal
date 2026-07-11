@@ -74,8 +74,8 @@ END IF;
 
 | الفحص | النتيجة |
 |---|---|
-| Migration Review — run 52 | PASS |
-| Web CI: Install · Lint · Typecheck · Build — run 309 | PASS |
+| Migration Review — run 53 | PASS |
+| Web CI: Install · Lint · Typecheck · Build — run 310 | PASS |
 
 ## الأمان ونطاق التنفيذ
 
