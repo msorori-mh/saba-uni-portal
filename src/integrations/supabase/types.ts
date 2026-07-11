@@ -4319,6 +4319,7 @@ export type Database = {
           notes: string | null
           payment_confirmed_at: string | null
           payment_confirmed_by: string | null
+          payment_reference: string | null
           payment_status: string
           request_id: string
           updated_at: string
@@ -4334,6 +4335,7 @@ export type Database = {
           notes?: string | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
+          payment_reference?: string | null
           payment_status?: string
           request_id: string
           updated_at?: string
@@ -4349,6 +4351,7 @@ export type Database = {
           notes?: string | null
           payment_confirmed_at?: string | null
           payment_confirmed_by?: string | null
+          payment_reference?: string | null
           payment_status?: string
           request_id?: string
           updated_at?: string
@@ -5351,6 +5354,15 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_save_request_workflow_config: {
+        Args: {
+          p_request_type_id: string
+          p_steps: Json
+          p_transitions: Json
+          p_workflow: Json
+        }
+        Returns: Json
+      }
       admin_set_faculty_status: {
         Args: { _active: boolean; _profile_id: string }
         Returns: {
@@ -5383,6 +5395,24 @@ export type Database = {
         Args: { _discount_id: string }
         Returns: undefined
       }
+      apply_student_request_workflow_transition: {
+        Args: {
+          p_action_result: string
+          p_actor_user_id?: string
+          p_from_runtime_step_id: string
+          p_request_id: string
+        }
+        Returns: string
+      }
+      assert_can_admin_save_request_workflow: {
+        Args: never
+        Returns: undefined
+      }
+      assert_can_assess_student_request_fee: { Args: never; Returns: undefined }
+      assert_can_confirm_student_request_fee_payment: {
+        Args: never
+        Returns: undefined
+      }
       assert_can_read_student_eligibility_context: {
         Args: { p_student_profile_id: string }
         Returns: undefined
@@ -5390,6 +5420,10 @@ export type Database = {
       assert_student_can_use_request_type: {
         Args: { _profile_status: string; _request_audience: string }
         Returns: undefined
+      }
+      assess_student_request_fee: {
+        Args: { p_amount: number; p_notes?: string; p_request_id: string }
+        Returns: Json
       }
       audit_resolve_role: { Args: { _user_id: string }; Returns: string }
       can_access_student_service_request: {
@@ -5466,6 +5500,14 @@ export type Database = {
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
+      confirm_student_request_fee_payment: {
+        Args: {
+          p_notes?: string
+          p_payment_reference: string
+          p_request_id: string
+        }
+        Returns: Json
+      }
       council_topic_attachment_count: {
         Args: { _topic_id: string }
         Returns: number
@@ -5607,6 +5649,10 @@ export type Database = {
       }
       get_student_request_eligibility_context: {
         Args: { p_student_profile_id: string }
+        Returns: Json
+      }
+      get_student_request_fee_processing_context: {
+        Args: { p_request_id: string }
         Returns: Json
       }
       has_any_role: {
