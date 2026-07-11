@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import type { DraftWorkflowStep, DraftWorkflowTransition } from "@/lib/admin-request-workflow-rpc";
 import { ACTION_RESULT_LABEL } from "@/components/admin/request-workflow/constants";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,28 @@ export function WorkflowTransitionsEditor({ steps, transitions, onChange }: Prop
 
   const add = () => onChange([...transitions, newTransition()]);
 
+  const assessFeeSteps = steps.filter((s) => s.action_type === "assess_fee");
+  const assessFeeWarnings = assessFeeSteps.filter((step) => {
+    const fromKey = step.step_key;
+    const hasNotRequired = transitions.some(
+      (t) => t.from_step_key === fromKey && t.action_result === "fee_not_required",
+    );
+    const hasRequired = transitions.some(
+      (t) => t.from_step_key === fromKey && t.action_result === "payment_required",
+    );
+    return !hasNotRequired || !hasRequired;
+  });
+
+  const confirmPaymentWarnings = steps
+    .filter((s) => s.action_type === "confirm_payment")
+    .filter(
+      (step) =>
+        !transitions.some(
+          (t) =>
+            t.from_step_key === step.step_key && t.action_result === "payment_confirmed",
+        ),
+    );
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -51,6 +73,25 @@ export function WorkflowTransitionsEditor({ steps, transitions, onChange }: Prop
           <Plus className="h-3.5 w-3.5" /> إضافة انتقال
         </Button>
       </div>
+
+      {(assessFeeWarnings.length > 0 || confirmPaymentWarnings.length > 0) && (
+        <div className="rounded border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-100 space-y-1">
+          {assessFeeWarnings.map((s) => (
+            <div key={s.localId} className="flex gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                «{s.step_key}»: أضف fee_not_required و payment_required.
+              </span>
+            </div>
+          ))}
+          {confirmPaymentWarnings.map((s) => (
+            <div key={s.localId} className="flex gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>«{s.step_key}»: أضف انتقال payment_confirmed.</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {transitions.length === 0 ? (
         <div className="rounded border border-dashed p-6 text-center text-sm text-muted-foreground">

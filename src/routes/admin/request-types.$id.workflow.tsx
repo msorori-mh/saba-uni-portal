@@ -26,6 +26,7 @@ import { WorkflowTransitionsEditor } from "@/components/admin/request-workflow/W
 import { RequestWorkflowPreview } from "@/components/admin/RequestWorkflowPreview";
 import {
   canonicalPreviewToSuggestedDraftSteps,
+  getCanonicalDraftTransitionsForType,
   hasCanonicalWorkflowPreview,
   WORKFLOW_SCHEMA_UNAVAILABLE_MSG,
 } from "@/lib/student-requests/request-workflow-preview-registry";
@@ -254,13 +255,25 @@ function AdminRequestTypeWorkflowPage() {
       can_reject: s.role_key !== "student",
       can_skip: false,
     }));
-    const transitions: DraftWorkflowTransition[] = steps.slice(0, -1).map((s, i) => ({
-      localId: crypto.randomUUID(),
-      from_step_key: s.step_key,
-      to_step_key: steps[i + 1]?.step_key ?? null,
-      action_result: "approve",
-      is_default: true,
-    }));
+
+    const canonicalTransitions = getCanonicalDraftTransitionsForType(requestType.code);
+    const transitions: DraftWorkflowTransition[] =
+      canonicalTransitions.length > 0
+        ? canonicalTransitions.map((t) => ({
+            localId: crypto.randomUUID(),
+            from_step_key: t.from_step_key,
+            to_step_key: t.to_step_key,
+            action_result: t.action_result,
+            is_default: t.is_default,
+          }))
+        : steps.slice(0, -1).map((s, i) => ({
+            localId: crypto.randomUUID(),
+            from_step_key: s.step_key,
+            to_step_key: steps[i + 1]?.step_key ?? null,
+            action_result: "approve",
+            is_default: true,
+          }));
+
     setDraftSteps(steps);
     setDraftTransitions(transitions);
   };
@@ -332,7 +345,7 @@ function AdminRequestTypeWorkflowPage() {
         requestTypeCode={requestType.code}
         draftSteps={draftSteps}
         draftTransitions={draftTransitions}
-        schemaUnavailable={configUnavailable || !ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE}
+        schemaUnavailable={configUnavailable}
       />
 
       <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -471,7 +484,9 @@ function AdminRequestTypeWorkflowPage() {
           <div>
             <p className="font-bold text-sm">حفظ إعدادات دورة الحياة</p>
             <p className="text-xs text-muted-foreground mt-1">
-              الحفظ غير مفعل حالياً — لا يتم كتابة أي بيانات إلى قاعدة البيانات من هذه الواجهة.
+              {ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE
+                ? "الحفظ متاح بعد التحقق — يتطلب تطبيق migration على بيئة staging."
+                : "الحفظ غير مفعل حالياً — لا يتم كتابة أي بيانات إلى قاعدة البيانات من هذه الواجهة."}
             </p>
           </div>
           <Button

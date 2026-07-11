@@ -376,7 +376,13 @@ export function validateCanonicalPreviewRegistry(): RegistryValidationReport {
     } else {
       const steps = preview.steps;
       if (steps.length === 0) issues.push("مسار فارغ");
-      if (steps[0]?.roleKey !== "student") issues.push("لا يبدأ بخطوة الطالب");
+      const staffFirstTypes = new Set(["enrollment_certificate"]);
+      if (steps[0]?.roleKey !== "student" && !staffFirstTypes.has(code)) {
+        issues.push("لا يبدأ بخطوة الطالب");
+      }
+      if (code === "enrollment_certificate" && steps.length !== 7) {
+        issues.push(`مسار شهادة القيد: 7 خطوات (الموجود: ${steps.length})`);
+      }
       const expectedEnd = EXPECTED_ENDING[code];
       if (expectedEnd && !endsWithExpectedTerminal(steps, expectedEnd)) {
         issues.push(`النهاية المتوقعة: ${expectedEnd === "archive" ? "أرشيف" : "مسجل الكلية"}`);

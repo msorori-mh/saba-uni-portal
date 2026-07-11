@@ -5,8 +5,8 @@ import { mapStudentRequestRpcError } from "@/lib/student-request-rpc";
 export const WORKFLOW_SAVE_NOT_AVAILABLE_MSG =
   "حفظ دورة الحياة يحتاج تفعيل خدمة الحفظ أولاً. سيتم تفعيل الحفظ بعد تنفيذ admin_save_request_workflow_config.";
 
-/** Set false until admin_save_request_workflow_config migration is applied. */
-export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = false;
+/** Set true after 20260711040000_enrollment_certificate_workflow_foundation_01a migration. */
+export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = true;
 
 export type WorkflowStatus = "draft" | "active" | "retired";
 
@@ -17,9 +17,29 @@ export type WorkflowActionType =
   | "return_to_student"
   | "request_attachment"
   | "request_payment"
+  | "assess_fee"
+  | "confirm_payment"
+  | "sign"
   | "archive"
   | "issue_document"
   | "complete";
+
+export type WorkflowTransitionResult =
+  | "submit"
+  | "approve"
+  | "reject"
+  | "return"
+  | "request_attachment"
+  | "request_payment"
+  | "fee_not_required"
+  | "payment_required"
+  | "payment_confirmed"
+  | "signed"
+  | "issued"
+  | "archived"
+  | "skip"
+  | "complete"
+  | "cancel";
 
 export type WorkflowConfigWorkflow = {
   id: string;
@@ -140,21 +160,49 @@ export async function rpcAdminGetRequestWorkflowConfig(
   };
 }
 
-/**
- * Future: persist workflow config via admin_save_request_workflow_config RPC.
- * Not available until the corresponding migration is applied.
- */
 export async function rpcAdminSaveRequestWorkflowConfig(
-  _client: RpcClient,
-  _payload: {
+  client: RpcClient,
+  payload: {
     requestTypeId: string;
     workflow: Record<string, unknown>;
     steps: DraftWorkflowStep[];
     transitions: DraftWorkflowTransition[];
   },
-): Promise<void> {
+): Promise<{ workflow_id: string }> {
   if (!ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE) {
     throw new Error(WORKFLOW_SAVE_NOT_AVAILABLE_MSG);
   }
-  throw new Error(WORKFLOW_SAVE_NOT_AVAILABLE_MSG);
+
+  const { data, error } = await client.rpc("admin_save_request_workflow_config", {
+    p_request_type_id: payload.requestTypeId,
+    p_workflow: payload.workflow,
+    p_steps: payload.steps.map((s) => ({
+      step_key: s.step_key,
+      step_name_ar: s.step_name_ar,
+      step_order: s.step_order,
+      processing_unit_id: s.processing_unit_id,
+      processing_role_id: s.processing_role_id,
+      action_type: s.action_type,
+      visible_to_student: s.visible_to_student,
+      notify_on_enter: s.notify_on_enter,
+      can_return_to_student: s.can_return_to_student,
+      can_reject: s.can_reject,
+      can_skip: s.can_skip,
+    })),
+    p_transitions: payload.transitions.map((t) => ({
+      from_step_key: t.from_step_key,
+      to_step_key: t.to_step_key,
+      action_result: t.action_result,
+      is_default: t.is_default,
+    })),
+  });
+
+  if (error) throw new Error(mapStudentRequestRpcError(error));
+
+  const raw = (data ?? {}) as { workflow_id?: string; success?: boolean };
+  if (!raw.workflow_id) {
+    throw new Error("تعذر حفظ دورة الحياة — لم يُرجَع معرّف workflow");
+  }
+
+  return { workflow_id: raw.workflow_id };
 }

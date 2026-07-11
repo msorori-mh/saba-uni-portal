@@ -203,11 +203,35 @@ export const saveAdminRequestWorkflowConfig = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertRequestWorkflowAdmin(context.userId);
-    await rpcAdminSaveRequestWorkflowConfig(context.supabase, {
+
+    const { data: typeRow, error: typeErr } = await supabaseAdmin
+      .from("request_types")
+      .select("code")
+      .eq("id", data.requestTypeId)
+      .maybeSingle();
+    if (typeErr) throw new Error("تعذر التحقق من نوع الطلب");
+    if (!typeRow) throw new Error("نوع الطلب غير موجود");
+
+    const dryRun = validateWorkflowSaveInput({
       requestTypeId: data.requestTypeId,
-      workflow: data.workflow,
+      requestTypeCode: typeRow.code,
+      steps: data.steps as StudentRequestWorkflowSaveInput["steps"],
+      transitions: data.transitions as StudentRequestWorkflowSaveInput["transitions"],
+    });
+    if (!dryRun.valid) {
+      const firstError = dryRun.issues.find((i) => i.severity === "error");
+      throw new Error(firstError?.messageAr ?? "التكوين غير صالح للحفظ");
+    }
+
+    const result = await rpcAdminSaveRequestWorkflowConfig(context.supabase, {
+      requestTypeId: data.requestTypeId,
+      workflow: {
+        ...data.workflow,
+        status: (data.workflow.status as string) ?? "draft",
+        is_active: Boolean(data.workflow.is_active),
+      },
       steps: data.steps as DraftWorkflowStep[],
       transitions: data.transitions as DraftWorkflowTransition[],
     });
-    return { ok: true as const };
+    return { ok: true as const, workflowId: result.workflow_id };
   });

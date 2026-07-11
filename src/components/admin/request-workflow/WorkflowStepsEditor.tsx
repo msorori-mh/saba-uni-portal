@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import type {
   DraftWorkflowStep,
   ProcessingOptionsResult,
@@ -61,6 +61,10 @@ export function WorkflowStepsEditor({ steps, processing, onChange }: Props) {
     onChange([...steps, newStep(steps.length + 1)]);
   };
 
+  const assessFeeWarnings = steps
+    .filter((s) => s.action_type === "assess_fee")
+    .map((s) => s.step_key);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -79,6 +83,16 @@ export function WorkflowStepsEditor({ steps, processing, onChange }: Props) {
       {processing.schemaAvailable && processing.message && (
         <div className="rounded border bg-muted/40 p-3 text-xs text-muted-foreground">
           {processing.message}
+        </div>
+      )}
+
+      {assessFeeWarnings.length > 0 && (
+        <div className="rounded border border-amber-300/60 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-100 flex gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            خطوة assess_fee ({assessFeeWarnings.join("، ")}) تحتاج انتقالين في المحرر:
+            fee_not_required و payment_required.
+          </span>
         </div>
       )}
 
