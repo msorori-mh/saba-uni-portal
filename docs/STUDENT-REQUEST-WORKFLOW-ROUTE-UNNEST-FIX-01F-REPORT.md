@@ -7,7 +7,7 @@
 
 ## Decision
 
-**PASS_STUDENT_REQUEST_WORKFLOW_ROUTE_UNNEST_PR_READY_FOR_REVIEW**
+**PASS_STUDENT_REQUEST_WORKFLOW_ROUTE_UNNEST_MAIN_SYNC_READY_FOR_FINAL_REVIEW**
 
 ## Prior production smoke (context)
 
@@ -129,3 +129,52 @@ Authenticated browser confirmation of editor mount + `admin_get_request_workflow
 ## Recommended next step
 
 Review PR → smoke workflow URL while logged in as admin → merge.
+
+## Main synchronization remediation
+
+**Date:** 2026-07-12  
+**Phase:** `STUDENT-REQUEST-WORKFLOW-ROUTE-UNNEST-MAIN-SYNC-01F-R1`  
+**PR:** #119 (same branch; no new PR)
+
+| Item | Value |
+|------|--------|
+| Pre-sync HEAD | `cef0e73609e5a5af7fcd6f4e465a928feae77731` |
+| Merged `origin/main` | `31e50ff718dab0348519e8ff2a3140fc929300a0` |
+| Merge commit | `bd54270374e9dd579121ec19197329b45dbbd4c3` |
+| Method | `git merge origin/main` (no rebase, no force push) |
+| Conflicts | **None** (including `src/routeTree.gen.ts`) |
+
+### routeTree after sync + build
+
+| Check | Result |
+|-------|--------|
+| Regenerated via `bun run build` | Yes (no uncommitted diff after build) |
+| `fullPath` | `/admin/request-types/$id/workflow` |
+| `parentRoute` | `typeof AdminRoute` |
+| Nested under `AdminRequestTypesRoute` | **No** |
+| `AdminRequestTypesRouteChildren` / workflow child | **Absent** |
+| Import | `./routes/admin/request-types_.$id.workflow` |
+
+### Main impact preserved
+
+Merge brought in recent main changes (including home/header updates such as `src/routes/index.tsx`, `src/components/site/Header.tsx`, `.lovable/plan.md`) without dropping the unnest rename or regenerating a nested workflow parent.
+
+### Tests after sync
+
+| Command | Result |
+|---------|--------|
+| `bunx tsc --noEmit` | PASS |
+| `bun run build` | PASS |
+| `request-workflow-route-unnest.test.ts` | PASS (**6**) |
+| `enrollment-certificate-workflow-foundation.test.ts` | PASS (**55**) |
+| `git diff --check` | PASS |
+| **Total focused tests** | **61** |
+
+### Local SSR smoke after sync
+
+| URL | HTTP | Leaf match |
+|-----|------|------------|
+| `/admin/request-types` | 200 | `/admin/request-types` |
+| `/admin/request-types/<uuid>/workflow` | 200 | `/admin/request-types_/$id/workflow` under `/admin` |
+
+No Save Draft / Activate pressed. No DB writes. No Deploy. No merge of PR #119 on GitHub from this phase.
