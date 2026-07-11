@@ -70,6 +70,13 @@ END IF;
 - استمرار حصر إشعار الدفع في `amount > 0`.
 - فصل الخطوة التالية الفعلية عن الخطوات الوسيطة المتجاوزة.
 
+## تحقق GitHub Actions
+
+| الفحص | النتيجة |
+|---|---|
+| Migration Review — run 51 | PASS |
+| Web CI: Install · Lint · Typecheck · Build — run 308 | PASS |
+
 ## الأمان ونطاق التنفيذ
 
 - لا migration apply.
@@ -80,6 +87,6 @@ END IF;
 - لا Publish/Deploy.
 - لا تعديل لبيانات الطلاب أو الطلبات الحالية.
 
-## القرار المستهدف
+## القرار
 
 `PASS_PR115_REMEDIATION_ROUND_3_READY_FOR_REREVIEW`
