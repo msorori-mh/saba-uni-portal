@@ -427,16 +427,17 @@ export function validateWorkflowSaveCapability(): WorkflowSaveCapability {
       canActivate: false,
       reason: "save_rpc_unavailable",
       messageAr:
-        "حفظ دورة الحياة يحتاج تطبيق مخطط طلبات الطلاب على بيئة آمنة أولاً.",
+        "حفظ دورة الحياة غير مفعّل — طبّق migration 01A على بيئة آمنة ثم فعّل ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE. أزرار الحفظ معطّلة حتى ذلك الحين.",
     };
   }
   return {
     available: true,
     canValidate: true,
     canSave: true,
-    canActivate: false,
+    canActivate: true,
     reason: "ready_for_staging_save",
-    messageAr: "التحقق والحفظ متاحان — التفعيل يتطلب تطبيق المخطط على بيئة staging.",
+    messageAr:
+      "التحقق والحفظ والتفعيل متاحة بعد تطبيق المخطط — الحفظ ينشئ إصداراً جديداً دون تعديل خطوات الإصدارات السابقة.",
   };
 }
 

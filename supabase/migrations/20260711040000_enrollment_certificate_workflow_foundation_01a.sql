@@ -1,12 +1,13 @@
 -- STUDENT-REQUEST-ENROLLMENT-CERTIFICATE-WORKFLOW-FOUNDATION-01A
--- Configurable workflow save RPC, fee assessment schema, and fee/payment RPCs.
+-- Configurable workflow save RPC (non-destructive versioning), fee assessment
+-- schema, fee/payment RPCs with student notifications.
 --
 -- Requires:
 --   20260710170000_student_request_admin_workflow_schema.sql
 --   20260710180000_student_request_actor_rpc_rls.sql
 --   20260711020000_student_requests_p1_foundations.sql
 --
--- No seed, no production apply from this task, no notification dispatch.
+-- No seed, no production apply from this task.
 
 -- =============================================================================
 -- 1. Extend action_type CHECK on request_type_workflow_steps
@@ -96,6 +97,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_sr_fee_assessments_one_active_per_request
   ON public.student_request_fee_assessments(request_id)
   WHERE payment_status <> 'cancelled';
 
+-- At most one active workflow per request type (non-destructive versioning).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_request_type_workflows_one_active_per_type
+  ON public.request_type_workflows (request_type_id)
+  WHERE is_active = true;
+
 -- =============================================================================
 -- 4. assert_can_admin_save_request_workflow (internal)
 -- =============================================================================
@@ -141,7 +147,6 @@ AS $$
 DECLARE
   v_uid uuid := auth.uid();
   v_type public.request_types%ROWTYPE;
-  v_workflow public.request_type_workflows%ROWTYPE;
   v_workflow_id uuid;
   v_status text;
   v_is_active boolean;
@@ -162,10 +167,21 @@ DECLARE
   v_to_id uuid;
   v_unit_id uuid;
   v_role_id uuid;
-  v_existing_active_id uuid;
   v_steps_count integer := 0;
+  v_payload_fp jsonb;
+  v_existing_fp jsonb;
+  v_latest_draft_id uuid;
+  v_latest_draft_version integer;
+  v_reused_existing boolean := false;
+  v_final_status text;
+  v_final_active boolean;
 BEGIN
   PERFORM public.assert_can_admin_save_request_workflow();
+
+  -- Serialize saves per request type (activation uniqueness + versioning).
+  PERFORM pg_advisory_xact_lock(
+    hashtext('request_type_workflows:' || p_request_type_id::text)
+  );
 
   IF p_request_type_id IS NULL THEN
     RAISE EXCEPTION 'معرّف نوع الطلب مطلوب'
@@ -198,9 +214,19 @@ BEGIN
   END IF;
 
   v_is_active := COALESCE((p_workflow ->> 'is_active')::boolean, v_status = 'active');
+  IF v_is_active THEN
+    v_status := 'active';
+  END IF;
+  IF v_status = 'active' THEN
+    v_is_active := true;
+  END IF;
+
   v_code := COALESCE(NULLIF(btrim(p_workflow ->> 'code'), ''), v_type.code || '_workflow');
   v_name_ar := COALESCE(NULLIF(btrim(p_workflow ->> 'name_ar'), ''), 'دورة حياة — ' || v_type.name_ar);
-  v_version := GREATEST(COALESCE((p_workflow ->> 'version')::integer, 1), 1);
+
+  -- NOTE: p_workflow.id is intentionally ignored for mutation. Existing
+  -- draft/active/retired workflows are never rewritten in place (no DELETE of
+  -- steps/transitions). A new version is created when the payload differs.
 
   FOR v_step IN SELECT value FROM jsonb_array_elements(p_steps)
   LOOP
@@ -244,6 +270,16 @@ BEGIN
         USING ERRCODE = '22023';
     END IF;
 
+    IF v_role_id IS NOT NULL AND v_unit_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1
+      FROM public.request_processing_roles r
+      WHERE r.id = v_role_id
+        AND r.unit_id = v_unit_id
+    ) THEN
+      RAISE EXCEPTION 'processing_role_id لا ينتمي إلى processing_unit_id'
+        USING ERRCODE = '22023';
+    END IF;
+
     v_step_keys := array_append(v_step_keys, v_step_key);
     v_step_orders := array_append(v_step_orders, v_step_order);
     v_steps_count := v_steps_count + 1;
@@ -267,36 +303,99 @@ BEGIN
     END LOOP;
   END IF;
 
-  IF (p_workflow ? 'id') AND NULLIF(p_workflow ->> 'id', '') IS NOT NULL THEN
-    v_workflow_id := (p_workflow ->> 'id')::uuid;
+  v_payload_fp := jsonb_build_object(
+    'steps', (
+      SELECT COALESCE(jsonb_agg(x.obj ORDER BY x.ord), '[]'::jsonb)
+      FROM (
+        SELECT
+          (value ->> 'step_order')::integer AS ord,
+          jsonb_build_object(
+            'step_key', NULLIF(btrim(value ->> 'step_key'), ''),
+            'step_order', (value ->> 'step_order')::integer,
+            'action_type', COALESCE(NULLIF(btrim(value ->> 'action_type'), ''), 'review'),
+            'processing_unit_id', NULLIF(btrim(value ->> 'processing_unit_id'), ''),
+            'processing_role_id', NULLIF(btrim(value ->> 'processing_role_id'), '')
+          ) AS obj
+        FROM jsonb_array_elements(p_steps)
+      ) x
+    ),
+    'transitions', (
+      SELECT COALESCE(jsonb_agg(x.obj ORDER BY x.fk, x.tk, x.ar), '[]'::jsonb)
+      FROM (
+        SELECT
+          COALESCE(NULLIF(btrim(value ->> 'from_step_key'), ''), '') AS fk,
+          COALESCE(NULLIF(btrim(value ->> 'to_step_key'), ''), '') AS tk,
+          COALESCE(NULLIF(btrim(value ->> 'action_result'), ''), 'approve') AS ar,
+          jsonb_build_object(
+            'from_step_key', NULLIF(btrim(value ->> 'from_step_key'), ''),
+            'to_step_key', NULLIF(btrim(value ->> 'to_step_key'), ''),
+            'action_result', COALESCE(NULLIF(btrim(value ->> 'action_result'), ''), 'approve'),
+            'is_default', COALESCE((value ->> 'is_default')::boolean, false)
+          ) AS obj
+        FROM jsonb_array_elements(COALESCE(p_transitions, '[]'::jsonb))
+      ) x
+    )
+  );
 
-    SELECT * INTO v_workflow
-    FROM public.request_type_workflows w
-    WHERE w.id = v_workflow_id
-      AND w.request_type_id = p_request_type_id
-    FOR UPDATE;
+  SELECT w.id, w.version
+  INTO v_latest_draft_id, v_latest_draft_version
+  FROM public.request_type_workflows w
+  WHERE w.request_type_id = p_request_type_id
+    AND w.code = v_code
+    AND w.status = 'draft'
+  ORDER BY w.version DESC
+  LIMIT 1
+  FOR UPDATE;
 
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'workflow غير موجود لهذا النوع'
-        USING ERRCODE = 'P0002';
+  IF v_latest_draft_id IS NOT NULL THEN
+    v_existing_fp := jsonb_build_object(
+      'steps', (
+        SELECT COALESCE(jsonb_agg(
+          jsonb_build_object(
+            'step_key', s.step_key,
+            'step_order', s.step_order,
+            'action_type', s.action_type,
+            'processing_unit_id', s.processing_unit_id::text,
+            'processing_role_id', s.processing_role_id::text
+          )
+          ORDER BY s.step_order
+        ), '[]'::jsonb)
+        FROM public.request_type_workflow_steps s
+        WHERE s.workflow_id = v_latest_draft_id
+      ),
+      'transitions', (
+        SELECT COALESCE(jsonb_agg(
+          jsonb_build_object(
+            'from_step_key', fs.step_key,
+            'to_step_key', ts.step_key,
+            'action_result', t.action_result,
+            'is_default', t.is_default
+          )
+          ORDER BY COALESCE(fs.step_key, ''), COALESCE(ts.step_key, ''), t.action_result
+        ), '[]'::jsonb)
+        FROM public.request_type_workflow_transitions t
+        LEFT JOIN public.request_type_workflow_steps fs ON fs.id = t.from_step_id
+        LEFT JOIN public.request_type_workflow_steps ts ON ts.id = t.to_step_id
+        WHERE t.workflow_id = v_latest_draft_id
+      )
+    );
+
+    IF v_existing_fp = v_payload_fp THEN
+      v_workflow_id := v_latest_draft_id;
+      v_version := v_latest_draft_version;
+      v_reused_existing := true;
+
+      UPDATE public.request_type_workflows
+      SET
+        name_ar = v_name_ar,
+        name_en = COALESCE(NULLIF(btrim(p_workflow ->> 'name_en'), ''), name_en),
+        description_ar = COALESCE(NULLIF(btrim(p_workflow ->> 'description_ar'), ''), description_ar),
+        updated_at = now()
+      WHERE id = v_workflow_id;
     END IF;
+  END IF;
 
-    UPDATE public.request_type_workflows
-    SET
-      name_ar = v_name_ar,
-      name_en = COALESCE(NULLIF(btrim(p_workflow ->> 'name_en'), ''), name_en),
-      description_ar = COALESCE(p_workflow ->> 'description_ar', description_ar),
-      status = v_status,
-      is_active = v_is_active,
-      updated_at = now()
-    WHERE id = v_workflow_id;
-
-    DELETE FROM public.request_type_workflow_transitions t
-    WHERE t.workflow_id = v_workflow_id;
-
-    DELETE FROM public.request_type_workflow_steps s
-    WHERE s.workflow_id = v_workflow_id;
-  ELSE
+  IF NOT v_reused_existing THEN
     SELECT COALESCE(max(w.version), 0) + 1
     INTO v_version
     FROM public.request_type_workflows w
@@ -321,83 +420,83 @@ BEGIN
       NULLIF(btrim(p_workflow ->> 'name_en'), ''),
       NULLIF(btrim(p_workflow ->> 'description_ar'), ''),
       v_version,
-      v_status,
+      'draft',
       false,
       v_uid
     )
     RETURNING id INTO v_workflow_id;
-  END IF;
 
-  FOR v_step IN
-    SELECT value FROM jsonb_array_elements(p_steps)
-    ORDER BY (value ->> 'step_order')::integer
-  LOOP
-    INSERT INTO public.request_type_workflow_steps (
-      workflow_id,
-      step_key,
-      step_name_ar,
-      step_order,
-      processing_unit_id,
-      processing_role_id,
-      action_type,
-      is_required,
-      can_return_to_student,
-      can_reject,
-      can_skip,
-      notify_on_enter,
-      notify_on_complete,
-      visible_to_student,
-      requires_payment,
-      produces_document
-    )
-    VALUES (
-      v_workflow_id,
-      v_step ->> 'step_key',
-      COALESCE(NULLIF(btrim(v_step ->> 'step_name_ar'), ''), v_step ->> 'step_key'),
-      (v_step ->> 'step_order')::integer,
-      NULLIF(v_step ->> 'processing_unit_id', '')::uuid,
-      NULLIF(v_step ->> 'processing_role_id', '')::uuid,
-      COALESCE(NULLIF(v_step ->> 'action_type', ''), 'review'),
-      COALESCE((v_step ->> 'is_required')::boolean, true),
-      COALESCE((v_step ->> 'can_return_to_student')::boolean, true),
-      COALESCE((v_step ->> 'can_reject')::boolean, true),
-      COALESCE((v_step ->> 'can_skip')::boolean, false),
-      COALESCE((v_step ->> 'notify_on_enter')::boolean, true),
-      COALESCE((v_step ->> 'notify_on_complete')::boolean, true),
-      COALESCE((v_step ->> 'visible_to_student')::boolean, true),
-      COALESCE((v_step ->> 'action_type', '') IN ('request_payment', 'assess_fee'), false),
-      COALESCE((v_step ->> 'action_type', '') = 'issue_document', false)
-    )
-    RETURNING id INTO v_step_id;
-
-    v_step_ids := v_step_ids || jsonb_build_object(v_step ->> 'step_key', v_step_id);
-  END LOOP;
-
-  IF p_transitions IS NOT NULL AND jsonb_typeof(p_transitions) = 'array' THEN
-    FOR v_transition IN SELECT value FROM jsonb_array_elements(p_transitions)
+    FOR v_step IN
+      SELECT value FROM jsonb_array_elements(p_steps)
+      ORDER BY (value ->> 'step_order')::integer
     LOOP
-      v_from_key := NULLIF(btrim(v_transition ->> 'from_step_key'), '');
-      v_to_key := NULLIF(btrim(v_transition ->> 'to_step_key'), '');
-      v_from_id := CASE WHEN v_from_key IS NULL THEN NULL ELSE (v_step_ids ->> v_from_key)::uuid END;
-      v_to_id := CASE WHEN v_to_key IS NULL THEN NULL ELSE (v_step_ids ->> v_to_key)::uuid END;
-
-      INSERT INTO public.request_type_workflow_transitions (
+      INSERT INTO public.request_type_workflow_steps (
         workflow_id,
-        from_step_id,
-        to_step_id,
-        action_result,
-        label_ar,
-        is_default
+        step_key,
+        step_name_ar,
+        step_order,
+        processing_unit_id,
+        processing_role_id,
+        action_type,
+        is_required,
+        can_return_to_student,
+        can_reject,
+        can_skip,
+        notify_on_enter,
+        notify_on_complete,
+        visible_to_student,
+        requires_payment,
+        produces_document
       )
       VALUES (
         v_workflow_id,
-        v_from_id,
-        v_to_id,
-        COALESCE(NULLIF(btrim(v_transition ->> 'action_result'), ''), 'approve'),
-        NULLIF(btrim(v_transition ->> 'label_ar'), ''),
-        COALESCE((v_transition ->> 'is_default')::boolean, false)
-      );
+        v_step ->> 'step_key',
+        COALESCE(NULLIF(btrim(v_step ->> 'step_name_ar'), ''), v_step ->> 'step_key'),
+        (v_step ->> 'step_order')::integer,
+        NULLIF(v_step ->> 'processing_unit_id', '')::uuid,
+        NULLIF(v_step ->> 'processing_role_id', '')::uuid,
+        COALESCE(NULLIF(v_step ->> 'action_type', ''), 'review'),
+        COALESCE((v_step ->> 'is_required')::boolean, true),
+        COALESCE((v_step ->> 'can_return_to_student')::boolean, true),
+        COALESCE((v_step ->> 'can_reject')::boolean, true),
+        COALESCE((v_step ->> 'can_skip')::boolean, false),
+        COALESCE((v_step ->> 'notify_on_enter')::boolean, true),
+        COALESCE((v_step ->> 'notify_on_complete')::boolean, true),
+        COALESCE((v_step ->> 'visible_to_student')::boolean, true),
+        COALESCE((v_step ->> 'action_type', '') IN ('request_payment', 'assess_fee'), false),
+        COALESCE((v_step ->> 'action_type', '') = 'issue_document', false)
+      )
+      RETURNING id INTO v_step_id;
+
+      v_step_ids := v_step_ids || jsonb_build_object(v_step ->> 'step_key', v_step_id);
     END LOOP;
+
+    IF p_transitions IS NOT NULL AND jsonb_typeof(p_transitions) = 'array' THEN
+      FOR v_transition IN SELECT value FROM jsonb_array_elements(p_transitions)
+      LOOP
+        v_from_key := NULLIF(btrim(v_transition ->> 'from_step_key'), '');
+        v_to_key := NULLIF(btrim(v_transition ->> 'to_step_key'), '');
+        v_from_id := CASE WHEN v_from_key IS NULL THEN NULL ELSE (v_step_ids ->> v_from_key)::uuid END;
+        v_to_id := CASE WHEN v_to_key IS NULL THEN NULL ELSE (v_step_ids ->> v_to_key)::uuid END;
+
+        INSERT INTO public.request_type_workflow_transitions (
+          workflow_id,
+          from_step_id,
+          to_step_id,
+          action_result,
+          label_ar,
+          is_default
+        )
+        VALUES (
+          v_workflow_id,
+          v_from_id,
+          v_to_id,
+          COALESCE(NULLIF(btrim(v_transition ->> 'action_result'), ''), 'approve'),
+          NULLIF(btrim(v_transition ->> 'label_ar'), ''),
+          COALESCE((v_transition ->> 'is_default')::boolean, false)
+        );
+      END LOOP;
+    END IF;
   END IF;
 
   IF v_is_active OR v_status = 'active' THEN
@@ -416,22 +515,37 @@ BEGIN
       is_active = true,
       updated_at = now()
     WHERE id = v_workflow_id;
+
+    v_final_status := 'active';
+    v_final_active := true;
+  ELSE
+    v_final_status := 'draft';
+    v_final_active := false;
   END IF;
 
   PERFORM public.log_audit(
-    'request_type_workflow',
-    v_workflow_id,
-    CASE WHEN v_is_active OR v_status = 'active' THEN 'workflow_config_activated' ELSE 'workflow_config_saved' END,
-    NULL,
+    'request_type_workflow'::text,
+    v_workflow_id::uuid,
+    CASE
+      WHEN v_final_active THEN 'workflow_config_activated'::text
+      ELSE 'workflow_config_saved'::text
+    END,
+    NULL::jsonb,
     jsonb_build_object(
       'request_type_id', p_request_type_id,
       'request_type_code', v_type.code,
       'workflow_code', v_code,
       'version', v_version,
       'steps_count', v_steps_count,
-      'status', v_status,
-      'is_active', v_is_active
-    )
+      'status', v_final_status,
+      'is_active', v_final_active,
+      'reused_existing_draft', v_reused_existing
+    )::jsonb,
+    CASE
+      WHEN v_reused_existing THEN 'Idempotent workflow save — reused identical draft'::text
+      ELSE 'Non-destructive workflow version save'::text
+    END,
+    v_uid::uuid
   );
 
   RETURN jsonb_build_object(
@@ -439,15 +553,18 @@ BEGIN
     'workflow_id', v_workflow_id,
     'request_type_id', p_request_type_id,
     'steps_count', v_steps_count,
-    'status', v_status,
-    'is_active', v_is_active
+    'status', v_final_status,
+    'is_active', v_final_active,
+    'version', v_version,
+    'reused_existing_draft', v_reused_existing
   );
 END;
 $$;
 
 COMMENT ON FUNCTION public.admin_save_request_workflow_config(uuid, jsonb, jsonb, jsonb) IS
-  'Validates and persists request type workflow config (draft or active). '
-  'On activate, retires previous active workflow for the same request type.';
+  'Non-destructive versioning: never mutates steps/transitions of an existing '
+  'workflow. Creates a new version when payload differs; idempotent for identical '
+  'latest draft. On activate, retires previous active (unique one-active index).';
 
 -- =============================================================================
 -- 6. Internal: apply workflow transition by action_result
@@ -638,6 +755,7 @@ DECLARE
   v_next_step_id uuid;
   v_visible boolean := false;
   v_event_type text;
+  v_user_id uuid;
 BEGIN
   PERFORM public.assert_can_assess_student_request_fee();
 
@@ -760,16 +878,37 @@ BEGIN
     v_visible
   );
 
+  -- Payment notification only when amount > 0 (never for fee_not_required).
+  IF v_amount > 0 THEN
+    SELECT sp.user_id INTO v_user_id
+    FROM public.student_requests sr
+    JOIN public.student_profiles sp ON sp.id = sr.student_profile_id
+    WHERE sr.id = p_request_id;
+
+    IF v_user_id IS NOT NULL THEN
+      PERFORM public.create_notification(
+        v_user_id,
+        'طلب دفع رسوم',
+        'تم تحديد رسوم بقيمة ' || v_amount::text || ' YER لطلبك. يرجى إتمام السداد.',
+        'request',
+        'student_request',
+        p_request_id
+      );
+    END IF;
+  END IF;
+
   PERFORM public.log_audit(
-    'student_request_fee_assessment',
-    v_assessment_id,
-    'fee_assessed',
-    NULL,
+    'student_request_fee_assessment'::text,
+    v_assessment_id::uuid,
+    'fee_assessed'::text,
+    NULL::jsonb,
     jsonb_build_object(
       'request_id', p_request_id,
       'amount', v_amount,
       'payment_status', v_payment_status
-    )
+    )::jsonb,
+    'Fee assessed for student request'::text,
+    v_uid::uuid
   );
 
   RETURN jsonb_build_object(
@@ -808,6 +947,7 @@ DECLARE
   v_assessment public.student_request_fee_assessments%ROWTYPE;
   v_next_step_id uuid;
   v_ref text;
+  v_user_id uuid;
 BEGIN
   PERFORM public.assert_can_confirm_student_request_fee_payment();
 
@@ -913,16 +1053,34 @@ BEGIN
     true
   );
 
+  SELECT sp.user_id INTO v_user_id
+  FROM public.student_requests sr
+  JOIN public.student_profiles sp ON sp.id = sr.student_profile_id
+  WHERE sr.id = p_request_id;
+
+  IF v_user_id IS NOT NULL THEN
+    PERFORM public.create_notification(
+      v_user_id,
+      'تأكيد سداد الرسوم',
+      'تم تأكيد سداد رسوم طلبك بمبلغ ' || v_assessment.amount::text || ' YER (مرجع: ' || v_ref || ').',
+      'request',
+      'student_request',
+      p_request_id
+    );
+  END IF;
+
   PERFORM public.log_audit(
-    'student_request_fee_assessment',
-    v_assessment.id,
-    'fee_payment_confirmed',
-    jsonb_build_object('payment_status', 'pending_payment'),
+    'student_request_fee_assessment'::text,
+    v_assessment.id::uuid,
+    'fee_payment_confirmed'::text,
+    jsonb_build_object('payment_status', 'pending_payment')::jsonb,
     jsonb_build_object(
       'payment_status', 'paid',
       'payment_reference', v_ref,
       'request_id', p_request_id
-    )
+    )::jsonb,
+    'Fee payment confirmed for student request'::text,
+    v_uid::uuid
   );
 
   RETURN jsonb_build_object(

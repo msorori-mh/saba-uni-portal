@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { assessStudentRequestFee } from "@/lib/student-request-fee.functions";
 import {
   dryRunAssessStudentRequestFee,
   type FeeAssessmentDryRunResult,
@@ -13,6 +16,7 @@ type Props = {
   currentStepKey?: string;
   disabled?: boolean;
   onValidated?: (result: FeeAssessmentDryRunResult) => void;
+  onAssessed?: () => void;
 };
 
 export function StudentRequestFeeAssessmentForm({
@@ -20,25 +24,70 @@ export function StudentRequestFeeAssessmentForm({
   currentStepKey = "fee_assessment",
   disabled = false,
   onValidated,
+  onAssessed,
 }: Props) {
+  const queryClient = useQueryClient();
+  const assessFn = useServerFn(assessStudentRequestFee);
   const [amount, setAmount] = useState("0");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [result, setResult] = useState<FeeAssessmentDryRunResult | null>(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (loading) return;
     setLoading(true);
+    setError(null);
+    setSuccess(null);
     const parsed = Number(amount);
+    const amountValue = Number.isFinite(parsed) ? parsed : 0;
     const dryRun = dryRunAssessStudentRequestFee({
       requestId,
-      amount: Number.isFinite(parsed) ? parsed : 0,
+      amount: amountValue,
       notes: notes.trim() || null,
       currentStepKey,
       currentActionType: "assess_fee",
     });
     setResult(dryRun);
     onValidated?.(dryRun);
-    setLoading(false);
+    if (!dryRun.valid) {
+      setError(dryRun.summaryAr);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const confirmed = window.confirm(
+        amountValue === 0
+          ? "تأكيد: لا رسوم مطلوبة لهذا الطلب؟"
+          : `تأكيد تقييم الرسوم بمبلغ ${amountValue} YER؟`,
+      );
+      if (!confirmed) {
+        setLoading(false);
+        return;
+      }
+
+      const res = await assessFn({
+        data: {
+          requestId,
+          amount: amountValue,
+          notes: notes.trim() || null,
+        },
+      });
+      setSuccess(
+        res.paymentStatus === "not_required"
+          ? "تم التقييم: لا رسوم مطلوبة."
+          : `تم التقييم: ${res.amount} YER — بانتظار الدفع.`,
+      );
+      await queryClient.invalidateQueries({ queryKey: ["student-request", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-student-request", requestId] });
+      onAssessed?.();
+    } catch (e) {
+      setError((e as Error).message || "تعذر تقييم الرسوم");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,9 +128,15 @@ export function StudentRequestFeeAssessmentForm({
         className="gap-1"
       >
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-        تأكيد التقييم (dry-run)
+        تأكيد التقييم
       </Button>
-      {result && (
+      {error && (
+        <p className="text-xs rounded p-2 bg-destructive/10 text-destructive">{error}</p>
+      )}
+      {success && (
+        <p className="text-xs rounded p-2 bg-emerald-50 text-emerald-900">{success}</p>
+      )}
+      {result && !success && !error && (
         <p
           className={`text-xs rounded p-2 ${
             result.valid ? "bg-emerald-50 text-emerald-900" : "bg-destructive/10 text-destructive"

@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { confirmStudentRequestFeePayment } from "@/lib/student-request-fee.functions";
 import {
   dryRunConfirmStudentRequestFeePayment,
   type FeePaymentConfirmationDryRunResult,
@@ -15,6 +18,7 @@ type Props = {
   existingPaymentStatus?: FeePaymentStatus | null;
   disabled?: boolean;
   onValidated?: (result: FeePaymentConfirmationDryRunResult) => void;
+  onConfirmed?: () => void;
 };
 
 export function StudentRequestPaymentConfirmationForm({
@@ -23,14 +27,22 @@ export function StudentRequestPaymentConfirmationForm({
   existingPaymentStatus = "pending_payment",
   disabled = false,
   onValidated,
+  onConfirmed,
 }: Props) {
+  const queryClient = useQueryClient();
+  const confirmFn = useServerFn(confirmStudentRequestFeePayment);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [result, setResult] = useState<FeePaymentConfirmationDryRunResult | null>(null);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (loading) return;
     setLoading(true);
+    setError(null);
+    setSuccess(null);
     const dryRun = dryRunConfirmStudentRequestFeePayment({
       requestId,
       paymentReference: reference.trim(),
@@ -41,7 +53,37 @@ export function StudentRequestPaymentConfirmationForm({
     });
     setResult(dryRun);
     onValidated?.(dryRun);
-    setLoading(false);
+    if (!dryRun.valid) {
+      setError(dryRun.summaryAr);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const confirmed = window.confirm(
+        `تأكيد استلام الدفع بالمرجع ${reference.trim()}؟`,
+      );
+      if (!confirmed) {
+        setLoading(false);
+        return;
+      }
+
+      const res = await confirmFn({
+        data: {
+          requestId,
+          paymentReference: reference.trim(),
+          notes: notes.trim() || null,
+        },
+      });
+      setSuccess(`تم تأكيد الدفع (مرجع: ${res.paymentReference}).`);
+      await queryClient.invalidateQueries({ queryKey: ["student-request", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-student-request", requestId] });
+      onConfirmed?.();
+    } catch (e) {
+      setError((e as Error).message || "تعذر تأكيد الدفع");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -78,9 +120,15 @@ export function StudentRequestPaymentConfirmationForm({
         className="gap-1"
       >
         {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-        تأكيد الاستلام (dry-run)
+        تأكيد الاستلام
       </Button>
-      {result && (
+      {error && (
+        <p className="text-xs rounded p-2 bg-destructive/10 text-destructive">{error}</p>
+      )}
+      {success && (
+        <p className="text-xs rounded p-2 bg-emerald-50 text-emerald-900">{success}</p>
+      )}
+      {result && !success && !error && (
         <p
           className={`text-xs rounded p-2 ${
             result.valid ? "bg-emerald-50 text-emerald-900" : "bg-destructive/10 text-destructive"

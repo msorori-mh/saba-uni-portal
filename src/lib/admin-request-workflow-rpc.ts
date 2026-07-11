@@ -3,10 +3,19 @@
 import { mapStudentRequestRpcError } from "@/lib/student-request-rpc";
 
 export const WORKFLOW_SAVE_NOT_AVAILABLE_MSG =
-  "حفظ دورة الحياة يحتاج تفعيل خدمة الحفظ أولاً. سيتم تفعيل الحفظ بعد تنفيذ admin_save_request_workflow_config.";
+  "حفظ دورة الحياة غير مفعّل حالياً. طبّق migration 20260711040000_enrollment_certificate_workflow_foundation_01a على بيئة آمنة ثم فعّل العلم ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE.";
 
-/** Set true after 20260711040000_enrollment_certificate_workflow_foundation_01a migration. */
-export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = true;
+/**
+ * Gate for admin_save_request_workflow_config.
+ * Keep false until the remediating migration is applied on the shared Preview/prod DB.
+ * Preview and production share the same database — do not probe DB when false.
+ */
+export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = false;
+
+/** Runtime capability check — returns false immediately when the compile-time flag is off. */
+export function isAdminSaveWorkflowRpcAvailable(): boolean {
+  return ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE;
+}
 
 export type WorkflowStatus = "draft" | "active" | "retired";
 

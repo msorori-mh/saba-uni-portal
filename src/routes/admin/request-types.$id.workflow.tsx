@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, CheckCircle2, GitBranch, Loader2, Save, ShieldCheck, Sparkles, Zap } from "lucide-react";
@@ -12,7 +12,8 @@ import {
   saveAdminRequestWorkflowConfig,
 } from "@/lib/admin-request-workflow.functions";
 import {
-  ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE,
+  WORKFLOW_SAVE_NOT_AVAILABLE_MSG,
+  isAdminSaveWorkflowRpcAvailable,
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
   type WorkflowActionType,
@@ -116,6 +117,7 @@ function configToDraftTransitions(
 
 function AdminRequestTypeWorkflowPage() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
   const typeFn = useServerFn(getRequestTypeForWorkflow);
   const configFn = useServerFn(getAdminRequestWorkflowConfig);
   const processingFn = useServerFn(listRequestProcessingOptions);
@@ -128,6 +130,12 @@ function AdminRequestTypeWorkflowPage() {
   const [dryRunResult, setDryRunResult] = useState<StudentRequestWorkflowSaveResult | null>(null);
   const [dryRunLoading, setDryRunLoading] = useState(false);
   const [dryRunError, setDryRunError] = useState<string | null>(null);
+  const [saveLoading, setSaveLoading] = useState<"draft" | "activate" | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+
+  const saveRpcAvailable = isAdminSaveWorkflowRpcAvailable();
+  const dryRunOk = Boolean(dryRunResult?.valid);
 
   const { data: requestType, isLoading: typeLoading, error: typeError } = useQuery({
     queryKey: ["admin-request-type", id],
@@ -173,6 +181,12 @@ function AdminRequestTypeWorkflowPage() {
     setInitialized(true);
   }, [config, primaryWorkflow, initialized]);
 
+  useEffect(() => {
+    if (!initialized) return;
+    setDryRunResult(null);
+    setSaveSuccess(null);
+  }, [draftSteps, draftTransitions, initialized]);
+
   const loading = typeLoading || configLoading || processingLoading;
 
   const statusBadgeClass =
@@ -184,16 +198,34 @@ function AdminRequestTypeWorkflowPage() {
           ? "bg-muted text-muted-foreground"
           : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
 
-  const handleSave = async () => {
-    if (!ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE) return;
-    await saveFn({
-      data: {
-        requestTypeId: id,
-        workflow: {},
-        steps: draftSteps,
-        transitions: draftTransitions,
-      },
-    });
+  const handleSave = async (saveMode: "draft" | "activate") => {
+    if (!saveRpcAvailable) return;
+    if (saveMode === "activate" && !dryRunOk) return;
+    setSaveLoading(saveMode);
+    setSaveError(null);
+    setSaveSuccess(null);
+    try {
+      const result = await saveFn({
+        data: {
+          requestTypeId: id,
+          saveMode,
+          workflowNameAr: primaryWorkflow?.name_ar ?? `دورة حياة — ${requestType!.name_ar}`,
+          draftSteps,
+          draftTransitions,
+        },
+      });
+      setSaveSuccess(
+        saveMode === "activate"
+          ? "تم حفظ وتفعيل دورة الحياة بنجاح."
+          : "تم حفظ المسودة بنجاح.",
+      );
+      await queryClient.invalidateQueries({ queryKey: ["admin-request-workflow-config", id] });
+      return result;
+    } catch (e) {
+      setSaveError((e as Error).message);
+    } finally {
+      setSaveLoading(null);
+    }
   };
 
   const handleDryRun = async () => {
@@ -484,29 +516,65 @@ function AdminRequestTypeWorkflowPage() {
           <div>
             <p className="font-bold text-sm">حفظ إعدادات دورة الحياة</p>
             <p className="text-xs text-muted-foreground mt-1">
-              {ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE
-                ? "الحفظ متاح بعد التحقق — يتطلب تطبيق migration على بيئة staging."
-                : "الحفظ غير مفعل حالياً — لا يتم كتابة أي بيانات إلى قاعدة البيانات من هذه الواجهة."}
+              {saveRpcAvailable
+                ? "الحفظ ينشئ إصداراً جديداً دون تعديل خطوات الإصدارات السابقة. التفعيل يتطلب نجاح التحقق أولاً."
+                : WORKFLOW_SAVE_NOT_AVAILABLE_MSG}
             </p>
           </div>
-          <Button
-            type="button"
-            disabled={!ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE}
-            onClick={handleSave}
-            className="gap-1"
-          >
-            <Save className="h-4 w-4" />
-            حفظ دورة الحياة
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={!saveRpcAvailable || saveLoading !== null}
+              onClick={() => handleSave("draft")}
+              className="gap-1"
+            >
+              {saveLoading === "draft" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              حفظ كمسودة
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                !saveRpcAvailable || !dryRunOk || saveLoading !== null
+              }
+              onClick={() => handleSave("activate")}
+              className="gap-1"
+            >
+              {saveLoading === "activate" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4" />
+              )}
+              حفظ وتفعيل
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-2 flex-wrap border-t pt-2">
-          <p className="text-xs text-muted-foreground">
-            {WORKFLOW_SCHEMA_UNAVAILABLE_MSG}
+        {!saveRpcAvailable && (
+          <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
+            أزرار الحفظ معطّلة حتى تطبيق migration وتفعيل{" "}
+            <span className="font-mono" dir="ltr">
+              ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE
+            </span>
+            .
           </p>
-          <Button type="button" variant="outline" size="sm" disabled className="gap-1 opacity-50">
-            <Zap className="h-3.5 w-3.5" />
-            تفعيل دورة الحياة
-          </Button>
+        )}
+        {saveRpcAvailable && !dryRunOk && (
+          <p className="text-xs text-muted-foreground">
+            التفعيل متاح فقط بعد نجاح «التحقق من التكوين» بدون أخطاء.
+          </p>
+        )}
+        {saveError && (
+          <p className="text-xs text-destructive bg-destructive/10 rounded p-2">{saveError}</p>
+        )}
+        {saveSuccess && (
+          <p className="text-xs text-emerald-800 bg-emerald-50 rounded p-2">{saveSuccess}</p>
+        )}
+        <div className="flex items-center justify-between gap-2 flex-wrap border-t pt-2">
+          <p className="text-xs text-muted-foreground">{WORKFLOW_SCHEMA_UNAVAILABLE_MSG}</p>
         </div>
       </div>
     </div>
