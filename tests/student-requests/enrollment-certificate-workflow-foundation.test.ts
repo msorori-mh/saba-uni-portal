@@ -3,7 +3,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE,
+  WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG,
+  canSubmitWorkflowSave,
   isAdminSaveWorkflowRpcAvailable,
+  isWorkflowSaveRpcMissingError,
+  mapWorkflowSaveRpcError,
+  workflowMetaForSaveMode,
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
 } from "../../src/lib/admin-request-workflow-rpc";
@@ -16,6 +21,7 @@ import {
   buildWorkflowSaveInputFromDraft,
   buildWorkflowSaveInputFromPreview,
   validateAllCanonicalWorkflowSaveContracts,
+  validateWorkflowSaveCapability,
   validateWorkflowSaveInput,
 } from "../../src/lib/student-requests/request-workflow-save-contract";
 import {
@@ -45,9 +51,9 @@ const ROLE_A = "44444444-4444-4444-8444-444444444444";
 const ROOT = join(import.meta.dir, "../..");
 
 describe("enrollment certificate workflow foundation 01A", () => {
-  it("1 — ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE is false until migration applied", () => {
-    expect(ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE).toBe(false);
-    expect(isAdminSaveWorkflowRpcAvailable()).toBe(false);
+  it("1 — ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE is true after 01B enablement", () => {
+    expect(ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE).toBe(true);
+    expect(isAdminSaveWorkflowRpcAvailable()).toBe(true);
   });
 
   it("2 — enrollment_certificate preview has 7 steps", () => {
@@ -72,13 +78,13 @@ describe("enrollment certificate workflow foundation 01A", () => {
     expect(built!.transitions.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("5 — validate enrollment_certificate save contract (save gated off)", () => {
+  it("5 — validate enrollment_certificate save contract (save enabled)", () => {
     const built = buildWorkflowSaveInputFromPreview(TYPE_ID, "enrollment_certificate")!;
     const result = validateWorkflowSaveInput(built);
     expect(result.valid).toBe(true);
-    expect(result.capability.canSave).toBe(false);
-    expect(result.capability.reason).toBe("save_rpc_unavailable");
-    expect(["SAVE_UNAVAILABLE", "VALID_WITH_WARNINGS"]).toContain(result.status);
+    expect(result.capability.canSave).toBe(true);
+    expect(result.capability.reason).toBe("ready_for_staging_save");
+    expect(["VALID", "VALID_WITH_WARNINGS"]).toContain(result.status);
     expect(result.issues.filter((i) => i.code === "assess_fee_dual_transitions")).toHaveLength(0);
   });
 
@@ -517,5 +523,117 @@ describe("PR115 remediation round 2 — fee UI visibility", () => {
     expect(source).toContain("StudentRequestFeeStatusDisplay");
     expect(source).toContain("shouldShowFeeAssessmentForm");
     expect(source).toContain("getStudentRequestFeeProcessingContext");
+  });
+});
+
+describe("student request workflow save enablement 01B", () => {
+  it("capability is available with canSave/canActivate", () => {
+    const cap = validateWorkflowSaveCapability();
+    expect(cap.available).toBe(true);
+    expect(cap.canSave).toBe(true);
+    expect(cap.canActivate).toBe(true);
+    expect(cap.reason).toBe("ready_for_staging_save");
+  });
+
+  it("draft save mode maps to status=draft and is_active=false", () => {
+    expect(workflowMetaForSaveMode("draft")).toEqual({
+      status: "draft",
+      is_active: false,
+    });
+  });
+
+  it("activate save mode maps to status=active and is_active=true", () => {
+    expect(workflowMetaForSaveMode("activate")).toEqual({
+      status: "active",
+      is_active: true,
+    });
+  });
+
+  it("pending save disables both draft and activate buttons", () => {
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: "draft",
+        dryRunOk: true,
+        saveMode: "draft",
+      }),
+    ).toBe(false);
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: "activate",
+        dryRunOk: true,
+        saveMode: "activate",
+      }),
+    ).toBe(false);
+  });
+
+  it("activate requires successful dry-run; draft does not", () => {
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: null,
+        dryRunOk: false,
+        saveMode: "draft",
+      }),
+    ).toBe(true);
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: null,
+        dryRunOk: false,
+        saveMode: "activate",
+      }),
+    ).toBe(false);
+  });
+
+  it("RPC missing/schema cache maps to temporary Arabic message without retry", () => {
+    expect(
+      isWorkflowSaveRpcMissingError({
+        code: "PGRST202",
+        message: "Could not find the function in the schema cache",
+      }),
+    ).toBe(true);
+    expect(
+      mapWorkflowSaveRpcError({
+        message: "function admin_save_request_workflow_config does not exist",
+        code: "42883",
+      }),
+    ).toBe(WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG);
+  });
+
+  it("RPC error path does not clear local draft snapshots (policy)", () => {
+    const draftSteps = [{ step_key: "fee_assessment" }];
+    const draftTransitions = [{ from_step_key: "fee_assessment" }];
+    const msg = mapWorkflowSaveRpcError({
+      code: "PGRST202",
+      message: "schema cache",
+    });
+    expect(msg.length).toBeGreaterThan(10);
+    expect(draftSteps).toHaveLength(1);
+    expect(draftTransitions).toHaveLength(1);
+  });
+
+  it("page open does not call save RPC; save only after user click", () => {
+    const page = readFileSync(
+      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      "utf8",
+    );
+    expect(page).toContain('onClick={() => handleSave("draft")}');
+    expect(page).toContain('onClick={() => handleSave("activate")}');
+    expect(page).toContain("canSubmitWorkflowSave");
+    expect(page).toContain("getAdminRequestWorkflowConfig");
+    // Save must not be invoked from any useEffect body
+    expect(page).not.toMatch(/useEffect\(\(\)\s*=>\s*\{[^}]*handleSave/s);
+  });
+
+  it("rpcAdminSaveRequestWorkflowConfig keeps availability guard", () => {
+    const source = readFileSync(
+      join(ROOT, "src/lib/admin-request-workflow-rpc.ts"),
+      "utf8",
+    );
+    expect(source).toContain("if (!ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE)");
+    expect(source).toContain("mapWorkflowSaveRpcError");
+    expect(source).toContain("No automatic retry");
   });
 });

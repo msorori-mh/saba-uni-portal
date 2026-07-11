@@ -7,6 +7,7 @@ import { REQUEST_TYPES_ADMIN_ROLES } from "@/lib/admin-request-types.functions";
 import {
   rpcAdminGetRequestWorkflowConfig,
   rpcAdminSaveRequestWorkflowConfig,
+  workflowMetaForSaveMode,
   type AdminRequestWorkflowConfig,
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
@@ -231,14 +232,14 @@ export const saveAdminRequestWorkflowConfig = createServerFn({ method: "POST" })
       throw new Error("لا يمكن التفعيل — التحقق من التكوين فشل");
     }
 
-    const activate = data.saveMode === "activate";
+    const { status, is_active } = workflowMetaForSaveMode(data.saveMode);
     const result = await rpcAdminSaveRequestWorkflowConfig(context.supabase, {
       requestTypeId: data.requestTypeId,
       workflow: {
         code: `${typeRow.code}_workflow`,
         name_ar: workflowNameAr,
-        status: activate ? "active" : "draft",
-        is_active: activate,
+        status,
+        is_active,
       },
       steps: draftSteps,
       transitions: draftTransitions,

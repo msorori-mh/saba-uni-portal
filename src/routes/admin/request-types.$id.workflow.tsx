@@ -13,6 +13,7 @@ import {
 } from "@/lib/admin-request-workflow.functions";
 import {
   WORKFLOW_SAVE_NOT_AVAILABLE_MSG,
+  canSubmitWorkflowSave,
   isAdminSaveWorkflowRpcAvailable,
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
@@ -20,6 +21,7 @@ import {
   type WorkflowConfigStep,
   type WorkflowConfigTransition,
   type WorkflowConfigWorkflow,
+  type WorkflowSaveMode,
 } from "@/lib/admin-request-workflow-rpc";
 import { WORKFLOW_STATUS_LABEL } from "@/components/admin/request-workflow/constants";
 import { WorkflowStepsEditor } from "@/components/admin/request-workflow/WorkflowStepsEditor";
@@ -130,12 +132,24 @@ function AdminRequestTypeWorkflowPage() {
   const [dryRunResult, setDryRunResult] = useState<StudentRequestWorkflowSaveResult | null>(null);
   const [dryRunLoading, setDryRunLoading] = useState(false);
   const [dryRunError, setDryRunError] = useState<string | null>(null);
-  const [saveLoading, setSaveLoading] = useState<"draft" | "activate" | null>(null);
+  const [saveLoading, setSaveLoading] = useState<WorkflowSaveMode | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
 
   const saveRpcAvailable = isAdminSaveWorkflowRpcAvailable();
   const dryRunOk = Boolean(dryRunResult?.valid);
+  const canSaveDraft = canSubmitWorkflowSave({
+    saveRpcAvailable,
+    saveLoading,
+    dryRunOk,
+    saveMode: "draft",
+  });
+  const canSaveActivate = canSubmitWorkflowSave({
+    saveRpcAvailable,
+    saveLoading,
+    dryRunOk,
+    saveMode: "activate",
+  });
 
   const { data: requestType, isLoading: typeLoading, error: typeError } = useQuery({
     queryKey: ["admin-request-type", id],
@@ -198,20 +212,31 @@ function AdminRequestTypeWorkflowPage() {
           ? "bg-muted text-muted-foreground"
           : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
 
-  const handleSave = async (saveMode: "draft" | "activate") => {
-    if (!saveRpcAvailable) return;
-    if (saveMode === "activate" && !dryRunOk) return;
+  const handleSave = async (saveMode: WorkflowSaveMode) => {
+    if (
+      !canSubmitWorkflowSave({
+        saveRpcAvailable,
+        saveLoading,
+        dryRunOk,
+        saveMode,
+      })
+    ) {
+      return;
+    }
     setSaveLoading(saveMode);
     setSaveError(null);
     setSaveSuccess(null);
+    // Capture local draft so an RPC error never clears the editor.
+    const stepsSnapshot = draftSteps;
+    const transitionsSnapshot = draftTransitions;
     try {
       const result = await saveFn({
         data: {
           requestTypeId: id,
           saveMode,
           workflowNameAr: primaryWorkflow?.name_ar ?? `دورة حياة — ${requestType!.name_ar}`,
-          draftSteps,
-          draftTransitions,
+          draftSteps: stepsSnapshot,
+          draftTransitions: transitionsSnapshot,
         },
       });
       setSaveSuccess(
@@ -219,9 +244,12 @@ function AdminRequestTypeWorkflowPage() {
           ? "تم حفظ وتفعيل دورة الحياة بنجاح."
           : "تم حفظ المسودة بنجاح.",
       );
+      // Reload workflow list (version/status) from server without wiping editor on failure.
+      setInitialized(false);
       await queryClient.invalidateQueries({ queryKey: ["admin-request-workflow-config", id] });
       return result;
     } catch (e) {
+      // Keep draftSteps / draftTransitions intact — no automatic retry.
       setSaveError((e as Error).message);
     } finally {
       setSaveLoading(null);
@@ -525,7 +553,7 @@ function AdminRequestTypeWorkflowPage() {
             <Button
               type="button"
               variant="secondary"
-              disabled={!saveRpcAvailable || saveLoading !== null}
+              disabled={!canSaveDraft}
               onClick={() => handleSave("draft")}
               className="gap-1"
             >
@@ -538,9 +566,7 @@ function AdminRequestTypeWorkflowPage() {
             </Button>
             <Button
               type="button"
-              disabled={
-                !saveRpcAvailable || !dryRunOk || saveLoading !== null
-              }
+              disabled={!canSaveActivate}
               onClick={() => handleSave("activate")}
               className="gap-1"
             >
@@ -555,16 +581,13 @@ function AdminRequestTypeWorkflowPage() {
         </div>
         {!saveRpcAvailable && (
           <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
-            أزرار الحفظ معطّلة حتى تطبيق migration وتفعيل{" "}
-            <span className="font-mono" dir="ltr">
-              ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE
-            </span>
-            .
+            أزرار الحفظ معطّلة في هذا الإصدار حتى تفعيل خدمة الحفظ.
           </p>
         )}
         {saveRpcAvailable && !dryRunOk && (
           <p className="text-xs text-muted-foreground">
-            التفعيل متاح فقط بعد نجاح «التحقق من التكوين» بدون أخطاء.
+            «حفظ كمسودة» متاح دون Dry Run. «حفظ وتفعيل» يتطلب نجاح التحقق بدون أخطاء. المسودة لا
+            تُفعَّل تلقائيًا.
           </p>
         )}
         {saveError && (

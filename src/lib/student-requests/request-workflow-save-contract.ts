@@ -427,7 +427,7 @@ export function validateWorkflowSaveCapability(): WorkflowSaveCapability {
       canActivate: false,
       reason: "save_rpc_unavailable",
       messageAr:
-        "حفظ دورة الحياة غير مفعّل — طبّق migration 01A على بيئة آمنة ثم فعّل ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE. أزرار الحفظ معطّلة حتى ذلك الحين.",
+        "حفظ دورة الحياة غير مفعّل في هذا الإصدار من التطبيق. أزرار الحفظ معطّلة.",
     };
   }
   return {
@@ -437,7 +437,7 @@ export function validateWorkflowSaveCapability(): WorkflowSaveCapability {
     canActivate: true,
     reason: "ready_for_staging_save",
     messageAr:
-      "التحقق والحفظ والتفعيل متاحة بعد تطبيق المخطط — الحفظ ينشئ إصداراً جديداً دون تعديل خطوات الإصدارات السابقة.",
+      "التحقق والحفظ والتفعيل متاحة — الحفظ ينشئ إصداراً جديداً دون تعديل خطوات الإصدارات السابقة. التفعيل يتطلب نجاح Dry Run.",
   };
 }
 

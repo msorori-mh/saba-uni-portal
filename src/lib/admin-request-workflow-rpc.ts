@@ -3,18 +3,77 @@
 import { mapStudentRequestRpcError } from "@/lib/student-request-rpc";
 
 export const WORKFLOW_SAVE_NOT_AVAILABLE_MSG =
-  "حفظ دورة الحياة غير مفعّل حالياً. طبّق migration 20260711040000_enrollment_certificate_workflow_foundation_01a على بيئة آمنة ثم فعّل العلم ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE.";
+  "حفظ دورة الحياة غير مفعّل في هذا الإصدار من التطبيق.";
+
+/** Shown when the RPC is missing from PostgREST schema cache after deploy/sync lag. */
+export const WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG =
+  "خدمة حفظ دورة الحياة غير متاحة مؤقتًا. أعد تحميل الصفحة أو راجع مزامنة قاعدة البيانات.";
 
 /**
  * Gate for admin_save_request_workflow_config.
- * Keep false until the remediating migration is applied on the shared Preview/prod DB.
- * Preview and production share the same database — do not probe DB when false.
+ * Enabled after migrations 20260711040000 / 20260711050000 were applied on
+ * production Supabase ref wpmicqriltrowwonknox (01B enablement).
+ * The guard inside rpcAdminSaveRequestWorkflowConfig remains — do not remove it.
+ * Opening the page must not probe or write to the database for this flag.
  */
-export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = false;
+export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = true;
 
 /** Runtime capability check — returns false immediately when the compile-time flag is off. */
 export function isAdminSaveWorkflowRpcAvailable(): boolean {
   return ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE;
+}
+
+export type WorkflowSaveMode = "draft" | "activate";
+
+/** Maps UI save mode to RPC workflow status / is_active — no DB access. */
+export function workflowMetaForSaveMode(saveMode: WorkflowSaveMode): {
+  status: WorkflowStatus;
+  is_active: boolean;
+} {
+  if (saveMode === "activate") {
+    return { status: "active", is_active: true };
+  }
+  return { status: "draft", is_active: false };
+}
+
+/** Pure UI gate for save buttons — no network, no DB. */
+export function canSubmitWorkflowSave(opts: {
+  saveRpcAvailable: boolean;
+  saveLoading: WorkflowSaveMode | null;
+  dryRunOk: boolean;
+  saveMode: WorkflowSaveMode;
+}): boolean {
+  if (!opts.saveRpcAvailable) return false;
+  if (opts.saveLoading !== null) return false;
+  if (opts.saveMode === "activate" && !opts.dryRunOk) return false;
+  return true;
+}
+
+export function isWorkflowSaveRpcMissingError(error: {
+  message?: string;
+  code?: string;
+} | null | undefined): boolean {
+  if (!error) return false;
+  const msg = error.message ?? "";
+  const code = error.code ?? "";
+  return (
+    code === "42883" ||
+    code === "PGRST202" ||
+    /function_not_found/i.test(msg) ||
+    /function .* does not exist/i.test(msg) ||
+    /could not find the function/i.test(msg) ||
+    /schema cache/i.test(msg)
+  );
+}
+
+export function mapWorkflowSaveRpcError(error: {
+  message?: string;
+  code?: string;
+}): string {
+  if (isWorkflowSaveRpcMissingError(error)) {
+    return WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG;
+  }
+  return mapStudentRequestRpcError(error);
 }
 
 export type WorkflowStatus = "draft" | "active" | "retired";
@@ -220,7 +279,8 @@ export async function rpcAdminSaveRequestWorkflowConfig(
     })),
   });
 
-  if (error) throw new Error(mapStudentRequestRpcError(error));
+  // No automatic retry — operator must reload / re-sync schema cache if RPC is missing.
+  if (error) throw new Error(mapWorkflowSaveRpcError(error));
 
   const raw = (data ?? {}) as { workflow_id?: string; success?: boolean };
   if (!raw.workflow_id) {
