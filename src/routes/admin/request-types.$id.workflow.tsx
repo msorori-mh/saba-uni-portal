@@ -15,6 +15,7 @@ import {
   WORKFLOW_SAVE_NOT_AVAILABLE_MSG,
   canSubmitWorkflowSave,
   isAdminSaveWorkflowRpcAvailable,
+  type AdminRequestWorkflowConfig,
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
   type WorkflowActionType,
@@ -32,6 +33,10 @@ import {
   WORKFLOW_SCHEMA_UNAVAILABLE_MSG,
 } from "@/lib/student-requests/request-workflow-preview-registry";
 import {
+  WORKFLOW_SAVE_REFRESH_FAILED_MSG,
+  WORKFLOW_SAVE_REFRESH_MISSING_MSG,
+  decideWorkflowEditorRemap,
+  hasWorkflowId,
   mapWorkflowConfigToDraft,
   selectWorkflowForEditor,
 } from "@/lib/student-requests/request-workflow-editor-mappers";
@@ -203,22 +208,46 @@ function AdminRequestTypeWorkflowPage() {
           draftTransitions: transitionsSnapshot,
         },
       });
-      setSaveSuccess(
-        saveMode === "activate"
-          ? "تم حفظ وتفعيل دورة الحياة بنجاح."
-          : "تم حفظ المسودة بنجاح.",
-      );
+      // Keep preferred id on the saved version even if refresh fails — never jump to active.
       setSelectedWorkflowId(result.workflowId);
       try {
-        await queryClient.refetchQueries({
-          queryKey: ["admin-request-workflow-config", id],
+        await queryClient.refetchQueries(
+          {
+            queryKey: ["admin-request-workflow-config", id],
+            type: "active",
+          },
+          {
+            throwOnError: true,
+          },
+        );
+
+        const refreshedConfig = queryClient.getQueryData<AdminRequestWorkflowConfig>([
+          "admin-request-workflow-config",
+          id,
+        ]);
+
+        const remapDecision = decideWorkflowEditorRemap({
+          refreshOk: true,
+          config: refreshedConfig,
+          savedWorkflowId: result.workflowId,
         });
-        // Remap editor from the saved version only after a successful refresh.
+
+        if (!remapDecision.canRemap || !hasWorkflowId(refreshedConfig, result.workflowId)) {
+          throw new Error(WORKFLOW_SAVE_REFRESH_MISSING_MSG);
+        }
+
+        // Remap editor from the saved version only after refresh + id verification.
         setInitialized(false);
+        setSaveSuccess(
+          saveMode === "activate"
+            ? "تم حفظ وتفعيل دورة الحياة بنجاح."
+            : "تم حفظ المسودة بنجاح.",
+        );
       } catch (refreshErr) {
+        // Keep editor as-is: no remap, no draft clear, no auto-retry/save.
+        setSaveSuccess(null);
         setSaveError(
-          (refreshErr as Error).message ||
-            "تم الحفظ لكن تعذر تحديث بيانات دورة الحياة من الخادم. أبقِ المسودة المحلية ولا تُعد الحفظ تلقائيًا.",
+          (refreshErr as Error).message || WORKFLOW_SAVE_REFRESH_FAILED_MSG,
         );
       }
       return result;

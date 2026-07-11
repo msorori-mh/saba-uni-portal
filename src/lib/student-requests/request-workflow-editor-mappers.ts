@@ -103,3 +103,39 @@ export function mapWorkflowConfigToDraft(
     ),
   };
 }
+
+/** True when the refreshed config includes the workflow id returned by save. */
+export function hasWorkflowId(
+  config: AdminRequestWorkflowConfig | undefined,
+  workflowId: string,
+): boolean {
+  return Boolean(config?.workflows.some((workflow) => workflow.id === workflowId));
+}
+
+export type WorkflowRefreshDecision =
+  | { canRemap: true }
+  | { canRemap: false; reason: "refresh_failed" | "workflow_missing" };
+
+/**
+ * Pure gate: remapping the editor is allowed only after a successful refresh
+ * that includes the saved workflow id. Never invents a fallback to active.
+ */
+export function decideWorkflowEditorRemap(opts: {
+  refreshOk: boolean;
+  config: AdminRequestWorkflowConfig | undefined;
+  savedWorkflowId: string;
+}): WorkflowRefreshDecision {
+  if (!opts.refreshOk) {
+    return { canRemap: false, reason: "refresh_failed" };
+  }
+  if (!hasWorkflowId(opts.config, opts.savedWorkflowId)) {
+    return { canRemap: false, reason: "workflow_missing" };
+  }
+  return { canRemap: true };
+}
+
+export const WORKFLOW_SAVE_REFRESH_MISSING_MSG =
+  "تم حفظ دورة الحياة، لكن تعذر تحميل الإصدار المحفوظ من الخادم. بقيت التعديلات المحلية محفوظة؛ أعد تحميل الصفحة قبل إجراء حفظ جديد.";
+
+export const WORKFLOW_SAVE_REFRESH_FAILED_MSG =
+  "تم حفظ دورة الحياة، لكن تعذر تحديث بياناتها. بقيت المسودة المحلية محفوظة.";

@@ -2,9 +2,9 @@
 
 ## القرار
 
-`PASS_STUDENT_REQUEST_WORKFLOW_SAVE_ENABLEMENT_REMEDIATION_READY_FOR_REREVIEW`
+`PASS_STUDENT_REQUEST_WORKFLOW_SAVE_REFRESH_REMEDIATION_READY_FOR_FINAL_REVIEW`
 
-(السابق: `PASS_STUDENT_REQUEST_WORKFLOW_SAVE_ENABLEMENT_PR_READY_FOR_REVIEW`)
+(السابق: `PASS_STUDENT_REQUEST_WORKFLOW_SAVE_ENABLEMENT_REMEDIATION_READY_FOR_REREVIEW`)
 
 ---
 
@@ -113,6 +113,33 @@
 
 ---
 
+## PR #117 refresh integrity remediation
+
+### المشكلة
+
+بعد نجاح `admin_save_request_workflow_config`، كان `refetchQueries` قد يكتمل بدون رمي خطأ حتى لو فشل الاستعلام، أو يعيد بيانات لا تتضمن `result.workflowId` بعد. في هذه الحالة كان استدعاء `setInitialized(false)` يعيد تهيئة المحرر من cache ناقص وقد يقفز إلى active ويفقد المسودة المحلية بصريًا، مع إظهار رسالة نجاح مضللة.
+
+### الإصلاح
+
+- `refetchQueries(..., { throwOnError: true })` مع `type: "active"`.
+- بعد refetch: قراءة `getQueryData` والتحقق عبر `hasWorkflowId` / `decideWorkflowEditorRemap`.
+- `setInitialized(false)` ورسالة النجاح النهائية **فقط** بعد وجود `result.workflowId` في `refreshedConfig.workflows`.
+- عند فشل refresh أو غياب الإصدار: رسالة خطأ واضحة، `setSaveSuccess(null)`، الإبقاء على `draftSteps` / `draftTransitions` / `selectedWorkflowId = result.workflowId`، بدون retry أو حفظ ثانٍ.
+
+### مزامنة الفرع مع main
+
+تم `git merge origin/main` داخل الفرع (بدون rebase / force push). أحدث main عند الدمج: `4160d5a`.
+
+### تأكيدات النطاق
+
+- ❌ لا migrations
+- ❌ لا DB writes
+- ❌ لا Publish / Deploy
+- ❌ لا تعديل `types.ts`
+- ❌ لا PR جديد
+
+---
+
 ## Supabase types
 
 `src/integrations/supabase/types.ts` **لم يُعدَّل يدويًا**.
@@ -136,7 +163,8 @@
 
 | الفحص | النتيجة |
 |-------|---------|
-| `bun test tests/student-requests/enrollment-certificate-workflow-foundation.test.ts` | **48 pass / 0 fail** |
+| `bun test tests/student-requests/enrollment-certificate-workflow-foundation.test.ts` | **55 pass / 0 fail** |
 | `bunx tsc --noEmit` | **pass** |
 | `bun run build` | **pass** |
 | `git diff --check` | **pass** |
+| مزامنة مع `origin/main` | merge `4160d5a` — بدون تعارضات |

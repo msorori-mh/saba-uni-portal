@@ -19,8 +19,11 @@ import {
 import {
   configStepToDraftStep,
   configTransitionToDraftTransition,
+  decideWorkflowEditorRemap,
+  hasWorkflowId,
   mapWorkflowConfigToDraft,
   selectWorkflowForEditor,
+  WORKFLOW_SAVE_REFRESH_MISSING_MSG,
 } from "../../src/lib/student-requests/request-workflow-editor-mappers";
 import {
   getCanonicalDraftTransitionsForType,
@@ -893,5 +896,153 @@ describe("workflow editor round-trip integrity (01B remediation)", () => {
     expect(page).toContain("selectWorkflowForEditor");
     expect(page).toContain("mapWorkflowConfigToDraft");
     expect(page).toContain("Keep draftSteps / draftTransitions / selectedWorkflowId intact");
+  });
+});
+
+describe("workflow save refresh integrity (01B refresh remediation)", () => {
+  const configWith = (
+    workflowIds: string[],
+  ): {
+    request_type_id: string;
+    workflows: WorkflowConfigWorkflow[];
+    steps: [];
+    transitions: [];
+  } => ({
+    request_type_id: TYPE_ID,
+    workflows: workflowIds.map((id, idx) => ({
+      id,
+      code: "wf",
+      name_ar: id,
+      name_en: null,
+      description_ar: null,
+      version: idx + 1,
+      status: id.startsWith("active") ? ("active" as const) : ("draft" as const),
+      is_active: id.startsWith("active"),
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    })),
+    steps: [],
+    transitions: [],
+  });
+
+  it("hasWorkflowId returns true when saved workflow exists", () => {
+    expect(hasWorkflowId(configWith(["active-1", "draft-2"]), "draft-2")).toBe(true);
+  });
+
+  it("hasWorkflowId returns false when saved workflow is absent", () => {
+    expect(hasWorkflowId(configWith(["active-1"]), "draft-2")).toBe(false);
+    expect(hasWorkflowId(undefined, "draft-2")).toBe(false);
+  });
+
+  it("decideWorkflowEditorRemap blocks remap on refresh failure or missing workflow", () => {
+    expect(
+      decideWorkflowEditorRemap({
+        refreshOk: false,
+        config: configWith(["draft-2"]),
+        savedWorkflowId: "draft-2",
+      }),
+    ).toEqual({ canRemap: false, reason: "refresh_failed" });
+
+    expect(
+      decideWorkflowEditorRemap({
+        refreshOk: true,
+        config: configWith(["active-1"]),
+        savedWorkflowId: "draft-2",
+      }),
+    ).toEqual({ canRemap: false, reason: "workflow_missing" });
+
+    expect(
+      decideWorkflowEditorRemap({
+        refreshOk: true,
+        config: configWith(["active-1", "draft-2"]),
+        savedWorkflowId: "draft-2",
+      }),
+    ).toEqual({ canRemap: true });
+  });
+
+  it("failed refresh decision keeps local drafts and preferred saved id (no active swap)", () => {
+    const draftSteps = [{ step_key: "fee_assessment" }];
+    const draftTransitions = [{ from_step_key: "fee_assessment", label_ar: "إرسال" }];
+    let selectedWorkflowId = "draft-2";
+    let initialized = true;
+
+    const decision = decideWorkflowEditorRemap({
+      refreshOk: false,
+      config: configWith(["active-1"]),
+      savedWorkflowId: "draft-2",
+    });
+
+    // Simulate page policy on refresh failure.
+    if (!decision.canRemap) {
+      // do not setInitialized(false); do not clear drafts; keep selected id.
+    } else {
+      initialized = false;
+      selectedWorkflowId = "active-1";
+    }
+
+    expect(decision.canRemap).toBe(false);
+    expect(initialized).toBe(true);
+    expect(selectedWorkflowId).toBe("draft-2");
+    expect(draftSteps).toHaveLength(1);
+    expect(draftTransitions).toHaveLength(1);
+    expect(selectWorkflowForEditor(configWith(["active-1", "draft-2"]).workflows, selectedWorkflowId)?.id).toBe(
+      "draft-2",
+    );
+  });
+
+  it("missing saved workflow uses clear Arabic error and does not remap", () => {
+    const decision = decideWorkflowEditorRemap({
+      refreshOk: true,
+      config: configWith(["active-1"]),
+      savedWorkflowId: "draft-2",
+    });
+    expect(decision).toEqual({ canRemap: false, reason: "workflow_missing" });
+    expect(WORKFLOW_SAVE_REFRESH_MISSING_MSG).toContain("تعذر تحميل الإصدار المحفوظ");
+  });
+
+  it("page uses throwOnError and verifies workflow id before setInitialized(false)", () => {
+    const page = readFileSync(
+      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("throwOnError: true");
+    expect(page).toContain('type: "active"');
+    expect(page).toContain("getQueryData<AdminRequestWorkflowConfig>");
+    expect(page).toContain("decideWorkflowEditorRemap");
+    expect(page).toContain("hasWorkflowId");
+    expect(page).toContain("WORKFLOW_SAVE_REFRESH_MISSING_MSG");
+    expect(page).toContain("setSaveSuccess(null)");
+    expect(page).toContain("Keep editor as-is");
+    expect(page).toContain("setSelectedWorkflowId(result.workflowId)");
+
+    const selectedIdx = page.indexOf("setSelectedWorkflowId(result.workflowId)");
+    const verifyIdx = page.indexOf("hasWorkflowId(refreshedConfig, result.workflowId)");
+    const remapIdx = page.indexOf(
+      "// Remap editor from the saved version only after refresh + id verification.",
+    );
+    const initFalseIdx = page.indexOf("setInitialized(false)", remapIdx);
+    const successIdx = page.indexOf("setSaveSuccess(", initFalseIdx);
+    expect(selectedIdx).toBeGreaterThan(-1);
+    expect(verifyIdx).toBeGreaterThan(selectedIdx);
+    expect(initFalseIdx).toBeGreaterThan(verifyIdx);
+    expect(successIdx).toBeGreaterThan(initFalseIdx);
+  });
+
+  it("no automatic save retry on refresh failure (source policy)", () => {
+    const page = readFileSync(
+      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("no auto-retry/save");
+    const catchIdx = page.indexOf("} catch (refreshErr) {");
+    expect(catchIdx).toBeGreaterThan(-1);
+    const catchBlock = page.slice(catchIdx, catchIdx + 450);
+    expect(catchBlock).toContain("setSaveSuccess(null)");
+    expect(catchBlock).toContain("setSaveError(");
+    expect(catchBlock).not.toContain("saveFn(");
+    expect(catchBlock).not.toContain("handleSave(");
+    expect(catchBlock).not.toContain("setInitialized(false)");
+    expect(catchBlock).not.toContain("setDraftSteps(");
+    expect(catchBlock).not.toContain("setDraftTransitions(");
   });
 });
