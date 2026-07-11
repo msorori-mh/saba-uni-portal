@@ -70,12 +70,12 @@ END IF;
 - استمرار حصر إشعار الدفع في `amount > 0`.
 - فصل الخطوة التالية الفعلية عن الخطوات الوسيطة المتجاوزة.
 
-## تحقق GitHub Actions
+## تحقق GitHub Actions النهائي
 
 | الفحص | النتيجة |
 |---|---|
-| Migration Review — run 51 | PASS |
-| Web CI: Install · Lint · Typecheck · Build — run 308 | PASS |
+| Migration Review — run 52 | PASS |
+| Web CI: Install · Lint · Typecheck · Build — run 309 | PASS |
 
 ## الأمان ونطاق التنفيذ
 
