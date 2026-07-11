@@ -129,32 +129,36 @@ function HomePage() {
 
   return (
     <>
-      {/* ============ HERO — Schedule-portal style ============ */}
+      {/* ============ HERO — desktop-fit compact ============ */}
       <section className="relative overflow-hidden bg-primary-deep text-primary-foreground">
         {/* vertical gold divider on the leading edge */}
         <div className="pointer-events-none absolute inset-y-0 left-8 md:left-16 w-px bg-gold/60" />
 
-        <div className="relative mx-auto flex min-h-[calc(100vh-14rem)] max-w-2xl flex-col items-center justify-center px-4 py-16 md:py-24 text-center">
+        <div className="relative mx-auto flex min-h-[clamp(34rem,calc(100svh-10rem),42rem)] max-w-6xl flex-col items-center justify-center px-4 py-8 text-center sm:px-6 md:py-10 lg:py-12">
           {/* Logo card */}
-          <div className="grid h-36 w-36 md:h-40 md:w-40 place-items-center rounded-2xl bg-white p-3 shadow-elegant">
+          <div className="grid h-24 w-24 place-items-center rounded-2xl bg-white p-2 shadow-elegant sm:h-28 sm:w-28 sm:p-2.5 lg:h-32 lg:w-32">
             <img src={universityLogo.url} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
           </div>
 
-          {/* Title */}
-          <h1 className="mt-8 font-display font-black leading-tight text-white text-4xl md:text-6xl">
-            <span className="block">البوابة الإلكترونية</span>
-            <span className="block mt-2">كلية تكنولوجيا المعلومات وعلوم الحاسوب</span>
+          {/* Title — two explicit lines; nowrap from sm up */}
+          <h1 className="mt-5 font-display font-black leading-tight text-white">
+            <span className="block whitespace-normal text-[clamp(2rem,3.6vw,3.6rem)] sm:whitespace-nowrap">
+              البوابة الإلكترونية
+            </span>
+            <span className="mt-1 block whitespace-normal text-[clamp(1.35rem,2.5vw,2.6rem)] sm:whitespace-nowrap">
+              كلية تكنولوجيا المعلومات وعلوم الحاسوب
+            </span>
           </h1>
 
           {/* Notice box */}
-          <div className="mt-6 rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm px-5 py-4 text-sm md:text-[15px] text-white/85 leading-7 max-w-xl">
+          <div className="mt-4 max-w-2xl rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm leading-6 text-white/85 backdrop-blur-sm md:px-5">
             منصة رقمية متكاملة للخدمات الأكاديمية والإدارية، تخدم الطلاب وأعضاء هيئة التدريس والموظفين في الكلية
           </div>
 
           {/* Login CTA */}
           <Link
             to="/portal-login"
-            className="mt-8 inline-flex items-center justify-center rounded-md bg-gold-gradient px-12 py-4 text-base font-extrabold text-primary-deep shadow-gold transition-all hover:-translate-y-0.5"
+            className="mt-5 inline-flex items-center justify-center rounded-md bg-gold-gradient px-10 py-3 text-sm font-extrabold text-primary-deep shadow-gold transition-all hover:-translate-y-0.5 sm:text-base"
           >
             تسجيل الدخول
           </Link>
