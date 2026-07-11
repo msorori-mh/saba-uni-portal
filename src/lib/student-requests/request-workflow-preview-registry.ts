@@ -55,6 +55,7 @@ const ROLE_LABELS_AR: Readonly<Record<string, string>> = {
   dean: "العميد",
   student_affairs: "شؤون الطلاب",
   student_affairs_manager: "مدير شؤون الطلاب",
+  student_affairs_specialist: "مختص شؤون الطلاب",
   graduate_affairs_manager: "مدير شؤون الخريجين",
   registrar_general: "مسجل الكلية",
   revenue_finance_officer: "مسؤول الإيرادات والمالية",
@@ -124,14 +125,64 @@ const PREVIEW_BY_CODE: Readonly<Record<string, CanonicalWorkflowPreview>> = {
   enrollment_certificate: {
     requestTypeCode: "enrollment_certificate",
     requestTypeNameAr: "شهادة قيد",
-    specNotesAr: ["الاعتماد داخل الكلية فقط — بدون مسجل الجامعة العام"],
+    specNotesAr: [
+      "الاعتماد داخل الكلية فقط — بدون مسجل الجامعة العام",
+      "تقييم الرسوم: fee_not_required يتخطى payment_confirmation",
+    ],
     steps: [
-      { key: "student", labelAr: "الطالب", roleKey: "student" },
-      { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs", requiresFee: true },
-      { key: "finance", labelAr: "المالية", roleKey: "revenue_finance_officer" },
-      { key: "dean", labelAr: "العميد", roleKey: "dean", notesAr: "اعتماد آلي" },
-      { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general", actionType: "issue_document", issuesDocument: true },
-      { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer", actionType: "archive", isArchiveStep: true },
+      {
+        key: "initial_review",
+        labelAr: "المراجعة الأولية",
+        roleKey: "student_affairs_specialist",
+        processingUnitCode: "student_affairs",
+        actionType: "review",
+      },
+      {
+        key: "fee_assessment",
+        labelAr: "تقييم الرسوم",
+        roleKey: "student_affairs_manager",
+        processingUnitCode: "student_affairs",
+        actionType: "assess_fee",
+        requiresFee: true,
+      },
+      {
+        key: "payment_confirmation",
+        labelAr: "تأكيد الدفع",
+        roleKey: "revenue_finance_officer",
+        processingUnitCode: "finance",
+        actionType: "confirm_payment",
+      },
+      {
+        key: "registrar_signature",
+        labelAr: "توقيع مسجل الكلية",
+        roleKey: "registrar_general",
+        processingUnitCode: "registrar",
+        actionType: "sign",
+      },
+      {
+        key: "dean_signature",
+        labelAr: "توقيع العميد",
+        roleKey: "dean",
+        processingUnitCode: "dean",
+        actionType: "sign",
+        notesAr: "اعتماد آلي",
+      },
+      {
+        key: "document_issuance",
+        labelAr: "إصدار الوثيقة",
+        roleKey: "student_affairs_specialist",
+        processingUnitCode: "student_affairs",
+        actionType: "issue_document",
+        issuesDocument: true,
+      },
+      {
+        key: "archive",
+        labelAr: "الأرشيف",
+        roleKey: "archive_officer",
+        processingUnitCode: "archive",
+        actionType: "archive",
+        isArchiveStep: true,
+      },
     ],
   },
   file_withdrawal: {
@@ -301,6 +352,32 @@ export function buildStaffInboxWorkflowStepsFromPreview(
     completedAt: null,
     notes: d.notesAr ?? null,
   }));
+}
+
+/** Build explicit transitions for types with conditional fee branches. */
+export function getCanonicalDraftTransitionsForType(
+  requestTypeCode: string,
+): Array<{
+  from_step_key: string | null;
+  to_step_key: string | null;
+  action_result: string;
+  is_default: boolean;
+}> {
+  const normalized = normalizeStudentRequestTypeCode(requestTypeCode);
+  if (normalized === "enrollment_certificate") {
+    return [
+      { from_step_key: null, to_step_key: "initial_review", action_result: "submit", is_default: true },
+      { from_step_key: "initial_review", to_step_key: "fee_assessment", action_result: "approve", is_default: true },
+      { from_step_key: "fee_assessment", to_step_key: "payment_confirmation", action_result: "payment_required", is_default: true },
+      { from_step_key: "fee_assessment", to_step_key: "registrar_signature", action_result: "fee_not_required", is_default: false },
+      { from_step_key: "payment_confirmation", to_step_key: "registrar_signature", action_result: "payment_confirmed", is_default: true },
+      { from_step_key: "registrar_signature", to_step_key: "dean_signature", action_result: "signed", is_default: true },
+      { from_step_key: "dean_signature", to_step_key: "document_issuance", action_result: "signed", is_default: true },
+      { from_step_key: "document_issuance", to_step_key: "archive", action_result: "issued", is_default: true },
+      { from_step_key: "archive", to_step_key: null, action_result: "archived", is_default: true },
+    ];
+  }
+  return [];
 }
 
 /** Suggested draft steps for admin workflow editor (local only — not persisted). */

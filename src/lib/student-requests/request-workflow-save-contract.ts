@@ -8,6 +8,7 @@ import type { DraftWorkflowStep, DraftWorkflowTransition } from "@/lib/admin-req
 import { ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE } from "@/lib/admin-request-workflow-rpc";
 import {
   getCanonicalWorkflowPreview,
+  getCanonicalDraftTransitionsForType,
   hasCanonicalWorkflowPreview,
   OFFICIAL_WORKFLOW_PREVIEW_CODES,
   type CanonicalWorkflowStepDef,
@@ -182,7 +183,7 @@ function mapPreviewStepToInput(
     departmentScope: inferDepartmentScope(def.key),
     isParallel: Boolean(def.isParallel),
     parallelGroupKey: def.parallelGroupId ?? null,
-    requiresFee: Boolean(def.requiresFee),
+    requiresFee: Boolean(def.requiresFee || def.actionType === "assess_fee"),
     requiresAttachmentReview: def.roleKey === "student" && def.key === "student",
     producesDocument: Boolean(def.issuesDocument),
     isFinalApproval,
@@ -289,7 +290,17 @@ export function buildWorkflowSaveInputFromPreview(
     steps.push(mapPreviewStepToInput(def, seq));
   }
 
-  const transitions = buildTransitionsFromSteps(steps);
+  const transitions =
+    getCanonicalDraftTransitionsForType(normalized).length > 0
+      ? getCanonicalDraftTransitionsForType(normalized)
+          .filter((t) => t.from_step_key && t.to_step_key)
+          .map((t) => ({
+            fromStepKey: t.from_step_key!,
+            toStepKey: t.to_step_key!,
+            action: t.action_result,
+            isDefault: t.is_default,
+          }))
+      : buildTransitionsFromSteps(steps);
   const parallelGroups = buildParallelGroups(steps);
 
   return {
@@ -323,7 +334,7 @@ export function buildWorkflowSaveInputFromDraft(
     departmentScope: inferDepartmentScope(d.step_key),
     isParallel: false,
     parallelGroupKey: null,
-    requiresFee: d.action_type === "request_payment",
+    requiresFee: d.action_type === "request_payment" || d.action_type === "assess_fee",
     requiresAttachmentReview: false,
     producesDocument: d.action_type === "issue_document",
     isFinalApproval: d.action_type === "approve" || d.action_type === "complete",
@@ -416,16 +427,17 @@ export function validateWorkflowSaveCapability(): WorkflowSaveCapability {
       canActivate: false,
       reason: "save_rpc_unavailable",
       messageAr:
-        "حفظ دورة الحياة يحتاج تطبيق مخطط طلبات الطلاب على بيئة آمنة أولاً.",
+        "حفظ دورة الحياة غير مفعّل — طبّق migration 01A على بيئة آمنة ثم فعّل ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE. أزرار الحفظ معطّلة حتى ذلك الحين.",
     };
   }
   return {
     available: true,
     canValidate: true,
     canSave: true,
-    canActivate: false,
-    reason: "activation_disabled",
-    messageAr: "التحقق متاح — التفعيل معطّل في هذه المرحلة.",
+    canActivate: true,
+    reason: "ready_for_staging_save",
+    messageAr:
+      "التحقق والحفظ والتفعيل متاحة بعد تطبيق المخطط — الحفظ ينشئ إصداراً جديداً دون تعديل خطوات الإصدارات السابقة.",
   };
 }
 
@@ -613,12 +625,88 @@ export function validateWorkflowTransitions(
   }
 }
 
+function validateAssessFeeDualTransitions(
+  input: StudentRequestWorkflowSaveInput,
+  issues: StudentRequestWorkflowValidationIssue[],
+): void {
+  for (const step of input.steps) {
+    const preview = getCanonicalWorkflowPreview(input.requestTypeCode);
+    const previewStep = preview?.steps.find((p) => p.key === step.stepKey);
+    if (previewStep?.actionType !== "assess_fee") continue;
+
+    const hasFeeNotRequired = input.transitions.some(
+      (t) => t.fromStepKey === step.stepKey && t.action === "fee_not_required",
+    );
+    const hasPaymentRequired = input.transitions.some(
+      (t) => t.fromStepKey === step.stepKey && t.action === "payment_required",
+    );
+
+    if (!hasFeeNotRequired || !hasPaymentRequired) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "assess_fee_dual_transitions",
+        messageAr:
+          "خطوة assess_fee تحتاج انتقالين: fee_not_required و payment_required.",
+        stepKey: step.stepKey,
+      });
+    }
+  }
+
+  for (const step of input.steps) {
+    const preview = getCanonicalWorkflowPreview(input.requestTypeCode);
+    const previewStep = preview?.steps.find((p) => p.key === step.stepKey);
+    if (previewStep?.actionType !== "confirm_payment") continue;
+
+    const hasConfirmed = input.transitions.some(
+      (t) => t.fromStepKey === step.stepKey && t.action === "payment_confirmed",
+    );
+    if (!hasConfirmed) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "confirm_payment_path",
+        messageAr: "خطوة confirm_payment تحتاج انتقال payment_confirmed.",
+        stepKey: step.stepKey,
+      });
+    }
+  }
+}
+
 function validateTypeSpecificRules(
   input: StudentRequestWorkflowSaveInput,
   issues: StudentRequestWorkflowValidationIssue[],
 ): void {
   const code = input.requestTypeCode;
   const keys = new Set(input.steps.map((s) => s.stepKey));
+
+  if (code === "enrollment_certificate") {
+    const expectedKeys = [
+      "initial_review",
+      "fee_assessment",
+      "payment_confirmation",
+      "registrar_signature",
+      "dean_signature",
+      "document_issuance",
+      "archive",
+    ];
+    for (const k of expectedKeys) {
+      if (!keys.has(k)) {
+        pushIssue(issues, {
+          severity: "warning",
+          code: "enrollment_cert_step",
+          messageAr: `مسار شهادة القيد يتطلب خطوة: ${k}`,
+        });
+      }
+    }
+    if (input.steps.length !== 7) {
+      pushIssue(issues, {
+        severity: "warning",
+        code: "enrollment_cert_step_count",
+        messageAr: `مسار شهادة القيد: 7 خطوات متوقعة (الموجود: ${input.steps.length}).`,
+      });
+    }
+  }
+
+  validateAssessFeeDualTransitions(input, issues);
 
   if (code === "file_withdrawal") {
     const clearance = input.steps.filter((s) => s.parallelGroupKey === "clearance");
@@ -775,7 +863,13 @@ export function validateWorkflowSaveInput(
 
   const sorted = [...normalized.steps].sort((a, b) => a.sequence - b.sequence);
   const first = sorted[0];
-  if (first && first.actorType !== "student" && first.roleKey !== "student") {
+  const staffFirstTypes = new Set(["enrollment_certificate"]);
+  if (
+    first
+    && first.actorType !== "student"
+    && first.roleKey !== "student"
+    && !staffFirstTypes.has(normalized.requestTypeCode)
+  ) {
     pushIssue(issues, {
       severity: "error",
       code: "must_start_with_student",

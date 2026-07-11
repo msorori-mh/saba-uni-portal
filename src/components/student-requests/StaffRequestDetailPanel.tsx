@@ -1,14 +1,24 @@
 import { Loader2, Paperclip, User } from "lucide-react";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getStudentRequestAttachmentUrl } from "@/lib/admin-student-requests.functions";
+import { getStudentRequestFeeProcessingContext } from "@/lib/student-request-fee.functions";
 import type { StaffRequestDetail } from "@/lib/student-requests/staff-inbox-ui";
 import { getStaffRoleLabelAr } from "@/lib/student-requests/staff-inbox-ui";
+import {
+  shouldShowFeeAssessmentForm,
+  shouldShowFeeStatusDisplay,
+  shouldShowPaymentConfirmationForm,
+} from "@/lib/student-requests/fee-processing-ui-policy";
 import { StudentRequestFormDataView } from "@/components/student-requests/StudentRequestFormDataView";
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
 import { RequestDocumentArchivePanel } from "@/components/student-requests/RequestDocumentArchivePanel";
+import { StudentRequestFeeAssessmentForm } from "@/components/student-requests/StudentRequestFeeAssessmentForm";
+import { StudentRequestPaymentConfirmationForm } from "@/components/student-requests/StudentRequestPaymentConfirmationForm";
+import { StudentRequestFeeStatusDisplay } from "@/components/student-requests/StudentRequestFeeStatusDisplay";
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -46,6 +56,102 @@ const STUDENT_STATUS_LABEL: Record<string, string> = {
   suspended: "موقوف القيد",
   withdrawn: "منسحب",
 };
+
+function StaffRequestFeeProcessingSection({ requestId }: { requestId: string }) {
+  const queryClient = useQueryClient();
+  const feeContextFn = useServerFn(getStudentRequestFeeProcessingContext);
+
+  const {
+    data: feeCtx,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["student-request-fee-context", requestId],
+    queryFn: () => feeContextFn({ data: { requestId } }),
+    retry: 1,
+  });
+
+  const refreshAfterFeeAction = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["student-request-fee-context", requestId] }),
+      queryClient.invalidateQueries({ queryKey: ["staff-inbox-detail", requestId] }),
+      queryClient.invalidateQueries({ queryKey: ["staff-inbox"] }),
+      queryClient.invalidateQueries({ queryKey: ["admin-student-request", requestId] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+    ]);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="rounded-lg border bg-muted/10 p-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        جاري تحميل سياق الرسوم...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        تعذر تحميل سياق الرسوم: {error instanceof Error ? error.message : "خطأ غير معروف"}
+      </div>
+    );
+  }
+
+  if (!feeCtx) return null;
+
+  const fee = feeCtx.feeAssessment;
+  const showStatus = shouldShowFeeStatusDisplay(Boolean(fee));
+  const showAssess = shouldShowFeeAssessmentForm({
+    actionType: feeCtx.actionType,
+    stepStatus: feeCtx.stepStatus,
+    canExecuteStep: feeCtx.canExecuteCurrentStep,
+    hasActiveFeeAssessment: Boolean(fee),
+  });
+  const showConfirm = shouldShowPaymentConfirmationForm({
+    actionType: feeCtx.actionType,
+    stepStatus: feeCtx.stepStatus,
+    canExecuteStep: feeCtx.canExecuteCurrentStep,
+    paymentStatus: fee?.paymentStatus ?? null,
+  });
+
+  if (!showStatus && !showAssess && !showConfirm) return null;
+
+  return (
+    <section className="space-y-3" data-testid="fee-processing-section">
+      <div className="text-xs font-bold text-primary">الرسوم والسداد</div>
+      {showStatus && fee && (
+        <StudentRequestFeeStatusDisplay
+          amountYer={fee.amount}
+          paymentStatus={fee.paymentStatus}
+          currency={fee.currency}
+          paymentReference={fee.paymentReference}
+        />
+      )}
+      {showAssess && (
+        <StudentRequestFeeAssessmentForm
+          requestId={requestId}
+          currentStepKey={feeCtx.stepKey ?? "fee_assessment"}
+          onAssessed={refreshAfterFeeAction}
+        />
+      )}
+      {showConfirm && fee && (
+        <StudentRequestPaymentConfirmationForm
+          requestId={requestId}
+          currentStepKey={feeCtx.stepKey ?? "payment_confirmation"}
+          existingPaymentStatus={fee.paymentStatus}
+          onConfirmed={refreshAfterFeeAction}
+        />
+      )}
+      {!showAssess && !showConfirm && showStatus && (
+        <p className="text-[11px] text-muted-foreground">
+          يمكنك الاطلاع على حالة الرسوم. إجراءات التقييم/التأكيد تظهر فقط للمخول في الخطوة النشطة.
+        </p>
+      )}
+    </section>
+  );
+}
 
 export function StaffRequestDetailPanel({
   detail,
@@ -183,6 +289,8 @@ export function StaffRequestDetailPanel({
           steps={detail.workflowSteps}
           isPreview={detail.workflowIsPreview}
         />
+
+        <StaffRequestFeeProcessingSection requestId={detail.id} />
 
         <StaffRequestFinanceClearancePanel
           requestId={detail.id}

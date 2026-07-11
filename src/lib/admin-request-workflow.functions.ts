@@ -136,8 +136,6 @@ const workflowSaveDryRunSchema = z.object({
       expectedUpdatedAt: z.string().optional().nullable(),
     })
     .optional(),
-  steps: z.array(z.record(z.unknown())).optional(),
-  transitions: z.array(z.record(z.unknown())).optional(),
   draftSteps: z.array(z.record(z.unknown())).optional(),
   draftTransitions: z.array(z.record(z.unknown())).optional(),
 });
@@ -163,18 +161,6 @@ export const prepareStudentRequestWorkflowSave = createServerFn({ method: "POST"
       const built = buildWorkflowSaveInputFromPreview(data.requestTypeId, typeRow.code);
       if (!built) throw new Error("لا يوجد مسار مرجعي لهذا النوع");
       payload = built;
-    } else if (data.steps && data.steps.length > 0) {
-      payload = {
-        requestTypeId: data.requestTypeId,
-        requestTypeCode: typeRow.code,
-        workflowNameAr: data.workflow?.workflowNameAr,
-        isActive: data.workflow?.isActive,
-        configVersion: data.workflow?.configVersion,
-        expectedUpdatedAt: data.workflow?.expectedUpdatedAt,
-        steps: data.steps as StudentRequestWorkflowSaveInput["steps"],
-        transitions: (data.transitions ?? []) as StudentRequestWorkflowSaveInput["transitions"],
-        parallelGroups: [],
-      };
     } else {
       const draftSteps = (data.draftSteps ?? []) as DraftWorkflowStep[];
       const draftTransitions = (data.draftTransitions ?? []) as DraftWorkflowTransition[];
@@ -184,30 +170,82 @@ export const prepareStudentRequestWorkflowSave = createServerFn({ method: "POST"
         draftSteps,
         draftTransitions,
       );
+      if (data.workflow?.workflowNameAr) {
+        payload = { ...payload, workflowNameAr: data.workflow.workflowNameAr };
+      }
+      if (typeof data.workflow?.isActive === "boolean") {
+        payload = { ...payload, isActive: data.workflow.isActive };
+      }
     }
 
     return validateWorkflowSaveInput(payload);
   });
 
+const workflowSaveSchema = z.object({
+  requestTypeId: z.string().uuid(),
+  saveMode: z.enum(["draft", "activate"]),
+  workflowNameAr: z.string().max(200).optional(),
+  draftSteps: z.array(z.record(z.unknown())),
+  draftTransitions: z.array(z.record(z.unknown())),
+});
+
 export const saveAdminRequestWorkflowConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        requestTypeId: z.string().uuid(),
-        workflow: z.record(z.unknown()),
-        steps: z.array(z.record(z.unknown())),
-        transitions: z.array(z.record(z.unknown())),
-      })
-      .parse(input),
-  )
+  .inputValidator((input: unknown) => workflowSaveSchema.parse(input))
   .handler(async ({ data, context }) => {
     await assertRequestWorkflowAdmin(context.userId);
-    await rpcAdminSaveRequestWorkflowConfig(context.supabase, {
-      requestTypeId: data.requestTypeId,
-      workflow: data.workflow,
-      steps: data.steps as DraftWorkflowStep[],
-      transitions: data.transitions as DraftWorkflowTransition[],
+
+    const { data: typeRow, error: typeErr } = await supabaseAdmin
+      .from("request_types")
+      .select("code, name_ar")
+      .eq("id", data.requestTypeId)
+      .maybeSingle();
+    if (typeErr) throw new Error("تعذر التحقق من نوع الطلب");
+    if (!typeRow) throw new Error("نوع الطلب غير موجود");
+
+    const draftSteps = data.draftSteps as DraftWorkflowStep[];
+    const draftTransitions = data.draftTransitions as DraftWorkflowTransition[];
+
+    const built = buildWorkflowSaveInputFromDraft(
+      data.requestTypeId,
+      typeRow.code,
+      draftSteps,
+      draftTransitions,
+    );
+    const workflowNameAr =
+      data.workflowNameAr?.trim() ||
+      built.workflowNameAr ||
+      `دورة حياة — ${typeRow.name_ar}`;
+
+    const dryRun = validateWorkflowSaveInput({
+      ...built,
+      workflowNameAr,
+      isActive: data.saveMode === "activate",
     });
-    return { ok: true as const };
+    if (!dryRun.valid) {
+      const firstError = dryRun.issues.find((i) => i.severity === "error");
+      throw new Error(firstError?.messageAr ?? "التكوين غير صالح للحفظ");
+    }
+
+    if (data.saveMode === "activate" && !dryRun.valid) {
+      throw new Error("لا يمكن التفعيل — التحقق من التكوين فشل");
+    }
+
+    const activate = data.saveMode === "activate";
+    const result = await rpcAdminSaveRequestWorkflowConfig(context.supabase, {
+      requestTypeId: data.requestTypeId,
+      workflow: {
+        code: `${typeRow.code}_workflow`,
+        name_ar: workflowNameAr,
+        status: activate ? "active" : "draft",
+        is_active: activate,
+      },
+      steps: draftSteps,
+      transitions: draftTransitions,
+    });
+    return {
+      ok: true as const,
+      workflowId: result.workflow_id,
+      saveMode: data.saveMode,
+    };
   });
