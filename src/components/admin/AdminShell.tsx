@@ -42,7 +42,7 @@ const groups: NavGroup[] = [
     label: "القيادة التنفيذية",
     icon: BarChart3,
     items: [
-      { to: "/admin/executive-dashboard", label: "لوحة القيادة التنفيذية", icon: BarChart3 },
+      { to: "/admin/executive-dashboard", label: "لوحة بيانات الإدارة العليا", icon: BarChart3 },
     ],
   },
   {
