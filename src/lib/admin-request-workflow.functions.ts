@@ -5,6 +5,7 @@ import { assertAnyRole } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { REQUEST_TYPES_ADMIN_ROLES } from "@/lib/admin-request-types.functions";
 import {
+  mergeWorkflowStepPaymentDocumentFlags,
   rpcAdminGetRequestWorkflowConfig,
   rpcAdminSaveRequestWorkflowConfig,
   workflowMetaForSaveMode,
@@ -12,6 +13,7 @@ import {
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
   type ProcessingOptionsResult,
+  type WorkflowStepPaymentDocumentRow,
 } from "@/lib/admin-request-workflow-rpc";
 import {
   buildWorkflowSaveInputFromDraft,
@@ -61,7 +63,33 @@ export const getAdminRequestWorkflowConfig = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<AdminRequestWorkflowConfig> => {
     await assertRequestWorkflowAdmin(context.userId);
-    return rpcAdminGetRequestWorkflowConfig(context.supabase, data.requestTypeId);
+    const config = await rpcAdminGetRequestWorkflowConfig(
+      context.supabase,
+      data.requestTypeId,
+    );
+
+    const workflowIds = config.workflows.map((w) => w.id);
+    if (workflowIds.length === 0 || config.steps.length === 0) {
+      return config;
+    }
+
+    // Server-side enrichment only — GET RPC may omit payment/document flags.
+    // Read-only supabaseAdmin select; save path still uses the user-scoped RPC client.
+    const { data: stepRows, error: enrichError } = await supabaseAdmin
+      .from("request_type_workflow_steps")
+      .select("id, workflow_id, requires_payment, produces_document")
+      .in("workflow_id", workflowIds);
+
+    if (enrichError) {
+      throw new Error(
+        `تعذر إكمال بيانات خطوات دورة الحياة من الخادم: ${enrichError.message}`,
+      );
+    }
+
+    return mergeWorkflowStepPaymentDocumentFlags(
+      config,
+      (stepRows ?? []) as WorkflowStepPaymentDocumentRow[],
+    );
   });
 
 export const listRequestProcessingOptions = createServerFn({ method: "POST" })

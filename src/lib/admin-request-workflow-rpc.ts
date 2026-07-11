@@ -139,6 +139,9 @@ export type WorkflowConfigStep = {
   notify_on_enter: boolean;
   notify_on_complete: boolean;
   visible_to_student: boolean;
+  /** Enriched server-side when GET RPC omits these flags. */
+  requires_payment: boolean;
+  produces_document: boolean;
 };
 
 export type WorkflowConfigTransition = {
@@ -149,6 +152,16 @@ export type WorkflowConfigTransition = {
   action_result: string;
   label_ar: string | null;
   is_default: boolean;
+  /** DB column is condition_schema; some RPCs expose it as condition_config. */
+  condition_schema?: Record<string, unknown> | null;
+  condition_config?: Record<string, unknown> | null;
+};
+
+export type WorkflowStepPaymentDocumentRow = {
+  id: string;
+  workflow_id: string;
+  requires_payment: boolean;
+  produces_document: boolean;
 };
 
 export type AdminRequestWorkflowConfig = {
@@ -157,6 +170,31 @@ export type AdminRequestWorkflowConfig = {
   steps: WorkflowConfigStep[];
   transitions: WorkflowConfigTransition[];
 };
+
+/**
+ * Merges requires_payment / produces_document from a bounded steps table read.
+ * Fails loudly if any config step is missing enrichment — never invents defaults.
+ */
+export function mergeWorkflowStepPaymentDocumentFlags(
+  config: AdminRequestWorkflowConfig,
+  rows: WorkflowStepPaymentDocumentRow[],
+): AdminRequestWorkflowConfig {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const steps = config.steps.map((step) => {
+    const row = byId.get(step.id);
+    if (!row) {
+      throw new Error(
+        `تعذر إكمال بيانات الخطوة «${step.step_key}» (requires_payment / produces_document). أعد تحميل الصفحة قبل الحفظ.`,
+      );
+    }
+    return {
+      ...step,
+      requires_payment: row.requires_payment,
+      produces_document: row.produces_document,
+    };
+  });
+  return { ...config, steps };
+}
 
 export type ProcessingUnitOption = {
   id: string;

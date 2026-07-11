@@ -18,8 +18,6 @@ import {
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
   type WorkflowActionType,
-  type WorkflowConfigStep,
-  type WorkflowConfigTransition,
   type WorkflowConfigWorkflow,
   type WorkflowSaveMode,
 } from "@/lib/admin-request-workflow-rpc";
@@ -33,6 +31,10 @@ import {
   hasCanonicalWorkflowPreview,
   WORKFLOW_SCHEMA_UNAVAILABLE_MSG,
 } from "@/lib/student-requests/request-workflow-preview-registry";
+import {
+  mapWorkflowConfigToDraft,
+  selectWorkflowForEditor,
+} from "@/lib/student-requests/request-workflow-editor-mappers";
 import { STUDENT_REQUEST_SERVICE_UPDATING_MSG } from "@/lib/student-request-rpc";
 import type { StudentRequestWorkflowSaveResult } from "@/lib/student-requests/request-workflow-save-contract";
 
@@ -76,47 +78,6 @@ function resolveWorkflowState(workflows: WorkflowConfigWorkflow[]): {
   };
 }
 
-function configToDraftSteps(
-  steps: WorkflowConfigStep[],
-  workflowId: string | null,
-): DraftWorkflowStep[] {
-  const filtered = workflowId
-    ? steps.filter((s) => s.workflow_id === workflowId)
-    : steps;
-  return filtered.map((s) => ({
-    localId: s.id,
-    step_key: s.step_key,
-    step_name_ar: s.step_name_ar,
-    step_order: s.step_order,
-    processing_unit_id: s.processing_unit_id,
-    processing_role_id: s.processing_role_id,
-    action_type: s.action_type,
-    visible_to_student: s.visible_to_student,
-    notify_on_enter: s.notify_on_enter,
-    can_return_to_student: s.can_return_to_student,
-    can_reject: s.can_reject,
-    can_skip: s.can_skip,
-  }));
-}
-
-function configToDraftTransitions(
-  transitions: WorkflowConfigTransition[],
-  steps: WorkflowConfigStep[],
-  workflowId: string | null,
-): DraftWorkflowTransition[] {
-  const stepIdToKey = new Map(steps.map((s) => [s.id, s.step_key]));
-  const filtered = workflowId
-    ? transitions.filter((t) => t.workflow_id === workflowId)
-    : transitions;
-  return filtered.map((t) => ({
-    localId: t.id,
-    from_step_key: t.from_step_id ? stepIdToKey.get(t.from_step_id) ?? null : null,
-    to_step_key: t.to_step_id ? stepIdToKey.get(t.to_step_id) ?? null : null,
-    action_result: t.action_result,
-    is_default: t.is_default,
-  }));
-}
-
 function AdminRequestTypeWorkflowPage() {
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
@@ -128,6 +89,7 @@ function AdminRequestTypeWorkflowPage() {
 
   const [draftSteps, setDraftSteps] = useState<DraftWorkflowStep[]>([]);
   const [draftTransitions, setDraftTransitions] = useState<DraftWorkflowTransition[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<StudentRequestWorkflowSaveResult | null>(null);
   const [dryRunLoading, setDryRunLoading] = useState(false);
@@ -173,14 +135,10 @@ function AdminRequestTypeWorkflowPage() {
     retry: false,
   });
 
-  const primaryWorkflow = useMemo(() => {
-    if (!config?.workflows?.length) return null;
-    return (
-      config.workflows.find((w) => w.is_active && w.status === "active") ??
-      config.workflows.find((w) => w.status === "draft") ??
-      config.workflows[0]
-    );
-  }, [config]);
+  const editorWorkflow = useMemo(
+    () => selectWorkflowForEditor(config?.workflows ?? [], selectedWorkflowId),
+    [config, selectedWorkflowId],
+  );
 
   const workflowState = useMemo(
     () => resolveWorkflowState(config?.workflows ?? []),
@@ -189,11 +147,16 @@ function AdminRequestTypeWorkflowPage() {
 
   useEffect(() => {
     if (initialized || !config) return;
-    const wfId = primaryWorkflow?.id ?? null;
-    setDraftSteps(configToDraftSteps(config.steps, wfId));
-    setDraftTransitions(configToDraftTransitions(config.transitions, config.steps, wfId));
+    const selected = selectWorkflowForEditor(config.workflows, selectedWorkflowId);
+    const wfId = selected?.id ?? null;
+    if (wfId && selectedWorkflowId !== wfId) {
+      setSelectedWorkflowId(wfId);
+    }
+    const mapped = mapWorkflowConfigToDraft(config, wfId);
+    setDraftSteps(mapped.steps);
+    setDraftTransitions(mapped.transitions);
     setInitialized(true);
-  }, [config, primaryWorkflow, initialized]);
+  }, [config, selectedWorkflowId, initialized]);
 
   useEffect(() => {
     if (!initialized) return;
@@ -226,7 +189,7 @@ function AdminRequestTypeWorkflowPage() {
     setSaveLoading(saveMode);
     setSaveError(null);
     setSaveSuccess(null);
-    // Capture local draft so an RPC error never clears the editor.
+    // Capture local draft so an RPC / refresh error never clears the editor.
     const stepsSnapshot = draftSteps;
     const transitionsSnapshot = draftTransitions;
     try {
@@ -234,7 +197,8 @@ function AdminRequestTypeWorkflowPage() {
         data: {
           requestTypeId: id,
           saveMode,
-          workflowNameAr: primaryWorkflow?.name_ar ?? `دورة حياة — ${requestType!.name_ar}`,
+          workflowNameAr:
+            editorWorkflow?.name_ar ?? `دورة حياة — ${requestType!.name_ar}`,
           draftSteps: stepsSnapshot,
           draftTransitions: transitionsSnapshot,
         },
@@ -244,12 +208,22 @@ function AdminRequestTypeWorkflowPage() {
           ? "تم حفظ وتفعيل دورة الحياة بنجاح."
           : "تم حفظ المسودة بنجاح.",
       );
-      // Reload workflow list (version/status) from server without wiping editor on failure.
-      setInitialized(false);
-      await queryClient.invalidateQueries({ queryKey: ["admin-request-workflow-config", id] });
+      setSelectedWorkflowId(result.workflowId);
+      try {
+        await queryClient.refetchQueries({
+          queryKey: ["admin-request-workflow-config", id],
+        });
+        // Remap editor from the saved version only after a successful refresh.
+        setInitialized(false);
+      } catch (refreshErr) {
+        setSaveError(
+          (refreshErr as Error).message ||
+            "تم الحفظ لكن تعذر تحديث بيانات دورة الحياة من الخادم. أبقِ المسودة المحلية ولا تُعد الحفظ تلقائيًا.",
+        );
+      }
       return result;
     } catch (e) {
-      // Keep draftSteps / draftTransitions intact — no automatic retry.
+      // Keep draftSteps / draftTransitions / selectedWorkflowId intact — no automatic retry.
       setSaveError((e as Error).message);
     } finally {
       setSaveLoading(null);
@@ -358,6 +332,10 @@ function AdminRequestTypeWorkflowPage() {
     configIsError &&
     (configError as Error)?.message?.includes(STUDENT_REQUEST_SERVICE_UPDATING_MSG.slice(0, 20));
 
+  const editorStatusLabel = editorWorkflow
+    ? WORKFLOW_STATUS_LABEL[editorWorkflow.status] ?? editorWorkflow.status
+    : workflowState.label;
+
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-5 max-w-5xl mx-auto">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -380,13 +358,19 @@ function AdminRequestTypeWorkflowPage() {
           </p>
         </div>
         <span className={`inline-flex px-3 py-1 rounded text-xs font-bold ${statusBadgeClass}`}>
-          {workflowState.label}
+          {editorWorkflow
+            ? `${editorStatusLabel} (إصدار ${editorWorkflow.version})`
+            : workflowState.label}
         </span>
       </div>
 
       <div className="rounded-lg border bg-card p-4 space-y-2 text-sm">
         <div className="font-bold text-primary">حالة دورة الحياة</div>
-        <p className="text-muted-foreground">{workflowState.detail}</p>
+        <p className="text-muted-foreground">
+          {editorWorkflow
+            ? `${editorWorkflow.name_ar} (إصدار ${editorWorkflow.version} — ${editorStatusLabel})`
+            : workflowState.detail}
+        </p>
         {configUnavailable && (
           <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
             {WORKFLOW_SCHEMA_UNAVAILABLE_MSG} يمكنك استخدام المحرر والمعاينة المرجعية كمسودة
