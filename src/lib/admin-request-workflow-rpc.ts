@@ -130,11 +130,16 @@ export type DraftWorkflowStep = {
   processing_unit_id: string | null;
   processing_role_id: string | null;
   action_type: WorkflowActionType;
+  assignment_strategy?: string;
+  is_required?: boolean;
   visible_to_student: boolean;
   notify_on_enter: boolean;
+  notify_on_complete?: boolean;
   can_return_to_student: boolean;
   can_reject: boolean;
   can_skip: boolean;
+  requires_payment?: boolean;
+  produces_document?: boolean;
 };
 
 export type DraftWorkflowTransition = {
@@ -142,7 +147,9 @@ export type DraftWorkflowTransition = {
   from_step_key: string | null;
   to_step_key: string | null;
   action_result: string;
+  label_ar?: string | null;
   is_default: boolean;
+  condition_config?: Record<string, unknown>;
 };
 
 type RpcClient = {
@@ -192,17 +199,24 @@ export async function rpcAdminSaveRequestWorkflowConfig(
       processing_unit_id: s.processing_unit_id,
       processing_role_id: s.processing_role_id,
       action_type: s.action_type,
+      assignment_strategy: s.assignment_strategy ?? "role_pool",
+      is_required: s.is_required ?? true,
       visible_to_student: s.visible_to_student,
       notify_on_enter: s.notify_on_enter,
+      notify_on_complete: s.notify_on_complete ?? true,
       can_return_to_student: s.can_return_to_student,
       can_reject: s.can_reject,
       can_skip: s.can_skip,
+      requires_payment: s.requires_payment,
+      produces_document: s.produces_document,
     })),
     p_transitions: payload.transitions.map((t) => ({
       from_step_key: t.from_step_key,
       to_step_key: t.to_step_key,
       action_result: t.action_result,
+      label_ar: t.label_ar ?? null,
       is_default: t.is_default,
+      condition_config: t.condition_config ?? {},
     })),
   });
 

@@ -1,21 +1,79 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole } from "@/lib/authz.server";
 import { mapStudentRequestRpcError } from "@/lib/student-request-rpc";
+import type { FeePaymentStatus } from "@/lib/student-requests/request-fee-workflow-contract";
 
-const FEE_ASSESS_ROLES = [
-  "admin",
-  "system_admin",
-  "student_affairs",
-  "student_affairs_manager",
-] as const;
+/**
+ * Fee mutations: requireSupabaseAuth only.
+ * Final authorization is enforced by SECURITY DEFINER RPCs
+ * (assert_can_* + can_current_user_access_request + active step checks).
+ * Do not reintroduce app-role prechecks here — they false-deny processing assignments.
+ */
 
-const FEE_CONFIRM_ROLES = [
-  "admin",
-  "system_admin",
-  "revenue_finance_officer",
-] as const;
+export type StudentRequestFeeProcessingContext = {
+  requestId: string;
+  runtimeStepId: string | null;
+  stepKey: string | null;
+  stepStatus: string | null;
+  actionType: string | null;
+  processingUnitId: string | null;
+  processingRoleId: string | null;
+  canExecuteCurrentStep: boolean;
+  feeAssessment: {
+    id: string;
+    amount: number;
+    currency: string;
+    paymentStatus: FeePaymentStatus;
+    paymentReference: string | null;
+    assessedAt: string | null;
+    paymentConfirmedAt: string | null;
+  } | null;
+};
+
+export const getStudentRequestFeeProcessingContext = createServerFn({
+  method: "POST",
+})
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ requestId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<StudentRequestFeeProcessingContext> => {
+    const { data: rpcData, error } = await context.supabase.rpc(
+      "get_student_request_fee_processing_context",
+      { p_request_id: data.requestId },
+    );
+    if (error) throw new Error(mapStudentRequestRpcError(error));
+
+    const raw = (rpcData ?? {}) as Record<string, unknown>;
+    if (raw.success === false) {
+      throw new Error(String(raw.message_ar ?? "تعذر تحميل سياق الرسوم"));
+    }
+
+    const fee = (raw.fee_assessment ?? null) as Record<string, unknown> | null;
+
+    return {
+      requestId: String(raw.request_id ?? data.requestId),
+      runtimeStepId: (raw.runtime_step_id as string | null) ?? null,
+      stepKey: (raw.step_key as string | null) ?? null,
+      stepStatus: (raw.step_status as string | null) ?? null,
+      actionType: (raw.action_type as string | null) ?? null,
+      processingUnitId: (raw.processing_unit_id as string | null) ?? null,
+      processingRoleId: (raw.processing_role_id as string | null) ?? null,
+      canExecuteCurrentStep: Boolean(raw.can_execute_current_step),
+      feeAssessment: fee
+        ? {
+            id: String(fee.id ?? ""),
+            amount: Number(fee.amount ?? 0),
+            currency: String(fee.currency ?? "YER"),
+            paymentStatus: String(fee.payment_status ?? "pending_payment") as FeePaymentStatus,
+            paymentReference: (fee.payment_reference as string | null) ?? null,
+            assessedAt: (fee.assessed_at as string | null) ?? null,
+            paymentConfirmedAt: (fee.payment_confirmed_at as string | null) ?? null,
+          }
+        : null,
+    };
+  });
 
 export const assessStudentRequestFee = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -29,12 +87,6 @@ export const assessStudentRequestFee = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      FEE_ASSESS_ROLES,
-      "ليس لديك صلاحية تقييم رسوم الطلب",
-    );
-
     const { data: rpcData, error } = await context.supabase.rpc(
       "assess_student_request_fee",
       {
@@ -78,12 +130,6 @@ export const confirmStudentRequestFeePayment = createServerFn({ method: "POST" }
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    await assertAnyRole(
-      context.userId,
-      FEE_CONFIRM_ROLES,
-      "ليس لديك صلاحية تأكيد دفع الرسوم",
-    );
-
     const { data: rpcData, error } = await context.supabase.rpc(
       "confirm_student_request_fee_payment",
       {

@@ -78,10 +78,14 @@ export function StudentRequestFeeAssessmentForm({
       setSuccess(
         res.paymentStatus === "not_required"
           ? "تم التقييم: لا رسوم مطلوبة."
-          : `تم التقييم: ${res.amount} YER — بانتظار الدفع.`,
+          : `تم التقييم: ${res.amount} YER — بانتظار السداد.`,
       );
       await queryClient.invalidateQueries({ queryKey: ["student-request", requestId] });
       await queryClient.invalidateQueries({ queryKey: ["admin-student-request", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["staff-inbox-detail", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["staff-inbox"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-request-fee-context", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
       onAssessed?.();
     } catch (e) {
       setError((e as Error).message || "تعذر تقييم الرسوم");

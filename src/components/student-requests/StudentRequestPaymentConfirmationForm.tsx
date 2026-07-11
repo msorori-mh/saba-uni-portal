@@ -38,6 +38,14 @@ export function StudentRequestPaymentConfirmationForm({
   const [success, setSuccess] = useState<string | null>(null);
   const [result, setResult] = useState<FeePaymentConfirmationDryRunResult | null>(null);
 
+  if (existingPaymentStatus === "paid") {
+    return (
+      <div dir="rtl" className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+        تم تأكيد السداد مسبقاً — لا يمكن التأكيد مرة أخرى.
+      </div>
+    );
+  }
+
   const handleSubmit = async () => {
     if (loading) return;
     setLoading(true);
@@ -75,9 +83,13 @@ export function StudentRequestPaymentConfirmationForm({
           notes: notes.trim() || null,
         },
       });
-      setSuccess(`تم تأكيد الدفع (مرجع: ${res.paymentReference}).`);
+      setSuccess(`تم تأكيد السداد (مرجع: ${res.paymentReference}).`);
       await queryClient.invalidateQueries({ queryKey: ["student-request", requestId] });
       await queryClient.invalidateQueries({ queryKey: ["admin-student-request", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["staff-inbox-detail", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["staff-inbox"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-request-fee-context", requestId] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
       onConfirmed?.();
     } catch (e) {
       setError((e as Error).message || "تعذر تأكيد الدفع");

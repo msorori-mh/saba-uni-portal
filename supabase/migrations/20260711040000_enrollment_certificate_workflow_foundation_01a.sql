@@ -304,6 +304,12 @@ BEGIN
   END IF;
 
   v_payload_fp := jsonb_build_object(
+    'workflow', jsonb_build_object(
+      'code', v_code,
+      'name_ar', v_name_ar,
+      'name_en', COALESCE(NULLIF(btrim(p_workflow ->> 'name_en'), ''), ''),
+      'description_ar', COALESCE(NULLIF(btrim(p_workflow ->> 'description_ar'), ''), '')
+    ),
     'steps', (
       SELECT COALESCE(jsonb_agg(x.obj ORDER BY x.ord), '[]'::jsonb)
       FROM (
@@ -311,10 +317,33 @@ BEGIN
           (value ->> 'step_order')::integer AS ord,
           jsonb_build_object(
             'step_key', NULLIF(btrim(value ->> 'step_key'), ''),
+            'step_name_ar', COALESCE(
+              NULLIF(btrim(value ->> 'step_name_ar'), ''),
+              NULLIF(btrim(value ->> 'step_key'), '')
+            ),
             'step_order', (value ->> 'step_order')::integer,
-            'action_type', COALESCE(NULLIF(btrim(value ->> 'action_type'), ''), 'review'),
             'processing_unit_id', NULLIF(btrim(value ->> 'processing_unit_id'), ''),
-            'processing_role_id', NULLIF(btrim(value ->> 'processing_role_id'), '')
+            'processing_role_id', NULLIF(btrim(value ->> 'processing_role_id'), ''),
+            'action_type', COALESCE(NULLIF(btrim(value ->> 'action_type'), ''), 'review'),
+            'is_required', COALESCE((value ->> 'is_required')::boolean, true),
+            'visible_to_student', COALESCE((value ->> 'visible_to_student')::boolean, true),
+            'notify_on_enter', COALESCE((value ->> 'notify_on_enter')::boolean, true),
+            'notify_on_complete', COALESCE((value ->> 'notify_on_complete')::boolean, true),
+            'can_return_to_student', COALESCE((value ->> 'can_return_to_student')::boolean, true),
+            'can_reject', COALESCE((value ->> 'can_reject')::boolean, true),
+            'can_skip', COALESCE((value ->> 'can_skip')::boolean, false),
+            'requires_payment', COALESCE(
+              (value ->> 'requires_payment')::boolean,
+              COALESCE(NULLIF(btrim(value ->> 'action_type'), ''), 'review') IN ('request_payment', 'assess_fee')
+            ),
+            'produces_document', COALESCE(
+              (value ->> 'produces_document')::boolean,
+              COALESCE(NULLIF(btrim(value ->> 'action_type'), ''), 'review') = 'issue_document'
+            ),
+            'assignment_strategy', COALESCE(
+              NULLIF(btrim(value ->> 'assignment_strategy'), ''),
+              'role_pool'
+            )
           ) AS obj
         FROM jsonb_array_elements(p_steps)
       ) x
@@ -330,7 +359,13 @@ BEGIN
             'from_step_key', NULLIF(btrim(value ->> 'from_step_key'), ''),
             'to_step_key', NULLIF(btrim(value ->> 'to_step_key'), ''),
             'action_result', COALESCE(NULLIF(btrim(value ->> 'action_result'), ''), 'approve'),
-            'is_default', COALESCE((value ->> 'is_default')::boolean, false)
+            'label_ar', NULLIF(btrim(value ->> 'label_ar'), ''),
+            'is_default', COALESCE((value ->> 'is_default')::boolean, false),
+            'condition_config', COALESCE(
+              value -> 'condition_config',
+              value -> 'condition_schema',
+              '{}'::jsonb
+            )
           ) AS obj
         FROM jsonb_array_elements(COALESCE(p_transitions, '[]'::jsonb))
       ) x
@@ -349,14 +384,35 @@ BEGIN
 
   IF v_latest_draft_id IS NOT NULL THEN
     v_existing_fp := jsonb_build_object(
+      'workflow', (
+        SELECT jsonb_build_object(
+          'code', w.code,
+          'name_ar', w.name_ar,
+          'name_en', COALESCE(w.name_en, ''),
+          'description_ar', COALESCE(w.description_ar, '')
+        )
+        FROM public.request_type_workflows w
+        WHERE w.id = v_latest_draft_id
+      ),
       'steps', (
         SELECT COALESCE(jsonb_agg(
           jsonb_build_object(
             'step_key', s.step_key,
+            'step_name_ar', s.step_name_ar,
             'step_order', s.step_order,
-            'action_type', s.action_type,
             'processing_unit_id', s.processing_unit_id::text,
-            'processing_role_id', s.processing_role_id::text
+            'processing_role_id', s.processing_role_id::text,
+            'action_type', s.action_type,
+            'is_required', s.is_required,
+            'visible_to_student', s.visible_to_student,
+            'notify_on_enter', s.notify_on_enter,
+            'notify_on_complete', s.notify_on_complete,
+            'can_return_to_student', s.can_return_to_student,
+            'can_reject', s.can_reject,
+            'can_skip', s.can_skip,
+            'requires_payment', s.requires_payment,
+            'produces_document', s.produces_document,
+            'assignment_strategy', s.assignment_strategy
           )
           ORDER BY s.step_order
         ), '[]'::jsonb)
@@ -369,7 +425,9 @@ BEGIN
             'from_step_key', fs.step_key,
             'to_step_key', ts.step_key,
             'action_result', t.action_result,
-            'is_default', t.is_default
+            'label_ar', NULLIF(btrim(t.label_ar), ''),
+            'is_default', t.is_default,
+            'condition_config', COALESCE(t.condition_schema, '{}'::jsonb)
           )
           ORDER BY COALESCE(fs.step_key, ''), COALESCE(ts.step_key, ''), t.action_result
         ), '[]'::jsonb)
@@ -380,18 +438,11 @@ BEGIN
       )
     );
 
+    -- Reuse only when the full saved fingerprint matches (names, flags, labels, workflow meta).
     IF v_existing_fp = v_payload_fp THEN
       v_workflow_id := v_latest_draft_id;
       v_version := v_latest_draft_version;
       v_reused_existing := true;
-
-      UPDATE public.request_type_workflows
-      SET
-        name_ar = v_name_ar,
-        name_en = COALESCE(NULLIF(btrim(p_workflow ->> 'name_en'), ''), name_en),
-        description_ar = COALESCE(NULLIF(btrim(p_workflow ->> 'description_ar'), ''), description_ar),
-        updated_at = now()
-      WHERE id = v_workflow_id;
     END IF;
   END IF;
 
@@ -437,6 +488,7 @@ BEGIN
         step_order,
         processing_unit_id,
         processing_role_id,
+        assignment_strategy,
         action_type,
         is_required,
         can_return_to_student,
@@ -455,6 +507,7 @@ BEGIN
         (v_step ->> 'step_order')::integer,
         NULLIF(v_step ->> 'processing_unit_id', '')::uuid,
         NULLIF(v_step ->> 'processing_role_id', '')::uuid,
+        COALESCE(NULLIF(btrim(v_step ->> 'assignment_strategy'), ''), 'role_pool'),
         COALESCE(NULLIF(v_step ->> 'action_type', ''), 'review'),
         COALESCE((v_step ->> 'is_required')::boolean, true),
         COALESCE((v_step ->> 'can_return_to_student')::boolean, true),
@@ -463,8 +516,14 @@ BEGIN
         COALESCE((v_step ->> 'notify_on_enter')::boolean, true),
         COALESCE((v_step ->> 'notify_on_complete')::boolean, true),
         COALESCE((v_step ->> 'visible_to_student')::boolean, true),
-        COALESCE((v_step ->> 'action_type', '') IN ('request_payment', 'assess_fee'), false),
-        COALESCE((v_step ->> 'action_type', '') = 'issue_document', false)
+        COALESCE(
+          (v_step ->> 'requires_payment')::boolean,
+          COALESCE(NULLIF(v_step ->> 'action_type', ''), 'review') IN ('request_payment', 'assess_fee')
+        ),
+        COALESCE(
+          (v_step ->> 'produces_document')::boolean,
+          COALESCE(NULLIF(v_step ->> 'action_type', ''), 'review') = 'issue_document'
+        )
       )
       RETURNING id INTO v_step_id;
 
@@ -485,6 +544,7 @@ BEGIN
           to_step_id,
           action_result,
           label_ar,
+          condition_schema,
           is_default
         )
         VALUES (
@@ -493,6 +553,11 @@ BEGIN
           v_to_id,
           COALESCE(NULLIF(btrim(v_transition ->> 'action_result'), ''), 'approve'),
           NULLIF(btrim(v_transition ->> 'label_ar'), ''),
+          COALESCE(
+            v_transition -> 'condition_config',
+            v_transition -> 'condition_schema',
+            '{}'::jsonb
+          ),
           COALESCE((v_transition ->> 'is_default')::boolean, false)
         );
       END LOOP;
@@ -720,8 +785,11 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM public.current_user_processing_assignments() a
-    WHERE a.role_code = 'revenue_finance_officer'
-  ) OR public.has_any_role(auth.uid(), ARRAY['revenue_finance_officer']::text[]) THEN
+    WHERE a.role_code IN ('revenue_finance_officer', 'finance_officer')
+  ) OR public.has_any_role(
+    auth.uid(),
+    ARRAY['revenue_finance_officer', 'finance_officer']::text[]
+  ) THEN
     RETURN;
   END IF;
 
@@ -1098,7 +1166,95 @@ COMMENT ON FUNCTION public.confirm_student_request_fee_payment(uuid, text, text)
   'Confirms off-portal payment for pending_payment assessment on confirm_payment step.';
 
 -- =============================================================================
--- 11. Grants — authenticated only; no anon/public
+-- 11. get_student_request_fee_processing_context (read-only for processing UI)
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION public.get_student_request_fee_processing_context(
+  p_request_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_runtime public.student_request_workflow_steps%ROWTYPE;
+  v_config public.request_type_workflow_steps%ROWTYPE;
+  v_fee public.student_request_fee_assessments%ROWTYPE;
+  v_can_execute boolean := false;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'يجب تسجيل الدخول'
+      USING ERRCODE = '28000';
+  END IF;
+
+  IF p_request_id IS NULL THEN
+    RAISE EXCEPTION 'معرّف الطلب مطلوب'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF NOT public.can_current_user_access_request(p_request_id) THEN
+    RAISE EXCEPTION 'غير مصرح بالوصول إلى هذا الطلب'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT s.* INTO v_runtime
+  FROM public.student_request_workflow_steps s
+  WHERE s.student_request_id = p_request_id
+    AND s.status = 'active'
+  ORDER BY s.step_order
+  LIMIT 1;
+
+  IF FOUND THEN
+    SELECT c.* INTO v_config
+    FROM public.request_type_workflow_steps c
+    WHERE c.id = v_runtime.workflow_step_id;
+
+    v_can_execute := public.is_current_user_admin_actor()
+      OR public.can_current_user_act_on_step(v_runtime.id, 'approve');
+  END IF;
+
+  SELECT fa.* INTO v_fee
+  FROM public.student_request_fee_assessments fa
+  WHERE fa.request_id = p_request_id
+    AND fa.payment_status <> 'cancelled'
+  ORDER BY fa.created_at DESC
+  LIMIT 1;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'request_id', p_request_id,
+    'runtime_step_id', v_runtime.id,
+    'step_key', v_runtime.step_key,
+    'step_status', v_runtime.status,
+    'action_type', v_config.action_type,
+    'processing_unit_id', v_runtime.processing_unit_id,
+    'processing_role_id', v_runtime.processing_role_id,
+    'can_execute_current_step', COALESCE(v_can_execute, false),
+    'fee_assessment', CASE
+      WHEN v_fee.id IS NULL THEN NULL
+      ELSE jsonb_build_object(
+        'id', v_fee.id,
+        'amount', v_fee.amount,
+        'currency', COALESCE(v_fee.currency, 'YER'),
+        'payment_status', v_fee.payment_status,
+        'payment_reference', v_fee.payment_reference,
+        'assessed_at', v_fee.assessed_at,
+        'payment_confirmed_at', v_fee.payment_confirmed_at
+      )
+    END
+  );
+END;
+$$;
+
+COMMENT ON FUNCTION public.get_student_request_fee_processing_context(uuid) IS
+  'Read-only fee + current step context for authorized request processors. '
+  'Denies access when can_current_user_access_request is false.';
+
+-- =============================================================================
+-- 12. Grants — authenticated only; no anon/public
 -- =============================================================================
 
 REVOKE ALL ON FUNCTION public.assert_can_admin_save_request_workflow() FROM PUBLIC, anon;
@@ -1108,7 +1264,9 @@ REVOKE ALL ON FUNCTION public.assert_can_assess_student_request_fee() FROM PUBLI
 REVOKE ALL ON FUNCTION public.assert_can_confirm_student_request_fee_payment() FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.assess_student_request_fee(uuid, numeric, text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.confirm_student_request_fee_payment(uuid, text, text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.get_student_request_fee_processing_context(uuid) FROM PUBLIC, anon;
 
 GRANT EXECUTE ON FUNCTION public.admin_save_request_workflow_config(uuid, jsonb, jsonb, jsonb) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.assess_student_request_fee(uuid, numeric, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.confirm_student_request_fee_payment(uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_student_request_fee_processing_context(uuid) TO authenticated;

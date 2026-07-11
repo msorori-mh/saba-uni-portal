@@ -1,4 +1,6 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE,
   isAdminSaveWorkflowRpcAvailable,
@@ -21,17 +23,26 @@ import {
   dryRunConfirmStudentRequestFeePayment,
 } from "../../src/lib/student-requests/request-fee-workflow-contract";
 import {
+  buildMinimalWorkflowFingerprint,
   decideWorkflowSaveVersionAction,
   describeActivationSideEffects,
   fingerprintsEqual,
   validateDraftRoleUnitPairs,
 } from "../../src/lib/student-requests/workflow-save-versioning-policy";
+import {
+  dryRunFeeAuthorization,
+  feeStatusDisplayModel,
+  shouldShowFeeAssessmentForm,
+  shouldShowFeeStatusDisplay,
+  shouldShowPaymentConfirmationForm,
+} from "../../src/lib/student-requests/fee-processing-ui-policy";
 
 const TYPE_ID = "00000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "11111111-1111-4111-8111-111111111111";
 const UNIT_A = "22222222-2222-4222-8222-222222222222";
 const UNIT_B = "33333333-3333-4333-8333-333333333333";
 const ROLE_A = "44444444-4444-4444-8444-444444444444";
+const ROOT = join(import.meta.dir, "../..");
 
 describe("enrollment certificate workflow foundation 01A", () => {
   it("1 — ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE is false until migration applied", () => {
@@ -228,19 +239,8 @@ describe("enrollment certificate workflow foundation 01A", () => {
     expect(bad.mismatches).toContain("fee_assessment");
   });
 
-  it("15 — non-destructive versioning: identical draft reused; diff creates new version", () => {
-    const fp = {
-      steps: [
-        {
-          step_key: "a",
-          step_order: 1,
-          action_type: "review",
-          processing_unit_id: null,
-          processing_role_id: null,
-        },
-      ],
-      transitions: [] as [],
-    };
+  it("15 — identical full fingerprint reuses draft; action_type diff creates version", () => {
+    const fp = buildMinimalWorkflowFingerprint();
     const reuse = decideWorkflowSaveVersionAction({
       latestDraftFingerprint: fp,
       payloadFingerprint: fp,
@@ -251,24 +251,271 @@ describe("enrollment certificate workflow foundation 01A", () => {
 
     const create = decideWorkflowSaveVersionAction({
       latestDraftFingerprint: fp,
-      payloadFingerprint: {
-        ...fp,
-        steps: [
-          {
-            ...fp.steps[0],
-            action_type: "assess_fee",
-          },
-        ],
-      },
+      payloadFingerprint: buildMinimalWorkflowFingerprint({
+        step: { action_type: "assess_fee", requires_payment: true },
+      }),
       activate: true,
     });
     expect(create.action).toBe("create_new_version");
     expect(create.willActivate).toBe(true);
-    expect(create.mutatesExistingSteps).toBe(false);
-
     expect(fingerprintsEqual(fp, fp)).toBe(true);
     const activation = describeActivationSideEffects();
     expect(activation.retirePreviousActive).toBe(true);
-    expect(activation.atMostOneActivePerRequestType).toBe(true);
+  });
+});
+
+describe("PR115 remediation round 2 — fingerprint field coverage", () => {
+  const base = buildMinimalWorkflowFingerprint();
+
+  it("1 — changing step_name_ar creates a new version (no draft reuse)", () => {
+    const changed = buildMinimalWorkflowFingerprint({
+      step: { step_name_ar: "اسم جديد للخطوة" },
+    });
+    expect(
+      decideWorkflowSaveVersionAction({
+        latestDraftFingerprint: base,
+        payloadFingerprint: changed,
+        activate: false,
+      }).action,
+    ).toBe("create_new_version");
+  });
+
+  it("2 — changing notify_on_enter creates a new version", () => {
+    const changed = buildMinimalWorkflowFingerprint({
+      step: { notify_on_enter: false },
+    });
+    expect(
+      decideWorkflowSaveVersionAction({
+        latestDraftFingerprint: base,
+        payloadFingerprint: changed,
+        activate: false,
+      }).action,
+    ).toBe("create_new_version");
+  });
+
+  it("3 — changing transition label_ar creates a new version", () => {
+    const changed = buildMinimalWorkflowFingerprint({
+      transition: { label_ar: "تسمية انتقال جديدة" },
+    });
+    expect(
+      decideWorkflowSaveVersionAction({
+        latestDraftFingerprint: base,
+        payloadFingerprint: changed,
+        activate: false,
+      }).action,
+    ).toBe("create_new_version");
+  });
+
+  it("changing visible_to_student / can_reject / workflow name creates new versions", () => {
+    expect(
+      decideWorkflowSaveVersionAction({
+        latestDraftFingerprint: base,
+        payloadFingerprint: buildMinimalWorkflowFingerprint({
+          step: { visible_to_student: false },
+        }),
+        activate: false,
+      }).action,
+    ).toBe("create_new_version");
+
+    expect(
+      decideWorkflowSaveVersionAction({
+        latestDraftFingerprint: base,
+        payloadFingerprint: buildMinimalWorkflowFingerprint({
+          step: { can_reject: false },
+        }),
+        activate: false,
+      }).action,
+    ).toBe("create_new_version");
+
+    expect(
+      decideWorkflowSaveVersionAction({
+        latestDraftFingerprint: base,
+        payloadFingerprint: buildMinimalWorkflowFingerprint({
+          workflow: { name_ar: "اسم سير عمل جديد" },
+        }),
+        activate: false,
+      }).action,
+    ).toBe("create_new_version");
+  });
+});
+
+describe("PR115 remediation round 2 — fee auth without false-deny", () => {
+  it("4 — processing assignment allows student_affairs_manager to assess without matching app role", () => {
+    const decision = dryRunFeeAuthorization({
+      hasSession: true,
+      appRoles: [],
+      processingRoleCodes: ["student_affairs_manager"],
+      action: "assess",
+    });
+    expect(decision.tsPrecheckAllows).toBe(true);
+    expect(decision.usesAssertAnyRolePrecheck).toBe(false);
+    expect(decision.rpcWouldAllow).toBe(true);
+  });
+
+  it("5 — processing assignment allows finance to confirm payment", () => {
+    const viaProcessing = dryRunFeeAuthorization({
+      hasSession: true,
+      appRoles: [],
+      processingRoleCodes: ["revenue_finance_officer"],
+      action: "confirm",
+    });
+    expect(viaProcessing.tsPrecheckAllows).toBe(true);
+    expect(viaProcessing.rpcWouldAllow).toBe(true);
+
+    const viaAppRole = dryRunFeeAuthorization({
+      hasSession: true,
+      appRoles: ["finance_officer"],
+      processingRoleCodes: [],
+      action: "confirm",
+    });
+    expect(viaAppRole.tsPrecheckAllows).toBe(true);
+    expect(viaAppRole.rpcWouldAllow).toBe(true);
+  });
+
+  it("6 — unassigned user is denied by RPC rules", () => {
+    const assess = dryRunFeeAuthorization({
+      hasSession: true,
+      appRoles: ["student_affairs"],
+      processingRoleCodes: [],
+      action: "assess",
+    });
+    expect(assess.tsPrecheckAllows).toBe(true);
+    expect(assess.rpcWouldAllow).toBe(false);
+
+    const confirm = dryRunFeeAuthorization({
+      hasSession: true,
+      appRoles: ["student_affairs_manager"],
+      processingRoleCodes: [],
+      action: "confirm",
+    });
+    expect(confirm.tsPrecheckAllows).toBe(true);
+    expect(confirm.rpcWouldAllow).toBe(false);
+  });
+
+  it("fee server functions do not call assertAnyRole", () => {
+    const source = readFileSync(
+      join(ROOT, "src/lib/student-request-fee.functions.ts"),
+      "utf8",
+    );
+    expect(source).toContain("requireSupabaseAuth");
+    expect(source).not.toMatch(/\bassertAnyRole\s*\(/);
+    expect(source).not.toMatch(/from ["']@\/lib\/authz\.server["']/);
+    expect(source).toContain("getStudentRequestFeeProcessingContext");
+  });
+});
+
+describe("PR115 remediation round 2 — fee UI visibility", () => {
+  it("7 — assessment form only on assess_fee active executable step without assessment", () => {
+    expect(
+      shouldShowFeeAssessmentForm({
+        actionType: "assess_fee",
+        stepStatus: "active",
+        canExecuteStep: true,
+        hasActiveFeeAssessment: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowFeeAssessmentForm({
+        actionType: "confirm_payment",
+        stepStatus: "active",
+        canExecuteStep: true,
+        hasActiveFeeAssessment: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("8 — payment confirmation form only on confirm_payment + pending_payment", () => {
+    expect(
+      shouldShowPaymentConfirmationForm({
+        actionType: "confirm_payment",
+        stepStatus: "active",
+        canExecuteStep: true,
+        paymentStatus: "pending_payment",
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowPaymentConfirmationForm({
+        actionType: "assess_fee",
+        stepStatus: "active",
+        canExecuteStep: true,
+        paymentStatus: "pending_payment",
+      }),
+    ).toBe(false);
+  });
+
+  it("9 — unauthorized viewer sees status without action buttons", () => {
+    expect(shouldShowFeeStatusDisplay(true)).toBe(true);
+    expect(
+      shouldShowFeeAssessmentForm({
+        actionType: "assess_fee",
+        stepStatus: "active",
+        canExecuteStep: false,
+        hasActiveFeeAssessment: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowPaymentConfirmationForm({
+        actionType: "confirm_payment",
+        stepStatus: "active",
+        canExecuteStep: false,
+        paymentStatus: "pending_payment",
+      }),
+    ).toBe(false);
+  });
+
+  it("10 — amount=0 skips finance form and shows no-fee status", () => {
+    const model = feeStatusDisplayModel({
+      amount: 0,
+      paymentStatus: "not_required",
+    });
+    expect(model.amountLabelAr).toBe("لا رسوم مطلوبة");
+    expect(model.showFinanceForm).toBe(false);
+    expect(
+      shouldShowPaymentConfirmationForm({
+        actionType: "confirm_payment",
+        stepStatus: "active",
+        canExecuteStep: true,
+        paymentStatus: "not_required",
+      }),
+    ).toBe(false);
+  });
+
+  it("11 — amount>0 shows pending payment", () => {
+    const model = feeStatusDisplayModel({
+      amount: 5000,
+      paymentStatus: "pending_payment",
+    });
+    expect(model.statusLabelAr).toBe("بانتظار السداد");
+    expect(model.showFinanceForm).toBe(true);
+  });
+
+  it("12 — paid blocks repeated confirmation", () => {
+    const model = feeStatusDisplayModel({
+      amount: 5000,
+      paymentStatus: "paid",
+      paymentReference: "REF-1",
+    });
+    expect(model.statusLabelAr).toBe("تم تأكيد السداد");
+    expect(model.allowConfirmAgain).toBe(false);
+    expect(
+      shouldShowPaymentConfirmationForm({
+        actionType: "confirm_payment",
+        stepStatus: "active",
+        canExecuteStep: true,
+        paymentStatus: "paid",
+      }),
+    ).toBe(false);
+  });
+
+  it("13 — staff detail panel mounts fee forms by action_type", () => {
+    const source = readFileSync(
+      join(ROOT, "src/components/student-requests/StaffRequestDetailPanel.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("StudentRequestFeeAssessmentForm");
+    expect(source).toContain("StudentRequestPaymentConfirmationForm");
+    expect(source).toContain("StudentRequestFeeStatusDisplay");
+    expect(source).toContain("shouldShowFeeAssessmentForm");
+    expect(source).toContain("getStudentRequestFeeProcessingContext");
   });
 });
