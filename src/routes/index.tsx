@@ -142,13 +142,9 @@ function HomePage() {
 
           {/* Title */}
           <h1 className="mt-8 font-display font-black leading-tight text-white text-4xl md:text-6xl">
-            البوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب
+            <span className="block">البوابة الإلكترونية</span>
+            <span className="block mt-2">كلية تكنولوجيا المعلومات وعلوم الحاسوب</span>
           </h1>
-
-          {/* Description */}
-          <p className="mt-6 text-sm md:text-base text-white/80 leading-8 max-w-xl">
-            منصة رقمية متكاملة للخدمات الأكاديمية والإدارية، تخدم الطلاب وأعضاء هيئة التدريس والموظفين ضمن كليات الجامعة.
-          </p>
 
           {/* Notice box */}
           <div className="mt-6 rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm px-5 py-4 text-sm md:text-[15px] text-white/85 leading-7 max-w-xl">
