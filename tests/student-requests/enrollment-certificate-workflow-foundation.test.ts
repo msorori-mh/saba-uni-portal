@@ -629,7 +629,7 @@ describe("student request workflow save enablement 01B", () => {
 
   it("page open does not call save RPC; save only after user click", () => {
     const page = readFileSync(
-      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      join(ROOT, "src/routes/admin/request-types_.$id.workflow.tsx"),
       "utf8",
     );
     expect(page).toContain('onClick={() => handleSave("draft")}');
@@ -886,7 +886,7 @@ describe("workflow editor round-trip integrity (01B remediation)", () => {
 
   it("workflow page keeps selectedWorkflowId after save and remaps only after refresh", () => {
     const page = readFileSync(
-      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      join(ROOT, "src/routes/admin/request-types_.$id.workflow.tsx"),
       "utf8",
     );
     expect(page).toContain("selectedWorkflowId");
@@ -1002,7 +1002,7 @@ describe("workflow save refresh integrity (01B refresh remediation)", () => {
 
   it("page uses throwOnError and verifies workflow id before setInitialized(false)", () => {
     const page = readFileSync(
-      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      join(ROOT, "src/routes/admin/request-types_.$id.workflow.tsx"),
       "utf8",
     );
     expect(page).toContain("throwOnError: true");
@@ -1030,7 +1030,7 @@ describe("workflow save refresh integrity (01B refresh remediation)", () => {
 
   it("no automatic save retry on refresh failure (source policy)", () => {
     const page = readFileSync(
-      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      join(ROOT, "src/routes/admin/request-types_.$id.workflow.tsx"),
       "utf8",
     );
     expect(page).toContain("no auto-retry/save");
