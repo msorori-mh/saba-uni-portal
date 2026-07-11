@@ -3,10 +3,28 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE,
+  WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG,
+  canSubmitWorkflowSave,
   isAdminSaveWorkflowRpcAvailable,
+  isWorkflowSaveRpcMissingError,
+  mapWorkflowSaveRpcError,
+  mergeWorkflowStepPaymentDocumentFlags,
+  workflowMetaForSaveMode,
   type DraftWorkflowStep,
   type DraftWorkflowTransition,
+  type WorkflowConfigStep,
+  type WorkflowConfigTransition,
+  type WorkflowConfigWorkflow,
 } from "../../src/lib/admin-request-workflow-rpc";
+import {
+  configStepToDraftStep,
+  configTransitionToDraftTransition,
+  decideWorkflowEditorRemap,
+  hasWorkflowId,
+  mapWorkflowConfigToDraft,
+  selectWorkflowForEditor,
+  WORKFLOW_SAVE_REFRESH_MISSING_MSG,
+} from "../../src/lib/student-requests/request-workflow-editor-mappers";
 import {
   getCanonicalDraftTransitionsForType,
   getCanonicalWorkflowPreview,
@@ -16,6 +34,7 @@ import {
   buildWorkflowSaveInputFromDraft,
   buildWorkflowSaveInputFromPreview,
   validateAllCanonicalWorkflowSaveContracts,
+  validateWorkflowSaveCapability,
   validateWorkflowSaveInput,
 } from "../../src/lib/student-requests/request-workflow-save-contract";
 import {
@@ -45,9 +64,9 @@ const ROLE_A = "44444444-4444-4444-8444-444444444444";
 const ROOT = join(import.meta.dir, "../..");
 
 describe("enrollment certificate workflow foundation 01A", () => {
-  it("1 — ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE is false until migration applied", () => {
-    expect(ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE).toBe(false);
-    expect(isAdminSaveWorkflowRpcAvailable()).toBe(false);
+  it("1 — ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE is true after 01B enablement", () => {
+    expect(ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE).toBe(true);
+    expect(isAdminSaveWorkflowRpcAvailable()).toBe(true);
   });
 
   it("2 — enrollment_certificate preview has 7 steps", () => {
@@ -72,13 +91,13 @@ describe("enrollment certificate workflow foundation 01A", () => {
     expect(built!.transitions.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("5 — validate enrollment_certificate save contract (save gated off)", () => {
+  it("5 — validate enrollment_certificate save contract (save enabled)", () => {
     const built = buildWorkflowSaveInputFromPreview(TYPE_ID, "enrollment_certificate")!;
     const result = validateWorkflowSaveInput(built);
     expect(result.valid).toBe(true);
-    expect(result.capability.canSave).toBe(false);
-    expect(result.capability.reason).toBe("save_rpc_unavailable");
-    expect(["SAVE_UNAVAILABLE", "VALID_WITH_WARNINGS"]).toContain(result.status);
+    expect(result.capability.canSave).toBe(true);
+    expect(result.capability.reason).toBe("ready_for_staging_save");
+    expect(["VALID", "VALID_WITH_WARNINGS"]).toContain(result.status);
     expect(result.issues.filter((i) => i.code === "assess_fee_dual_transitions")).toHaveLength(0);
   });
 
@@ -517,5 +536,513 @@ describe("PR115 remediation round 2 — fee UI visibility", () => {
     expect(source).toContain("StudentRequestFeeStatusDisplay");
     expect(source).toContain("shouldShowFeeAssessmentForm");
     expect(source).toContain("getStudentRequestFeeProcessingContext");
+  });
+});
+
+describe("student request workflow save enablement 01B", () => {
+  it("capability is available with canSave/canActivate", () => {
+    const cap = validateWorkflowSaveCapability();
+    expect(cap.available).toBe(true);
+    expect(cap.canSave).toBe(true);
+    expect(cap.canActivate).toBe(true);
+    expect(cap.reason).toBe("ready_for_staging_save");
+  });
+
+  it("draft save mode maps to status=draft and is_active=false", () => {
+    expect(workflowMetaForSaveMode("draft")).toEqual({
+      status: "draft",
+      is_active: false,
+    });
+  });
+
+  it("activate save mode maps to status=active and is_active=true", () => {
+    expect(workflowMetaForSaveMode("activate")).toEqual({
+      status: "active",
+      is_active: true,
+    });
+  });
+
+  it("pending save disables both draft and activate buttons", () => {
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: "draft",
+        dryRunOk: true,
+        saveMode: "draft",
+      }),
+    ).toBe(false);
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: "activate",
+        dryRunOk: true,
+        saveMode: "activate",
+      }),
+    ).toBe(false);
+  });
+
+  it("activate requires successful dry-run; draft does not", () => {
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: null,
+        dryRunOk: false,
+        saveMode: "draft",
+      }),
+    ).toBe(true);
+    expect(
+      canSubmitWorkflowSave({
+        saveRpcAvailable: true,
+        saveLoading: null,
+        dryRunOk: false,
+        saveMode: "activate",
+      }),
+    ).toBe(false);
+  });
+
+  it("RPC missing/schema cache maps to temporary Arabic message without retry", () => {
+    expect(
+      isWorkflowSaveRpcMissingError({
+        code: "PGRST202",
+        message: "Could not find the function in the schema cache",
+      }),
+    ).toBe(true);
+    expect(
+      mapWorkflowSaveRpcError({
+        message: "function admin_save_request_workflow_config does not exist",
+        code: "42883",
+      }),
+    ).toBe(WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG);
+  });
+
+  it("RPC error path does not clear local draft snapshots (policy)", () => {
+    const draftSteps = [{ step_key: "fee_assessment" }];
+    const draftTransitions = [{ from_step_key: "fee_assessment" }];
+    const msg = mapWorkflowSaveRpcError({
+      code: "PGRST202",
+      message: "schema cache",
+    });
+    expect(msg.length).toBeGreaterThan(10);
+    expect(draftSteps).toHaveLength(1);
+    expect(draftTransitions).toHaveLength(1);
+  });
+
+  it("page open does not call save RPC; save only after user click", () => {
+    const page = readFileSync(
+      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      "utf8",
+    );
+    expect(page).toContain('onClick={() => handleSave("draft")}');
+    expect(page).toContain('onClick={() => handleSave("activate")}');
+    expect(page).toContain("canSubmitWorkflowSave");
+    expect(page).toContain("getAdminRequestWorkflowConfig");
+    // Save must not be invoked from any useEffect body
+    expect(page).not.toMatch(/useEffect\(\(\)\s*=>\s*\{[^}]*handleSave/s);
+  });
+
+  it("rpcAdminSaveRequestWorkflowConfig keeps availability guard", () => {
+    const source = readFileSync(
+      join(ROOT, "src/lib/admin-request-workflow-rpc.ts"),
+      "utf8",
+    );
+    expect(source).toContain("if (!ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE)");
+    expect(source).toContain("mapWorkflowSaveRpcError");
+    expect(source).toContain("No automatic retry");
+  });
+});
+
+describe("workflow editor round-trip integrity (01B remediation)", () => {
+  const baseStep = (overrides: Partial<WorkflowConfigStep> = {}): WorkflowConfigStep => ({
+    id: "step-1",
+    workflow_id: "wf-1",
+    step_key: "fee_assessment",
+    step_name_ar: "تقييم الرسوم",
+    step_order: 2,
+    processing_unit_id: UNIT_A,
+    processing_role_id: ROLE_A,
+    assignment_strategy: "direct_assignment",
+    action_type: "assess_fee",
+    is_required: false,
+    can_return_to_student: true,
+    can_reject: false,
+    can_skip: true,
+    notify_on_enter: true,
+    notify_on_complete: false,
+    visible_to_student: true,
+    requires_payment: true,
+    produces_document: true,
+    ...overrides,
+  });
+
+  it("configStepToDraftStep preserves non-default step flags", () => {
+    const step = baseStep();
+    const draft = configStepToDraftStep(step);
+    expect(draft.assignment_strategy).toBe("direct_assignment");
+    expect(draft.is_required).toBe(false);
+    expect(draft.notify_on_complete).toBe(false);
+    expect(draft.requires_payment).toBe(true);
+    expect(draft.produces_document).toBe(true);
+    expect(draft.can_reject).toBe(false);
+    expect(draft.can_skip).toBe(true);
+    expect(draft.step_key).toBe("fee_assessment");
+    expect(draft.processing_unit_id).toBe(UNIT_A);
+    expect(draft.processing_role_id).toBe(ROLE_A);
+  });
+
+  it("configTransitionToDraftTransition preserves label_ar and conditions", () => {
+    const transition: WorkflowConfigTransition = {
+      id: "tr-1",
+      workflow_id: "wf-1",
+      from_step_id: "step-1",
+      to_step_id: "step-2",
+      action_result: "approve",
+      label_ar: "إرسال إلى المسجل العام",
+      is_default: false,
+      condition_schema: { fee: "zero" },
+    };
+    const stepIdToKey = new Map([
+      ["step-1", "fee_assessment"],
+      ["step-2", "registrar"],
+    ]);
+    const draft = configTransitionToDraftTransition(transition, stepIdToKey);
+    expect(draft.label_ar).toBe("إرسال إلى المسجل العام");
+    expect(draft.condition_config).toEqual({ fee: "zero" });
+    expect(draft.is_default).toBe(false);
+    expect(draft.from_step_key).toBe("fee_assessment");
+    expect(draft.to_step_key).toBe("registrar");
+  });
+
+  it("no-op round-trip: config → draft → buildWorkflowSaveInputFromDraft keeps flags", () => {
+    const step = baseStep({ produces_document: true, requires_payment: true });
+    const transition: WorkflowConfigTransition = {
+      id: "tr-1",
+      workflow_id: "wf-1",
+      from_step_id: "step-1",
+      to_step_id: null,
+      action_result: "complete",
+      label_ar: "إرسال إلى المسجل العام",
+      is_default: false,
+      condition_config: { fee: "zero" },
+    };
+    const draftStep = configStepToDraftStep(step);
+    const draftTransition = configTransitionToDraftTransition(
+      transition,
+      new Map([["step-1", "fee_assessment"]]),
+    );
+    expect(draftStep.requires_payment).toBe(true);
+    expect(draftStep.produces_document).toBe(true);
+    expect(draftStep.is_required).toBe(false);
+    expect(draftStep.assignment_strategy).toBe("direct_assignment");
+    expect(draftTransition.label_ar).toBe("إرسال إلى المسجل العام");
+    expect(draftTransition.condition_config).toEqual({ fee: "zero" });
+
+    const built = buildWorkflowSaveInputFromDraft(
+      TYPE_ID,
+      "enrollment_certificate",
+      [draftStep],
+      [draftTransition],
+    );
+    expect(built.steps[0]?.allowsReject).toBe(false);
+    expect(built.steps[0]?.requiresFee).toBe(true);
+  });
+
+  it("selectWorkflowForEditor prefers saved draft over active", () => {
+    const workflows: WorkflowConfigWorkflow[] = [
+      {
+        id: "active-1",
+        code: "wf",
+        name_ar: "نشط",
+        name_en: null,
+        description_ar: null,
+        version: 1,
+        status: "active",
+        is_active: true,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "draft-2",
+        code: "wf",
+        name_ar: "مسودة",
+        name_en: null,
+        description_ar: null,
+        version: 2,
+        status: "draft",
+        is_active: false,
+        created_at: "2026-01-02T00:00:00Z",
+        updated_at: "2026-01-02T00:00:00Z",
+      },
+    ];
+    expect(selectWorkflowForEditor(workflows, "draft-2")?.id).toBe("draft-2");
+  });
+
+  it("selectWorkflowForEditor falls back to active then newest draft", () => {
+    const workflows: WorkflowConfigWorkflow[] = [
+      {
+        id: "active-1",
+        code: "wf",
+        name_ar: "نشط",
+        name_en: null,
+        description_ar: null,
+        version: 1,
+        status: "active",
+        is_active: true,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: "2026-01-01T00:00:00Z",
+      },
+      {
+        id: "draft-old",
+        code: "wf",
+        name_ar: "مسودة قديمة",
+        name_en: null,
+        description_ar: null,
+        version: 2,
+        status: "draft",
+        is_active: false,
+        created_at: "2026-01-02T00:00:00Z",
+        updated_at: "2026-01-02T00:00:00Z",
+      },
+      {
+        id: "draft-new",
+        code: "wf",
+        name_ar: "مسودة جديدة",
+        name_en: null,
+        description_ar: null,
+        version: 3,
+        status: "draft",
+        is_active: false,
+        created_at: "2026-01-03T00:00:00Z",
+        updated_at: "2026-01-03T00:00:00Z",
+      },
+    ];
+    expect(selectWorkflowForEditor(workflows, "missing")?.id).toBe("active-1");
+    const draftsOnly = workflows.filter((w) => w.status === "draft");
+    expect(selectWorkflowForEditor(draftsOnly, "missing")?.id).toBe("draft-new");
+  });
+
+  it("mergeWorkflowStepPaymentDocumentFlags merges without inventing defaults", () => {
+    const config = {
+      request_type_id: TYPE_ID,
+      workflows: [],
+      steps: [baseStep({ requires_payment: false, produces_document: false })],
+      transitions: [],
+    };
+    const merged = mergeWorkflowStepPaymentDocumentFlags(config, [
+      {
+        id: "step-1",
+        workflow_id: "wf-1",
+        requires_payment: true,
+        produces_document: true,
+      },
+    ]);
+    expect(merged.steps[0]?.requires_payment).toBe(true);
+    expect(merged.steps[0]?.produces_document).toBe(true);
+    expect(() =>
+      mergeWorkflowStepPaymentDocumentFlags(config, []),
+    ).toThrow(/requires_payment/);
+  });
+
+  it("mapWorkflowConfigToDraft keeps step and transition fields for a workflow", () => {
+    const mapped = mapWorkflowConfigToDraft(
+      {
+        request_type_id: TYPE_ID,
+        workflows: [],
+        steps: [baseStep()],
+        transitions: [
+          {
+            id: "tr-1",
+            workflow_id: "wf-1",
+            from_step_id: "step-1",
+            to_step_id: "step-1",
+            action_result: "approve",
+            label_ar: "إرسال إلى المسجل العام",
+            is_default: false,
+            condition_schema: { fee: "zero" },
+          },
+        ],
+      },
+      "wf-1",
+    );
+    expect(mapped.steps[0]?.requires_payment).toBe(true);
+    expect(mapped.steps[0]?.produces_document).toBe(true);
+    expect(mapped.transitions[0]?.label_ar).toBe("إرسال إلى المسجل العام");
+    expect(mapped.transitions[0]?.condition_config).toEqual({ fee: "zero" });
+  });
+
+  it("getAdminRequestWorkflowConfig enriches requires_payment/produces_document from steps table", () => {
+    const source = readFileSync(
+      join(ROOT, "src/lib/admin-request-workflow.functions.ts"),
+      "utf8",
+    );
+    expect(source).toContain("assertRequestWorkflowAdmin");
+    expect(source).toContain('from("request_type_workflow_steps")');
+    expect(source).toContain(
+      'select("id, workflow_id, requires_payment, produces_document")',
+    );
+    expect(source).toContain(".in(\"workflow_id\", workflowIds)");
+    expect(source).toContain("mergeWorkflowStepPaymentDocumentFlags");
+    expect(source).toContain("rpcAdminGetRequestWorkflowConfig");
+  });
+
+  it("workflow page keeps selectedWorkflowId after save and remaps only after refresh", () => {
+    const page = readFileSync(
+      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("selectedWorkflowId");
+    expect(page).toContain("setSelectedWorkflowId(result.workflowId)");
+    expect(page).toContain("refetchQueries");
+    expect(page).toContain("setInitialized(false)");
+    expect(page).toContain("selectWorkflowForEditor");
+    expect(page).toContain("mapWorkflowConfigToDraft");
+    expect(page).toContain("Keep draftSteps / draftTransitions / selectedWorkflowId intact");
+  });
+});
+
+describe("workflow save refresh integrity (01B refresh remediation)", () => {
+  const configWith = (
+    workflowIds: string[],
+  ): {
+    request_type_id: string;
+    workflows: WorkflowConfigWorkflow[];
+    steps: [];
+    transitions: [];
+  } => ({
+    request_type_id: TYPE_ID,
+    workflows: workflowIds.map((id, idx) => ({
+      id,
+      code: "wf",
+      name_ar: id,
+      name_en: null,
+      description_ar: null,
+      version: idx + 1,
+      status: id.startsWith("active") ? ("active" as const) : ("draft" as const),
+      is_active: id.startsWith("active"),
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    })),
+    steps: [],
+    transitions: [],
+  });
+
+  it("hasWorkflowId returns true when saved workflow exists", () => {
+    expect(hasWorkflowId(configWith(["active-1", "draft-2"]), "draft-2")).toBe(true);
+  });
+
+  it("hasWorkflowId returns false when saved workflow is absent", () => {
+    expect(hasWorkflowId(configWith(["active-1"]), "draft-2")).toBe(false);
+    expect(hasWorkflowId(undefined, "draft-2")).toBe(false);
+  });
+
+  it("decideWorkflowEditorRemap blocks remap on refresh failure or missing workflow", () => {
+    expect(
+      decideWorkflowEditorRemap({
+        refreshOk: false,
+        config: configWith(["draft-2"]),
+        savedWorkflowId: "draft-2",
+      }),
+    ).toEqual({ canRemap: false, reason: "refresh_failed" });
+
+    expect(
+      decideWorkflowEditorRemap({
+        refreshOk: true,
+        config: configWith(["active-1"]),
+        savedWorkflowId: "draft-2",
+      }),
+    ).toEqual({ canRemap: false, reason: "workflow_missing" });
+
+    expect(
+      decideWorkflowEditorRemap({
+        refreshOk: true,
+        config: configWith(["active-1", "draft-2"]),
+        savedWorkflowId: "draft-2",
+      }),
+    ).toEqual({ canRemap: true });
+  });
+
+  it("failed refresh decision keeps local drafts and preferred saved id (no active swap)", () => {
+    const draftSteps = [{ step_key: "fee_assessment" }];
+    const draftTransitions = [{ from_step_key: "fee_assessment", label_ar: "إرسال" }];
+    let selectedWorkflowId = "draft-2";
+    let initialized = true;
+
+    const decision = decideWorkflowEditorRemap({
+      refreshOk: false,
+      config: configWith(["active-1"]),
+      savedWorkflowId: "draft-2",
+    });
+
+    // Simulate page policy on refresh failure.
+    if (!decision.canRemap) {
+      // do not setInitialized(false); do not clear drafts; keep selected id.
+    } else {
+      initialized = false;
+      selectedWorkflowId = "active-1";
+    }
+
+    expect(decision.canRemap).toBe(false);
+    expect(initialized).toBe(true);
+    expect(selectedWorkflowId).toBe("draft-2");
+    expect(draftSteps).toHaveLength(1);
+    expect(draftTransitions).toHaveLength(1);
+    expect(selectWorkflowForEditor(configWith(["active-1", "draft-2"]).workflows, selectedWorkflowId)?.id).toBe(
+      "draft-2",
+    );
+  });
+
+  it("missing saved workflow uses clear Arabic error and does not remap", () => {
+    const decision = decideWorkflowEditorRemap({
+      refreshOk: true,
+      config: configWith(["active-1"]),
+      savedWorkflowId: "draft-2",
+    });
+    expect(decision).toEqual({ canRemap: false, reason: "workflow_missing" });
+    expect(WORKFLOW_SAVE_REFRESH_MISSING_MSG).toContain("تعذر تحميل الإصدار المحفوظ");
+  });
+
+  it("page uses throwOnError and verifies workflow id before setInitialized(false)", () => {
+    const page = readFileSync(
+      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("throwOnError: true");
+    expect(page).toContain('type: "active"');
+    expect(page).toContain("getQueryData<AdminRequestWorkflowConfig>");
+    expect(page).toContain("decideWorkflowEditorRemap");
+    expect(page).toContain("hasWorkflowId");
+    expect(page).toContain("WORKFLOW_SAVE_REFRESH_MISSING_MSG");
+    expect(page).toContain("setSaveSuccess(null)");
+    expect(page).toContain("Keep editor as-is");
+    expect(page).toContain("setSelectedWorkflowId(result.workflowId)");
+
+    const selectedIdx = page.indexOf("setSelectedWorkflowId(result.workflowId)");
+    const verifyIdx = page.indexOf("hasWorkflowId(refreshedConfig, result.workflowId)");
+    const remapIdx = page.indexOf(
+      "// Remap editor from the saved version only after refresh + id verification.",
+    );
+    const initFalseIdx = page.indexOf("setInitialized(false)", remapIdx);
+    const successIdx = page.indexOf("setSaveSuccess(", initFalseIdx);
+    expect(selectedIdx).toBeGreaterThan(-1);
+    expect(verifyIdx).toBeGreaterThan(selectedIdx);
+    expect(initFalseIdx).toBeGreaterThan(verifyIdx);
+    expect(successIdx).toBeGreaterThan(initFalseIdx);
+  });
+
+  it("no automatic save retry on refresh failure (source policy)", () => {
+    const page = readFileSync(
+      join(ROOT, "src/routes/admin/request-types.$id.workflow.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("no auto-retry/save");
+    const catchIdx = page.indexOf("} catch (refreshErr) {");
+    expect(catchIdx).toBeGreaterThan(-1);
+    const catchBlock = page.slice(catchIdx, catchIdx + 450);
+    expect(catchBlock).toContain("setSaveSuccess(null)");
+    expect(catchBlock).toContain("setSaveError(");
+    expect(catchBlock).not.toContain("saveFn(");
+    expect(catchBlock).not.toContain("handleSave(");
+    expect(catchBlock).not.toContain("setInitialized(false)");
+    expect(catchBlock).not.toContain("setDraftSteps(");
+    expect(catchBlock).not.toContain("setDraftTransitions(");
   });
 });

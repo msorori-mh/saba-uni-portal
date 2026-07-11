@@ -3,18 +3,77 @@
 import { mapStudentRequestRpcError } from "@/lib/student-request-rpc";
 
 export const WORKFLOW_SAVE_NOT_AVAILABLE_MSG =
-  "حفظ دورة الحياة غير مفعّل حالياً. طبّق migration 20260711040000_enrollment_certificate_workflow_foundation_01a على بيئة آمنة ثم فعّل العلم ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE.";
+  "حفظ دورة الحياة غير مفعّل في هذا الإصدار من التطبيق.";
+
+/** Shown when the RPC is missing from PostgREST schema cache after deploy/sync lag. */
+export const WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG =
+  "خدمة حفظ دورة الحياة غير متاحة مؤقتًا. أعد تحميل الصفحة أو راجع مزامنة قاعدة البيانات.";
 
 /**
  * Gate for admin_save_request_workflow_config.
- * Keep false until the remediating migration is applied on the shared Preview/prod DB.
- * Preview and production share the same database — do not probe DB when false.
+ * Enabled after migrations 20260711040000 / 20260711050000 were applied on
+ * production Supabase ref wpmicqriltrowwonknox (01B enablement).
+ * The guard inside rpcAdminSaveRequestWorkflowConfig remains — do not remove it.
+ * Opening the page must not probe or write to the database for this flag.
  */
-export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = false;
+export const ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE = true;
 
 /** Runtime capability check — returns false immediately when the compile-time flag is off. */
 export function isAdminSaveWorkflowRpcAvailable(): boolean {
   return ADMIN_SAVE_WORKFLOW_RPC_AVAILABLE;
+}
+
+export type WorkflowSaveMode = "draft" | "activate";
+
+/** Maps UI save mode to RPC workflow status / is_active — no DB access. */
+export function workflowMetaForSaveMode(saveMode: WorkflowSaveMode): {
+  status: WorkflowStatus;
+  is_active: boolean;
+} {
+  if (saveMode === "activate") {
+    return { status: "active", is_active: true };
+  }
+  return { status: "draft", is_active: false };
+}
+
+/** Pure UI gate for save buttons — no network, no DB. */
+export function canSubmitWorkflowSave(opts: {
+  saveRpcAvailable: boolean;
+  saveLoading: WorkflowSaveMode | null;
+  dryRunOk: boolean;
+  saveMode: WorkflowSaveMode;
+}): boolean {
+  if (!opts.saveRpcAvailable) return false;
+  if (opts.saveLoading !== null) return false;
+  if (opts.saveMode === "activate" && !opts.dryRunOk) return false;
+  return true;
+}
+
+export function isWorkflowSaveRpcMissingError(error: {
+  message?: string;
+  code?: string;
+} | null | undefined): boolean {
+  if (!error) return false;
+  const msg = error.message ?? "";
+  const code = error.code ?? "";
+  return (
+    code === "42883" ||
+    code === "PGRST202" ||
+    /function_not_found/i.test(msg) ||
+    /function .* does not exist/i.test(msg) ||
+    /could not find the function/i.test(msg) ||
+    /schema cache/i.test(msg)
+  );
+}
+
+export function mapWorkflowSaveRpcError(error: {
+  message?: string;
+  code?: string;
+}): string {
+  if (isWorkflowSaveRpcMissingError(error)) {
+    return WORKFLOW_SAVE_RPC_TEMPORARILY_UNAVAILABLE_MSG;
+  }
+  return mapStudentRequestRpcError(error);
 }
 
 export type WorkflowStatus = "draft" | "active" | "retired";
@@ -80,6 +139,9 @@ export type WorkflowConfigStep = {
   notify_on_enter: boolean;
   notify_on_complete: boolean;
   visible_to_student: boolean;
+  /** Enriched server-side when GET RPC omits these flags. */
+  requires_payment: boolean;
+  produces_document: boolean;
 };
 
 export type WorkflowConfigTransition = {
@@ -90,6 +152,16 @@ export type WorkflowConfigTransition = {
   action_result: string;
   label_ar: string | null;
   is_default: boolean;
+  /** DB column is condition_schema; some RPCs expose it as condition_config. */
+  condition_schema?: Record<string, unknown> | null;
+  condition_config?: Record<string, unknown> | null;
+};
+
+export type WorkflowStepPaymentDocumentRow = {
+  id: string;
+  workflow_id: string;
+  requires_payment: boolean;
+  produces_document: boolean;
 };
 
 export type AdminRequestWorkflowConfig = {
@@ -98,6 +170,31 @@ export type AdminRequestWorkflowConfig = {
   steps: WorkflowConfigStep[];
   transitions: WorkflowConfigTransition[];
 };
+
+/**
+ * Merges requires_payment / produces_document from a bounded steps table read.
+ * Fails loudly if any config step is missing enrichment — never invents defaults.
+ */
+export function mergeWorkflowStepPaymentDocumentFlags(
+  config: AdminRequestWorkflowConfig,
+  rows: WorkflowStepPaymentDocumentRow[],
+): AdminRequestWorkflowConfig {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const steps = config.steps.map((step) => {
+    const row = byId.get(step.id);
+    if (!row) {
+      throw new Error(
+        `تعذر إكمال بيانات الخطوة «${step.step_key}» (requires_payment / produces_document). أعد تحميل الصفحة قبل الحفظ.`,
+      );
+    }
+    return {
+      ...step,
+      requires_payment: row.requires_payment,
+      produces_document: row.produces_document,
+    };
+  });
+  return { ...config, steps };
+}
 
 export type ProcessingUnitOption = {
   id: string;
@@ -220,7 +317,8 @@ export async function rpcAdminSaveRequestWorkflowConfig(
     })),
   });
 
-  if (error) throw new Error(mapStudentRequestRpcError(error));
+  // No automatic retry — operator must reload / re-sync schema cache if RPC is missing.
+  if (error) throw new Error(mapWorkflowSaveRpcError(error));
 
   const raw = (data ?? {}) as { workflow_id?: string; success?: boolean };
   if (!raw.workflow_id) {
