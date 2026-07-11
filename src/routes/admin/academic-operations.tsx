@@ -6,13 +6,13 @@ import { toast } from "sonner";
 import {
   getAcademicOpsContext,
   getAcademicOpsKpis,
-  setCurrentAcademicYear,
-  setCurrentSemester,
+  setCurrentAcademicYear as setCurrentAcademicYearServer,
+  setCurrentSemester as setCurrentSemesterServer,
 } from "@/lib/admin-academic-operations.functions";
 import {
   Activity, CalendarRange, BookMarked, Layers, ClipboardList, ClipboardCheck,
   CalendarDays, FileText, Wallet, GraduationCap, Loader2, ArrowLeft,
-  CheckCircle2, AlertTriangle,
+  CheckCircle2, AlertTriangle, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,12 +30,13 @@ function AcademicOpsPage() {
   const qc = useQueryClient();
   const contextFn = useServerFn(getAcademicOpsContext);
   const kpisFn = useServerFn(getAcademicOpsKpis);
-  const setYearFn = useServerFn(setCurrentAcademicYear);
-  const setSemFn = useServerFn(setCurrentSemester);
+  const setYearFn = useServerFn(setCurrentAcademicYearServer);
+  const setSemFn = useServerFn(setCurrentSemesterServer);
 
   const context = useQuery({
     queryKey: ["aops-context"],
     queryFn: () => contextFn({ data: {} }),
+    retry: 1,
   });
 
   const years = (context.data?.years ?? []) as Year[];
@@ -49,7 +50,7 @@ function AcademicOpsPage() {
 
   const kpis = useQuery({
     queryKey: ["aops-kpis", currentYear?.id, currentSem?.id],
-    enabled: !!currentYear && !!currentSem,
+    enabled: !!currentYear && !!currentSem && !context.isError,
     queryFn: () =>
       kpisFn({
         data: {
@@ -57,9 +58,10 @@ function AcademicOpsPage() {
           semesterId: currentSem!.id,
         },
       }),
+    retry: 1,
   });
 
-  const setCurrentYear = async (id: string) => {
+  const handleSetCurrentYear = async (id: string) => {
     if (id === currentYear?.id) return;
     try {
       await setYearFn({ data: { yearId: id } });
@@ -71,7 +73,7 @@ function AcademicOpsPage() {
     }
   };
 
-  const setCurrentSemester = async (id: string) => {
+  const handleSetCurrentSemester = async (id: string) => {
     const target = semesters.find((s) => s.id === id);
     if (!target || id === currentSem?.id) return;
     try {
@@ -85,6 +87,41 @@ function AcademicOpsPage() {
   };
 
   const semsInYear = semesters.filter((s) => s.academic_year_id === currentYear?.id);
+
+  if (context.isError) {
+    return (
+      <div dir="rtl" className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="grid h-10 w-10 place-items-center rounded-lg bg-gold-gradient text-primary-deep">
+            <Activity className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <h1 className="font-display text-xl font-extrabold text-primary">مركز العمليات الأكاديمية</h1>
+          </div>
+        </div>
+        <div
+          className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-6 text-center space-y-4"
+          role="alert"
+          data-testid="aops-context-error"
+        >
+          <AlertTriangle className="mx-auto h-8 w-8 text-amber-600" />
+          <p className="text-sm font-bold text-amber-900">تعذّر تحميل بيانات مركز العمليات الأكاديمية</p>
+          <p className="text-xs text-amber-800">
+            لم نتمكن من جلب السنة والفصل الحاليين. يمكنك إعادة المحاولة أو العودة إلى لوحة الإدارة.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button type="button" onClick={() => context.refetch()} className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              إعادة تحميل البيانات
+            </Button>
+            <Button type="button" variant="outline" asChild>
+              <Link to="/admin">العودة إلى لوحة الإدارة</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" className="space-y-6">
@@ -107,7 +144,7 @@ function AcademicOpsPage() {
           {context.isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Select value={currentYear?.id ?? ""} onValueChange={setCurrentYear}>
+            <Select value={currentYear?.id ?? ""} onValueChange={handleSetCurrentYear}>
               <SelectTrigger><SelectValue placeholder="اختر السنة..." /></SelectTrigger>
               <SelectContent>
                 {years.map((y) => (
@@ -124,7 +161,7 @@ function AcademicOpsPage() {
           {context.isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <Select value={currentSem?.id ?? ""} onValueChange={setCurrentSemester} disabled={!currentYear}>
+            <Select value={currentSem?.id ?? ""} onValueChange={handleSetCurrentSemester} disabled={!currentYear}>
               <SelectTrigger><SelectValue placeholder={currentYear ? "اختر الفصل..." : "حدد السنة أولاً"} /></SelectTrigger>
               <SelectContent>
                 {semsInYear.map((s) => (
@@ -153,70 +190,88 @@ function AcademicOpsPage() {
       )}
 
       {/* KPI Grid */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="المقررات المطروحة"
-          value={kpis.data?.activeOfferings}
-          sub={kpis.data ? `من ${kpis.data.totalOfferings} طرح` : undefined}
-          icon={CalendarDays}
-          to="/admin/course-offerings"
-          loading={kpis.isLoading}
-        />
-        <KpiCard
-          label="المجموعات الدراسية النشطة"
-          value={kpis.data?.sectionsActive}
-          sub={kpis.data ? `من ${kpis.data.sectionsTotal} مجموعة دراسية` : undefined}
-          icon={Layers}
-          to="/admin/course-offerings"
-          loading={kpis.isLoading}
-        />
-        <KpiCard
-          label="تسجيلات نشطة"
-          value={kpis.data?.enrolledCount}
-          sub={kpis.data ? `${kpis.data.droppedCount} محذوف` : undefined}
-          icon={ClipboardList}
-          to="/admin/enrollments"
-          loading={kpis.isLoading}
-        />
-        <KpiCard
-          label="حالة الطلاب الأكاديمية"
-          value={kpis.data?.statusActive}
-          sub="نشط هذا الفصل"
-          icon={GraduationCap}
-          to="/admin/students"
-          loading={kpis.isLoading}
-        />
-        <KpiCard
-          label="مكونات الدرجات"
-          value={kpis.data?.gradeComponentsTotal}
-          sub="عناصر التقييم المعرّفة"
-          icon={ClipboardCheck}
-          to="/admin/grades"
-          loading={kpis.isLoading}
-        />
-        <KpiCard
-          label="إيصالات قيد المراجعة"
-          value={kpis.data?.pendingReceipts}
-          icon={Wallet}
-          to="/admin/finance"
-          loading={kpis.isLoading}
-          highlight={kpis.data && kpis.data.pendingReceipts > 0 ? "warn" : undefined}
-        />
-        <KpiCard
-          label="رسوم غير مدفوعة"
-          value={kpis.data?.unpaidFees}
-          icon={Wallet}
-          to="/admin/finance"
-          loading={kpis.isLoading}
-        />
-        <KpiCard
-          label="السجلات الأكاديمية"
-          value={null}
-          sub="عرض وإصدار"
-          icon={FileText}
-          to="/admin/transcripts"
-          loading={false}
-        />
+      <div className="space-y-3">
+        {kpis.isError && (
+          <div
+            className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm flex flex-wrap items-center justify-between gap-2"
+            role="alert"
+            data-testid="aops-kpis-error"
+          >
+            <div className="flex items-center gap-2 text-amber-900">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+              <span>تعذّر تحميل المؤشرات. بقية الصفحة والروابط السريعة ما زالت متاحة.</span>
+            </div>
+            <Button type="button" size="sm" variant="outline" onClick={() => kpis.refetch()} className="gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" />
+              إعادة تحميل المؤشرات
+            </Button>
+          </div>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCard
+            label="المقررات المطروحة"
+            value={kpis.data?.activeOfferings}
+            sub={kpis.data ? `من ${kpis.data.totalOfferings} طرح` : undefined}
+            icon={CalendarDays}
+            to="/admin/course-offerings"
+            loading={kpis.isLoading}
+          />
+          <KpiCard
+            label="المجموعات الدراسية النشطة"
+            value={kpis.data?.sectionsActive}
+            sub={kpis.data ? `من ${kpis.data.sectionsTotal} مجموعة دراسية` : undefined}
+            icon={Layers}
+            to="/admin/course-offerings"
+            loading={kpis.isLoading}
+          />
+          <KpiCard
+            label="تسجيلات نشطة"
+            value={kpis.data?.enrolledCount}
+            sub={kpis.data ? `${kpis.data.droppedCount} محذوف` : undefined}
+            icon={ClipboardList}
+            to="/admin/enrollments"
+            loading={kpis.isLoading}
+          />
+          <KpiCard
+            label="حالة الطلاب الأكاديمية"
+            value={kpis.data?.statusActive}
+            sub="نشط هذا الفصل"
+            icon={GraduationCap}
+            to="/admin/students"
+            loading={kpis.isLoading}
+          />
+          <KpiCard
+            label="مكونات الدرجات"
+            value={kpis.data?.gradeComponentsTotal}
+            sub="عناصر التقييم المعرّفة"
+            icon={ClipboardCheck}
+            to="/admin/grades"
+            loading={kpis.isLoading}
+          />
+          <KpiCard
+            label="إيصالات قيد المراجعة"
+            value={kpis.data?.pendingReceipts}
+            icon={Wallet}
+            to="/admin/finance"
+            loading={kpis.isLoading}
+            highlight={kpis.data && kpis.data.pendingReceipts > 0 ? "warn" : undefined}
+          />
+          <KpiCard
+            label="رسوم غير مدفوعة"
+            value={kpis.data?.unpaidFees}
+            icon={Wallet}
+            to="/admin/finance"
+            loading={kpis.isLoading}
+          />
+          <KpiCard
+            label="السجلات الأكاديمية"
+            value={null}
+            sub="عرض وإصدار"
+            icon={FileText}
+            to="/admin/transcripts"
+            loading={false}
+          />
+        </div>
       </div>
 
       {/* Quick links */}
