@@ -140,13 +140,10 @@ function HomePage() {
             <img src={universityLogo.url} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
           </div>
 
-          {/* Titles */}
+          {/* Title */}
           <h1 className="mt-8 font-display font-black leading-tight text-white text-4xl md:text-6xl">
-            كلية تكنولوجيا المعلومات وعلوم الحاسوب
+            البوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب
           </h1>
-          <div className="mt-4 font-display font-bold text-white text-xl md:text-2xl">
-            البوابة الإلكترونية — جامعة إقليم سبأ
-          </div>
 
           {/* Description */}
           <p className="mt-6 text-sm md:text-base text-white/80 leading-8 max-w-xl">
@@ -155,7 +152,7 @@ function HomePage() {
 
           {/* Notice box */}
           <div className="mt-6 rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm px-5 py-4 text-sm md:text-[15px] text-white/85 leading-7 max-w-xl">
-            الدخول مخصص للمستخدمين المخولين فقط، وتتم إدارة الحسابات والصلاحيات من قبل المشرف العام.
+            منصة رقمية متكاملة للخدمات الأكاديمية والإدارية، تخدم الطلاب وأعضاء هيئة التدريس والموظفين في الكلية
           </div>
 
           {/* Login CTA */}
