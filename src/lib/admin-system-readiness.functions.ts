@@ -627,7 +627,7 @@ async function runChecks(): Promise<Section[]> {
     id: "executive",
     title: "القيادة التنفيذية",
     checks: [
-      pass("صفحة لوحة القيادة التنفيذية متاحة", "/admin/executive-dashboard"),
+      pass("صفحة لوحة بيانات الإدارة العليا متاحة", "/admin/executive-dashboard"),
       pass("محرّك مؤشرات KPI فعّال", "يستخدم محركات موجودة (academic-status + counts)"),
       pass("محرّك التنبيهات التنفيذية فعّال", "critical/warning/info"),
       pass("تكامل مركز العمليات فعّال", "السنة/الفصل + آخر نشاط + جاهزية"),
