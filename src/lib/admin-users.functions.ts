@@ -115,6 +115,10 @@ async function resolveProfileLoginEmail(
       return normalizeUniversityLoginEmail(email);
     }
   }
+  const profileEmail = String(profile.email ?? "").trim();
+  if (profileEmail && isValidUniversityLoginEmail(profileEmail)) {
+    return normalizeUniversityLoginEmail(profileEmail);
+  }
   throw new Error(
     "الإيميل الجامعي غير متوفر في ملف الموظف — يرجى إنشاء الحساب من صفحة الموظفين مع إدخال البريد الجامعي",
   );
