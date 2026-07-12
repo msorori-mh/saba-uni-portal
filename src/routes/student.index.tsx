@@ -356,64 +356,6 @@ function StudentDashboard() {
   );
 }
 
-const SEMESTER_LABELS: Record<string, string> = {
-  first: "الفصل الأول",
-  second: "الفصل الثاني",
-};
-
-function StudyPlanSection({ rows }: { rows: PlanCourseRow[] }) {
-  if (!rows || rows.length === 0) return null;
-
-  // Group by level_number then semester_code
-  type Group = { levelName: string; levelNumber: number; semesters: Record<string, PlanCourseRow[]> };
-  const map = new Map<number, Group>();
-  for (const r of rows) {
-    const ln = r.level?.level_number ?? 0;
-    if (!map.has(ln)) map.set(ln, { levelName: r.level?.name ?? `المستوى ${ln}`, levelNumber: ln, semesters: {} });
-    const g = map.get(ln)!;
-    (g.semesters[r.semester_code] ||= []).push(r);
-  }
-  const levels = Array.from(map.values()).sort((a, b) => a.levelNumber - b.levelNumber);
-
-  return (
-    <div className="mt-6">
-      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
-        <BookOpen className="h-4 w-4 text-gold" /> الخطة الدراسية
-      </h2>
-      <div className="space-y-3">
-        {levels.map((lvl) => (
-          <div key={lvl.levelNumber} className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="px-3 py-2 bg-muted/40 text-sm font-bold text-primary border-b">{lvl.levelName}</div>
-            <div className="grid sm:grid-cols-2 gap-px bg-border">
-              {Object.entries(lvl.semesters).map(([sem, items]) => (
-                <div key={sem} className="bg-card p-3">
-                  <div className="text-[11px] font-bold text-muted-foreground mb-2">
-                    {SEMESTER_LABELS[sem] ?? sem}
-                  </div>
-                  <ul className="space-y-1.5">
-                    {items.map((it) => (
-                      <li key={it.id} className="rounded border p-2 text-xs">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="font-mono font-bold">{it.course?.code}</span>
-                          <span className="text-[10px] text-muted-foreground">{it.course?.credit_hours} س.م</span>
-                        </div>
-                        <div className="mt-0.5 font-semibold">{it.course?.name_ar}</div>
-                        <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <span>{it.is_required ? "إجباري" : "اختياري"}</span>
-                          {it.prerequisite && <span>• متطلب: <span className="font-mono">{it.prerequisite.code}</span></span>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 const DAY_LABELS: Record<string, string> = {
   saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
