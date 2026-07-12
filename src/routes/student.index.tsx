@@ -173,25 +173,6 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
 }
 
 
-async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
-  const { data: plan, error: pErr } = await supabase
-    .from("study_plans")
-    .select("id")
-    .eq("program_id", programId)
-    .eq("is_active", true)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (pErr) throw pErr;
-  if (!plan) return [];
-  const { data, error } = await supabase
-    .from("study_plan_courses")
-    .select("id, semester_code, is_required, sort_order, level:academic_levels(name, level_number), course:courses!study_plan_courses_course_id_fkey(code, name_ar, credit_hours), prerequisite:courses!study_plan_courses_prerequisite_course_id_fkey(code)")
-    .eq("study_plan_id", plan.id)
-    .order("sort_order");
-  if (error) throw error;
-  return (data ?? []) as unknown as PlanCourseRow[];
-}
 
 export const Route = createFileRoute("/student/")({
   component: StudentDashboard,
