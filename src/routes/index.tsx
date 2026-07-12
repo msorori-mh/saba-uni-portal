@@ -129,36 +129,43 @@ function HomePage() {
 
   return (
     <>
-      {/* ============ HERO + PORTAL CARDS (above-the-fold) ============ */}
+      {/* ============ HERO — Schedule-portal style ============ */}
       <section className="relative overflow-hidden bg-primary-deep text-primary-foreground">
+        {/* vertical gold divider on the leading edge */}
         <div className="pointer-events-none absolute inset-y-0 left-8 md:left-16 w-px bg-gold/60" />
 
-        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 py-6 md:py-10 text-center">
+        <div className="relative mx-auto flex min-h-[calc(100vh-14rem)] max-w-2xl flex-col items-center justify-center px-4 py-16 md:py-24 text-center">
           {/* Logo card */}
-          <div className="grid h-20 w-20 md:h-24 md:w-24 place-items-center rounded-2xl bg-white p-2 shadow-elegant">
+          <div className="grid h-36 w-36 md:h-40 md:w-40 place-items-center rounded-2xl bg-white p-3 shadow-elegant">
             <img src={universityLogo.url} alt="شعار جامعة إقليم سبأ" className="h-full w-full object-contain" />
           </div>
 
           {/* Title */}
-          <h1 className="mt-4 font-display font-black leading-tight text-white">
-            <span className="block text-2xl md:text-4xl">البوابة الإلكترونية</span>
-            <span className="block mt-1 whitespace-nowrap text-[clamp(0.85rem,3.4vw,1.75rem)] md:text-3xl lg:text-4xl">
-              كلية تكنولوجيا المعلومات وعلوم الحاسوب
-            </span>
+          <h1 className="mt-8 font-display font-black leading-tight text-white text-4xl md:text-6xl">
+            <span className="block">البوابة الإلكترونية</span>
+            <span className="block mt-2">كلية تكنولوجيا المعلومات وعلوم الحاسوب</span>
           </h1>
+
+          {/* Notice box */}
+          <div className="mt-6 rounded-xl border border-white/20 bg-white/5 backdrop-blur-sm px-5 py-4 text-sm md:text-[15px] text-white/85 leading-7 max-w-xl">
+            منصة رقمية متكاملة للخدمات الأكاديمية والإدارية، تخدم الطلاب وأعضاء هيئة التدريس والموظفين في الكلية
+          </div>
 
           {/* Login CTA */}
           <Link
             to="/portal-login"
-            className="mt-5 inline-flex items-center justify-center rounded-md bg-gold-gradient px-8 py-3 text-sm font-extrabold text-primary-deep shadow-gold transition-all hover:-translate-y-0.5"
+            className="mt-8 inline-flex items-center justify-center rounded-md bg-gold-gradient px-12 py-4 text-base font-extrabold text-primary-deep shadow-gold transition-all hover:-translate-y-0.5"
           >
             تسجيل الدخول
           </Link>
+        </div>
+      </section>
 
-          {/* Portal cards */}
-          <div className="mt-6 w-full grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
-            {PORTAL_CARDS.map((p) => <PortalAccessCard key={p.title} card={p} />)}
-          </div>
+
+      {/* ============ PORTAL CARDS ============ */}
+      <section className="relative -mt-6 md:-mt-8 z-10 container mx-auto px-4 pb-8">
+        <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {PORTAL_CARDS.map((p) => <PortalAccessCard key={p.title} card={p} />)}
         </div>
       </section>
 
