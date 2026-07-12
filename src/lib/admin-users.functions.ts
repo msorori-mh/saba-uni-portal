@@ -472,7 +472,9 @@ export const listUsers = createServerFn({ method: "POST" })
         department_label,
         department_names_title: department_names.length > 1 ? department_names.join("، ") : undefined,
         identifier: r.employee_number ?? "",
-        email: r.user_id ? (authEmailByUserId.get(r.user_id) ?? null) : null,
+        email: r.user_id
+          ? (authEmailByUserId.get(r.user_id) ?? r.email ?? null)
+          : (r.email ?? null),
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       };
     });
