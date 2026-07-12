@@ -295,7 +295,7 @@ function StudentDashboard() {
               <StatCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} density="compact" />
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Link to="/student/schedule" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
                 <div className="flex items-center gap-3">
                   <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
@@ -304,6 +304,17 @@ function StudentDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-primary">جدولي الدراسي الأسبوعي</div>
                     <div className="text-xs text-muted-foreground">المحاضرات المعتمدة هذا الفصل.</div>
+                  </div>
+                </div>
+              </Link>
+              <Link to="/student/study-plan" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-primary">الخطة الدراسية</div>
+                    <div className="text-xs text-muted-foreground">تصفح الخطة حسب المستوى والفصل.</div>
                   </div>
                 </div>
               </Link>

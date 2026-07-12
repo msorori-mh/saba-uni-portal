@@ -32,6 +32,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
 import { Route as StaffIndexRouteImport } from './routes/staff.index'
 import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
+import { Route as StudentStudyPlanRouteImport } from './routes/student.study-plan'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentRequestsRouteImport } from './routes/student.requests'
 import { Route as StudentProgressRouteImport } from './routes/student.progress'
@@ -274,6 +275,11 @@ const AdminDocumentsLazyRoute = AdminDocumentsLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/admin/documents.lazy').then((d) => d.Route),
 )
+const StudentStudyPlanRoute = StudentStudyPlanRouteImport.update({
+  id: '/study-plan',
+  path: '/study-plan',
+  getParentRoute: () => StudentRoute,
+} as any)
 const StudentScheduleRoute = StudentScheduleRouteImport.update({
   id: '/schedule',
   path: '/schedule',
@@ -667,6 +673,7 @@ export interface FileRoutesByFullPath {
   '/student/progress': typeof StudentProgressRoute
   '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
+  '/student/study-plan': typeof StudentStudyPlanRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
   '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
   '/admin/finance': typeof AdminFinanceLazyRoute
@@ -756,6 +763,7 @@ export interface FileRoutesByTo {
   '/student/notifications': typeof StudentNotificationsRoute
   '/student/progress': typeof StudentProgressRoute
   '/student/schedule': typeof StudentScheduleRoute
+  '/student/study-plan': typeof StudentStudyPlanRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
   '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
   '/admin/finance': typeof AdminFinanceLazyRoute
@@ -852,6 +860,7 @@ export interface FileRoutesById {
   '/student/progress': typeof StudentProgressRoute
   '/student/requests': typeof StudentRequestsRouteWithChildren
   '/student/schedule': typeof StudentScheduleRoute
+  '/student/study-plan': typeof StudentStudyPlanRoute
   '/admin/documents': typeof AdminDocumentsLazyRoute
   '/admin/executive-dashboard': typeof AdminExecutiveDashboardLazyRoute
   '/admin/finance': typeof AdminFinanceLazyRoute
@@ -949,6 +958,7 @@ export interface FileRouteTypes {
     | '/student/progress'
     | '/student/requests'
     | '/student/schedule'
+    | '/student/study-plan'
     | '/admin/documents'
     | '/admin/executive-dashboard'
     | '/admin/finance'
@@ -1038,6 +1048,7 @@ export interface FileRouteTypes {
     | '/student/notifications'
     | '/student/progress'
     | '/student/schedule'
+    | '/student/study-plan'
     | '/admin/documents'
     | '/admin/executive-dashboard'
     | '/admin/finance'
@@ -1133,6 +1144,7 @@ export interface FileRouteTypes {
     | '/student/progress'
     | '/student/requests'
     | '/student/schedule'
+    | '/student/study-plan'
     | '/admin/documents'
     | '/admin/executive-dashboard'
     | '/admin/finance'
@@ -1394,6 +1406,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/documents'
       preLoaderRoute: typeof AdminDocumentsLazyRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/student/study-plan': {
+      id: '/student/study-plan'
+      path: '/study-plan'
+      fullPath: '/student/study-plan'
+      preLoaderRoute: typeof StudentStudyPlanRouteImport
+      parentRoute: typeof StudentRoute
     }
     '/student/schedule': {
       id: '/student/schedule'
@@ -2018,6 +2037,7 @@ interface StudentRouteChildren {
   StudentProgressRoute: typeof StudentProgressRoute
   StudentRequestsRoute: typeof StudentRequestsRouteWithChildren
   StudentScheduleRoute: typeof StudentScheduleRoute
+  StudentStudyPlanRoute: typeof StudentStudyPlanRoute
   StudentIndexRoute: typeof StudentIndexRoute
 }
 
@@ -2027,6 +2047,7 @@ const StudentRouteChildren: StudentRouteChildren = {
   StudentProgressRoute: StudentProgressRoute,
   StudentRequestsRoute: StudentRequestsRouteWithChildren,
   StudentScheduleRoute: StudentScheduleRoute,
+  StudentStudyPlanRoute: StudentStudyPlanRoute,
   StudentIndexRoute: StudentIndexRoute,
 }
 
