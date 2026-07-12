@@ -35,15 +35,6 @@ type StudentRow = {
   program: { name_ar: string } | null;
 };
 
-type PlanCourseRow = {
-  id: string;
-  semester_code: string;
-  is_required: boolean;
-  sort_order: number;
-  level: { name: string; level_number: number } | null;
-  course: { code: string; name_ar: string; credit_hours: number } | null;
-  prerequisite: { code: string } | null;
-};
 
 type AcademicStatus = {
   enrollment_status: string;
