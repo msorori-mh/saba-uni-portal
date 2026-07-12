@@ -429,7 +429,7 @@ export const listUsers = createServerFn({ method: "POST" })
     // staff
     const { data: rows, count, error } = await buildSelect(
       "staff_profiles",
-      "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, department_scope, role_type, job_title",
+      "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, department_scope, role_type, job_title, email",
       "employee_number",
     );
     if (error) throw new Error(error.message);
@@ -472,7 +472,9 @@ export const listUsers = createServerFn({ method: "POST" })
         department_label,
         department_names_title: department_names.length > 1 ? department_names.join("، ") : undefined,
         identifier: r.employee_number ?? "",
-        email: r.user_id ? (authEmailByUserId.get(r.user_id) ?? null) : null,
+        email: r.user_id
+          ? (authEmailByUserId.get(r.user_id) ?? r.email ?? null)
+          : (r.email ?? null),
         roles: (roles ?? []).filter((x: any) => x.user_id === r.user_id).map((x: any) => x.role),
       };
     });
