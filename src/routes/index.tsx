@@ -141,9 +141,9 @@ function HomePage() {
           </div>
 
           {/* Title */}
-          <h1 className="mt-8 font-display font-black leading-tight text-white text-4xl md:text-6xl">
+          <h1 className="mt-8 font-display font-black leading-tight text-white text-3xl md:text-4xl">
             <span className="block">البوابة الإلكترونية</span>
-            <span className="block mt-2">كلية تكنولوجيا المعلومات وعلوم الحاسوب</span>
+            <span className="block mt-2 whitespace-nowrap">كلية تكنولوجيا المعلومات وعلوم الحاسوب</span>
           </h1>
 
           {/* Notice box */}
