@@ -2,11 +2,16 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import {
   Plus, Search, Loader2, X, Pencil, KeyRound, UserCheck, UserX,
-  Briefcase, Upload, Unlink,
+  Briefcase, Upload, Unlink, Trash2, ShieldOff, UsersRound,
 } from "lucide-react";
 import { listUsers, createAccount, resetPassword, setActive, removeLoginAccount } from "@/lib/admin-users.functions";
+import { deactivateStaffProfile } from "@/lib/admin-staff-deletion.functions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StaffDeleteDialog } from "@/components/admin/staff-management/StaffDeleteDialog";
+import { ProcessingRolesTab } from "@/components/admin/staff-management/ProcessingRolesTab";
 
 const UNLINK_LOGIN_CONFIRM =
   "سيتم فك ربط حساب الدخول فقط. لن يُحذف الملف الأكاديمي أو المالي أو الإداري. يمكن إنشاء حساب دخول جديد لاحقاً.\n\nهل تريد المتابعة؟";
@@ -38,6 +43,7 @@ function roleTypeLabel(rt: string) {
 }
 
 function StaffManagementPage() {
+  const [activeTab, setActiveTab] = useState("staff");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [departmentId, setDepartmentId] = useState<string>("all");
@@ -45,6 +51,7 @@ function StaffManagementPage() {
   const [hasAccount, setHasAccount] = useState<"all" | "yes" | "no">("all");
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteStaff, setDeleteStaff] = useState<any | null>(null);
   const [slip, setSlip] = useState<CredentialsSlipData | null>(null);
 
   const list = useServerFn(listUsers);
@@ -52,6 +59,7 @@ function StaffManagementPage() {
   const reset = useServerFn(resetPassword);
   const toggle = useServerFn(setActive);
   const removeLogin = useServerFn(removeLoginAccount);
+  const deactivateProfile = useServerFn(deactivateStaffProfile);
   const lookupsFn = useServerFn(getPeopleLookups);
 
   const qc = useQueryClient();
@@ -102,10 +110,12 @@ function StaffManagementPage() {
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
             <Upload className="h-4 w-4" /> استيراد جماعي
           </Link>
-          <button onClick={() => { setShowAdd(true); setError(null); }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-bold hover:opacity-90 shadow-sm">
-            <Plus className="h-4 w-4" /> إضافة موظف جديد
-          </button>
+          {activeTab === "staff" && (
+            <button onClick={() => { setShowAdd(true); setError(null); }}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-bold hover:opacity-90 shadow-sm">
+              <Plus className="h-4 w-4" /> إضافة موظف جديد
+            </button>
+          )}
         </div>
       </div>
 
@@ -116,6 +126,13 @@ function StaffManagementPage() {
         </div>
       )}
 
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="staff"><UsersRound className="h-4 w-4 ml-2" />الموظفون</TabsTrigger>
+          <TabsTrigger value="roles"><Briefcase className="h-4 w-4 ml-2" />الأدوار الوظيفية</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="staff" className="mt-6 space-y-6">
       <div className="rounded-xl bg-card border border-border p-4 shadow-card">
         <div className="grid gap-3 sm:grid-cols-4">
           <div className="relative sm:col-span-2">
@@ -208,6 +225,20 @@ function StaffManagementPage() {
                             className="inline-flex items-center gap-1 rounded border border-border hover:bg-secondary px-2 py-1 text-xs">
                             <Pencil className="h-3 w-3" /> تعديل
                           </button>
+                          <button onClick={() => setDeleteStaff(r)}
+                            className="inline-flex items-center gap-1 rounded border border-destructive/30 text-destructive hover:bg-destructive/10 px-2 py-1 text-xs font-bold">
+                            <Trash2 className="h-3 w-3" /> فحص الحذف
+                          </button>
+                          <button disabled={!!busy || !isActive}
+                            title="تعطيل ملف الموظف فقط. هذا لا يمنع تسجيل الدخول تلقائياً؛ استخدم زر تعطيل حساب الدخول لمنع الدخول."
+                            onClick={() => run(`deactivate-profile-${r.id}`, async () => {
+                              await deactivateProfile({ data: { staffProfileId: r.id } });
+                              toast.success("تم تعطيل ملف الموظف");
+                            }, refresh)}
+                            className="inline-flex items-center gap-1 rounded border border-amber-500/40 text-amber-800 hover:bg-amber-500/10 px-2 py-1 text-xs disabled:opacity-50">
+                            {busy === `deactivate-profile-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldOff className="h-3 w-3" />}
+                            تعطيل الملف
+                          </button>
                           {!hasAcc ? (
                             <button disabled={!!busy}
                               onClick={() => run(`create-${r.id}`, async () => {
@@ -250,7 +281,7 @@ function StaffManagementPage() {
                                 }`}>
                                 {busy === `toggle-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" />
                                   : isActive ? <UserX className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
-                                {isActive ? "تعطيل" : "تفعيل"}
+                                {isActive ? "تعطيل الدخول" : "تفعيل الدخول"}
                               </button>
                               <button disabled={!!busy}
                                 onClick={() => {
@@ -273,6 +304,12 @@ function StaffManagementPage() {
           </div>
         )}
       </div>
+        </TabsContent>
+
+        <TabsContent value="roles" className="mt-6">
+          <ProcessingRolesTab />
+        </TabsContent>
+      </Tabs>
 
       {showAdd && lookups && (
         <AddStaffModal lookups={lookups} onClose={() => setShowAdd(false)}
@@ -295,6 +332,15 @@ function StaffManagementPage() {
         <EditStaffModal staffId={editId} lookups={lookups}
           onClose={() => setEditId(null)}
           onSaved={() => { setEditId(null); refresh(); }} />
+      )}
+
+      {deleteStaff && (
+        <StaffDeleteDialog
+          staff={deleteStaff}
+          open={Boolean(deleteStaff)}
+          onOpenChange={(open) => { if (!open) setDeleteStaff(null); }}
+          onChanged={refresh}
+        />
       )}
 
       {slip && <CredentialsSlip slip={slip} onClose={() => setSlip(null)} />}
