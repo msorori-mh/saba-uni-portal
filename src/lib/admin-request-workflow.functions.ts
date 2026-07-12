@@ -3,7 +3,6 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertAnyRole } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { REQUEST_TYPES_ADMIN_ROLES } from "@/lib/admin-request-types.functions";
 import {
   mergeWorkflowStepPaymentDocumentFlags,
   rpcAdminGetRequestWorkflowConfig,
@@ -15,6 +14,10 @@ import {
   type ProcessingOptionsResult,
   type WorkflowStepPaymentDocumentRow,
 } from "@/lib/admin-request-workflow-rpc";
+import {
+  WORKFLOW_ACTIVATE_ROLES,
+  WORKFLOW_DRAFT_SAVE_ROLES,
+} from "@/lib/workflow-activation-auth";
 import {
   assertDraftProcessingResolution,
   buildDraftProcessingResolutionFromRows,
@@ -31,8 +34,16 @@ import {
 async function assertRequestWorkflowAdmin(userId: string) {
   await assertAnyRole(
     userId,
-    REQUEST_TYPES_ADMIN_ROLES,
+    WORKFLOW_DRAFT_SAVE_ROLES,
     "ليس لديك صلاحية إعداد دورة حياة الطلبات",
+  );
+}
+
+async function assertRequestWorkflowActivate(userId: string) {
+  await assertAnyRole(
+    userId,
+    WORKFLOW_ACTIVATE_ROLES,
+    "ليس لديك صلاحية تفعيل دورة حياة الطلبات",
   );
 }
 
@@ -283,7 +294,11 @@ export const saveAdminRequestWorkflowConfig = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => workflowSaveSchema.parse(input))
   .handler(async ({ data, context }) => {
-    await assertRequestWorkflowAdmin(context.userId);
+    if (data.saveMode === "activate") {
+      await assertRequestWorkflowActivate(context.userId);
+    } else {
+      await assertRequestWorkflowAdmin(context.userId);
+    }
 
     const { data: typeRow, error: typeErr } = await supabaseAdmin
       .from("request_types")
