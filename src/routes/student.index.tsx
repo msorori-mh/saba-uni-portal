@@ -221,13 +221,6 @@ function StudentDashboard() {
     staleTime: STALE_LONG,
     refetchOnWindowFocus: false,
   });
-  const { data: planCourses = [] } = useQuery({
-    queryKey: ["student", "study-plan", profile?.program_id],
-    queryFn: () => fetchMyStudyPlan(profile!.program_id!),
-    enabled: !!profile?.program_id,
-    staleTime: STALE_LONG,
-    refetchOnWindowFocus: false,
-  });
   const { data: schedule = [] } = useQuery({
     queryKey: ["student", "schedule", profile?.program_id, acad?.academic_year_id, acad?.semester_id, acad?.level_id],
     queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
