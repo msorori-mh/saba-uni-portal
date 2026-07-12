@@ -96,8 +96,9 @@ export function StaffDeleteDialog({ staff, open, onOpenChange, onChanged }: Staf
     setResultMessage(null);
     setDeleteResult(null);
     try {
-      await deactivateFn({ data: { staffProfileId: staff.id } });
+      const res = await deactivateFn({ data: { staffProfileId: staff.id } });
       toast.success("تم تعطيل ملف الموظف");
+      if (res.warning) toast.warning(res.warning);
       refreshStaffQueries();
       onOpenChange(false);
     } catch (error) {

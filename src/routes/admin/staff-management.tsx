@@ -232,8 +232,9 @@ function StaffManagementPage() {
                           <button disabled={!!busy || !isActive}
                             title="تعطيل ملف الموظف فقط. هذا لا يمنع تسجيل الدخول تلقائياً؛ استخدم زر تعطيل حساب الدخول لمنع الدخول."
                             onClick={() => run(`deactivate-profile-${r.id}`, async () => {
-                              await deactivateProfile({ data: { staffProfileId: r.id } });
+                              const res = await deactivateProfile({ data: { staffProfileId: r.id } });
                               toast.success("تم تعطيل ملف الموظف");
+                              if (res.warning) toast.warning(res.warning);
                             }, refresh)}
                             className="inline-flex items-center gap-1 rounded border border-amber-500/40 text-amber-800 hover:bg-amber-500/10 px-2 py-1 text-xs disabled:opacity-50">
                             {busy === `deactivate-profile-${r.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShieldOff className="h-3 w-3" />}

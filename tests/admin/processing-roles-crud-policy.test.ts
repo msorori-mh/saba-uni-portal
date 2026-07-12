@@ -6,7 +6,9 @@ import {
   evaluateProcessingRoleMutationSafety,
 } from "../../src/lib/admin-staff-deletion.core";
 import {
+  attachAuditWarning,
   evaluateProcessingRoleUsageSafety,
+  interpretRoleDeleteResult,
   normalizeProcessingRoleCode,
   validateProcessingRoleCode,
   type ProcessingRoleUsageSafetyInput,
@@ -149,5 +151,66 @@ describe("admin processing roles source contracts 01O", () => {
   it("26 — processing role mutations require admin or system_admin", () => {
     expect(source).toContain('const PROCESSING_ROLE_ADMIN_ROLES = ["admin", "system_admin"] as const');
     expect(source).toContain("assertProcessingRoleAdmin(context.userId)");
+  });
+
+  it("R1 — audit insert errors return success + warning without retry", () => {
+    expect(source).toContain("const { error } = await supabaseAdmin.from(\"audit_logs\").insert");
+    expect(source).toContain("attachAuditWarning");
+    expect(source).toContain("تم إنشاء الدور الوظيفي");
+    expect(source).toContain("تم تحديث الدور الوظيفي");
+    expect(source).toContain("تم حذف الدور الوظيفي");
+    expect(source).not.toMatch(/attachAuditWarning[\s\S]{0,120}createRequestProcessingRole\(/);
+    expect(source).not.toMatch(/warning[\s\S]{0,80}await createRequestProcessingRole/);
+  });
+
+  it("R1 — delete uses select(id) and does not audit zero-row deletes as new deletes", () => {
+    expect(source).toContain('.select("id")');
+    expect(source).toContain("interpretRoleDeleteResult");
+    expect(source).toContain("idempotent");
+    expect(source).toContain("do not write a fresh deleted audit");
+  });
+});
+
+describe("admin processing roles audit warning policy R1", () => {
+  it("audit insert error after role delete yields success + warning", () => {
+    const result = attachAuditWarning(
+      { ok: true as const, deleted_id: "role-1", idempotent: false as const },
+      "audit down",
+      "تم حذف الدور الوظيفي",
+    );
+    expect(result.ok).toBe(true);
+    expect(result.deleted_id).toBe("role-1");
+    expect(result.warning).toContain("تم حذف الدور الوظيفي");
+    expect(result.warning).toContain("audit down");
+  });
+
+  it("audit insert error after create/update/toggle yields success + warning", () => {
+    for (const label of [
+      "تم إنشاء الدور الوظيفي",
+      "تم تحديث الدور الوظيفي",
+      "تم تفعيل الدور الوظيفي",
+      "تم تعطيل الدور الوظيفي",
+    ]) {
+      const result = attachAuditWarning(
+        { ok: true as const, role: { id: "r1" } },
+        new Error("insert failed"),
+        label,
+      );
+      expect(result.ok).toBe(true);
+      expect(result.warning).toContain(label);
+      expect(result.warning).toContain("insert failed");
+    }
+  });
+
+  it("interpretRoleDeleteResult distinguishes real delete vs idempotent missing", () => {
+    expect(
+      interpretRoleDeleteResult({ deletedCount: 1, roleId: "r1", alreadyMissing: false }),
+    ).toEqual({ ok: true, deleted_id: "r1", idempotent: false });
+    expect(
+      interpretRoleDeleteResult({ deletedCount: 0, roleId: "r1", alreadyMissing: true }),
+    ).toMatchObject({ ok: true, idempotent: true });
+    expect(
+      interpretRoleDeleteResult({ deletedCount: 0, roleId: "r1", alreadyMissing: false }).ok,
+    ).toBe(false);
   });
 });

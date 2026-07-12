@@ -1,6 +1,7 @@
 import {
   ENROLLMENT_CERTIFICATE_PROTECTED_ROLE_CODES,
   PROCESSING_ROLE_CODE_RE,
+  attachAuditWarning,
   evaluateProcessingRoleMutationSafety,
   type ProcessingRoleUsageCounts,
 } from "@/lib/admin-staff-deletion.core";
@@ -8,6 +9,7 @@ import {
 export {
   ENROLLMENT_CERTIFICATE_PROTECTED_ROLE_CODES,
   PROCESSING_ROLE_CODE_RE,
+  attachAuditWarning,
 };
 
 export type ProcessingRoleUsageSafetyInput = ProcessingRoleUsageCounts;
@@ -44,4 +46,35 @@ export function evaluateProcessingRoleUsageSafety(
     usage,
     action,
   });
+}
+
+export function interpretRoleDeleteResult(input: {
+  deletedCount: number;
+  roleId: string;
+  alreadyMissing: boolean;
+}):
+  | { ok: true; deleted_id: string; idempotent: false }
+  | { ok: true; deleted_id: string; idempotent: true; messageAr: string }
+  | { ok: false; messageAr: string } {
+  if (input.deletedCount === 1) {
+    return { ok: true, deleted_id: input.roleId, idempotent: false };
+  }
+  if (input.deletedCount === 0 && input.alreadyMissing) {
+    return {
+      ok: true,
+      deleted_id: input.roleId,
+      idempotent: true,
+      messageAr: "مسمى المعالجة محذوف مسبقاً.",
+    };
+  }
+  if (input.deletedCount === 0) {
+    return {
+      ok: false,
+      messageAr: "تعذر حذف مسمى المعالجة بسبب تعارض الحالة أو تغيير الرمز.",
+    };
+  }
+  return {
+    ok: false,
+    messageAr: "نتيجة حذف غير متوقعة؛ لم يُسجّل حذف جديد.",
+  };
 }

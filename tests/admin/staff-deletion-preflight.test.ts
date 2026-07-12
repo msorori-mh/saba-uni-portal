@@ -152,4 +152,18 @@ describe("admin staff deletion preflight 01O", () => {
     expect(result.canHardDelete).toBe(false);
     expect(result.canDeactivate).toBe(true);
   });
+
+  it("R1 — staff_profile_departments blocks hard delete and keeps canDeactivate", () => {
+    const result = preflight(
+      { userId: "user-2", actorUserId: "actor-1", appRoles: [] },
+      { staffProfileDepartments: 2 },
+    );
+    expect(result.canHardDelete).toBe(false);
+    expect(result.dependency_count).toBe(2);
+    expect(result.staffProfileDepartmentsCount).toBe(2);
+    expect(result.blockingReasons.join(" ")).toContain(
+      "الموظف مرتبط بأقسام أو نطاقات إدارية؛ عطّل الملف بدل الحذف النهائي.",
+    );
+    expect(result.canDeactivate).toBe(true);
+  });
 });

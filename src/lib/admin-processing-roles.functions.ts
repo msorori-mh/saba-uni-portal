@@ -12,8 +12,10 @@ import {
 import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import {
   evaluateProcessingRoleUsageSafety,
+  interpretRoleDeleteResult,
   normalizeProcessingRoleCode,
   validateProcessingRoleCode,
+  attachAuditWarning,
   type ProcessingRoleMutationAction,
   type ProcessingRoleUsageSafetyInput,
 } from "@/lib/admin-processing-roles.core";
@@ -114,7 +116,7 @@ async function logProcessingRoleAudit(input: {
   notes?: string;
   old_values?: unknown;
   new_values?: unknown;
-}) {
+}): Promise<{ ok: true } | { ok: false; messageAr: string }> {
   const role = await primaryActorRole(input.actor_user_id);
   const auditRow: TablesInsert<"audit_logs"> = {
     actor_user_id: input.actor_user_id,
@@ -134,7 +136,14 @@ async function logProcessingRoleAudit(input: {
       snapshot: (input.new_values ?? null) as Json,
     } as Json,
   };
-  await supabaseAdmin.from("audit_logs").insert(auditRow);
+  const { error } = await supabaseAdmin.from("audit_logs").insert(auditRow);
+  if (error) {
+    return {
+      ok: false,
+      messageAr: error.message || "تعذر تسجيل سجل التدقيق.",
+    };
+  }
+  return { ok: true };
 }
 
 async function requireActiveUnit(unitId: string): Promise<ProcessingUnitRow> {
@@ -381,7 +390,7 @@ export const createRequestProcessingRole = createServerFn({ method: "POST" })
       throw new Error(`تعذر إنشاء مسمى المعالجة: ${error?.message ?? ""}`);
     }
 
-    await logProcessingRoleAudit({
+    const audit = await logProcessingRoleAudit({
       actor_user_id: context.userId,
       entity_id: created.id,
       action_type: "processing_role_created",
@@ -389,7 +398,11 @@ export const createRequestProcessingRole = createServerFn({ method: "POST" })
       new_values: created,
     });
 
-    return created;
+    return attachAuditWarning(
+      { ok: true as const, role: created },
+      audit.ok ? null : audit.messageAr,
+      "تم إنشاء الدور الوظيفي",
+    );
   });
 
 export const updateRequestProcessingRole = createServerFn({ method: "POST" })
@@ -440,7 +453,7 @@ export const updateRequestProcessingRole = createServerFn({ method: "POST" })
       throw new Error(`تعذر تحديث مسمى المعالجة: ${error?.message ?? ""}`);
     }
 
-    await logProcessingRoleAudit({
+    const audit = await logProcessingRoleAudit({
       actor_user_id: context.userId,
       entity_id: data.id,
       action_type: "processing_role_updated",
@@ -449,7 +462,11 @@ export const updateRequestProcessingRole = createServerFn({ method: "POST" })
       new_values: updated,
     });
 
-    return updated;
+    return attachAuditWarning(
+      { ok: true as const, role: updated },
+      audit.ok ? null : audit.messageAr,
+      "تم تحديث الدور الوظيفي",
+    );
   });
 
 export const setRequestProcessingRoleActive = createServerFn({ method: "POST" })
@@ -466,7 +483,7 @@ export const setRequestProcessingRoleActive = createServerFn({ method: "POST" })
     }
 
     if (old.is_active === data.is_active) {
-      return { ok: true as const, role: old };
+      return { ok: true as const, role: old, warning: null };
     }
 
     const { data: updated, error } = await supabaseAdmin
@@ -479,7 +496,7 @@ export const setRequestProcessingRoleActive = createServerFn({ method: "POST" })
       throw new Error(`تعذر تغيير حالة مسمى المعالجة: ${error?.message ?? ""}`);
     }
 
-    await logProcessingRoleAudit({
+    const audit = await logProcessingRoleAudit({
       actor_user_id: context.userId,
       entity_id: data.id,
       action_type: data.is_active ? "processing_role_activated" : "processing_role_deactivated",
@@ -488,7 +505,11 @@ export const setRequestProcessingRoleActive = createServerFn({ method: "POST" })
       new_values: updated,
     });
 
-    return { ok: true as const, role: updated };
+    return attachAuditWarning(
+      { ok: true as const, role: updated },
+      audit.ok ? null : audit.messageAr,
+      data.is_active ? "تم تفعيل الدور الوظيفي" : "تم تعطيل الدور الوظيفي",
+    );
   });
 
 export const deleteRequestProcessingRoleSafely = createServerFn({ method: "POST" })
@@ -503,28 +524,55 @@ export const deleteRequestProcessingRoleSafely = createServerFn({ method: "POST"
 
     await assertUsageAllows(old, "delete");
 
-    const { error } = await supabaseAdmin
+    const { data: deletedRows, error } = await supabaseAdmin
       .from("request_processing_roles")
       .delete()
       .eq("id", data.id)
-      .eq("code", old.code);
+      .eq("code", old.code)
+      .select("id");
     if (error) throw new Error(`تعذر حذف مسمى المعالجة: ${error.message}`);
 
-    let warning: string | null = null;
-    try {
-      await logProcessingRoleAudit({
-        actor_user_id: context.userId,
-        entity_id: data.id,
-        action_type: "processing_role_deleted",
-        notes: `حذف مسمى معالجة: ${old.code}`,
-        old_values: old,
+    const deletedCount = (deletedRows ?? []).length;
+    if (deletedCount === 0) {
+      const stillThere = await supabaseAdmin
+        .from("request_processing_roles")
+        .select("id")
+        .eq("id", data.id)
+        .maybeSingle();
+      const interpreted = interpretRoleDeleteResult({
+        deletedCount: 0,
+        roleId: data.id,
+        alreadyMissing: !stillThere.data && !stillThere.error,
       });
-    } catch (auditError) {
-      warning =
-        auditError instanceof Error
-          ? `تم الحذف بنجاح، لكن تعذر تسجيل التدقيق: ${auditError.message}`
-          : "تم الحذف بنجاح، لكن تعذر تسجيل التدقيق.";
+      if (!interpreted.ok) throw new Error(interpreted.messageAr);
+      // Idempotent: role already gone — do not write a fresh deleted audit.
+      return {
+        ok: true as const,
+        deleted_id: data.id,
+        warning: null,
+        idempotent: true as const,
+        messageAr: interpreted.messageAr,
+      };
+    }
+    if (deletedCount !== 1) {
+      throw new Error("نتيجة حذف غير متوقعة؛ لم يُسجّل حذف جديد.");
     }
 
-    return { ok: true as const, deleted_id: data.id, warning };
+    const audit = await logProcessingRoleAudit({
+      actor_user_id: context.userId,
+      entity_id: data.id,
+      action_type: "processing_role_deleted",
+      notes: `حذف مسمى معالجة: ${old.code}`,
+      old_values: old,
+    });
+
+    return attachAuditWarning(
+      {
+        ok: true as const,
+        deleted_id: data.id,
+        idempotent: false as const,
+      },
+      audit.ok ? null : audit.messageAr,
+      "تم حذف الدور الوظيفي",
+    );
   });

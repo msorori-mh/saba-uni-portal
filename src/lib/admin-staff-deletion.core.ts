@@ -99,13 +99,16 @@ export function evaluateStaffDeletionPreflight(
     dependency_count += n;
   }
 
-  // Owned junction rows (staff_profile_departments) are counted for visibility and
-  // cascaded during hard delete — they alone do not block. Operational/historical links do.
   if ((deps.processingAssignments ?? 0) > 0) {
     blockingReasons.push("توجد تكليفات معالجة طلبات مرتبطة بالموظف.");
   }
   if ((deps.workflowStepsAssigned ?? 0) > 0) {
     blockingReasons.push("توجد خطوات طلبات مسندة إلى هذا الموظف.");
+  }
+  if ((deps.staffProfileDepartments ?? 0) > 0) {
+    blockingReasons.push(
+      "الموظف مرتبط بأقسام أو نطاقات إدارية؛ عطّل الملف بدل الحذف النهائي.",
+    );
   }
   if ((deps.positionAssignments ?? 0) > 0) {
     blockingReasons.push("توجد تكليفات مناصب مرتبطة بحساب الموظف.");
@@ -120,6 +123,7 @@ export function evaluateStaffDeletionPreflight(
   const hardBlockingCount =
     (deps.processingAssignments ?? 0) +
     (deps.workflowStepsAssigned ?? 0) +
+    (deps.staffProfileDepartments ?? 0) +
     (deps.positionAssignments ?? 0) +
     (deps.notifications ?? 0) +
     (deps.auditLogs ?? 0);
@@ -205,6 +209,25 @@ export function interpretStaffDeleteOutcome(r: {
     return { partialFailure: true, severity: "partial" };
   }
   return { partialFailure: false, severity: "failed" };
+}
+
+/** Attach audit warning without implying the primary mutation failed. */
+export function attachAuditWarning<T extends { ok: true }>(
+  result: T,
+  auditError: unknown | null,
+  successLabelAr: string,
+): T & { warning: string | null } {
+  if (!auditError) return { ...result, warning: null };
+  const detail =
+    auditError instanceof Error
+      ? auditError.message
+      : typeof auditError === "string"
+        ? auditError
+        : "تعذر تسجيل سجل التدقيق.";
+  return {
+    ...result,
+    warning: `${successLabelAr}، لكن تعذر تسجيل سجل التدقيق: ${detail}`,
+  };
 }
 
 export const PROCESSING_ROLE_CODE_RE = /^[a-z][a-z0-9_]*$/;

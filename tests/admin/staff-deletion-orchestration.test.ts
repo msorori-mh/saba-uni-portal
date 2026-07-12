@@ -2,6 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  attachAuditWarning,
   evaluateStaffDeletionPreflight,
   interpretStaffDeleteOutcome,
   validateStaffDeleteConfirmation,
@@ -85,7 +86,7 @@ async function runPureDeleteOrchestration(input: {
   };
 }
 
-describe("admin staff deletion orchestration policy 01O", () => {
+describe("admin staff deletion orchestration policy 01O / R1", () => {
   it("12 — auth delete failure should not delete staff profile", async () => {
     const deleteAuthUserFn = mock(async () => false);
     const deleteStaffProfileFn = mock(async () => true);
@@ -154,23 +155,61 @@ describe("admin staff deletion orchestration policy 01O", () => {
     expect(result.messageAr).toContain("الاسم الكامل");
   });
 
-  it("server source returns before staff delete when auth checks fail", () => {
+  it("R1 — successful Auth delete proceeds directly to staff_profile delete without user_roles DELETE", () => {
     const source = readFileSync(
       join(ROOT, "src/lib/admin-staff-deletion.functions.ts"),
       "utf8",
     );
-    expect(source).toContain("تعذر التحقق من حساب الدخول قبل الحذف");
-    expect(source).toContain("تعذر حذف حساب الدخول، ولم يتم حذف ملف الموظف");
     expect(source).toContain("auth.admin.deleteUser");
-    expect(source.indexOf("auth.admin.deleteUser")).toBeLessThan(
-      source.lastIndexOf('from("staff_profiles")'),
+    expect(source).toContain("ON DELETE CASCADE");
+    expect(source).toContain('from("staff_profiles")');
+    expect(source).not.toMatch(/from\("user_roles"\)[\s\S]{0,40}\.delete\(/);
+    expect(source).not.toMatch(/from\("staff_profile_departments"\)[\s\S]{0,40}\.delete\(/);
+
+    const authIdx = source.indexOf("auth.admin.deleteUser");
+    const staffDeleteIdx = source.indexOf('.from("staff_profiles")', authIdx);
+    // Find the delete call after auth delete (not the earlier loadStaffProfile selects).
+    const deleteCallIdx = source.indexOf(".delete()", staffDeleteIdx);
+    expect(authIdx).toBeGreaterThan(-1);
+    expect(staffDeleteIdx).toBeGreaterThan(authIdx);
+    expect(deleteCallIdx).toBeGreaterThan(staffDeleteIdx);
+    const between = source.slice(authIdx, deleteCallIdx);
+    expect(between).not.toContain('.from("user_roles")');
+    expect(between).not.toMatch(/staff_profile_departments[\s\S]{0,40}\.delete\(/);
+  });
+
+  it("R1 — auth failure path returns before staff delete", () => {
+    const source = readFileSync(
+      join(ROOT, "src/lib/admin-staff-deletion.functions.ts"),
+      "utf8",
     );
-    // Auth failure path must not claim staff deletion succeeded.
+    expect(source).toContain("تعذر حذف حساب الدخول، ولم يتم حذف ملف الموظف");
     const authFailBlock = source.slice(
       source.indexOf("if (error) {", source.indexOf("auth.admin.deleteUser")),
       source.indexOf("authUserDeleted = true"),
     );
     expect(authFailBlock).toContain("staffProfileDeleted: false");
     expect(authFailBlock).toContain("authUserDeleted: false");
+  });
+
+  it("R1 — audit failure after staff deactivate keeps success + warning", () => {
+    const result = attachAuditWarning(
+      { ok: true as const, staffProfileId: "staff-1", status: "inactive" as const },
+      new Error("audit insert failed"),
+      "تم تعطيل ملف الموظف",
+    );
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe("inactive");
+    expect(result.warning).toContain("تم تعطيل ملف الموظف");
+    expect(result.warning).toContain("audit insert failed");
+
+    const source = readFileSync(
+      join(ROOT, "src/lib/admin-staff-deletion.functions.ts"),
+      "utf8",
+    );
+    expect(source).toContain("attachAuditWarning");
+    expect(source).toContain("تم تعطيل ملف الموظف");
+    // No automatic retry of deactivate after audit failure.
+    expect(source).not.toMatch(/attachAuditWarning[\s\S]{0,200}deactivateStaffProfile\(/);
   });
 });

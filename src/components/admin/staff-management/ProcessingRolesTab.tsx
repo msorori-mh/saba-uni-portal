@@ -127,8 +127,9 @@ export function ProcessingRolesTab() {
   const toggleActive = async (role: ProcessingRoleRow) => {
     setBusyToggle(role.id);
     try {
-      await setActiveFn({ data: { id: role.id, is_active: !role.is_active } });
+      const res = await setActiveFn({ data: { id: role.id, is_active: !role.is_active } });
       toast.success(role.is_active ? "تم تعطيل الدور الوظيفي" : "تم تفعيل الدور الوظيفي");
+      if (res.warning) toast.warning(res.warning);
       refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "تعذّر تغيير حالة الدور");
@@ -359,11 +360,13 @@ function ProcessingRoleFormDialog({
     };
     try {
       if (role) {
-        await updateFn({ data: { id: role.id, ...payload } });
+        const res = await updateFn({ data: { id: role.id, ...payload } });
         toast.success("تم تحديث الدور الوظيفي");
+        if (res.warning) toast.warning(res.warning);
       } else {
-        await createFn({ data: { code: form.code, ...payload } });
+        const res = await createFn({ data: { code: form.code, ...payload } });
         toast.success("تم إنشاء الدور الوظيفي");
+        if (res.warning) toast.warning(res.warning);
       }
       onSaved();
     } catch (error) {
@@ -547,7 +550,8 @@ function ProcessingRoleUsageDeleteDialog({
     setErr(null);
     try {
       const res = await deleteFn({ data: { id: role.id, confirmationText } });
-      toast.success(res.warning ?? "تم حذف الدور الوظيفي");
+      toast.success(res.messageAr ?? "تم حذف الدور الوظيفي");
+      if (res.warning) toast.warning(res.warning);
       onDeleted();
     } catch (error) {
       const message = error instanceof Error ? error.message : "تعذّر حذف الدور الوظيفي";

@@ -6,6 +6,7 @@ import { assertAnyRole, primaryActorRole } from "@/lib/authz.server";
 import {
   evaluateStaffDeletionPreflight,
   validateStaffDeleteConfirmation,
+  attachAuditWarning,
   type StaffDeletionDependencyCounts,
   type StaffDeletionPreflightResult,
 } from "@/lib/admin-staff-deletion.core";
@@ -416,41 +417,13 @@ export const deleteStaffProfileSafely = createServerFn({ method: "POST" })
         }
       }
       authUserDeleted = true;
-
-      const { error: rolesDeleteError } = await supabaseAdmin
-        .from("user_roles")
-        .delete()
-        .eq("user_id", preflight.user_id);
-      if (rolesDeleteError) {
-        return staffDeleteResult({
-          authUserDeleted,
-          staffProfileDeleted: false,
-          partialFailure: true,
-          warning: `تم حذف حساب الدخول لكن تعذر حذف أدوار المستخدم، وبقي ملف الموظف دون حذف: ${rolesDeleteError.message}`,
-          deletedStaffProfileId: preflight.staff_profile_id,
-          deletedUserId: preflight.user_id,
-          messageAr: "حدث فشل جزئي أثناء حذف ملف الموظف.",
-        });
-      }
+      // user_roles.user_id → auth.users(id) ON DELETE CASCADE
+      // (supabase/migrations/20260531205946_2c4ce56a-7217-4866-ad75-cf5a7ea812e3.sql).
+      // Do not issue a separate DELETE on user_roles after auth.admin.deleteUser.
     }
 
-    const { error: departmentsDeleteError } = await supabaseAdmin
-      .from("staff_profile_departments")
-      .delete()
-      .eq("staff_profile_id", preflight.staff_profile_id);
-    if (departmentsDeleteError) {
-      return staffDeleteResult({
-        authUserDeleted,
-        staffProfileDeleted: false,
-        partialFailure: authUserDeleted,
-        warning: authUserDeleted
-          ? `تم حذف حساب الدخول لكن تعذر حذف ارتباطات أقسام الموظف، وبقي ملف الموظف دون حذف: ${departmentsDeleteError.message}`
-          : departmentsDeleteError.message,
-        deletedStaffProfileId: preflight.staff_profile_id,
-        deletedUserId: preflight.user_id,
-        messageAr: "لم يتم حذف ملف الموظف.",
-      });
-    }
+    // No automatic cascade deletes of dependent tables (e.g. staff_profile_departments).
+    // Those rows must fail preflight and force deactivate instead of hard delete.
 
     const { data: deletedRows, error: staffDeleteError } = await supabaseAdmin
       .from("staff_profiles")
@@ -549,16 +522,29 @@ export const deactivateStaffProfile = createServerFn({ method: "POST" })
       .eq("id", data.staffProfileId);
     if (error) throw new Error(error.message);
 
-    await logStaffAudit({
-      actorUserId: context.userId,
-      entityId: data.staffProfileId,
-      actionType: "staff_profile_deactivated",
-      notes: "Staff profile deactivated from admin staff management.",
-      payload: {
-        staff_profile_id: data.staffProfileId,
-        status: "inactive",
-      },
-    });
+    let auditError: unknown = null;
+    try {
+      await logStaffAudit({
+        actorUserId: context.userId,
+        entityId: data.staffProfileId,
+        actionType: "staff_profile_deactivated",
+        notes: "Staff profile deactivated from admin staff management.",
+        payload: {
+          staff_profile_id: data.staffProfileId,
+          status: "inactive",
+        },
+      });
+    } catch (error) {
+      auditError = error;
+    }
 
-    return { ok: true, staffProfileId: data.staffProfileId, status: "inactive" as const };
+    return attachAuditWarning(
+      {
+        ok: true as const,
+        staffProfileId: data.staffProfileId,
+        status: "inactive" as const,
+      },
+      auditError,
+      "تم تعطيل ملف الموظف",
+    );
   });
