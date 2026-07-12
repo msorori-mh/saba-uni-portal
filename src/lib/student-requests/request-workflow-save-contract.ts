@@ -159,9 +159,211 @@ function inferDepartmentScope(stepKey: string): WorkflowDepartmentScope {
   return null;
 }
 
+/** Final approval is type-specific — enrollment_certificate uses dean_signature only. */
+export function inferWorkflowStepIsFinalApproval(
+  requestTypeCode: string,
+  stepKey: string,
+  opts?: {
+    actionType?: string | null;
+    roleKey?: string | null;
+    source?: "draft" | "preview";
+  },
+): boolean {
+  const code = normalizeStudentRequestTypeCode(requestTypeCode) ?? requestTypeCode.trim();
+  if (code === "enrollment_certificate") {
+    return stepKey === "dean_signature";
+  }
+  if (opts?.source === "preview") {
+    return (
+      opts.roleKey === "registrar_general" &&
+      (opts.actionType === "approve" || opts.actionType === "complete")
+    );
+  }
+  return opts?.actionType === "approve" || opts?.actionType === "complete";
+}
+
+export type DraftProcessingUnitResolution = {
+  code: string;
+  isActive: boolean;
+};
+
+export type DraftProcessingRoleResolution = {
+  code: string;
+  unitId: string;
+  isActive: boolean;
+};
+
+/** Server-trusted unit/role lookup keyed by UUID — never trust browser role codes. */
+export type DraftWorkflowProcessingResolution = {
+  unitsById: ReadonlyMap<string, DraftProcessingUnitResolution>;
+  rolesById: ReadonlyMap<string, DraftProcessingRoleResolution>;
+};
+
+export type DraftProcessingResolutionIssue = {
+  severity: "error";
+  code: string;
+  messageAr: string;
+  stepKey?: string;
+};
+
+export function buildDraftProcessingResolutionFromRows(
+  units: Array<{ id: string; code: string; is_active: boolean }>,
+  roles: Array<{ id: string; unit_id: string; code: string; is_active: boolean }>,
+): DraftWorkflowProcessingResolution {
+  const unitsById = new Map<string, DraftProcessingUnitResolution>();
+  for (const u of units) {
+    unitsById.set(u.id, { code: u.code, isActive: Boolean(u.is_active) });
+  }
+  const rolesById = new Map<string, DraftProcessingRoleResolution>();
+  for (const r of roles) {
+    rolesById.set(r.id, {
+      code: r.code,
+      unitId: r.unit_id,
+      isActive: Boolean(r.is_active),
+    });
+  }
+  return { unitsById, rolesById };
+}
+
+/** Explicit student step only — never infer from step_order. */
+export function isExplicitStudentDraftStep(step: DraftWorkflowStep): boolean {
+  return (
+    step.step_key === "student" &&
+    !step.processing_unit_id &&
+    !step.processing_role_id
+  );
+}
+
+export function normalizeDraftWorkflowStepFlags(step: DraftWorkflowStep): DraftWorkflowStep {
+  const requires_payment =
+    step.requires_payment === true ||
+    step.action_type === "assess_fee" ||
+    step.action_type === "request_payment";
+  const produces_document =
+    step.produces_document === true || step.action_type === "issue_document";
+  return {
+    ...step,
+    requires_payment,
+    produces_document,
+  };
+}
+
+export function normalizeDraftWorkflowStepsFlags(
+  steps: DraftWorkflowStep[],
+): DraftWorkflowStep[] {
+  return steps.map(normalizeDraftWorkflowStepFlags);
+}
+
+/**
+ * Validates that every staff draft step has active unit/role refs that match.
+ * Pure — no DB access.
+ */
+export function validateDraftProcessingReferences(
+  steps: DraftWorkflowStep[],
+  resolution: DraftWorkflowProcessingResolution,
+): DraftProcessingResolutionIssue[] {
+  const issues: DraftProcessingResolutionIssue[] = [];
+
+  for (const step of steps) {
+    if (isExplicitStudentDraftStep(step)) continue;
+
+    if (!step.processing_unit_id) {
+      issues.push({
+        severity: "error",
+        code: "missing_processing_unit",
+        messageAr: `الخطوة «${step.step_name_ar}» بلا جهة مسؤولة.`,
+        stepKey: step.step_key,
+      });
+      continue;
+    }
+
+    if (!step.processing_role_id) {
+      issues.push({
+        severity: "error",
+        code: "missing_processing_role",
+        messageAr: `الخطوة «${step.step_name_ar}» بلا مسمى مسؤول.`,
+        stepKey: step.step_key,
+      });
+      continue;
+    }
+
+    const unit = resolution.unitsById.get(step.processing_unit_id);
+    if (!unit) {
+      issues.push({
+        severity: "error",
+        code: "unit_not_found",
+        messageAr: `الجهة المختارة غير نشطة أو غير موجودة للخطوة «${step.step_name_ar}».`,
+        stepKey: step.step_key,
+      });
+      continue;
+    }
+    if (!unit.isActive) {
+      issues.push({
+        severity: "error",
+        code: "unit_inactive",
+        messageAr: `الجهة المختارة غير نشطة أو غير موجودة للخطوة «${step.step_name_ar}».`,
+        stepKey: step.step_key,
+      });
+      continue;
+    }
+
+    const role = resolution.rolesById.get(step.processing_role_id);
+    if (!role) {
+      issues.push({
+        severity: "error",
+        code: "role_not_found",
+        messageAr: `المسمى المختار غير نشط أو غير موجود للخطوة «${step.step_name_ar}».`,
+        stepKey: step.step_key,
+      });
+      continue;
+    }
+    if (!role.isActive) {
+      issues.push({
+        severity: "error",
+        code: "role_inactive",
+        messageAr: `المسمى المختار غير نشط أو غير موجود للخطوة «${step.step_name_ar}».`,
+        stepKey: step.step_key,
+      });
+      continue;
+    }
+
+    if (role.unitId !== step.processing_unit_id) {
+      issues.push({
+        severity: "error",
+        code: "role_unit_mismatch",
+        messageAr: `المسمى المسؤول لا ينتمي إلى الجهة المختارة في الخطوة «${step.step_name_ar}».`,
+        stepKey: step.step_key,
+      });
+      continue;
+    }
+
+    if (!APPROVED_ROLE_SET.has(role.code)) {
+      issues.push({
+        severity: "error",
+        code: "unapproved_role_code",
+        messageAr: `رمز المسمى «${role.code}» غير معتمد للخطوة «${step.step_name_ar}».`,
+        stepKey: step.step_key,
+      });
+    }
+  }
+
+  return issues;
+}
+
+export function assertDraftProcessingResolution(
+  steps: DraftWorkflowStep[],
+  resolution: DraftWorkflowProcessingResolution,
+): void {
+  const issues = validateDraftProcessingReferences(steps, resolution);
+  if (issues.length > 0) {
+    throw new Error(issues[0]!.messageAr);
+  }
+}
+
 function mapPreviewStepToInput(
   def: CanonicalWorkflowStepDef,
   sequence: number,
+  requestTypeCode: string,
 ): StudentRequestWorkflowStepInput {
   const actorType: WorkflowActorType = def.isCentralSignatory
     ? "central_signatory"
@@ -169,9 +371,11 @@ function mapPreviewStepToInput(
       ? "student"
       : "staff";
 
-  const isFinalApproval =
-    def.roleKey === "registrar_general" &&
-    (def.actionType === "approve" || def.actionType === "complete");
+  const isFinalApproval = inferWorkflowStepIsFinalApproval(requestTypeCode, def.key, {
+    actionType: def.actionType,
+    roleKey: def.roleKey,
+    source: "preview",
+  });
 
   return {
     stepKey: def.key,
@@ -183,9 +387,11 @@ function mapPreviewStepToInput(
     departmentScope: inferDepartmentScope(def.key),
     isParallel: Boolean(def.isParallel),
     parallelGroupKey: def.parallelGroupId ?? null,
-    requiresFee: Boolean(def.requiresFee || def.actionType === "assess_fee"),
+    requiresFee: Boolean(
+      def.requiresFee || def.actionType === "assess_fee" || def.actionType === "request_payment",
+    ),
     requiresAttachmentReview: def.roleKey === "student" && def.key === "student",
-    producesDocument: Boolean(def.issuesDocument),
+    producesDocument: Boolean(def.issuesDocument || def.actionType === "issue_document"),
     isFinalApproval,
     allowsReject: def.roleKey !== "student" && !def.isCentralSignatory,
     allowsReturn: def.roleKey === "student",
@@ -287,7 +493,7 @@ export function buildWorkflowSaveInputFromPreview(
       seq += 1;
       lastParallelGroup = null;
     }
-    steps.push(mapPreviewStepToInput(def, seq));
+    steps.push(mapPreviewStepToInput(def, seq, normalized));
   }
 
   const transitions =
@@ -321,29 +527,65 @@ export function buildWorkflowSaveInputFromDraft(
   requestTypeCode: string,
   draftSteps: DraftWorkflowStep[],
   draftTransitions: DraftWorkflowTransition[],
+  resolution?: DraftWorkflowProcessingResolution | null,
 ): StudentRequestWorkflowSaveInput {
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode) ?? requestTypeCode.trim();
-  const sorted = [...draftSteps].sort((a, b) => a.step_order - b.step_order);
+  const sorted = [...draftSteps]
+    .map(normalizeDraftWorkflowStepFlags)
+    .sort((a, b) => a.step_order - b.step_order);
 
-  const steps: StudentRequestWorkflowStepInput[] = sorted.map((d) => ({
-    stepKey: d.step_key,
-    sequence: d.step_order,
-    labelAr: d.step_name_ar,
-    actorType: d.step_key === "student" || d.step_order === 1 ? "student" : "staff",
-    roleKey: null,
-    departmentScope: inferDepartmentScope(d.step_key),
-    isParallel: false,
-    parallelGroupKey: null,
-    requiresFee: d.action_type === "request_payment" || d.action_type === "assess_fee",
-    requiresAttachmentReview: false,
-    producesDocument: d.action_type === "issue_document",
-    isFinalApproval: d.action_type === "approve" || d.action_type === "complete",
-    allowsReject: d.can_reject,
-    allowsReturn: d.can_return_to_student,
-    allowsRequestCompletion: d.can_return_to_student,
-    notesAr: null,
-  }));
+  const steps: StudentRequestWorkflowStepInput[] = sorted.map((d) => {
+    if (isExplicitStudentDraftStep(d)) {
+      return {
+        stepKey: d.step_key,
+        sequence: d.step_order,
+        labelAr: d.step_name_ar,
+        actorType: "student" as const,
+        roleKey: null,
+        departmentScope: inferDepartmentScope(d.step_key),
+        isParallel: false,
+        parallelGroupKey: null,
+        requiresFee: Boolean(d.requires_payment),
+        requiresAttachmentReview: d.step_key === "student",
+        producesDocument: Boolean(d.produces_document),
+        isFinalApproval: false,
+        allowsReject: d.can_reject,
+        allowsReturn: d.can_return_to_student,
+        allowsRequestCompletion: d.can_return_to_student,
+        notesAr: null,
+      };
+    }
 
+    let roleKey: string | null = null;
+    if (d.processing_role_id && resolution) {
+      roleKey = resolution.rolesById.get(d.processing_role_id)?.code ?? null;
+    }
+
+    return {
+      stepKey: d.step_key,
+      sequence: d.step_order,
+      labelAr: d.step_name_ar,
+      actorType: "staff" as const,
+      roleKey,
+      departmentScope: inferDepartmentScope(d.step_key),
+      isParallel: false,
+      parallelGroupKey: null,
+      requiresFee: Boolean(d.requires_payment),
+      requiresAttachmentReview: false,
+      producesDocument: Boolean(d.produces_document),
+      isFinalApproval: inferWorkflowStepIsFinalApproval(normalized, d.step_key, {
+        actionType: d.action_type,
+        roleKey,
+        source: "draft",
+      }),
+      allowsReject: d.can_reject,
+      allowsReturn: d.can_return_to_student,
+      allowsRequestCompletion: d.can_return_to_student,
+      notesAr: null,
+    };
+  });
+
+  // Validation graph uses only concrete from→to edges; RPC still receives null endpoints separately.
   const transitions: StudentRequestWorkflowTransitionInput[] = draftTransitions
     .filter((t) => t.from_step_key && t.to_step_key)
     .map((t) => ({
@@ -354,9 +596,7 @@ export function buildWorkflowSaveInputFromDraft(
     }));
 
   if (transitions.length === 0 && steps.length > 1) {
-    transitions.push(
-      ...buildTransitionsFromSteps(steps),
-    );
+    transitions.push(...buildTransitionsFromSteps(steps));
   }
 
   return {
@@ -369,6 +609,13 @@ export function buildWorkflowSaveInputFromDraft(
     transitions,
     parallelGroups: buildParallelGroups(steps),
   };
+}
+
+/** All draft transitions for save RPC — including null start/end endpoints. */
+export function draftTransitionsForSaveRpc(
+  draftTransitions: DraftWorkflowTransition[],
+): DraftWorkflowTransition[] {
+  return draftTransitions.map((t) => ({ ...t }));
 }
 
 export function normalizeWorkflowSaveInput(

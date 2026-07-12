@@ -317,6 +317,9 @@ function AdminRequestTypeWorkflowPage() {
       can_return_to_student: s.role_key === "student",
       can_reject: s.role_key !== "student",
       can_skip: false,
+      requires_payment:
+        s.action_type === "assess_fee" || s.action_type === "request_payment",
+      produces_document: s.action_type === "issue_document",
     }));
 
     const canonicalTransitions = getCanonicalDraftTransitionsForType(requestType.code);
