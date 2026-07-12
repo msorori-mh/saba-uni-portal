@@ -429,7 +429,7 @@ export const listUsers = createServerFn({ method: "POST" })
     // staff
     const { data: rows, count, error } = await buildSelect(
       "staff_profiles",
-      "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, department_scope, role_type, job_title",
+      "id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, department_scope, role_type, job_title, email",
       "employee_number",
     );
     if (error) throw new Error(error.message);
