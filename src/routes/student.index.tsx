@@ -35,15 +35,6 @@ type StudentRow = {
   program: { name_ar: string } | null;
 };
 
-type PlanCourseRow = {
-  id: string;
-  semester_code: string;
-  is_required: boolean;
-  sort_order: number;
-  level: { name: string; level_number: number } | null;
-  course: { code: string; name_ar: string; credit_hours: number } | null;
-  prerequisite: { code: string } | null;
-};
 
 type AcademicStatus = {
   enrollment_status: string;
@@ -173,25 +164,6 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
 }
 
 
-async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
-  const { data: plan, error: pErr } = await supabase
-    .from("study_plans")
-    .select("id")
-    .eq("program_id", programId)
-    .eq("is_active", true)
-    .order("version", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (pErr) throw pErr;
-  if (!plan) return [];
-  const { data, error } = await supabase
-    .from("study_plan_courses")
-    .select("id, semester_code, is_required, sort_order, level:academic_levels(name, level_number), course:courses!study_plan_courses_course_id_fkey(code, name_ar, credit_hours), prerequisite:courses!study_plan_courses_prerequisite_course_id_fkey(code)")
-    .eq("study_plan_id", plan.id)
-    .order("sort_order");
-  if (error) throw error;
-  return (data ?? []) as unknown as PlanCourseRow[];
-}
 
 export const Route = createFileRoute("/student/")({
   component: StudentDashboard,
@@ -218,13 +190,6 @@ function StudentDashboard() {
     queryKey: ["student", "academic-status", profile?.id],
     queryFn: () => fetchMyAcademicStatus(profile!.id),
     enabled: !!profile?.id,
-    staleTime: STALE_LONG,
-    refetchOnWindowFocus: false,
-  });
-  const { data: planCourses = [] } = useQuery({
-    queryKey: ["student", "study-plan", profile?.program_id],
-    queryFn: () => fetchMyStudyPlan(profile!.program_id!),
-    enabled: !!profile?.program_id,
     staleTime: STALE_LONG,
     refetchOnWindowFocus: false,
   });
@@ -295,7 +260,7 @@ function StudentDashboard() {
               <StatCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} density="compact" />
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Link to="/student/schedule" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
                 <div className="flex items-center gap-3">
                   <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
@@ -304,6 +269,17 @@ function StudentDashboard() {
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-primary">جدولي الدراسي الأسبوعي</div>
                     <div className="text-xs text-muted-foreground">المحاضرات المعتمدة هذا الفصل.</div>
+                  </div>
+                </div>
+              </Link>
+              <Link to="/student/study-plan" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-primary">الخطة الدراسية</div>
+                    <div className="text-xs text-muted-foreground">تصفح الخطة حسب المستوى والفصل.</div>
                   </div>
                 </div>
               </Link>
@@ -332,9 +308,6 @@ function StudentDashboard() {
               </div>
             </div>
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
-              <StudyPlanSection rows={planCourses} />
-            </LazyMount>
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
               <MyEnrollmentsSection rows={myEnrollments} />
@@ -383,64 +356,6 @@ function StudentDashboard() {
   );
 }
 
-const SEMESTER_LABELS: Record<string, string> = {
-  first: "الفصل الأول",
-  second: "الفصل الثاني",
-};
-
-function StudyPlanSection({ rows }: { rows: PlanCourseRow[] }) {
-  if (!rows || rows.length === 0) return null;
-
-  // Group by level_number then semester_code
-  type Group = { levelName: string; levelNumber: number; semesters: Record<string, PlanCourseRow[]> };
-  const map = new Map<number, Group>();
-  for (const r of rows) {
-    const ln = r.level?.level_number ?? 0;
-    if (!map.has(ln)) map.set(ln, { levelName: r.level?.name ?? `المستوى ${ln}`, levelNumber: ln, semesters: {} });
-    const g = map.get(ln)!;
-    (g.semesters[r.semester_code] ||= []).push(r);
-  }
-  const levels = Array.from(map.values()).sort((a, b) => a.levelNumber - b.levelNumber);
-
-  return (
-    <div className="mt-6">
-      <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
-        <BookOpen className="h-4 w-4 text-gold" /> الخطة الدراسية
-      </h2>
-      <div className="space-y-3">
-        {levels.map((lvl) => (
-          <div key={lvl.levelNumber} className="rounded-lg border border-border bg-card overflow-hidden">
-            <div className="px-3 py-2 bg-muted/40 text-sm font-bold text-primary border-b">{lvl.levelName}</div>
-            <div className="grid sm:grid-cols-2 gap-px bg-border">
-              {Object.entries(lvl.semesters).map(([sem, items]) => (
-                <div key={sem} className="bg-card p-3">
-                  <div className="text-[11px] font-bold text-muted-foreground mb-2">
-                    {SEMESTER_LABELS[sem] ?? sem}
-                  </div>
-                  <ul className="space-y-1.5">
-                    {items.map((it) => (
-                      <li key={it.id} className="rounded border p-2 text-xs">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="font-mono font-bold">{it.course?.code}</span>
-                          <span className="text-[10px] text-muted-foreground">{it.course?.credit_hours} س.م</span>
-                        </div>
-                        <div className="mt-0.5 font-semibold">{it.course?.name_ar}</div>
-                        <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <span>{it.is_required ? "إجباري" : "اختياري"}</span>
-                          {it.prerequisite && <span>• متطلب: <span className="font-mono">{it.prerequisite.code}</span></span>}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 const DAY_LABELS: Record<string, string> = {
   saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
