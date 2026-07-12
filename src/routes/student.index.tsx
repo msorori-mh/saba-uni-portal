@@ -343,9 +343,6 @@ function StudentDashboard() {
               </div>
             </div>
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
-              <StudyPlanSection rows={planCourses} />
-            </LazyMount>
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
               <MyEnrollmentsSection rows={myEnrollments} />
