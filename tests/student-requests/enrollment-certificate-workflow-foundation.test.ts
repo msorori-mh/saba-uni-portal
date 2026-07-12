@@ -33,6 +33,7 @@ import { validateCanonicalPreviewRegistry } from "../../src/lib/student-requests
 import {
   buildWorkflowSaveInputFromDraft,
   buildWorkflowSaveInputFromPreview,
+  buildDraftProcessingResolutionFromRows,
   validateAllCanonicalWorkflowSaveContracts,
   validateWorkflowSaveCapability,
   validateWorkflowSaveInput,
@@ -221,15 +222,29 @@ describe("enrollment certificate workflow foundation 01A", () => {
       },
     ];
 
+    const resolution = buildDraftProcessingResolutionFromRows(
+      [{ id: UNIT_A, code: "student_affairs", is_active: true }],
+      [
+        {
+          id: ROLE_A,
+          unit_id: UNIT_A,
+          code: "student_affairs_specialist",
+          is_active: true,
+        },
+      ],
+    );
     const built = buildWorkflowSaveInputFromDraft(
       TYPE_ID,
       "enrollment_certificate",
       draftSteps,
       draftTransitions,
+      resolution,
     );
     expect(built.steps.every((s) => typeof s.stepKey === "string" && s.stepKey.length > 0)).toBe(
       true,
     );
+    expect(built.steps[0]?.actorType).toBe("staff");
+    expect(built.steps[0]?.roleKey).toBe("student_affairs_specialist");
     const result = validateWorkflowSaveInput(built);
     expect(result.normalized?.steps.every((s) => s.stepKey.trim().length > 0)).toBe(true);
     expect(result.issues.some((i) => i.messageAr.includes("undefined"))).toBe(false);
@@ -741,6 +756,17 @@ describe("workflow editor round-trip integrity (01B remediation)", () => {
       "enrollment_certificate",
       [draftStep],
       [draftTransition],
+      buildDraftProcessingResolutionFromRows(
+        [{ id: UNIT_A, code: "student_affairs", is_active: true }],
+        [
+          {
+            id: ROLE_A,
+            unit_id: UNIT_A,
+            code: "student_affairs_manager",
+            is_active: true,
+          },
+        ],
+      ),
     );
     expect(built.steps[0]?.allowsReject).toBe(false);
     expect(built.steps[0]?.requiresFee).toBe(true);

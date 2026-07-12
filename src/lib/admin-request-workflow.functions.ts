@@ -16,8 +16,13 @@ import {
   type WorkflowStepPaymentDocumentRow,
 } from "@/lib/admin-request-workflow-rpc";
 import {
+  assertDraftProcessingResolution,
+  buildDraftProcessingResolutionFromRows,
   buildWorkflowSaveInputFromDraft,
   buildWorkflowSaveInputFromPreview,
+  draftTransitionsForSaveRpc,
+  normalizeDraftWorkflowStepsFlags,
+  type DraftWorkflowProcessingResolution,
   type StudentRequestWorkflowSaveInput,
   type StudentRequestWorkflowSaveResult,
   validateWorkflowSaveInput,
@@ -37,6 +42,58 @@ function isSchemaMissingError(message: string): boolean {
     /schema cache/i.test(message) ||
     /could not find the table/i.test(message)
   );
+}
+
+/**
+ * Read-only resolution of draft processing UUIDs → trusted role/unit codes.
+ * Throws Arabic errors when refs are missing, inactive, or mismatched.
+ */
+export async function resolveDraftWorkflowProcessingReferences(
+  steps: DraftWorkflowStep[],
+): Promise<DraftWorkflowProcessingResolution> {
+  const unitIds = [
+    ...new Set(
+      steps
+        .map((s) => s.processing_unit_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  const roleIds = [
+    ...new Set(
+      steps
+        .map((s) => s.processing_role_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  let units: Array<{ id: string; code: string; is_active: boolean }> = [];
+  let roles: Array<{ id: string; unit_id: string; code: string; is_active: boolean }> = [];
+
+  if (unitIds.length > 0) {
+    const { data, error } = await supabaseAdmin
+      .from("request_processing_units")
+      .select("id, code, is_active")
+      .in("id", unitIds);
+    if (error) {
+      throw new Error(`تعذر قراءة جهات المعالجة: ${error.message}`);
+    }
+    units = data ?? [];
+  }
+
+  if (roleIds.length > 0) {
+    const { data, error } = await supabaseAdmin
+      .from("request_processing_roles")
+      .select("id, unit_id, code, is_active")
+      .in("id", roleIds);
+    if (error) {
+      throw new Error(`تعذر قراءة مسميات المعالجة: ${error.message}`);
+    }
+    roles = data ?? [];
+  }
+
+  const resolution = buildDraftProcessingResolutionFromRows(units, roles);
+  assertDraftProcessingResolution(steps, resolution);
+  return resolution;
 }
 
 export const getRequestTypeForWorkflow = createServerFn({ method: "POST" })
@@ -191,13 +248,17 @@ export const prepareStudentRequestWorkflowSave = createServerFn({ method: "POST"
       if (!built) throw new Error("لا يوجد مسار مرجعي لهذا النوع");
       payload = built;
     } else {
-      const draftSteps = (data.draftSteps ?? []) as DraftWorkflowStep[];
+      const draftSteps = normalizeDraftWorkflowStepsFlags(
+        (data.draftSteps ?? []) as DraftWorkflowStep[],
+      );
       const draftTransitions = (data.draftTransitions ?? []) as DraftWorkflowTransition[];
+      const resolution = await resolveDraftWorkflowProcessingReferences(draftSteps);
       payload = buildWorkflowSaveInputFromDraft(
         data.requestTypeId,
         typeRow.code,
         draftSteps,
         draftTransitions,
+        resolution,
       );
       if (data.workflow?.workflowNameAr) {
         payload = { ...payload, workflowNameAr: data.workflow.workflowNameAr };
@@ -232,14 +293,20 @@ export const saveAdminRequestWorkflowConfig = createServerFn({ method: "POST" })
     if (typeErr) throw new Error("تعذر التحقق من نوع الطلب");
     if (!typeRow) throw new Error("نوع الطلب غير موجود");
 
-    const draftSteps = data.draftSteps as DraftWorkflowStep[];
-    const draftTransitions = data.draftTransitions as DraftWorkflowTransition[];
+    const draftSteps = normalizeDraftWorkflowStepsFlags(data.draftSteps as DraftWorkflowStep[]);
+    const draftTransitions = draftTransitionsForSaveRpc(
+      data.draftTransitions as DraftWorkflowTransition[],
+    );
+
+    // Re-resolve on the server — never trust a prior browser dry-run alone.
+    const resolution = await resolveDraftWorkflowProcessingReferences(draftSteps);
 
     const built = buildWorkflowSaveInputFromDraft(
       data.requestTypeId,
       typeRow.code,
       draftSteps,
       draftTransitions,
+      resolution,
     );
     const workflowNameAr =
       data.workflowNameAr?.trim() ||
