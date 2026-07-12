@@ -43,7 +43,7 @@ import {
 import { STUDENT_REQUEST_SERVICE_UPDATING_MSG } from "@/lib/student-request-rpc";
 import type { StudentRequestWorkflowSaveResult } from "@/lib/student-requests/request-workflow-save-contract";
 
-export const Route = createFileRoute("/admin/request-types/$id/workflow")({
+export const Route = createFileRoute("/admin/request-types_/$id/workflow")({
   component: AdminRequestTypeWorkflowPage,
 });
 

@@ -94,7 +94,7 @@ import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.studen
 import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.student.documents'
 import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile.student.academic-record'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
-import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types.$id.workflow'
+import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types_.$id.workflow'
 
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
 const AdminTranscriptsLazyRouteImport = createFileRoute('/admin/transcripts')()
@@ -592,9 +592,9 @@ const FacultyPortalStudentProgressStudentIdRoute =
   } as any)
 const AdminRequestTypesIdWorkflowRoute =
   AdminRequestTypesIdWorkflowRouteImport.update({
-    id: '/$id/workflow',
-    path: '/$id/workflow',
-    getParentRoute: () => AdminRequestTypesRoute,
+    id: '/request-types_/$id/workflow',
+    path: '/request-types/$id/workflow',
+    getParentRoute: () => AdminRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -642,7 +642,7 @@ export interface FileRoutesByFullPath {
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/request-types': typeof AdminRequestTypesRouteWithChildren
+  '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
@@ -733,7 +733,7 @@ export interface FileRoutesByTo {
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/request-types': typeof AdminRequestTypesRouteWithChildren
+  '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
@@ -827,7 +827,7 @@ export interface FileRoutesById {
   '/admin/pilot-center': typeof AdminPilotCenterRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
-  '/admin/request-types': typeof AdminRequestTypesRouteWithChildren
+  '/admin/request-types': typeof AdminRequestTypesRoute
   '/admin/research': typeof AdminResearchRoute
   '/admin/roles': typeof AdminRolesRoute
   '/admin/schedules': typeof AdminSchedulesRoute
@@ -875,7 +875,7 @@ export interface FileRoutesById {
   '/student/requests/new': typeof StudentRequestsNewRoute
   '/mobile/student/': typeof MobileStudentIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
-  '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/admin/request-types_/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1156,7 +1156,7 @@ export interface FileRouteTypes {
     | '/student/requests/new'
     | '/mobile/student/'
     | '/student/requests/'
-    | '/admin/request-types/$id/workflow'
+    | '/admin/request-types_/$id/workflow'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1829,26 +1829,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalStudentProgressStudentIdRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
-    '/admin/request-types/$id/workflow': {
-      id: '/admin/request-types/$id/workflow'
-      path: '/$id/workflow'
+    '/admin/request-types_/$id/workflow': {
+      id: '/admin/request-types_/$id/workflow'
+      path: '/request-types/$id/workflow'
       fullPath: '/admin/request-types/$id/workflow'
       preLoaderRoute: typeof AdminRequestTypesIdWorkflowRouteImport
-      parentRoute: typeof AdminRequestTypesRoute
+      parentRoute: typeof AdminRoute
     }
   }
 }
-
-interface AdminRequestTypesRouteChildren {
-  AdminRequestTypesIdWorkflowRoute: typeof AdminRequestTypesIdWorkflowRoute
-}
-
-const AdminRequestTypesRouteChildren: AdminRequestTypesRouteChildren = {
-  AdminRequestTypesIdWorkflowRoute: AdminRequestTypesIdWorkflowRoute,
-}
-
-const AdminRequestTypesRouteWithChildren =
-  AdminRequestTypesRoute._addFileChildren(AdminRequestTypesRouteChildren)
 
 interface AdminRouteChildren {
   AdminAcademicCoreRoute: typeof AdminAcademicCoreRoute
@@ -1877,7 +1866,7 @@ interface AdminRouteChildren {
   AdminPilotCenterRoute: typeof AdminPilotCenterRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminReportsRoute: typeof AdminReportsRoute
-  AdminRequestTypesRoute: typeof AdminRequestTypesRouteWithChildren
+  AdminRequestTypesRoute: typeof AdminRequestTypesRoute
   AdminResearchRoute: typeof AdminResearchRoute
   AdminRolesRoute: typeof AdminRolesRoute
   AdminSchedulesRoute: typeof AdminSchedulesRoute
@@ -1897,6 +1886,7 @@ interface AdminRouteChildren {
   AdminStudyPlansLazyRoute: typeof AdminStudyPlansLazyRoute
   AdminTranscriptsLazyRoute: typeof AdminTranscriptsLazyRoute
   AdminIndexLazyRoute: typeof AdminIndexLazyRoute
+  AdminRequestTypesIdWorkflowRoute: typeof AdminRequestTypesIdWorkflowRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
@@ -1926,7 +1916,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminPilotCenterRoute: AdminPilotCenterRoute,
   AdminProgramsRoute: AdminProgramsRoute,
   AdminReportsRoute: AdminReportsRoute,
-  AdminRequestTypesRoute: AdminRequestTypesRouteWithChildren,
+  AdminRequestTypesRoute: AdminRequestTypesRoute,
   AdminResearchRoute: AdminResearchRoute,
   AdminRolesRoute: AdminRolesRoute,
   AdminSchedulesRoute: AdminSchedulesRoute,
@@ -1946,6 +1936,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminStudyPlansLazyRoute: AdminStudyPlansLazyRoute,
   AdminTranscriptsLazyRoute: AdminTranscriptsLazyRoute,
   AdminIndexLazyRoute: AdminIndexLazyRoute,
+  AdminRequestTypesIdWorkflowRoute: AdminRequestTypesIdWorkflowRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
