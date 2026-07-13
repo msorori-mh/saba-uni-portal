@@ -5354,27 +5354,12 @@ export type Database = {
           user_id: string
         }[]
       }
-      admin_create_enrollment_certificate_e2e_draft: {
-        Args: {
-          p_e2e_marker: string
-          p_student_notes?: string
-          p_student_user_id: string
-        }
-        Returns: Json
-      }
       admin_save_request_workflow_config: {
         Args: {
           p_request_type_id: string
           p_steps: Json
           p_transitions: Json
           p_workflow: Json
-        }
-        Returns: Json
-      }
-      admin_set_enrollment_certificate_e2e_submit_window: {
-        Args: {
-          p_e2e_marker: string
-          p_open: boolean
         }
         Returns: Json
       }
