@@ -2,7 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
-import { User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange, BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText } from "lucide-react";
+import {
+  User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange,
+  BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
 import { StudentRequestsPortalSummary } from "@/components/portal/StudentRequestsPortalSummary";
@@ -14,10 +17,11 @@ import { StatCard } from "@/components/brand";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { LazyMount } from "@/components/util/LazyMount";
 import { Skeleton } from "@/components/ui/skeleton";
+import { portalFeatures } from "@/lib/portal-features";
 
-const STALE_LONG = 5 * 60 * 1000; // 5min — semi-static (profile, study plan, academic status)
-const STALE_MED = 60 * 1000; // 1min — schedule/enrollments
-const STALE_SHORT = 30 * 1000; // 30s — grades (changes more often)
+const STALE_LONG = 5 * 60 * 1000;
+const STALE_MED = 60 * 1000;
+const STALE_SHORT = 30 * 1000;
 
 function SectionSkeleton({ h = 120 }: { h?: number }) {
   return <Skeleton className="w-full rounded-lg" style={{ height: h }} />;
@@ -34,7 +38,6 @@ type StudentRow = {
   department: { name_ar: string } | null;
   program: { name_ar: string } | null;
 };
-
 
 type AcademicStatus = {
   enrollment_status: string;
@@ -67,7 +70,13 @@ type MyEnrollmentRow = {
   slots: ScheduleSlot[];
 };
 
-type RawSched = { schedule_type: string; status: string; time_slot: { day_of_week: string; start_time: string; end_time: string } | null; room: { name_ar: string; code: string } | null };
+type RawSched = {
+  schedule_type: string;
+  status: string;
+  time_slot: { day_of_week: string; start_time: string; end_time: string } | null;
+  room: { name_ar: string; code: string } | null;
+};
+
 function flattenSched(raws: RawSched[] | null | undefined): ScheduleSlot[] {
   return (raws ?? [])
     .filter((s) => s.status !== "cancelled" && s.time_slot)
@@ -105,7 +114,6 @@ async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]>
     slots: flattenSched(r.section?.schedule),
   }));
 }
-
 
 async function fetchMyProfile(): Promise<StudentRow | null> {
   const { data: auth } = await supabase.auth.getUser();
@@ -163,7 +171,43 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
   });
 }
 
+/** Compact readable value for long department/program names inside StatCard. */
+function InfoValue({ children, mono = false }: { children: React.ReactNode; mono?: boolean }) {
+  return (
+    <span
+      className={`block text-base sm:text-lg font-extrabold leading-snug break-words text-balance ${mono ? "font-en tracking-wider" : ""}`}
+    >
+      {children}
+    </span>
+  );
+}
 
+const SERVICE_LINKS = [
+  {
+    to: "/student/schedule" as const,
+    title: "جدولي الدراسي الأسبوعي",
+    desc: "المحاضرات المعتمدة هذا الفصل.",
+    Icon: CalendarClock,
+  },
+  {
+    to: "/student/study-plan" as const,
+    title: "الخطة الدراسية",
+    desc: "تصفح الخطة حسب المستوى والفصل.",
+    Icon: BookOpen,
+  },
+  {
+    to: "/student/progress" as const,
+    title: "تقدمي الأكاديمي",
+    desc: "الإنجاز، المعدل، وأهلية التخرج.",
+    Icon: GraduationCap,
+  },
+  {
+    to: "/student/requests" as const,
+    title: "طلبات شؤون الطلاب",
+    desc: "تقديم ومتابعة الخدمات الطلابية.",
+    Icon: FileText,
+  },
+] as const;
 
 export const Route = createFileRoute("/student/")({
   component: StudentDashboard,
@@ -179,6 +223,7 @@ function StudentDashboard() {
       navigate({ to: "/student/requests", replace: true });
     }
   }, [navigate]);
+
   const { data: profile, isLoading } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
@@ -203,7 +248,7 @@ function StudentDashboard() {
   const { data: myEnrollments = [] } = useQuery({
     queryKey: ["student", "my-enrollments", profile?.id],
     queryFn: () => fetchMyEnrollments(profile!.id),
-    enabled: !!profile?.id,
+    enabled: !!profile?.id && portalFeatures.studentRegisteredCourses,
     staleTime: STALE_MED,
     refetchOnWindowFocus: false,
   });
@@ -222,22 +267,21 @@ function StudentDashboard() {
     withdrawn: "منسحب",
   };
 
-
   return (
     <PortalShell
       title="بوابة الطالب"
       actions={<NotificationsBell seeAllHref="/student/notifications" />}
       onLogout={handleLogout}
     >
-      <main className="container mx-auto px-4 py-10 max-w-4xl">
+      <main className="container mx-auto px-4 py-8 max-w-5xl" dir="rtl">
         {isLoading || !profile ? (
           <>
             <Skeleton className="h-20 w-full rounded-xl" />
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <Skeleton className="h-20 rounded-lg" />
-              <Skeleton className="h-20 rounded-lg" />
-              <Skeleton className="h-20 rounded-lg" />
-              <Skeleton className="h-20 rounded-lg" />
+            <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+              <Skeleton className="h-24 rounded-lg" />
+              <Skeleton className="h-24 rounded-lg" />
+              <Skeleton className="h-24 rounded-lg" />
+              <Skeleton className="h-24 rounded-lg" />
             </div>
           </>
         ) : (
@@ -253,98 +297,133 @@ function StudentDashboard() {
               </div>
             </div>
 
-            <div className="mt-5 card-grid sm:grid-cols-2">
-              <StatCard icon={IdCard} label={ACADEMIC_NUMBER_LABEL} value={<span className="font-en tracking-wider">{profile.academic_number}</span>} density="compact" />
-              <StatCard icon={BadgeCheck} label="الحالة" value={statusLabel[profile.status] ?? profile.status} density="compact" />
-              <StatCard icon={Building2} label="القسم" value={profile.department?.name_ar ?? "—"} density="compact" />
-              <StatCard icon={GraduationCap} label="البرنامج" value={profile.program?.name_ar ?? "—"} density="compact" />
+            <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+              <StatCard
+                icon={IdCard}
+                label={ACADEMIC_NUMBER_LABEL}
+                value={<InfoValue mono>{profile.academic_number}</InfoValue>}
+                density="compact"
+                className="h-full"
+              />
+              <StatCard
+                icon={BadgeCheck}
+                label="الحالة"
+                value={<InfoValue>{statusLabel[profile.status] ?? profile.status}</InfoValue>}
+                density="compact"
+                className="h-full"
+              />
+              <StatCard
+                icon={Building2}
+                label="القسم"
+                value={<InfoValue>{profile.department?.name_ar ?? "—"}</InfoValue>}
+                density="compact"
+                className="h-full"
+              />
+              <StatCard
+                icon={GraduationCap}
+                label="البرنامج"
+                value={<InfoValue>{profile.program?.name_ar ?? "—"}</InfoValue>}
+                density="compact"
+                className="h-full"
+              />
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Link to="/student/schedule" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
-                <div className="flex items-center gap-3">
+            <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+              {SERVICE_LINKS.map(({ to, title, desc, Icon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="flex h-full flex-col rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+                >
                   <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                    <CalendarClock className="h-5 w-5" />
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-primary">جدولي الدراسي الأسبوعي</div>
-                    <div className="text-xs text-muted-foreground">المحاضرات المعتمدة هذا الفصل.</div>
-                  </div>
-                </div>
-              </Link>
-              <Link to="/student/study-plan" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                    <BookOpen className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-primary">الخطة الدراسية</div>
-                    <div className="text-xs text-muted-foreground">تصفح الخطة حسب المستوى والفصل.</div>
-                  </div>
-                </div>
-              </Link>
-              <Link to="/student/progress" className="block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                    <GraduationCap className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-primary">تقدمي الأكاديمي</div>
-                    <div className="text-xs text-muted-foreground">الإنجاز، المعدل، وأهلية التخرج.</div>
-                  </div>
-                </div>
-              </Link>
+                  <div className="mt-3 font-bold text-primary text-sm leading-snug">{title}</div>
+                  <div className="mt-1 text-xs text-muted-foreground leading-5 flex-1">{desc}</div>
+                </Link>
+              ))}
             </div>
 
             <div className="mt-6">
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                 <CalendarRange className="h-4 w-4 text-gold" /> الوضع الأكاديمي الحالي
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2 items-start">
-                <StatCard icon={CalendarRange} label="السنة الأكاديمية" value={acad?.academic_year?.name ?? "—"} density="compact" />
-                <StatCard icon={BookMarked} label="الفصل الحالي" value={acad?.semester?.name ?? "—"} density="compact" />
-                <StatCard icon={Layers} label="المستوى" value={acad?.level?.name ?? "—"} density="compact" />
-                <StatCard icon={BadgeCheck} label="حالة التسجيل" value={statusLabel[acad?.enrollment_status ?? ""] ?? acad?.enrollment_status ?? "—"} density="compact" />
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+                <StatCard
+                  icon={CalendarRange}
+                  label="السنة الأكاديمية"
+                  value={<InfoValue>{acad?.academic_year?.name ?? "—"}</InfoValue>}
+                  density="compact"
+                  className="h-full"
+                />
+                <StatCard
+                  icon={BookMarked}
+                  label="الفصل الحالي"
+                  value={<InfoValue>{acad?.semester?.name ?? "—"}</InfoValue>}
+                  density="compact"
+                  className="h-full"
+                />
+                <StatCard
+                  icon={Layers}
+                  label="المستوى"
+                  value={<InfoValue>{acad?.level?.name ?? "—"}</InfoValue>}
+                  density="compact"
+                  className="h-full"
+                />
+                <StatCard
+                  icon={BadgeCheck}
+                  label="حالة التسجيل"
+                  value={
+                    <InfoValue>
+                      {statusLabel[acad?.enrollment_status ?? ""] ?? acad?.enrollment_status ?? "—"}
+                    </InfoValue>
+                  }
+                  density="compact"
+                  className="h-full"
+                />
               </div>
             </div>
 
-
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
-              <MyEnrollmentsSection rows={myEnrollments} />
-            </LazyMount>
+            {portalFeatures.studentRegisteredCourses && (
+              <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+                <MyEnrollmentsSection rows={myEnrollments} />
+              </LazyMount>
+            )}
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
               <MyGradesSection studentProfileId={profile.id} />
             </LazyMount>
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
-              <div className="mt-6">
-                <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
-                </h2>
-                <UnofficialTranscript studentProfileId={profile.id} />
-              </div>
-            </LazyMount>
+            {portalFeatures.studentUnofficialTranscript && (
+              <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+                <div className="mt-6">
+                  <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
+                  </h2>
+                  <UnofficialTranscript studentProfileId={profile.id} />
+                </div>
+              </LazyMount>
+            )}
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={120} /></div>}>
-              <AnnouncementsWidget limit={5} />
+              <div className="mt-6">
+                <AnnouncementsWidget limit={3} />
+              </div>
             </LazyMount>
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
               <StudentRequestsPortalSummary />
             </LazyMount>
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
-              <StudentFinanceSection studentProfileId={profile.id} />
-            </LazyMount>
+            {portalFeatures.studentFinance && (
+              <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+                <StudentFinanceSection studentProfileId={profile.id} />
+              </LazyMount>
+            )}
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
               <StudentDocumentsSection studentProfileId={profile.id} />
             </LazyMount>
-
-            <div className="mt-3 rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground text-center">
-              قسم «الجدول الدراسي العام» يعرض جميع مجموعات البرنامج الدراسية للمستوى الحالي، بينما «مقرراتي المسجلة» يعرض فقط المجموعات الدراسية التي سُجلت فيها فعلياً.
-            </div>
 
             <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
               <ScheduleSection rows={schedule} />
@@ -356,23 +435,28 @@ function StudentDashboard() {
   );
 }
 
-
 const DAY_LABELS: Record<string, string> = {
   saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
   wednesday: "الأربعاء", thursday: "الخميس", friday: "الجمعة",
 };
 const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
-const DAY_ORDER = ["saturday","sunday","monday","tuesday","wednesday","thursday","friday"];
+const DAY_ORDER = ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"];
 
 function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
   if (!rows || rows.length === 0) return null;
-  // Flatten to day -> slots
-  type Flat = { day: string; start: string; end: string; room: string | null; type: string; course: string; section: string; faculty: string | null };
+  type Flat = {
+    day: string; start: string; end: string; room: string | null; type: string;
+    course: string; section: string; faculty: string | null;
+  };
   const flat: Flat[] = [];
-  for (const r of rows) for (const s of r.slots) flat.push({
-    day: s.day_of_week, start: s.start_time, end: s.end_time, room: s.room, type: s.schedule_type,
-    course: `${r.course_code} — ${r.course_name}`, section: r.section_code, faculty: r.faculty_name,
-  });
+  for (const r of rows) {
+    for (const s of r.slots) {
+      flat.push({
+        day: s.day_of_week, start: s.start_time, end: s.end_time, room: s.room, type: s.schedule_type,
+        course: `${r.course_code} — ${r.course_name}`, section: r.section_code, faculty: r.faculty_name,
+      });
+    }
+  }
   const byDay = new Map<string, Flat[]>();
   for (const d of DAY_ORDER) byDay.set(d, []);
   for (const f of flat) byDay.get(f.day)?.push(f);
@@ -392,14 +476,16 @@ function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
               <div className="divide-y">
                 {items.map((it, i) => (
                   <div key={i} className="p-2.5 flex items-center gap-2 text-xs">
-                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{it.start.slice(0,5)}-{it.end.slice(0,5)}</span>
+                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{it.start.slice(0, 5)}-{it.end.slice(0, 5)}</span>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{it.course}</div>
                       <div className="text-[11px] text-muted-foreground">
                         مجموعة دراسية {it.section}{it.faculty && <> • {it.faculty}</>}{it.room && <> • {it.room}</>}
                       </div>
                     </div>
-                    <span className="text-[10px] border bg-muted/40 px-1.5 py-0.5 rounded shrink-0">{TYPE_LABELS[it.type] ?? it.type}</span>
+                    <span className="text-[10px] border bg-muted/40 px-1.5 py-0.5 rounded shrink-0">
+                      {TYPE_LABELS[it.type] ?? it.type}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -449,9 +535,11 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
                     {r.slots.map((s, i) => (
                       <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1 text-[11px]">
                         <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
-                        <span className="font-mono">{s.start_time.slice(0,5)}-{s.end_time.slice(0,5)}</span>
+                        <span className="font-mono">{s.start_time.slice(0, 5)}-{s.end_time.slice(0, 5)}</span>
                         {s.room && <span className="text-muted-foreground">• {s.room}</span>}
-                        <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">{TYPE_LABELS[s.schedule_type] ?? s.schedule_type}</span>
+                        <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">
+                          {TYPE_LABELS[s.schedule_type] ?? s.schedule_type}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -475,7 +563,10 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
         .select("id, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
         .eq("student_profile_id", studentProfileId);
       if (e1) throw e1;
-      type EnRaw = { id: string; course_section_id: string; section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null };
+      type EnRaw = {
+        id: string; course_section_id: string;
+        section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
+      };
       const enrollments = (enr ?? []) as unknown as EnRaw[];
       if (enrollments.length === 0) return [];
       const { data: gs, error: e2 } = await sb.from("student_grades")
@@ -508,10 +599,18 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
             sectionCode: e.section?.section_code ?? "—",
             total, totalMax,
             percentage: totalMax > 0 ? Math.round((total / totalMax) * 1000) / 10 : 0,
-            details: myComps.map((c) => ({ name: c.name, max: Number(c.max_score), score: Number(myGrades.find((g) => g.grade_component_id === c.id)?.score ?? 0) })),
+            details: myComps.map((c) => ({
+              name: c.name,
+              max: Number(c.max_score),
+              score: Number(myGrades.find((g) => g.grade_component_id === c.id)?.score ?? 0),
+            })),
           };
         })
-        .filter(Boolean) as Array<{ enrollmentId: string; courseCode: string; courseName: string; sectionCode: string; total: number; totalMax: number; percentage: number; details: { name: string; max: number; score: number }[] }>;
+        .filter(Boolean) as Array<{
+          enrollmentId: string; courseCode: string; courseName: string; sectionCode: string;
+          total: number; totalMax: number; percentage: number;
+          details: { name: string; max: number; score: number }[];
+        }>;
     },
     staleTime: STALE_SHORT,
     refetchOnWindowFocus: false,
@@ -559,6 +658,3 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
     </div>
   );
 }
-
-
-
