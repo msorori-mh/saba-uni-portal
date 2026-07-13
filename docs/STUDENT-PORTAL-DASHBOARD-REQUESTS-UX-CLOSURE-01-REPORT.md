@@ -124,4 +124,23 @@
 
 فرع: `fix/student-portal-dashboard-requests-ux-closure-01`  
 الأساس: `origin/main` (يشمل merge #125 `5f950a7`)  
-PR جديد إلى `main` — **لا دمج**.
+PR: [#126](https://github.com/msorori-mh/saba-uni-portal/pull/126) — **لا دمج**.
+
+---
+
+## 12. مزامنة main (PR126-MAIN-SYNC-REVIEW-01)
+
+| بند | قيمة |
+|-----|------|
+| SHA قبل المزامنة | `210ec6763f5a1c606597f590893df0e38418dcfe` |
+| طريقة المزامنة | `git merge --no-ff origin/main` (لا Rebase / لا Force Push) |
+| تعارضات | **لا يوجد** — دمج نظيف (`ort`) |
+| ملفات من `main` أُضيفت | `docs/REQUEST-TYPES-PILOT-WORKFLOW-CONFIGURATION-DESIGN-01-REPORT.md`، `docs/STUDENT-AVAILABLE-REQUEST-TYPES-RUNTIME-AUDIT-01-REPORT.md` |
+| مسار PR #124 | **لم يُمس** |
+| `routeTree.gen.ts` | لم يتعارض؛ بقي ناتج مسارات الفرع |
+| SHA بعد دمج main | `b7f899f` (merge commit) — يُحدَّث بعد commit التقرير/إصلاح lint إن وُجد |
+| اختبارات بعد المزامنة | **14 pass** (`dashboard-requests-ux-closure-01`) |
+| `tsc --noEmit` | **PASS** |
+| `bun run build` | **PASS** |
+| Lint (ملفات PR فقط) | أصلِح سطر `any` غير مستخدم في `student.index.tsx`؛ Scoped eslint نظيف بعدها |
+| قرار المزامنة | `PASS_STUDENT_PORTAL_DASHBOARD_REQUESTS_UX_PR126_SYNCED_READY_FOR_MERGE_REVIEW` |

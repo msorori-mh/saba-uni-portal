@@ -703,7 +703,6 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["student", "grades", studentProfileId],
     queryFn: async () => {
-      const sb = supabase as unknown as { from: (t: string) => any };
       const { data: enr, error: e1 } = await supabase
         .from("student_enrollments")
         .select(
