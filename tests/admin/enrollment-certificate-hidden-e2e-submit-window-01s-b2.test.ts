@@ -11,10 +11,12 @@ import {
   ENROLLMENT_CERTIFICATE_E2E_REQUIRED_ASSIGNMENTS,
   enrollmentCertificateE2EDraftLockKey,
   evaluateEnrollmentCertificateE2EAssignmentReadiness,
+  evaluateEnrollmentCertificateE2ESubmitWindowClose,
   evaluateEnrollmentCertificateE2ESubmitWindowOpen,
   isRequestTypeListedForStudents,
   isSafeHiddenSubmitWindowState,
   isValidEnrollmentCertificateE2EMarker,
+  simulateEnrollmentCertificateE2ESubmitThenClose,
 } from "../../src/lib/enrollment-certificate-e2e-auth";
 
 const ROOT = join(import.meta.dir, "../..");
@@ -227,6 +229,20 @@ describe("hidden E2E migration static contracts 01S-B2", () => {
     expect(windowBody).toContain("أكثر من مسودة E2E بنفس الوسم");
     expect(windowBody).not.toContain("طلب شهادة قيد واحد فقط");
     expect(windowBody).not.toContain("SET student_visible");
+  });
+
+  it("R2 — open lookup requires draft; close lookup does not", () => {
+    const openStart = windowBody.indexOf("IF p_open IS TRUE THEN");
+    const closeStart = windowBody.indexOf("-- Close path:");
+    expect(openStart).toBeGreaterThan(0);
+    expect(closeStart).toBeGreaterThan(openStart);
+    const openPath = windowBody.slice(openStart, closeStart);
+    const closePath = windowBody.slice(closeStart);
+    expect(openPath).toContain("sr.status = 'draft'");
+    expect(closePath).not.toContain("status = 'draft'");
+    expect(closePath).toContain("emergency_close");
+    expect(closePath).toContain("request_status_at_close");
+    expect(closePath).toContain("draft filter applies to open only");
   });
 
   it("R1 — assignment readiness validates six coded roles, not global count=6", () => {
@@ -511,5 +527,79 @@ describe("R1 pure submit-window historical request helpers", () => {
         ],
       }).reason,
     ).toBe("missing_matching_draft");
+  });
+});
+
+describe("R2 close linkage after submit and emergency close", () => {
+  const marker = "ENROLLMENT-ZERO-FEE-E2E-20260713-001";
+  const requestId = "req-e2e-001";
+
+  it("submitted → close keeps the same request_id in response and audit", () => {
+    const sim = simulateEnrollmentCertificateE2ESubmitThenClose({
+      marker,
+      requestId,
+    });
+    expect(sim.openOk).toBe(true);
+    expect(sim.close.ok).toBe(true);
+    expect(sim.close.emergencyClose).toBe(false);
+    expect(sim.close.requestId).toBe(requestId);
+    expect(sim.close.auditRequestId).toBe(requestId);
+    expect(sim.close.requestStatusAtClose).toBe("submitted");
+    expect(sim.close.isActive).toBe(false);
+    expect(sim.close.studentVisible).toBe(false);
+
+    const direct = evaluateEnrollmentCertificateE2ESubmitWindowClose({
+      marker,
+      requests: [
+        {
+          id: requestId,
+          status: "submitted",
+          e2e_marker: marker,
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+      ],
+    });
+    expect(direct.requestId).toBe(requestId);
+    expect(direct.auditRequestId).toBe(requestId);
+  });
+
+  it("emergency close without matching request still restores hidden inactive state", () => {
+    const result = evaluateEnrollmentCertificateE2ESubmitWindowClose({
+      marker,
+      requests: [
+        {
+          id: "other",
+          status: "draft",
+          e2e_marker: "OTHER-MARKER-XXXXXXXX",
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+      ],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.emergencyClose).toBe(true);
+    expect(result.requestId).toBeNull();
+    expect(result.auditRequestId).toBeNull();
+    expect(result.isActive).toBe(false);
+    expect(result.studentVisible).toBe(false);
+  });
+
+  it("close still links when request remains draft after failed submit", () => {
+    const result = evaluateEnrollmentCertificateE2ESubmitWindowClose({
+      marker,
+      requests: [
+        {
+          id: requestId,
+          status: "draft",
+          e2e_marker: marker,
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+      ],
+    });
+    expect(result.emergencyClose).toBe(false);
+    expect(result.requestId).toBe(requestId);
+    expect(result.requestStatusAtClose).toBe("draft");
   });
 });

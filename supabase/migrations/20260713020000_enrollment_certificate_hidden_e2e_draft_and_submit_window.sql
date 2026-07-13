@@ -458,11 +458,14 @@ DECLARE
   v_type public.request_types%ROWTYPE;
   v_req public.student_requests%ROWTYPE;
   v_match_drafts integer;
+  v_match_any integer;
   v_open_other integer;
   v_previous_active boolean;
   v_new_active boolean;
   v_profile_status text;
   v_student_user_id uuid;
+  v_emergency_close boolean := false;
+  v_close_audit jsonb;
 BEGIN
   PERFORM public.assert_can_admin_enrollment_certificate_e2e();
 
@@ -509,18 +512,8 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  -- Matching draft for audits / open gates (historical terminal rows allowed).
-  SELECT * INTO v_req
-  FROM public.student_requests sr
-  WHERE sr.request_type = 'enrollment_certificate'
-    AND COALESCE(sr.form_data->>'e2e_marker', '') = v_marker
-    AND COALESCE((sr.form_data->>'internal_e2e')::boolean, false) IS TRUE
-    AND COALESCE(sr.form_data->>'e2e_scenario', '') = 'zero_fee'
-    AND sr.status = 'draft'
-  ORDER BY sr.created_at ASC
-  LIMIT 1;
-
   IF p_open IS TRUE THEN
+    -- Open path: require exactly one matching draft (status=draft).
     SELECT count(*)::integer INTO v_match_drafts
     FROM public.student_requests sr
     WHERE sr.request_type = 'enrollment_certificate'
@@ -528,6 +521,16 @@ BEGIN
       AND COALESCE((sr.form_data->>'internal_e2e')::boolean, false) IS TRUE
       AND COALESCE(sr.form_data->>'e2e_scenario', '') = 'zero_fee'
       AND sr.status = 'draft';
+
+    SELECT * INTO v_req
+    FROM public.student_requests sr
+    WHERE sr.request_type = 'enrollment_certificate'
+      AND COALESCE(sr.form_data->>'e2e_marker', '') = v_marker
+      AND COALESCE((sr.form_data->>'internal_e2e')::boolean, false) IS TRUE
+      AND COALESCE(sr.form_data->>'e2e_scenario', '') = 'zero_fee'
+      AND sr.status = 'draft'
+    ORDER BY sr.created_at ASC
+    LIMIT 1;
 
     IF v_match_drafts = 0 OR v_req.id IS NULL THEN
       RAISE EXCEPTION 'لا توجد مسودة E2E مطابقة لوسم الاختبار'
@@ -637,8 +640,28 @@ BEGIN
     );
   END IF;
 
-  -- Close path: always restore is_active=false; keep student_visible=false.
-  -- Idempotent even if submit failed or request remains draft.
+  -- Close path: restore is_active=false; keep student_visible=false.
+  -- Lookup by marker across post-submit statuses (draft filter applies to open only).
+  SELECT count(*)::integer INTO v_match_any
+  FROM public.student_requests sr
+  WHERE sr.request_type = 'enrollment_certificate'
+    AND COALESCE(sr.form_data->>'e2e_marker', '') = v_marker
+    AND COALESCE((sr.form_data->>'internal_e2e')::boolean, false) IS TRUE
+    AND COALESCE(sr.form_data->>'e2e_scenario', '') = 'zero_fee';
+
+  SELECT * INTO v_req
+  FROM public.student_requests sr
+  WHERE sr.request_type = 'enrollment_certificate'
+    AND COALESCE(sr.form_data->>'e2e_marker', '') = v_marker
+    AND COALESCE((sr.form_data->>'internal_e2e')::boolean, false) IS TRUE
+    AND COALESCE(sr.form_data->>'e2e_scenario', '') = 'zero_fee'
+  ORDER BY sr.created_at DESC
+  LIMIT 1;
+
+  IF v_match_any = 0 OR v_req.id IS NULL THEN
+    v_emergency_close := true;
+  END IF;
+
   UPDATE public.request_types
   SET is_active = false
   WHERE id = v_type.id
@@ -661,6 +684,19 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  v_close_audit := jsonb_build_object(
+    'is_active', false,
+    'student_visible', false,
+    'e2e_marker', v_marker,
+    'request_type_id', v_type.id,
+    'request_id', v_req.id,
+    'previous_is_active', v_previous_active,
+    'new_is_active', false,
+    'actor', v_uid,
+    'request_status_at_close', v_req.status,
+    'emergency_close', v_emergency_close
+  );
+
   PERFORM public.log_audit(
     'request_type',
     v_type.id,
@@ -669,17 +705,13 @@ BEGIN
       'is_active', v_previous_active,
       'student_visible', false
     ),
-    jsonb_build_object(
-      'is_active', false,
-      'student_visible', false,
-      'e2e_marker', v_marker,
-      'request_type_id', v_type.id,
-      'request_id', v_req.id,
-      'previous_is_active', v_previous_active,
-      'new_is_active', false,
-      'actor', v_uid
-    ),
-    'Temporary enrollment_certificate E2E submit window closed',
+    v_close_audit,
+    CASE
+      WHEN v_emergency_close THEN
+        'Emergency enrollment_certificate E2E submit window closed (no matching request)'
+      ELSE
+        'Temporary enrollment_certificate E2E submit window closed'
+    END,
     v_uid
   );
 
@@ -692,7 +724,9 @@ BEGIN
     'is_active', false,
     'student_visible', false,
     'previous_is_active', v_previous_active,
-    'new_is_active', false
+    'new_is_active', false,
+    'emergency_close', v_emergency_close,
+    'request_status_at_close', v_req.status
   );
 END;
 $$;
@@ -700,7 +734,8 @@ $$;
 COMMENT ON FUNCTION public.admin_set_enrollment_certificate_e2e_submit_window(boolean, text) IS
   'Admin/system_admin only: temporarily set enrollment_certificate.is_active for '
   'student submit of a marked E2E draft while keeping student_visible=false. '
-  'Close is idempotent and always restores is_active=false.';
+  'Open requires a draft; close looks up by marker without status=draft and remains '
+  'idempotent/emergency-safe when no matching request exists.';
 
 REVOKE ALL ON FUNCTION public.admin_set_enrollment_certificate_e2e_submit_window(boolean, text)
   FROM PUBLIC, anon;

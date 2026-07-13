@@ -197,6 +197,32 @@ Pure helpers + static SQL contracts for lock key, assignment readiness (extras /
 - No Deploy
 - No new PR; push to same branch for #123 re-review
 
+---
+
+## PR #123 Review Remediation R2
+
+### Cause of lost request_id after submit
+Close previously loaded `v_req` with `status = 'draft'` before branching.
+After successful `submit_student_request`, status becomes `submitted`, so close saw no row and emitted `request_id = null` in RPC/audit.
+
+### Fix
+Separate lookups:
+
+- **Open (`p_open=true`)**: still requires exactly one matching draft (`status='draft'` + marker + internal_e2e + zero_fee) and no other non-terminal request.
+- **Close (`p_open=false`)**: marker + internal_e2e + zero_fee **without** `status='draft'`, so submitted/in_review/etc. remain linked.
+
+### submitted → close
+Pure helper `simulateEnrollmentCertificateE2ESubmitThenClose` proves the same `request_id` is returned in close response and audit metadata with `request_status_at_close='submitted'`.
+
+### emergency close
+When no matching marker request exists, close still sets `is_active=false`, keeps `student_visible=false`, does not fail, and records `emergency_close=true` with `request_id=null`.
+
+### Safety
+- Migration not applied
+- 0 DB writes
+- No Deploy
+- No merge
+
 ## 17. Future execution protocol (not run now)
 
 1. Admin creates E2E draft (`adminCreateEnrollmentCertificateE2EDraft`)

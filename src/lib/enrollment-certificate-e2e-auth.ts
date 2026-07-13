@@ -221,3 +221,83 @@ export function evaluateEnrollmentCertificateE2ESubmitWindowOpen(input: {
 
   return { ok: true, reason: null, matchingDraftId: match.id };
 }
+
+export type E2ESubmitWindowCloseResult = {
+  ok: true;
+  requestId: string | null;
+  requestStatusAtClose: string | null;
+  emergencyClose: boolean;
+  isActive: false;
+  studentVisible: false;
+  auditRequestId: string | null;
+};
+
+/**
+ * Close-path marker lookup: does NOT require status=draft.
+ * Mirrors admin_set_enrollment_certificate_e2e_submit_window(p_open=false).
+ */
+export function evaluateEnrollmentCertificateE2ESubmitWindowClose(input: {
+  marker: string;
+  requests: E2ESubmitWindowRequest[];
+}): E2ESubmitWindowCloseResult {
+  const matches = input.requests.filter(
+    (r) =>
+      r.internal_e2e === true &&
+      r.e2e_scenario === "zero_fee" &&
+      r.e2e_marker === input.marker,
+  );
+
+  if (matches.length === 0) {
+    return {
+      ok: true,
+      requestId: null,
+      requestStatusAtClose: null,
+      emergencyClose: true,
+      isActive: false,
+      studentVisible: false,
+      auditRequestId: null,
+    };
+  }
+
+  // Prefer the newest matching row (post-submit or still draft).
+  const match = matches[matches.length - 1]!;
+  return {
+    ok: true,
+    requestId: match.id,
+    requestStatusAtClose: match.status,
+    emergencyClose: false,
+    isActive: false,
+    studentVisible: false,
+    auditRequestId: match.id,
+  };
+}
+
+/** Simulates draft → open → submitted → close audit linkage. */
+export function simulateEnrollmentCertificateE2ESubmitThenClose(input: {
+  marker: string;
+  requestId: string;
+}): {
+  openOk: boolean;
+  close: E2ESubmitWindowCloseResult;
+} {
+  const draftRow: E2ESubmitWindowRequest = {
+    id: input.requestId,
+    status: "draft",
+    e2e_marker: input.marker,
+    internal_e2e: true,
+    e2e_scenario: "zero_fee",
+  };
+  const open = evaluateEnrollmentCertificateE2ESubmitWindowOpen({
+    marker: input.marker,
+    requests: [draftRow],
+  });
+  const submittedRow: E2ESubmitWindowRequest = {
+    ...draftRow,
+    status: "submitted",
+  };
+  const close = evaluateEnrollmentCertificateE2ESubmitWindowClose({
+    marker: input.marker,
+    requests: [submittedRow],
+  });
+  return { openOk: open.ok, close };
+}
