@@ -1,0 +1,214 @@
+/**
+ * Post–zero-fee execution contract for enrollment-certificate-style steps.
+ * Pure policy — mirrors the migration remapping; does not call RPCs or write DB.
+ *
+ * Decision context: document issuance lacks student_request_id FK and a
+ * request-scoped enrollment_certificate issuer. Signature remapping is ready;
+ * issue_document / archive must stay gated until that contract exists.
+ */
+
+export const WORKFLOW_ACTOR_ACTIONS = [
+  "approve",
+  "reject",
+  "return",
+  "comment",
+  "request_attachment",
+  "request_payment",
+  "sign",
+  "archive",
+  "issue_document",
+  "complete",
+  "skip",
+] as const;
+
+export type WorkflowActorAction = (typeof WORKFLOW_ACTOR_ACTIONS)[number];
+
+export const ACTION_TO_TRANSITION_RESULT: Record<
+  Exclude<WorkflowActorAction, "comment">,
+  string
+> = {
+  approve: "approve",
+  reject: "reject",
+  return: "return",
+  request_attachment: "request_attachment",
+  request_payment: "request_payment",
+  skip: "skip",
+  complete: "complete",
+  sign: "signed",
+  issue_document: "issued",
+  archive: "archived",
+};
+
+export const ACTION_TO_EVENT_TYPE: Partial<Record<WorkflowActorAction, string>> = {
+  approve: "approved",
+  reject: "rejected",
+  return: "returned",
+  comment: "commented",
+  request_attachment: "attachment_requested",
+  request_payment: "payment_requested",
+  sign: "signed",
+  archive: "archived",
+  issue_document: "document_issued",
+  complete: "completed",
+  skip: "approved",
+};
+
+/** Required action_type on the config step for specialized mutating actions. */
+export const ACTION_REQUIRES_STEP_ACTION_TYPE: Partial<
+  Record<WorkflowActorAction, string>
+> = {
+  sign: "sign",
+  issue_document: "issue_document",
+  archive: "archive",
+};
+
+export const DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE =
+  "DOCUMENT_ISSUANCE_EXECUTION_CONTRACT_MISSING";
+
+export const DOCUMENT_ISSUANCE_CONTRACT_MISSING_MSG_AR =
+  "عقد إصدار شهادة القيد من خطوة workflow غير مكتمل: لا يوجد ربط student_request_id بـ official_documents ولا مسار إصدار طلب آمن. تم إيقاف التنفيذ.";
+
+export const ARCHIVE_CONTRACT_GATED_CODE = "ARCHIVE_REQUIRES_ISSUED_DOCUMENT_CONTRACT";
+
+export const ARCHIVE_CONTRACT_GATED_MSG_AR =
+  "الأرشفة متوقفة حتى يكتمل عقد إصدار الوثيقة وربطها بالطلب (توقيعان + إصدار فعلي).";
+
+export type PostZeroFeeExecutionGate =
+  | { allowed: true; actionResult: string; eventType: string }
+  | {
+      allowed: false;
+      reason:
+        | "invalid_action"
+        | "action_type_mismatch"
+        | "approve_on_sign_step"
+        | "document_issuance_contract_missing"
+        | "archive_contract_gated"
+        | "transition_missing"
+        | "step_not_active";
+      messageAr: string;
+    };
+
+export function isValidWorkflowActorAction(action: string): action is WorkflowActorAction {
+  return (WORKFLOW_ACTOR_ACTIONS as readonly string[]).includes(action);
+}
+
+export function mapActorActionToTransitionResult(action: WorkflowActorAction): string | null {
+  if (action === "comment") return null;
+  return ACTION_TO_TRANSITION_RESULT[action] ?? null;
+}
+
+/**
+ * Fail-closed gate used by migration tests / UI policy.
+ * issue_document and archive are intentionally blocked until a durable
+ * request-scoped issuance path exists (HOLD decision).
+ */
+export function evaluatePostZeroFeeActorAction(input: {
+  action: string;
+  stepStatus: string;
+  stepActionType: string | null;
+  hasMatchingTransition: boolean;
+}): PostZeroFeeExecutionGate {
+  if (!isValidWorkflowActorAction(input.action)) {
+    return {
+      allowed: false,
+      reason: "invalid_action",
+      messageAr: "إجراء غير مدعوم في عقد التنفيذ الحالي",
+    };
+  }
+
+  if (input.action === "comment") {
+    return { allowed: true, actionResult: "", eventType: "commented" };
+  }
+
+  if (input.stepStatus !== "active") {
+    return {
+      allowed: false,
+      reason: "step_not_active",
+      messageAr: "الخطوة ليست نشطة — لا يمكن تنفيذ الإجراء",
+    };
+  }
+
+  if (input.action === "approve" && input.stepActionType === "sign") {
+    return {
+      allowed: false,
+      reason: "approve_on_sign_step",
+      messageAr: "خطوة التوقيع تتطلب إجراء sign وليس approve",
+    };
+  }
+
+  const requiredType = ACTION_REQUIRES_STEP_ACTION_TYPE[input.action];
+  if (requiredType && input.stepActionType !== requiredType) {
+    return {
+      allowed: false,
+      reason: "action_type_mismatch",
+      messageAr: `الإجراء ${input.action} غير متوافق مع نوع الخطوة ${input.stepActionType ?? "null"}`,
+    };
+  }
+
+  if (input.action === "issue_document") {
+    return {
+      allowed: false,
+      reason: "document_issuance_contract_missing",
+      messageAr: DOCUMENT_ISSUANCE_CONTRACT_MISSING_MSG_AR,
+    };
+  }
+
+  if (input.action === "archive") {
+    return {
+      allowed: false,
+      reason: "archive_contract_gated",
+      messageAr: ARCHIVE_CONTRACT_GATED_MSG_AR,
+    };
+  }
+
+  const actionResult = mapActorActionToTransitionResult(input.action);
+  if (!actionResult) {
+    return {
+      allowed: false,
+      reason: "invalid_action",
+      messageAr: "تعذر حساب نتيجة الانتقال",
+    };
+  }
+
+  if (!input.hasMatchingTransition) {
+    return {
+      allowed: false,
+      reason: "transition_missing",
+      messageAr: `لا يوجد انتقال للنتيجة: ${actionResult}`,
+    };
+  }
+
+  return {
+    allowed: true,
+    actionResult,
+    eventType: ACTION_TO_EVENT_TYPE[input.action] ?? "commented",
+  };
+}
+
+/** Enrollment certificate post-fee transition expectations from the canonical registry. */
+export const ENROLLMENT_CERTIFICATE_POST_FEE_TRANSITIONS = [
+  {
+    from: "registrar_signature",
+    to: "dean_signature",
+    action: "sign" as const,
+    actionResult: "signed",
+  },
+  {
+    from: "dean_signature",
+    to: "document_issuance",
+    action: "sign" as const,
+    actionResult: "signed",
+  },
+  {
+    from: "document_issuance",
+    to: "archive",
+    action: "issue_document" as const,
+    actionResult: "issued",
+  },
+  {
+    from: "archive",
+    to: null,
+    action: "archive" as const,
+    actionResult: "archived",
+  },
+] as const;
