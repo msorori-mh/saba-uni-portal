@@ -5404,6 +5404,7 @@ export type Database = {
         }
         Returns: string
       }
+      assert_can_activate_request_workflow: { Args: never; Returns: undefined }
       assert_can_admin_save_request_workflow: {
         Args: never
         Returns: undefined
