@@ -9,7 +9,7 @@ const migration = readFileSync(
     "supabase/migrations/20260711050000_enrollment_certificate_workflow_round3_hardening.sql",
   ),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 
 function functionBody(name: string, nextMarker: string): string {
   const start = migration.indexOf(`CREATE OR REPLACE FUNCTION public.${name}`);
