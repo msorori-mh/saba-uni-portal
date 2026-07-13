@@ -1,5 +1,5 @@
 import {
-  APPROVED_ARABIC_FONT_HOLD_CODE,
+  PDF_STORAGE_SAGA_HOLD_CODE,
   PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
 } from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
 
@@ -7,14 +7,13 @@ import {
  * Enrollment certificate document issuance + archive contract (01).
  * Pure policy / gate — no DB writes, no Storage/PDF generation.
  *
- * Prior decision: HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING
- * Superseding gate (PDF-STORAGE-GENERATOR-01):
- * HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED
+ * Prior: HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED (cleared by Arabic PDF Worker spike).
+ * Current gate: HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED
  */
 
-export const CONTRACT_DECISION = APPROVED_ARABIC_FONT_HOLD_CODE;
+export const CONTRACT_DECISION = PDF_STORAGE_SAGA_HOLD_CODE;
 
-export const PDF_GENERATION_HOLD_CODE = APPROVED_ARABIC_FONT_HOLD_CODE;
+export const PDF_GENERATION_HOLD_CODE = PDF_STORAGE_SAGA_HOLD_CODE;
 
 export const PDF_GENERATION_HOLD_MSG_AR = PDF_STORAGE_GENERATOR_HOLD_MSG_AR;
 
@@ -50,8 +49,7 @@ export const REQUIRED_ISSUANCE_SNAPSHOT_FIELDS = [
   "issued_snapshot_at",
 ] as const;
 
-export type EnrollmentCertificateSnapshotField =
-  (typeof REQUIRED_ISSUANCE_SNAPSHOT_FIELDS)[number];
+export type EnrollmentCertificateSnapshotField = (typeof REQUIRED_ISSUANCE_SNAPSHOT_FIELDS)[number];
 
 export const VERIFY_DOCUMENT_PUBLIC_FIELDS = [
   "valid",
@@ -71,7 +69,7 @@ export type EnrollmentCertificateIssuanceCapability = {
   reason:
     | typeof PDF_GENERATION_HOLD_CODE
     | "signature_ready_pdf_blocked"
-    | typeof APPROVED_ARABIC_FONT_HOLD_CODE;
+    | typeof PDF_STORAGE_SAGA_HOLD_CODE;
   messageAr: string;
 };
 
@@ -149,13 +147,9 @@ export type ArchivePrerequisiteInput = {
   hasMatchingArchivedTransition: boolean;
 };
 
-export type GateResult =
-  | { allowed: true }
-  | { allowed: false; code: string; messageAr: string };
+export type GateResult = { allowed: true } | { allowed: false; code: string; messageAr: string };
 
-export function evaluateIssuancePrerequisites(
-  input: IssuancePrerequisiteInput,
-): GateResult {
+export function evaluateIssuancePrerequisites(input: IssuancePrerequisiteInput): GateResult {
   if (!input.authUidPresent) {
     return {
       allowed: false,

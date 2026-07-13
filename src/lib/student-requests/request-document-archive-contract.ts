@@ -25,8 +25,7 @@ export const DOCUMENT_FOUNDATION_STATUSES = [
   "archived",
 ] as const;
 
-export type StudentRequestDocumentFoundationStatus =
-  (typeof DOCUMENT_FOUNDATION_STATUSES)[number];
+export type StudentRequestDocumentFoundationStatus = (typeof DOCUMENT_FOUNDATION_STATUSES)[number];
 
 export const STUDENT_REQUEST_DOCUMENT_TYPES = [
   "grade_statement_non_graduate_document",
@@ -135,8 +134,7 @@ export type StudentRequestArchiveHandoffResult = {
   executed: false;
 };
 
-export type StudentRequestDocumentArchiveCapabilityReason =
-  "document_archive_runtime_unavailable";
+export type StudentRequestDocumentArchiveCapabilityReason = "document_archive_runtime_unavailable";
 
 export type StudentRequestDocumentArchiveCapability = {
   canValidate: boolean;
@@ -180,8 +178,7 @@ export type StudentRequestDocumentArchiveDryRunResult =
   | StudentRequestDocumentGenerationResult
   | StudentRequestArchiveHandoffResult;
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const LOCAL_SIGNATORY_KEYS = new Set<StudentRequestSignatoryKey>([
   "dean",
@@ -225,9 +222,9 @@ export const DOCUMENT_ARCHIVE_DRY_RUN_SUCCESS_MSG =
 export const DOCUMENT_ARCHIVE_FOUNDATION_PREVIEW_MSG =
   "هذه معاينة تأسيسية للمستندات والتوقيعات والأرشفة. لم يتم إنشاء أو توقيع أو أرشفة أي مستند.";
 
-/** Enrollment certificate G8: keep execute buttons fail-closed until PDF generator exists. */
+/** Enrollment certificate G8: keep execute buttons fail-closed until Storage saga exists. */
 export const ENROLLMENT_CERTIFICATE_ISSUE_EXECUTE_DISABLED_MSG =
-  "إصدار/أرشفة شهادة القيد مجمّدان: لا يوجد خط عربي معتمد للتضمين في PDF خادمي (HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED).";
+  "إصدار/أرشفة شهادة القيد مجمّدان: Spike PDF عربي على Worker جاهز، لكن Saga التخزين (Prepare/Finalize + bucket) غير منفّذة (HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED).";
 
 function pushIssue(
   issues: StudentRequestDocumentArchiveValidationIssue[],
@@ -494,7 +491,10 @@ function resolveFoundationStatus(
 ): StudentRequestDocumentFoundationStatus {
   const hasCentral = definition.signatories.some((s) => s.scope === "central" && s.required);
   const hasLocal = definition.signatories.some((s) => s.scope === "local" && s.required);
-  if (!definition.producesIssuableDocument && definition.documentType === "request_archive_package") {
+  if (
+    !definition.producesIssuableDocument &&
+    definition.documentType === "request_archive_package"
+  ) {
     return "ready_for_archive";
   }
   if (hasCentral && hasLocal) return "pending_local_signatures";
@@ -597,11 +597,7 @@ export function validateDocumentGenerationInput(
     });
   }
 
-  return buildDocumentGenerationDryRunResult(
-    capability,
-    issues,
-    definition ?? null,
-  );
+  return buildDocumentGenerationDryRunResult(capability, issues, definition ?? null);
 }
 
 export function validateSignatureRequirement(
@@ -837,9 +833,7 @@ function buildDocumentGenerationDryRunResult(
     summaryAr = `${DOCUMENT_ARCHIVE_DRY_RUN_SUCCESS_MSG} ${capability.messageAr}`;
   }
 
-  const foundationStatus = definition
-    ? resolveFoundationStatus(definition)
-    : "not_required";
+  const foundationStatus = definition ? resolveFoundationStatus(definition) : "not_required";
 
   return {
     status,
@@ -1061,10 +1055,7 @@ export function runDocumentArchiveScenarioMatrix(): DocumentArchiveScenarioResul
       name: "college staff يحاول central signature — INVALID",
       expected: "INVALID",
       fn: () =>
-        validateSignatureRequirement(
-          "grade_statement_non_graduate_document",
-          centralAttemptActor,
-        ),
+        validateSignatureRequirement("grade_statement_non_graduate_document", centralAttemptActor),
     },
     {
       id: 9,

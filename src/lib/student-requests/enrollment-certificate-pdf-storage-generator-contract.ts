@@ -1,28 +1,31 @@
 /**
  * PDF + Storage generator readiness for enrollment certificates.
- * Fail-closed capability — no PDF bytes, no Storage uploads from this module.
+ * Fail-closed for staff issue / Storage saga until the next implementation phase.
  *
- * Phase: ENROLLMENT-CERTIFICATE-PDF-STORAGE-GENERATOR-01
+ * Font + Worker Arabic PDF spike cleared in:
+ * ENROLLMENT-CERTIFICATE-ARABIC-PDF-WORKER-SPIKE-01
  *
- * Primary decision after G0/G1:
- * HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED
+ * Spike decision:
+ * PASS_ARABIC_PDF_WORKER_SPIKE_READY_FOR_STORAGE_SAGA_IMPLEMENTATION
  *
- * Secondary (also proven):
- * HOLD_PDF_RUNTIME_COMPATIBILITY_NOT_PROVEN
- * — Cloudflare Workers / Nitro has no PDF lib PoC yet; Chromium unavailable.
+ * Production issuance remains gated by assert_enrollment_certificate_pdf_generation_ready
+ * (Prepare/Finalize + official-documents bucket not implemented in this spike).
  */
 
-export const PDF_STORAGE_GENERATOR_DECISION =
-  "HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED" as const;
+export const ARABIC_PDF_WORKER_SPIKE_DECISION =
+  "PASS_ARABIC_PDF_WORKER_SPIKE_READY_FOR_STORAGE_SAGA_IMPLEMENTATION" as const;
 
-export const PDF_RUNTIME_HOLD_CODE =
-  "HOLD_PDF_RUNTIME_COMPATIBILITY_NOT_PROVEN" as const;
+/** Storage saga / production generator still not implemented. */
+export const PDF_STORAGE_GENERATOR_DECISION = "HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED" as const;
 
-export const APPROVED_ARABIC_FONT_HOLD_CODE =
-  "HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED" as const;
+export const PDF_RUNTIME_HOLD_CODE = "HOLD_PDF_RUNTIME_COMPATIBILITY_NOT_PROVEN" as const;
+
+export const APPROVED_ARABIC_FONT_HOLD_CODE = "HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED" as const;
+
+export const PDF_STORAGE_SAGA_HOLD_CODE = "HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED" as const;
 
 export const PDF_STORAGE_GENERATOR_HOLD_MSG_AR =
-  "توقّف مولّد شهادة القيد: لا يوجد ملف خط عربي معتمد (TTF/OTF + ترخيص) داخل المستودع للتضمين في PDF خادمي. خطوط Cairo/Tajawal تُحمَّل من CDN فقط ولا تُضمَّن.";
+  "مولّد شهادة القيد جاهز تقنياً على مستوى Spike (خط Cairo + pdf-lib على Worker)، لكن Saga التخزين/Prepare-Finalize وbucket الوثائق الرسمية غير منفّذة بعد. زر الإصدار يبقى مغلقاً.";
 
 export type PdfStorageGeneratorCapability = {
   ready: false;
@@ -30,26 +33,25 @@ export type PdfStorageGeneratorCapability = {
   canGeneratePdf: false;
   canUploadOfficialDocument: false;
   decision: typeof PDF_STORAGE_GENERATOR_DECISION;
-  blockers: readonly [
-    typeof APPROVED_ARABIC_FONT_HOLD_CODE,
-    typeof PDF_RUNTIME_HOLD_CODE,
-  ];
+  arabicPdfWorkerSpikeDecision: typeof ARABIC_PDF_WORKER_SPIKE_DECISION;
+  blockers: readonly [typeof PDF_STORAGE_SAGA_HOLD_CODE];
   messageAr: string;
   runtimeTarget: "cloudflare_workers_nitro";
   preferredEngineWhenUnblocked: "pdf-lib+fontkit";
   edgeFunctionsPresent: false;
   officialDocumentsBucketPresent: false;
-  localArabicFontFilesPresent: false;
+  localArabicFontFilesPresent: boolean;
   localCollegeLogoPresent: boolean;
   localUniversityLogoBinaryPresent: boolean;
 };
 
 /**
- * Inventory used by staff UI and tests — always fail-closed until fonts + engine PoC land.
+ * Inventory used by staff UI and tests — always fail-closed until Storage saga lands.
  */
 export function getPdfStorageGeneratorCapability(options?: {
   localCollegeLogoPresent?: boolean;
   localUniversityLogoBinaryPresent?: boolean;
+  localArabicFontFilesPresent?: boolean;
 }): PdfStorageGeneratorCapability {
   return {
     ready: false,
@@ -57,16 +59,16 @@ export function getPdfStorageGeneratorCapability(options?: {
     canGeneratePdf: false,
     canUploadOfficialDocument: false,
     decision: PDF_STORAGE_GENERATOR_DECISION,
-    blockers: [APPROVED_ARABIC_FONT_HOLD_CODE, PDF_RUNTIME_HOLD_CODE],
+    arabicPdfWorkerSpikeDecision: ARABIC_PDF_WORKER_SPIKE_DECISION,
+    blockers: [PDF_STORAGE_SAGA_HOLD_CODE],
     messageAr: PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
     runtimeTarget: "cloudflare_workers_nitro",
     preferredEngineWhenUnblocked: "pdf-lib+fontkit",
     edgeFunctionsPresent: false,
     officialDocumentsBucketPresent: false,
-    localArabicFontFilesPresent: false,
+    localArabicFontFilesPresent: options?.localArabicFontFilesPresent ?? true,
     localCollegeLogoPresent: options?.localCollegeLogoPresent ?? true,
-    localUniversityLogoBinaryPresent:
-      options?.localUniversityLogoBinaryPresent ?? false,
+    localUniversityLogoBinaryPresent: options?.localUniversityLogoBinaryPresent ?? false,
   };
 }
 
@@ -83,23 +85,29 @@ export const PLANNED_STORAGE_PATH_TEMPLATE =
   "enrollment-certificates/{request_id}/{official_document_id}.pdf" as const;
 
 /**
- * Font gate: CDN-only UI fonts are not embeddable assets.
- * Do not download/add a random font — requires an approved licensed file in-repo.
+ * Font gate: approved Cairo variable TTF must be vendored with OFL adjacent.
+ * CDN UI fonts alone are not sufficient.
  */
 export function evaluateApprovedArabicFontGate(input: {
   localTtfOrOtfCount: number;
   hasOfLicenseAdjacent: boolean;
   cdnOnlyUiFonts: boolean;
 }): {
-  allowed: false;
-  code: typeof APPROVED_ARABIC_FONT_HOLD_CODE;
+  allowed: boolean;
+  code: typeof APPROVED_ARABIC_FONT_HOLD_CODE | "font_ok";
   messageAr: string;
 } {
-  void input;
+  if (input.localTtfOrOtfCount >= 1 && input.hasOfLicenseAdjacent) {
+    return {
+      allowed: true,
+      code: "font_ok",
+      messageAr: "خط عربي معتمد موجود محلياً مع ترخيص OFL",
+    };
+  }
   return {
     allowed: false,
     code: APPROVED_ARABIC_FONT_HOLD_CODE,
-    messageAr: PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
+    messageAr: "لا يوجد ملف خط عربي معتمد (TTF/OTF + ترخيص) داخل المستودع للتضمين في PDF خادمي.",
   };
 }
 

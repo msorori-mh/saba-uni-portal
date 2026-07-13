@@ -58,9 +58,7 @@ describe("post-zero-fee execution contract — pure policy", () => {
   });
 
   it("5 — dean sign activates document_issuance when transition exists", () => {
-    const t = ENROLLMENT_CERTIFICATE_POST_FEE_TRANSITIONS.find(
-      (x) => x.from === "dean_signature",
-    )!;
+    const t = ENROLLMENT_CERTIFICATE_POST_FEE_TRANSITIONS.find((x) => x.from === "dean_signature")!;
     expect(t.to).toBe("document_issuance");
     expect(t.actionResult).toBe("signed");
     const gate = evaluatePostZeroFeeActorAction({
@@ -82,7 +80,7 @@ describe("post-zero-fee execution contract — pure policy", () => {
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) {
       expect(gate.reason).toBe("pdf_generation_contract_missing");
-      expect(gate.messageAr).toContain("PDF");
+      expect(gate.messageAr).toMatch(/PDF|Spike|Saga|وثائق/i);
     }
   });
 
@@ -92,9 +90,7 @@ describe("post-zero-fee execution contract — pure policy", () => {
     )!;
     expect(issued.actionResult).toBe("issued");
     expect(issued.to).toBe("archive");
-    expect(DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE).toBe(
-      "HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED",
-    );
+    expect(DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE).toBe("HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED");
   });
 
   it("8 — archive without issued document contract is rejected", () => {
@@ -108,14 +104,12 @@ describe("post-zero-fee execution contract — pure policy", () => {
     if (!gate.allowed) {
       expect(gate.reason).toBe("pdf_generation_contract_missing");
       expect(gate.messageAr.length).toBeGreaterThan(10);
-      expect(ARCHIVE_CONTRACT_GATED_CODE).toContain("APPROVED_ARABIC_FONT");
+      expect(ARCHIVE_CONTRACT_GATED_CODE).toContain("PDF_STORAGE_SAGA");
     }
   });
 
   it("9 — terminal archive mapping is archived → completed request (encoded)", () => {
-    const arch = ENROLLMENT_CERTIFICATE_POST_FEE_TRANSITIONS.find(
-      (x) => x.from === "archive",
-    )!;
+    const arch = ENROLLMENT_CERTIFICATE_POST_FEE_TRANSITIONS.find((x) => x.from === "archive")!;
     expect(arch.to).toBeNull();
     expect(arch.actionResult).toBe("archived");
   });
@@ -173,28 +167,22 @@ describe("post-zero-fee execution contract — pure policy", () => {
     const transitions = getCanonicalDraftTransitionsForType("enrollment_certificate");
     expect(
       transitions.find(
-        (t) =>
-          t.from_step_key === "registrar_signature" &&
-          t.to_step_key === "dean_signature",
+        (t) => t.from_step_key === "registrar_signature" && t.to_step_key === "dean_signature",
       )?.action_result,
     ).toBe("signed");
     expect(
       transitions.find(
-        (t) =>
-          t.from_step_key === "dean_signature" &&
-          t.to_step_key === "document_issuance",
+        (t) => t.from_step_key === "dean_signature" && t.to_step_key === "document_issuance",
       )?.action_result,
     ).toBe("signed");
     expect(
       transitions.find(
-        (t) =>
-          t.from_step_key === "document_issuance" && t.to_step_key === "archive",
+        (t) => t.from_step_key === "document_issuance" && t.to_step_key === "archive",
       )?.action_result,
     ).toBe("issued");
     expect(
-      transitions.find(
-        (t) => t.from_step_key === "archive" && t.to_step_key === null,
-      )?.action_result,
+      transitions.find((t) => t.from_step_key === "archive" && t.to_step_key === null)
+        ?.action_result,
     ).toBe("archived");
   });
 });
