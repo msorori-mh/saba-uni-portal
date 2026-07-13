@@ -138,7 +138,8 @@ PR: [#126](https://github.com/msorori-mh/saba-uni-portal/pull/126) — **لا د
 | ملفات من `main` أُضيفت | `docs/REQUEST-TYPES-PILOT-WORKFLOW-CONFIGURATION-DESIGN-01-REPORT.md`، `docs/STUDENT-AVAILABLE-REQUEST-TYPES-RUNTIME-AUDIT-01-REPORT.md` |
 | مسار PR #124 | **لم يُمس** |
 | `routeTree.gen.ts` | لم يتعارض؛ بقي ناتج مسارات الفرع |
-| SHA بعد دمج main | `b7f899f` (merge commit) — يُحدَّث بعد commit التقرير/إصلاح lint إن وُجد |
+| SHA بعد دمج main | `b7f899f` (merge commit) |
+| SHA النهائي بعد التقرير/lint | `4937bd9e402c818b56ec0a6fe9e08b8b1af9efd8` |
 | اختبارات بعد المزامنة | **14 pass** (`dashboard-requests-ux-closure-01`) |
 | `tsc --noEmit` | **PASS** |
 | `bun run build` | **PASS** |
