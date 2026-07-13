@@ -5317,12 +5317,53 @@ export type Database = {
       }
     }
     Functions: {
+      _assert_enrollment_certificate_e2e_processing_assignments: {
+        Args: never
+        Returns: undefined
+      }
+      _enrollment_certificate_e2e_load_hidden_type: {
+        Args: { p_require_inactive: boolean }
+        Returns: {
+          article_ref: string | null
+          category: string | null
+          code: string
+          created_at: string
+          description_ar: string | null
+          form_schema: Json
+          id: string
+          ineligible_display_mode: string
+          is_active: boolean
+          name_ar: string
+          request_audience: string
+          required_documents: Json
+          requires_attachment: boolean
+          sort_order: number
+          student_visible: boolean
+          title_en: string | null
+          updated_at: string
+          workflow_schema: Json
+        }
+        SetofOptions: {
+          from: "*"
+          to: "request_types"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       act_on_student_request_step: {
         Args: {
           p_action: string
           p_comment?: string
           p_payload?: Json
           p_step_id: string
+        }
+        Returns: Json
+      }
+      admin_create_enrollment_certificate_e2e_draft: {
+        Args: {
+          p_e2e_marker: string
+          p_student_notes?: string
+          p_student_user_id: string
         }
         Returns: Json
       }
@@ -5354,14 +5395,6 @@ export type Database = {
           user_id: string
         }[]
       }
-      admin_create_enrollment_certificate_e2e_draft: {
-        Args: {
-          p_e2e_marker: string
-          p_student_notes?: string
-          p_student_user_id: string
-        }
-        Returns: Json
-      }
       admin_save_request_workflow_config: {
         Args: {
           p_request_type_id: string
@@ -5372,10 +5405,7 @@ export type Database = {
         Returns: Json
       }
       admin_set_enrollment_certificate_e2e_submit_window: {
-        Args: {
-          p_e2e_marker: string
-          p_open: boolean
-        }
+        Args: { p_e2e_marker: string; p_open: boolean }
         Returns: Json
       }
       admin_set_faculty_status: {
@@ -5420,6 +5450,10 @@ export type Database = {
         Returns: string
       }
       assert_can_activate_request_workflow: { Args: never; Returns: undefined }
+      assert_can_admin_enrollment_certificate_e2e: {
+        Args: never
+        Returns: undefined
+      }
       assert_can_admin_save_request_workflow: {
         Args: never
         Returns: undefined
