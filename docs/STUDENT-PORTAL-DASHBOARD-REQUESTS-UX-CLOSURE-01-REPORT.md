@@ -139,7 +139,8 @@ PR: [#126](https://github.com/msorori-mh/saba-uni-portal/pull/126) — **لا د
 | مسار PR #124 | **لم يُمس** |
 | `routeTree.gen.ts` | لم يتعارض؛ بقي ناتج مسارات الفرع |
 | SHA بعد دمج main | `b7f899f` (merge commit) |
-| SHA النهائي بعد التقرير/lint | `e27d6e1baf57b5725bbd010540649145a9f2547d` |
+| Commits لاحقة على الفرع | تقرير المزامنة + إصلاح lint scoped (`any` غير مستخدم) |
+| Tip عند كتابة هذا القسم | راجع أحدث commit على الفرع بعد نجاح CI |
 | اختبارات بعد المزامنة | **14 pass** (`dashboard-requests-ux-closure-01`) |
 | `tsc --noEmit` | **PASS** |
 | `bun run build` | **PASS** |
