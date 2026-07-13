@@ -28,6 +28,9 @@ import {
 import { sanitizeFormDataForSubmit } from "@/lib/student-requests/student-request-submit-contract";
 
 export const Route = createFileRoute("/student/requests/new")({
+  validateSearch: (search: Record<string, unknown>): { type?: string } => ({
+    type: typeof search.type === "string" && search.type.trim() ? search.type.trim() : undefined,
+  }),
   component: NewStudentRequestPage,
 });
 
@@ -46,10 +49,11 @@ type RequestTypeOption = {
 
 function NewStudentRequestPage() {
   const navigate = useNavigate();
+  const { type: typeFromSearch } = Route.useSearch();
   const typesFn = useServerFn(getStudentRequestTypesForStudent);
   const contextFn = useServerFn(getStudentRequestUiContext);
   const submitFn = useServerFn(submitCanonicalStudentRequest);
-  const [requestType, setRequestType] = useState("");
+  const [requestType, setRequestType] = useState(typeFromSearch ?? "");
   const [subject, setSubject] = useState("");
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -57,7 +61,11 @@ function NewStudentRequestPage() {
   const submitInFlightRef = useRef(false);
   const completedClientIdsRef = useRef(new Set<string>());
 
-  const { data: types = [], isLoading, error: typesError } = useQuery({
+  const {
+    data: types = [],
+    isLoading,
+    error: typesError,
+  } = useQuery({
     queryKey: ["student-affairs", "types"],
     queryFn: () => typesFn({ data: {} }),
   });
@@ -69,6 +77,14 @@ function NewStudentRequestPage() {
   });
 
   const typedTypes = filterStudentRequestTypesForDisplay(types as RequestTypeOption[]);
+
+  useEffect(() => {
+    if (!typeFromSearch) return;
+    const match = typedTypes.find((t) => t.code === typeFromSearch);
+    if (match && match.is_eligible && !match.is_disabled) {
+      setRequestType(match.code);
+    }
+  }, [typeFromSearch, typedTypes]);
   const selectedType = useMemo(
     () => typedTypes.find((type) => type.code === requestType),
     [typedTypes, requestType],
@@ -100,10 +116,9 @@ function NewStudentRequestPage() {
   const selectableTypes = typedTypes.filter((t) => t.is_eligible && !t.is_disabled);
   const allDisabled =
     typedTypes.length > 0 && typedTypes.every((t) => t.is_disabled || !t.is_eligible);
-  const ineligibleBanner =
-    allDisabled
-      ? (typedTypes[0]?.disabled_reason ?? STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG)
-      : null;
+  const ineligibleBanner = allDisabled
+    ? (typedTypes[0]?.disabled_reason ?? STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG)
+    : null;
 
   const formValidation = useMemo(() => {
     if (!formDefinition) return { valid: false, missingLabels: [] as string[] };
@@ -275,14 +290,15 @@ function NewStudentRequestPage() {
         )}
       </section>
 
-      <form onSubmit={onSubmit} className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
+      <form
+        onSubmit={onSubmit}
+        className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4"
+      >
         {selectableTypes.length > 0 && !requestType && (
           <p className="text-xs text-muted-foreground">اختر نوع الطلب من القائمة أعلاه للمتابعة.</p>
         )}
 
-        {requestType && (
-          <StudentRequestEligibilityNotice {...eligibilityInput} />
-        )}
+        {requestType && <StudentRequestEligibilityNotice {...eligibilityInput} />}
 
         {selectedType?.requires_attachment && (
           <div

@@ -1,9 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileText, Loader2, Plus } from "lucide-react";
-import { getMyStudentServiceRequests } from "@/lib/student-affairs.functions";
+import { ClipboardList, FileText, Loader2, Plus } from "lucide-react";
+import {
+  getMyStudentServiceRequests,
+  getStudentRequestTypesForStudent,
+} from "@/lib/student-affairs.functions";
+import {
+  filterAvailableRequestTypesForStudentPage,
+  isRequestTypeActionable,
+} from "@/lib/student-requests/available-request-types-ui";
+import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
 import { getStudentRequestTypeDisplayName } from "@/lib/student-requests/request-type-registry";
+import { formatStudentCurrentProcessingUnitLabel } from "@/lib/student-requests/student-request-unit-label";
+import { portalFeatures } from "@/lib/portal-features";
 
 export const Route = createFileRoute("/student/requests/")({
   component: StudentRequestsIndexPage,
@@ -22,74 +32,294 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "مكتمل",
 };
 
+type RequestRow = {
+  id: string;
+  request_number: string | null;
+  request_type: string;
+  request_type_name_ar?: string | null;
+  title: string;
+  status: string;
+  current_role_key: string | null;
+  submitted_at: string | null;
+  updated_at: string;
+};
+
 function StudentRequestsIndexPage() {
   const listFn = useServerFn(getMyStudentServiceRequests);
-  const { data = [], isLoading, error } = useQuery({
+  const typesFn = useServerFn(getStudentRequestTypesForStudent);
+
+  const {
+    data: requests = [],
+    isLoading: requestsLoading,
+    isError: requestsError,
+    error: requestsErr,
+  } = useQuery({
     queryKey: ["student-affairs", "my-requests"],
     queryFn: () => listFn({ data: {} }),
   });
 
+  const {
+    data: typeRows = [],
+    isLoading: typesLoading,
+    isError: typesError,
+  } = useQuery({
+    queryKey: ["student-affairs", "available-types", "requests-page"],
+    queryFn: () => typesFn({ data: {} }),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const services = filterAvailableRequestTypesForStudentPage(
+    filterStudentRequestTypesForDisplay(
+      typeRows as Parameters<typeof filterStudentRequestTypesForDisplay>[0],
+    ),
+  );
+
+  const scrollToServices = () => {
+    const el = document.getElementById("available-services");
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div dir="rtl" className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-extrabold text-primary flex items-center gap-2">
-            <FileText className="h-6 w-6 text-gold" /> طلبات شؤون الطلاب
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl sm:text-2xl font-extrabold text-primary flex items-center gap-2">
+            <FileText className="h-5 w-5 sm:h-6 sm:w-6 text-gold shrink-0" />
+            <span className="leading-snug">طلبات شؤون الطلاب</span>
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">متابعة الطلبات الحالية والسابقة وسجل مراحلها.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            اختر خدمة للتقديم أو تابع طلباتك الحالية والسابقة.
+          </p>
         </div>
-        <Link to="/student/requests/new" className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
+        <button
+          type="button"
+          onClick={scrollToServices}
+          className="inline-flex w-full sm:w-auto shrink-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"
+        >
           <Plus className="h-4 w-4" /> طلب جديد
-        </Link>
+        </button>
       </header>
 
-      {error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {(error as Error).message}
+      {/* —— الخدمات المتاحة —— */}
+      <section id="available-services" className="scroll-mt-4 space-y-3">
+        <div>
+          <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
+            <ClipboardList className="h-4 w-4 text-gold" />
+            الخدمات المتاحة
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            اختر الخدمة التي ترغب في تقديم طلب بشأنها.
+          </p>
         </div>
-      )}
 
-      <section className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
-        {isLoading ? (
-          <div className="grid place-items-center p-10"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
-        ) : data.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted-foreground">لا توجد طلبات بعد.</div>
+        {typesLoading ? (
+          <div
+            className="grid place-items-center rounded-xl border border-border bg-card p-8"
+            aria-busy="true"
+          >
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : typesError ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+          >
+            تعذر تحميل الخدمات المتاحة. حاول مرة أخرى.
+          </div>
+        ) : services.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            لا توجد خدمات متاحة للتقديم حالياً.
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-secondary/50 text-primary">
-                <tr>
-                  <th className="px-3 py-2 text-right">رقم الطلب</th>
-                  <th className="px-3 py-2 text-right">نوع الطلب</th>
-                  <th className="px-3 py-2 text-right">العنوان</th>
-                  <th className="px-3 py-2 text-right">الحالة</th>
-                  <th className="px-3 py-2 text-right">الجهة الحالية</th>
-                  <th className="px-3 py-2 text-right">تاريخ التقديم</th>
-                  <th className="px-3 py-2 text-right">آخر تحديث</th>
-                  <th className="px-3 py-2 text-right">التفاصيل</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((request: any) => (
-                  <tr key={request.id} className="border-t border-border/60">
-                    <td className="px-3 py-2 font-mono">{request.request_number ?? "—"}</td>
-                    <td className="px-3 py-2">{getStudentRequestTypeDisplayName(request.request_type, request.request_type_name_ar)}</td>
-                    <td className="px-3 py-2 font-bold">{request.title}</td>
-                    <td className="px-3 py-2">{STATUS_LABEL[request.status] ?? request.status}</td>
-                    <td className="px-3 py-2">{request.current_role_key ?? "—"}</td>
-                    <td className="px-3 py-2">{request.submitted_at ? new Date(request.submitted_at).toLocaleString("ar-EG") : "—"}</td>
-                    <td className="px-3 py-2">{new Date(request.updated_at).toLocaleString("ar-EG")}</td>
-                    <td className="px-3 py-2">
-                      <Link to="/student/requests/$id" params={{ id: request.id }} className="font-bold text-primary underline">
-                        عرض
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {services.map((type) => {
+              const actionable = isRequestTypeActionable(type);
+              return (
+                <div
+                  key={type.code}
+                  className="flex items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm"
+                >
+                  <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-gold-gradient text-primary-deep">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-sm text-primary leading-snug">
+                      {getStudentRequestTypeDisplayName(type.code, type.name_ar)}
+                    </div>
+                    {type.description_ar ? (
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-5 line-clamp-2">
+                        {type.description_ar}
+                      </p>
+                    ) : null}
+                    {/* Fees only when finance feature is on — currently frozen. */}
+                    {portalFeatures.studentFinance ? (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        تفاصيل الرسوم حسب النظام.
+                      </p>
+                    ) : null}
+                    <div className="mt-2">
+                      {actionable ? (
+                        <Link
+                          to="/student/requests/new"
+                          search={{ type: type.code }}
+                          className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+                        >
+                          تقديم طلب
+                        </Link>
+                      ) : (
+                        <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs font-bold text-muted-foreground">
+                          غير متاح حالياً
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
+      </section>
+
+      {/* —— طلباتي —— */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-display text-base font-bold text-primary">طلباتي</h2>
+          <p className="mt-1 text-sm text-muted-foreground">الطلبات الحالية والسابقة.</p>
+        </div>
+
+        {requestsError ? (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+          >
+            {(requestsErr as Error)?.message || "تعذر تحميل الطلبات. حاول مرة أخرى."}
+          </div>
+        ) : null}
+
+        <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+          {requestsLoading ? (
+            <div className="grid place-items-center p-10" aria-busy="true">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : !requestsError && requests.length === 0 ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">لا توجد طلبات بعد.</div>
+          ) : !requestsError ? (
+            <>
+              {/* Mobile cards */}
+              <ul className="md:hidden divide-y divide-border">
+                {(requests as RequestRow[]).map((request) => (
+                  <li key={request.id} className="p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div
+                          className="text-[11px] font-mono text-muted-foreground break-all"
+                          dir="ltr"
+                        >
+                          {request.request_number ?? "—"}
+                        </div>
+                        <div className="font-bold text-sm text-primary break-words">
+                          {request.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {getStudentRequestTypeDisplayName(
+                            request.request_type,
+                            request.request_type_name_ar,
+                          )}
+                        </div>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold">
+                        {STATUS_LABEL[request.status] ?? request.status}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground">
+                      <div>
+                        <span className="font-semibold text-foreground/70">الجهة: </span>
+                        {formatStudentCurrentProcessingUnitLabel(request.current_role_key)}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-foreground/70">التقديم: </span>
+                        {request.submitted_at
+                          ? new Date(request.submitted_at).toLocaleDateString("ar-EG")
+                          : "—"}
+                      </div>
+                      <div className="col-span-2">
+                        <span className="font-semibold text-foreground/70">آخر تحديث: </span>
+                        {new Date(request.updated_at).toLocaleString("ar-EG")}
+                      </div>
+                    </div>
+                    <Link
+                      to="/student/requests/$id"
+                      params={{ id: request.id }}
+                      className="inline-flex min-h-10 items-center justify-center rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-bold text-primary w-full"
+                    >
+                      عرض التفاصيل
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Desktop / tablet table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-secondary/50 text-primary">
+                    <tr>
+                      <th className="px-3 py-2 text-right">رقم الطلب</th>
+                      <th className="px-3 py-2 text-right">نوع الطلب</th>
+                      <th className="px-3 py-2 text-right">العنوان</th>
+                      <th className="px-3 py-2 text-right">الحالة</th>
+                      <th className="px-3 py-2 text-right">الجهة الحالية</th>
+                      <th className="px-3 py-2 text-right">تاريخ التقديم</th>
+                      <th className="px-3 py-2 text-right">آخر تحديث</th>
+                      <th className="px-3 py-2 text-right">التفاصيل</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(requests as RequestRow[]).map((request) => (
+                      <tr key={request.id} className="border-t border-border/60">
+                        <td className="px-3 py-2 font-mono text-xs break-all max-w-[9rem]">
+                          {request.request_number ?? "—"}
+                        </td>
+                        <td className="px-3 py-2">
+                          {getStudentRequestTypeDisplayName(
+                            request.request_type,
+                            request.request_type_name_ar,
+                          )}
+                        </td>
+                        <td className="px-3 py-2 font-bold max-w-[12rem] break-words">
+                          {request.title}
+                        </td>
+                        <td className="px-3 py-2">
+                          {STATUS_LABEL[request.status] ?? request.status}
+                        </td>
+                        <td className="px-3 py-2">
+                          {formatStudentCurrentProcessingUnitLabel(request.current_role_key)}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {request.submitted_at
+                            ? new Date(request.submitted_at).toLocaleString("ar-EG")
+                            : "—"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {new Date(request.updated_at).toLocaleString("ar-EG")}
+                        </td>
+                        <td className="px-3 py-2">
+                          <Link
+                            to="/student/requests/$id"
+                            params={{ id: request.id }}
+                            className="font-bold text-primary underline"
+                          >
+                            عرض
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
+        </div>
       </section>
     </div>
   );
