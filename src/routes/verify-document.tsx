@@ -23,6 +23,8 @@ type VerifyResult = {
   document_number?: string;
   status?: string;
   issued_at?: string;
+  student_name_ar?: string | null;
+  academic_number?: string | null;
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -137,10 +139,18 @@ function VerifyPage() {
                     <dd className="font-mono">{result.document_number}</dd>
                   </div>
                   <div className="flex gap-2 border-b border-dashed border-border pb-2">
+                    <dt className="font-bold text-primary min-w-[140px]">اسم الطالب:</dt>
+                    <dd>{result.student_name_ar ?? "—"}</dd>
+                  </div>
+                  <div className="flex gap-2 border-b border-dashed border-border pb-2">
+                    <dt className="font-bold text-primary min-w-[140px]">الرقم الأكاديمي:</dt>
+                    <dd className="font-mono">{result.academic_number ?? "—"}</dd>
+                  </div>
+                  <div className="flex gap-2 border-b border-dashed border-border pb-2">
                     <dt className="font-bold text-primary min-w-[140px]">الحالة:</dt>
                     <dd>
                       <span className="inline-block rounded bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">
-                        صادرة
+                        {result.status === "archived" ? "مؤرشفة" : "صادرة"}
                       </span>
                     </dd>
                   </div>

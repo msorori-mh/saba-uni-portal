@@ -6,6 +6,7 @@ import {
   DOCUMENT_ARCHIVE_DRY_RUN_SUCCESS_MSG,
   DOCUMENT_ARCHIVE_EXECUTION_UNAVAILABLE_MSG,
   DOCUMENT_ARCHIVE_FOUNDATION_PREVIEW_MSG,
+  ENROLLMENT_CERTIFICATE_ISSUE_EXECUTE_DISABLED_MSG,
   getDocumentDefinitionsForRequestType,
   OFFICIAL_TRANSCRIPT_INTEGRATION_NOTE,
   STORAGE_INTEGRATION_NOTE,
@@ -15,6 +16,7 @@ import {
   type StudentRequestDocumentFoundationStatus,
   validateDocumentArchiveCapability,
 } from "@/lib/student-requests/request-document-archive-contract";
+import { PDF_GENERATION_HOLD_CODE } from "@/lib/student-requests/enrollment-certificate-document-issuance-archive-contract";
 
 const FOUNDATION_STATUS_LABELS: Record<StudentRequestDocumentFoundationStatus, string> = {
   not_required: "غير مطلوب",
@@ -316,7 +318,11 @@ export function RequestDocumentArchivePanel({
         <button
           type="button"
           disabled
-          title={DOCUMENT_ARCHIVE_EXECUTION_UNAVAILABLE_MSG}
+          title={
+            requestTypeCode === "enrollment_certificate"
+              ? ENROLLMENT_CERTIFICATE_ISSUE_EXECUTE_DISABLED_MSG
+              : DOCUMENT_ARCHIVE_EXECUTION_UNAVAILABLE_MSG
+          }
           className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded bg-primary text-primary-foreground opacity-50 cursor-not-allowed"
         >
           {mode === "generation"
@@ -329,6 +335,11 @@ export function RequestDocumentArchivePanel({
 
       <div className="text-[10px] text-muted-foreground space-y-1">
         <p>{DOCUMENT_ARCHIVE_DRY_RUN_SUCCESS_MSG}</p>
+        {requestTypeCode === "enrollment_certificate" && (
+          <p>
+            {ENROLLMENT_CERTIFICATE_ISSUE_EXECUTE_DISABLED_MSG} ({PDF_GENERATION_HOLD_CODE})
+          </p>
+        )}
         <p>
           canValidate: {String(capability.canValidate)} | canGenerateDocument:{" "}
           {String(capability.canGenerateDocument)} | canRecordSignature:{" "}

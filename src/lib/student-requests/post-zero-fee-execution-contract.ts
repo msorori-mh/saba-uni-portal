@@ -2,10 +2,14 @@
  * Post–zero-fee execution contract for enrollment-certificate-style steps.
  * Pure policy — mirrors the migration remapping; does not call RPCs or write DB.
  *
- * Decision context: document issuance lacks student_request_id FK and a
- * request-scoped enrollment_certificate issuer. Signature remapping is ready;
- * issue_document / archive must stay gated until that contract exists.
+ * Superseded gating (issuance/archive-01): schema link + details prepared, but
+ * issue/archive stay blocked on HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING.
+ * Signature remapping remains ready.
  */
+import {
+  PDF_GENERATION_HOLD_CODE,
+  PDF_GENERATION_HOLD_MSG_AR,
+} from "@/lib/student-requests/enrollment-certificate-document-issuance-archive-contract";
 
 export const WORKFLOW_ACTOR_ACTIONS = [
   "approve",
@@ -62,16 +66,14 @@ export const ACTION_REQUIRES_STEP_ACTION_TYPE: Partial<
   archive: "archive",
 };
 
-export const DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE =
-  "DOCUMENT_ISSUANCE_EXECUTION_CONTRACT_MISSING";
+/** @deprecated Prefer PDF_GENERATION_HOLD_CODE — kept for migration review compatibility. */
+export const DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE = PDF_GENERATION_HOLD_CODE;
 
-export const DOCUMENT_ISSUANCE_CONTRACT_MISSING_MSG_AR =
-  "عقد إصدار شهادة القيد من خطوة workflow غير مكتمل: لا يوجد ربط student_request_id بـ official_documents ولا مسار إصدار طلب آمن. تم إيقاف التنفيذ.";
+export const DOCUMENT_ISSUANCE_CONTRACT_MISSING_MSG_AR = PDF_GENERATION_HOLD_MSG_AR;
 
-export const ARCHIVE_CONTRACT_GATED_CODE = "ARCHIVE_REQUIRES_ISSUED_DOCUMENT_CONTRACT";
+export const ARCHIVE_CONTRACT_GATED_CODE = PDF_GENERATION_HOLD_CODE;
 
-export const ARCHIVE_CONTRACT_GATED_MSG_AR =
-  "الأرشفة متوقفة حتى يكتمل عقد إصدار الوثيقة وربطها بالطلب (توقيعان + إصدار فعلي).";
+export const ARCHIVE_CONTRACT_GATED_MSG_AR = PDF_GENERATION_HOLD_MSG_AR;
 
 export type PostZeroFeeExecutionGate =
   | { allowed: true; actionResult: string; eventType: string }
@@ -83,6 +85,7 @@ export type PostZeroFeeExecutionGate =
         | "approve_on_sign_step"
         | "document_issuance_contract_missing"
         | "archive_contract_gated"
+        | "pdf_generation_contract_missing"
         | "transition_missing"
         | "step_not_active";
       messageAr: string;
@@ -148,7 +151,7 @@ export function evaluatePostZeroFeeActorAction(input: {
   if (input.action === "issue_document") {
     return {
       allowed: false,
-      reason: "document_issuance_contract_missing",
+      reason: "pdf_generation_contract_missing",
       messageAr: DOCUMENT_ISSUANCE_CONTRACT_MISSING_MSG_AR,
     };
   }
@@ -156,7 +159,7 @@ export function evaluatePostZeroFeeActorAction(input: {
   if (input.action === "archive") {
     return {
       allowed: false,
-      reason: "archive_contract_gated",
+      reason: "pdf_generation_contract_missing",
       messageAr: ARCHIVE_CONTRACT_GATED_MSG_AR,
     };
   }

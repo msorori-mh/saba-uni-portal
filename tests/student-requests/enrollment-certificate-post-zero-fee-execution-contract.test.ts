@@ -81,8 +81,8 @@ describe("post-zero-fee execution contract — pure policy", () => {
     });
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) {
-      expect(gate.reason).toBe("document_issuance_contract_missing");
-      expect(gate.messageAr).toContain("غير مكتمل");
+      expect(gate.reason).toBe("pdf_generation_contract_missing");
+      expect(gate.messageAr).toContain("PDF");
     }
   });
 
@@ -93,7 +93,7 @@ describe("post-zero-fee execution contract — pure policy", () => {
     expect(issued.actionResult).toBe("issued");
     expect(issued.to).toBe("archive");
     expect(DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE).toBe(
-      "DOCUMENT_ISSUANCE_EXECUTION_CONTRACT_MISSING",
+      "HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING",
     );
   });
 
@@ -106,8 +106,9 @@ describe("post-zero-fee execution contract — pure policy", () => {
     });
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) {
-      expect(gate.reason).toBe("archive_contract_gated");
-      expect(ARCHIVE_CONTRACT_GATED_CODE).toContain("ARCHIVE");
+      expect(gate.reason).toBe("pdf_generation_contract_missing");
+      expect(gate.messageAr.length).toBeGreaterThan(10);
+      expect(ARCHIVE_CONTRACT_GATED_CODE).toContain("PDF_GENERATION");
     }
   });
 

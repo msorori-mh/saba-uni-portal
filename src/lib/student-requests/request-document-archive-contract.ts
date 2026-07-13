@@ -217,13 +217,17 @@ const LOCAL_SIGNATORY_TO_PROCESSING_ROLE: Readonly<
 };
 
 export const DOCUMENT_ARCHIVE_EXECUTION_UNAVAILABLE_MSG =
-  "إنشاء المستندات والتوقيع والأرشفة يحتاج تطبيق مخطط طلبات الطلاب على بيئة آمنة أولاً.";
+  "إنشاء المستندات والتوقيع والأرشفة يحتاج تطبيق مخطط طلبات الطلاب على بيئة آمنة أولاً. شهادة القيد متوقفة أيضاً بسبب غياب مولّد PDF/Storage خادم قابل لإعادة الاستخدام.";
 
 export const DOCUMENT_ARCHIVE_DRY_RUN_SUCCESS_MSG =
   "تم التحقق فقط. لم يتم إنشاء أو توقيع أو أرشفة أي مستند.";
 
 export const DOCUMENT_ARCHIVE_FOUNDATION_PREVIEW_MSG =
   "هذه معاينة تأسيسية للمستندات والتوقيعات والأرشفة. لم يتم إنشاء أو توقيع أو أرشفة أي مستند.";
+
+/** Enrollment certificate G8: keep execute buttons fail-closed until PDF generator exists. */
+export const ENROLLMENT_CERTIFICATE_ISSUE_EXECUTE_DISABLED_MSG =
+  "إصدار/أرشفة شهادة القيد مجمّدان: مولّد PDF/Storage غير متوفر (HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING).";
 
 function pushIssue(
   issues: StudentRequestDocumentArchiveValidationIssue[],
