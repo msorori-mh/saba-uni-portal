@@ -3,8 +3,20 @@ import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
 import {
-  User, IdCard, Building2, GraduationCap, BadgeCheck, Loader2, CalendarRange,
-  BookMarked, Layers, BookOpen, CalendarClock, ClipboardCheck, Award, FileText,
+  User,
+  IdCard,
+  Building2,
+  GraduationCap,
+  BadgeCheck,
+  Loader2,
+  CalendarRange,
+  BookMarked,
+  Layers,
+  BookOpen,
+  CalendarClock,
+  ClipboardCheck,
+  Award,
+  FileText,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { UnofficialTranscript } from "@/components/portal/UnofficialTranscript";
@@ -50,12 +62,17 @@ type AcademicStatus = {
 };
 
 type ScheduleSlot = {
-  day_of_week: string; start_time: string; end_time: string;
-  room: string | null; schedule_type: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  room: string | null;
+  schedule_type: string;
 };
 type ScheduleRow = {
-  section_id: string; section_code: string;
-  course_code: string; course_name: string;
+  section_id: string;
+  section_code: string;
+  course_code: string;
+  course_name: string;
   faculty_name: string | null;
   slots: ScheduleSlot[];
 };
@@ -92,11 +109,14 @@ function flattenSched(raws: RawSched[] | null | undefined): ScheduleSlot[] {
 async function fetchMyEnrollments(studentId: string): Promise<MyEnrollmentRow[]> {
   const { data, error } = await supabase
     .from("student_enrollments")
-    .select("id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code)))")
+    .select(
+      "id, enrollment_status, section:course_sections(id, section_code, faculty:faculty_profiles(full_name_ar), offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code)))",
+    )
     .eq("student_profile_id", studentId);
   if (error) throw error;
   type Raw = {
-    id: string; enrollment_status: string;
+    id: string;
+    enrollment_status: string;
     section: {
       section_code: string;
       faculty: { full_name_ar: string } | null;
@@ -120,7 +140,9 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
   if (!auth.user) return null;
   const { data, error } = await supabase
     .from("student_profiles")
-    .select("id, academic_number, full_name_ar, full_name_en, email, status, program_id, department:departments(name_ar), program:programs(name_ar)")
+    .select(
+      "id, academic_number, full_name_ar, full_name_en, email, status, program_id, department:departments(name_ar), program:programs(name_ar)",
+    )
     .eq("user_id", auth.user.id)
     .maybeSingle();
   if (error) throw error;
@@ -130,7 +152,9 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
 async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus | null> {
   const { data, error } = await supabase
     .from("student_academic_status")
-    .select("enrollment_status, academic_year_id, semester_id, level_id, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)")
+    .select(
+      "enrollment_status, academic_year_id, semester_id, level_id, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)",
+    )
     .eq("student_profile_id", studentId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -139,7 +163,12 @@ async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus 
   return data as unknown as AcademicStatus;
 }
 
-async function fetchMySchedule(programId: string, yearId: string, semId: string, levelId: string): Promise<ScheduleRow[]> {
+async function fetchMySchedule(
+  programId: string,
+  yearId: string,
+  semId: string,
+  levelId: string,
+): Promise<ScheduleRow[]> {
   const { data: offerings, error: oErr } = await supabase
     .from("course_offerings")
     .select("id, course:courses(code, name_ar)")
@@ -153,18 +182,28 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
   if (offeringIds.length === 0) return [];
   const { data: sections, error: sErr } = await supabase
     .from("course_sections")
-    .select("id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))")
+    .select(
+      "id, section_code, course_offering_id, faculty:faculty_profiles(full_name_ar), schedule:class_schedule(schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code))",
+    )
     .in("course_offering_id", offeringIds)
     .eq("status", "active");
   if (sErr) throw sErr;
   type RawOff = { id: string; course: { code: string; name_ar: string } | null };
-  type RawSec = { id: string; section_code: string; course_offering_id: string; faculty: { full_name_ar: string } | null; schedule: RawSched[] | null };
+  type RawSec = {
+    id: string;
+    section_code: string;
+    course_offering_id: string;
+    faculty: { full_name_ar: string } | null;
+    schedule: RawSched[] | null;
+  };
   const offMap = new Map((offerings as unknown as RawOff[]).map((o) => [o.id, o.course]));
   return ((sections ?? []) as unknown as RawSec[]).map((s) => {
     const c = offMap.get(s.course_offering_id);
     return {
-      section_id: s.id, section_code: s.section_code,
-      course_code: c?.code ?? "—", course_name: c?.name_ar ?? "—",
+      section_id: s.id,
+      section_code: s.section_code,
+      course_code: c?.code ?? "—",
+      course_name: c?.name_ar ?? "—",
       faculty_name: s.faculty?.full_name_ar ?? null,
       slots: flattenSched(s.schedule),
     };
@@ -175,7 +214,7 @@ async function fetchMySchedule(programId: string, yearId: string, semId: string,
 function InfoValue({ children, mono = false }: { children: React.ReactNode; mono?: boolean }) {
   return (
     <span
-      className={`block text-base sm:text-lg font-extrabold leading-snug break-words text-balance ${mono ? "font-en tracking-wider" : ""}`}
+      className={`block text-sm sm:text-base font-extrabold leading-snug break-words text-balance ${mono ? "font-en tracking-wider" : ""}`}
     >
       {children}
     </span>
@@ -239,9 +278,23 @@ function StudentDashboard() {
     refetchOnWindowFocus: false,
   });
   const { data: schedule = [] } = useQuery({
-    queryKey: ["student", "schedule", profile?.program_id, acad?.academic_year_id, acad?.semester_id, acad?.level_id],
-    queryFn: () => fetchMySchedule(profile!.program_id!, acad!.academic_year_id, acad!.semester_id, acad!.level_id),
-    enabled: !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
+    queryKey: [
+      "student",
+      "schedule",
+      profile?.program_id,
+      acad?.academic_year_id,
+      acad?.semester_id,
+      acad?.level_id,
+    ],
+    queryFn: () =>
+      fetchMySchedule(
+        profile!.program_id!,
+        acad!.academic_year_id,
+        acad!.semester_id,
+        acad!.level_id,
+      ),
+    enabled:
+      !!profile?.program_id && !!acad?.academic_year_id && !!acad?.semester_id && !!acad?.level_id,
     staleTime: STALE_MED,
     refetchOnWindowFocus: false,
   });
@@ -291,13 +344,19 @@ function StudentDashboard() {
                 <User className="h-6 w-6" />
               </div>
               <div className="min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">مرحباً</div>
-                <h1 className="font-display text-lg sm:text-xl font-extrabold truncate">{profile.full_name_ar}</h1>
-                {profile.full_name_en && <div className="text-xs opacity-80 truncate">{profile.full_name_en}</div>}
+                <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">
+                  مرحباً
+                </div>
+                <h1 className="font-display text-lg sm:text-xl font-extrabold truncate">
+                  {profile.full_name_ar}
+                </h1>
+                {profile.full_name_en && (
+                  <div className="text-xs opacity-80 truncate">{profile.full_name_en}</div>
+                )}
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+            <div className="mt-4 grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
               <StatCard
                 icon={IdCard}
                 label={ACADEMIC_NUMBER_LABEL}
@@ -328,18 +387,20 @@ function StudentDashboard() {
               />
             </div>
 
-            <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+            <div className="mt-4 grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
               {SERVICE_LINKS.map(({ to, title, desc, Icon }) => (
                 <Link
                   key={to}
                   to={to}
-                  className="flex h-full flex-col rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+                  className="flex h-full flex-row items-start gap-3 rounded-xl border-2 border-gold/30 bg-card p-3 hover:border-gold hover:shadow-card transition-all"
                 >
-                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-                    <Icon className="h-5 w-5" />
+                  <div className="grid h-9 w-9 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <Icon className="h-4 w-4" />
                   </div>
-                  <div className="mt-3 font-bold text-primary text-sm leading-snug">{title}</div>
-                  <div className="mt-1 text-xs text-muted-foreground leading-5 flex-1">{desc}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-primary text-sm leading-snug">{title}</div>
+                    <div className="mt-0.5 text-xs text-muted-foreground leading-5">{desc}</div>
+                  </div>
                 </Link>
               ))}
             </div>
@@ -348,7 +409,7 @@ function StudentDashboard() {
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                 <CalendarRange className="h-4 w-4 text-gold" /> الوضع الأكاديمي الحالي
               </h2>
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+              <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
                 <StatCard
                   icon={CalendarRange}
                   label="السنة الأكاديمية"
@@ -385,17 +446,35 @@ function StudentDashboard() {
             </div>
 
             {portalFeatures.studentRegisteredCourses && (
-              <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <LazyMount
+                fallback={
+                  <div className="mt-6">
+                    <SectionSkeleton h={140} />
+                  </div>
+                }
+              >
                 <MyEnrollmentsSection rows={myEnrollments} />
               </LazyMount>
             )}
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+            <LazyMount
+              fallback={
+                <div className="mt-6">
+                  <SectionSkeleton h={140} />
+                </div>
+              }
+            >
               <MyGradesSection studentProfileId={profile.id} />
             </LazyMount>
 
             {portalFeatures.studentUnofficialTranscript && (
-              <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+              <LazyMount
+                fallback={
+                  <div className="mt-6">
+                    <SectionSkeleton h={160} />
+                  </div>
+                }
+              >
                 <div className="mt-6">
                   <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                     <FileText className="h-4 w-4 text-gold" /> السجل الأكاديمي غير الرسمي
@@ -405,27 +484,57 @@ function StudentDashboard() {
               </LazyMount>
             )}
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={120} /></div>}>
+            <LazyMount
+              fallback={
+                <div className="mt-6">
+                  <SectionSkeleton h={120} />
+                </div>
+              }
+            >
               <div className="mt-6">
                 <AnnouncementsWidget limit={3} />
               </div>
             </LazyMount>
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+            <LazyMount
+              fallback={
+                <div className="mt-6">
+                  <SectionSkeleton h={140} />
+                </div>
+              }
+            >
               <StudentRequestsPortalSummary />
             </LazyMount>
 
             {portalFeatures.studentFinance && (
-              <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+              <LazyMount
+                fallback={
+                  <div className="mt-6">
+                    <SectionSkeleton h={140} />
+                  </div>
+                }
+              >
                 <StudentFinanceSection studentProfileId={profile.id} />
               </LazyMount>
             )}
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={140} /></div>}>
+            <LazyMount
+              fallback={
+                <div className="mt-6">
+                  <SectionSkeleton h={140} />
+                </div>
+              }
+            >
               <StudentDocumentsSection studentProfileId={profile.id} />
             </LazyMount>
 
-            <LazyMount fallback={<div className="mt-6"><SectionSkeleton h={160} /></div>}>
+            <LazyMount
+              fallback={
+                <div className="mt-6">
+                  <SectionSkeleton h={160} />
+                </div>
+              }
+            >
               <ScheduleSection rows={schedule} />
             </LazyMount>
           </>
@@ -436,8 +545,13 @@ function StudentDashboard() {
 }
 
 const DAY_LABELS: Record<string, string> = {
-  saturday: "السبت", sunday: "الأحد", monday: "الإثنين", tuesday: "الثلاثاء",
-  wednesday: "الأربعاء", thursday: "الخميس", friday: "الجمعة",
+  saturday: "السبت",
+  sunday: "الأحد",
+  monday: "الإثنين",
+  tuesday: "الثلاثاء",
+  wednesday: "الأربعاء",
+  thursday: "الخميس",
+  friday: "الجمعة",
 };
 const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
 const DAY_ORDER = ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"];
@@ -445,15 +559,27 @@ const DAY_ORDER = ["saturday", "sunday", "monday", "tuesday", "wednesday", "thur
 function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
   if (!rows || rows.length === 0) return null;
   type Flat = {
-    day: string; start: string; end: string; room: string | null; type: string;
-    course: string; section: string; faculty: string | null;
+    day: string;
+    start: string;
+    end: string;
+    room: string | null;
+    type: string;
+    course: string;
+    section: string;
+    faculty: string | null;
   };
   const flat: Flat[] = [];
   for (const r of rows) {
     for (const s of r.slots) {
       flat.push({
-        day: s.day_of_week, start: s.start_time, end: s.end_time, room: s.room, type: s.schedule_type,
-        course: `${r.course_code} — ${r.course_name}`, section: r.section_code, faculty: r.faculty_name,
+        day: s.day_of_week,
+        start: s.start_time,
+        end: s.end_time,
+        room: s.room,
+        type: s.schedule_type,
+        course: `${r.course_code} — ${r.course_name}`,
+        section: r.section_code,
+        faculty: r.faculty_name,
       });
     }
   }
@@ -472,15 +598,21 @@ function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
           if (items.length === 0) return null;
           return (
             <div key={d} className="rounded-lg border bg-card overflow-hidden">
-              <div className="px-3 py-1.5 bg-muted/40 text-xs font-bold text-primary border-b">{DAY_LABELS[d]}</div>
+              <div className="px-3 py-1.5 bg-muted/40 text-xs font-bold text-primary border-b">
+                {DAY_LABELS[d]}
+              </div>
               <div className="divide-y">
                 {items.map((it, i) => (
                   <div key={i} className="p-2.5 flex items-center gap-2 text-xs">
-                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">{it.start.slice(0, 5)}-{it.end.slice(0, 5)}</span>
+                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded">
+                      {it.start.slice(0, 5)}-{it.end.slice(0, 5)}
+                    </span>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{it.course}</div>
                       <div className="text-[11px] text-muted-foreground">
-                        مجموعة دراسية {it.section}{it.faculty && <> • {it.faculty}</>}{it.room && <> • {it.room}</>}
+                        مجموعة دراسية {it.section}
+                        {it.faculty && <> • {it.faculty}</>}
+                        {it.room && <> • {it.room}</>}
                       </div>
                     </div>
                     <span className="text-[10px] border bg-muted/40 px-1.5 py-0.5 rounded shrink-0">
@@ -515,7 +647,10 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
       ) : (
         <div className="space-y-2">
           {rows.map((r) => {
-            const st = statusLabel[r.enrollment_status] ?? { text: r.enrollment_status, cls: "bg-muted" };
+            const st = statusLabel[r.enrollment_status] ?? {
+              text: r.enrollment_status,
+              cls: "bg-muted",
+            };
             return (
               <div key={r.id} className="rounded-lg border bg-card p-3">
                 <div className="flex items-baseline justify-between gap-2">
@@ -524,18 +659,29 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
                     <span className="mx-2 text-muted-foreground">—</span>
                     <span className="font-semibold text-sm">{r.course_name}</span>
                   </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>{st.text}</span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${st.cls}`}>
+                    {st.text}
+                  </span>
                 </div>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                  <span className="bg-muted px-1.5 py-0.5 rounded">مجموعة دراسية {r.section_code}</span>
+                  <span className="bg-muted px-1.5 py-0.5 rounded">
+                    مجموعة دراسية {r.section_code}
+                  </span>
                   {r.faculty_name && <span>• {r.faculty_name}</span>}
                 </div>
                 {r.slots.length > 0 && (
                   <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
                     {r.slots.map((s, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1 text-[11px]">
-                        <span className="font-bold">{DAY_LABELS[s.day_of_week] ?? s.day_of_week}</span>
-                        <span className="font-mono">{s.start_time.slice(0, 5)}-{s.end_time.slice(0, 5)}</span>
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 rounded border bg-muted/30 px-2 py-1 text-[11px]"
+                      >
+                        <span className="font-bold">
+                          {DAY_LABELS[s.day_of_week] ?? s.day_of_week}
+                        </span>
+                        <span className="font-mono">
+                          {s.start_time.slice(0, 5)}-{s.end_time.slice(0, 5)}
+                        </span>
                         {s.room && <span className="text-muted-foreground">• {s.room}</span>}
                         <span className="ms-auto text-[10px] bg-card border px-1.5 py-0.5 rounded">
                           {TYPE_LABELS[s.schedule_type] ?? s.schedule_type}
@@ -560,25 +706,42 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
       const sb = supabase as unknown as { from: (t: string) => any };
       const { data: enr, error: e1 } = await supabase
         .from("student_enrollments")
-        .select("id, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))")
+        .select(
+          "id, course_section_id, section:course_sections(section_code, offering:course_offerings(course:courses(code, name_ar)))",
+        )
         .eq("student_profile_id", studentProfileId);
       if (e1) throw e1;
       type EnRaw = {
-        id: string; course_section_id: string;
-        section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null } | null;
+        id: string;
+        course_section_id: string;
+        section: {
+          section_code: string;
+          offering: { course: { code: string; name_ar: string } | null } | null;
+        } | null;
       };
       const enrollments = (enr ?? []) as unknown as EnRaw[];
       if (enrollments.length === 0) return [];
-      const { data: gs, error: e2 } = await sb.from("student_grades")
+      const { data: gs, error: e2 } = await sb
+        .from("student_grades")
         .select("id, student_enrollment_id, grade_component_id, score, status")
-        .in("student_enrollment_id", enrollments.map((e) => e.id))
+        .in(
+          "student_enrollment_id",
+          enrollments.map((e) => e.id),
+        )
         .eq("status", "approved");
       if (e2) throw e2;
-      type GR = { id: string; student_enrollment_id: string; grade_component_id: string; score: number; status: string };
+      type GR = {
+        id: string;
+        student_enrollment_id: string;
+        grade_component_id: string;
+        score: number;
+        status: string;
+      };
       const grades = (gs ?? []) as GR[];
       if (grades.length === 0) return [];
       const sectionIds = Array.from(new Set(enrollments.map((e) => e.course_section_id)));
-      const { data: cs, error: e3 } = await sb.from("grade_components")
+      const { data: cs, error: e3 } = await sb
+        .from("grade_components")
         .select("id, course_section_id, name, max_score, sort_order")
         .in("course_section_id", sectionIds)
         .order("sort_order");
@@ -597,7 +760,8 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
             courseCode: e.section?.offering?.course?.code ?? "—",
             courseName: e.section?.offering?.course?.name_ar ?? "—",
             sectionCode: e.section?.section_code ?? "—",
-            total, totalMax,
+            total,
+            totalMax,
             percentage: totalMax > 0 ? Math.round((total / totalMax) * 1000) / 10 : 0,
             details: myComps.map((c) => ({
               name: c.name,
@@ -607,10 +771,15 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
           };
         })
         .filter(Boolean) as Array<{
-          enrollmentId: string; courseCode: string; courseName: string; sectionCode: string;
-          total: number; totalMax: number; percentage: number;
-          details: { name: string; max: number; score: number }[];
-        }>;
+        enrollmentId: string;
+        courseCode: string;
+        courseName: string;
+        sectionCode: string;
+        total: number;
+        totalMax: number;
+        percentage: number;
+        details: { name: string; max: number; score: number }[];
+      }>;
     },
     staleTime: STALE_SHORT,
     refetchOnWindowFocus: false,
@@ -622,7 +791,9 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
         <Award className="h-4 w-4 text-gold" /> درجاتي
       </h2>
       {isLoading ? (
-        <div className="rounded-lg border bg-card p-4 text-center"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+        <div className="rounded-lg border bg-card p-4 text-center">
+          <Loader2 className="inline h-4 w-4 animate-spin" />
+        </div>
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
           لا توجد درجات معتمدة حالياً.
@@ -637,17 +808,29 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
                   <span className="mx-2 text-muted-foreground">—</span>
                   <span className="font-semibold text-sm">{r.courseName}</span>
                 </div>
-                <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">مجموعة دراسية {r.sectionCode}</span>
+                <span className="text-xs font-bold bg-muted px-2 py-0.5 rounded">
+                  مجموعة دراسية {r.sectionCode}
+                </span>
               </div>
               <div className="mt-2 flex items-center gap-3 text-sm">
-                <span className="font-mono font-extrabold text-primary">{r.total}/{r.totalMax}</span>
-                <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">{r.percentage}%</span>
+                <span className="font-mono font-extrabold text-primary">
+                  {r.total}/{r.totalMax}
+                </span>
+                <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                  {r.percentage}%
+                </span>
               </div>
               <div className="mt-2 grid gap-1 sm:grid-cols-2">
                 {r.details.map((d, i) => (
-                  <div key={i} className="flex items-center justify-between rounded border bg-muted/30 px-2 py-1 text-xs">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between rounded border bg-muted/30 px-2 py-1 text-xs"
+                  >
                     <span>{d.name}</span>
-                    <span className="font-mono"><b>{d.score}</b><span className="text-muted-foreground">/{d.max}</span></span>
+                    <span className="font-mono">
+                      <b>{d.score}</b>
+                      <span className="text-muted-foreground">/{d.max}</span>
+                    </span>
                   </div>
                 ))}
               </div>
