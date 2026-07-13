@@ -2,6 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Wallet, Receipt, FileText, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { FeatureFrozenNotice } from "@/components/portal/FeatureFrozenNotice";
+import {
+  STUDENT_FINANCE_FROZEN_MSG,
+  portalFeatures,
+} from "@/lib/portal-features";
 
 export const Route = createFileRoute("/mobile/student/finance")({
   head: () => ({ meta: [{ title: "الرسوم والمدفوعات" }] }),
@@ -129,13 +134,27 @@ async function fetchFinance(): Promise<FinanceData> {
 }
 
 function MobileStudentFinance() {
+  const financeEnabled = portalFeatures.studentFinance;
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["mobile-student", "finance"],
     queryFn: fetchFinance,
+    enabled: financeEnabled,
     staleTime: 90_000,
     gcTime: 10 * 60_000,
     refetchOnWindowFocus: false,
   });
+
+  if (!financeEnabled) {
+    return (
+      <div className="p-4">
+        <FeatureFrozenNotice
+          message={STUDENT_FINANCE_FROZEN_MSG}
+          homeHref="/mobile/student"
+          homeLabel="العودة لبوابة الطالب"
+        />
+      </div>
+    );
+  }
 
   if (isLoading) return <FinanceSkeleton />;
 

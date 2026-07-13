@@ -24,6 +24,7 @@ import {
   getAcademicOpsKpis,
 } from "@/lib/admin-dashboard.functions";
 import { Rocket } from "lucide-react";
+import { portalFeatures } from "@/lib/portal-features";
 
 export const Route = createLazyFileRoute("/admin/")({
   component: AdminDashboard,
@@ -45,6 +46,14 @@ const HIDDEN_ADMIN_DASHBOARD_CARD_LABELS = new Set([
   "المرشحون للتخرج",
   "الخصومات",
   "الترفيعات",
+]);
+
+const FINANCE_FROZEN_CARD_LABELS = new Set([
+  "الرسوم المستحقة",
+  "رسوم غير مسددة",
+  "رسوم مسددة جزئياً",
+  "إيصالات قيد المراجعة",
+  "السندات المالية",
 ]);
 
 function AdminDashboard() {
@@ -310,9 +319,13 @@ function AdminDashboard() {
       </div>
 
       {/* Stats grouped sections */}
-      {sections_.map((sec) => {
+      {sections_
+        .filter((sec) => portalFeatures.adminFinance || sec.title !== "المالية")
+        .map((sec) => {
         const visibleCards = sec.cards.filter(
-          (c) => !HIDDEN_ADMIN_DASHBOARD_CARD_LABELS.has(c.label),
+          (c) =>
+            !HIDDEN_ADMIN_DASHBOARD_CARD_LABELS.has(c.label) &&
+            (portalFeatures.adminFinance || !FINANCE_FROZEN_CARD_LABELS.has(c.label)),
         );
         if (visibleCards.length === 0) return null;
         return (

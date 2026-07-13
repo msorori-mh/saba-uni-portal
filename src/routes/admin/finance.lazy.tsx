@@ -31,6 +31,11 @@ import {
   approvePaymentReceipt,
   rejectPaymentReceipt,
 } from "@/lib/admin-finance.functions";
+import { FeatureFrozenNotice } from "@/components/portal/FeatureFrozenNotice";
+import {
+  ADMIN_FINANCE_FROZEN_MSG,
+  portalFeatures,
+} from "@/lib/portal-features";
 
 export const Route = createLazyFileRoute("/admin/finance")({
   component: AdminFinancePage,
@@ -67,6 +72,18 @@ const METHOD_LABEL: Record<string, string> = { cash: "نقداً", bank_transfer
 function AdminFinancePage() {
   usePagePerf("/admin/finance");
   const [tab, setTab] = useState<"types" | "fees" | "payments" | "receipts">("types");
+
+  if (!portalFeatures.adminFinance) {
+    return (
+      <div dir="rtl" className="p-4 lg:p-8 max-w-xl mx-auto">
+        <FeatureFrozenNotice
+          message={ADMIN_FINANCE_FROZEN_MSG}
+          homeHref="/admin"
+          homeLabel="العودة للوحة التحكم"
+        />
+      </div>
+    );
+  }
 
   return (
     <div dir="rtl" className="p-4 lg:p-8 space-y-4 max-w-6xl mx-auto">

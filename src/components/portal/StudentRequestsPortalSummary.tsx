@@ -2,7 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ClipboardList, FileText, Loader2, Plus } from "lucide-react";
-import { getMyStudentServiceRequests } from "@/lib/student-affairs.functions";
+import {
+  getMyStudentServiceRequests,
+  getStudentRequestTypesForStudent,
+} from "@/lib/student-affairs.functions";
 import { StandardCard } from "@/components/brand";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -18,85 +21,194 @@ const STATUS_LABEL: Record<string, string> = {
   completed: "مكتمل",
 };
 
-/** Dashboard summary card — full workflow at /student/requests */
+function formatRequestDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("ar-YE", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+/** Visible request types for the student — eligible, not disabled, not hide-mode ineligible. */
+export function filterDashboardAvailableServices(
+  rows: Array<{
+    code: string;
+    name_ar: string;
+    description_ar: string | null;
+    is_eligible: boolean;
+    is_disabled: boolean;
+    ineligible_display_mode: string;
+    sort_order: number;
+  }>,
+  limit = 4,
+) {
+  return [...rows]
+    .filter((r) => {
+      if (r.is_disabled) return false;
+      if (!r.is_eligible) {
+        // Hide completely when mode asks not to show; otherwise list page handles disabled CTAs.
+        if (r.ineligible_display_mode === "hide" || r.ineligible_display_mode === "hidden") {
+          return false;
+        }
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => a.sort_order - b.sort_order)
+    .slice(0, limit);
+}
+
+/** Dashboard requests hub — independent loading; failures must not break the page. */
 export function StudentRequestsPortalSummary() {
   const listFn = useServerFn(getMyStudentServiceRequests);
-  const { data = [], isLoading } = useQuery({
+  const typesFn = useServerFn(getStudentRequestTypesForStudent);
+
+  const {
+    data: requests = [],
+    isLoading: requestsLoading,
+    isError: requestsError,
+  } = useQuery({
     queryKey: ["student-affairs", "my-requests", "summary"],
     queryFn: () => listFn({ data: {} }),
     staleTime: 60_000,
+    retry: 1,
   });
 
-  const recent = data.slice(0, 3);
-  const pendingCount = data.filter((r: { status: string }) =>
-    ["submitted", "in_review", "under_review", "returned", "returned_for_completion"].includes(r.status),
-  ).length;
+  const {
+    data: typeRows = [],
+    isLoading: typesLoading,
+    isError: typesError,
+  } = useQuery({
+    queryKey: ["student-affairs", "available-types", "dashboard"],
+    queryFn: () => typesFn({ data: {} }),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const recent = requests.slice(0, 3);
+  const services = filterDashboardAvailableServices(typeRows, 4);
 
   return (
     <StandardCard id="student-requests" className="mt-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
-            <FileText className="h-4 w-4 text-gold" /> طلبات شؤون الطلاب
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            تقديم ومتابعة الطلبات عبر الواجهة الموحدة.
-            {pendingCount > 0 && (
-              <span className="mr-1 font-bold text-primary"> ({pendingCount} قيد المتابعة)</span>
-            )}
-          </p>
-        </div>
+      <div className="space-y-1">
+        <h2 className="font-display text-base font-bold text-primary flex items-center gap-2">
+          <FileText className="h-4 w-4 text-gold" /> طلبات شؤون الطلاب
+        </h2>
+        <p className="text-xs text-muted-foreground leading-5">
+          تقديم ومتابعة الخدمات والطلبات الطلابية من مكان واحد.
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
         <Link
           to="/student/requests/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-bold text-primary-foreground shadow-sm"
         >
           <Plus className="h-3.5 w-3.5" /> طلب جديد
         </Link>
-      </div>
-
-      {isLoading ? (
-        <div className="mt-4 grid place-items-center py-6">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
-      ) : recent.length === 0 ? (
-        <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-          لا توجد طلبات بعد.{" "}
-          <Link to="/student/requests" className="font-bold text-primary underline">
-            عرض كل الطلبات
-          </Link>
-        </div>
-      ) : (
-        <ul className="mt-4 space-y-2">
-          {recent.map((request: {
-            id: string;
-            title: string;
-            status: string;
-            request_type_name_ar?: string | null;
-            request_type: string;
-          }) => (
-            <li key={request.id}>
-              <Link
-                to="/student/requests/$id"
-                params={{ id: request.id }}
-                className="flex items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm hover:bg-secondary/40 transition-colors"
-              >
-                <span className="font-bold text-primary truncate">{request.title}</span>
-                <span className="shrink-0 text-[10px] font-bold text-muted-foreground">
-                  {STATUS_LABEL[request.status] ?? request.status}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="mt-4">
         <Link
           to="/student/requests"
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-primary underline"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3.5 py-2 text-xs font-bold text-primary hover:bg-secondary/50"
         >
-          <ClipboardList className="h-3.5 w-3.5" /> إدارة الطلبات
+          <ClipboardList className="h-3.5 w-3.5" /> طلباتي
         </Link>
+      </div>
+
+      <div className="mt-5">
+        <h3 className="text-sm font-bold text-primary mb-2">آخر الطلبات</h3>
+        {requestsLoading ? (
+          <div className="grid place-items-center py-6" aria-busy="true">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : requestsError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-center text-xs text-destructive">
+            تعذر تحميل الطلبات حالياً. يمكنك المحاولة لاحقاً أو فتح صفحة طلباتي.
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center space-y-1">
+            <p className="text-sm font-semibold text-primary">لم تقدم أي طلب حتى الآن.</p>
+            <p className="text-xs text-muted-foreground">
+              ابدأ بتقديم طلب جديد من الخدمات المتاحة.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {recent.map((request) => (
+              <li key={request.id}>
+                <Link
+                  to="/student/requests/$id"
+                  params={{ id: request.id }}
+                  className="block rounded-lg border border-border bg-background px-3 py-2.5 hover:bg-secondary/40 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[11px] font-mono text-muted-foreground" dir="ltr">
+                        {request.request_number ?? "—"}
+                      </div>
+                      <div className="font-bold text-primary text-sm truncate">
+                        {request.request_type_name_ar ?? request.title}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-bold rounded-full bg-muted px-2 py-0.5 text-foreground/80">
+                      {STATUS_LABEL[request.status] ?? request.status}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {formatRequestDate(request.submitted_at ?? request.created_at)}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="mt-5 border-t border-border pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <h3 className="text-sm font-bold text-primary">الخدمات المتاحة</h3>
+          <Link
+            to="/student/requests/new"
+            className="text-[11px] font-bold text-primary underline"
+          >
+            استعراض الخدمات المتاحة
+          </Link>
+        </div>
+        {typesLoading ? (
+          <div className="grid place-items-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          </div>
+        ) : typesError ? (
+          <p className="text-xs text-muted-foreground">
+            تعذر تحميل قائمة الخدمات. استخدم «طلب جديد» لعرض المتاح.
+          </p>
+        ) : services.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            لا توجد خدمات متاحة للعرض حالياً.
+          </p>
+        ) : (
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {services.map((s) => (
+              <li key={s.code}>
+                <Link
+                  to="/student/requests/new"
+                  className="block rounded-lg border border-border bg-background px-3 py-2 hover:border-gold/50 transition-colors"
+                >
+                  <div className="text-xs font-bold text-primary truncate">{s.name_ar}</div>
+                  {s.description_ar && (
+                    <div className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
+                      {s.description_ar}
+                    </div>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </StandardCard>
   );

@@ -44,8 +44,9 @@ export function StudentDocumentsSection({ studentProfileId }: { studentProfileId
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
         </StandardCard>
       ) : docs.length === 0 ? (
-        <StandardCard className="border-dashed text-center text-sm text-muted-foreground">
-          لا توجد وثائق رسمية صادرة لك حالياً. يمكنك طلبها من شؤون الطلاب.
+        <StandardCard className="border-dashed text-center text-sm text-muted-foreground space-y-1.5 py-6">
+          <p className="font-semibold text-primary">لا توجد وثائق رسمية صادرة لك حالياً.</p>
+          <p className="text-xs">يمكنك طلب الوثائق المتاحة من قسم طلبات شؤون الطلاب.</p>
         </StandardCard>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
