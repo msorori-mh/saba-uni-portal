@@ -124,6 +124,15 @@ RPCs:
 
 ## 8. Git
 
-يُضاف commit إلى فرع PR #124:
+Commits على فرع PR #124:
 
 `fix/enrollment-certificate-post-zero-fee-execution-contract-01`
+
+| SHA | الرسالة |
+|-----|---------|
+| `ae79ff6` | remediation (HOLD issuance سابقاً) |
+| `d6a00ce` | إعداد عقد الإصدار/الأرشفة (PDF HOLD) |
+| `a455e35` | إزالة DROP POLICY لتوافق فحص CI |
+
+PR: https://github.com/msorori-mh/saba-uni-portal/pull/124  
+**لم يُدمج.**
