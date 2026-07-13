@@ -148,36 +148,57 @@ GRANT ALL ON public.enrollment_certificate_document_details TO service_role;
 
 ALTER TABLE public.enrollment_certificate_document_details ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS ecdd_select ON public.enrollment_certificate_document_details;
-CREATE POLICY ecdd_select ON public.enrollment_certificate_document_details
-  FOR SELECT TO authenticated
-  USING (
-    public.is_owner_of_request(auth.uid(), student_request_id)
-    OR public.has_any_role(
-      auth.uid(),
-      ARRAY['admin', 'system_admin', 'dean', 'registrar', 'student_affairs']
-    )
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'enrollment_certificate_document_details'
+      AND policyname = 'ecdd_select'
+  ) THEN
+    CREATE POLICY ecdd_select ON public.enrollment_certificate_document_details
+      FOR SELECT TO authenticated
+      USING (
+        public.is_owner_of_request(auth.uid(), student_request_id)
+        OR public.has_any_role(
+          auth.uid(),
+          ARRAY['admin', 'system_admin', 'dean', 'registrar', 'student_affairs']
+        )
+      );
+  END IF;
 
-DROP POLICY IF EXISTS ecdd_staff_insert ON public.enrollment_certificate_document_details;
-CREATE POLICY ecdd_staff_insert ON public.enrollment_certificate_document_details
-  FOR INSERT TO authenticated
-  WITH CHECK (
-    public.has_any_role(
-      auth.uid(),
-      ARRAY['admin', 'system_admin', 'dean', 'registrar', 'student_affairs']
-    )
-  );
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'enrollment_certificate_document_details'
+      AND policyname = 'ecdd_staff_insert'
+  ) THEN
+    CREATE POLICY ecdd_staff_insert ON public.enrollment_certificate_document_details
+      FOR INSERT TO authenticated
+      WITH CHECK (
+        public.has_any_role(
+          auth.uid(),
+          ARRAY['admin', 'system_admin', 'dean', 'registrar', 'student_affairs']
+        )
+      );
+  END IF;
 
-DROP POLICY IF EXISTS ecdd_staff_update ON public.enrollment_certificate_document_details;
-CREATE POLICY ecdd_staff_update ON public.enrollment_certificate_document_details
-  FOR UPDATE TO authenticated
-  USING (
-    public.has_any_role(
-      auth.uid(),
-      ARRAY['admin', 'system_admin', 'dean', 'registrar', 'student_affairs']
-    )
-  );
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'enrollment_certificate_document_details'
+      AND policyname = 'ecdd_staff_update'
+  ) THEN
+    CREATE POLICY ecdd_staff_update ON public.enrollment_certificate_document_details
+      FOR UPDATE TO authenticated
+      USING (
+        public.has_any_role(
+          auth.uid(),
+          ARRAY['admin', 'system_admin', 'dean', 'registrar', 'student_affairs']
+        )
+      );
+  END IF;
+END $$;
 
 DROP TRIGGER IF EXISTS trg_ecdd_updated_at ON public.enrollment_certificate_document_details;
 CREATE TRIGGER trg_ecdd_updated_at
