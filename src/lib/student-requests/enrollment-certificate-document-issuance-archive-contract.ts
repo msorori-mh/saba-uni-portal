@@ -1,23 +1,22 @@
+import {
+  APPROVED_ARABIC_FONT_HOLD_CODE,
+  PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
+} from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
+
 /**
  * Enrollment certificate document issuance + archive contract (01).
  * Pure policy / gate — no DB writes, no Storage/PDF generation.
  *
- * Decision:
- * HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING
- *
- * G0 proved: HTML print (/document-view) + official_documents row insert exist,
- * but there is no reusable server-side PDF/Storage generator an issue RPC can call.
- * Creating official_documents alone is NOT treated as complete issuance.
+ * Prior decision: HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING
+ * Superseding gate (PDF-STORAGE-GENERATOR-01):
+ * HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED
  */
 
-export const CONTRACT_DECISION =
-  "HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING" as const;
+export const CONTRACT_DECISION = APPROVED_ARABIC_FONT_HOLD_CODE;
 
-export const PDF_GENERATION_HOLD_CODE =
-  "HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING";
+export const PDF_GENERATION_HOLD_CODE = APPROVED_ARABIC_FONT_HOLD_CODE;
 
-export const PDF_GENERATION_HOLD_MSG_AR =
-  "مولّد ملف PDF/Storage لشهادة القيد غير متوفر كمسار خادم قابل لإعادة الاستخدام. إصدار صف official_documents وحده لا يُعد إصداراً كاملاً.";
+export const PDF_GENERATION_HOLD_MSG_AR = PDF_STORAGE_GENERATOR_HOLD_MSG_AR;
 
 export const ENROLLMENT_CERTIFICATE_DOCUMENT_TYPE = "enrollment_certificate" as const;
 
@@ -69,7 +68,10 @@ export type EnrollmentCertificateIssuanceCapability = {
   canIssueDocument: boolean;
   canArchiveDocument: boolean;
   canExecuteStaffIssueButtons: boolean;
-  reason: typeof PDF_GENERATION_HOLD_CODE | "signature_ready_pdf_blocked";
+  reason:
+    | typeof PDF_GENERATION_HOLD_CODE
+    | "signature_ready_pdf_blocked"
+    | typeof APPROVED_ARABIC_FONT_HOLD_CODE;
   messageAr: string;
 };
 

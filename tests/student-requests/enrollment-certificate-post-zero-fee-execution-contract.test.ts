@@ -93,7 +93,7 @@ describe("post-zero-fee execution contract — pure policy", () => {
     expect(issued.actionResult).toBe("issued");
     expect(issued.to).toBe("archive");
     expect(DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE).toBe(
-      "HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING",
+      "HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED",
     );
   });
 
@@ -108,7 +108,7 @@ describe("post-zero-fee execution contract — pure policy", () => {
     if (!gate.allowed) {
       expect(gate.reason).toBe("pdf_generation_contract_missing");
       expect(gate.messageAr.length).toBeGreaterThan(10);
-      expect(ARCHIVE_CONTRACT_GATED_CODE).toContain("PDF_GENERATION");
+      expect(ARCHIVE_CONTRACT_GATED_CODE).toContain("APPROVED_ARABIC_FONT");
     }
   });
 

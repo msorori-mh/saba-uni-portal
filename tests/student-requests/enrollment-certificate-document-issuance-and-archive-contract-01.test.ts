@@ -261,7 +261,8 @@ describe("ENROLLMENT-CERTIFICATE-DOCUMENT-ISSUANCE-AND-ARCHIVE-CONTRACT-01", () 
     expect(sql).toContain("idx_official_documents_one_active_per_request");
     expect(sql).toContain("issue_enrollment_certificate_from_workflow_step");
     expect(sql).toContain("archive_enrollment_certificate_from_workflow_step");
-    expect(sql).toContain(PDF_GENERATION_HOLD_CODE);
+    expect(sql).toContain("HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING");
+    expect(sql).toContain("assert_enrollment_certificate_pdf_generation_ready");
     expect(sql).toContain("assert_enrollment_certificate_pdf_generation_ready");
     expect(sql).toContain("student_name_ar");
     expect(sql).toContain("academic_number");

@@ -227,7 +227,7 @@ export const DOCUMENT_ARCHIVE_FOUNDATION_PREVIEW_MSG =
 
 /** Enrollment certificate G8: keep execute buttons fail-closed until PDF generator exists. */
 export const ENROLLMENT_CERTIFICATE_ISSUE_EXECUTE_DISABLED_MSG =
-  "إصدار/أرشفة شهادة القيد مجمّدان: مولّد PDF/Storage غير متوفر (HOLD_ENROLLMENT_CERTIFICATE_PDF_GENERATION_CONTRACT_MISSING).";
+  "إصدار/أرشفة شهادة القيد مجمّدان: لا يوجد خط عربي معتمد للتضمين في PDF خادمي (HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED).";
 
 function pushIssue(
   issues: StudentRequestDocumentArchiveValidationIssue[],
