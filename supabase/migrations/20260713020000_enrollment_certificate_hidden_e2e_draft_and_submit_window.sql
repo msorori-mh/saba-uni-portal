@@ -42,6 +42,103 @@ REVOKE ALL ON FUNCTION public.assert_can_admin_enrollment_certificate_e2e()
 -- Shared readiness helper (internal)
 -- =============================================================================
 
+CREATE OR REPLACE FUNCTION public._assert_enrollment_certificate_e2e_processing_assignments()
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_pair text[];
+  v_unit_code text;
+  v_role_code text;
+  v_unit public.request_processing_units%ROWTYPE;
+  v_role public.request_processing_roles%ROWTYPE;
+  v_active_count integer;
+  v_resolved_user uuid;
+  v_required text[][] := ARRAY[
+    ARRAY['student_affairs', 'student_affairs_manager'],
+    ARRAY['student_affairs', 'student_affairs_specialist'],
+    ARRAY['finance', 'revenue_finance_officer'],
+    ARRAY['registrar', 'registrar_general'],
+    ARRAY['dean', 'dean'],
+    ARRAY['archive', 'archive_officer']
+  ];
+BEGIN
+  FOREACH v_pair SLICE 1 IN ARRAY v_required
+  LOOP
+    v_unit_code := v_pair[1];
+    v_role_code := v_pair[2];
+
+    SELECT * INTO v_unit
+    FROM public.request_processing_units u
+    WHERE u.code = v_unit_code;
+
+    IF NOT FOUND OR v_unit.is_active IS DISTINCT FROM true THEN
+      RAISE EXCEPTION 'وحدة المعالجة % غير موجودة أو غير نشطة لنافذة اختبار شهادة القيد', v_unit_code
+        USING ERRCODE = '42501';
+    END IF;
+
+    SELECT * INTO v_role
+    FROM public.request_processing_roles r
+    WHERE r.code = v_role_code
+      AND r.unit_id = v_unit.id;
+
+    IF NOT FOUND OR v_role.is_active IS DISTINCT FROM true THEN
+      RAISE EXCEPTION 'دور المعالجة % غير موجود أو غير نشط ضمن وحدة %', v_role_code, v_unit_code
+        USING ERRCODE = '42501';
+    END IF;
+
+    SELECT count(*)::integer INTO v_active_count
+    FROM public.request_processing_assignments a
+    WHERE a.role_id = v_role.id
+      AND a.unit_id = v_unit.id
+      AND a.is_active IS TRUE
+      AND (a.starts_at IS NULL OR a.starts_at <= now())
+      AND (a.ends_at IS NULL OR a.ends_at > now());
+
+    IF v_active_count = 0 THEN
+      RAISE EXCEPTION 'لا يوجد إسناد نشط قابل للاستخدام للدور %', v_role_code
+        USING ERRCODE = '42501';
+    END IF;
+
+    IF v_active_count > 1 THEN
+      RAISE EXCEPTION 'يوجد أكثر من إسناد نشط للدور %', v_role_code
+        USING ERRCODE = '42501';
+    END IF;
+
+    SELECT COALESCE(a.user_id, sp.user_id, fp.user_id, pa.user_id)
+    INTO v_resolved_user
+    FROM public.request_processing_assignments a
+    LEFT JOIN public.staff_profiles sp ON sp.id = a.staff_profile_id
+    LEFT JOIN public.faculty_profiles fp ON fp.id = a.faculty_profile_id
+    LEFT JOIN public.position_assignments pa ON pa.id = a.position_assignment_id
+    WHERE a.role_id = v_role.id
+      AND a.unit_id = v_unit.id
+      AND a.is_active IS TRUE
+      AND (a.starts_at IS NULL OR a.starts_at <= now())
+      AND (a.ends_at IS NULL OR a.ends_at > now())
+    LIMIT 1;
+
+    IF v_resolved_user IS NULL OR NOT EXISTS (
+      SELECT 1 FROM auth.users u WHERE u.id = v_resolved_user
+    ) THEN
+      RAISE EXCEPTION 'إسناد الدور % لا يشير إلى مستخدم قابل للحل', v_role_code
+        USING ERRCODE = '42501';
+    END IF;
+  END LOOP;
+END;
+$$;
+
+COMMENT ON FUNCTION public._assert_enrollment_certificate_e2e_processing_assignments() IS
+  'Internal: validates the six enrollment_certificate processing assignments by '
+  'unit/role codes (exactly one currently-effective resolvable assignment each). '
+  'Does not require the global active assignment count to equal 6.';
+
+REVOKE ALL ON FUNCTION public._assert_enrollment_certificate_e2e_processing_assignments()
+  FROM PUBLIC, anon, authenticated;
+
 CREATE OR REPLACE FUNCTION public._enrollment_certificate_e2e_load_hidden_type(
   p_require_inactive boolean
 )
@@ -57,7 +154,6 @@ DECLARE
   v_workflow public.request_type_workflows%ROWTYPE;
   v_steps integer;
   v_transitions integer;
-  v_assignments integer;
 BEGIN
   SELECT count(*)::integer INTO v_type_count
   FROM public.request_types rt
@@ -115,14 +211,7 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  SELECT count(*)::integer INTO v_assignments
-  FROM public.request_processing_assignments a
-  WHERE a.is_active IS TRUE;
-
-  IF v_assignments IS DISTINCT FROM 6 THEN
-    RAISE EXCEPTION 'تعيينات المعالجة النشطة غير مطابقة لنافذة اختبار شهادة القيد (المتوقع 6)'
-      USING ERRCODE = '42501';
-  END IF;
+  PERFORM public._assert_enrollment_certificate_e2e_processing_assignments();
 
   RETURN v_type;
 END;
@@ -130,7 +219,7 @@ $$;
 
 COMMENT ON FUNCTION public._enrollment_certificate_e2e_load_hidden_type(boolean) IS
   'Internal helper: loads enrollment_certificate and validates hidden E2E readiness '
-  '(workflow v2, 7/9, 6 active assignments, student_visible=false).';
+  '(workflow v2, 7/9, six coded processing assignments, student_visible=false).';
 
 REVOKE ALL ON FUNCTION public._enrollment_certificate_e2e_load_hidden_type(boolean)
   FROM PUBLIC, anon, authenticated;
@@ -182,9 +271,13 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  -- Serialize create/reuse per student+marker.
+  -- Serialize create/reuse per student + enrollment_certificate (marker excluded).
   PERFORM pg_advisory_xact_lock(
-    hashtext('enrollment_cert_e2e_draft:' || p_student_user_id::text || ':' || v_marker)
+    hashtext(
+      'enrollment_cert_e2e_draft:'
+      || p_student_user_id::text
+      || ':enrollment_certificate'
+    )
   );
 
   v_type := public._enrollment_certificate_e2e_load_hidden_type(true);
@@ -364,7 +457,8 @@ DECLARE
   v_marker text;
   v_type public.request_types%ROWTYPE;
   v_req public.student_requests%ROWTYPE;
-  v_type_total integer;
+  v_match_drafts integer;
+  v_open_other integer;
   v_previous_active boolean;
   v_new_active boolean;
   v_profile_status text;
@@ -415,36 +509,47 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
-  -- Locate the single matching E2E draft/request for audits and open gates.
+  -- Matching draft for audits / open gates (historical terminal rows allowed).
   SELECT * INTO v_req
   FROM public.student_requests sr
   WHERE sr.request_type = 'enrollment_certificate'
     AND COALESCE(sr.form_data->>'e2e_marker', '') = v_marker
     AND COALESCE((sr.form_data->>'internal_e2e')::boolean, false) IS TRUE
     AND COALESCE(sr.form_data->>'e2e_scenario', '') = 'zero_fee'
+    AND sr.status = 'draft'
   ORDER BY sr.created_at ASC
   LIMIT 1;
 
   IF p_open IS TRUE THEN
-    IF v_req.id IS NULL THEN
+    SELECT count(*)::integer INTO v_match_drafts
+    FROM public.student_requests sr
+    WHERE sr.request_type = 'enrollment_certificate'
+      AND COALESCE(sr.form_data->>'e2e_marker', '') = v_marker
+      AND COALESCE((sr.form_data->>'internal_e2e')::boolean, false) IS TRUE
+      AND COALESCE(sr.form_data->>'e2e_scenario', '') = 'zero_fee'
+      AND sr.status = 'draft';
+
+    IF v_match_drafts = 0 OR v_req.id IS NULL THEN
       RAISE EXCEPTION 'لا توجد مسودة E2E مطابقة لوسم الاختبار'
         USING ERRCODE = 'P0002';
+    END IF;
+
+    IF v_match_drafts > 1 THEN
+      RAISE EXCEPTION 'يوجد أكثر من مسودة E2E بنفس الوسم'
+        USING ERRCODE = '42501';
     END IF;
 
     -- Opening requires full hidden readiness (inactive+hidden + workflow gates).
     PERFORM public._enrollment_certificate_e2e_load_hidden_type(true);
 
-    IF v_req.status IS DISTINCT FROM 'draft' THEN
-      RAISE EXCEPTION 'طلب E2E المطابق يجب أن يكون في حالة draft قبل فتح النافذة'
-        USING ERRCODE = '42501';
-    END IF;
-
-    SELECT count(*)::integer INTO v_type_total
+    SELECT count(*)::integer INTO v_open_other
     FROM public.student_requests sr
-    WHERE sr.request_type = 'enrollment_certificate';
+    WHERE sr.request_type = 'enrollment_certificate'
+      AND sr.status NOT IN ('approved', 'rejected', 'cancelled', 'completed')
+      AND sr.id IS DISTINCT FROM v_req.id;
 
-    IF v_type_total IS DISTINCT FROM 1 THEN
-      RAISE EXCEPTION 'فتح النافذة يتطلب وجود طلب شهادة قيد واحد فقط'
+    IF v_open_other > 0 THEN
+      RAISE EXCEPTION 'يوجد طلب شهادة قيد غير نهائي آخر يمنع فتح النافذة'
         USING ERRCODE = '42501';
     END IF;
 

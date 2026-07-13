@@ -8,6 +8,10 @@ import {
   canSubmitStudentRequestForType,
   ENROLLMENT_CERTIFICATE_E2E_ADMIN_ROLES,
   ENROLLMENT_CERTIFICATE_E2E_DENIED_ROLES,
+  ENROLLMENT_CERTIFICATE_E2E_REQUIRED_ASSIGNMENTS,
+  enrollmentCertificateE2EDraftLockKey,
+  evaluateEnrollmentCertificateE2EAssignmentReadiness,
+  evaluateEnrollmentCertificateE2ESubmitWindowOpen,
   isRequestTypeListedForStudents,
   isSafeHiddenSubmitWindowState,
   isValidEnrollmentCertificateE2EMarker,
@@ -194,7 +198,21 @@ describe("hidden E2E migration static contracts 01S-B2", () => {
     expect(draftBody).toContain("يوجد طلب شهادة قيد مفتوح سابق لهذا الطالب");
     expect(migration).toContain("version IS DISTINCT FROM 2");
     expect(migration).toContain("المتوقع 7 خطوات و9 انتقالات");
-    expect(migration).toContain("المتوقع 6");
+    expect(migration).toContain("_assert_enrollment_certificate_e2e_processing_assignments");
+  });
+
+  it("R1 — draft lock is per student+type and excludes marker", () => {
+    expect(draftBody).toContain("enrollment_cert_e2e_draft:");
+    expect(draftBody).toContain("|| ':enrollment_certificate'");
+    expect(draftBody).not.toContain("|| ':' || v_marker");
+    const studentId = "11111111-1111-4111-8111-111111111111";
+    const keyA = enrollmentCertificateE2EDraftLockKey(studentId);
+    const keyB = enrollmentCertificateE2EDraftLockKey(studentId);
+    expect(keyA).toBe(keyB);
+    expect(keyA).not.toContain("MARKER");
+    expect(keyA).toBe(
+      `enrollment_cert_e2e_draft:${studentId}:enrollment_certificate`,
+    );
   });
 
   it("submit window opens is_active only and keeps student_visible false", () => {
@@ -204,9 +222,25 @@ describe("hidden E2E migration static contracts 01S-B2", () => {
     expect(windowBody).toContain("enrollment_certificate_e2e_submit_window_opened");
     expect(windowBody).toContain("enrollment_certificate_e2e_submit_window_closed");
     expect(windowBody).toContain("نافذة تقديم شهادة القيد مفتوحة مسبقاً");
-    expect(windowBody).toContain("طلب شهادة قيد واحد فقط");
     expect(windowBody).toContain("مسودة E2E مطابقة");
+    expect(windowBody).toContain("طلب شهادة قيد غير نهائي آخر");
+    expect(windowBody).toContain("أكثر من مسودة E2E بنفس الوسم");
+    expect(windowBody).not.toContain("طلب شهادة قيد واحد فقط");
     expect(windowBody).not.toContain("SET student_visible");
+  });
+
+  it("R1 — assignment readiness validates six coded roles, not global count=6", () => {
+    expect(migration).toContain("student_affairs_manager");
+    expect(migration).toContain("student_affairs_specialist");
+    expect(migration).toContain("revenue_finance_officer");
+    expect(migration).toContain("registrar_general");
+    expect(migration).toContain("archive_officer");
+    expect(migration).toContain("_assert_enrollment_certificate_e2e_processing_assignments");
+    expect(migration).not.toContain("المتوقع 6");
+    expect(migration).not.toMatch(
+      /FROM public\.request_processing_assignments a\s+WHERE a\.is_active IS TRUE;\s+IF v_assignments IS DISTINCT FROM 6/s,
+    );
+    expect(ENROLLMENT_CERTIFICATE_E2E_REQUIRED_ASSIGNMENTS).toHaveLength(6);
   });
 
   it("grants EXECUTE to authenticated and revokes PUBLIC/anon; helpers stay internal", () => {
@@ -215,6 +249,9 @@ describe("hidden E2E migration static contracts 01S-B2", () => {
     );
     expect(migration).toContain(
       "REVOKE ALL ON FUNCTION public._enrollment_certificate_e2e_load_hidden_type(boolean)\n  FROM PUBLIC, anon, authenticated",
+    );
+    expect(migration).toContain(
+      "REVOKE ALL ON FUNCTION public._assert_enrollment_certificate_e2e_processing_assignments()\n  FROM PUBLIC, anon, authenticated",
     );
     expect(migration).toContain(
       "GRANT EXECUTE ON FUNCTION public.admin_create_enrollment_certificate_e2e_draft(uuid, text, text)\n  TO authenticated",
@@ -246,5 +283,233 @@ describe("hidden E2E migration static contracts 01S-B2", () => {
     expect(initBody).toContain("get_active_workflow_for_request_type");
     expect(initBody).toContain("student_request_workflow_steps");
     expect(initBody).toContain("'active'");
+  });
+});
+
+describe("R1 pure assignment readiness helpers", () => {
+  const now = new Date("2026-07-13T00:00:00.000Z");
+  const units = [
+    { id: "u-sa", code: "student_affairs", is_active: true },
+    { id: "u-fin", code: "finance", is_active: true },
+    { id: "u-reg", code: "registrar", is_active: true },
+    { id: "u-dean", code: "dean", is_active: true },
+    { id: "u-arch", code: "archive", is_active: true },
+    { id: "u-other", code: "other_unit", is_active: true },
+  ];
+  const roles = [
+    { id: "r-mgr", code: "student_affairs_manager", unit_id: "u-sa", is_active: true },
+    { id: "r-spec", code: "student_affairs_specialist", unit_id: "u-sa", is_active: true },
+    { id: "r-fin", code: "revenue_finance_officer", unit_id: "u-fin", is_active: true },
+    { id: "r-reg", code: "registrar_general", unit_id: "u-reg", is_active: true },
+    { id: "r-dean", code: "dean", unit_id: "u-dean", is_active: true },
+    { id: "r-arch", code: "archive_officer", unit_id: "u-arch", is_active: true },
+    { id: "r-other", code: "other_role", unit_id: "u-other", is_active: true },
+  ];
+  const user = "user-1";
+  const six = [
+    { id: "a1", unit_id: "u-sa", role_id: "r-mgr", is_active: true, starts_at: null, ends_at: null, resolved_user_id: user },
+    { id: "a2", unit_id: "u-sa", role_id: "r-spec", is_active: true, starts_at: null, ends_at: null, resolved_user_id: user },
+    { id: "a3", unit_id: "u-fin", role_id: "r-fin", is_active: true, starts_at: null, ends_at: null, resolved_user_id: user },
+    { id: "a4", unit_id: "u-reg", role_id: "r-reg", is_active: true, starts_at: null, ends_at: null, resolved_user_id: user },
+    { id: "a5", unit_id: "u-dean", role_id: "r-dean", is_active: true, starts_at: null, ends_at: null, resolved_user_id: user },
+    { id: "a6", unit_id: "u-arch", role_id: "r-arch", is_active: true, starts_at: null, ends_at: null, resolved_user_id: user },
+  ];
+
+  it("passes with six correct assignments plus unrelated extras", () => {
+    const result = evaluateEnrollmentCertificateE2EAssignmentReadiness({
+      units,
+      roles,
+      assignments: [
+        ...six,
+        {
+          id: "extra",
+          unit_id: "u-other",
+          role_id: "r-other",
+          is_active: true,
+          starts_at: null,
+          ends_at: null,
+          resolved_user_id: user,
+        },
+      ],
+      knownUserIds: new Set([user]),
+      now,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.reasons).toEqual([]);
+  });
+
+  it("fails for six random/unrelated active rows", () => {
+    const result = evaluateEnrollmentCertificateE2EAssignmentReadiness({
+      units,
+      roles,
+      assignments: Array.from({ length: 6 }, (_, i) => ({
+        id: `rand-${i}`,
+        unit_id: "u-other",
+        role_id: "r-other",
+        is_active: true,
+        starts_at: null,
+        ends_at: null,
+        resolved_user_id: user,
+      })),
+      knownUserIds: new Set([user]),
+      now,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reasons.some((r) => r.startsWith("missing_active_assignment:"))).toBe(
+      true,
+    );
+  });
+
+  it("fails when one required role is missing", () => {
+    const result = evaluateEnrollmentCertificateE2EAssignmentReadiness({
+      units,
+      roles,
+      assignments: six.slice(0, 5),
+      knownUserIds: new Set([user]),
+      now,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reasons).toContain("missing_active_assignment:archive_officer");
+  });
+
+  it("fails when one required role is duplicated", () => {
+    const result = evaluateEnrollmentCertificateE2EAssignmentReadiness({
+      units,
+      roles,
+      assignments: [
+        ...six,
+        {
+          id: "dup",
+          unit_id: "u-sa",
+          role_id: "r-mgr",
+          is_active: true,
+          starts_at: null,
+          ends_at: null,
+          resolved_user_id: user,
+        },
+      ],
+      knownUserIds: new Set([user]),
+      now,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reasons).toContain("duplicate_active_assignment:student_affairs_manager");
+  });
+
+  it("ignores ended assignments via ends_at", () => {
+    const result = evaluateEnrollmentCertificateE2EAssignmentReadiness({
+      units,
+      roles,
+      assignments: six.map((row) =>
+        row.role_id === "r-arch"
+          ? { ...row, ends_at: "2026-01-01T00:00:00.000Z" }
+          : row,
+      ),
+      knownUserIds: new Set([user]),
+      now,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reasons).toContain("missing_active_assignment:archive_officer");
+  });
+});
+
+describe("R1 pure submit-window historical request helpers", () => {
+  const marker = "ENROLLMENT-ZERO-FEE-E2E-20260713-001";
+
+  it("allows opening when a completed historical request exists", () => {
+    const result = evaluateEnrollmentCertificateE2ESubmitWindowOpen({
+      marker,
+      requests: [
+        {
+          id: "old",
+          status: "completed",
+          e2e_marker: "ENROLLMENT-ZERO-FEE-E2E-OLD",
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+        {
+          id: "draft",
+          status: "draft",
+          e2e_marker: marker,
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+      ],
+    });
+    expect(result).toEqual({
+      ok: true,
+      reason: null,
+      matchingDraftId: "draft",
+    });
+  });
+
+  it("blocks opening when another non-terminal request exists", () => {
+    const result = evaluateEnrollmentCertificateE2ESubmitWindowOpen({
+      marker,
+      requests: [
+        {
+          id: "draft",
+          status: "draft",
+          e2e_marker: marker,
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+        {
+          id: "open",
+          status: "submitted",
+          e2e_marker: "OTHER",
+          internal_e2e: false,
+          e2e_scenario: null,
+        },
+      ],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("other_nonterminal_exists");
+  });
+
+  it("blocks opening when two matching drafts share the marker", () => {
+    const result = evaluateEnrollmentCertificateE2ESubmitWindowOpen({
+      marker,
+      requests: [
+        {
+          id: "d1",
+          status: "draft",
+          e2e_marker: marker,
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+        {
+          id: "d2",
+          status: "draft",
+          e2e_marker: marker,
+          internal_e2e: true,
+          e2e_scenario: "zero_fee",
+        },
+      ],
+    });
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBe("duplicate_matching_drafts");
+  });
+
+  it("blocks opening when marker is missing or draft is not internal_e2e", () => {
+    expect(
+      evaluateEnrollmentCertificateE2ESubmitWindowOpen({
+        marker,
+        requests: [],
+      }).reason,
+    ).toBe("missing_matching_draft");
+    expect(
+      evaluateEnrollmentCertificateE2ESubmitWindowOpen({
+        marker,
+        requests: [
+          {
+            id: "x",
+            status: "draft",
+            e2e_marker: marker,
+            internal_e2e: false,
+            e2e_scenario: "zero_fee",
+          },
+        ],
+      }).reason,
+    ).toBe("missing_matching_draft");
   });
 });

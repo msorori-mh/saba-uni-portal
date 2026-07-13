@@ -137,10 +137,10 @@ Apply does **not** create requests, flip `is_active`, flip `student_visible`, or
 | Check | Result |
 |---|---|
 | `bunx tsc --noEmit` | pass |
-| `bun run build` | pass (prior run in phase) |
-| `bun test tests/admin` | pass |
-| `bun test tests/student-requests` | pass |
-| `bun test` | pass |
+| `bun run build` | pass |
+| `bun test tests/admin` | pass (91) |
+| `bun test tests/student-requests` | pass (81) |
+| `bun test` | pass (203) |
 | `git diff --check` | pass |
 
 ## 13–16. Safety confirmations
@@ -150,6 +150,52 @@ Apply does **not** create requests, flip `is_active`, flip `student_visible`, or
 - No Deploy
 - No request created
 - No PR merge
+
+---
+
+## PR #123 Review Remediation R1
+
+### Marker lock problem
+Draft create previously used:
+
+`enrollment_cert_e2e_draft:{student}:{marker}`
+
+Different markers for the same student took different advisory locks and could race into two non-terminal drafts.
+
+### New lock
+`enrollment_cert_e2e_draft:{student_user_id}:enrollment_certificate`
+
+Marker is excluded. After lock: idempotent same-marker reuse, then reject any other non-terminal enrollment_certificate for that student.
+
+### Global assignment-count problem
+`count(*) WHERE is_active` must equal 6 was brittle and would break when unrelated assignments exist.
+
+### New six-role readiness check
+`_assert_enrollment_certificate_e2e_processing_assignments()` validates by codes:
+
+1. student_affairs / student_affairs_manager
+2. student_affairs / student_affairs_specialist
+3. finance / revenue_finance_officer
+4. registrar / registrar_general
+5. dean / dean
+6. archive / archive_officer
+
+Each requires active unit+role, exactly one currently-effective assignment (`starts_at`/`ends_at`), and a resolvable auth user. Unrelated assignments are ignored.
+
+### Historical total-count problem
+Open-window previously required total enrollment_certificate requests = 1, blocking repeated E2E after completed runs.
+
+### New historical policy
+Open requires exactly one matching draft (`marker` + `internal_e2e` + `zero_fee` + `draft`), and no other non-terminal request. Terminal rows (`approved`/`rejected`/`cancelled`/`completed`) may remain.
+
+### New tests
+Pure helpers + static SQL contracts for lock key, assignment readiness (extras / random / missing / duplicate / ended), and historical open-window gates.
+
+### Safety
+- Migration not applied
+- 0 DB writes
+- No Deploy
+- No new PR; push to same branch for #123 re-review
 
 ## 17. Future execution protocol (not run now)
 
