@@ -7,6 +7,8 @@ export const portalFeatures = {
   studentUnofficialTranscript: false,
   studentFinance: false,
   adminFinance: false,
+  facultyCourseMaterials: false,
+  studentCourseMaterials: false,
 } as const;
 
 export type PortalFeatureKey = keyof typeof portalFeatures;
