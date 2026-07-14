@@ -12,6 +12,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { filterNavGroups } from "@/lib/admin-nav";
+import { portalFeatures } from "@/lib/portal-features";
 
 type NavItem = {
   to: string;
@@ -177,7 +178,13 @@ export function AdminShell({
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const visibleGroups = useMemo(
-    () => filterNavGroups(groups, userRoles),
+    () =>
+      filterNavGroups(
+        portalFeatures.adminFinance
+          ? groups
+          : groups.filter((g) => g.id !== "finance"),
+        userRoles,
+      ),
     [userRoles],
   );
 

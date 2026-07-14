@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { portalFeatures } from "@/lib/portal-features";
 
 export const Route = createFileRoute("/mobile/student/")({
   component: MobileStudentHome,
@@ -46,11 +47,11 @@ type DashboardCard = {
 
 const CARDS: DashboardCard[] = [
   { label: "الجدول الدراسي", icon: CalendarClock, enabled: true, to: "/mobile/student/schedule" },
-  { label: "الرسوم والمدفوعات", icon: Wallet, enabled: true, to: "/mobile/student/finance" },
+  { label: "الرسوم والمدفوعات", icon: Wallet, enabled: portalFeatures.studentFinance, to: "/mobile/student/finance" },
   { label: "الطلبات", icon: ClipboardList, enabled: true, to: "/mobile/student/requests" },
   { label: "الوثائق الرسمية", icon: FileText, enabled: true, to: "/mobile/student/documents" },
   { label: "الدرجات", icon: Award, enabled: true, to: "/mobile/student/grades" },
-  { label: "السجل الأكاديمي", icon: BookOpen, enabled: true, to: "/mobile/student/academic-record" },
+  { label: "السجل الأكاديمي", icon: BookOpen, enabled: portalFeatures.studentUnofficialTranscript, to: "/mobile/student/academic-record" },
   { label: "التقدم الأكاديمي", icon: TrendingUp, enabled: false },
   { label: "الإشعارات", icon: Bell, enabled: false },
   { label: "الملف الشخصي", icon: User, enabled: false },
