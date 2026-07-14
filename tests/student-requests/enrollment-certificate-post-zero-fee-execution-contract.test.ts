@@ -80,17 +80,29 @@ describe("post-zero-fee execution contract — pure policy", () => {
     expect(gate.allowed).toBe(false);
     if (!gate.allowed) {
       expect(gate.reason).toBe("pdf_generation_contract_missing");
-      expect(gate.messageAr).toMatch(/PDF|Spike|Saga|وثائق/i);
+      expect(gate.messageAr).toMatch(/Saga|Migration|Worker|Storage|fail-closed|إصدار/i);
     }
   });
 
-  it("7 — correct issuance mapping is encoded but gated (single doc + archive next)", () => {
+  it("7 — correct issuance mapping is encoded; HOLD code retained for env-closed path", () => {
     const issued = ENROLLMENT_CERTIFICATE_POST_FEE_TRANSITIONS.find(
       (x) => x.from === "document_issuance",
     )!;
     expect(issued.actionResult).toBe("issued");
     expect(issued.to).toBe("archive");
     expect(DOCUMENT_ISSUANCE_CONTRACT_MISSING_CODE).toBe("HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED");
+  });
+
+  it("7b — with storageSagaReady, issue_document is allowed", () => {
+    const gate = evaluatePostZeroFeeActorAction({
+      action: "issue_document",
+      stepStatus: "active",
+      stepActionType: "issue_document",
+      hasMatchingTransition: true,
+      storageSagaReady: true,
+    });
+    expect(gate.allowed).toBe(true);
+    if (gate.allowed) expect(gate.actionResult).toBe("issued");
   });
 
   it("8 — archive without issued document contract is rejected", () => {

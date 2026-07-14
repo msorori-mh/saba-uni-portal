@@ -101,15 +101,16 @@ describe("ENROLLMENT-CERTIFICATE-ARABIC-PDF-WORKER-SPIKE-01", () => {
     expect(all.puppeteer).toBeUndefined();
   });
 
-  it("13 — assert_enrollment_certificate_pdf_generation_ready still holds issuance", () => {
+  it("13 — assert_enrollment_certificate_pdf_generation_ready replaced by bucket gate in saga migration", () => {
     const mig = readFileSync(
       join(
         ROOT,
-        "supabase/migrations/20260713210000_enrollment_certificate_document_issuance_and_archive_contract_01.sql",
+        "supabase/migrations/20260714010000_enrollment_certificate_pdf_storage_saga_completion_01.sql",
       ),
       "utf8",
     );
     expect(mig).toContain("assert_enrollment_certificate_pdf_generation_ready");
+    expect(mig).toContain("HOLD_ENROLLMENT_CERTIFICATE_PDF_STORAGE_BUCKET_MISSING");
   });
 
   it("14 — generator source has no DB/Storage/network imports", () => {

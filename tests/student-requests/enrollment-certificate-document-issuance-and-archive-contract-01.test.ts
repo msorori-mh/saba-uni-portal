@@ -47,12 +47,13 @@ const baseIssue = {
 };
 
 describe("ENROLLMENT-CERTIFICATE-DOCUMENT-ISSUANCE-AND-ARCHIVE-CONTRACT-01", () => {
-  it("1 — decision is PDF generation HOLD", () => {
-    expect(CONTRACT_DECISION).toBe(PDF_GENERATION_HOLD_CODE);
+  it("1 — decision is Storage Saga PASS (HOLD retained for env gate)", () => {
+    expect(CONTRACT_DECISION).toBe("PASS_ENROLLMENT_CERTIFICATE_PDF_STORAGE_SAGA_CONTRACT_READY");
+    expect(PDF_GENERATION_HOLD_CODE).toBe("HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED");
     const paths = evaluateExistingPdfGenerationPaths();
-    expect(paths.hasReusableServerPdfGenerator).toBe(false);
-    expect(paths.hasOfficialDocumentsStorageBucket).toBe(false);
-    expect(paths.holdsIssuance).toBe(true);
+    expect(paths.hasReusableServerPdfGenerator).toBe(true);
+    expect(paths.hasOfficialDocumentsStorageBucket).toBe(true);
+    expect(paths.holdsIssuance).toBe(false);
   });
 
   it("2 — registrar sign maps to signed (activates dean when transition exists)", () => {
@@ -226,13 +227,15 @@ describe("ENROLLMENT-CERTIFICATE-DOCUMENT-ISSUANCE-AND-ARCHIVE-CONTRACT-01", () 
       hasMatchingArchivedTransition: true,
     });
     expect(gate.allowed).toBe(false);
-    if (!gate.allowed) expect(gate.code).toBe(PDF_GENERATION_HOLD_CODE);
+    if (!gate.allowed) expect(gate.code).toBe("FILE_MISSING");
   });
 
-  it("16 — verification public fields contract includes student identity", () => {
-    expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).toContain("student_name_ar");
-    expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).toContain("academic_number");
+  it("16 — verification public fields omit academic identity", () => {
     expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).toContain("document_number");
+    expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).toContain("valid");
+    expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).toContain("status");
+    expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).not.toContain("student_name_ar");
+    expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).not.toContain("academic_number");
     expect(VERIFY_DOCUMENT_PUBLIC_FIELDS).not.toContain("verification_code");
   });
 
@@ -273,7 +276,7 @@ describe("ENROLLMENT-CERTIFICATE-DOCUMENT-ISSUANCE-AND-ARCHIVE-CONTRACT-01", () 
     expect(sql).not.toMatch(/jspdf|puppeteer|pdf-lib/i);
   });
 
-  it("20 — staff UI remains fail-closed; capability blocks issue/archive execute", () => {
+  it("20 — staff UI remains fail-closed without bucket/worker env", () => {
     const staff = validateStaffActionCapability();
     expect(staff.canExecute).toBe(false);
     const cap = getEnrollmentCertificateIssuanceCapability();
@@ -287,6 +290,8 @@ describe("ENROLLMENT-CERTIFICATE-DOCUMENT-ISSUANCE-AND-ARCHIVE-CONTRACT-01", () 
     const sql = readMigration();
     expect(sql).toContain("v_uid uuid := auth.uid()");
     expect(sql).toContain("ERRCODE = '28000'");
-    expect(sql).toContain("REVOKE ALL ON FUNCTION public.issue_enrollment_certificate_from_workflow_step");
+    expect(sql).toContain(
+      "REVOKE ALL ON FUNCTION public.issue_enrollment_certificate_from_workflow_step",
+    );
   });
 });

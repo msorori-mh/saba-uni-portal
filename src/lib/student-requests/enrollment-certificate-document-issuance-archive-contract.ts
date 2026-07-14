@@ -1,25 +1,28 @@
-import {
-  PDF_STORAGE_SAGA_HOLD_CODE,
-  PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
-} from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
-
 /**
- * Enrollment certificate document issuance + archive contract (01).
- * Pure policy / gate — no DB writes, no Storage/PDF generation.
+ * Enrollment certificate document issuance + archive contract (01 → saga).
+ * Pure policy / gate — no DB writes.
  *
- * Prior: HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED (cleared by Arabic PDF Worker spike).
- * Current gate: HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED
+ * Storage Saga contract ready in-repo; production execute still requires
+ * migration apply + Worker/Storage env (fail-closed when unavailable).
  */
 
-export const CONTRACT_DECISION = PDF_STORAGE_SAGA_HOLD_CODE;
+import {
+  PDF_STORAGE_SAGA_DECISION,
+  PDF_STORAGE_SAGA_HOLD_CODE,
+  PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
+  PUBLIC_VERIFY_SAFE_FIELDS,
+  getPdfStorageGeneratorCapability,
+} from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
 
+export const CONTRACT_DECISION = PDF_STORAGE_SAGA_DECISION;
+
+/** Kept as alias — used when capability/env gates issue/archive closed. */
 export const PDF_GENERATION_HOLD_CODE = PDF_STORAGE_SAGA_HOLD_CODE;
 
 export const PDF_GENERATION_HOLD_MSG_AR = PDF_STORAGE_GENERATOR_HOLD_MSG_AR;
 
 export const ENROLLMENT_CERTIFICATE_DOCUMENT_TYPE = "enrollment_certificate" as const;
 
-/** Schema pieces this phase prepares (migration review) — not applied to production here. */
 export const SCHEMA_CONTRACT = {
   officialDocumentsStudentRequestId: true,
   enrollmentCertificateDocumentDetails: true,
@@ -27,6 +30,8 @@ export const SCHEMA_CONTRACT = {
   documentStatusIncludesArchived: true,
   workflowDecisionIncludesSignedIssuedArchived: true,
   workflowEventIncludesSigned: true,
+  generationAttemptsLedger: true,
+  privateOfficialDocumentsBucket: true,
 } as const;
 
 export const REQUIRED_ISSUANCE_SNAPSHOT_FIELDS = [
@@ -51,15 +56,7 @@ export const REQUIRED_ISSUANCE_SNAPSHOT_FIELDS = [
 
 export type EnrollmentCertificateSnapshotField = (typeof REQUIRED_ISSUANCE_SNAPSHOT_FIELDS)[number];
 
-export const VERIFY_DOCUMENT_PUBLIC_FIELDS = [
-  "valid",
-  "document_number",
-  "document_type",
-  "student_name_ar",
-  "academic_number",
-  "issued_at",
-  "status",
-] as const;
+export const VERIFY_DOCUMENT_PUBLIC_FIELDS = PUBLIC_VERIFY_SAFE_FIELDS;
 
 export type EnrollmentCertificateIssuanceCapability = {
   canRecordSignature: boolean;
@@ -69,47 +66,70 @@ export type EnrollmentCertificateIssuanceCapability = {
   reason:
     | typeof PDF_GENERATION_HOLD_CODE
     | "signature_ready_pdf_blocked"
-    | typeof PDF_STORAGE_SAGA_HOLD_CODE;
+    | "saga_ready_awaiting_env"
+    | "ready";
   messageAr: string;
+  decision: typeof CONTRACT_DECISION;
 };
 
 /**
- * Fail-closed capability for staff UI.
- * Sign mapping is ready in SQL remediations; issue/archive stay blocked without PDF.
+ * Staff UI capability. Buttons unlock only when saga assets + bucket/worker config present.
+ * Default (no opts): treats in-repo saga as contract-ready but execute gated on env.
  */
-export function getEnrollmentCertificateIssuanceCapability(): EnrollmentCertificateIssuanceCapability {
+export function getEnrollmentCertificateIssuanceCapability(options?: {
+  officialDocumentsBucketPresent?: boolean;
+  workerConfigPresent?: boolean;
+  localArabicFontFilesPresent?: boolean;
+}): EnrollmentCertificateIssuanceCapability {
+  const cap = getPdfStorageGeneratorCapability({
+    localArabicFontFilesPresent: options?.localArabicFontFilesPresent ?? true,
+    officialDocumentsBucketPresent: options?.officialDocumentsBucketPresent ?? false,
+    workerConfigPresent: options?.workerConfigPresent ?? false,
+  });
+
+  if (!cap.ready) {
+    return {
+      canRecordSignature: true,
+      canIssueDocument: false,
+      canArchiveDocument: false,
+      canExecuteStaffIssueButtons: false,
+      reason: "signature_ready_pdf_blocked",
+      messageAr: PDF_GENERATION_HOLD_MSG_AR,
+      decision: CONTRACT_DECISION,
+    };
+  }
+
   return {
     canRecordSignature: true,
-    canIssueDocument: false,
-    canArchiveDocument: false,
-    canExecuteStaffIssueButtons: false,
-    reason: "signature_ready_pdf_blocked",
-    messageAr: PDF_GENERATION_HOLD_MSG_AR,
+    canIssueDocument: true,
+    canArchiveDocument: true,
+    canExecuteStaffIssueButtons: true,
+    reason: "ready",
+    messageAr: cap.messageAr,
+    decision: CONTRACT_DECISION,
   };
 }
 
-/** Inventory of existing generators — none qualify as durable RPC file generation. */
 export function evaluateExistingPdfGenerationPaths(): {
   hasReusableServerPdfGenerator: boolean;
   hasOfficialDocumentsStorageBucket: boolean;
   hasHtmlPrintRenderer: boolean;
   hasAdHocRowIssuer: boolean;
-  holdsIssuance: true;
+  holdsIssuance: boolean;
   decision: typeof CONTRACT_DECISION;
   reasons: string[];
 } {
   return {
-    hasReusableServerPdfGenerator: false,
-    hasOfficialDocumentsStorageBucket: false,
+    hasReusableServerPdfGenerator: true,
+    hasOfficialDocumentsStorageBucket: true,
     hasHtmlPrintRenderer: true,
     hasAdHocRowIssuer: true,
-    holdsIssuance: true,
+    holdsIssuance: false,
     decision: CONTRACT_DECISION,
     reasons: [
-      "no_server_pdf_library",
-      "no_official_documents_storage_bucket",
-      "html_print_only_at_document_view",
-      "issue_official_document_creates_row_without_file",
+      "arabic_pdf_worker_ready",
+      "storage_saga_rpcs_defined",
+      "private_official_documents_bucket_defined",
     ],
   };
 }
@@ -151,11 +171,7 @@ export type GateResult = { allowed: true } | { allowed: false; code: string; mes
 
 export function evaluateIssuancePrerequisites(input: IssuancePrerequisiteInput): GateResult {
   if (!input.authUidPresent) {
-    return {
-      allowed: false,
-      code: "AUTH_REQUIRED",
-      messageAr: "يجب تسجيل الدخول",
-    };
+    return { allowed: false, code: "AUTH_REQUIRED", messageAr: "يجب تسجيل الدخول" };
   }
   if (input.actorIsStudent) {
     return {
@@ -250,11 +266,7 @@ export function evaluateIssuancePrerequisites(input: IssuancePrerequisiteInput):
 
 export function evaluateArchivePrerequisites(input: ArchivePrerequisiteInput): GateResult {
   if (!input.authUidPresent) {
-    return {
-      allowed: false,
-      code: "AUTH_REQUIRED",
-      messageAr: "يجب تسجيل الدخول",
-    };
+    return { allowed: false, code: "AUTH_REQUIRED", messageAr: "يجب تسجيل الدخول" };
   }
   if (input.actorIsStudent) {
     return {
@@ -308,7 +320,7 @@ export function evaluateArchivePrerequisites(input: ArchivePrerequisiteInput): G
   if (!input.linkedDocumentHasAccessibleFile) {
     return {
       allowed: false,
-      code: PDF_GENERATION_HOLD_CODE,
+      code: "FILE_MISSING",
       messageAr: "الملف الفعلي للوثيقة غير موجود أو غير قابل للوصول داخلياً",
     };
   }

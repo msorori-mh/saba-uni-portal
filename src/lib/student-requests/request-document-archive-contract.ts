@@ -222,9 +222,9 @@ export const DOCUMENT_ARCHIVE_DRY_RUN_SUCCESS_MSG =
 export const DOCUMENT_ARCHIVE_FOUNDATION_PREVIEW_MSG =
   "هذه معاينة تأسيسية للمستندات والتوقيعات والأرشفة. لم يتم إنشاء أو توقيع أو أرشفة أي مستند.";
 
-/** Enrollment certificate G8: keep execute buttons fail-closed until Storage saga exists. */
+/** Enrollment certificate: execute via Storage Saga after migration + env; otherwise fail-closed. */
 export const ENROLLMENT_CERTIFICATE_ISSUE_EXECUTE_DISABLED_MSG =
-  "إصدار/أرشفة شهادة القيد مجمّدان: Spike PDF عربي على Worker جاهز، لكن Saga التخزين (Prepare/Finalize + bucket) غير منفّذة (HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED).";
+  "إصدار شهادة القيد عبر Storage Saga جاهز عقدياً. التنفيذ يبقى fail-closed حتى تطبيق Migration وتهيئة Bucket/Worker على البيئة.";
 
 function pushIssue(
   issues: StudentRequestDocumentArchiveValidationIssue[],

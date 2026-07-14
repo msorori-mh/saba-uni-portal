@@ -1,93 +1,108 @@
 /**
- * PDF + Storage generator readiness for enrollment certificates.
- * Fail-closed for staff issue / Storage saga until the next implementation phase.
- *
- * Font + Worker Arabic PDF spike cleared in:
- * ENROLLMENT-CERTIFICATE-ARABIC-PDF-WORKER-SPIKE-01
- *
- * Spike decision:
- * PASS_ARABIC_PDF_WORKER_SPIKE_READY_FOR_STORAGE_SAGA_IMPLEMENTATION
- *
- * Production issuance remains gated by assert_enrollment_certificate_pdf_generation_ready
- * (Prepare/Finalize + official-documents bucket not implemented in this spike).
+ * Enrollment certificate PDF Storage Saga — production capability & constants.
+ * Phase: ENROLLMENT-CERTIFICATE-PDF-STORAGE-SAGA-COMPLETION-01
  */
 
 export const ARABIC_PDF_WORKER_SPIKE_DECISION =
   "PASS_ARABIC_PDF_WORKER_SPIKE_READY_FOR_STORAGE_SAGA_IMPLEMENTATION" as const;
 
-/** Storage saga / production generator still not implemented. */
-export const PDF_STORAGE_GENERATOR_DECISION = "HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED" as const;
+export const PDF_STORAGE_SAGA_DECISION =
+  "PASS_ENROLLMENT_CERTIFICATE_PDF_STORAGE_SAGA_CONTRACT_READY" as const;
+
+/** @deprecated Prefer PDF_STORAGE_SAGA_DECISION — kept for older test aliases. */
+export const PDF_STORAGE_GENERATOR_DECISION = PDF_STORAGE_SAGA_DECISION;
 
 export const PDF_RUNTIME_HOLD_CODE = "HOLD_PDF_RUNTIME_COMPATIBILITY_NOT_PROVEN" as const;
-
 export const APPROVED_ARABIC_FONT_HOLD_CODE = "HOLD_APPROVED_ARABIC_FONT_ASSET_REQUIRED" as const;
-
+/** Cleared when saga modules + font + bucket contract exist in-repo. */
 export const PDF_STORAGE_SAGA_HOLD_CODE = "HOLD_PDF_STORAGE_SAGA_NOT_IMPLEMENTED" as const;
 
 export const PDF_STORAGE_GENERATOR_HOLD_MSG_AR =
-  "مولّد شهادة القيد جاهز تقنياً على مستوى Spike (خط Cairo + pdf-lib على Worker)، لكن Saga التخزين/Prepare-Finalize وbucket الوثائق الرسمية غير منفّذة بعد. زر الإصدار يبقى مغلقاً.";
+  "مسار إصدار شهادة القيد جاهز عقدياً (Prepare/Upload/Finalize). يبقى التنفيذ fail-closed حتى تطبيق Migration وتهيئة Worker/Storage على البيئة.";
 
-export type PdfStorageGeneratorCapability = {
-  ready: false;
-  canExecuteStaffIssue: false;
-  canGeneratePdf: false;
-  canUploadOfficialDocument: false;
-  decision: typeof PDF_STORAGE_GENERATOR_DECISION;
-  arabicPdfWorkerSpikeDecision: typeof ARABIC_PDF_WORKER_SPIKE_DECISION;
-  blockers: readonly [typeof PDF_STORAGE_SAGA_HOLD_CODE];
-  messageAr: string;
-  runtimeTarget: "cloudflare_workers_nitro";
-  preferredEngineWhenUnblocked: "pdf-lib+fontkit";
-  edgeFunctionsPresent: false;
-  officialDocumentsBucketPresent: false;
-  localArabicFontFilesPresent: boolean;
-  localCollegeLogoPresent: boolean;
-  localUniversityLogoBinaryPresent: boolean;
-};
+export const OFFICIAL_DOCUMENTS_BUCKET = "official-documents" as const;
 
-/**
- * Inventory used by staff UI and tests — always fail-closed until Storage saga lands.
- */
-export function getPdfStorageGeneratorCapability(options?: {
-  localCollegeLogoPresent?: boolean;
-  localUniversityLogoBinaryPresent?: boolean;
-  localArabicFontFilesPresent?: boolean;
-}): PdfStorageGeneratorCapability {
-  return {
-    ready: false,
-    canExecuteStaffIssue: false,
-    canGeneratePdf: false,
-    canUploadOfficialDocument: false,
-    decision: PDF_STORAGE_GENERATOR_DECISION,
-    arabicPdfWorkerSpikeDecision: ARABIC_PDF_WORKER_SPIKE_DECISION,
-    blockers: [PDF_STORAGE_SAGA_HOLD_CODE],
-    messageAr: PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
-    runtimeTarget: "cloudflare_workers_nitro",
-    preferredEngineWhenUnblocked: "pdf-lib+fontkit",
-    edgeFunctionsPresent: false,
-    officialDocumentsBucketPresent: false,
-    localArabicFontFilesPresent: options?.localArabicFontFilesPresent ?? true,
-    localCollegeLogoPresent: options?.localCollegeLogoPresent ?? true,
-    localUniversityLogoBinaryPresent: options?.localUniversityLogoBinaryPresent ?? false,
-  };
-}
+export const STORAGE_PATH_TEMPLATE =
+  "enrollment-certificates/{request_id}/{attempt_id}.pdf" as const;
 
-/** Two-phase saga names planned after font + engine gates clear. */
-export const PLANNED_TWO_PHASE_RPCS = [
+export const SAGA_RPCS = [
   "prepare_enrollment_certificate_document_generation",
+  "mark_enrollment_certificate_document_generating",
+  "mark_enrollment_certificate_document_uploaded",
   "finalize_enrollment_certificate_document_generation",
   "fail_enrollment_certificate_document_generation",
 ] as const;
 
-export const PLANNED_STORAGE_BUCKET = "official-documents" as const;
+/** @deprecated alias */
+export const PLANNED_TWO_PHASE_RPCS = SAGA_RPCS;
+export const PLANNED_STORAGE_BUCKET = OFFICIAL_DOCUMENTS_BUCKET;
+export const PLANNED_STORAGE_PATH_TEMPLATE = STORAGE_PATH_TEMPLATE;
 
-export const PLANNED_STORAGE_PATH_TEMPLATE =
-  "enrollment-certificates/{request_id}/{official_document_id}.pdf" as const;
+export type PdfStorageGeneratorCapability = {
+  ready: boolean;
+  canExecuteStaffIssue: boolean;
+  canGeneratePdf: boolean;
+  canUploadOfficialDocument: boolean;
+  decision: typeof PDF_STORAGE_SAGA_DECISION;
+  arabicPdfWorkerSpikeDecision: typeof ARABIC_PDF_WORKER_SPIKE_DECISION;
+  blockers: readonly string[];
+  messageAr: string;
+  runtimeTarget: "cloudflare_workers_nitro";
+  preferredEngineWhenUnblocked: "pdf-lib+fontkit";
+  edgeFunctionsPresent: false;
+  officialDocumentsBucketPresent: boolean;
+  localArabicFontFilesPresent: boolean;
+  localCollegeLogoPresent: boolean;
+  localUniversityLogoBinaryPresent: boolean;
+  sagaRpcsDefined: true;
+};
 
-/**
- * Font gate: approved Cairo variable TTF must be vendored with OFL adjacent.
- * CDN UI fonts alone are not sufficient.
- */
+export function buildOfficialDocumentStoragePath(requestId: string, attemptId: string): string {
+  return `enrollment-certificates/${requestId}/${attemptId}.pdf`;
+}
+
+export function getPdfStorageGeneratorCapability(options?: {
+  localCollegeLogoPresent?: boolean;
+  localUniversityLogoBinaryPresent?: boolean;
+  localArabicFontFilesPresent?: boolean;
+  /** Runtime: private bucket configured/reachable. Defaults false (fail-closed). */
+  officialDocumentsBucketPresent?: boolean;
+  /** Runtime: worker/server PDF path configured. Defaults false (fail-closed). */
+  workerConfigPresent?: boolean;
+}): PdfStorageGeneratorCapability {
+  const fontOk = options?.localArabicFontFilesPresent ?? true;
+  const logoOk = options?.localCollegeLogoPresent ?? true;
+  const bucketOk = options?.officialDocumentsBucketPresent ?? false;
+  const workerOk = options?.workerConfigPresent ?? false;
+  const blockers: string[] = [];
+  if (!fontOk) blockers.push(APPROVED_ARABIC_FONT_HOLD_CODE);
+  if (!workerOk) blockers.push(PDF_RUNTIME_HOLD_CODE);
+  if (!bucketOk) blockers.push("HOLD_ENROLLMENT_CERTIFICATE_PDF_STORAGE_BUCKET_MISSING");
+
+  const ready = blockers.length === 0 && logoOk;
+
+  return {
+    ready,
+    canExecuteStaffIssue: ready,
+    canGeneratePdf: ready && fontOk,
+    canUploadOfficialDocument: ready && bucketOk,
+    decision: PDF_STORAGE_SAGA_DECISION,
+    arabicPdfWorkerSpikeDecision: ARABIC_PDF_WORKER_SPIKE_DECISION,
+    blockers,
+    messageAr: ready
+      ? "عقد Storage Saga لشهادة القيد جاهز للتنفيذ على البيئة المهيأة."
+      : PDF_STORAGE_GENERATOR_HOLD_MSG_AR,
+    runtimeTarget: "cloudflare_workers_nitro",
+    preferredEngineWhenUnblocked: "pdf-lib+fontkit",
+    edgeFunctionsPresent: false,
+    officialDocumentsBucketPresent: bucketOk,
+    localArabicFontFilesPresent: fontOk,
+    localCollegeLogoPresent: logoOk,
+    localUniversityLogoBinaryPresent: options?.localUniversityLogoBinaryPresent ?? false,
+    sagaRpcsDefined: true,
+  };
+}
+
 export function evaluateApprovedArabicFontGate(input: {
   localTtfOrOtfCount: number;
   hasOfLicenseAdjacent: boolean;
@@ -140,3 +155,55 @@ export function evaluatePdfRuntimeCompatibilityGate(input: {
       "توافق Runtime مع مولّد PDF عربي غير مثبت (Cloudflare Workers بدون Chromium؛ لا PoC لمكتبة PDF في المستودع).",
   };
 }
+
+/** Pure policy helpers for saga (unit-tested without DB). */
+export function evaluatePreparePolicy(input: {
+  authenticated: boolean;
+  canActOnIssueStep: boolean;
+  requestType: string;
+  stepKey: string;
+  stepStatus: string;
+  registrarSigned: boolean;
+  deanSigned: boolean;
+}): { allowed: boolean; reason: string } {
+  if (!input.authenticated) return { allowed: false, reason: "unauthorized" };
+  if (!input.canActOnIssueStep) return { allowed: false, reason: "unauthorized" };
+  if (input.requestType !== "enrollment_certificate") {
+    return { allowed: false, reason: "wrong_request_type" };
+  }
+  if (input.stepKey !== "document_issuance" || input.stepStatus !== "active") {
+    return { allowed: false, reason: "wrong_step" };
+  }
+  if (!input.registrarSigned || !input.deanSigned) {
+    return { allowed: false, reason: "signatures_incomplete" };
+  }
+  return { allowed: true, reason: "ok" };
+}
+
+export function evaluateFinalizeIdempotency(input: {
+  attemptStatus: string;
+  officialDocumentId: string | null;
+}): "finalize" | "return_existing" | "reject" {
+  if (input.attemptStatus === "finalized" && input.officialDocumentId) {
+    return "return_existing";
+  }
+  if (input.attemptStatus === "uploaded") return "finalize";
+  return "reject";
+}
+
+export function evaluateDownloadAuthorization(input: {
+  isOwner: boolean;
+  isStaffAuthorized: boolean;
+  isAdmin: boolean;
+}): boolean {
+  return input.isOwner || input.isStaffAuthorized || input.isAdmin;
+}
+
+export const PUBLIC_VERIFY_SAFE_FIELDS = [
+  "valid",
+  "document_type",
+  "document_number",
+  "status",
+  "issued_at",
+  "reason",
+] as const;

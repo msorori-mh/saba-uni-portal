@@ -58,9 +58,7 @@ export const ACTION_TO_EVENT_TYPE: Partial<Record<WorkflowActorAction, string>> 
 };
 
 /** Required action_type on the config step for specialized mutating actions. */
-export const ACTION_REQUIRES_STEP_ACTION_TYPE: Partial<
-  Record<WorkflowActorAction, string>
-> = {
+export const ACTION_REQUIRES_STEP_ACTION_TYPE: Partial<Record<WorkflowActorAction, string>> = {
   sign: "sign",
   issue_document: "issue_document",
   archive: "archive",
@@ -101,15 +99,17 @@ export function mapActorActionToTransitionResult(action: WorkflowActorAction): s
 }
 
 /**
- * Fail-closed gate used by migration tests / UI policy.
- * issue_document and archive are intentionally blocked until a durable
- * request-scoped issuance path exists (HOLD decision).
+ * Fail-closed gate for actor actions.
+ * issue_document / archive require storageSagaReady (Prepare→Finalize path).
+ * Generic workflow mutation without saga stays blocked.
  */
 export function evaluatePostZeroFeeActorAction(input: {
   action: string;
   stepStatus: string;
   stepActionType: string | null;
   hasMatchingTransition: boolean;
+  /** When true, issue_document/archive follow signed→issued→archived mapping. */
+  storageSagaReady?: boolean;
 }): PostZeroFeeExecutionGate {
   if (!isValidWorkflowActorAction(input.action)) {
     return {
@@ -148,19 +148,17 @@ export function evaluatePostZeroFeeActorAction(input: {
     };
   }
 
-  if (input.action === "issue_document") {
+  if (
+    (input.action === "issue_document" || input.action === "archive") &&
+    !input.storageSagaReady
+  ) {
     return {
       allowed: false,
       reason: "pdf_generation_contract_missing",
-      messageAr: DOCUMENT_ISSUANCE_CONTRACT_MISSING_MSG_AR,
-    };
-  }
-
-  if (input.action === "archive") {
-    return {
-      allowed: false,
-      reason: "pdf_generation_contract_missing",
-      messageAr: ARCHIVE_CONTRACT_GATED_MSG_AR,
+      messageAr:
+        input.action === "archive"
+          ? ARCHIVE_CONTRACT_GATED_MSG_AR
+          : DOCUMENT_ISSUANCE_CONTRACT_MISSING_MSG_AR,
     };
   }
 
