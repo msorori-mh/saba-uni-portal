@@ -61,8 +61,8 @@ async function assertOwnsMaterial(supabase: any, materialId: string, facultyProf
 export const getMyAssignedSectionsForMaterials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const fp = await getFacultyProfileForUser(context.supabase, context.userId);
-    const { data, error } = await context.supabase
+    const fp = await getFacultyProfileForUser(((((context.supabase) as any)) as any), context.userId);
+    const { data, error } = await ((context.supabase) as any)
       .from("course_sections")
       .select(
         "id, section_code, status, offering:course_offerings(academic_year:academic_years(name_ar), semester:semesters(name_ar), program:programs(name_ar), level:academic_levels(name_ar), course:courses(code, name_ar))",
@@ -97,9 +97,9 @@ export const listMyCourseMaterials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ sectionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser(context.supabase, context.userId);
-    await assertOwnsSection(context.supabase, data.sectionId, fp.id);
-    const { data: rows, error } = await context.supabase
+    const fp = await getFacultyProfileForUser(((((context.supabase) as any)) as any), context.userId);
+    await assertOwnsSection(((((context.supabase) as any)) as any), data.sectionId, fp.id);
+    const { data: rows, error } = await ((context.supabase) as any)
       .from("course_materials")
       .select("id, title, description, lecture_number, study_system, status, published_at, created_at, updated_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, uploaded_at)")
       .eq("course_section_id", data.sectionId)
@@ -121,8 +121,8 @@ export const createCourseMaterial = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser(context.supabase, context.userId);
-    await assertOwnsSection(context.supabase, data.sectionId, fp.id);
+    const fp = await getFacultyProfileForUser(((((context.supabase) as any)) as any), context.userId);
+    await assertOwnsSection(((((context.supabase) as any)) as any), data.sectionId, fp.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("course_materials")
@@ -158,8 +158,8 @@ export const updateCourseMaterial = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser(context.supabase, context.userId);
-    const existing = await assertOwnsMaterial(context.supabase, data.materialId, fp.id);
+    const fp = await getFacultyProfileForUser(((((context.supabase) as any)) as any), context.userId);
+    const existing = await assertOwnsMaterial(((((context.supabase) as any)) as any), data.materialId, fp.id);
     if (existing.status === "archived") throw new Error("المادة مؤرشفة");
     const patch: Record<string, unknown> = {};
     if (data.title !== undefined) patch.title = data.title;
@@ -190,8 +190,8 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
     }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser(context.supabase, context.userId);
-    const material = await assertOwnsMaterial(context.supabase, data.materialId, fp.id);
+    const fp = await getFacultyProfileForUser(((((context.supabase) as any)) as any), context.userId);
+    const material = await assertOwnsMaterial(((((context.supabase) as any)) as any), data.materialId, fp.id);
     if (material.status === "archived") throw new Error("المادة مؤرشفة");
 
     if (!(MATERIALS_ALLOWED_MIME as readonly string[]).includes(data.mimeType)) {
@@ -318,8 +318,8 @@ export const publishCourseMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ materialId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser(context.supabase, context.userId);
-    await assertOwnsMaterial(context.supabase, data.materialId, fp.id);
+    const fp = await getFacultyProfileForUser(((((context.supabase) as any)) as any), context.userId);
+    await assertOwnsMaterial(((((context.supabase) as any)) as any), data.materialId, fp.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Idempotency: already published event?
@@ -372,8 +372,8 @@ export const archiveCourseMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ materialId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser(context.supabase, context.userId);
-    await assertOwnsMaterial(context.supabase, data.materialId, fp.id);
+    const fp = await getFacultyProfileForUser(((((context.supabase) as any)) as any), context.userId);
+    await assertOwnsMaterial(((((context.supabase) as any)) as any), data.materialId, fp.id);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("course_materials")

@@ -77,7 +77,7 @@ function studySystemMatches(materialTag: StudySystemTag, studentSystem: string |
 export const listStudentCourseMaterials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const student = await getStudentProfile(context.supabase, context.userId);
+    const student = await getStudentProfile(((((context.supabase) as any)) as any), context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const mode = await getLinkageMode(supabaseAdmin);
     const sectionIds = await eligibleSectionIdsForStudent(supabaseAdmin, student, mode);
@@ -117,7 +117,7 @@ export const listStudentMaterialsForCourse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ sectionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const student = await getStudentProfile(context.supabase, context.userId);
+    const student = await getStudentProfile(((((context.supabase) as any)) as any), context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const mode = await getLinkageMode(supabaseAdmin);
     const sectionIds = await eligibleSectionIdsForStudent(supabaseAdmin, student, mode);
@@ -153,7 +153,7 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
     if (!material) throw new Error("الملف غير مرتبط بمادة");
 
     // Faculty owner shortcut
-    const { data: fp } = await context.supabase
+    const { data: fp } = await ((context.supabase) as any)
       .from("faculty_profiles")
       .select("id")
       .eq("user_id", context.userId)
@@ -162,7 +162,7 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
 
     if (!isOwner) {
       if (material.status !== "published") throw new Error("المادة غير متاحة");
-      const student = await getStudentProfile(context.supabase, context.userId);
+      const student = await getStudentProfile(((((context.supabase) as any)) as any), context.userId);
       const mode = await getLinkageMode(supabaseAdmin);
       const sectionIds = await eligibleSectionIdsForStudent(supabaseAdmin, student, mode);
       if (!sectionIds.has(material.course_section_id)) throw new Error("لا يمكنك الوصول إلى هذا الملف");
