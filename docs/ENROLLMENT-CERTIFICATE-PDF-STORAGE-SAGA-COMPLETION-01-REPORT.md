@@ -226,7 +226,7 @@ Worker spike volume (من تقرير Spike السابق): **≈ 2924 KiB upload 
 | PR | https://github.com/msorori-mh/saba-uni-portal/pull/124 |
 | القرار في الوصف | `PASS_ENROLLMENT_CERTIFICATE_PR124_SYNCED_PDF_STORAGE_SAGA_COMPLETE_READY_FOR_FINAL_MERGE_REVIEW` |
 | دمج | **لا** — للمراجعة النهائية فقط |
-| HEAD بعد Push | يُحدَّث بعد الـ Commit |
+| HEAD بعد Push | `b2e4661943bb02f328687888951a02fa240a6f37` |
 
 ---
 
