@@ -246,6 +246,14 @@ const SERVICE_LINKS = [
     desc: "تقديم ومتابعة الخدمات الطلابية.",
     Icon: FileText,
   },
+  ...(portalFeatures.studentCourseMaterials
+    ? ([{
+        to: "/student/materials" as const,
+        title: "المواد التعليمية",
+        desc: "محاضرات وملفات المقررات.",
+        Icon: BookOpen,
+      }] as const)
+    : []),
 ] as const;
 
 export const Route = createFileRoute("/student/")({
