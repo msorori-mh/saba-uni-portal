@@ -169,12 +169,12 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
       if (!studySystemMatches(material.study_system, student.study_system)) throw new Error("لا يمكنك الوصول إلى هذا الملف");
     }
 
-    const { data: signed, error: sErr } = await supabaseAdmin.storage
+    const { data: signed, error: sErr } = await ((supabaseAdmin as any).storage
       .from(MATERIALS_BUCKET)
       .createSignedUrl((file as any).storage_path, 60);
     if (sErr || !signed?.signedUrl) throw new Error(sErr?.message ?? "تعذّر إنشاء رابط التنزيل");
 
-    await supabaseAdmin.from("course_material_events").insert({
+    await ((supabaseAdmin as any).from("course_material_events").insert({
       course_material_id: material.id,
       actor_user_id: context.userId,
       event: "downloaded",

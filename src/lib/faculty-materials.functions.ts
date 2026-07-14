@@ -138,7 +138,7 @@ export const createCourseMaterial = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    await supabaseAdmin.from("course_material_events").insert({
+    await ((supabaseAdmin as any).from("course_material_events").insert({
       course_material_id: row.id,
       actor_user_id: context.userId,
       event: "created",
@@ -168,9 +168,9 @@ export const updateCourseMaterial = createServerFn({ method: "POST" })
     if (data.study_system !== undefined) patch.study_system = data.study_system;
     if (Object.keys(patch).length === 0) return { ok: true as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("course_materials").update(patch).eq("id", data.materialId);
+    const { error } = await ((supabaseAdmin as any).from("course_materials").update(patch).eq("id", data.materialId);
     if (error) throw new Error(error.message);
-    await supabaseAdmin.from("course_material_events").insert({
+    await ((supabaseAdmin as any).from("course_material_events").insert({
       course_material_id: data.materialId,
       actor_user_id: context.userId,
       event: "updated",
@@ -220,7 +220,7 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
     const safeName = sanitizeFileName(data.filename);
     const storagePath = `${material.course_section_id}/${data.materialId}/${nextVersion}-${safeName}`;
 
-    const { error: upErr } = await supabaseAdmin.storage
+    const { error: upErr } = await ((supabaseAdmin as any).storage
       .from(MATERIALS_BUCKET)
       .upload(storagePath, buffer, { contentType: data.mimeType, upsert: false });
     if (upErr) throw new Error(upErr.message);
@@ -239,10 +239,10 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (insErr) {
-      await supabaseAdmin.storage.from(MATERIALS_BUCKET).remove([storagePath]);
+      await ((supabaseAdmin as any).storage.from(MATERIALS_BUCKET).remove([storagePath]);
       throw new Error(insErr.message);
     }
-    await supabaseAdmin.from("course_material_events").insert({
+    await ((supabaseAdmin as any).from("course_material_events").insert({
       course_material_id: data.materialId,
       actor_user_id: context.userId,
       event: "file_uploaded",
@@ -339,7 +339,7 @@ export const publishCourseMaterial = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     if (!prevEvent || prevEvent.length === 0) {
-      await supabaseAdmin.from("course_material_events").insert({
+      await ((supabaseAdmin as any).from("course_material_events").insert({
         course_material_id: data.materialId,
         actor_user_id: context.userId,
         event: "published",
@@ -358,7 +358,7 @@ export const publishCourseMaterial = createServerFn({ method: "POST" })
             reference_id: data.materialId,
             is_read: false,
           }));
-          await supabaseAdmin.from("notifications").insert(rows);
+          await ((supabaseAdmin as any).from("notifications").insert(rows);
         }
       } catch (e) {
         // Non-fatal
@@ -380,7 +380,7 @@ export const archiveCourseMaterial = createServerFn({ method: "POST" })
       .update({ status: "archived" })
       .eq("id", data.materialId);
     if (error) throw new Error(error.message);
-    await supabaseAdmin.from("course_material_events").insert({
+    await ((supabaseAdmin as any).from("course_material_events").insert({
       course_material_id: data.materialId,
       actor_user_id: context.userId,
       event: "archived",
