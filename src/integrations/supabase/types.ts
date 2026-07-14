@@ -1203,6 +1203,145 @@ export type Database = {
         }
         Relationships: []
       }
+      enrollment_certificate_document_details: {
+        Row: {
+          academic_number: string
+          academic_year_id: string | null
+          academic_year_name: string
+          created_at: string
+          department_id: string | null
+          department_name_ar: string
+          enrollment_status: string
+          id: string
+          issued_snapshot_at: string
+          level_id: string | null
+          level_name: string
+          official_document_id: string
+          program_id: string | null
+          program_name_ar: string
+          semester_id: string | null
+          semester_name: string
+          student_name_ar: string
+          student_profile_id: string
+          student_request_id: string
+          student_study_status: string | null
+          study_system: string | null
+          updated_at: string
+        }
+        Insert: {
+          academic_number: string
+          academic_year_id?: string | null
+          academic_year_name: string
+          created_at?: string
+          department_id?: string | null
+          department_name_ar: string
+          enrollment_status: string
+          id?: string
+          issued_snapshot_at?: string
+          level_id?: string | null
+          level_name: string
+          official_document_id: string
+          program_id?: string | null
+          program_name_ar: string
+          semester_id?: string | null
+          semester_name: string
+          student_name_ar: string
+          student_profile_id: string
+          student_request_id: string
+          student_study_status?: string | null
+          study_system?: string | null
+          updated_at?: string
+        }
+        Update: {
+          academic_number?: string
+          academic_year_id?: string | null
+          academic_year_name?: string
+          created_at?: string
+          department_id?: string | null
+          department_name_ar?: string
+          enrollment_status?: string
+          id?: string
+          issued_snapshot_at?: string
+          level_id?: string | null
+          level_name?: string
+          official_document_id?: string
+          program_id?: string | null
+          program_name_ar?: string
+          semester_id?: string | null
+          semester_name?: string
+          student_name_ar?: string
+          student_profile_id?: string
+          student_request_id?: string
+          student_study_status?: string | null
+          study_system?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_certificate_document_detai_official_document_id_fkey"
+            columns: ["official_document_id"]
+            isOneToOne: true
+            referencedRelation: "official_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_academic_year_id_fkey"
+            columns: ["academic_year_id"]
+            isOneToOne: false
+            referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "academic_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_semester_id_fkey"
+            columns: ["semester_id"]
+            isOneToOne: false
+            referencedRelation: "semesters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_details_student_request_id_fkey"
+            columns: ["student_request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollment_reinstatement_details: {
         Row: {
           created_at: string
@@ -2066,6 +2205,7 @@ export type Database = {
           pdf_url: string | null
           status: string
           student_profile_id: string
+          student_request_id: string | null
           updated_at: string
           verification_code: string
         }
@@ -2080,6 +2220,7 @@ export type Database = {
           pdf_url?: string | null
           status?: string
           student_profile_id: string
+          student_request_id?: string | null
           updated_at?: string
           verification_code: string
         }
@@ -2094,6 +2235,7 @@ export type Database = {
           pdf_url?: string | null
           status?: string
           student_profile_id?: string
+          student_request_id?: string | null
           updated_at?: string
           verification_code?: string
         }
@@ -2110,6 +2252,13 @@ export type Database = {
             columns: ["student_profile_id"]
             isOneToOne: false
             referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "official_documents_student_request_id_fkey"
+            columns: ["student_request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
             referencedColumns: ["id"]
           },
         ]
@@ -5449,6 +5598,10 @@ export type Database = {
         }
         Returns: string
       }
+      archive_enrollment_certificate_from_workflow_step: {
+        Args: { p_comment?: string; p_payload?: Json; p_step_id: string }
+        Returns: Json
+      }
       assert_can_activate_request_workflow: { Args: never; Returns: undefined }
       assert_can_admin_enrollment_certificate_e2e: {
         Args: never
@@ -5467,6 +5620,10 @@ export type Database = {
         Args: { p_student_profile_id: string }
         Returns: undefined
       }
+      assert_enrollment_certificate_pdf_generation_ready: {
+        Args: never
+        Returns: undefined
+      }
       assert_student_can_use_request_type: {
         Args: { _profile_status: string; _request_audience: string }
         Returns: undefined
@@ -5476,6 +5633,10 @@ export type Database = {
         Returns: Json
       }
       audit_resolve_role: { Args: { _user_id: string }; Returns: string }
+      build_enrollment_certificate_issuance_snapshot: {
+        Args: { p_student_profile_id: string }
+        Returns: Json
+      }
       can_access_student_service_request: {
         Args: { _request_id: string; _user_id: string }
         Returns: boolean
@@ -5782,6 +5943,10 @@ export type Database = {
       is_valid_actor_request_action: {
         Args: { p_action: string }
         Returns: boolean
+      }
+      issue_enrollment_certificate_from_workflow_step: {
+        Args: { p_comment?: string; p_payload?: Json; p_step_id: string }
+        Returns: Json
       }
       issue_official_document: {
         Args: {
