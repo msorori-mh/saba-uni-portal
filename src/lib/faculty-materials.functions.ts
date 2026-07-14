@@ -16,10 +16,8 @@ import {
 // NOTE: `course_materials*` tables are not yet in supabase/types.ts (migration not applied).
 // Server-side calls cast clients to `any` until types are regenerated post-migration.
 
-async function loadAdmin() {
-  const mod = await import("@/integrations/supabase/client.server");
-  return mod.supabaseAdmin as any;
-}
+
+
 
 
 async function getFacultyProfileForUser(supabase: any, userId: string) {
