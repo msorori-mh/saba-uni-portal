@@ -11,7 +11,10 @@ export const Route = createFileRoute("/verify-document")({
   head: () => ({
     meta: [
       { title: "التحقق من وثيقة رسمية" },
-      { name: "description", content: "تحقق من صحة وثيقة رسمية صادرة عن الكلية باستخدام رقم الوثيقة أو رمز التحقق." },
+      {
+        name: "description",
+        content: "تحقق من صحة وثيقة رسمية صادرة عن الكلية باستخدام رقم الوثيقة أو رمز التحقق.",
+      },
     ],
   }),
 });
@@ -30,6 +33,13 @@ const TYPE_LABEL: Record<string, string> = {
   student_status_certificate: "إفادة بالحالة الدراسية",
   official_transcript: "السجل الأكاديمي الرسمي",
   financial_receipt: "سند مالي رسمي",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  issued: "صادرة",
+  archived: "مؤرشفة",
+  cancelled: "ملغاة",
+  draft: "مسودة",
 };
 
 function VerifyPage() {
@@ -59,7 +69,6 @@ function VerifyPage() {
     if (code && code.length >= 6) {
       void runVerify(code);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [code]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -74,13 +83,18 @@ function VerifyPage() {
           <div className="inline-grid h-14 w-14 place-items-center rounded-2xl bg-gold-gradient text-primary mb-3">
             <ShieldCheck className="h-7 w-7" />
           </div>
-          <h1 className="font-display text-3xl font-extrabold text-primary">التحقق من الوثائق الرسمية</h1>
+          <h1 className="font-display text-3xl font-extrabold text-primary">
+            التحقق من الوثائق الرسمية
+          </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             أدخل رقم الوثيقة أو رمز التحقق للتأكد من صحتها، أو امسح رمز QR من الوثيقة مباشرة.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="rounded-2xl bg-card border border-border p-6 shadow-card space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-2xl bg-card border border-border p-6 shadow-card space-y-4"
+        >
           <label className="block">
             <span className="text-sm font-bold text-primary">رقم الوثيقة أو رمز التحقق</span>
             <input
@@ -97,7 +111,11 @@ function VerifyPage() {
             disabled={loading}
             className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-primary-foreground disabled:opacity-50"
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
             تحقق
           </button>
         </form>
@@ -107,21 +125,35 @@ function VerifyPage() {
         )}
 
         {result && (
-          <div className={`mt-6 rounded-2xl border-2 overflow-hidden ${
-            result.valid ? "border-emerald-500" : "border-destructive"
-          }`}>
-            <div className={`px-6 py-4 flex items-center gap-3 ${
-              result.valid ? "bg-emerald-500 text-white" : "bg-destructive text-white"
-            }`}>
-              {result.valid ? <CheckCircle2 className="h-7 w-7" /> : <XCircle className="h-7 w-7" />}
+          <div
+            className={`mt-6 rounded-2xl border-2 overflow-hidden ${
+              result.valid ? "border-emerald-500" : "border-destructive"
+            }`}
+          >
+            <div
+              className={`px-6 py-4 flex items-center gap-3 ${
+                result.valid ? "bg-emerald-500 text-white" : "bg-destructive text-white"
+              }`}
+            >
+              {result.valid ? (
+                <CheckCircle2 className="h-7 w-7" />
+              ) : (
+                <XCircle className="h-7 w-7" />
+              )}
               <div>
                 <div className="font-display text-xl font-extrabold">
-                  {result.valid ? "وثيقة صحيحة ومعتمدة" :
-                    result.status === "cancelled" ? "وثيقة ملغاة" :
-                    result.reason === "not_found" ? "وثيقة غير موجودة" : "وثيقة غير صالحة"}
+                  {result.valid
+                    ? "وثيقة صحيحة ومعتمدة"
+                    : result.status === "cancelled"
+                      ? "وثيقة ملغاة"
+                      : result.reason === "not_found"
+                        ? "وثيقة غير موجودة"
+                        : "وثيقة غير صالحة"}
                 </div>
                 <div className="text-xs opacity-90 mt-0.5">
-                  {result.valid ? "تم التحقق من صحة الوثيقة عبر بوابة الجامعة" : "تأكد من صحة المدخلات وأعد المحاولة"}
+                  {result.valid
+                    ? "تم التحقق من صحة الوثيقة عبر بوابة الجامعة"
+                    : "تأكد من صحة المدخلات وأعد المحاولة"}
                 </div>
               </div>
             </div>
@@ -133,22 +165,35 @@ function VerifyPage() {
                     <dd>{TYPE_LABEL[result.document_type ?? ""] ?? result.document_type}</dd>
                   </div>
                   <div className="flex gap-2 border-b border-dashed border-border pb-2">
-                    <dt className="font-bold text-primary min-w-[140px]">رقم الوثيقة:</dt>
+                    <dt className="font-bold text-primary min-w-[140px]">الرقم المرجعي:</dt>
                     <dd className="font-mono">{result.document_number}</dd>
                   </div>
                   <div className="flex gap-2 border-b border-dashed border-border pb-2">
                     <dt className="font-bold text-primary min-w-[140px]">الحالة:</dt>
                     <dd>
                       <span className="inline-block rounded bg-emerald-100 text-emerald-700 px-2 py-0.5 text-xs font-bold">
-                        صادرة
+                        {STATUS_LABEL[result.status ?? ""] ?? result.status ?? "—"}
                       </span>
                     </dd>
                   </div>
                   <div className="flex gap-2">
                     <dt className="font-bold text-primary min-w-[140px]">تاريخ الإصدار:</dt>
-                    <dd>{result.issued_at ? new Date(result.issued_at).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" }) : "—"}</dd>
+                    <dd>
+                      {result.issued_at
+                        ? new Date(result.issued_at).toLocaleDateString("ar-EG", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })
+                        : "—"}
+                    </dd>
                   </div>
                 </dl>
+              </div>
+            )}
+            {!result.valid && result.status === "cancelled" && (
+              <div className="bg-white p-6 text-sm text-muted-foreground">
+                هذه الوثيقة ملغاة أو مستبدلة ولا تُعتمد للتحقق العام.
               </div>
             )}
           </div>

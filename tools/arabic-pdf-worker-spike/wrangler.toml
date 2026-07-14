@@ -1,0 +1,10 @@
+name = "enrollment-certificate-arabic-pdf-worker-spike"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Binary assets as ArrayBuffer Data modules (no fs / no network).
+[[rules]]
+type = "Data"
+globs = ["**/*.ttf", "**/*.jpg", "**/*.jpeg", "**/*.png"]
+fallthrough = true

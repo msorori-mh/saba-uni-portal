@@ -27,6 +27,10 @@ tests/security/.env.setup.local
 .wrangler/
 .dev.vars
 
+# Local spike / visual QA artifacts (never commit PDFs)
+.tmp/
+.tmp-*/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
