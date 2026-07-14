@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MATERIALS_BUCKET, type LinkageMode, type StudySystemTag } from "@/lib/course-materials.shared";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 async function getStudentProfile(supabase: any, userId: string) {
   const { data, error } = await supabase
     .from("student_profiles")
