@@ -10,6 +10,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { LazyMount } from "@/components/util/LazyMount";
+import { portalFeatures } from "@/lib/portal-features";
 
 type FacultyProfileRow = {
   id: string;
