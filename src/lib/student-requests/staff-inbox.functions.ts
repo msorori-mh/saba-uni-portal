@@ -223,7 +223,61 @@ function mapRpcDetail(
     workflowIsPreview: isPreview,
     attachments,
     privacyNoticeAr: null,
+    activeStep: computeActiveStep(steps, isPreview),
   };
+}
+
+/** Pick the runtime active step (status='current' and not preview). */
+export function computeActiveStep(
+  steps: StaffRequestWorkflowStep[],
+  isPreview: boolean,
+): StaffRequestDetail["activeStep"] {
+  if (isPreview) return null;
+  const active = steps.find(
+    (s) => s.status === "current" && !s.isPreview && !s.id.startsWith("step:"),
+  );
+  if (!active) return null;
+  return {
+    id: active.id,
+    stepKey: active.stepKey,
+    actionType: active.actionType ?? null,
+    isActionable: active.isActionable === true,
+  };
+}
+
+/**
+ * Enrich workflow steps with action_type from request_type_workflow_steps.
+ * The RPC returns runtime rows (student_request_workflow_steps) but does not
+ * include the workflow-config action_type — we need it to gate UI panels
+ * (review / assess_fee / confirm_payment / sign / issue_document / archive).
+ */
+async function enrichWorkflowStepsWithActionType(
+  requestId: string,
+  steps: StaffRequestWorkflowStep[],
+): Promise<StaffRequestWorkflowStep[]> {
+  const runtimeIds = steps
+    .map((s) => s.id)
+    .filter((id) => !id.startsWith("step:"));
+  if (runtimeIds.length === 0) return steps;
+
+  const { data: rows, error } = await supabaseAdmin
+    .from("student_request_workflow_steps")
+    .select("id, workflow_step_id, config:request_type_workflow_steps!inner(action_type)")
+    .eq("student_request_id", requestId)
+    .in("id", runtimeIds);
+  if (error || !rows) return steps;
+
+  const actionTypeById = new Map<string, string | null>();
+  for (const row of rows as Array<{
+    id: string;
+    config?: { action_type?: string | null } | null;
+  }>) {
+    actionTypeById.set(row.id, row.config?.action_type ?? null);
+  }
+
+  return steps.map((s) =>
+    actionTypeById.has(s.id) ? { ...s, actionType: actionTypeById.get(s.id) ?? null } : s,
+  );
 }
 
 async function fetchLegacyInboxItems(): Promise<StaffRequestInboxItem[]> {
