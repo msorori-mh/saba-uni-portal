@@ -46,9 +46,12 @@ function FacultyManagementPage() {
   const qc = useQueryClient();
   const { busy, error, setError, run } = useBusyError();
 
+  // Live search: send to server only after 3+ chars and a short debounce.
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const effectiveSearch = debouncedSearch.length >= 3 ? debouncedSearch : "";
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["admin-faculty-management", search, status],
-    queryFn: () => list({ data: { kind: "faculty", search: search || undefined, status } }),
+    queryKey: ["admin-faculty-management", effectiveSearch, status],
+    queryFn: () => list({ data: { kind: "faculty", search: effectiveSearch || undefined, status } }),
   });
   const { data: lookups } = useQuery({
     queryKey: ["admin-people-lookups"],
