@@ -118,7 +118,7 @@ function FacultyManagementPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث بالاسم أو الرقم الوظيفي..."
+              placeholder="بحث بالاسم أو الرقم الوظيفي أو البريد (3 أحرف فأكثر)..."
               className="w-full rounded-lg border border-border bg-background pr-10 px-3 py-2 text-sm"
             />
           </div>
