@@ -60,6 +60,7 @@ import { Route as AdminResearchRouteImport } from './routes/admin/research'
 import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
 import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
+import { Route as AdminProcessingAssignmentsRouteImport } from './routes/admin/processing-assignments'
 import { Route as AdminPilotCenterRouteImport } from './routes/admin/pilot-center'
 import { Route as AdminOrganizationalStructureRouteImport } from './routes/admin/organizational-structure'
 import { Route as AdminOperationsRouteImport } from './routes/admin/operations'
@@ -421,6 +422,12 @@ const AdminProgramsRoute = AdminProgramsRouteImport.update({
   path: '/programs',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminProcessingAssignmentsRoute =
+  AdminProcessingAssignmentsRouteImport.update({
+    id: '/processing-assignments',
+    path: '/processing-assignments',
+    getParentRoute: () => AdminRoute,
+  } as any)
 const AdminPilotCenterRoute = AdminPilotCenterRouteImport.update({
   id: '/pilot-center',
   path: '/pilot-center',
@@ -673,6 +680,7 @@ export interface FileRoutesByFullPath {
   '/admin/operations': typeof AdminOperationsRoute
   '/admin/organizational-structure': typeof AdminOrganizationalStructureRoute
   '/admin/pilot-center': typeof AdminPilotCenterRoute
+  '/admin/processing-assignments': typeof AdminProcessingAssignmentsRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -769,6 +777,7 @@ export interface FileRoutesByTo {
   '/admin/operations': typeof AdminOperationsRoute
   '/admin/organizational-structure': typeof AdminOrganizationalStructureRoute
   '/admin/pilot-center': typeof AdminPilotCenterRoute
+  '/admin/processing-assignments': typeof AdminProcessingAssignmentsRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -868,6 +877,7 @@ export interface FileRoutesById {
   '/admin/operations': typeof AdminOperationsRoute
   '/admin/organizational-structure': typeof AdminOrganizationalStructureRoute
   '/admin/pilot-center': typeof AdminPilotCenterRoute
+  '/admin/processing-assignments': typeof AdminProcessingAssignmentsRoute
   '/admin/programs': typeof AdminProgramsRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/request-types': typeof AdminRequestTypesRoute
@@ -970,6 +980,7 @@ export interface FileRouteTypes {
     | '/admin/operations'
     | '/admin/organizational-structure'
     | '/admin/pilot-center'
+    | '/admin/processing-assignments'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -1066,6 +1077,7 @@ export interface FileRouteTypes {
     | '/admin/operations'
     | '/admin/organizational-structure'
     | '/admin/pilot-center'
+    | '/admin/processing-assignments'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -1164,6 +1176,7 @@ export interface FileRouteTypes {
     | '/admin/operations'
     | '/admin/organizational-structure'
     | '/admin/pilot-center'
+    | '/admin/processing-assignments'
     | '/admin/programs'
     | '/admin/reports'
     | '/admin/request-types'
@@ -1654,6 +1667,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProgramsRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/processing-assignments': {
+      id: '/admin/processing-assignments'
+      path: '/processing-assignments'
+      fullPath: '/admin/processing-assignments'
+      preLoaderRoute: typeof AdminProcessingAssignmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/pilot-center': {
       id: '/admin/pilot-center'
       path: '/pilot-center'
@@ -1962,6 +1982,7 @@ interface AdminRouteChildren {
   AdminOperationsRoute: typeof AdminOperationsRoute
   AdminOrganizationalStructureRoute: typeof AdminOrganizationalStructureRoute
   AdminPilotCenterRoute: typeof AdminPilotCenterRoute
+  AdminProcessingAssignmentsRoute: typeof AdminProcessingAssignmentsRoute
   AdminProgramsRoute: typeof AdminProgramsRoute
   AdminReportsRoute: typeof AdminReportsRoute
   AdminRequestTypesRoute: typeof AdminRequestTypesRoute
@@ -2012,6 +2033,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminOperationsRoute: AdminOperationsRoute,
   AdminOrganizationalStructureRoute: AdminOrganizationalStructureRoute,
   AdminPilotCenterRoute: AdminPilotCenterRoute,
+  AdminProcessingAssignmentsRoute: AdminProcessingAssignmentsRoute,
   AdminProgramsRoute: AdminProgramsRoute,
   AdminReportsRoute: AdminReportsRoute,
   AdminRequestTypesRoute: AdminRequestTypesRoute,

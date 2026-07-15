@@ -149,6 +149,7 @@ const groups: NavGroup[] = [
       { to: "/admin/roles", label: "إدارة الأدوار", icon: ShieldCheck },
       { to: "/admin/user-roles", label: "ربط الأدوار بالمستخدمين", icon: UserCog },
       { to: "/admin/organizational-structure", label: "الهيكل التنظيمي", icon: ListTree },
+      { to: "/admin/processing-assignments", label: "ممثلو أدوار الطلبات", icon: UserCog },
       { to: "/admin/security-status", label: "حالة التأمين", icon: Lock },
       { to: "/admin/operations", label: "مركز العمليات", icon: Activity },
       { to: "/admin/pilot-center", label: "إدارة التشغيل التجريبي", icon: Rocket },
