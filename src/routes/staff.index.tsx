@@ -83,8 +83,12 @@ function StaffDashboard() {
               <AnnouncementsWidget limit={5} />
             </div>
 
-            <div className="mt-6 rounded-xl border border-dashed border-border bg-card p-4 text-xs text-muted-foreground text-center">
-              ستتوفر أدوات إدارة الطلاب والقبول والمالية في المراحل القادمة.
+            <div className="mt-6 space-y-3">
+              <h2 className="font-display text-lg font-extrabold text-primary-deep flex items-center gap-2">
+                <Briefcase className="h-5 w-5" />
+                صندوق طلبات المعالجة
+              </h2>
+              <StaffInboxShell />
             </div>
           </>
         )}
