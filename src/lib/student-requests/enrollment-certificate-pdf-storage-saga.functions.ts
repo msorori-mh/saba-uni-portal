@@ -21,9 +21,8 @@ const BLOCKED_TRIAL_REQUEST_ID = "93807768-a281-42de-bfb4-0c0c03786b20";
 
 /**
  * Server-only resolver for the public verification-link origin.
- * Reads `SITE_URL` (never a `VITE_*` variable — those leak into the client
- * bundle). Fails closed on missing / invalid / non-https values in production
- * so the QR code never encodes a placeholder like `https://example.invalid`.
+ * Reads `SITE_URL`. Fails closed on missing / invalid / non-https values
+ * in production so QR codes never encode a placeholder host.
  *
  * Exported for narrow unit testing; do not import from client code.
  */
