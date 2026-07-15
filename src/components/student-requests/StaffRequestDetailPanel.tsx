@@ -14,6 +14,7 @@ import {
 import { StudentRequestFormDataView } from "@/components/student-requests/StudentRequestFormDataView";
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
+import { EnrollmentCertificateIssueButton } from "@/components/student-requests/EnrollmentCertificateIssueButton";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
 import { RequestDocumentArchivePanel } from "@/components/student-requests/RequestDocumentArchivePanel";
 import { StudentRequestFeeAssessmentForm } from "@/components/student-requests/StudentRequestFeeAssessmentForm";
@@ -302,6 +303,29 @@ export function StaffRequestDetailPanel({
           requestTypeCode={detail.requestTypeCode}
         />
 
+        {(() => {
+          const currentStep =
+            detail.workflowSteps.find((s) => s.status === "current") ?? null;
+          return (
+            <EnrollmentCertificateIssueButton
+              requestId={detail.id}
+              requestTypeCode={detail.requestTypeCode}
+              currentStep={
+                currentStep
+                  ? {
+                      id: currentStep.id.startsWith("step:") ? null : currentStep.id,
+                      stepKey: currentStep.stepKey,
+                      status: currentStep.status,
+                      isPreview: (currentStep as { isPreview?: boolean }).isPreview,
+                    }
+                  : null
+              }
+              hasActiveOfficialDocument={false}
+              canActOnIssueDocument={workflowRuntimeAvailable}
+            />
+          );
+        })()}
+
         <StaffRequestActionPanel
           requestId={detail.id}
           requestTypeCode={detail.requestTypeCode}
@@ -314,6 +338,7 @@ export function StaffRequestDetailPanel({
           workflowRuntimeAvailable={workflowRuntimeAvailable}
           requestUpdatedAt={detail.updatedAt}
         />
+
       </div>
     </div>
   );

@@ -19,12 +19,38 @@ import {
 
 const BLOCKED_TRIAL_REQUEST_ID = "93807768-a281-42de-bfb4-0c0c03786b20";
 
+/**
+ * Server-only resolver for the public verification-link origin.
+ * Reads `SITE_URL`. Fails closed on missing / invalid / non-https values
+ * in production so QR codes never encode a placeholder host.
+ *
+ * Exported for narrow unit testing; do not import from client code.
+ */
+export function resolvePublicAppOrigin(env: {
+  SITE_URL?: string | undefined;
+  NODE_ENV?: string | undefined;
+} = process.env as { SITE_URL?: string; NODE_ENV?: string }): string {
+  const raw = (env.SITE_URL ?? "").trim();
+  if (!raw) throw new Error("SITE_URL غير مضبوط — يجب تعيينه Server-only لبناء رابط التحقق");
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error("SITE_URL ليس URL صالحاً");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("SITE_URL يجب أن يستخدم بروتوكول http أو https");
+  }
+  const isProd = (env.NODE_ENV ?? "").toLowerCase() === "production";
+  if (isProd && parsed.protocol !== "https:") {
+    throw new Error("SITE_URL يجب أن يكون https في بيئة الإنتاج");
+  }
+  // Normalize: strip trailing slash on origin form.
+  return `${parsed.protocol}//${parsed.host}`.replace(/\/$/, "");
+}
+
 function publicAppOrigin(): string {
-  return (
-    process.env.VITE_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    process.env.SITE_URL?.replace(/\/$/, "") ||
-    "https://example.invalid"
-  );
+  return resolvePublicAppOrigin();
 }
 
 async function rpcAuthed(
