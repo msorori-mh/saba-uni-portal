@@ -124,6 +124,7 @@ function StudentsPage() {
 
   const appliedStudentPayload = () => ({
     academic_number: appliedStudentQuery.academic_number || undefined,
+    query: appliedStudentQuery.query || undefined,
     study_system: appliedStudentQuery.study_system,
     department_id: appliedStudentQuery.department_id || undefined,
     program_id: appliedStudentQuery.program_id || undefined,
@@ -137,6 +138,7 @@ function StudentsPage() {
 
   const appliedStudentExportPayload = () => ({
     academic_number: appliedStudentQuery.academic_number || undefined,
+    query: appliedStudentQuery.query || undefined,
     study_system: appliedStudentQuery.study_system,
     department_id: appliedStudentQuery.department_id || undefined,
     program_id: appliedStudentQuery.program_id || undefined,
@@ -145,6 +147,7 @@ function StudentsPage() {
     semester_id: appliedStudentQuery.semester_id || undefined,
     status: appliedStudentQuery.status,
   });
+
 
   const hasAppliedStudentExportFilters = () => Boolean(
     appliedStudentQuery.academic_number?.trim()
