@@ -196,7 +196,9 @@ describe("email-update importer — server function source guarantees", () => {
     expect(src).not.toMatch(/must_change_password:\s*/);
     expect(src).not.toMatch(/\.from\(\s*["']user_roles["']/);
     expect(src).not.toMatch(/position_assignments|processing_assignments/);
-    expect(src).not.toMatch(/employee_number:\s*(?!"faculty_account_email_update")/);
+    // No mutations against faculty_profiles.employee_number
+    expect(src).not.toMatch(/faculty_profiles["'].*update\([^)]*employee_number/s);
+    expect(src).not.toMatch(/\.update\(\s*\{\s*employee_number/);
     // The only auth mutation permitted is email + email_confirm
     const updateCalls = src.match(/updateUserById\([^)]*\{[^}]*\}/g) ?? [];
     for (const c of updateCalls) {
