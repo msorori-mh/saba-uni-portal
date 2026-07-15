@@ -35,16 +35,9 @@ export const programByCodeQuery = (code: string) =>
 export const facultyQuery = queryOptions({
   queryKey: ["faculty"],
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from("faculty")
-      .select(
-        "id, employee_id, full_name_ar, full_name_en, degree, specialization, program_id, rank, photo, bio_ar, bio_en, sort_order, is_active, category, start_year, admin_position, admin_position_order, programs(code, name_ar)"
-      )
-      .eq("is_active", true)
-      .order("admin_position_order", { ascending: true, nullsFirst: false })
-      .order("sort_order");
+    const { data, error } = await supabase.rpc("get_public_faculty_directory");
     if (error) throw error;
-    return data;
+    return data ?? [];
   },
   staleTime: 1000 * 60 * 5,
 });
