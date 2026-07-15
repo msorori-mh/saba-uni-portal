@@ -163,6 +163,8 @@ function mapRpcWorkflowStep(raw: Record<string, unknown>): StaffRequestWorkflowS
     enteredAt: (raw.entered_at as string | null) ?? null,
     completedAt: (raw.completed_at as string | null) ?? null,
     notes: (raw.comment as string | null) ?? null,
+    actionType: (raw.action_type as string | null) ?? null,
+    isActionable: raw.is_actionable === true,
   };
 }
 
