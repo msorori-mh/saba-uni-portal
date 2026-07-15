@@ -83,12 +83,34 @@ export const listFacultyAccounts = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertFacultyAccountsRead(context.userId);
 
+    // Sanitize free-text search for PostgREST `.or(...)`.
+    const searchRaw = (data.search ?? "").replace(/[,()"']/g, "").trim();
+    const hasSearch = searchRaw.length > 0;
+
+    // Faculty email lives in the joined `faculty` table (not on faculty_profiles).
+    let facultyIdsMatchingEmail: string[] = [];
+    if (hasSearch) {
+      const { data: facMatches } = await supabaseAdmin
+        .from("faculty")
+        .select("id")
+        .ilike("email", `%${searchRaw}%`)
+        .limit(500);
+      facultyIdsMatchingEmail = (facMatches ?? []).map((f: any) => f.id).filter(Boolean);
+    }
+
     let q = supabaseAdmin
       .from("faculty_profiles")
-      .select("id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank")
+      .select("id, user_id, employee_number, full_name_ar, status, must_change_password, department_id, academic_rank, faculty_id")
       .order("employee_number");
-    if (data.search) {
-      q = q.or(`employee_number.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
+    if (hasSearch) {
+      const parts = [
+        `employee_number.ilike.%${searchRaw}%`,
+        `full_name_ar.ilike.%${searchRaw}%`,
+      ];
+      if (facultyIdsMatchingEmail.length > 0) {
+        parts.push(`faculty_id.in.(${facultyIdsMatchingEmail.join(",")})`);
+      }
+      q = q.or(parts.join(","));
     }
     if (data.status && data.status !== "all") q = q.eq("status", data.status);
     if (data.departmentId && data.departmentId !== "all") q = q.eq("department_id", data.departmentId);
