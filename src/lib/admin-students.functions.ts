@@ -218,6 +218,8 @@ const adminStudentStatusSchema = z.enum([
 
 const adminStudentsFilterSchema = z.object({
   academic_number: z.string().trim().max(32).regex(/^[A-Za-z0-9_-]*$/, "الرقم الأكاديمي يحتوي على أحرف غير صحيحة").optional(),
+  // Free-text search across academic_number / full_name_ar / email (ilike, ≥3 chars).
+  query: z.string().trim().max(80).optional(),
   study_system: z.enum(["all", "regular", "private"]).default("all"),
   department_id: z.string().uuid().optional().nullable(),
   program_id: z.string().uuid().optional().nullable(),
@@ -228,6 +230,11 @@ const adminStudentsFilterSchema = z.object({
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(25),
 });
+
+/** Sanitize free-text search for PostgREST `.or(...)`: strip characters that break the syntax. */
+function sanitizePostgrestSearch(input: string): string {
+  return input.replace(/[,()"']/g, "").trim();
+}
 
 export const listStudentsForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
