@@ -740,6 +740,10 @@ export const resetPassword = createServerFn({ method: "POST" })
       throw new Error(`تم تحديث كلمة المرور لكن تعذّر ضبط must_change_password — ${rErr.message}`);
     }
 
+    const identifier =
+      data.kind === "student"
+        ? ((profile as any).academic_number ?? "")
+        : ((profile as any).employee_number ?? "");
     await logAudit({
       actor_user_id: context.userId,
       action_type: repairedAuth ? "auth_user_repaired" : "password_reset",
