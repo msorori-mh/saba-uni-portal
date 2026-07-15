@@ -50,9 +50,12 @@ function FacultyAccountsPage() {
   const statsFn = useServerFn(facultyAccountStats);
   const lookupsFn = useServerFn(getPeopleLookups);
 
+  // Live search after 3+ chars.
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const effectiveSearch = debouncedSearch.length >= 3 ? debouncedSearch : "";
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["faculty-accounts", search, hasAccount, departmentId],
-    queryFn: () => listFn({ data: { search: search || undefined, status: "active", hasAccount, departmentId } }),
+    queryKey: ["faculty-accounts", effectiveSearch, hasAccount, departmentId],
+    queryFn: () => listFn({ data: { search: effectiveSearch || undefined, status: "active", hasAccount, departmentId } }),
   });
   const { data: stats } = useQuery({ queryKey: ["faculty-account-stats"], queryFn: () => statsFn() });
   const { data: lookups } = useQuery({ queryKey: ["admin-people-lookups"], queryFn: () => lookupsFn() });
