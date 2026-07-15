@@ -1,11 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { assertAnyRole, userRoles } from "@/lib/authz.server";
+import { userRoles } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import {
-  STUDENT_REQUESTS_ADMIN_ROLES,
-} from "@/lib/admin-student-requests.functions";
 import {
   isWorkflowRpcUnavailable,
   rpcGetMyRequestActorInbox,
@@ -95,12 +92,38 @@ const inboxInputSchema = z.object({
   search: z.string().trim().max(200).optional(),
 });
 
+/**
+ * Staff inbox access gate.
+ *
+ * Allows:
+ *   - admin / system_admin (broad access).
+ *   - any user with at least one ACTIVE `request_processing_assignments`
+ *     row (regardless of app_role). This is the source of truth for
+ *     "this user is an actor on a workflow role". The RPCs
+ *     `get_my_request_actor_inbox` / `get_student_request_detail_for_actor`
+ *     / `act_on_student_request_step` still scope every read/write to the
+ *     assigned active step, so unassigned users can never see or act on
+ *     a request even if a stale row exists.
+ *
+ * Do NOT reintroduce a hard-coded functional role allow-list here
+ * (student_affairs, registrar, dean, finance_officer, …) — new roles
+ * such as revenue_finance_officer / archive_officer would silently be
+ * denied.
+ */
 async function assertStaffInboxAccess(userId: string) {
-  await assertAnyRole(
-    userId,
-    STUDENT_REQUESTS_ADMIN_ROLES,
-    STAFF_INBOX_UNAVAILABLE_MSG.unauthorized,
-  );
+  const roles = await userRoles(userId);
+  if (roles.includes("admin") || roles.includes("system_admin")) return;
+
+  const { data, error } = await supabaseAdmin
+    .from("request_processing_assignments")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .limit(1);
+  if (error) throw new Error(error.message);
+  if (data && data.length > 0) return;
+
+  throw new Error(STAFF_INBOX_UNAVAILABLE_MSG.unauthorized);
 }
 
 function rpcErrorReason(message: string): StaffInboxUnavailableReason {
