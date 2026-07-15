@@ -302,6 +302,7 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
         user_id,
         academic_number,
         full_name_ar,
+        email,
         status,
         study_system,
         must_change_password,
@@ -315,6 +316,11 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
     if (hasAcademicNumber) {
       query = query.eq("academic_number", academicNumber);
     } else {
+      if (hasQuery) {
+        query = query.or(
+          `academic_number.ilike.%${rawQuery}%,full_name_ar.ilike.%${rawQuery}%,email.ilike.%${rawQuery}%`,
+        );
+      }
       if (data.department_id) query = query.eq("department_id", data.department_id);
       if (data.program_id) query = query.eq("program_id", data.program_id);
       if (data.study_system && data.study_system !== "all") query = query.eq("study_system", data.study_system);
