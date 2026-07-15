@@ -22,8 +22,26 @@ export function CredentialsSlip({
   slip: CredentialsSlipData;
   onClose: () => void;
 }) {
+  const [copiedAll, setCopiedAll] = useState(false);
   const copy = async (text: string) => {
-    try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const copyAll = async () => {
+    const text =
+      `الاسم: ${slip.full_name_ar}\n` +
+      `الرقم الإداري: ${slip.identifier}\n` +
+      `الإيميل الجامعي: ${slip.email}\n` +
+      `كلمة المرور المؤقتة: ${slip.password}`;
+    const ok = await copy(text);
+    if (ok) {
+      setCopiedAll(true);
+      window.setTimeout(() => setCopiedAll(false), 1800);
+    }
   };
 
   const handlePrint = () => {
