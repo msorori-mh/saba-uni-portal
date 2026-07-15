@@ -151,6 +151,7 @@ function StudentsPage() {
 
   const hasAppliedStudentExportFilters = () => Boolean(
     appliedStudentQuery.academic_number?.trim()
+    || appliedStudentQuery.query?.trim()
     || (appliedStudentQuery.study_system && appliedStudentQuery.study_system !== "all")
     || appliedStudentQuery.department_id
     || appliedStudentQuery.program_id
@@ -191,17 +192,39 @@ function StudentsPage() {
 
   const applyAcademicNumberSearch = () => {
     const value = academicSearch.trim();
-    if (!value) {
-      setError("أدخل الرقم الأكاديمي للبحث عن طالب.");
+    if (value.length < 3) {
+      setError("أدخل 3 أحرف على الأقل للبحث (رقم أكاديمي أو اسم أو بريد).");
       return;
     }
     setError(null);
     setAppliedStudentQuery({
-      academic_number: value,
+      query: value,
       study_system: "all",
       status: "all",
     });
   };
+
+  // Live search: auto-apply after the user stops typing (≥3 chars).
+  const debouncedAcademicSearch = useDebouncedValue(academicSearch, 300);
+  useEffect(() => {
+    const value = debouncedAcademicSearch.trim();
+    if (value.length >= 3) {
+      setAppliedStudentQuery((prev) =>
+        prev.query === value && !prev.academic_number
+          ? prev
+          : { query: value, study_system: "all", status: "all" },
+      );
+      setError(null);
+    } else if (value.length === 0) {
+      setAppliedStudentQuery((prev) =>
+        prev.query || prev.academic_number
+          ? { study_system: "all", status: "all" }
+          : prev,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedAcademicSearch]);
+
 
   const hasGroupStudentFilter = () => Boolean(
     studentFilters.department_id
