@@ -1342,6 +1342,105 @@ export type Database = {
           },
         ]
       }
+      enrollment_certificate_document_generation_attempts: {
+        Row: {
+          content_sha256: string | null
+          created_at: string
+          created_by: string | null
+          document_type: string
+          error_code: string | null
+          error_message: string | null
+          failed_at: string | null
+          file_size_bytes: number | null
+          finalized_at: string | null
+          generated_at: string | null
+          generating_at: string | null
+          id: string
+          idempotency_key: string
+          official_document_id: string | null
+          prepared_at: string | null
+          snapshot: Json | null
+          status: string
+          storage_bucket: string
+          storage_path: string
+          student_request_id: string
+          updated_at: string
+          uploaded_at: string | null
+          verification_token_hash: string | null
+          verification_token_pending: string | null
+          workflow_step_id: string | null
+        }
+        Insert: {
+          content_sha256?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          file_size_bytes?: number | null
+          finalized_at?: string | null
+          generated_at?: string | null
+          generating_at?: string | null
+          id?: string
+          idempotency_key: string
+          official_document_id?: string | null
+          prepared_at?: string | null
+          snapshot?: Json | null
+          status: string
+          storage_bucket?: string
+          storage_path: string
+          student_request_id: string
+          updated_at?: string
+          uploaded_at?: string | null
+          verification_token_hash?: string | null
+          verification_token_pending?: string | null
+          workflow_step_id?: string | null
+        }
+        Update: {
+          content_sha256?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          error_code?: string | null
+          error_message?: string | null
+          failed_at?: string | null
+          file_size_bytes?: number | null
+          finalized_at?: string | null
+          generated_at?: string | null
+          generating_at?: string | null
+          id?: string
+          idempotency_key?: string
+          official_document_id?: string | null
+          prepared_at?: string | null
+          snapshot?: Json | null
+          status?: string
+          storage_bucket?: string
+          storage_path?: string
+          student_request_id?: string
+          updated_at?: string
+          uploaded_at?: string | null
+          verification_token_hash?: string | null
+          verification_token_pending?: string | null
+          workflow_step_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enrollment_certificate_document_gener_official_document_id_fkey"
+            columns: ["official_document_id"]
+            isOneToOne: false
+            referencedRelation: "official_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollment_certificate_document_generat_student_request_id_fkey"
+            columns: ["student_request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enrollment_reinstatement_details: {
         Row: {
           created_at: string
@@ -5470,6 +5569,8 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      _ec_new_verification_token: { Args: never; Returns: string }
+      _ec_sha256_hex: { Args: { p_text: string }; Returns: string }
       _enrollment_certificate_e2e_load_hidden_type: {
         Args: { p_require_inactive: boolean }
         Returns: {
@@ -5771,6 +5872,22 @@ export type Database = {
           unit_name_ar: string
         }[]
       }
+      fail_enrollment_certificate_document_generation: {
+        Args: {
+          p_attempt_id: string
+          p_error_code: string
+          p_error_message: string
+        }
+        Returns: Json
+      }
+      finalize_enrollment_certificate_document_generation: {
+        Args: {
+          p_attempt_id: string
+          p_comment?: string
+          p_verification_token?: string
+        }
+        Returns: Json
+      }
       find_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
       generate_document_number: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
@@ -5992,6 +6109,18 @@ export type Database = {
             }
             Returns: undefined
           }
+      mark_enrollment_certificate_document_generating: {
+        Args: { p_attempt_id: string }
+        Returns: Json
+      }
+      mark_enrollment_certificate_document_uploaded: {
+        Args: { p_attempt_id: string; p_byte_length: number; p_sha256: string }
+        Returns: Json
+      }
+      prepare_enrollment_certificate_document_generation: {
+        Args: { p_idempotency_key: string; p_step_id: string }
+        Returns: Json
+      }
       recalc_student_fee_status: {
         Args: { _fee_id: string }
         Returns: undefined
