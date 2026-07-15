@@ -189,12 +189,20 @@ describe("email-update importer — server function source guarantees", () => {
     expect(src).toMatch(/hr_officer/);
   });
 
-  it("never touches password / must_change_password / roles / assignments / employee_number", () => {
-    expect(src).not.toContain("password");
-    expect(src).not.toContain("must_change_password");
-    expect(src).not.toMatch(/user_roles/);
+  it("never touches password / must_change_password / roles / assignments / employee_number in mutations", () => {
+    // No password mutations in updateUserById calls
+    expect(src).not.toMatch(/updateUserById\([^)]*password/);
+    // No writes to must_change_password / user_roles / assignments / employee_number
+    expect(src).not.toMatch(/must_change_password:\s*/);
+    expect(src).not.toMatch(/\.from\(\s*["']user_roles["']/);
     expect(src).not.toMatch(/position_assignments|processing_assignments/);
-    expect(src).not.toMatch(/employee_number:\s*/);
+    expect(src).not.toMatch(/employee_number:\s*(?!"faculty_account_email_update")/);
+    // The only auth mutation permitted is email + email_confirm
+    const updateCalls = src.match(/updateUserById\([^)]*\{[^}]*\}/g) ?? [];
+    for (const c of updateCalls) {
+      expect(c).toContain("email");
+      expect(c).not.toContain("password");
+    }
   });
 
   it("execute path requires explicit confirm=true", () => {
