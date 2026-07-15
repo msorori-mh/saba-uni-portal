@@ -526,6 +526,27 @@ export const importFacultyAccountsRows = createServerFn({ method: "POST" })
       `استيراد حسابات: إنشاء=${created}، ربط=${linked}، مربوط مسبقاً=${already}، فشل=${failed}`,
       { totals: { created, linked, already_linked: already, failed, total: data.rows.length } });
 
+    // FACULTY_ACCOUNTS_EXISTING_EMAIL_UPDATE_IMPORTER_REMEDIATION_01 (G6)
+    // Always record the attempt in import_logs, including no-changes / all-already-linked outcomes.
+    try {
+      const status =
+        created + linked === 0 && failed === 0
+          ? already > 0 ? "all_already_linked" : "no_changes"
+          : failed === 0
+            ? "success"
+            : created + linked === 0 ? "all_failed" : "partial";
+      await supabaseAdmin.from("import_logs").insert({
+        created_by: context.userId,
+        import_type: "faculty_accounts",
+        file_name: "faculty_accounts_bulk_import.xlsx",
+        rows_total: data.rows.length,
+        rows_success: created + linked,
+        rows_failed: failed,
+        status,
+        notes: JSON.stringify({ created, linked, already_linked: already, failed }),
+      } as any);
+    } catch {/* best-effort */}
+
     return {
       totals: { total: data.rows.length, created, linked, already_linked: already, failed },
       results,

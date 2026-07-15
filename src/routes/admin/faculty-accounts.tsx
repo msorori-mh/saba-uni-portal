@@ -4,12 +4,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Users, KeyRound, Link2, Plus, Search, Loader2, X, FileDown, ArrowRight, CheckCircle2,
+  Mail, Upload, AlertTriangle,
 } from "lucide-react";
 import {
   listFacultyAccounts, facultyAccountStats,
   createFacultyAccountManual, linkFacultyAccountByEmail, resetFacultyPasswordManual,
   auditFacultyAccountExport,
 } from "@/lib/faculty-accounts.functions";
+import {
+  previewFacultyAccountEmailUpdates,
+  executeFacultyAccountEmailUpdates,
+} from "@/lib/faculty-accounts-email-update.functions";
 import { getPeopleLookups } from "@/lib/admin-people.functions";
 
 export const Route = createFileRoute("/admin/faculty-accounts")({
@@ -38,6 +43,7 @@ function FacultyAccountsPage() {
   const [linkFor, setLinkFor] = useState<Row | null>(null);
   const [resetFor, setResetFor] = useState<Row | null>(null);
   const [revealPassword, setRevealPassword] = useState<{ employee_number: string; password: string } | null>(null);
+  const [showEmailUpdate, setShowEmailUpdate] = useState(false);
 
   const listFn = useServerFn(listFacultyAccounts);
   const statsFn = useServerFn(facultyAccountStats);
@@ -170,11 +176,16 @@ function FacultyAccountsPage() {
           <button onClick={exportAccountsStatus} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-bold text-primary hover:bg-secondary">
             <FileDown className="h-4 w-4" /> تصدير حالة الحسابات
           </button>
+          <button onClick={() => setShowEmailUpdate((v) => !v)} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800 hover:bg-amber-100">
+            <Mail className="h-4 w-4" /> تحديث البريد للحسابات المرتبطة
+          </button>
           <Link to="/admin/imports" className="inline-flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground px-3 py-2 text-sm font-bold hover:opacity-90">
             <FileDown className="h-4 w-4" /> استيراد من Excel
           </Link>
         </div>
       </div>
+
+      {showEmailUpdate && <EmailUpdatePanel onDone={refresh} />}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -488,6 +499,226 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label className="block text-xs font-bold text-muted-foreground mb-1">{label}</label>
       {children}
+    </div>
+  );
+}
+
+// ============================================================
+// FACULTY_ACCOUNTS_EXISTING_EMAIL_UPDATE_IMPORTER_REMEDIATION_01
+// Explicit "UPDATE_EXISTING_FACULTY_ACCOUNT_EMAILS" panel.
+// Never auto-runs; requires file upload → Dry Run → explicit confirmation → Execute.
+// ============================================================
+type PreviewResp = Awaited<ReturnType<typeof previewFacultyAccountEmailUpdates>>;
+type PreviewRow = PreviewResp["rows"][number];
+
+const OUTCOME_LABEL: Record<PreviewRow["outcome"], { text: string; cls: string; ready: boolean }> = {
+  READY_AUTH_AND_FACULTY_EMAIL_UPDATE: { text: "جاهز: تحديث Auth و faculty", cls: "bg-emerald-50 text-emerald-700 border-emerald-200", ready: true },
+  READY_FACULTY_EMAIL_BACKFILL_ONLY: { text: "جاهز: ردم faculty.email فقط", cls: "bg-sky-50 text-sky-700 border-sky-200", ready: true },
+  ALREADY_MATCHED: { text: "مطابق — لا تغيير", cls: "bg-slate-100 text-slate-700 border-slate-200", ready: false },
+  EMAIL_CONFLICT: { text: "تعارض بريد", cls: "bg-rose-50 text-rose-700 border-rose-200", ready: false },
+  FACULTY_NOT_FOUND: { text: "الرقم الوظيفي غير موجود", cls: "bg-rose-50 text-rose-700 border-rose-200", ready: false },
+  FACULTY_DUPLICATE: { text: "رقم وظيفي مكرر", cls: "bg-rose-50 text-rose-700 border-rose-200", ready: false },
+  AUTH_USER_NOT_FOUND: { text: "حساب Auth مفقود", cls: "bg-rose-50 text-rose-700 border-rose-200", ready: false },
+  ACCOUNT_LINK_AMBIGUOUS: { text: "الملف غير مرتبط", cls: "bg-amber-50 text-amber-800 border-amber-200", ready: false },
+  INVALID_EMAIL: { text: "بريد غير صالح", cls: "bg-rose-50 text-rose-700 border-rose-200", ready: false },
+  FAILED: { text: "فشل", cls: "bg-rose-50 text-rose-700 border-rose-200", ready: false },
+};
+
+function EmailUpdatePanel({ onDone }: { onDone: () => void }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<PreviewResp | null>(null);
+  const [busy, setBusy] = useState<"idle" | "preview" | "execute">("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [confirmChecked, setConfirmChecked] = useState(false);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof executeFacultyAccountEmailUpdates>> | null>(null);
+
+  const previewFn = useServerFn(previewFacultyAccountEmailUpdates);
+  const executeFn = useServerFn(executeFacultyAccountEmailUpdates);
+
+  const readyCount = useMemo(() => {
+    if (!preview) return 0;
+    return preview.totals.ready_auth_and_faculty + preview.totals.ready_faculty_backfill;
+  }, [preview]);
+  const hasBlockingConflicts = (preview?.totals.email_conflict ?? 0) > 0;
+
+  const parseFile = async (f: File): Promise<Array<{ row_number: number; employee_number: string; email: string }>> => {
+    const { loadXLSX } = await import("@/lib/xlsx-loader");
+    const XLSX = await loadXLSX();
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
+    return json.map((r, i) => ({
+      row_number: i + 2,
+      employee_number: String(r.employee_number ?? "").trim(),
+      email: String(r.email ?? "").trim(),
+    }));
+  };
+
+  const runPreview = async () => {
+    if (!file) return;
+    setBusy("preview"); setError(null); setResult(null);
+    try {
+      const rows = await parseFile(file);
+      const resp = await previewFn({ data: { rows, file_name: file.name } });
+      setPreview(resp); setConfirmChecked(false);
+    } catch (e: any) { setError(e?.message ?? "فشل Dry Run"); }
+    finally { setBusy("idle"); }
+  };
+
+  const runExecute = async () => {
+    if (!file || !preview) return;
+    setBusy("execute"); setError(null);
+    try {
+      const rows = await parseFile(file);
+      const resp = await executeFn({ data: { rows, file_name: file.name, confirm: true } });
+      setResult(resp); onDone();
+    } catch (e: any) { setError(e?.message ?? "فشل التنفيذ"); }
+    finally { setBusy("idle"); }
+  };
+
+  return (
+    <section className="rounded-xl border-2 border-amber-300 bg-amber-50/40 p-5 shadow-card space-y-4">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="h-5 w-5 text-amber-700 mt-0.5 shrink-0" />
+        <div className="text-sm text-amber-900 space-y-1">
+          <div className="font-extrabold">وضع صريح: تحديث بريد تسجيل الدخول للحسابات المرتبطة مسبقاً</div>
+          <div className="text-xs">
+            هذا الوضع يقوم فقط بتحديث البريد على مستوى Auth و <code>faculty.email</code>.
+            لا يغيّر كلمات المرور، ولا الأدوار، ولا التكليفات، ولا <code>must_change_password</code>،
+            ولا الرقم الوظيفي، ولا اسم العضو، ولا ينشئ مستخدمين جدداً.
+          </div>
+          <div className="text-xs">المطابقة تتم حصراً بواسطة <code>employee_number</code>.</div>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground cursor-pointer hover:opacity-90">
+          <Upload className="h-4 w-4" /> رفع ملف Excel
+          <input type="file" accept=".xlsx,.xls" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); setPreview(null); setResult(null); setError(null); } }} />
+        </label>
+        {file && <span className="text-xs text-muted-foreground">الملف: <span className="font-mono">{file.name}</span></span>}
+        {file && !preview && (
+          <button onClick={runPreview} disabled={busy !== "idle"}
+            className="ml-auto inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+            {busy === "preview" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            تشغيل Dry Run
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>
+      )}
+
+      {preview && !result && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+            <StatBox label="إجمالي" value={preview.totals.total} tone="neutral" />
+            <StatBox label="جاهز Auth+faculty" value={preview.totals.ready_auth_and_faculty} tone="ok" />
+            <StatBox label="ردم faculty فقط" value={preview.totals.ready_faculty_backfill} tone="ok" />
+            <StatBox label="مطابق" value={preview.totals.already_matched} tone="neutral" />
+            <StatBox label="تعارض" value={preview.totals.email_conflict} tone="bad" />
+            <StatBox label="غير موجود" value={preview.totals.faculty_not_found} tone="bad" />
+            <StatBox label="مكرر" value={preview.totals.faculty_duplicate} tone="bad" />
+            <StatBox label="Auth مفقود" value={preview.totals.auth_user_not_found} tone="bad" />
+            <StatBox label="بريد غير صالح" value={preview.totals.invalid_email} tone="bad" />
+            <StatBox label="فشل" value={preview.totals.failed} tone="bad" />
+          </div>
+
+          <div className="rounded-lg border border-border bg-background overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary/40">
+                <tr>
+                  <th className="px-2 py-1 text-right">الصف</th>
+                  <th className="px-2 py-1 text-right">الرقم الوظيفي</th>
+                  <th className="px-2 py-1 text-right">الاسم</th>
+                  <th className="px-2 py-1 text-right">بريد faculty الحالي</th>
+                  <th className="px-2 py-1 text-right">بريد Auth الحالي</th>
+                  <th className="px-2 py-1 text-right">البريد الجديد</th>
+                  <th className="px-2 py-1 text-right">النتيجة</th>
+                  <th className="px-2 py-1 text-right">ملاحظات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.rows.map((r) => {
+                  const meta = OUTCOME_LABEL[r.outcome];
+                  return (
+                    <tr key={r.row_number} className="border-t border-border/60">
+                      <td className="px-2 py-1 font-mono">{r.row_number}</td>
+                      <td className="px-2 py-1 font-mono">{r.employee_number}</td>
+                      <td className="px-2 py-1">{r.full_name_ar ?? "—"}</td>
+                      <td className="px-2 py-1 font-mono">{r.current_faculty_email_masked}</td>
+                      <td className="px-2 py-1 font-mono">{r.current_auth_email_masked}</td>
+                      <td className="px-2 py-1 font-mono">{r.new_email}</td>
+                      <td className="px-2 py-1"><span className={`inline-block rounded-full border px-2 py-0.5 font-bold ${meta.cls}`}>{meta.text}</span></td>
+                      <td className="px-2 py-1 text-muted-foreground">
+                        {r.message ?? ""}
+                        {r.warnings.length > 0 && (
+                          <div className="text-amber-700 text-[10px] mt-0.5">{r.warnings.join(" • ")}</div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {readyCount > 0 && !hasBlockingConflicts && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1" checked={confirmChecked} onChange={(e) => setConfirmChecked(e.target.checked)} />
+                <span>
+                  أؤكد أنه سيتم تغيير بريد تسجيل الدخول لعدد <b>{readyCount}</b> حساب/حسابات،
+                  مع المحافظة على الحسابات والأدوار والتكليفات وكلمات المرور الحالية.
+                </span>
+              </label>
+              <button
+                onClick={runExecute}
+                disabled={!confirmChecked || busy !== "idle"}
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {busy === "execute" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                تنفيذ التحديث
+              </button>
+            </div>
+          )}
+          {hasBlockingConflicts && (
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              يوجد تعارضات في البريد — يجب معالجتها قبل التنفيذ.
+            </div>
+          )}
+        </>
+      )}
+
+      {result && (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+            <StatBox label="إجمالي" value={result.totals.total} tone="neutral" />
+            <StatBox label="محدث Auth+faculty" value={result.totals.updated_auth_and_faculty} tone="ok" />
+            <StatBox label="ردم faculty" value={result.totals.backfilled_faculty_only} tone="ok" />
+            <StatBox label="بدون تغيير" value={result.totals.unchanged} tone="neutral" />
+            <StatBox label="فشل" value={result.totals.failed} tone="bad" />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            الحالة: <span className="font-bold">{result.status}</span>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StatBox({ label, value, tone }: { label: string; value: number; tone: "ok" | "bad" | "neutral" }) {
+  const cls = tone === "ok" ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+    : tone === "bad" ? "bg-rose-50 text-rose-800 border-rose-200"
+    : "bg-slate-50 text-slate-700 border-slate-200";
+  return (
+    <div className={`rounded-lg border px-2 py-1.5 ${cls}`}>
+      <div className="text-[10px]">{label}</div>
+      <div className="text-lg font-extrabold leading-tight">{value}</div>
     </div>
   );
 }
