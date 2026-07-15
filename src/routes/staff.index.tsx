@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
+import { StaffInboxShell } from "@/components/student-requests/StaffInboxShell";
 import { staffFunctionalRoleDisplayLabel } from "@/lib/staff-functional-roles";
 
 type StaffProfileRow = {
