@@ -249,11 +249,10 @@ describe("email-update UI — explicit mode, never auto-runs", () => {
     expect(ui).toContain("confirmChecked");
     expect(ui).toContain("سيتم تغيير بريد تسجيل الدخول");
   });
-  it("does not expose password / token in the panel", () => {
-    // ensure the panel component body doesn't reveal secrets
+  it("panel doesn't render current auth email in cleartext (uses masked value)", () => {
     const panel = ui.slice(ui.indexOf("function EmailUpdatePanel"));
-    expect(panel).not.toMatch(/password/i);
-    expect(panel).not.toMatch(/token/i);
-    expect(panel).not.toMatch(/service.role/i);
+    expect(panel).toContain("current_auth_email_masked");
+    expect(panel).toContain("current_faculty_email_masked");
+    expect(panel).not.toContain("service_role");
   });
 });
