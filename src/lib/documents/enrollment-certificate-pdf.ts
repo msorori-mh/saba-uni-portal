@@ -2,9 +2,9 @@
  * Production enrollment-certificate PDF builder (Cairo + BiDi, no CDN/Canvas).
  * Wraps the Worker-proven spike engine with real snapshot fields.
  *
- * Runtime target: Cloudflare Workers (Nitro). The font and logo bytes are
- * embedded as base64 in a `.server.ts` sibling — no node:fs, no node:path,
- * no process.cwd(), no runtime file reads, no CDN, no network.
+ * Runtime target: Cloudflare Workers (Nitro). Font and logo bytes are
+ * embedded via a server-only sibling module — no runtime filesystem access,
+ * no CDN, no network.
  */
 
 import { createHash } from "node:crypto";
