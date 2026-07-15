@@ -218,6 +218,8 @@ const adminStudentStatusSchema = z.enum([
 
 const adminStudentsFilterSchema = z.object({
   academic_number: z.string().trim().max(32).regex(/^[A-Za-z0-9_-]*$/, "الرقم الأكاديمي يحتوي على أحرف غير صحيحة").optional(),
+  // Free-text search across academic_number / full_name_ar / email (ilike, ≥3 chars).
+  query: z.string().trim().max(80).optional(),
   study_system: z.enum(["all", "regular", "private"]).default("all"),
   department_id: z.string().uuid().optional().nullable(),
   program_id: z.string().uuid().optional().nullable(),
@@ -229,6 +231,11 @@ const adminStudentsFilterSchema = z.object({
   pageSize: z.number().int().min(1).max(100).default(25),
 });
 
+/** Sanitize free-text search for PostgREST `.or(...)`: strip characters that break the syntax. */
+function sanitizePostgrestSearch(input: string): string {
+  return input.replace(/[,()"']/g, "").trim();
+}
+
 export const listStudentsForAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => adminStudentsFilterSchema.parse(input))
@@ -237,6 +244,8 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
 
     const academicNumber = data.academic_number?.trim() ?? "";
     const hasAcademicNumber = academicNumber.length > 0;
+    const rawQuery = sanitizePostgrestSearch(data.query ?? "");
+    const hasQuery = rawQuery.length >= 3;
     const hasGroupFilter = Boolean(
       (data.study_system && data.study_system !== "all")
       || data.department_id
@@ -247,14 +256,14 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
       || (data.status && data.status !== "all"),
     );
 
-    if (!hasAcademicNumber && !hasGroupFilter) {
+    if (!hasAcademicNumber && !hasQuery && !hasGroupFilter) {
       return {
         rows: [],
         total: 0,
         page: data.page,
         pageSize: data.pageSize,
         mode: "empty" as const,
-        message: "اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي",
+        message: "اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي أو الاسم أو البريد",
       };
     }
 
@@ -293,6 +302,7 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
         user_id,
         academic_number,
         full_name_ar,
+        email,
         status,
         study_system,
         must_change_password,
@@ -306,6 +316,11 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
     if (hasAcademicNumber) {
       query = query.eq("academic_number", academicNumber);
     } else {
+      if (hasQuery) {
+        query = query.or(
+          `academic_number.ilike.%${rawQuery}%,full_name_ar.ilike.%${rawQuery}%,email.ilike.%${rawQuery}%`,
+        );
+      }
       if (data.department_id) query = query.eq("department_id", data.department_id);
       if (data.program_id) query = query.eq("program_id", data.program_id);
       if (data.study_system && data.study_system !== "all") query = query.eq("study_system", data.study_system);

@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -45,9 +46,12 @@ function FacultyManagementPage() {
   const qc = useQueryClient();
   const { busy, error, setError, run } = useBusyError();
 
+  // Live search: send to server only after 3+ chars and a short debounce.
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const effectiveSearch = debouncedSearch.length >= 3 ? debouncedSearch : "";
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["admin-faculty-management", search, status],
-    queryFn: () => list({ data: { kind: "faculty", search: search || undefined, status } }),
+    queryKey: ["admin-faculty-management", effectiveSearch, status],
+    queryFn: () => list({ data: { kind: "faculty", search: effectiveSearch || undefined, status } }),
   });
   const { data: lookups } = useQuery({
     queryKey: ["admin-people-lookups"],
@@ -114,7 +118,7 @@ function FacultyManagementPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث بالاسم أو الرقم الوظيفي..."
+              placeholder="بحث بالاسم أو الرقم الوظيفي أو البريد (3 أحرف فأكثر)..."
               className="w-full rounded-lg border border-border bg-background pr-10 px-3 py-2 text-sm"
             />
           </div>

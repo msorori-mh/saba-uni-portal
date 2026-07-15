@@ -367,6 +367,22 @@ export const listUsers = createServerFn({ method: "POST" })
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
+    // Sanitize free-text search to keep PostgREST `.or(...)` well-formed.
+    const searchRaw = (data.search ?? "").replace(/[,()"']/g, "").trim();
+    const hasSearch = searchRaw.length > 0;
+
+    // For faculty search, email lives in the joined `faculty` table, not in faculty_profiles.
+    // Pre-fetch matching faculty_ids so we can include them in the or-filter.
+    let facultyIdsMatchingEmail: string[] = [];
+    if (data.kind === "faculty" && hasSearch) {
+      const { data: facMatches } = await supabaseAdmin
+        .from("faculty")
+        .select("id")
+        .ilike("email", `%${searchRaw}%`)
+        .limit(500);
+      facultyIdsMatchingEmail = (facMatches ?? []).map((f: any) => f.id).filter(Boolean);
+    }
+
     const buildSelect = (
       table: "student_profiles" | "faculty_profiles" | "staff_profiles",
       columns: string,
@@ -377,7 +393,19 @@ export const listUsers = createServerFn({ method: "POST" })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .select(columns as any, { count: "exact" })
         .order(identCol);
-      if (data.search) q = q.or(`${identCol}.ilike.%${data.search}%,full_name_ar.ilike.%${data.search}%`);
+      if (hasSearch) {
+        const parts = [
+          `${identCol}.ilike.%${searchRaw}%`,
+          `full_name_ar.ilike.%${searchRaw}%`,
+        ];
+        if (table === "student_profiles" || table === "staff_profiles") {
+          parts.push(`email.ilike.%${searchRaw}%`);
+        }
+        if (table === "faculty_profiles" && facultyIdsMatchingEmail.length > 0) {
+          parts.push(`faculty_id.in.(${facultyIdsMatchingEmail.join(",")})`);
+        }
+        q = q.or(parts.join(","));
+      }
       if (data.status && data.status !== "all") q = q.eq("status", data.status);
       return q.range(from, to);
     };

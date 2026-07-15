@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -57,6 +58,7 @@ function StudentsPage() {
   });
   const [appliedStudentQuery, setAppliedStudentQuery] = useState<{
     academic_number?: string;
+    query?: string;
     study_system: "all" | "regular" | "private";
     department_id?: string;
     program_id?: string;
@@ -68,6 +70,7 @@ function StudentsPage() {
     study_system: "all",
     status: "all",
   });
+
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -122,6 +125,7 @@ function StudentsPage() {
 
   const appliedStudentPayload = () => ({
     academic_number: appliedStudentQuery.academic_number || undefined,
+    query: appliedStudentQuery.query || undefined,
     study_system: appliedStudentQuery.study_system,
     department_id: appliedStudentQuery.department_id || undefined,
     program_id: appliedStudentQuery.program_id || undefined,
@@ -135,6 +139,7 @@ function StudentsPage() {
 
   const appliedStudentExportPayload = () => ({
     academic_number: appliedStudentQuery.academic_number || undefined,
+    query: appliedStudentQuery.query || undefined,
     study_system: appliedStudentQuery.study_system,
     department_id: appliedStudentQuery.department_id || undefined,
     program_id: appliedStudentQuery.program_id || undefined,
@@ -144,8 +149,10 @@ function StudentsPage() {
     status: appliedStudentQuery.status,
   });
 
+
   const hasAppliedStudentExportFilters = () => Boolean(
     appliedStudentQuery.academic_number?.trim()
+    || appliedStudentQuery.query?.trim()
     || (appliedStudentQuery.study_system && appliedStudentQuery.study_system !== "all")
     || appliedStudentQuery.department_id
     || appliedStudentQuery.program_id
@@ -186,17 +193,39 @@ function StudentsPage() {
 
   const applyAcademicNumberSearch = () => {
     const value = academicSearch.trim();
-    if (!value) {
-      setError("أدخل الرقم الأكاديمي للبحث عن طالب.");
+    if (value.length < 3) {
+      setError("أدخل 3 أحرف على الأقل للبحث (رقم أكاديمي أو اسم أو بريد).");
       return;
     }
     setError(null);
     setAppliedStudentQuery({
-      academic_number: value,
+      query: value,
       study_system: "all",
       status: "all",
     });
   };
+
+  // Live search: auto-apply after the user stops typing (≥3 chars).
+  const debouncedAcademicSearch = useDebouncedValue(academicSearch, 300);
+  useEffect(() => {
+    const value = debouncedAcademicSearch.trim();
+    if (value.length >= 3) {
+      setAppliedStudentQuery((prev) =>
+        prev.query === value && !prev.academic_number
+          ? prev
+          : { query: value, study_system: "all", status: "all" },
+      );
+      setError(null);
+    } else if (value.length === 0) {
+      setAppliedStudentQuery((prev) =>
+        prev.query || prev.academic_number
+          ? { study_system: "all", status: "all" }
+          : prev,
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedAcademicSearch]);
+
 
   const hasGroupStudentFilter = () => Boolean(
     studentFilters.department_id
@@ -750,19 +779,19 @@ function StudentsPage() {
             <Search className="h-5 w-5 text-gold" /> البحث واستعراض الطلاب
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            ابحث عن طالب واحد بالرقم الأكاديمي مباشرة، أو استخدم فلترًا أكاديميًا واحدًا على الأقل للاستعراض الجماعي.
+            ابحث عن طالب بالرقم الأكاديمي أو الاسم أو البريد الإلكتروني (تظهر النتائج تلقائياً بعد 3 أحرف)،
+            أو استخدم فلترًا أكاديميًا واحدًا على الأقل للاستعراض الجماعي.
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-          <Field label="الرقم الأكاديمي">
+          <Field label="بحث بالرقم الأكاديمي أو الاسم أو البريد">
             <input
               value={academicSearch}
               onChange={(e) => setAcademicSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") applyAcademicNumberSearch(); }}
-              dir="ltr"
-              placeholder="أدخل الرقم الأكاديمي الكامل"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+              placeholder="مثال: 20250001 أو أحمد أو ahmad@..."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
           </Field>
           <button
@@ -770,9 +799,10 @@ function StudentsPage() {
             onClick={applyAcademicNumberSearch}
             className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
           >
-            <Search className="h-4 w-4" /> بحث عن طالب
+            <Search className="h-4 w-4" /> بحث
           </button>
         </div>
+
 
         <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
           <span className="h-px flex-1 bg-border" />

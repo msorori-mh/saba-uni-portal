@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -121,12 +122,16 @@ function AdminFacultyPage() {
   const [page, setPage] = useState(1);
   useEffect(() => { setPage(1); }, [search, programFilter, rankFilter]);
 
+  // Live search: only hit the server when the query is empty or ≥3 chars.
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const effectiveSearch = debouncedSearch.length === 0 || debouncedSearch.length >= 3 ? debouncedSearch : "";
+
   const { data: facultyPage, isLoading } = useQuery({
-    queryKey: ["admin", "faculty", { search, programFilter, rankFilter, page }],
+    queryKey: ["admin", "faculty", { search: effectiveSearch, programFilter, rankFilter, page }],
     queryFn: () =>
       listFn({
         data: {
-          search: search.trim() || undefined,
+          search: effectiveSearch || undefined,
           programFilter,
           rankFilter,
           page,

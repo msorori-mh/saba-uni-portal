@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -49,9 +50,12 @@ function FacultyAccountsPage() {
   const statsFn = useServerFn(facultyAccountStats);
   const lookupsFn = useServerFn(getPeopleLookups);
 
+  // Live search after 3+ chars.
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const effectiveSearch = debouncedSearch.length >= 3 ? debouncedSearch : "";
   const { data: rows, isLoading } = useQuery({
-    queryKey: ["faculty-accounts", search, hasAccount, departmentId],
-    queryFn: () => listFn({ data: { search: search || undefined, status: "active", hasAccount, departmentId } }),
+    queryKey: ["faculty-accounts", effectiveSearch, hasAccount, departmentId],
+    queryFn: () => listFn({ data: { search: effectiveSearch || undefined, status: "active", hasAccount, departmentId } }),
   });
   const { data: stats } = useQuery({ queryKey: ["faculty-account-stats"], queryFn: () => statsFn() });
   const { data: lookups } = useQuery({ queryKey: ["admin-people-lookups"], queryFn: () => lookupsFn() });
@@ -217,7 +221,7 @@ function FacultyAccountsPage() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث برقم الوظيفي أو الاسم..."
+              placeholder="بحث برقم الوظيفي أو الاسم أو البريد (3 أحرف فأكثر)..."
               className="w-full rounded-md border border-input bg-background px-3 py-2 pr-9 text-sm"
             />
           </div>
