@@ -1,7 +1,13 @@
 import { useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, ShieldCheck } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, ShieldCheck, Zap } from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { prepareStudentRequestStaffAction } from "@/lib/student-requests/staff-inbox.functions";
+import {
+  executeStudentRequestStaffAction,
+  prepareStudentRequestStaffAction,
+  type ReviewStepExecutableAction,
+} from "@/lib/student-requests/staff-inbox.functions";
 import {
   getAllowedActionsForStepContext,
   STAFF_ACTION_DRY_RUN_SUCCESS_MSG,
@@ -35,30 +41,62 @@ const ACTION_LABELS: Record<StudentRequestActionType, string> = {
   add_note: "إضافة ملاحظة",
 };
 
+/** Map staff-action-contract UI action → RPC review-executor action. */
+function mapToReviewRpcAction(
+  action: StudentRequestActionType,
+): ReviewStepExecutableAction | null {
+  if (action === "approve") return "approve";
+  if (action === "reject") return "reject";
+  if (action === "return_to_student" || action === "request_completion") return "return";
+  if (action === "add_note") return "comment";
+  return null; // forward_to_next_step not applicable to a review step.
+}
+
+/** Label shown on the primary "execute" button per selected action. */
+function executeLabelFor(action: StudentRequestActionType): string {
+  if (action === "approve") return "اعتماد المراجعة الأولية";
+  if (action === "reject") return "تنفيذ الرفض";
+  if (action === "return_to_student" || action === "request_completion") return "إعادة للطالب";
+  if (action === "add_note") return "إضافة الملاحظة";
+  return "تنفيذ الإجراء";
+}
+
 export function StaffRequestActionPanel({
   requestId,
   requestTypeCode,
   currentStepKey,
   currentRoleKey,
   workflowStepRuntimeId,
+  activeStepActionType,
+  activeStepIsActionable,
   workflowRuntimeAvailable,
   requestUpdatedAt,
+  canExecuteReview,
 }: {
   requestId: string;
   requestTypeCode: string;
   currentStepKey: string | null;
   currentRoleKey: string | null;
   workflowStepRuntimeId: string | null;
+  activeStepActionType: string | null;
+  activeStepIsActionable: boolean;
   workflowRuntimeAvailable: boolean;
   requestUpdatedAt: string | null;
+  /** True only when active step is action_type='review' AND user is assigned actor. */
+  canExecuteReview: boolean;
 }) {
   const dryRunFn = useServerFn(prepareStudentRequestStaffAction);
+  const executeFn = useServerFn(executeStudentRequestStaffAction);
+  const queryClient = useQueryClient();
   const [localNote, setLocalNote] = useState("");
   const [selectedAction, setSelectedAction] = useState<StudentRequestActionType | null>(null);
   const [dryRunLoading, setDryRunLoading] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<StudentRequestStaffActionResult | null>(null);
   const [dryRunError, setDryRunError] = useState<string | null>(null);
+  const [executing, setExecuting] = useState(false);
+  const [executeError, setExecuteError] = useState<string | null>(null);
   const validateInFlightRef = useRef(false);
+  const executeInFlightRef = useRef(false);
 
   const roleKeys = currentRoleKey ? [currentRoleKey] : [];
   const legacyActions = getAvailableUiActionsForRole(roleKeys, workflowRuntimeAvailable);
@@ -99,6 +137,17 @@ export function StaffRequestActionPanel({
         key: a.key === "forward" ? "forward_to_next_step" : a.key,
       }));
 
+  const rpcAction = selectedAction ? mapToReviewRpcAction(selectedAction) : null;
+  const executeEnabled =
+    canExecuteReview &&
+    !!workflowStepRuntimeId &&
+    !!rpcAction &&
+    !executing &&
+    !((selectedAction === "reject" ||
+      selectedAction === "return_to_student" ||
+      selectedAction === "request_completion") &&
+      !localNote.trim());
+
   const handleValidate = async () => {
     if (!selectedAction || validateInFlightRef.current || dryRunLoading) return;
 
@@ -129,18 +178,68 @@ export function StaffRequestActionPanel({
     }
   };
 
+  const handleExecute = async () => {
+    if (!executeEnabled || !selectedAction || !workflowStepRuntimeId || !rpcAction) return;
+    if (executeInFlightRef.current) return;
+
+    executeInFlightRef.current = true;
+    setExecuting(true);
+    setExecuteError(null);
+
+    try {
+      const result = await executeFn({
+        data: {
+          requestId,
+          workflowStepRuntimeId,
+          action: rpcAction,
+          comment: localNote.trim() || null,
+        },
+      });
+      toast.success(
+        result.terminal
+          ? "تم إنهاء دورة حياة الطلب"
+          : result.nextStepId
+            ? "تم اعتماد الخطوة وتفعيل الخطوة التالية"
+            : "تم تنفيذ الإجراء",
+      );
+      setLocalNote("");
+      setSelectedAction(null);
+      setDryRunResult(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["staff-inbox-detail", requestId] }),
+        queryClient.invalidateQueries({ queryKey: ["staff-inbox"] }),
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      ]);
+    } catch (e) {
+      const msg = (e as Error).message;
+      setExecuteError(msg);
+      toast.error(msg);
+    } finally {
+      executeInFlightRef.current = false;
+      setExecuting(false);
+    }
+  };
+
+  const stepGateLabel = !workflowRuntimeAvailable
+    ? STAFF_ACTION_EXECUTION_UNAVAILABLE_MSG
+    : !canExecuteReview
+      ? activeStepActionType && activeStepActionType !== "review"
+        ? `الإجراء هنا متاح فقط لخطوة action_type='review' — الخطوة النشطة نوعها: ${activeStepActionType}.`
+        : !activeStepIsActionable
+          ? "لست الفاعل المُسنَد للخطوة النشطة."
+          : STAFF_ACTIONS_DISABLED_MSG
+      : null;
+
   return (
     <div className="rounded-lg border bg-card p-3 space-y-3">
       <div className="text-xs font-bold text-primary">إجراءات المعالجة</div>
 
-      <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
-        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-        <span>
-          {!workflowRuntimeAvailable
-            ? STAFF_ACTION_EXECUTION_UNAVAILABLE_MSG
-            : STAFF_ACTIONS_DISABLED_MSG}
-        </span>
-      </div>
+      {stepGateLabel && (
+        <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>{stepGateLabel}</span>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
@@ -150,6 +249,7 @@ export function StaffRequestActionPanel({
             onClick={() => {
               setSelectedAction(action.key as StudentRequestActionType);
               setDryRunResult(null);
+              setExecuteError(null);
             }}
             className={`text-xs font-bold px-3 py-2 rounded ${
               selectedAction === action.key ? "ring-2 ring-primary ring-offset-1 " : ""
@@ -162,7 +262,7 @@ export function StaffRequestActionPanel({
 
       <div>
         <label className="text-[11px] font-bold text-muted-foreground block mb-1">
-          ملاحظة (محلية — لا تُحفظ في DB في هذه المرحلة)
+          ملاحظة (تُحفظ كتعليق للإجراء عند التنفيذ)
         </label>
         <textarea
           value={localNote}
@@ -189,18 +289,38 @@ export function StaffRequestActionPanel({
         </button>
         <button
           type="button"
-          disabled
-          title={STAFF_ACTION_EXECUTION_UNAVAILABLE_MSG}
-          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded bg-primary text-primary-foreground opacity-50 cursor-not-allowed"
+          data-testid="execute-review-action"
+          disabled={!executeEnabled}
+          title={
+            !canExecuteReview
+              ? STAFF_ACTION_EXECUTION_UNAVAILABLE_MSG
+              : !selectedAction
+                ? "اختر الإجراء أولاً"
+                : ""
+          }
+          onClick={handleExecute}
+          className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          تنفيذ الإجراء
+          {executing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Zap className="h-3.5 w-3.5" />
+          )}
+          {selectedAction ? executeLabelFor(selectedAction) : "تنفيذ الإجراء"}
         </button>
       </div>
 
-      <p className="text-[11px] text-muted-foreground">{STAFF_ACTION_DRY_RUN_SUCCESS_MSG}</p>
+      <p className="text-[11px] text-muted-foreground">
+        {canExecuteReview
+          ? "التنفيذ يستدعي RPC act_on_student_request_step على DB (SECURITY DEFINER). الخطوة الحالية ستُكتمل والخطوة التالية ستُفعَّل تلقائياً حسب دورة الحياة."
+          : STAFF_ACTION_DRY_RUN_SUCCESS_MSG}
+      </p>
 
       {dryRunError && (
         <p className="text-xs text-destructive bg-destructive/10 rounded p-2">{dryRunError}</p>
+      )}
+      {executeError && (
+        <p className="text-xs text-destructive bg-destructive/10 rounded p-2">{executeError}</p>
       )}
 
       {dryRunResult && (

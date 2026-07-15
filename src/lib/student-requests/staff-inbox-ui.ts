@@ -65,6 +65,17 @@ export type StaffRequestWorkflowStep = {
   enteredAt: string | null;
   completedAt: string | null;
   notes: string | null;
+  /** Runtime action_type from request_type_workflow_steps.action_type. Null in preview. */
+  actionType?: string | null;
+  /** Whether can_current_user_act_on_step returned true for this step. */
+  isActionable?: boolean;
+};
+
+export type StaffRequestActiveStep = {
+  id: string;
+  stepKey: string;
+  actionType: string | null;
+  isActionable: boolean;
 };
 
 export type StaffRequestAttachment = {
@@ -95,6 +106,8 @@ export type StaffRequestDetail = {
   workflowIsPreview: boolean;
   attachments: StaffRequestAttachment[];
   privacyNoticeAr: string | null;
+  /** Runtime active step (status='active') for the current viewer, if any. */
+  activeStep: StaffRequestActiveStep | null;
 };
 
 export type StaffRequestActionDefinition = {

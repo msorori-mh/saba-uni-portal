@@ -163,6 +163,8 @@ function mapRpcWorkflowStep(raw: Record<string, unknown>): StaffRequestWorkflowS
     enteredAt: (raw.entered_at as string | null) ?? null,
     completedAt: (raw.completed_at as string | null) ?? null,
     notes: (raw.comment as string | null) ?? null,
+    actionType: (raw.action_type as string | null) ?? null,
+    isActionable: raw.is_actionable === true,
   };
 }
 
@@ -221,7 +223,61 @@ function mapRpcDetail(
     workflowIsPreview: isPreview,
     attachments,
     privacyNoticeAr: null,
+    activeStep: computeActiveStep(steps, isPreview),
   };
+}
+
+/** Pick the runtime active step (status='current' and not preview). */
+export function computeActiveStep(
+  steps: StaffRequestWorkflowStep[],
+  isPreview: boolean,
+): StaffRequestDetail["activeStep"] {
+  if (isPreview) return null;
+  const active = steps.find(
+    (s) => s.status === "current" && !s.isPreview && !s.id.startsWith("step:"),
+  );
+  if (!active) return null;
+  return {
+    id: active.id,
+    stepKey: active.stepKey,
+    actionType: active.actionType ?? null,
+    isActionable: active.isActionable === true,
+  };
+}
+
+/**
+ * Enrich workflow steps with action_type from request_type_workflow_steps.
+ * The RPC returns runtime rows (student_request_workflow_steps) but does not
+ * include the workflow-config action_type — we need it to gate UI panels
+ * (review / assess_fee / confirm_payment / sign / issue_document / archive).
+ */
+async function enrichWorkflowStepsWithActionType(
+  requestId: string,
+  steps: StaffRequestWorkflowStep[],
+): Promise<StaffRequestWorkflowStep[]> {
+  const runtimeIds = steps
+    .map((s) => s.id)
+    .filter((id) => !id.startsWith("step:"));
+  if (runtimeIds.length === 0) return steps;
+
+  const { data: rows, error } = await supabaseAdmin
+    .from("student_request_workflow_steps")
+    .select("id, workflow_step_id, config:request_type_workflow_steps!inner(action_type)")
+    .eq("student_request_id", requestId)
+    .in("id", runtimeIds);
+  if (error || !rows) return steps;
+
+  const actionTypeById = new Map<string, string | null>();
+  for (const row of rows as Array<{
+    id: string;
+    config?: { action_type?: string | null } | null;
+  }>) {
+    actionTypeById.set(row.id, row.config?.action_type ?? null);
+  }
+
+  return steps.map((s) =>
+    actionTypeById.has(s.id) ? { ...s, actionType: actionTypeById.get(s.id) ?? null } : s,
+  );
 }
 
 async function fetchLegacyInboxItems(): Promise<StaffRequestInboxItem[]> {
@@ -352,6 +408,7 @@ async function fetchLegacyRequestDetail(requestId: string): Promise<StaffRequest
     workflowIsPreview: true,
     attachments,
     privacyNoticeAr: null,
+    activeStep: null,
   };
 }
 
@@ -460,12 +517,21 @@ export const fetchStaffRequestDetail = createServerFn({ method: "POST" })
 
     if (!error && rpcDetail) {
       const mapped = mapRpcDetail(rpcDetail, []);
+      const enrichedSteps = await enrichWorkflowStepsWithActionType(
+        data.requestId,
+        mapped.workflowSteps,
+      );
+      const finalDetail: StaffRequestDetail = {
+        ...mapped,
+        workflowSteps: enrichedSteps,
+        activeStep: computeActiveStep(enrichedSteps, mapped.workflowIsPreview),
+      };
       return {
         available: true,
-        detail: mapped,
+        detail: finalDetail,
         reason: null,
         messageAr: null,
-        workflowRuntimeAvailable: mapped.workflowSteps.some((s) => !s.isPreview),
+        workflowRuntimeAvailable: finalDetail.workflowSteps.some((s) => !s.isPreview),
         dataSource: "actor_detail_rpc",
       };
     }
@@ -819,6 +885,125 @@ export const prepareStudentRequestDocumentArchiveAction = createServerFn({ metho
       }),
       actor,
     );
+  });
+
+/**
+ * Actions accepted by the review-type steps (action_type='review').
+ * Maps onto `act_on_student_request_step` p_action values (approve/reject/return/comment).
+ */
+export const REVIEW_STEP_EXECUTABLE_ACTIONS = ["approve", "reject", "return", "comment"] as const;
+export type ReviewStepExecutableAction = (typeof REVIEW_STEP_EXECUTABLE_ACTIONS)[number];
+
+const executeReviewActionSchema = z.object({
+  requestId: z.string().uuid(),
+  workflowStepRuntimeId: z.string().uuid(),
+  action: z.enum(REVIEW_STEP_EXECUTABLE_ACTIONS),
+  comment: z.string().trim().max(4000).optional().nullable(),
+});
+
+export type ExecuteStudentRequestStaffActionResult = {
+  success: boolean;
+  action: string;
+  stepId: string;
+  nextStepId: string | null;
+  requestStatus: string | null;
+  terminal: boolean;
+};
+
+/**
+ * Real executor for review-type workflow steps.
+ * Calls the SECURITY DEFINER RPC `act_on_student_request_step` under the
+ * caller's Supabase session — the RPC enforces:
+ *   - auth.uid() present
+ *   - can_current_user_act_on_step(step, action)  (processing assignment match)
+ *   - step status = 'active'
+ *   - transition exists for action_result
+ * so the frontend cannot bypass authorization or execute a future step.
+ */
+export const executeStudentRequestStaffAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => executeReviewActionSchema.parse(input))
+  .handler(async ({ data, context }): Promise<ExecuteStudentRequestStaffActionResult> => {
+    await assertStaffInboxAccess(context.userId);
+
+    // Confirm the passed runtime step belongs to the request and is currently active.
+    // We only allow review-type steps through this executor; sign / issue_document /
+    // archive have their own contracts and dedicated executors.
+    const { data: stepRow, error: stepErr } = await supabaseAdmin
+      .from("student_request_workflow_steps")
+      .select("id, status, student_request_id, config:request_type_workflow_steps!inner(action_type)")
+      .eq("id", data.workflowStepRuntimeId)
+      .maybeSingle();
+
+    if (stepErr) throw new Error(sanitizeStaffErrorMessage(stepErr.message));
+    if (!stepRow) throw new Error("الخطوة غير موجودة");
+    if (stepRow.student_request_id !== data.requestId) {
+      throw new Error("الخطوة لا تنتمي لهذا الطلب");
+    }
+    if (stepRow.status !== "active") {
+      throw new Error("الخطوة ليست نشطة — لا يمكن تنفيذ الإجراء");
+    }
+    const actionType =
+      (stepRow as { config?: { action_type?: string | null } }).config?.action_type ?? null;
+    if (actionType !== "review") {
+      throw new Error(
+        "منفذ المراجعة يدعم فقط خطوات action_type='review'. استخدم اللوحة المخصصة للخطوة الحالية.",
+      );
+    }
+    if ((data.action === "reject" || data.action === "return") && !data.comment?.trim()) {
+      throw new Error("التعليق مطلوب عند الرفض أو الإرجاع");
+    }
+
+    const { data: rpcData, error: rpcErr } = await (
+      context.supabase as {
+        rpc: (
+          name: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
+      }
+    ).rpc("act_on_student_request_step", {
+      p_step_id: data.workflowStepRuntimeId,
+      p_action: data.action,
+      p_comment: data.comment ?? null,
+      p_payload: {},
+    });
+
+    if (rpcErr) {
+      throw new Error(sanitizeStaffErrorMessage(rpcErr.message ?? "تعذر تنفيذ الإجراء"));
+    }
+
+    const payload = (rpcData ?? {}) as {
+      action?: string;
+      step_id?: string;
+      next_step_id?: string | null;
+      request_status?: string | null;
+      terminal?: boolean;
+    };
+
+    // Audit log — RPC already writes a workflow_event; audit gives cross-entity trace.
+    await supabaseAdmin.from("audit_logs").insert({
+      actor_user_id: context.userId,
+      actor_role: "staff",
+      entity_type: "student_request",
+      entity_id: data.requestId,
+      action_type: `workflow_${data.action}`,
+      notes: data.comment ?? null,
+      old_values: { step_id: data.workflowStepRuntimeId, step_status: "active" },
+      new_values: {
+        step_id: payload.step_id ?? data.workflowStepRuntimeId,
+        next_step_id: payload.next_step_id ?? null,
+        request_status: payload.request_status ?? null,
+      },
+    } as never);
+
+    return {
+      success: true,
+      action: payload.action ?? data.action,
+      stepId: payload.step_id ?? data.workflowStepRuntimeId,
+      nextStepId: payload.next_step_id ?? null,
+      requestStatus: payload.request_status ?? null,
+      terminal: payload.terminal === true,
+    };
   });
 
 export type { StaffInboxStatusFilter };
