@@ -176,7 +176,7 @@ describe("StaffRequestDetailPanel — gating by activeStep.actionType", () => {
     expect(PANEL_SRC).toMatch(
       /showEcIssueButton\s*=\s*activeType\s*===\s*["']issue_document["']/,
     );
-    expect(PANEL_SRC).toMatch(/\{showEcIssueButton\s*&&\s*<EnrollmentCertificateIssueButton/);
+    expect(PANEL_SRC).toMatch(/\{showEcIssueButton\s*&&\s*\(?\s*<EnrollmentCertificateIssueButton/);
   });
 
   it("passes the real runtime workflowStepRuntimeId (not null) to the action panel", () => {
