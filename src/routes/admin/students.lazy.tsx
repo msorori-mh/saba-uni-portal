@@ -57,6 +57,7 @@ function StudentsPage() {
   });
   const [appliedStudentQuery, setAppliedStudentQuery] = useState<{
     academic_number?: string;
+    query?: string;
     study_system: "all" | "regular" | "private";
     department_id?: string;
     program_id?: string;
@@ -68,6 +69,7 @@ function StudentsPage() {
     study_system: "all",
     status: "all",
   });
+
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
