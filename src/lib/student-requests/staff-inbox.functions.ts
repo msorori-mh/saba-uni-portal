@@ -517,12 +517,21 @@ export const fetchStaffRequestDetail = createServerFn({ method: "POST" })
 
     if (!error && rpcDetail) {
       const mapped = mapRpcDetail(rpcDetail, []);
+      const enrichedSteps = await enrichWorkflowStepsWithActionType(
+        data.requestId,
+        mapped.workflowSteps,
+      );
+      const finalDetail: StaffRequestDetail = {
+        ...mapped,
+        workflowSteps: enrichedSteps,
+        activeStep: computeActiveStep(enrichedSteps, mapped.workflowIsPreview),
+      };
       return {
         available: true,
-        detail: mapped,
+        detail: finalDetail,
         reason: null,
         messageAr: null,
-        workflowRuntimeAvailable: mapped.workflowSteps.some((s) => !s.isPreview),
+        workflowRuntimeAvailable: finalDetail.workflowSteps.some((s) => !s.isPreview),
         dataSource: "actor_detail_rpc",
       };
     }
