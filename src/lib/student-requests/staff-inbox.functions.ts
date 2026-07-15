@@ -372,7 +372,11 @@ export const fetchStaffInbox = createServerFn({ method: "POST" })
       };
     }
 
-    const rpcFilters: Record<string, unknown> = {};
+    // Show only steps currently awaiting action for THIS user.
+    // Default RPC status filter is ['pending','active'] which surfaces
+    // future/upcoming steps too — narrow to 'active' so the inbox reflects
+    // only the runtime step the user is expected to act on now.
+    const rpcFilters: Record<string, unknown> = { status: ["active"] };
     if (data.requestTypeCode) rpcFilters.request_type_code = data.requestTypeCode;
     if (data.departmentId) rpcFilters.department_id = data.departmentId;
     if (data.search) rpcFilters.search = data.search;
