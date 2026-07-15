@@ -1,5 +1,8 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
-import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+// Project-specific replacement for the auto-generated attach-attacher.
+// Proactively refreshes the access token when expired to avoid
+// `JWT has expired` from requireSupabaseAuth on stale sessions.
+import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher.local";
 
 import { renderErrorPage } from "./lib/error-page";
 
