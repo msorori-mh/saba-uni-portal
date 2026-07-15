@@ -92,7 +92,28 @@ export function CredentialsSlip({
             <SlipRow label="الإيميل الجامعي (اسم الدخول)" value={slip.email} mono onCopy={() => copy(slip.email)} />
             <SlipRow label="كلمة المرور المؤقتة" value={slip.password} mono onCopy={() => copy(slip.password)} />
           </div>
-          <p className="text-xs text-muted-foreground">سيُطلب من المستخدم تغيير كلمة المرور عند أول دخول.</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">سيُطلب من المستخدم تغيير كلمة المرور عند أول دخول.</p>
+            <button
+              onClick={copyAll}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${
+                copiedAll
+                  ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                  : "border-border bg-card hover:bg-secondary text-primary"
+              }`}
+              aria-live="polite"
+            >
+              {copiedAll ? (
+                <>
+                  <Check className="h-3.5 w-3.5" /> تم نسخ الكل
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" /> نسخ الكل
+                </>
+              )}
+            </button>
+          </div>
         </div>
         <div className="p-4 border-t border-border flex justify-end gap-2 bg-secondary/30">
           <button onClick={onClose} className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-bold">إغلاق</button>
@@ -105,15 +126,45 @@ export function CredentialsSlip({
   );
 }
 
-function SlipRow({ label, value, mono, onCopy }: { label: string; value: string; mono?: boolean; onCopy?: () => void }) {
+function SlipRow({ label, value, mono, onCopy }: { label: string; value: string; mono?: boolean; onCopy?: () => Promise<boolean> | void }) {
+  const [copied, setCopied] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  useEffect(() => () => { if (timerRef.current) window.clearTimeout(timerRef.current); }, []);
+
+  const handleCopy = async () => {
+    if (!onCopy) return;
+    const result = await onCopy();
+    if (result === false) return;
+    setCopied(true);
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="flex items-center justify-between gap-2 border-b border-dashed border-border last:border-0 pb-2 last:pb-0">
       <span className="text-xs text-muted-foreground">{label}</span>
       <div className="flex items-center gap-2">
         <span className={`${mono ? "font-mono" : ""} font-bold`} dir={mono ? "ltr" : undefined}>{value}</span>
         {onCopy && (
-          <button onClick={onCopy} className="p-1 hover:bg-secondary rounded text-muted-foreground" aria-label="نسخ" title="نسخ">
-            <Copy className="h-3.5 w-3.5" />
+          <button
+            onClick={handleCopy}
+            className={`inline-flex items-center gap-1 rounded px-1.5 py-1 text-[11px] font-bold transition-colors ${
+              copied
+                ? "bg-emerald-50 text-emerald-700"
+                : "text-muted-foreground hover:bg-secondary"
+            }`}
+            aria-label={copied ? "تم النسخ" : "نسخ"}
+            title={copied ? "تم النسخ" : "نسخ"}
+            aria-live="polite"
+          >
+            {copied ? (
+              <>
+                <Check className="h-3.5 w-3.5" />
+                <span>تم النسخ</span>
+              </>
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
           </button>
         )}
       </div>
