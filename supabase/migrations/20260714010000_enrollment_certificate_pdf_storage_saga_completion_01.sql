@@ -140,7 +140,7 @@ AS $$
 BEGIN
   RETURN upper(encode(extensions.gen_random_bytes(24), 'hex'));
 EXCEPTION
-  WHEN undefined_function OR undefined_schema THEN
+  WHEN undefined_function OR invalid_schema_name THEN
     RETURN upper(replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''));
 END;
 $$;
@@ -154,7 +154,7 @@ AS $$
 BEGIN
   RETURN encode(extensions.digest(convert_to(p_text, 'UTF8'), 'sha256'), 'hex');
 EXCEPTION
-  WHEN undefined_function OR undefined_schema THEN
+  WHEN undefined_function OR invalid_schema_name THEN
     -- Fallback uniqueness only (not cryptographic) — production installs pgcrypto.
     RETURN md5(p_text) || md5(reverse(p_text));
 END;
