@@ -750,19 +750,19 @@ function StudentsPage() {
             <Search className="h-5 w-5 text-gold" /> البحث واستعراض الطلاب
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            ابحث عن طالب واحد بالرقم الأكاديمي مباشرة، أو استخدم فلترًا أكاديميًا واحدًا على الأقل للاستعراض الجماعي.
+            ابحث عن طالب بالرقم الأكاديمي أو الاسم أو البريد الإلكتروني (تظهر النتائج تلقائياً بعد 3 أحرف)،
+            أو استخدم فلترًا أكاديميًا واحدًا على الأقل للاستعراض الجماعي.
           </p>
         </div>
 
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
-          <Field label="الرقم الأكاديمي">
+          <Field label="بحث بالرقم الأكاديمي أو الاسم أو البريد">
             <input
               value={academicSearch}
               onChange={(e) => setAcademicSearch(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") applyAcademicNumberSearch(); }}
-              dir="ltr"
-              placeholder="أدخل الرقم الأكاديمي الكامل"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono"
+              placeholder="مثال: 20250001 أو أحمد أو ahmad@..."
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             />
           </Field>
           <button
@@ -770,9 +770,10 @@ function StudentsPage() {
             onClick={applyAcademicNumberSearch}
             className="mt-5 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
           >
-            <Search className="h-4 w-4" /> بحث عن طالب
+            <Search className="h-4 w-4" /> بحث
           </button>
         </div>
+
 
         <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
