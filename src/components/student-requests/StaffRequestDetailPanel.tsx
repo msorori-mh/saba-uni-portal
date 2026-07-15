@@ -303,6 +303,29 @@ export function StaffRequestDetailPanel({
           requestTypeCode={detail.requestTypeCode}
         />
 
+        {(() => {
+          const currentStep =
+            detail.workflowSteps.find((s) => s.status === "current") ?? null;
+          return (
+            <EnrollmentCertificateIssueButton
+              requestId={detail.id}
+              requestTypeCode={detail.requestTypeCode}
+              currentStep={
+                currentStep
+                  ? {
+                      id: currentStep.id.startsWith("step:") ? null : currentStep.id,
+                      stepKey: currentStep.stepKey,
+                      status: currentStep.status,
+                      isPreview: (currentStep as { isPreview?: boolean }).isPreview,
+                    }
+                  : null
+              }
+              hasActiveOfficialDocument={false}
+              canActOnIssueDocument={workflowRuntimeAvailable}
+            />
+          );
+        })()}
+
         <StaffRequestActionPanel
           requestId={detail.id}
           requestTypeCode={detail.requestTypeCode}
@@ -315,6 +338,7 @@ export function StaffRequestDetailPanel({
           workflowRuntimeAvailable={workflowRuntimeAvailable}
           requestUpdatedAt={detail.updatedAt}
         />
+
       </div>
     </div>
   );
