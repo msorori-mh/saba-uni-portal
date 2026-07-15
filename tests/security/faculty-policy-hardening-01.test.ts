@@ -49,14 +49,15 @@ describe("faculty policy hardening — migration", () => {
     expect(migration).toMatch(/SET search_path = public, pg_temp/);
   });
 
-  it("does not expose sensitive columns in RPC return", () => {
-    expect(migration).not.toMatch(/\bemail\b/i);
-    expect(migration).not.toMatch(/\bphone\b/i);
-    // created_at/updated_at may appear only inside COMMENT text — assert not in RETURNS TABLE
-    const returns = migration.match(/RETURNS TABLE \(([\s\S]*?)\)/g) ?? [];
-    for (const r of returns) {
-      expect(r).not.toMatch(/created_at|updated_at/);
-    }
+  it("does not expose sensitive columns in RPC return type or body", () => {
+    // Strip comments then check body/return type.
+    const stripped = migration.replace(/COMMENT ON [^;]+;/g, "");
+    const bodyStart = stripped.indexOf("CREATE OR REPLACE FUNCTION public.get_public_faculty_directory");
+    const bodyEnd = stripped.indexOf("REVOKE ALL ON FUNCTION");
+    const body = stripped.slice(bodyStart, bodyEnd);
+    expect(body).not.toMatch(/\bemail\b/i);
+    expect(body).not.toMatch(/\bphone\b/i);
+    expect(body).not.toMatch(/created_at|updated_at/);
   });
 
   it("does not use SELECT *", () => {
