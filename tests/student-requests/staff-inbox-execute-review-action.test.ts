@@ -169,7 +169,7 @@ describe("StaffRequestDetailPanel — gating by activeStep.actionType", () => {
     expect(PANEL_SRC).toMatch(
       /showArchivePanel\s*=\s*activeType\s*===\s*["']archive["']/,
     );
-    expect(PANEL_SRC).toMatch(/\{showArchivePanel\s*&&\s*<RequestDocumentArchivePanel/);
+    expect(PANEL_SRC).toMatch(/\{showArchivePanel\s*&&\s*\(?\s*<RequestDocumentArchivePanel/);
   });
 
   it("shows enrollment certificate issue button ONLY for issue_document active step", () => {
