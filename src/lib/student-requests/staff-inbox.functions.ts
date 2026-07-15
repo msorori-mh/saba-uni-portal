@@ -408,6 +408,7 @@ async function fetchLegacyRequestDetail(requestId: string): Promise<StaffRequest
     workflowIsPreview: true,
     attachments,
     privacyNoticeAr: null,
+    activeStep: null,
   };
 }
 
