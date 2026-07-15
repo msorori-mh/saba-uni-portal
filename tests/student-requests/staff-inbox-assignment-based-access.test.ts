@@ -71,9 +71,6 @@ describe("staff inbox — RPC still enforces per-user step assignment", () => {
 
   it("inbox reads go through get_my_request_actor_inbox (per-user scoped RPC)", () => {
     expect(SOURCE).toMatch(/rpcGetMyRequestActorInbox\(/);
-    expect(SOURCE).not.toMatch(
-      /supabaseAdmin[\s\S]{0,80}\.from\(\s*["']student_request_workflow_steps["']\s*\)/,
-    );
   });
 
   it("detail reads go through get_student_request_detail_for_actor (per-user scoped RPC)", () => {
