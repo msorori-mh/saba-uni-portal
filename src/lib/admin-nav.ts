@@ -106,6 +106,7 @@ export const NAV_ITEM_ROLES: Record<string, readonly string[]> = {
   "/admin/roles": ["system_admin", "admin"],
   "/admin/user-roles": ["system_admin", "admin"],
   "/admin/organizational-structure": ["system_admin", "admin", "dean"],
+  "/admin/processing-assignments": ["system_admin", "admin"],
   "/admin/security-status": ["system_admin", "admin"],
   "/admin/operations": ["system_admin", "admin"],
   "/admin/pilot-center": ["system_admin", "admin"],
