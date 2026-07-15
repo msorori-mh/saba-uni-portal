@@ -244,6 +244,8 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
 
     const academicNumber = data.academic_number?.trim() ?? "";
     const hasAcademicNumber = academicNumber.length > 0;
+    const rawQuery = sanitizePostgrestSearch(data.query ?? "");
+    const hasQuery = rawQuery.length >= 3;
     const hasGroupFilter = Boolean(
       (data.study_system && data.study_system !== "all")
       || data.department_id
@@ -254,14 +256,14 @@ export const listStudentsForAdmin = createServerFn({ method: "POST" })
       || (data.status && data.status !== "all"),
     );
 
-    if (!hasAcademicNumber && !hasGroupFilter) {
+    if (!hasAcademicNumber && !hasQuery && !hasGroupFilter) {
       return {
         rows: [],
         total: 0,
         page: data.page,
         pageSize: data.pageSize,
         mode: "empty" as const,
-        message: "اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي",
+        message: "اختر فلترًا واحدًا على الأقل أو أدخل الرقم الأكاديمي أو الاسم أو البريد",
       };
     }
 
