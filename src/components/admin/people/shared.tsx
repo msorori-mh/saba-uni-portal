@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Copy, Printer, CheckCircle2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Copy, Printer, CheckCircle2, Check } from "lucide-react";
 
 export type CredentialsSlipData = {
   full_name_ar: string;
