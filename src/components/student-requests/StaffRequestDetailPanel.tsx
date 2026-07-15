@@ -291,53 +291,68 @@ export function StaffRequestDetailPanel({
           isPreview={detail.workflowIsPreview}
         />
 
-        <StaffRequestFeeProcessingSection requestId={detail.id} />
-
-        <StaffRequestFinanceClearancePanel
-          requestId={detail.id}
-          requestTypeCode={detail.requestTypeCode}
-        />
-
-        <RequestDocumentArchivePanel
-          requestId={detail.id}
-          requestTypeCode={detail.requestTypeCode}
-        />
-
         {(() => {
-          const currentStep =
-            detail.workflowSteps.find((s) => s.status === "current") ?? null;
+          const active = detail.activeStep;
+          const activeType = active?.actionType ?? null;
+
+          const showFee = activeType === "assess_fee" || activeType === "confirm_payment";
+          const showFinanceClearance = activeType === "clearance" || activeType === "finance_clearance";
+          const showArchivePanel = activeType === "archive";
+          const showEcIssueButton = activeType === "issue_document";
+          const isReviewStep = activeType === "review";
+
           return (
-            <EnrollmentCertificateIssueButton
-              requestId={detail.id}
-              requestTypeCode={detail.requestTypeCode}
-              currentStep={
-                currentStep
-                  ? {
-                      id: currentStep.id.startsWith("step:") ? null : currentStep.id,
-                      stepKey: currentStep.stepKey,
-                      status: currentStep.status,
-                      isPreview: (currentStep as { isPreview?: boolean }).isPreview,
-                    }
-                  : null
-              }
-              hasActiveOfficialDocument={false}
-              canActOnIssueDocument={workflowRuntimeAvailable}
-            />
+            <>
+              {showFee && <StaffRequestFeeProcessingSection requestId={detail.id} />}
+
+              {showFinanceClearance && (
+                <StaffRequestFinanceClearancePanel
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                />
+              )}
+
+              {showArchivePanel && (
+                <RequestDocumentArchivePanel
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                />
+              )}
+
+              {showEcIssueButton && (
+                <EnrollmentCertificateIssueButton
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                  currentStep={
+                    active
+                      ? {
+                          id: active.id,
+                          stepKey: active.stepKey,
+                          status: "current",
+                          isPreview: false,
+                        }
+                      : null
+                  }
+                  hasActiveOfficialDocument={false}
+                  canActOnIssueDocument={workflowRuntimeAvailable}
+                />
+              )}
+
+              <StaffRequestActionPanel
+                requestId={detail.id}
+                requestTypeCode={detail.requestTypeCode}
+                currentStepKey={active?.stepKey ?? null}
+                currentRoleKey={detail.currentRoleKey}
+                workflowStepRuntimeId={active?.id ?? null}
+                activeStepActionType={activeType}
+                activeStepIsActionable={active?.isActionable ?? false}
+                workflowRuntimeAvailable={workflowRuntimeAvailable}
+                requestUpdatedAt={detail.updatedAt}
+                canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
+              />
+            </>
           );
         })()}
-
-        <StaffRequestActionPanel
-          requestId={detail.id}
-          requestTypeCode={detail.requestTypeCode}
-          currentStepKey={
-            detail.workflowSteps.find((s) => s.status === "current")?.stepKey ??
-            detail.currentRoleKey
-          }
-          currentRoleKey={detail.currentRoleKey}
-          workflowStepRuntimeId={null}
-          workflowRuntimeAvailable={workflowRuntimeAvailable}
-          requestUpdatedAt={detail.updatedAt}
-        />
 
       </div>
     </div>
