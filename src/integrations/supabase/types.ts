@@ -5971,6 +5971,30 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_public_faculty_count: { Args: never; Returns: number }
+      get_public_faculty_directory: {
+        Args: never
+        Returns: {
+          admin_position: string
+          admin_position_order: number
+          bio_ar: string
+          bio_en: string
+          category: string
+          degree: string
+          employee_id: string
+          full_name_ar: string
+          full_name_en: string
+          id: string
+          is_active: boolean
+          photo: string
+          program_id: string
+          programs: Json
+          rank: string
+          sort_order: number
+          specialization: string
+          start_year: number
+        }[]
+      }
       get_student_request_detail_for_actor: {
         Args: { p_request_id: string }
         Returns: Json
