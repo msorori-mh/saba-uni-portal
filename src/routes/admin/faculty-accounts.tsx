@@ -221,7 +221,7 @@ function FacultyAccountsPage() {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="بحث برقم الوظيفي أو الاسم..."
+              placeholder="بحث برقم الوظيفي أو الاسم أو البريد (3 أحرف فأكثر)..."
               className="w-full rounded-md border border-input bg-background px-3 py-2 pr-9 text-sm"
             />
           </div>
