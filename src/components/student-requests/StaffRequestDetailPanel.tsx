@@ -14,6 +14,7 @@ import {
 import { StudentRequestFormDataView } from "@/components/student-requests/StudentRequestFormDataView";
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
+import { EnrollmentCertificateIssueButton } from "@/components/student-requests/EnrollmentCertificateIssueButton";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
 import { RequestDocumentArchivePanel } from "@/components/student-requests/RequestDocumentArchivePanel";
 import { StudentRequestFeeAssessmentForm } from "@/components/student-requests/StudentRequestFeeAssessmentForm";
