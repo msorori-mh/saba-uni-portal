@@ -110,15 +110,16 @@ export const statsQuery = queryOptions({
 export const liveCountsQuery = queryOptions({
   queryKey: ["live_counts"],
   queryFn: async () => {
-    const [programs, faculty, papers, news] = await Promise.all([
+    const [programs, facultyCount, papers, news] = await Promise.all([
       supabase.from("programs").select("id", { count: "exact", head: true }).eq("is_active", true),
-      supabase.from("faculty").select("id", { count: "exact", head: true }).eq("is_active", true),
+      supabase.rpc("get_public_faculty_count"),
       supabase.from("research_papers").select("id", { count: "exact", head: true }).eq("is_published", true),
       supabase.from("news").select("id", { count: "exact", head: true }).eq("is_published", true),
     ]);
+    const facultyNum = Number(facultyCount.data ?? 0);
     return {
       programs: programs.count ?? 0,
-      faculty: faculty.count ?? 0,
+      faculty: Number.isFinite(facultyNum) ? facultyNum : 0,
       research: papers.count ?? 0,
       news: news.count ?? 0,
     };
