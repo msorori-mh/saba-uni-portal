@@ -73,8 +73,8 @@ STATIC_REVIEW_PASS_RUNTIME_COMPILATION_NOT_EXECUTED
 
 | Item | Value |
 | --- | --- |
-| Commit SHA | `45dd6486c296b5477b310ad5265c4d627bea5c8e` |
-| Pull Request | _(filled after PR open)_ |
+| Commit SHA | `43e979b486a8bd95a538e260b26c596df3394280` |
+| Pull Request | [#127](https://github.com/msorori-mh/saba-uni-portal/pull/127) |
 
 ## Changed files (scope)
 
