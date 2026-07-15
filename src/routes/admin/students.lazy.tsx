@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link, useRouteContext } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
