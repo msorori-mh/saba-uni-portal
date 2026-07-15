@@ -106,6 +106,8 @@ export type StaffRequestDetail = {
   workflowIsPreview: boolean;
   attachments: StaffRequestAttachment[];
   privacyNoticeAr: string | null;
+  /** Runtime active step (status='active') for the current viewer, if any. */
+  activeStep: StaffRequestActiveStep | null;
 };
 
 export type StaffRequestActionDefinition = {
