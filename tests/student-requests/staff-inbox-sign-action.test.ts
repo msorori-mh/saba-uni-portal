@@ -39,8 +39,13 @@ const DETAIL_PANEL_SRC = readFileSync(
 );
 
 const signExecutorStart = SERVER_SRC.indexOf("export const executeStudentRequestSignAction");
+const signExecutorEnd = (() => {
+  if (signExecutorStart < 0) return -1;
+  const nextExport = SERVER_SRC.indexOf("\nexport const ", signExecutorStart + 1);
+  return nextExport > 0 ? nextExport : SERVER_SRC.length;
+})();
 const signExecutorBlock =
-  signExecutorStart >= 0 ? SERVER_SRC.slice(signExecutorStart) : "";
+  signExecutorStart >= 0 ? SERVER_SRC.slice(signExecutorStart, signExecutorEnd) : "";
 
 describe("executeStudentRequestSignAction — server fn contract", () => {
   it("exists as a POST createServerFn", () => {
