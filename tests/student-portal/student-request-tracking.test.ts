@@ -121,10 +121,11 @@ describe("assessStudentRequestFee — fee notification", () => {
   });
 
   it("is idempotent — pre-checks existing notifications by (user_id, notification_type, reference_id)", () => {
-    const helperBlock =
-      FEE_SRC.match(
-        /async function insertFeeAssessmentNotificationIfMissing[\s\S]*?^}/m,
-      )?.[0] ?? "";
+    const start = FEE_SRC.indexOf("async function insertFeeAssessmentNotificationIfMissing");
+    const end = FEE_SRC.indexOf("function formatFeeAmount", start) >= 0
+      ? FEE_SRC.indexOf("export const assessStudentRequestFee", start)
+      : FEE_SRC.length;
+    const helperBlock = start >= 0 ? FEE_SRC.slice(start, end > start ? end : FEE_SRC.length) : "";
     expect(helperBlock).not.toEqual("");
     // Pre-check query fingerprint
     expect(helperBlock).toMatch(/from\(\s*["']notifications["']\s*\)/);
