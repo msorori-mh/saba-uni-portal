@@ -14,6 +14,7 @@ import {
 import { StudentRequestFormDataView } from "@/components/student-requests/StudentRequestFormDataView";
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
+import { StaffRequestSignaturePanel } from "@/components/student-requests/StaffRequestSignaturePanel";
 import { EnrollmentCertificateIssueButton } from "@/components/student-requests/EnrollmentCertificateIssueButton";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
 import { RequestDocumentArchivePanel } from "@/components/student-requests/RequestDocumentArchivePanel";
@@ -299,6 +300,7 @@ export function StaffRequestDetailPanel({
           const showFinanceClearance = activeType === "clearance" || activeType === "finance_clearance";
           const showArchivePanel = activeType === "archive";
           const showEcIssueButton = activeType === "issue_document";
+          const showSignPanel = activeType === "sign";
           const isReviewStep = activeType === "review";
 
           return (
@@ -338,18 +340,31 @@ export function StaffRequestDetailPanel({
                 />
               )}
 
-              <StaffRequestActionPanel
-                requestId={detail.id}
-                requestTypeCode={detail.requestTypeCode}
-                currentStepKey={active?.stepKey ?? null}
-                currentRoleKey={detail.currentRoleKey}
-                workflowStepRuntimeId={active?.id ?? null}
-                activeStepActionType={activeType}
-                activeStepIsActionable={active?.isActionable ?? false}
-                workflowRuntimeAvailable={workflowRuntimeAvailable}
-                requestUpdatedAt={detail.updatedAt}
-                canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
-              />
+              {showSignPanel && (
+                <StaffRequestSignaturePanel
+                  requestId={detail.id}
+                  workflowStepRuntimeId={active?.id ?? null}
+                  stepKey={active?.stepKey ?? null}
+                  actionType={activeType}
+                  isActionable={active?.isActionable ?? false}
+                  workflowRuntimeAvailable={workflowRuntimeAvailable}
+                />
+              )}
+
+              {!showSignPanel && (
+                <StaffRequestActionPanel
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                  currentStepKey={active?.stepKey ?? null}
+                  currentRoleKey={detail.currentRoleKey}
+                  workflowStepRuntimeId={active?.id ?? null}
+                  activeStepActionType={activeType}
+                  activeStepIsActionable={active?.isActionable ?? false}
+                  workflowRuntimeAvailable={workflowRuntimeAvailable}
+                  requestUpdatedAt={detail.updatedAt}
+                  canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
+                />
+              )}
             </>
           );
         })()}
