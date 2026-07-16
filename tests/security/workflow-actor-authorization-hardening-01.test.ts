@@ -168,8 +168,9 @@ describe("is_current_user_dean_for_student — dean via request_processing_assig
   });
 
   it("documents that multi-college scope is out of scope for this hardening", () => {
-    expect(body).toMatch(/single-college/i);
-    expect(body).toMatch(/multi-college/i);
+    // The note lives in the surrounding SQL comment block, not the function body.
+    expect(DRAFT).toMatch(/single-college/i);
+    expect(DRAFT).toMatch(/multi-college/i);
   });
 });
 
