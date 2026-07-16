@@ -170,23 +170,22 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(page).toContain("portalFeatures.studentFinance");
   });
 
-  it("12 — الجهة الحالية uses Arabic labels; unset ≠ em dash only", () => {
+  it("12 — current stage now derived from student_request_workflow_steps (no current_role_key on card)", () => {
+    // Helper still exports these for other legacy surfaces / imports.
     expect(formatStudentCurrentProcessingUnitLabel(null)).toBe(
       CURRENT_PROCESSING_UNIT_UNSET_LABEL_AR,
     );
-    expect(formatStudentCurrentProcessingUnitLabel("")).toBe(
-      CURRENT_PROCESSING_UNIT_UNSET_LABEL_AR,
-    );
     expect(formatStudentCurrentProcessingUnitLabel("student_affairs")).toBe("شؤون الطلاب");
-    expect(formatStudentCurrentProcessingUnitLabel("registrar")).toBe("مسجل الكلية");
-    expect(formatStudentCurrentProcessingUnitLabel("dean")).toBe("عمادة الكلية");
-    expect(formatStudentCurrentProcessingUnitLabel("archive_officer")).toBe("الأرشيف");
     expect(CURRENT_PROCESSING_UNIT_READ_CONTRACT_GAP).toContain(
       "CURRENT_PROCESSING_UNIT_READ_CONTRACT_GAP",
     );
+    // The student requests LIST page no longer reads current_role_key —
+    // it shows the workflow-derived Arabic stage name (currentStageAr).
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
-    expect(page).toContain("formatStudentCurrentProcessingUnitLabel");
-    expect(page).not.toContain('current_role_key ?? "—"');
+    expect(page).not.toContain("formatStudentCurrentProcessingUnitLabel");
+    expect(page).not.toContain("current_role_key");
+    expect(page).toContain("currentStageAr");
+    expect(page).toContain("المرحلة الحالية");
   });
 
   it("13 — no Migration / Auth / role grant mutations in this phase files", () => {
