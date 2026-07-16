@@ -67,6 +67,8 @@ describe("student request detail: eligibility banner is scoped to creation", () 
   it("component source guards against re-evaluating existing requests", () => {
     expect(COMPONENT_SRC).toContain("existingRequestStatus");
     expect(COMPONENT_SRC).toContain("HIDDEN_FOR_EXISTING_REQUEST");
+  });
+
   it("detail route renders status-specific banners for returned / rejected / cancelled", () => {
     // returned uses the existing showReturnBanner path
     expect(DETAIL_SRC).toContain("showReturnBanner");
