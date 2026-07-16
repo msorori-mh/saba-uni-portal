@@ -300,6 +300,7 @@ export function StaffRequestDetailPanel({
           const showFinanceClearance = activeType === "clearance" || activeType === "finance_clearance";
           const showArchivePanel = activeType === "archive";
           const showEcIssueButton = activeType === "issue_document";
+          const showSignPanel = activeType === "sign";
           const isReviewStep = activeType === "review";
 
           return (
