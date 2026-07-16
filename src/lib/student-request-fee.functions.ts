@@ -181,6 +181,24 @@ export const assessStudentRequestFee = createServerFn({ method: "POST" })
     if (!raw.success) {
       throw new Error("تعذر تقييم الرسوم");
     }
+
+    const finalAmount = Number(raw.amount ?? data.amount ?? 0);
+    // Fire-and-record notification. Only when amount > 0 AND no prior
+    // notification exists for this (student, request). Failure to insert
+    // must NOT fail the fee assessment itself (the workflow is already
+    // committed by the SECURITY DEFINER RPC above).
+    let notificationInserted = false;
+    try {
+      const notif = await insertFeeAssessmentNotificationIfMissing({
+        requestId: data.requestId,
+        amount: finalAmount,
+        currency: "YER",
+      });
+      notificationInserted = notif.inserted;
+    } catch {
+      notificationInserted = false;
+    }
+
     return {
       ok: true as const,
       assessmentId: raw.assessment_id ?? null,
@@ -188,6 +206,7 @@ export const assessStudentRequestFee = createServerFn({ method: "POST" })
       paymentStatus: raw.payment_status ?? null,
       actionResult: raw.action_result ?? null,
       notifyStudent: Boolean(raw.notify_student),
+      notificationInserted,
     };
   });
 
