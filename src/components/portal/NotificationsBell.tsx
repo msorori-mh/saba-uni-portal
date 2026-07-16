@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, CheckCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getNotificationLink } from "@/lib/notifications/notification-link";
 
 type Notification = {
   id: string;
@@ -78,7 +79,8 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
   const openItem = async (n: Notification) => {
     if (!n.is_read) await markRead(n.id);
     setOpen(false);
-    if (seeAllHref) navigate({ to: seeAllHref });
+    const target = getNotificationLink(n) ?? seeAllHref;
+    if (target) navigate({ to: target });
   };
 
   return (
