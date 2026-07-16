@@ -230,6 +230,19 @@ function StudentRequestDetailsPage() {
   const lastReturnReason: string | null = lastReturnEvent?.notes ?? null;
   const showReturnBanner = canResubmit;
 
+  // Detail-page status banners (not creation-time eligibility) —
+  // STUDENT-REQUEST-DETAIL-ELIGIBILITY-BANNER-UX-FIX-01.
+  const isRejected = request.status === "rejected";
+  const isCancelled = request.status === "cancelled";
+  const findEventReason = (needle: string): { reason: string | null; at: string | null } => {
+    const evt = [...(data.events ?? [])].reverse().find((e: any) =>
+      String(e.event_type ?? "").toLowerCase().includes(needle),
+    );
+    return { reason: evt?.notes ?? null, at: evt?.created_at ?? null };
+  };
+  const rejectionInfo = isRejected ? findEventReason("reject") : { reason: null, at: null };
+  const cancellationInfo = isCancelled ? findEventReason("cancel") : { reason: null, at: null };
+
   return (
     <div dir="rtl" className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
