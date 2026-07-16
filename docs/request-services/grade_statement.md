@@ -24,7 +24,7 @@ None.
 - **document_type:** `grade_statement` (distinct).
 
 ## Operational steps
-Same 7-step shape as `academic_record` (with dean signature).
+Same 7-step shape as `academic_record` (with dean signature). Since this service is graduate-only, `initial_review` and `document_issuance` bind to `graduate_affairs / graduate_affairs_specialist` (صالح علي), with `graduate_affairs_manager` (محمد شوقي) as the managerial surface. All other steps unchanged.
 
 ## Transitions
 Standard forward + return + reject.

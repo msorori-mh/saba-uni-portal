@@ -23,13 +23,13 @@ None.
 - **document_type:** `graduation_certificate` (distinct).
 
 ## Operational steps
-1. `initial_review` — `student_affairs / student_affairs_specialist`
+1. `initial_review` — `graduate_affairs / graduate_affairs_specialist` (صالح علي)
 2. `graduation_verification` — `registrar / registrar_general` *(verifies transcript + cumulative pass)*
 3. `fee_assessment` — `finance / revenue_finance_officer`
 4. `payment_confirmation` — `finance / revenue_finance_officer`
 5. `registrar_signature` — `registrar / registrar_general`
 6. `dean_signature` — `dean / dean`
-7. `document_issuance` — `student_affairs / student_affairs_specialist`
+7. `document_issuance` — `graduate_affairs / graduate_affairs_specialist` (with `graduate_affairs_manager` as managerial oversight in the same unit)
 8. `archive` — `archive / archive_officer`
 
 ## Transitions

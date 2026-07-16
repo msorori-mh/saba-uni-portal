@@ -23,13 +23,16 @@ None.
 - **document_type:** `academic_record` (distinct).
 
 ## Operational steps
-Same 6-step shape as `grade_statement_non_graduate`:
-1. `initial_review` — `student_affairs / student_affairs_specialist`
+Routing splits by the student's status at request time:
+- **`status='active'`** → intake + issuance on `student_affairs / student_affairs_specialist` (هيثم الشبلي).
+- **`status='graduated'`** → intake + issuance on `graduate_affairs / graduate_affairs_specialist` (صالح علي), with `graduate_affairs_manager` (محمد شوقي) as the managerial fallback surface in the same unit.
+
+1. `initial_review` — `student_affairs / student_affairs_specialist` **OR** `graduate_affairs / graduate_affairs_specialist` (per rule above)
 2. `fee_assessment` — `finance / revenue_finance_officer`
 3. `payment_confirmation` — `finance / revenue_finance_officer`
 4. `registrar_signature` — `registrar / registrar_general`
 5. `dean_signature` — `dean / dean` *(required for academic_record; distinguishes from grade_statement_non_graduate)*
-6. `document_issuance` — `student_affairs / student_affairs_specialist`
+6. `document_issuance` — same unit as step 1
 7. `archive` — `archive / archive_officer`
 
 ## Transitions
