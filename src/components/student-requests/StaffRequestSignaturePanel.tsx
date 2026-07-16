@@ -11,7 +11,7 @@ import { executeStudentRequestSignAction } from "@/lib/student-requests/staff-in
  * derived from `stepKey` so any additional sign step (e.g. vice-president)
  * only needs a new entry in SIGN_STEP_LABELS.
  *
- * The panel never creates PDFs or documents — issuance stays in
+ * The panel never creates documents — issuance stays in
  * document_issuance. Execution goes through act_on_student_request_step
  * under the caller's session, so DB `can_current_user_act_on_step` still
  * gates the actor + step-status invariants server-side.
