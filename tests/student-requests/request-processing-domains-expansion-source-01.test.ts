@@ -44,20 +44,24 @@ describe("processing-domains expansion draft — additive-only", () => {
     expect(DRAFT).toMatch(/ON CONFLICT \(unit_id, code\) DO NOTHING/);
   });
 
+  // Strip SQL comments so guarantees written in the header don't create false
+  // matches; we only care about the actual DDL/DML statements.
+  const CODE = DRAFT.replace(/--[^\n]*\n/g, "\n");
+
   it("never introduces a student_activities unit or role", () => {
-    expect(DRAFT).not.toMatch(/student_activities/i);
+    expect(CODE).not.toMatch(/student_activities/i);
   });
 
   it("never mutates user_roles", () => {
-    expect(DRAFT).not.toMatch(/\buser_roles\b/i);
+    expect(CODE).not.toMatch(/\buser_roles\b/i);
   });
 
   it("never touches enrollment_certificate workflow, requests, documents or fees", () => {
-    expect(DRAFT).not.toMatch(/enrollment_certificate/i);
-    expect(DRAFT).not.toMatch(/student_requests\b/i);
-    expect(DRAFT).not.toMatch(/official_documents\b/i);
-    expect(DRAFT).not.toMatch(/fee_types\b/i);
-    expect(DRAFT).not.toMatch(/DROP |DELETE |UPDATE /i);
+    expect(CODE).not.toMatch(/enrollment_certificate/i);
+    expect(CODE).not.toMatch(/student_requests\b/i);
+    expect(CODE).not.toMatch(/official_documents\b/i);
+    expect(CODE).not.toMatch(/fee_types\b/i);
+    expect(CODE).not.toMatch(/\b(DROP|DELETE|UPDATE)\b/i);
   });
 
   it("assigns each of the four staff-profile roles with NOT EXISTS idempotency", () => {
@@ -105,8 +109,9 @@ describe("user_roles is not a bypass for workflow step authorization", () => {
     for (const f of sorted) {
       const body = readFileSync(join(migrationsDir, f), "utf-8");
       const re = new RegExp(
-        String.raw`CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.${name}\b[\s\S]*?\$function\$|` +
-          String.raw`CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.${name}\b[\s\S]*?\$\$;`,
+        String.raw`CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.` +
+          name +
+          String.raw`\b[\s\S]*?\$function\$[\s\S]*?\$function\$`,
         "i",
       );
       const m = body.match(re);
