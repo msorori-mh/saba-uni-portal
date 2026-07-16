@@ -1,18 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ClipboardList, FileText, Loader2, Plus } from "lucide-react";
+import { ClipboardList, FileText, Loader2, Plus, Wallet } from "lucide-react";
 import {
-  getMyStudentServiceRequests,
   getStudentRequestTypesForStudent,
 } from "@/lib/student-affairs.functions";
+import { getMyStudentRequestsWithProgress } from "@/lib/student-requests/student-tracking.functions";
 import {
   filterAvailableRequestTypesForStudentPage,
   isRequestTypeActionable,
 } from "@/lib/student-requests/available-request-types-ui";
 import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
 import { getStudentRequestTypeDisplayName } from "@/lib/student-requests/request-type-registry";
-import { formatStudentCurrentProcessingUnitLabel } from "@/lib/student-requests/student-request-unit-label";
 import { portalFeatures } from "@/lib/portal-features";
 
 export const Route = createFileRoute("/student/requests/")({
@@ -39,13 +38,33 @@ type RequestRow = {
   request_type_name_ar?: string | null;
   title: string;
   status: string;
-  current_role_key: string | null;
   submitted_at: string | null;
   updated_at: string;
+  currentStageAr: string | null;
+  currentStepKey: string | null;
+  fee: {
+    status: string;
+    amount: number;
+    currency: string;
+    requiresPayment: boolean;
+    isConfirmed: boolean;
+  };
 };
 
+function formatFeeShort(fee: RequestRow["fee"]): { text: string; tone: "danger" | "success" | "muted" } {
+  if (fee.requiresPayment) {
+    return {
+      text: `مطلوب سداد ${Math.round(fee.amount * 100) / 100} ${fee.currency === "YER" ? "ريال" : fee.currency}`,
+      tone: "danger",
+    };
+  }
+  if (fee.isConfirmed) return { text: "تم تأكيد السداد", tone: "success" };
+  if (fee.status === "not_required") return { text: "لا رسوم مطلوبة", tone: "success" };
+  return { text: "—", tone: "muted" };
+}
+
 function StudentRequestsIndexPage() {
-  const listFn = useServerFn(getMyStudentServiceRequests);
+  const listFn = useServerFn(getMyStudentRequestsWithProgress);
   const typesFn = useServerFn(getStudentRequestTypesForStudent);
 
   const {
@@ -54,7 +73,7 @@ function StudentRequestsIndexPage() {
     isError: requestsError,
     error: requestsErr,
   } = useQuery({
-    queryKey: ["student-affairs", "my-requests"],
+    queryKey: ["student-affairs", "my-requests-progress"],
     queryFn: () => listFn({ data: {} }),
   });
 
@@ -68,6 +87,7 @@ function StudentRequestsIndexPage() {
     staleTime: 60_000,
     retry: 1,
   });
+
 
   const services = filterAvailableRequestTypesForStudentPage(
     filterStudentRequestTypesForDisplay(
@@ -234,14 +254,28 @@ function StudentRequestsIndexPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground">
                       <div>
-                        <span className="font-semibold text-foreground/70">الجهة: </span>
-                        {formatStudentCurrentProcessingUnitLabel(request.current_role_key)}
+                        <span className="font-semibold text-foreground/70">المرحلة الحالية: </span>
+                        {request.currentStageAr ?? "—"}
                       </div>
                       <div>
                         <span className="font-semibold text-foreground/70">التقديم: </span>
                         {request.submitted_at
                           ? new Date(request.submitted_at).toLocaleDateString("ar-EG")
                           : "—"}
+                      </div>
+                      <div className="col-span-2 flex items-center gap-1">
+                        <Wallet className="h-3 w-3" />
+                        <span className="font-semibold text-foreground/70">الرسوم: </span>
+                        {(() => {
+                          const f = formatFeeShort(request.fee);
+                          const cls =
+                            f.tone === "danger"
+                              ? "text-orange-800 font-bold"
+                              : f.tone === "success"
+                                ? "text-emerald-700 font-semibold"
+                                : "";
+                          return <span className={cls}>{f.text}</span>;
+                        })()}
                       </div>
                       <div className="col-span-2">
                         <span className="font-semibold text-foreground/70">آخر تحديث: </span>
@@ -268,7 +302,8 @@ function StudentRequestsIndexPage() {
                       <th className="px-3 py-2 text-right">نوع الطلب</th>
                       <th className="px-3 py-2 text-right">العنوان</th>
                       <th className="px-3 py-2 text-right">الحالة</th>
-                      <th className="px-3 py-2 text-right">الجهة الحالية</th>
+                      <th className="px-3 py-2 text-right">المرحلة الحالية</th>
+                      <th className="px-3 py-2 text-right">الرسوم</th>
                       <th className="px-3 py-2 text-right">تاريخ التقديم</th>
                       <th className="px-3 py-2 text-right">آخر تحديث</th>
                       <th className="px-3 py-2 text-right">التفاصيل</th>
@@ -292,8 +327,18 @@ function StudentRequestsIndexPage() {
                         <td className="px-3 py-2">
                           {STATUS_LABEL[request.status] ?? request.status}
                         </td>
+                        <td className="px-3 py-2">{request.currentStageAr ?? "—"}</td>
                         <td className="px-3 py-2">
-                          {formatStudentCurrentProcessingUnitLabel(request.current_role_key)}
+                          {(() => {
+                            const f = formatFeeShort(request.fee);
+                            const cls =
+                              f.tone === "danger"
+                                ? "text-orange-800 font-bold"
+                                : f.tone === "success"
+                                  ? "text-emerald-700 font-semibold"
+                                  : "";
+                            return <span className={cls}>{f.text}</span>;
+                          })()}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {request.submitted_at

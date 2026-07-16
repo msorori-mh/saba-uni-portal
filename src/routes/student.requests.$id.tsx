@@ -2,17 +2,152 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
-import { AlertCircle, FileText, Loader2, Send } from "lucide-react";
+import { AlertCircle, CheckCircle2, Circle, Clock, FileText, Loader2, Send, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import {
   getStudentServiceRequestDetails,
   getStudentRequestAttachmentSignedUrl,
   submitStudentServiceRequest,
 } from "@/lib/student-affairs.functions";
+import {
+  getStudentRequestFeeSummaryForStudent,
+  getStudentRequestWorkflowTimelineForStudent,
+  type StudentFeeSummary,
+  type StudentWorkflowTimelineStep,
+} from "@/lib/student-requests/student-tracking.functions";
 
 export const Route = createFileRoute("/student/requests/$id")({
   component: StudentRequestDetailsPage,
 });
+
+const STEP_STATUS_META: Record<
+  StudentWorkflowTimelineStep["status"],
+  { label: string; className: string; icon: typeof CheckCircle2 }
+> = {
+  completed: { label: "مكتملة", className: "text-emerald-700 bg-emerald-50 border-emerald-200", icon: CheckCircle2 },
+  current: { label: "الحالية", className: "text-primary bg-primary/10 border-primary/30", icon: Clock },
+  upcoming: { label: "قادمة", className: "text-muted-foreground bg-muted/40 border-border", icon: Circle },
+  skipped: { label: "متجاوَزة", className: "text-muted-foreground bg-muted/30 border-border", icon: Circle },
+  returned: { label: "مُعادة", className: "text-orange-800 bg-orange-50 border-orange-200", icon: AlertCircle },
+  cancelled: { label: "ملغاة", className: "text-rose-700 bg-rose-50 border-rose-200", icon: Circle },
+};
+
+function formatAmount(amount: number, currency: string): string {
+  const rounded = Math.round(amount * 100) / 100;
+  return `${rounded.toLocaleString("ar-EG")} ${currency === "YER" ? "ريال يمني" : currency}`;
+}
+
+function FeeStatusSection({ fee }: { fee: StudentFeeSummary }) {
+  if (fee.status === "no_assessment") {
+    return (
+      <section className="rounded-xl border border-border bg-card p-4 shadow-card">
+        <h2 className="mb-2 flex items-center gap-2 font-bold text-primary">
+          <Wallet className="h-4 w-4 text-gold" /> حالة الرسوم
+        </h2>
+        <div className="text-sm text-muted-foreground">لم يتم تقييم رسوم لهذا الطلب بعد.</div>
+      </section>
+    );
+  }
+
+  if (fee.status === "not_required") {
+    return (
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-card">
+        <h2 className="mb-2 flex items-center gap-2 font-bold text-emerald-800">
+          <Wallet className="h-4 w-4" /> حالة الرسوم
+        </h2>
+        <div className="text-sm font-semibold text-emerald-800">لا توجد رسوم مطلوبة لهذا الطلب.</div>
+      </section>
+    );
+  }
+
+  if (fee.isConfirmed) {
+    return (
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 shadow-card">
+        <h2 className="mb-2 flex items-center gap-2 font-bold text-emerald-800">
+          <Wallet className="h-4 w-4" /> حالة الرسوم
+        </h2>
+        <div className="space-y-1 text-sm text-emerald-900">
+          <div>المبلغ: <span className="font-bold">{formatAmount(fee.amount, fee.currency)}</span></div>
+          <div className="font-semibold">تم تأكيد السداد.</div>
+          {fee.paymentConfirmedAt && (
+            <div className="text-xs text-emerald-800/80">
+              بتاريخ: {new Date(fee.paymentConfirmedAt).toLocaleString("ar-EG")}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // requiresPayment: amount > 0 pending — the prominent alert.
+  return (
+    <section
+      role="alert"
+      className="rounded-xl border-2 border-orange-300 bg-orange-50 p-4 shadow-card"
+    >
+      <h2 className="mb-2 flex items-center gap-2 font-display font-extrabold text-orange-900">
+        <Wallet className="h-5 w-5" /> مطلوب سداد رسوم الطلب
+      </h2>
+      <div className="space-y-1 text-sm text-orange-900">
+        <div>
+          مطلوب سداد مبلغ <span className="font-extrabold">{formatAmount(fee.amount, fee.currency)}</span> خارج البوابة.
+        </div>
+        <div className="text-xs text-orange-800/90">
+          بعد السداد سيقوم موظف المالية بتأكيد الاستلام وسينتقل طلبك تلقائياً إلى الخطوة التالية.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function WorkflowTimelineSection({ steps }: { steps: StudentWorkflowTimelineStep[] }) {
+  if (steps.length === 0) {
+    return (
+      <section className="rounded-xl border border-border bg-card p-4 shadow-card">
+        <h2 className="mb-3 font-bold text-primary">مسار الطلب</h2>
+        <div className="text-sm text-muted-foreground">لم يبدأ مسار الطلب بعد.</div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 shadow-card">
+      <h2 className="mb-3 font-bold text-primary">مسار الطلب</h2>
+      <ol className="space-y-2" data-testid="student-workflow-timeline">
+        {steps.map((step) => {
+          const meta = STEP_STATUS_META[step.status];
+          const Icon = meta.icon;
+          return (
+            <li
+              key={`${step.stepOrder}-${step.stepKey}`}
+              className={`flex items-start gap-3 rounded-lg border p-3 text-sm ${meta.className}`}
+            >
+              <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="flex-1">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="font-bold">
+                    {step.stepOrder}. {step.stepNameAr}
+                  </div>
+                  <div className="text-[11px] font-bold">{meta.label}</div>
+                </div>
+                <div className="mt-1 space-y-0.5 text-[11px] opacity-80">
+                  {step.enteredAt && (
+                    <div>بدأت: {new Date(step.enteredAt).toLocaleString("ar-EG")}</div>
+                  )}
+                  {step.completedAt && (
+                    <div>انتهت: {new Date(step.completedAt).toLocaleString("ar-EG")}</div>
+                  )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "مسودة",
@@ -33,11 +168,23 @@ function StudentRequestDetailsPage() {
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
   const signedUrlFn = useServerFn(getStudentRequestAttachmentSignedUrl);
   const submitFn = useServerFn(submitStudentServiceRequest);
+  const timelineFn = useServerFn(getStudentRequestWorkflowTimelineForStudent);
+  const feeFn = useServerFn(getStudentRequestFeeSummaryForStudent);
   const [resubmitting, setResubmitting] = useState(false);
   const resubmitInFlightRef = useRef(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["student-affairs", "details", id],
     queryFn: () => detailsFn({ data: { requestId: id } }),
+  });
+  const { data: timeline = [] } = useQuery({
+    queryKey: ["student-affairs", "timeline", id],
+    queryFn: () => timelineFn({ data: { requestId: id } }),
+    enabled: !!data,
+  });
+  const { data: fee } = useQuery({
+    queryKey: ["student-affairs", "fee", id],
+    queryFn: () => feeFn({ data: { requestId: id } }),
+    enabled: !!data,
   });
 
   const openAttachment = async (path: string) => {
@@ -138,18 +285,10 @@ function StudentRequestDetailsPage() {
         <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{request.student_notes ?? request.description ?? "—"}</p>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4 shadow-card">
-        <h2 className="mb-3 font-bold text-primary">مراحل الطلب</h2>
-        <ol className="space-y-2">
-          {data.steps.map((step: any) => (
-            <li key={step.id} className="rounded-lg border border-border bg-background p-3 text-sm">
-              <div className="font-bold">{step.step_index + 1}. {step.step_title_ar}</div>
-              <div className="mt-1 text-xs text-muted-foreground">الدور: {step.role_key} — الحالة: {step.status}</div>
-              {step.notes && <div className="mt-1 text-xs">{step.notes}</div>}
-            </li>
-          ))}
-        </ol>
-      </section>
+      {fee && <FeeStatusSection fee={fee} />}
+
+      <WorkflowTimelineSection steps={timeline} />
+
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-card">
         <h2 className="mb-3 font-bold text-primary">سجل الحركة</h2>

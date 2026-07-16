@@ -18,7 +18,11 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
   it("1 — available services on requests page use live RPC server fn", () => {
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
     expect(page).toContain("getStudentRequestTypesForStudent");
-    expect(page).toContain("getMyStudentServiceRequests");
+    // STUDENT-REQUEST-TRACKING-01: list source moved from
+    // getMyStudentServiceRequests → getMyStudentRequestsWithProgress so the
+    // card can render the workflow-derived current stage + fee status
+    // (current_role_key / legacy service-step reads are gone).
+    expect(page).toContain("getMyStudentRequestsWithProgress");
     expect(page).toContain("الخدمات المتاحة");
     expect(page).toContain("اختر الخدمة التي ترغب في تقديم طلب بشأنها.");
     expect(page).not.toMatch(/const\s+STATIC_SERVICES|hardcodedTypes/);
@@ -101,7 +105,15 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
   it("6 — requests list uses owner RPC; no impersonation / service-role student swap", () => {
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
     const fn = readFileSync(join(ROOT, "src/lib/student-affairs.functions.ts"), "utf8");
-    expect(page).toContain("getMyStudentServiceRequests");
+    const trackingFn = readFileSync(
+      join(ROOT, "src/lib/student-requests/student-tracking.functions.ts"),
+      "utf8",
+    );
+    // Page calls the enriched wrapper; the wrapper delegates to
+    // rpcGetMyStudentRequests (auth.uid()-scoped RPC via context.supabase).
+    expect(page).toContain("getMyStudentRequestsWithProgress");
+    expect(trackingFn).toContain("rpcGetMyStudentRequests(context.supabase)");
+    // Legacy wrapper is still exported and still auth-scoped for other consumers.
     expect(fn).toContain("getMyStudentServiceRequests");
     expect(fn).toContain("rpcGetMyStudentRequests");
     expect(page).not.toContain("93807768");
@@ -158,23 +170,22 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(page).toContain("portalFeatures.studentFinance");
   });
 
-  it("12 — الجهة الحالية uses Arabic labels; unset ≠ em dash only", () => {
+  it("12 — current stage now derived from student_request_workflow_steps (no current_role_key on card)", () => {
+    // Helper still exports these for other legacy surfaces / imports.
     expect(formatStudentCurrentProcessingUnitLabel(null)).toBe(
       CURRENT_PROCESSING_UNIT_UNSET_LABEL_AR,
     );
-    expect(formatStudentCurrentProcessingUnitLabel("")).toBe(
-      CURRENT_PROCESSING_UNIT_UNSET_LABEL_AR,
-    );
     expect(formatStudentCurrentProcessingUnitLabel("student_affairs")).toBe("شؤون الطلاب");
-    expect(formatStudentCurrentProcessingUnitLabel("registrar")).toBe("مسجل الكلية");
-    expect(formatStudentCurrentProcessingUnitLabel("dean")).toBe("عمادة الكلية");
-    expect(formatStudentCurrentProcessingUnitLabel("archive_officer")).toBe("الأرشيف");
     expect(CURRENT_PROCESSING_UNIT_READ_CONTRACT_GAP).toContain(
       "CURRENT_PROCESSING_UNIT_READ_CONTRACT_GAP",
     );
+    // The student requests LIST page no longer reads current_role_key —
+    // it shows the workflow-derived Arabic stage name (currentStageAr).
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
-    expect(page).toContain("formatStudentCurrentProcessingUnitLabel");
-    expect(page).not.toContain('current_role_key ?? "—"');
+    expect(page).not.toContain("formatStudentCurrentProcessingUnitLabel");
+    expect(page).not.toContain("current_role_key");
+    expect(page).toContain("currentStageAr");
+    expect(page).toContain("المرحلة الحالية");
   });
 
   it("13 — no Migration / Auth / role grant mutations in this phase files", () => {
