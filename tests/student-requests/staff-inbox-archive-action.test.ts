@@ -34,12 +34,16 @@ const execStart = SERVER_SRC.indexOf(
 const listStart = SERVER_SRC.indexOf(
   "export const listStudentRequestOfficialDocuments",
 );
-const execBlock =
-  execStart >= 0 && listStart > execStart
-    ? SERVER_SRC.slice(execStart, listStart)
-    : execStart >= 0
-      ? SERVER_SRC.slice(execStart)
-      : "";
+const listMarkerStart = SERVER_SRC.indexOf(
+  "// Read-only listing of official_documents",
+);
+const execEnd =
+  listMarkerStart > execStart
+    ? listMarkerStart
+    : listStart > execStart
+      ? listStart
+      : SERVER_SRC.length;
+const execBlock = execStart >= 0 ? SERVER_SRC.slice(execStart, execEnd) : "";
 const listBlock = listStart >= 0 ? SERVER_SRC.slice(listStart) : "";
 
 describe("executeStudentRequestArchiveAction — server fn contract", () => {
