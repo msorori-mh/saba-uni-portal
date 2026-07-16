@@ -1,8 +1,81 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { mapStudentRequestRpcError } from "@/lib/student-request-rpc";
 import type { FeePaymentStatus } from "@/lib/student-requests/request-fee-workflow-contract";
+
+/**
+ * Idempotency key for the fee-assessment notification:
+ * one notification per (student user, request). Prevents duplicates from
+ * page refreshes, network retries, or double-clicks. Re-assessments on the
+ * same request are intentionally silent (the workflow already has a
+ * dedicated payment_requested workflow event visible to the student).
+ */
+const FEE_NOTIFICATION_TYPE = "fee_assessment";
+const FEE_NOTIFICATION_REF_TYPE = "student_request";
+
+function formatFeeAmount(amount: number, currency: string): string {
+  const rounded = Math.round(amount * 100) / 100;
+  return `${rounded.toLocaleString("ar-EG")} ${currency}`;
+}
+
+async function insertFeeAssessmentNotificationIfMissing(params: {
+  requestId: string;
+  amount: number;
+  currency: string;
+}): Promise<{ inserted: boolean; skippedReason: null | "amount_zero" | "no_owner" | "already_notified" }> {
+  if (!(params.amount > 0)) {
+    return { inserted: false, skippedReason: "amount_zero" };
+  }
+
+  // Resolve the student user_id (notification recipient) via the request → profile link.
+  const { data: reqRow, error: reqErr } = await supabaseAdmin
+    .from("student_requests")
+    .select(
+      "id, request_number, student_profile:student_profiles!inner(user_id)",
+    )
+    .eq("id", params.requestId)
+    .maybeSingle();
+  if (reqErr) throw new Error(reqErr.message);
+
+  const ownerUserId =
+    (reqRow as { student_profile?: { user_id?: string | null } } | null)?.student_profile
+      ?.user_id ?? null;
+  const requestNumber =
+    (reqRow as { request_number?: string | null } | null)?.request_number ?? null;
+  if (!ownerUserId) return { inserted: false, skippedReason: "no_owner" };
+
+  // Idempotency pre-check.
+  const { data: existing, error: existErr } = await supabaseAdmin
+    .from("notifications")
+    .select("id")
+    .eq("user_id", ownerUserId)
+    .eq("notification_type", FEE_NOTIFICATION_TYPE)
+    .eq("reference_type", FEE_NOTIFICATION_REF_TYPE)
+    .eq("reference_id", params.requestId)
+    .limit(1);
+  if (existErr) throw new Error(existErr.message);
+  if (existing && existing.length > 0) {
+    return { inserted: false, skippedReason: "already_notified" };
+  }
+
+  const amountLabel = formatFeeAmount(params.amount, params.currency);
+  const requestLabel = requestNumber ?? params.requestId;
+
+  await supabaseAdmin.from("notifications").insert({
+    user_id: ownerUserId,
+    title: "مطلوب سداد رسوم طلبك",
+    message: `الطلب ${requestLabel}: مطلوب سداد مبلغ ${amountLabel} خارج البوابة. اضغط لعرض تفاصيل الطلب.`,
+    notification_type: FEE_NOTIFICATION_TYPE,
+    reference_type: FEE_NOTIFICATION_REF_TYPE,
+    reference_id: params.requestId,
+  } as never);
+
+  return { inserted: true, skippedReason: null };
+}
+
+
 
 /**
  * Fee mutations: requireSupabaseAuth only.
