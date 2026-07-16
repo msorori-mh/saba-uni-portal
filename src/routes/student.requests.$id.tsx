@@ -285,18 +285,10 @@ function StudentRequestDetailsPage() {
         <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{request.student_notes ?? request.description ?? "—"}</p>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4 shadow-card">
-        <h2 className="mb-3 font-bold text-primary">مراحل الطلب</h2>
-        <ol className="space-y-2">
-          {data.steps.map((step: any) => (
-            <li key={step.id} className="rounded-lg border border-border bg-background p-3 text-sm">
-              <div className="font-bold">{step.step_index + 1}. {step.step_title_ar}</div>
-              <div className="mt-1 text-xs text-muted-foreground">الدور: {step.role_key} — الحالة: {step.status}</div>
-              {step.notes && <div className="mt-1 text-xs">{step.notes}</div>}
-            </li>
-          ))}
-        </ol>
-      </section>
+      {fee && <FeeStatusSection fee={fee} />}
+
+      <WorkflowTimelineSection steps={timeline} />
+
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-card">
         <h2 className="mb-3 font-bold text-primary">سجل الحركة</h2>
