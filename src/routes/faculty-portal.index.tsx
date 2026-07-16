@@ -1,13 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck, ScrollText } from "lucide-react";
+import { User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck, ScrollText, Inbox } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
+import { hasActiveProcessingAssignment } from "@/lib/faculty-portal/processing-access.functions";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { LazyMount } from "@/components/util/LazyMount";
 import { portalFeatures } from "@/lib/portal-features";
