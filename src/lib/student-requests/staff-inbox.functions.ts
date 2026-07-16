@@ -1030,3 +1030,108 @@ export const executeStudentRequestStaffAction = createServerFn({ method: "POST" 
   });
 
 export type { StaffInboxStatusFilter };
+
+// ============================================================================
+// Sign-step executor (action_type='sign').
+// Registrar / dean signature steps use p_action='sign' → transition
+// action_result='signed' per request_type_workflow_transitions. Reused for
+// any future sign-type step (no PDF / issuance side-effects live here;
+// document creation belongs to the document_issuance step).
+// ============================================================================
+
+const executeSignActionSchema = z.object({
+  requestId: z.string().uuid(),
+  workflowStepRuntimeId: z.string().uuid(),
+  comment: z.string().trim().max(4000).optional().nullable(),
+});
+
+export type ExecuteStudentRequestSignActionResult = {
+  success: boolean;
+  action: "sign";
+  stepId: string;
+  nextStepId: string | null;
+  requestStatus: string | null;
+  terminal: boolean;
+};
+
+export const executeStudentRequestSignAction = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => executeSignActionSchema.parse(input))
+  .handler(async ({ data, context }): Promise<ExecuteStudentRequestSignActionResult> => {
+    await assertStaffInboxAccess(context.userId);
+
+    const { data: stepRow, error: stepErr } = await supabaseAdmin
+      .from("student_request_workflow_steps")
+      .select(
+        "id, status, student_request_id, config:request_type_workflow_steps!inner(action_type)",
+      )
+      .eq("id", data.workflowStepRuntimeId)
+      .maybeSingle();
+
+    if (stepErr) throw new Error(sanitizeStaffErrorMessage(stepErr.message));
+    if (!stepRow) throw new Error("الخطوة غير موجودة");
+    if (stepRow.student_request_id !== data.requestId) {
+      throw new Error("الخطوة لا تنتمي لهذا الطلب");
+    }
+    if (stepRow.status !== "active") {
+      throw new Error("الخطوة ليست نشطة — لا يمكن تنفيذ التوقيع");
+    }
+    const actionType =
+      (stepRow as { config?: { action_type?: string | null } }).config?.action_type ?? null;
+    if (actionType !== "sign") {
+      throw new Error(
+        "منفذ التوقيع يدعم فقط خطوات action_type='sign'. استخدم اللوحة المخصصة للخطوة الحالية.",
+      );
+    }
+
+    const { data: rpcData, error: rpcErr } = await (
+      context.supabase as {
+        rpc: (
+          name: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: unknown; error: { message?: string; code?: string } | null }>;
+      }
+    ).rpc("act_on_student_request_step", {
+      p_step_id: data.workflowStepRuntimeId,
+      p_action: "sign",
+      p_comment: data.comment ?? null,
+      p_payload: {},
+    });
+
+    if (rpcErr) {
+      throw new Error(sanitizeStaffErrorMessage(rpcErr.message ?? "تعذر تنفيذ التوقيع"));
+    }
+
+    const payload = (rpcData ?? {}) as {
+      action?: string;
+      step_id?: string;
+      next_step_id?: string | null;
+      request_status?: string | null;
+      terminal?: boolean;
+    };
+
+    await supabaseAdmin.from("audit_logs").insert({
+      actor_user_id: context.userId,
+      actor_role: "staff",
+      entity_type: "student_request",
+      entity_id: data.requestId,
+      action_type: `workflow_sign`,
+      notes: data.comment ?? null,
+      old_values: { step_id: data.workflowStepRuntimeId, step_status: "active" },
+      new_values: {
+        step_id: payload.step_id ?? data.workflowStepRuntimeId,
+        next_step_id: payload.next_step_id ?? null,
+        request_status: payload.request_status ?? null,
+      },
+    } as never);
+
+    return {
+      success: true,
+      action: "sign",
+      stepId: payload.step_id ?? data.workflowStepRuntimeId,
+      nextStepId: payload.next_step_id ?? null,
+      requestStatus: payload.request_status ?? null,
+      terminal: payload.terminal === true,
+    };
+  });
+
