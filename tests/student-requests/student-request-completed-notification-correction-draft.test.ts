@@ -117,7 +117,6 @@ describe("draft: student_request_completed notification correction", () => {
     expect(idxUpdateReq).toBeGreaterThan(-1);
     expect(idxInsertNotif).toBeGreaterThan(idxUpdateDoc);
     expect(idxInsertNotif).toBeGreaterThan(idxUpdateReq);
-    expect(b).toMatch(/UPDATE public\.official_documents[\s\S]*INSERT INTO public\.notifications/);
   });
 
   // ---- Previously-archived path ----
