@@ -199,6 +199,30 @@ export function evaluateDownloadAuthorization(input: {
   return input.isOwner || input.isStaffAuthorized || input.isAdmin;
 }
 
+/**
+ * Statuses for which an authenticated Signed URL to the stored PDF may be
+ * issued. `cancelled` and `draft` are explicitly excluded — a cancelled
+ * document must never yield a downloadable PDF regardless of who asks
+ * (owner / staff / admin all share the same barrier).
+ */
+export const DOWNLOADABLE_OFFICIAL_DOCUMENT_STATUSES = ["issued", "archived"] as const;
+export type DownloadableOfficialDocumentStatus =
+  (typeof DOWNLOADABLE_OFFICIAL_DOCUMENT_STATUSES)[number];
+
+export function isDownloadableOfficialDocumentStatus(
+  status: string | null | undefined,
+): boolean {
+  if (!status) return false;
+  return (DOWNLOADABLE_OFFICIAL_DOCUMENT_STATUSES as readonly string[]).includes(status);
+}
+
+/** Safe user-facing message when download is refused because of status. */
+export const CANCELLED_DOCUMENT_DOWNLOAD_ERROR_MESSAGE_AR =
+  "الوثيقة ملغاة وغير صالحة للتنزيل";
+export const NOT_DOWNLOADABLE_DOCUMENT_ERROR_MESSAGE_AR =
+  "الوثيقة غير متاحة للتنزيل في حالتها الحالية";
+
+
 export const PUBLIC_VERIFY_SAFE_FIELDS = [
   "valid",
   "document_type",

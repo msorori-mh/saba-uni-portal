@@ -94,20 +94,36 @@ function DocumentRow({
         </div>
       )}
       <div className="pt-1">
-        <button
-          type="button"
-          disabled={!doc.hasPdf || busy}
-          onClick={open}
-          data-testid="archive-panel-document-open"
-          className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded border border-border bg-background hover:bg-muted disabled:opacity-50"
-        >
-          {busy ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Download className="h-3 w-3" />
-          )}
-          معاينة / تنزيل مصرّح
-        </button>
+        {doc.status === "cancelled" ? (
+          <div
+            data-testid="archive-panel-document-cancelled-notice"
+            className="text-[11px] font-bold text-destructive"
+          >
+            الوثيقة ملغاة وغير صالحة للاستخدام
+          </div>
+        ) : doc.status !== "issued" && doc.status !== "archived" ? (
+          <div
+            data-testid="archive-panel-document-unavailable-notice"
+            className="text-[11px] font-bold text-muted-foreground"
+          >
+            الوثيقة غير متاحة للتنزيل في حالتها الحالية
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={!doc.hasPdf || busy}
+            onClick={open}
+            data-testid="archive-panel-document-open"
+            className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded border border-border bg-background hover:bg-muted disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Download className="h-3 w-3" />
+            )}
+            معاينة / تنزيل مصرّح
+          </button>
+        )}
       </div>
     </div>
   );

@@ -11,6 +11,9 @@ import {
   OFFICIAL_DOCUMENTS_BUCKET,
   buildOfficialDocumentStoragePath,
   evaluateDownloadAuthorization,
+  isDownloadableOfficialDocumentStatus,
+  CANCELLED_DOCUMENT_DOWNLOAD_ERROR_MESSAGE_AR,
+  NOT_DOWNLOADABLE_DOCUMENT_ERROR_MESSAGE_AR,
 } from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
 import {
   buildEnrollmentCertificatePdfBytes,
@@ -252,6 +255,18 @@ export const getEnrollmentCertificateDocumentSignedUrl = createServerFn({
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!doc?.pdf_url) throw new Error("الوثيقة أو الملف غير موجود");
+
+    // Central status barrier — MUST run before any storage call and before
+    // leaking pdf_url / storage path via a Signed URL. Applies uniformly to
+    // owner / staff / admin. Error messages are generic and never surface
+    // pdf_url, storage path, or verification_code.
+    const status = String((doc as { status: string | null }).status ?? "");
+    if (!isDownloadableOfficialDocumentStatus(status)) {
+      if (status === "cancelled") {
+        throw new Error(CANCELLED_DOCUMENT_DOWNLOAD_ERROR_MESSAGE_AR);
+      }
+      throw new Error(NOT_DOWNLOADABLE_DOCUMENT_ERROR_MESSAGE_AR);
+    }
 
     const { data: roles } = await supabaseAdmin
       .from("user_roles")
