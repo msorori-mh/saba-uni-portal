@@ -340,18 +340,31 @@ export function StaffRequestDetailPanel({
                 />
               )}
 
-              <StaffRequestActionPanel
-                requestId={detail.id}
-                requestTypeCode={detail.requestTypeCode}
-                currentStepKey={active?.stepKey ?? null}
-                currentRoleKey={detail.currentRoleKey}
-                workflowStepRuntimeId={active?.id ?? null}
-                activeStepActionType={activeType}
-                activeStepIsActionable={active?.isActionable ?? false}
-                workflowRuntimeAvailable={workflowRuntimeAvailable}
-                requestUpdatedAt={detail.updatedAt}
-                canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
-              />
+              {showSignPanel && (
+                <StaffRequestSignaturePanel
+                  requestId={detail.id}
+                  workflowStepRuntimeId={active?.id ?? null}
+                  stepKey={active?.stepKey ?? null}
+                  actionType={activeType}
+                  isActionable={active?.isActionable ?? false}
+                  workflowRuntimeAvailable={workflowRuntimeAvailable}
+                />
+              )}
+
+              {!showSignPanel && (
+                <StaffRequestActionPanel
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                  currentStepKey={active?.stepKey ?? null}
+                  currentRoleKey={detail.currentRoleKey}
+                  workflowStepRuntimeId={active?.id ?? null}
+                  activeStepActionType={activeType}
+                  activeStepIsActionable={active?.isActionable ?? false}
+                  workflowRuntimeAvailable={workflowRuntimeAvailable}
+                  requestUpdatedAt={detail.updatedAt}
+                  canExecuteReview={isReviewStep && (active?.isActionable ?? false)}
+                />
+              )}
             </>
           );
         })()}
