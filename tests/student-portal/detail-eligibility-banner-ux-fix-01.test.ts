@@ -68,6 +68,25 @@ describe("student request detail: eligibility banner is scoped to creation", () 
     expect(COMPONENT_SRC).toContain("existingRequestStatus");
     expect(COMPONENT_SRC).toContain("HIDDEN_FOR_EXISTING_REQUEST");
   });
+
+  it("detail route renders status-specific banners for returned / rejected / cancelled", () => {
+    // returned uses the existing showReturnBanner path
+    expect(DETAIL_SRC).toContain("showReturnBanner");
+    expect(DETAIL_SRC).toContain("طلبك أُعيد إليك للاستكمال");
+    // rejected
+    expect(DETAIL_SRC).toContain("student-request-rejected-banner");
+    expect(DETAIL_SRC).toContain("تم رفض هذا الطلب");
+    // cancelled
+    expect(DETAIL_SRC).toContain("student-request-cancelled-banner");
+    expect(DETAIL_SRC).toContain("تم إلغاء هذا الطلب");
+  });
+
+  it("detail route does not use the eligibility card for lifecycle banners", () => {
+    // Guardrail: status-specific banners must not fall back to the eligibility
+    // component or copy.
+    expect(DETAIL_SRC).not.toContain("StudentRequestEligibilityNotice");
+    expect(DETAIL_SRC).not.toContain("حالة التوفر والأهلية");
+  });
 });
 
 function render(props: Parameters<typeof StudentRequestEligibilityNotice>[0]) {

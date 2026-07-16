@@ -230,6 +230,19 @@ function StudentRequestDetailsPage() {
   const lastReturnReason: string | null = lastReturnEvent?.notes ?? null;
   const showReturnBanner = canResubmit;
 
+  // Detail-page status banners (not creation-time eligibility) —
+  // STUDENT-REQUEST-DETAIL-ELIGIBILITY-BANNER-UX-FIX-01.
+  const isRejected = request.status === "rejected";
+  const isCancelled = request.status === "cancelled";
+  const findEventReason = (needle: string): { reason: string | null; at: string | null } => {
+    const evt = [...(data.events ?? [])].reverse().find((e: any) =>
+      String(e.event_type ?? "").toLowerCase().includes(needle),
+    );
+    return { reason: evt?.notes ?? null, at: evt?.created_at ?? null };
+  };
+  const rejectionInfo = isRejected ? findEventReason("reject") : { reason: null, at: null };
+  const cancellationInfo = isCancelled ? findEventReason("cancel") : { reason: null, at: null };
+
   return (
     <div dir="rtl" className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -279,6 +292,61 @@ function StudentRequestDetailsPage() {
           </div>
         </div>
       )}
+
+      {isRejected && (
+        <div
+          role="alert"
+          data-testid="student-request-rejected-banner"
+          className="rounded-xl border-2 border-rose-300 bg-rose-50 p-4 shadow-card"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-rose-600" />
+            <div className="flex-1 space-y-1.5">
+              <div className="font-display text-base font-extrabold text-rose-900">
+                تم رفض هذا الطلب
+              </div>
+              <div className="text-sm text-rose-900/90">
+                {rejectionInfo.reason
+                  ? <>سبب الرفض: <span className="font-bold">{rejectionInfo.reason}</span></>
+                  : "يرجى مراجعة سجل الحركة أدناه للاطلاع على تفاصيل الرفض."}
+              </div>
+              {rejectionInfo.at && (
+                <div className="text-xs text-rose-800/80">
+                  بتاريخ: {new Date(rejectionInfo.at).toLocaleString("ar-EG")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCancelled && (
+        <div
+          role="alert"
+          data-testid="student-request-cancelled-banner"
+          className="rounded-xl border border-zinc-300 bg-zinc-100 p-4 shadow-card"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-zinc-600" />
+            <div className="flex-1 space-y-1.5">
+              <div className="font-display text-base font-extrabold text-zinc-900">
+                تم إلغاء هذا الطلب
+              </div>
+              {cancellationInfo.reason && (
+                <div className="text-sm text-zinc-800">
+                  سبب الإلغاء: <span className="font-bold">{cancellationInfo.reason}</span>
+                </div>
+              )}
+              {cancellationInfo.at && (
+                <div className="text-xs text-zinc-700/80">
+                  بتاريخ: {new Date(cancellationInfo.at).toLocaleString("ar-EG")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
 
       <section className="rounded-xl border border-border bg-card p-4 shadow-card">
         <h2 className="font-bold text-primary">{request.title}</h2>
