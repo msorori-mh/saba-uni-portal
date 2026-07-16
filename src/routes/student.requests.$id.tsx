@@ -293,6 +293,61 @@ function StudentRequestDetailsPage() {
         </div>
       )}
 
+      {isRejected && (
+        <div
+          role="alert"
+          data-testid="student-request-rejected-banner"
+          className="rounded-xl border-2 border-rose-300 bg-rose-50 p-4 shadow-card"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-rose-600" />
+            <div className="flex-1 space-y-1.5">
+              <div className="font-display text-base font-extrabold text-rose-900">
+                تم رفض هذا الطلب
+              </div>
+              <div className="text-sm text-rose-900/90">
+                {rejectionInfo.reason
+                  ? <>سبب الرفض: <span className="font-bold">{rejectionInfo.reason}</span></>
+                  : "يرجى مراجعة سجل الحركة أدناه للاطلاع على تفاصيل الرفض."}
+              </div>
+              {rejectionInfo.at && (
+                <div className="text-xs text-rose-800/80">
+                  بتاريخ: {new Date(rejectionInfo.at).toLocaleString("ar-EG")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCancelled && (
+        <div
+          role="alert"
+          data-testid="student-request-cancelled-banner"
+          className="rounded-xl border border-zinc-300 bg-zinc-100 p-4 shadow-card"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="mt-0.5 h-6 w-6 shrink-0 text-zinc-600" />
+            <div className="flex-1 space-y-1.5">
+              <div className="font-display text-base font-extrabold text-zinc-900">
+                تم إلغاء هذا الطلب
+              </div>
+              {cancellationInfo.reason && (
+                <div className="text-sm text-zinc-800">
+                  سبب الإلغاء: <span className="font-bold">{cancellationInfo.reason}</span>
+                </div>
+              )}
+              {cancellationInfo.at && (
+                <div className="text-xs text-zinc-700/80">
+                  بتاريخ: {new Date(cancellationInfo.at).toLocaleString("ar-EG")}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
       <section className="rounded-xl border border-border bg-card p-4 shadow-card">
         <h2 className="font-bold text-primary">{request.title}</h2>
         <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{request.student_notes ?? request.description ?? "—"}</p>
