@@ -18,7 +18,11 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
   it("1 — available services on requests page use live RPC server fn", () => {
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
     expect(page).toContain("getStudentRequestTypesForStudent");
-    expect(page).toContain("getMyStudentServiceRequests");
+    // STUDENT-REQUEST-TRACKING-01: list source moved from
+    // getMyStudentServiceRequests → getMyStudentRequestsWithProgress so the
+    // card can render the workflow-derived current stage + fee status
+    // (current_role_key / legacy service-step reads are gone).
+    expect(page).toContain("getMyStudentRequestsWithProgress");
     expect(page).toContain("الخدمات المتاحة");
     expect(page).toContain("اختر الخدمة التي ترغب في تقديم طلب بشأنها.");
     expect(page).not.toMatch(/const\s+STATIC_SERVICES|hardcodedTypes/);
