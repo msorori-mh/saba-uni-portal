@@ -2301,6 +2301,7 @@ export type Database = {
           issued_at: string
           issued_by: string | null
           metadata: Json
+          notes: string | null
           pdf_url: string | null
           status: string
           student_profile_id: string
@@ -2316,6 +2317,7 @@ export type Database = {
           issued_at?: string
           issued_by?: string | null
           metadata?: Json
+          notes?: string | null
           pdf_url?: string | null
           status?: string
           student_profile_id: string
@@ -2331,6 +2333,7 @@ export type Database = {
           issued_at?: string
           issued_by?: string | null
           metadata?: Json
+          notes?: string | null
           pdf_url?: string | null
           status?: string
           student_profile_id?: string
