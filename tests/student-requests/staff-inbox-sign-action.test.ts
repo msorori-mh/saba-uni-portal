@@ -28,7 +28,7 @@ const ROOT = join(import.meta.dir, "../..");
 const SERVER_SRC = readFileSync(
   join(ROOT, "src/lib/student-requests/staff-inbox.functions.ts"),
   "utf-8",
-);
+).replace(/\r\n/g, "\n");
 const SIGN_PANEL_SRC = readFileSync(
   join(ROOT, "src/components/student-requests/StaffRequestSignaturePanel.tsx"),
   "utf-8",
