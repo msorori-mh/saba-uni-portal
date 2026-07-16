@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, HelpCircle, XCircle } from "lucide-react";
+import { AlertCircle, HelpCircle, XCircle } from "lucide-react";
 import {
   getStudentRequestAvailabilityBadge,
   getStudentRequestUiEligibility,
@@ -8,20 +8,34 @@ import { getStudentRequestTypeDisplayName } from "@/lib/student-requests/request
 
 type Props = StudentRequestUiEligibilityInput & {
   className?: string;
+  /**
+   * When provided and the request already exists in a post-draft lifecycle
+   * state, the eligibility notice hides entirely. Creation-time eligibility
+   * MUST NOT be re-evaluated for a request that was already accepted by the
+   * system — see STUDENT-REQUEST-DETAIL-ELIGIBILITY-BANNER-UX-FIX-01.
+   */
+  existingRequestStatus?: string | null;
 };
 
-const BADGE_STYLES = {
-  available: "bg-emerald-100 text-emerald-900 border-emerald-200",
-  needs_verification: "bg-amber-100 text-amber-900 border-amber-200",
+/**
+ * Request lifecycle statuses for which creation-time eligibility must not be
+ * shown. The detail page uses its own status-specific banners (returned /
+ * rejected / cancelled) instead.
+ */
+const HIDDEN_FOR_EXISTING_REQUEST = new Set([
+  "submitted",
+  "in_review",
+  "under_review",
+  "processing",
+  "in_progress",
+  "approved",
+  "completed",
+  "archived",
+]);
+
+const BLOCKED_CARD_STYLES = {
   blocked: "bg-rose-100 text-rose-900 border-rose-200",
   unsupported: "bg-zinc-200 text-zinc-800 border-zinc-300",
-} as const;
-
-const BADGE_ICONS = {
-  available: CheckCircle2,
-  needs_verification: HelpCircle,
-  blocked: XCircle,
-  unsupported: AlertCircle,
 } as const;
 
 export function StudentRequestEligibilityNotice({
@@ -33,8 +47,17 @@ export function StudentRequestEligibilityNotice({
   formSupported,
   hasSubject,
   className = "",
+  existingRequestStatus = null,
 }: Props) {
   if (!requestTypeCode) return null;
+
+  // Never re-evaluate creation eligibility for an already-submitted request.
+  if (
+    existingRequestStatus
+    && HIDDEN_FOR_EXISTING_REQUEST.has(existingRequestStatus.toLowerCase())
+  ) {
+    return null;
+  }
 
   const eligibility = getStudentRequestUiEligibility({
     requestTypeCode,
@@ -46,15 +69,50 @@ export function StudentRequestEligibilityNotice({
     hasSubject,
   });
 
-  const { labelAr } = getStudentRequestAvailabilityBadge(eligibility.badge);
-  const Icon = BADGE_ICONS[eligibility.badge];
+  // Eligible path: no big card. The type picker itself already shows the
+  // service as selectable; a positive banner would be visual noise.
+  if (eligibility.badge === "available") {
+    return null;
+  }
+
   const typeName = getStudentRequestTypeDisplayName(requestTypeCode);
+
+  // Needs-verification path: compact neutral hint, not a red error card.
+  if (eligibility.badge === "needs_verification") {
+    const hints = [
+      ...eligibility.warnings,
+      ...eligibility.notices,
+    ];
+    if (hints.length === 0) return null;
+    return (
+      <div
+        dir="rtl"
+        role="note"
+        className={`rounded-lg border border-amber-200 bg-amber-50/70 text-amber-900 p-3 text-xs space-y-1 ${className}`}
+      >
+        <div className="flex items-center gap-1.5 font-bold">
+          <HelpCircle className="h-3.5 w-3.5" />
+          <span>ملاحظات لخدمة «{typeName}»</span>
+        </div>
+        <ul className="list-disc list-inside space-y-0.5 opacity-90">
+          {hints.slice(0, 4).map((h) => (
+            <li key={h}>{h}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  // blocked / unsupported: full styled card with reasons.
+  const { labelAr } = getStudentRequestAvailabilityBadge(eligibility.badge);
+  const Icon = eligibility.badge === "blocked" ? XCircle : AlertCircle;
+  const styles = BLOCKED_CARD_STYLES[eligibility.badge];
 
   return (
     <div
       dir="rtl"
-      className={`rounded-xl border p-4 space-y-3 ${BADGE_STYLES[eligibility.badge]} ${className}`}
-      role="status"
+      className={`rounded-xl border p-4 space-y-3 ${styles} ${className}`}
+      role="alert"
       aria-live="polite"
     >
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -110,3 +168,5 @@ export function StudentRequestEligibilityNotice({
 export function useStudentRequestUiEligibility(input: StudentRequestUiEligibilityInput) {
   return getStudentRequestUiEligibility(input);
 }
+
+export { HIDDEN_FOR_EXISTING_REQUEST };
