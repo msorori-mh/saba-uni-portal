@@ -26,13 +26,14 @@ Each clearance step gates the next; every step is a distinct approval by a disti
 | # | step_key | unit | role | action_type |
 |---|---|---|---|---|
 | 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` |
-| 2 | `library_clearance` | *(pending unit `library`)* | *(pending role `library_officer`)* | `clear` |
-| 3 | `labs_clearance` | *(pending unit `labs`)* | *(pending role `lab_officer`)* | `clear` |
-| 4 | `activities_clearance` | *(pending unit `student_activities`)* | *(pending role)* | `clear` |
+| 2 | `library_clearance` | **BLOCKED** — no `library` unit in `request_processing_units` (staff exists: ناجي الروقي, role_type=`library_officer`) | — | `clear` |
+| 3 | `labs_clearance` | **BLOCKED** — no `labs` unit (staff exists: محمد حيدر, role_type=`labs_manager`) | — | `clear` |
+| 4 | `activities_clearance` | **BLOCKED** — no `student_activities` unit and no matching active staff role | — | `clear` |
 | 5 | `finance_clearance` | `finance` | `revenue_finance_officer` | `clear` |
 | 6 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` |
 
-**Blocker:** units `library`, `labs`, `student_activities` do not yet exist in `request_processing_units`. Batch B must add them or the design must fall back to a single `student_affairs_manager` multi-checkbox clearance (decision pending — report §8 row 7).
+**Blocker (verified 2026-07-16 preflight):** `request_processing_units` only contains `{archive, dean, finance, registrar, student_affairs}`. Even though `staff_profiles.role_type` values `library_officer` and `labs_manager` exist for real staff (ناجي الروقي, محمد حيدر), they have **no active row in `request_processing_assignments`** and their units are absent from `request_processing_units`/`request_processing_roles`. Batch B must either (a) add `library` + `labs` + `student_activities` units and roles and create assignments for those staff members, or (b) fall back to a single `student_affairs_manager` (ياسمين الولص) multi-checkbox clearance step under the existing `student_affairs` unit. Decision required before Batch B implementation.
+
 
 ## Transitions
 Any clearance step may return to student or reject. Steps 2–5 do **not** run in parallel in Batch B v1 — sequential to keep the chain auditable; parallelization is a later enhancement.
