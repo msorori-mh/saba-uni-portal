@@ -254,14 +254,28 @@ function StudentRequestsIndexPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground">
                       <div>
-                        <span className="font-semibold text-foreground/70">الجهة: </span>
-                        {formatStudentCurrentProcessingUnitLabel(request.current_role_key)}
+                        <span className="font-semibold text-foreground/70">المرحلة الحالية: </span>
+                        {request.currentStageAr ?? "—"}
                       </div>
                       <div>
                         <span className="font-semibold text-foreground/70">التقديم: </span>
                         {request.submitted_at
                           ? new Date(request.submitted_at).toLocaleDateString("ar-EG")
                           : "—"}
+                      </div>
+                      <div className="col-span-2 flex items-center gap-1">
+                        <Wallet className="h-3 w-3" />
+                        <span className="font-semibold text-foreground/70">الرسوم: </span>
+                        {(() => {
+                          const f = formatFeeShort(request.fee);
+                          const cls =
+                            f.tone === "danger"
+                              ? "text-orange-800 font-bold"
+                              : f.tone === "success"
+                                ? "text-emerald-700 font-semibold"
+                                : "";
+                          return <span className={cls}>{f.text}</span>;
+                        })()}
                       </div>
                       <div className="col-span-2">
                         <span className="font-semibold text-foreground/70">آخر تحديث: </span>
