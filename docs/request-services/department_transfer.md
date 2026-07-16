@@ -32,14 +32,15 @@ Required: `secondary_certificate`. `requires_attachment=true` already set.
 | # | step_key | unit | role | action_type |
 |---|---|---|---|---|
 | 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` |
-| 2 | `source_department_head_approval` | *(pending unit `department`, role `department_head`)* | — | `approve` |
-| 3 | `target_department_head_approval` | *(pending unit `department`, role `department_head`)* | — | `approve` |
+| 2 | `source_department_head_approval` | **BLOCKED** — no matching unit/role in production | — | `approve` |
+| 3 | `target_department_head_approval` | **BLOCKED** — no matching unit/role in production | — | `approve` |
 | 4 | `dean_approval` | `dean` | `dean` | `approve` |
 | 5 | `fee_assessment` | `finance` | `revenue_finance_officer` | `assess_fee` |
 | 6 | `payment_confirmation` | `finance` | `revenue_finance_officer` | `confirm_payment` |
 | 7 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` |
 
-**Blocker:** the `department` processing unit and `department_head` role do not yet exist (report §8 row 2). Steps 2 and 3 cannot be assigned until Batch B adds them.
+**Blocker (verified 2026-07-16 preflight):** `request_processing_units` contains only `{archive, dean, finance, registrar, student_affairs}` and `request_processing_roles` has no `department_head` entry. No holder exists for `organizational_positions.dean` either (only faculty-profile assignment on `dean` unit → أ.م.د. مقبول قايد عبده الكامل). Steps 2 and 3 remain **HOLD** until Batch B either (a) introduces a real `department`/`department_head` unit+role backed by `position_assignments`, or (b) collapses the two steps into a single `dean_approval` step using the existing `dean` unit.
+
 
 ## Transitions
 Return/reject at steps 1, 2, 3, 4. Fee steps guard-skipped when fee=0.
