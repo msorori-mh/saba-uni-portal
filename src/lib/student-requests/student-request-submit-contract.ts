@@ -9,6 +9,7 @@ import {
   serializeFormValuesForStorage,
   validateStudentRequestFormValues,
 } from "@/lib/student-requests/request-form-registry";
+import { getRequestServiceAdapter } from "@/lib/student-requests/request-service-adapter";
 import {
   getStudentRequestTypeDefinition,
   isCanonicalStudentRequestTypeCode,
@@ -229,5 +230,34 @@ export function buildStudentRequestSubmitPayload(
     formData: normalized.formData,
     studentNotes: summary?.trim() || normalized.studentNotes,
     description: normalized.description ?? summary ?? null,
+  };
+}
+
+export type StudentRequestDetailPersistencePlan = {
+  canonicalCode: string;
+  storedCodes: readonly string[];
+  validatorKey: string;
+  detailContractKey: string;
+  transactionRequired: true;
+  workflowStartsAfterValidation: true;
+  supportsResubmit: true;
+  runtimeAvailable: false;
+};
+
+/** Source-only extension metadata. It never writes detail tables from the client. */
+export function buildStudentRequestDetailPersistencePlan(
+  requestTypeCode: string,
+): StudentRequestDetailPersistencePlan | null {
+  const adapter = getRequestServiceAdapter(requestTypeCode);
+  if (!adapter) return null;
+  return {
+    canonicalCode: adapter.canonicalCode,
+    storedCodes: adapter.storedCodes,
+    validatorKey: adapter.submit.validatorKey,
+    detailContractKey: adapter.detailBinding.contractKey,
+    transactionRequired: true,
+    workflowStartsAfterValidation: true,
+    supportsResubmit: true,
+    runtimeAvailable: false,
   };
 }

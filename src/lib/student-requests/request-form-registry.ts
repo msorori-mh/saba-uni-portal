@@ -37,6 +37,8 @@ export type RequestFormFieldDefinition = {
   placeholderAr?: string;
   dependsOn?: RequestFormFieldDependsOn;
   defaultValue?: string | boolean | readonly string[];
+  referenceResolverKey?: "academic_years" | "semesters_for_year" | "current_student_enrollments" | "available_departments" | "available_programs";
+  referenceDependsOnField?: string;
 };
 
 export type RequestFormSection = {
@@ -100,12 +102,19 @@ const ENROLLMENT_SUSPENSION: RequestFormDefinition = {
       titleAr: "بيانات وقف القيد",
       fields: [
         {
+          name: "target_academic_year",
+          labelAr: "العام الجامعي المطلوب",
+          type: "select",
+          required: true,
+          referenceResolverKey: "academic_years",
+        },
+        {
           name: "target_semester",
           labelAr: "الفصل المطلوب وقف القيد له",
           type: "select",
           required: true,
-          options: PLACEHOLDER_SEMESTERS,
-          helperTextAr: "سيُستبدل هذا الحقل بقائمة الفصول الفعلية بعد تطبيق مخطط الطلبات.",
+          referenceResolverKey: "semesters_for_year",
+          referenceDependsOnField: "target_academic_year",
         },
         {
           name: "academic_context",
@@ -301,8 +310,8 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
           labelAr: "المقررات المتأثرة",
           type: "multi_select",
           required: true,
-          options: PLACEHOLDER_COURSES,
-          helperTextAr: "placeholder — ستُحمَّل المقررات من السجل الأكاديمي لاحقاً.",
+          referenceResolverKey: "current_student_enrollments",
+          helperTextAr: "تُحمّل من تسجيلات الطالب الحالية، ويعاد التحقق منها على الخادم.",
         },
         {
           name: "excuse_attachment",
@@ -387,18 +396,19 @@ const DEPARTMENT_TRANSFER: RequestFormDefinition = {
           defaultValue: "— يُعرض من ملف الطالب عند التفعيل —",
         },
         {
-          name: "target_department",
+          name: "target_department_id",
           labelAr: "القسم المطلوب",
           type: "select",
           required: true,
-          options: PLACEHOLDER_DEPARTMENTS,
+          referenceResolverKey: "available_departments",
         },
         {
-          name: "target_program",
+          name: "target_program_id",
           labelAr: "البرنامج المطلوب",
           type: "select",
           required: true,
-          options: PLACEHOLDER_PROGRAMS,
+          referenceResolverKey: "available_programs",
+          referenceDependsOnField: "target_department_id",
         },
         {
           name: "transfer_reason",

@@ -9,6 +9,7 @@ import {
   getStudentRequestTypeDefinition,
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
+import { B1_WORKFLOWS, type B1CanonicalCode } from "@/lib/student-requests/request-service-adapter";
 
 export type PreviewWorkflowTimelineStep = {
   id: string;
@@ -282,8 +283,50 @@ const PREVIEW_BY_CODE: Readonly<Record<string, CanonicalWorkflowPreview>> = {
 };
 
 export const CANONICAL_WORKFLOW_PREVIEW_CODES = Object.freeze(
-  Object.keys(PREVIEW_BY_CODE),
+  [...new Set([...Object.keys(PREVIEW_BY_CODE), ...Object.keys(B1_WORKFLOWS)])],
 ) as readonly string[];
+
+const B1_LABELS_AR: Readonly<Record<string, string>> = {
+  initial_review: "المراجعة الأولية",
+  manager_approval: "اعتماد مدير شؤون الطلاب",
+  registrar_apply: "تطبيق قرار المسجل",
+  student_affairs_intake: "استقبال شؤون الطلاب",
+  manager_review: "مراجعة مدير شؤون الطلاب",
+  record_apply: "تطبيق العذر في السجل",
+  library_clearance: "مخالصة المكتبة",
+  labs_clearance: "مخالصة المعامل",
+  activities_clearance: "مخالصة الأنشطة",
+  finance_clearance: "المخالصة المالية الخارجية",
+  archive: "الأرشفة",
+  source_department_head_approval: "اعتماد رئيس القسم الحالي",
+  target_department_head_approval: "اعتماد رئيس القسم المطلوب",
+  dean_approval: "اعتماد العميد",
+  dean_decision: "قرار العميد",
+  fee_assessment: "تحديد استحقاق الرسم الخارجي",
+  payment_confirmation: "تأكيد السداد الخارجي",
+};
+
+function getB1WorkflowPreview(code: string): CanonicalWorkflowPreview | undefined {
+  const steps = B1_WORKFLOWS[code as B1CanonicalCode];
+  if (!steps) return undefined;
+  return {
+    requestTypeCode: code,
+    requestTypeNameAr: getStudentRequestTypeDefinition(code)?.nameAr ?? code,
+    steps: steps.map((step) => ({
+      key: step.key,
+      labelAr: B1_LABELS_AR[step.key] ?? step.key,
+      roleKey: step.role,
+      processingUnitCode: step.unit,
+      actionType: step.action,
+      requiresFee: step.key === "fee_assessment" || step.key === "payment_confirmation",
+      isArchiveStep: step.action === "archive",
+    })),
+    specNotesAr: B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.department_transfer
+      || B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.final_chance
+      ? ["السداد خارجي والتأكيد يدوي؛ التفعيل محجوز حتى اعتماد fee_type.code"]
+      : ["لا رسوم ولا مستندات لهذه الخدمة"],
+  };
+}
 
 /** Alias codes must not have standalone preview entries. */
 export function isAliasOnlyRequestTypeCode(code: string): boolean {
@@ -293,7 +336,7 @@ export function isAliasOnlyRequestTypeCode(code: string): boolean {
 
 export function hasCanonicalWorkflowPreview(code: string | null | undefined): boolean {
   const normalized = normalizeStudentRequestTypeCode(code);
-  return normalized != null && normalized in PREVIEW_BY_CODE;
+  return normalized != null && (normalized in PREVIEW_BY_CODE || normalized in B1_WORKFLOWS);
 }
 
 export function getCanonicalWorkflowPreview(
@@ -301,6 +344,8 @@ export function getCanonicalWorkflowPreview(
 ): CanonicalWorkflowPreview | undefined {
   const normalized = normalizeStudentRequestTypeCode(code);
   if (!normalized) return undefined;
+  const b1 = getB1WorkflowPreview(normalized);
+  if (b1) return b1;
   const base = PREVIEW_BY_CODE[normalized];
   if (!base) return undefined;
   const def = getStudentRequestTypeDefinition(normalized);

@@ -23,6 +23,7 @@ export type StudentRequestTypeDefinition = {
 const LEGACY_ALIAS_TO_CANONICAL: Readonly<Record<string, string>> = {
   absence_excuse: "excused_absence",
   transfer: "department_transfer",
+  extra_chance: "final_chance",
   reenrollment: "enrollment_reinstatement",
 };
 
@@ -35,9 +36,9 @@ export const CANONICAL_STUDENT_REQUEST_TYPES: readonly StudentRequestTypeDefinit
     ineligibleDisplayMode: "hidden",
     requiresAttachment: false,
     requiresServiceWindow: true,
-    requiresFee: true,
-    producesDocument: true,
-    requiresArchive: true,
+    requiresFee: false,
+    producesDocument: false,
+    requiresArchive: false,
     legacyAliases: [],
   },
   {
@@ -68,8 +69,8 @@ export const CANONICAL_STUDENT_REQUEST_TYPES: readonly StudentRequestTypeDefinit
     audience: "active_student",
     ineligibleDisplayMode: "hidden",
     requiresAttachment: false,
-    requiresFee: true,
-    producesDocument: true,
+    requiresFee: false,
+    producesDocument: false,
     requiresArchive: true,
     legacyAliases: [],
   },
@@ -80,9 +81,9 @@ export const CANONICAL_STUDENT_REQUEST_TYPES: readonly StudentRequestTypeDefinit
     ineligibleDisplayMode: "hidden",
     requiresAttachment: true,
     requiresServiceWindow: true,
-    requiresFee: true,
-    producesDocument: true,
-    requiresArchive: true,
+    requiresFee: false,
+    producesDocument: false,
+    requiresArchive: false,
     legacyAliases: ["absence_excuse"],
   },
   {
@@ -104,9 +105,20 @@ export const CANONICAL_STUDENT_REQUEST_TYPES: readonly StudentRequestTypeDefinit
     ineligibleDisplayMode: "hidden",
     requiresAttachment: true,
     requiresFee: true,
-    producesDocument: true,
-    requiresArchive: true,
+    producesDocument: false,
+    requiresArchive: false,
     legacyAliases: ["transfer"],
+  },
+  {
+    code: "final_chance",
+    nameAr: "فرصة نهائية",
+    audience: "active_student",
+    ineligibleDisplayMode: "hidden",
+    requiresAttachment: false,
+    requiresFee: true,
+    producesDocument: false,
+    requiresArchive: false,
+    legacyAliases: ["extra_chance"],
   },
   {
     code: "october_exam_entry_form",
@@ -131,7 +143,6 @@ const ALL_LEGACY_ALIASES = new Set(Object.keys(LEGACY_ALIAS_TO_CANONICAL));
 /** Out-of-scope types still in DB/UI (not deleted). */
 const OUT_OF_SCOPE_LABELS: Readonly<Record<string, string>> = {
   enrollment_reinstatement: "إعادة قيد",
-  extra_chance: "فرصة إضافية",
   equivalency: "معادلة مقررات",
   official_transcript: "سجل أكاديمي رسمي",
 };

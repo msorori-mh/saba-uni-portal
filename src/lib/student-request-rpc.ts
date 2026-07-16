@@ -79,6 +79,25 @@ type RpcClient = {
   ) => Promise<{ data: unknown; error: RpcErrorLike | null }>;
 };
 
+/** Future atomic submit capability; false until a reviewed migration is applied. */
+export const STUDENT_REQUEST_DETAIL_SUBMIT_RUNTIME_AVAILABLE = false as const;
+
+export type AtomicStudentRequestSubmitCapability = {
+  rpcName: "submit_student_request_with_details";
+  transactionRequired: true;
+  validatesBeforeWorkflow: true;
+  supportsResubmit: true;
+  available: false;
+};
+
+export const ATOMIC_STUDENT_REQUEST_SUBMIT_CAPABILITY: AtomicStudentRequestSubmitCapability = {
+  rpcName: "submit_student_request_with_details",
+  transactionRequired: true,
+  validatesBeforeWorkflow: true,
+  supportsResubmit: true,
+  available: STUDENT_REQUEST_DETAIL_SUBMIT_RUNTIME_AVAILABLE,
+};
+
 export async function rpcGetAvailableRequestTypes(
   client: RpcClient,
 ): Promise<AvailableRequestTypeRow[]> {
