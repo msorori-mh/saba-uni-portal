@@ -315,9 +315,12 @@ export function StaffRequestDetailPanel({
               )}
 
               {showArchivePanel && (
-                <RequestDocumentArchivePanel
+                <StaffRequestArchivePanel
                   requestId={detail.id}
-                  requestTypeCode={detail.requestTypeCode}
+                  workflowStepRuntimeId={active?.id ?? null}
+                  actionType={activeType}
+                  isActionable={active?.isActionable ?? false}
+                  workflowRuntimeAvailable={workflowRuntimeAvailable}
                 />
               )}
 
@@ -351,7 +354,7 @@ export function StaffRequestDetailPanel({
                 />
               )}
 
-              {!showSignPanel && (
+              {!showSignPanel && !showArchivePanel && (
                 <StaffRequestActionPanel
                   requestId={detail.id}
                   requestTypeCode={detail.requestTypeCode}
