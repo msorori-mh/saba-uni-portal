@@ -1,18 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ClipboardList, FileText, Loader2, Plus } from "lucide-react";
+import { ClipboardList, FileText, Loader2, Plus, Wallet } from "lucide-react";
 import {
-  getMyStudentServiceRequests,
   getStudentRequestTypesForStudent,
 } from "@/lib/student-affairs.functions";
+import { getMyStudentRequestsWithProgress } from "@/lib/student-requests/student-tracking.functions";
 import {
   filterAvailableRequestTypesForStudentPage,
   isRequestTypeActionable,
 } from "@/lib/student-requests/available-request-types-ui";
 import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
 import { getStudentRequestTypeDisplayName } from "@/lib/student-requests/request-type-registry";
-import { formatStudentCurrentProcessingUnitLabel } from "@/lib/student-requests/student-request-unit-label";
 import { portalFeatures } from "@/lib/portal-features";
 
 export const Route = createFileRoute("/student/requests/")({
@@ -39,13 +38,33 @@ type RequestRow = {
   request_type_name_ar?: string | null;
   title: string;
   status: string;
-  current_role_key: string | null;
   submitted_at: string | null;
   updated_at: string;
+  currentStageAr: string | null;
+  currentStepKey: string | null;
+  fee: {
+    status: string;
+    amount: number;
+    currency: string;
+    requiresPayment: boolean;
+    isConfirmed: boolean;
+  };
 };
 
+function formatFeeShort(fee: RequestRow["fee"]): { text: string; tone: "danger" | "success" | "muted" } {
+  if (fee.requiresPayment) {
+    return {
+      text: `مطلوب سداد ${Math.round(fee.amount * 100) / 100} ${fee.currency === "YER" ? "ريال" : fee.currency}`,
+      tone: "danger",
+    };
+  }
+  if (fee.isConfirmed) return { text: "تم تأكيد السداد", tone: "success" };
+  if (fee.status === "not_required") return { text: "لا رسوم مطلوبة", tone: "success" };
+  return { text: "—", tone: "muted" };
+}
+
 function StudentRequestsIndexPage() {
-  const listFn = useServerFn(getMyStudentServiceRequests);
+  const listFn = useServerFn(getMyStudentRequestsWithProgress);
   const typesFn = useServerFn(getStudentRequestTypesForStudent);
 
   const {
@@ -54,7 +73,7 @@ function StudentRequestsIndexPage() {
     isError: requestsError,
     error: requestsErr,
   } = useQuery({
-    queryKey: ["student-affairs", "my-requests"],
+    queryKey: ["student-affairs", "my-requests-progress"],
     queryFn: () => listFn({ data: {} }),
   });
 
@@ -68,6 +87,7 @@ function StudentRequestsIndexPage() {
     staleTime: 60_000,
     retry: 1,
   });
+
 
   const services = filterAvailableRequestTypesForStudentPage(
     filterStudentRequestTypesForDisplay(
