@@ -95,6 +95,15 @@ function FacultyDashboard() {
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+  const processingAccessFn = useServerFn(hasActiveProcessingAssignment);
+  const { data: processingAccess } = useQuery({
+    queryKey: ["faculty-portal", "processing-access"],
+    queryFn: () => processingAccessFn({ data: {} }),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const showProcessingCard =
+    !!processingAccess && (processingAccess.hasAssignment || processingAccess.isAdmin);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
