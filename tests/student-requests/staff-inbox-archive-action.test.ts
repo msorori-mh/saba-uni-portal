@@ -31,10 +31,15 @@ const DETAIL_PANEL_SRC = readFileSync(
 const execStart = SERVER_SRC.indexOf(
   "export const executeStudentRequestArchiveAction",
 );
-const execBlock = execStart >= 0 ? SERVER_SRC.slice(execStart) : "";
 const listStart = SERVER_SRC.indexOf(
   "export const listStudentRequestOfficialDocuments",
 );
+const execBlock =
+  execStart >= 0 && listStart > execStart
+    ? SERVER_SRC.slice(execStart, listStart)
+    : execStart >= 0
+      ? SERVER_SRC.slice(execStart)
+      : "";
 const listBlock = listStart >= 0 ? SERVER_SRC.slice(listStart) : "";
 
 describe("executeStudentRequestArchiveAction — server fn contract", () => {
