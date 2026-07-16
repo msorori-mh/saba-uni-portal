@@ -302,7 +302,8 @@ function StudentRequestsIndexPage() {
                       <th className="px-3 py-2 text-right">نوع الطلب</th>
                       <th className="px-3 py-2 text-right">العنوان</th>
                       <th className="px-3 py-2 text-right">الحالة</th>
-                      <th className="px-3 py-2 text-right">الجهة الحالية</th>
+                      <th className="px-3 py-2 text-right">المرحلة الحالية</th>
+                      <th className="px-3 py-2 text-right">الرسوم</th>
                       <th className="px-3 py-2 text-right">تاريخ التقديم</th>
                       <th className="px-3 py-2 text-right">آخر تحديث</th>
                       <th className="px-3 py-2 text-right">التفاصيل</th>
