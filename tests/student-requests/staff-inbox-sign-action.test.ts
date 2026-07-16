@@ -41,8 +41,14 @@ const DETAIL_PANEL_SRC = readFileSync(
 const signExecutorStart = SERVER_SRC.indexOf("export const executeStudentRequestSignAction");
 const signExecutorEnd = (() => {
   if (signExecutorStart < 0) return -1;
-  const nextExport = SERVER_SRC.indexOf("\nexport const ", signExecutorStart + 1);
-  return nextExport > 0 ? nextExport : SERVER_SRC.length;
+  // Bound at the next major section separator, which is a "// ====" comment
+  // block or the next top-level export after the sign executor.
+  const boundaries = [
+    SERVER_SRC.indexOf("// ============================================================================\n// Archive-step executor", signExecutorStart + 1),
+    SERVER_SRC.indexOf("\nexport const executeStudentRequestArchiveAction", signExecutorStart + 1),
+    SERVER_SRC.indexOf("\nexport const listStudentRequestOfficialDocuments", signExecutorStart + 1),
+  ].filter((idx) => idx > 0);
+  return boundaries.length > 0 ? Math.min(...boundaries) : SERVER_SRC.length;
 })();
 const signExecutorBlock =
   signExecutorStart >= 0 ? SERVER_SRC.slice(signExecutorStart, signExecutorEnd) : "";
