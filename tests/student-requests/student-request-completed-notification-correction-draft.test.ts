@@ -65,11 +65,20 @@ describe("draft: student_request_completed notification correction", () => {
     expect(successBranch()).toMatch(/INSERT INTO public\.notifications/);
   });
 
-  it("success-branch INSERT uses ON CONFLICT DO NOTHING on the new unique index", () => {
+  it("success-branch INSERT uses ON CONFLICT with index-inference target + partial predicate + DO NOTHING", () => {
     const b = successBranch();
+    // Must NOT use the constraint-name form (partial unique indexes can't be named in ON CONFLICT ON CONSTRAINT).
+    expect(b).not.toMatch(/ON CONFLICT ON CONSTRAINT notifications_student_request_completed_uniq/);
+    // Conflict target: the four columns.
     expect(b).toMatch(
-      /ON CONFLICT ON CONSTRAINT notifications_student_request_completed_uniq\s*\n?\s*DO NOTHING/,
+      /ON CONFLICT\s*\(\s*user_id,\s*notification_type,\s*reference_type,\s*reference_id\s*\)/,
     );
+    // WHERE predicate must match the partial index predicate exactly.
+    expect(b).toMatch(
+      /WHERE notification_type = 'student_request_completed'\s*\n?\s*AND reference_type = 'student_request'\s*\n?\s*AND reference_id IS NOT NULL/,
+    );
+    // DO NOTHING present.
+    expect(b).toMatch(/DO NOTHING\s*;/);
     // No WHERE NOT EXISTS fallback — idempotency is schema-enforced.
     expect(b).not.toMatch(/WHERE NOT EXISTS/);
   });

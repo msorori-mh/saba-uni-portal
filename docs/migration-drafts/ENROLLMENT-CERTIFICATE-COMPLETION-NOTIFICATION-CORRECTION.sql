@@ -191,7 +191,15 @@ BEGIN
       v_student_user_id, v_notif_title, v_notif_message,
       'student_request_completed', 'student_request', v_req.id
     )
-    ON CONFLICT ON CONSTRAINT notifications_student_request_completed_uniq
+    ON CONFLICT (
+      user_id,
+      notification_type,
+      reference_type,
+      reference_id
+    )
+    WHERE notification_type = 'student_request_completed'
+      AND reference_type = 'student_request'
+      AND reference_id IS NOT NULL
     DO NOTHING;
   END IF;
 
