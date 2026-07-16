@@ -78,35 +78,46 @@ export function StudentDocumentsSection({ studentProfileId }: { studentProfileId
               </div>
               <div className="mt-1 grid grid-cols-2 gap-1.5">
                 <Link
-                  to="/document-view/$id"
-                  params={{ id: d.id }}
-                  target="_blank"
-                  className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-bold text-primary-foreground"
-                >
-                  <Eye className="h-3.5 w-3.5" /> عرض
-                </Link>
-                <Link
                   to="/verify-document"
                   search={{ code: d.verification_code }}
                   target="_blank"
-                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold col-span-2"
                 >
                   <ShieldCheck className="h-3.5 w-3.5" /> تحقق
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => openDoc(d.id, true)}
-                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
-                >
-                  <Printer className="h-3.5 w-3.5" /> طباعة
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openDoc(d.id, true)}
-                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
-                >
-                  <Download className="h-3.5 w-3.5" /> PDF
-                </button>
+                {d.status === "cancelled" ? (
+                  <div
+                    data-testid="student-doc-cancelled-notice"
+                    className="col-span-2 rounded-lg border border-destructive/40 bg-destructive/5 px-2 py-1.5 text-[11px] font-bold text-destructive text-center"
+                  >
+                    الوثيقة ملغاة وغير صالحة للاستخدام
+                  </div>
+                ) : d.status === "issued" || d.status === "archived" ? (
+                  <>
+                    <Link
+                      to="/document-view/$id"
+                      params={{ id: d.id }}
+                      target="_blank"
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-primary px-2 py-1.5 text-[11px] font-bold text-primary-foreground"
+                    >
+                      <Eye className="h-3.5 w-3.5" /> عرض
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => openDoc(d.id, true)}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
+                    >
+                      <Printer className="h-3.5 w-3.5" /> طباعة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openDoc(d.id, true)}
+                      className="col-span-2 inline-flex items-center justify-center gap-1 rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] font-bold text-primary hover:border-gold"
+                    >
+                      <Download className="h-3.5 w-3.5" /> PDF
+                    </button>
+                  </>
+                ) : null}
               </div>
             </div>
           ))}
