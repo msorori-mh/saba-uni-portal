@@ -38,10 +38,9 @@ const DETAIL_PANEL_SRC = readFileSync(
   "utf-8",
 );
 
+const signExecutorStart = SERVER_SRC.indexOf("export const executeStudentRequestSignAction");
 const signExecutorBlock =
-  SERVER_SRC.match(
-    /export\s+const\s+executeStudentRequestSignAction[\s\S]*?^\s*\}\);\s*$/m,
-  )?.[0] ?? "";
+  signExecutorStart >= 0 ? SERVER_SRC.slice(signExecutorStart) : "";
 
 describe("executeStudentRequestSignAction — server fn contract", () => {
   it("exists as a POST createServerFn", () => {
