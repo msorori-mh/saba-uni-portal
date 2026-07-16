@@ -145,9 +145,7 @@ describe("issuance and archive contracts inherit the strict gate", () => {
     // Existing DB functions call can_current_user_act_on_step at entry.
     // The draft intentionally does not replace them — hardening
     // propagates through the shared gate.
-    expect(DRAFT).toMatch(
-      /Issuance \/ archive functions are transitively covered/i,
-    );
+    expect(DRAFT).toMatch(/transitively covers document issuance and archive/i);
   });
 
   it("documents that no admin bypass exists inside those functions", () => {
