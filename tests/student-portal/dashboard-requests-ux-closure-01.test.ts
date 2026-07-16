@@ -105,7 +105,15 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
   it("6 — requests list uses owner RPC; no impersonation / service-role student swap", () => {
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
     const fn = readFileSync(join(ROOT, "src/lib/student-affairs.functions.ts"), "utf8");
-    expect(page).toContain("getMyStudentServiceRequests");
+    const trackingFn = readFileSync(
+      join(ROOT, "src/lib/student-requests/student-tracking.functions.ts"),
+      "utf8",
+    );
+    // Page calls the enriched wrapper; the wrapper delegates to
+    // rpcGetMyStudentRequests (auth.uid()-scoped RPC via context.supabase).
+    expect(page).toContain("getMyStudentRequestsWithProgress");
+    expect(trackingFn).toContain("rpcGetMyStudentRequests(context.supabase)");
+    // Legacy wrapper is still exported and still auth-scoped for other consumers.
     expect(fn).toContain("getMyStudentServiceRequests");
     expect(fn).toContain("rpcGetMyStudentRequests");
     expect(page).not.toContain("93807768");
