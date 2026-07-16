@@ -46,18 +46,26 @@ describe("draft is quarantined outside supabase/migrations", () => {
   });
 });
 
-describe("schema-safety: no references to non-existent columns", () => {
+describe("schema-safety: executable SQL does not touch non-existent columns", () => {
+  // Only inspect function bodies (executable SQL), not header/comment prose.
+  const bodies = [
+    "user_matches_workflow_runtime_step",
+    "is_current_user_dean_for_student",
+    "get_my_request_actor_inbox",
+    "can_current_user_act_on_step",
+  ].map(fnBody).join("\n");
+
   it("does not reference organizational_positions.department_id", () => {
-    expect(DRAFT).not.toMatch(/organizational_positions[\s\S]{0,80}department_id/i);
-    expect(DRAFT).not.toMatch(/\bop\.department_id\b/);
+    expect(bodies).not.toMatch(/organizational_positions[\s\S]{0,80}department_id/i);
+    expect(bodies).not.toMatch(/\bop\.department_id\b/);
   });
 
   it("does not reference departments.parent_department_id or any parent_department_id", () => {
-    expect(DRAFT).not.toMatch(/parent_department_id/);
+    expect(bodies).not.toMatch(/parent_department_id/);
   });
 
   it("does not reference an invented college_id column", () => {
-    expect(DRAFT).not.toMatch(/\bcollege_id\b/);
+    expect(bodies).not.toMatch(/\bcollege_id\b/);
   });
 });
 
