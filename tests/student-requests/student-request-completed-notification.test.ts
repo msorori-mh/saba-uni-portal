@@ -2,17 +2,20 @@
  * SOURCE-LEVEL tests for the student-facing "request completed + document ready"
  * notification emitted by archive_enrollment_certificate_from_workflow_step.
  *
- * These tests do NOT hit the database. They inspect the migration SQL to
- * lock down the invariants required by the spec:
- *   1) A single notification per (user, type, reference) — idempotent insert.
- *   2) Inserted in the same PL/pgSQL block as the successful archive updates
- *      (so both commit or both roll back in the same transaction).
- *   3) Never emitted from a failure path (only after the archive updates run).
+ * These tests inspect the applied migration SQL (the CORRECTION apply) to
+ * lock down the currently accepted invariants:
+ *   1) A UNIQUE partial index enforces "one notification per
+ *      (user_id, notification_type, reference_type, reference_id)" for
+ *      notification_type='student_request_completed'.
+ *   2) A single INSERT lives in the successful-archive branch, guarded by
+ *      ON CONFLICT (four cols) WHERE <partial predicate> DO NOTHING.
+ *   3) The previously-archived branch does NOT insert a notification.
  *   4) Recipient is the request's student_profile.user_id — never a staff user.
- *   5) Message text contains request_number + document_number, and NEVER
- *      the storage path (pdf_url) or the verification_code.
+ *   5) Message text is exactly "رقم الطلب: <n> — رقم الوثيقة: <d>" and
+ *      never contains links, pdf_url, verification_code, or storage paths.
  *   6) Notification metadata: type=student_request_completed,
  *      reference_type=student_request, reference_id=request_id.
+ *   7) No notification insert precedes any RAISE EXCEPTION guard.
  */
 import { describe, expect, it } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
@@ -21,21 +24,49 @@ import { join } from "node:path";
 const MIG_DIR = join(import.meta.dir, "../../supabase/migrations");
 const migFile = readdirSync(MIG_DIR)
   .filter((f) => f.endsWith(".sql"))
-  .filter((f) => readFileSync(join(MIG_DIR, f), "utf-8").includes("archive_enrollment_certificate_from_workflow_step") &&
-                  readFileSync(join(MIG_DIR, f), "utf-8").includes("student_request_completed"))
+  .filter((f) => {
+    const c = readFileSync(join(MIG_DIR, f), "utf-8");
+    return (
+      c.includes("archive_enrollment_certificate_from_workflow_step") &&
+      c.includes("student_request_completed") &&
+      c.includes("notifications_student_request_completed_uniq")
+    );
+  })
   .sort()
   .pop();
 
-describe("student_request_completed notification migration", () => {
-  it("migration file exists", () => {
+const sql = migFile ? readFileSync(join(MIG_DIR, migFile), "utf-8") : "";
+
+function previouslyArchivedBranch(): string {
+  const start = sql.indexOf("IF v_doc.status = 'archived' THEN");
+  const tail = sql.slice(start);
+  const end = tail.indexOf("IF v_doc.status IS DISTINCT FROM 'issued'");
+  return tail.slice(0, end);
+}
+
+function successBranch(): string {
+  const start = sql.indexOf("INSERT INTO public.student_request_workflow_events");
+  return sql.slice(start);
+}
+
+describe("student_request_completed notification (applied migration)", () => {
+  it("applied correction migration file exists", () => {
     expect(migFile).toBeDefined();
+    expect(sql.length).toBeGreaterThan(0);
   });
 
-  const sql = migFile ? readFileSync(join(MIG_DIR, migFile), "utf-8") : "";
+  it("creates the UNIQUE partial index with the required predicate", () => {
+    expect(sql).toMatch(
+      /CREATE UNIQUE INDEX IF NOT EXISTS notifications_student_request_completed_uniq\s+ON public\.notifications \(user_id, notification_type, reference_type, reference_id\)/,
+    );
+    expect(sql).toMatch(/WHERE notification_type = 'student_request_completed'/);
+    expect(sql).toMatch(/AND reference_type\s*=\s*'student_request'/);
+    expect(sql).toMatch(/AND reference_id\s+IS NOT NULL/);
+  });
 
-  it("extends notifications_type_chk to allow 'student_request_completed'", () => {
-    expect(sql).toMatch(/DROP CONSTRAINT IF EXISTS notifications_type_chk/i);
-    expect(sql).toMatch(/'student_request_completed'/);
+  it("does NOT modify notifications_type_chk", () => {
+    expect(sql).not.toMatch(/DROP CONSTRAINT IF EXISTS notifications_type_chk/i);
+    expect(sql).not.toMatch(/ADD CONSTRAINT notifications_type_chk/i);
   });
 
   it("replaces archive_enrollment_certificate_from_workflow_step", () => {
@@ -44,76 +75,85 @@ describe("student_request_completed notification migration", () => {
     );
   });
 
-  it("derives the recipient from student_profiles.user_id (not staff)", () => {
-    expect(sql).toMatch(/FROM public\.student_profiles sp WHERE sp\.id = v_req\.student_profile_id/);
-    // Never send to actor / completed_by / a staff table.
-    expect(sql).not.toMatch(
-      /INSERT INTO public\.notifications[\s\S]{0,400}v_uid/,
+  it("emits exactly one notification INSERT overall, inside the success branch", () => {
+    const inserts = sql.match(/INSERT INTO public\.notifications/g) ?? [];
+    expect(inserts.length).toBe(1);
+    expect(successBranch()).toMatch(/INSERT INTO public\.notifications/);
+  });
+
+  it("previously-archived branch does NOT insert a notification", () => {
+    const b = previouslyArchivedBranch();
+    expect(b.length).toBeGreaterThan(0);
+    expect(b).not.toMatch(/INSERT INTO public\.notifications/);
+    expect(b).not.toMatch(/v_notif_message/);
+    expect(b).not.toMatch(/v_notif_title/);
+  });
+
+  it("uses ON CONFLICT with four-column target + partial WHERE + DO NOTHING (no WHERE NOT EXISTS)", () => {
+    const b = successBranch();
+    expect(b).not.toMatch(/ON CONFLICT ON CONSTRAINT/);
+    expect(b).toMatch(
+      /ON CONFLICT\s*\(\s*user_id,\s*notification_type,\s*reference_type,\s*reference_id\s*\)/,
+    );
+    expect(b).toMatch(
+      /WHERE notification_type = 'student_request_completed'\s*\n?\s*AND reference_type = 'student_request'\s*\n?\s*AND reference_id IS NOT NULL/,
+    );
+    expect(b).toMatch(/DO NOTHING\s*;/);
+    expect(b).not.toMatch(/WHERE NOT EXISTS/);
+  });
+
+  it("recipient is the request's student_profile.user_id (not staff)", () => {
+    expect(sql).toMatch(
+      /FROM public\.student_profiles sp WHERE sp\.id = v_req\.student_profile_id/,
     );
     expect(sql).not.toMatch(/staff_profiles[\s\S]{0,200}notifications/);
+    expect(sql).not.toMatch(/completed_by[\s\S]{0,80}INSERT INTO public\.notifications/);
   });
 
-  it("insert is idempotent per (user, type, reference)", () => {
-    // Both the fresh-archive branch and the recovery branch must guard with
-    // WHERE NOT EXISTS on the same 4-key composite.
-    const matches = sql.match(
-      /INSERT INTO public\.notifications[\s\S]*?WHERE NOT EXISTS \(\s*SELECT 1 FROM public\.notifications n\s*WHERE n\.user_id = v_student_user_id\s*AND n\.notification_type = 'student_request_completed'\s*AND n\.reference_type = 'student_request'\s*AND n\.reference_id = v_req\.id\s*\)/g,
+  it("message is exactly 'رقم الطلب: <n> — رقم الوثيقة: <d>' and title matches spec", () => {
+    expect(sql).toContain("'اكتمل طلبك وأصبحت الوثيقة جاهزة'");
+    expect(sql).toMatch(
+      /v_notif_message\s*:=\s*'رقم الطلب: '\s*\|\|\s*COALESCE\(v_req\.request_number, ''\)\s*\|\|\s*' — رقم الوثيقة: '\s*\|\|\s*COALESCE\(v_doc\.document_number, ''\)\s*;/,
     );
-    expect(matches).not.toBeNull();
-    expect((matches ?? []).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("uses the exact title and includes request_number + document_number", () => {
-    expect(sql).toContain("اكتمل طلبك وأصبحت الوثيقة جاهزة");
-    expect(sql).toMatch(/v_req\.request_number/);
-    expect(sql).toMatch(/v_doc\.document_number/);
-  });
-
-  it("links to the student portal request detail route", () => {
-    expect(sql).toMatch(/\/student\/requests\/'\s*\|\|\s*v_req\.id::text/);
-  });
-
-  it("never exposes the storage path or verification_code in the message", () => {
-    // The notification message is built into v_notif_message. Ensure the
-    // concatenation never references sensitive columns.
+  it("message never contains a link, pdf_url, verification_code, or storage path", () => {
     const notifBlocks = sql.match(/v_notif_message[\s\S]*?;/g) ?? [];
     expect(notifBlocks.length).toBeGreaterThan(0);
     for (const b of notifBlocks) {
       expect(b).not.toMatch(/pdf_url/);
       expect(b).not.toMatch(/verification_code/);
       expect(b).not.toMatch(/storage/i);
+      expect(b).not.toMatch(/\/student\/requests\//);
+      expect(b).not.toMatch(/https?:\/\//);
     }
+  });
+
+  it("inserts with the required notification metadata", () => {
+    expect(successBranch()).toMatch(
+      /'student_request_completed',\s*'student_request',\s*v_req\.id/,
+    );
   });
 
   it("notification insert lives AFTER the archive UPDATEs (same tx, only on success)", () => {
     const idxUpdateDoc = sql.indexOf("UPDATE public.official_documents");
-    const idxUpdateReq = sql.indexOf("UPDATE public.student_requests");
+    const idxUpdateReq = sql.lastIndexOf("UPDATE public.student_requests");
     const idxInsertNotif = sql.indexOf("INSERT INTO public.notifications");
     expect(idxUpdateDoc).toBeGreaterThan(-1);
     expect(idxUpdateReq).toBeGreaterThan(-1);
-    expect(idxInsertNotif).toBeGreaterThan(-1);
-    // No early RETURN between the archive UPDATEs and the notification insert
-    // in the fresh-archive branch (we already assert the idempotent branch
-    // also inserts, and it does so before its own RETURN).
+    expect(idxInsertNotif).toBeGreaterThan(idxUpdateDoc);
+    expect(idxInsertNotif).toBeGreaterThan(idxUpdateReq);
   });
 
-  it("preserves the existing workflow_events 'archived' row", () => {
+  it("preserves the existing workflow_events 'archived' insert", () => {
     expect(sql).toMatch(
       /INSERT INTO public\.student_request_workflow_events[\s\S]*'archived'/,
     );
   });
 
-  it("inserts with the required notification metadata", () => {
-    expect(sql).toMatch(
-      /'student_request_completed',\s*'student_request',\s*v_req\.id/,
-    );
-  });
-
-  it("does NOT insert a notification on any failure path (no INSERT before RAISE EXCEPTION checks)", () => {
-    // Every RAISE EXCEPTION in the function must precede the first notification insert.
+  it("no notification insert precedes any RAISE EXCEPTION guard", () => {
     const firstNotifIdx = sql.indexOf("INSERT INTO public.notifications");
     const raiseMatches = [...sql.matchAll(/RAISE EXCEPTION/g)];
-    // At least the auth / validation raises must exist before the first notification insert.
     const raisesBefore = raiseMatches.filter((m) => (m.index ?? 0) < firstNotifIdx);
     expect(raisesBefore.length).toBeGreaterThanOrEqual(3);
   });
