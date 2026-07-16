@@ -327,8 +327,18 @@ function StudentRequestsIndexPage() {
                         <td className="px-3 py-2">
                           {STATUS_LABEL[request.status] ?? request.status}
                         </td>
+                        <td className="px-3 py-2">{request.currentStageAr ?? "—"}</td>
                         <td className="px-3 py-2">
-                          {formatStudentCurrentProcessingUnitLabel(request.current_role_key)}
+                          {(() => {
+                            const f = formatFeeShort(request.fee);
+                            const cls =
+                              f.tone === "danger"
+                                ? "text-orange-800 font-bold"
+                                : f.tone === "success"
+                                  ? "text-emerald-700 font-semibold"
+                                  : "";
+                            return <span className={cls}>{f.text}</span>;
+                          })()}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {request.submitted_at
