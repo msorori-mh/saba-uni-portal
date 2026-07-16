@@ -11,6 +11,9 @@ import {
   OFFICIAL_DOCUMENTS_BUCKET,
   buildOfficialDocumentStoragePath,
   evaluateDownloadAuthorization,
+  isDownloadableOfficialDocumentStatus,
+  CANCELLED_DOCUMENT_DOWNLOAD_ERROR_MESSAGE_AR,
+  NOT_DOWNLOADABLE_DOCUMENT_ERROR_MESSAGE_AR,
 } from "@/lib/student-requests/enrollment-certificate-pdf-storage-generator-contract";
 import {
   buildEnrollmentCertificatePdfBytes,
