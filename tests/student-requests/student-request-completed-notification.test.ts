@@ -20,7 +20,9 @@ import { join } from "node:path";
 
 const MIG_DIR = join(import.meta.dir, "../../supabase/migrations");
 const migFile = readdirSync(MIG_DIR)
-  .filter((f) => f.endsWith("_student_request_completed_notification.sql"))
+  .filter((f) => f.endsWith(".sql"))
+  .filter((f) => readFileSync(join(MIG_DIR, f), "utf-8").includes("archive_enrollment_certificate_from_workflow_step") &&
+                  readFileSync(join(MIG_DIR, f), "utf-8").includes("student_request_completed"))
   .sort()
   .pop();
 
