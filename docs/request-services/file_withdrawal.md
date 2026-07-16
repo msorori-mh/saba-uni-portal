@@ -23,16 +23,16 @@ None required initially; clearance evidence attached per clearance step by staff
 ## Operational steps — clearance chain
 Each clearance step gates the next; every step is a distinct approval by a distinct assigned unit.
 
-| # | step_key | unit | role | action_type |
-|---|---|---|---|---|
-| 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` |
-| 2 | `library_clearance` | **BLOCKED** — no `library` unit in `request_processing_units` (staff exists: ناجي الروقي, role_type=`library_officer`) | — | `clear` |
-| 3 | `labs_clearance` | **BLOCKED** — no `labs` unit (staff exists: محمد حيدر, role_type=`labs_manager`) | — | `clear` |
-| 4 | `activities_clearance` | **BLOCKED** — no `student_activities` unit and no matching active staff role | — | `clear` |
-| 5 | `finance_clearance` | `finance` | `revenue_finance_officer` | `clear` |
-| 6 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` |
+| # | step_key | unit | role | action_type | assignee (after DOMAINS-EXPANSION-01) |
+|---|---|---|---|---|---|
+| 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` | هيثم الشبلي |
+| 2 | `library_clearance` | `library` | `library_officer` | `clear` | ناجي الروقي |
+| 3 | `labs_clearance` | `labs` | `labs_manager` | `clear` | محمد حيدر |
+| 4 | `activities_clearance` | `student_affairs` | `student_affairs_manager` | `clear` | ياسمين الولص *(interim — no `student_activities` unit is created; activities clearance rides on student_affairs_manager)* |
+| 5 | `finance_clearance` | `finance` | `revenue_finance_officer` | `clear` | فارس اليوسفي |
+| 6 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` | عبدالله طعيمان |
 
-**Blocker (verified 2026-07-16 preflight):** `request_processing_units` only contains `{archive, dean, finance, registrar, student_affairs}`. Even though `staff_profiles.role_type` values `library_officer` and `labs_manager` exist for real staff (ناجي الروقي, محمد حيدر), they have **no active row in `request_processing_assignments`** and their units are absent from `request_processing_units`/`request_processing_roles`. Batch B must either (a) add `library` + `labs` + `student_activities` units and roles and create assignments for those staff members, or (b) fall back to a single `student_affairs_manager` (ياسمين الولص) multi-checkbox clearance step under the existing `student_affairs` unit. Decision required before Batch B implementation.
+**Unblocked by** `docs/migration-drafts/REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql` (adds `library` + `labs` units and their roles/assignments). The `student_activities` unit is intentionally NOT created — activities clearance is handled by `student_affairs_manager` under the existing `student_affairs` unit until a dedicated activities office is provisioned with real staff.
 
 
 ## Transitions

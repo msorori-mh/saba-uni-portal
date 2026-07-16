@@ -29,17 +29,17 @@ Required: `secondary_certificate`. `requires_attachment=true` already set.
 - **Outcome:** on approval, update `student_profiles.department_id/program_id` + create equivalency records (via `equivalency_courses` — separate follow-up).
 
 ## Operational steps
-| # | step_key | unit | role | action_type |
-|---|---|---|---|---|
-| 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` |
-| 2 | `source_department_head_approval` | **BLOCKED** — no matching unit/role in production | — | `approve` |
-| 3 | `target_department_head_approval` | **BLOCKED** — no matching unit/role in production | — | `approve` |
-| 4 | `dean_approval` | `dean` | `dean` | `approve` |
-| 5 | `fee_assessment` | `finance` | `revenue_finance_officer` | `assess_fee` |
-| 6 | `payment_confirmation` | `finance` | `revenue_finance_officer` | `confirm_payment` |
-| 7 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` |
+| # | step_key | unit | role | action_type | assignee scope |
+|---|---|---|---|---|---|
+| 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` | هيثم الشبلي |
+| 2 | `source_department_head_approval` | `department` | `department_head` | `approve` | chair of the student's **current** department (pin via `assigned_faculty_profile_id`) |
+| 3 | `target_department_head_approval` | `department` | `department_head` | `approve` | chair of the **target** department (pin via `assigned_faculty_profile_id`) |
+| 4 | `dean_approval` | `dean` | `dean` | `approve` | current dean assignment |
+| 5 | `fee_assessment` | `finance` | `revenue_finance_officer` | `assess_fee` | فارس اليوسفي |
+| 6 | `payment_confirmation` | `finance` | `revenue_finance_officer` | `confirm_payment` | فارس اليوسفي |
+| 7 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` | عبدالله طعيمان |
 
-**Blocker (verified 2026-07-16 preflight):** `request_processing_units` contains only `{archive, dean, finance, registrar, student_affairs}` and `request_processing_roles` has no `department_head` entry. No holder exists for `organizational_positions.dean` either (only faculty-profile assignment on `dean` unit → أ.م.د. مقبول قايد عبده الكامل). Steps 2 and 3 remain **HOLD** until Batch B either (a) introduces a real `department`/`department_head` unit+role backed by `position_assignments`, or (b) collapses the two steps into a single `dean_approval` step using the existing `dean` unit.
+**Unblocked by** `docs/migration-drafts/REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql` (adds the `department` unit + `department_head` role + faculty-profile assignments for the three verified chairs: د. اسامه، د. خالد، د. رمزي). Because `user_matches_workflow_runtime_step` short-circuits on direct assignees, the workflow builder MUST set `assigned_faculty_profile_id` on each of steps 2 and 3 based on the student's source/target department at runtime — otherwise the fallback (unit + role match) would allow any chair to act on any other chair's step.
 
 
 ## Transitions
