@@ -168,11 +168,23 @@ function StudentRequestDetailsPage() {
   const detailsFn = useServerFn(getStudentServiceRequestDetails);
   const signedUrlFn = useServerFn(getStudentRequestAttachmentSignedUrl);
   const submitFn = useServerFn(submitStudentServiceRequest);
+  const timelineFn = useServerFn(getStudentRequestWorkflowTimelineForStudent);
+  const feeFn = useServerFn(getStudentRequestFeeSummaryForStudent);
   const [resubmitting, setResubmitting] = useState(false);
   const resubmitInFlightRef = useRef(false);
   const { data, isLoading, error } = useQuery({
     queryKey: ["student-affairs", "details", id],
     queryFn: () => detailsFn({ data: { requestId: id } }),
+  });
+  const { data: timeline = [] } = useQuery({
+    queryKey: ["student-affairs", "timeline", id],
+    queryFn: () => timelineFn({ data: { requestId: id } }),
+    enabled: !!data,
+  });
+  const { data: fee } = useQuery({
+    queryKey: ["student-affairs", "fee", id],
+    queryFn: () => feeFn({ data: { requestId: id } }),
+    enabled: !!data,
   });
 
   const openAttachment = async (path: string) => {
