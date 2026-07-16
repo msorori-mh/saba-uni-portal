@@ -17,7 +17,7 @@ import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequ
 import { StaffRequestSignaturePanel } from "@/components/student-requests/StaffRequestSignaturePanel";
 import { EnrollmentCertificateIssueButton } from "@/components/student-requests/EnrollmentCertificateIssueButton";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
-import { RequestDocumentArchivePanel } from "@/components/student-requests/RequestDocumentArchivePanel";
+import { StaffRequestArchivePanel } from "@/components/student-requests/StaffRequestArchivePanel";
 import { StudentRequestFeeAssessmentForm } from "@/components/student-requests/StudentRequestFeeAssessmentForm";
 import { StudentRequestPaymentConfirmationForm } from "@/components/student-requests/StudentRequestPaymentConfirmationForm";
 import { StudentRequestFeeStatusDisplay } from "@/components/student-requests/StudentRequestFeeStatusDisplay";
