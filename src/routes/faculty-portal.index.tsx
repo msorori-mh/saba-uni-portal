@@ -1,13 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { usePagePerf } from "@/lib/perf-probe";
 import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck, ScrollText } from "lucide-react";
+import { User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Loader2, CalendarClock, Users2, ChevronDown, ChevronUp, ClipboardCheck, ScrollText, Inbox } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
+import { hasActiveProcessingAssignment } from "@/lib/faculty-portal/processing-access.functions";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { LazyMount } from "@/components/util/LazyMount";
 import { portalFeatures } from "@/lib/portal-features";
@@ -93,6 +95,15 @@ function FacultyDashboard() {
     staleTime: 2 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+  const processingAccessFn = useServerFn(hasActiveProcessingAssignment);
+  const { data: processingAccess } = useQuery({
+    queryKey: ["faculty-portal", "processing-access"],
+    queryFn: () => processingAccessFn({ data: {} }),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+  const showProcessingCard =
+    !!processingAccess && (processingAccess.hasAssignment || processingAccess.isAdmin);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -187,6 +198,29 @@ function FacultyDashboard() {
                     <div className="text-xs text-muted-foreground">
                       رفع ونشر محاضرات وملفات المقررات المسندة إليك.
                     </div>
+                  </div>
+                </div>
+              </Link>
+            )}
+
+            {showProcessingCard && (
+              <Link
+                to="/faculty-portal/processing-requests"
+                data-testid="faculty-processing-card"
+                className="mt-3 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                    <Inbox className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-primary">طلبات المعالجة</div>
+                    <div className="text-xs text-muted-foreground">
+                      الطلبات الطلابية التي تنتظر إجراءك بصفتك أحد أعضاء دورة المعالجة.
+                    </div>
+                    <span className="mt-2 inline-flex items-center rounded-md border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs font-bold text-primary-deep">
+                      فتح صندوق المعالجة
+                    </span>
                   </div>
                 </div>
               </Link>

@@ -43,6 +43,7 @@ import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
 import { Route as MobileStudentRouteImport } from './routes/mobile.student'
 import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
+import { Route as FacultyPortalProcessingRequestsRouteImport } from './routes/faculty-portal.processing-requests'
 import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
 import { Route as FacultyPortalAcademicCouncilsRouteImport } from './routes/faculty-portal.academic-councils'
 import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
@@ -335,6 +336,12 @@ const FacultyPortalScheduleRoute = FacultyPortalScheduleRouteImport.update({
   path: '/schedule',
   getParentRoute: () => FacultyPortalRoute,
 } as any)
+const FacultyPortalProcessingRequestsRoute =
+  FacultyPortalProcessingRequestsRouteImport.update({
+    id: '/processing-requests',
+    path: '/processing-requests',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
 const FacultyPortalChangePasswordRoute =
   FacultyPortalChangePasswordRouteImport.update({
     id: '/change-password',
@@ -698,6 +705,7 @@ export interface FileRoutesByFullPath {
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
@@ -795,6 +803,7 @@ export interface FileRoutesByTo {
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -895,6 +904,7 @@ export interface FileRoutesById {
   '/document-view/$id': typeof DocumentViewIdRoute
   '/faculty-portal/academic-councils': typeof FacultyPortalAcademicCouncilsRoute
   '/faculty-portal/change-password': typeof FacultyPortalChangePasswordRoute
+  '/faculty-portal/processing-requests': typeof FacultyPortalProcessingRequestsRoute
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
@@ -998,6 +1008,7 @@ export interface FileRouteTypes {
     | '/document-view/$id'
     | '/faculty-portal/academic-councils'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/processing-requests'
     | '/faculty-portal/schedule'
     | '/mobile/student'
     | '/mobile/student-login'
@@ -1095,6 +1106,7 @@ export interface FileRouteTypes {
     | '/document-view/$id'
     | '/faculty-portal/academic-councils'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/processing-requests'
     | '/faculty-portal/schedule'
     | '/mobile/student-login'
     | '/news/$slug'
@@ -1194,6 +1206,7 @@ export interface FileRouteTypes {
     | '/document-view/$id'
     | '/faculty-portal/academic-councils'
     | '/faculty-portal/change-password'
+    | '/faculty-portal/processing-requests'
     | '/faculty-portal/schedule'
     | '/mobile/student'
     | '/mobile/student-login'
@@ -1546,6 +1559,13 @@ declare module '@tanstack/react-router' {
       path: '/schedule'
       fullPath: '/faculty-portal/schedule'
       preLoaderRoute: typeof FacultyPortalScheduleRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/faculty-portal/processing-requests': {
+      id: '/faculty-portal/processing-requests'
+      path: '/processing-requests'
+      fullPath: '/faculty-portal/processing-requests'
+      preLoaderRoute: typeof FacultyPortalProcessingRequestsRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
     '/faculty-portal/change-password': {
@@ -2076,6 +2096,7 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
 interface FacultyPortalRouteChildren {
   FacultyPortalAcademicCouncilsRoute: typeof FacultyPortalAcademicCouncilsRoute
   FacultyPortalChangePasswordRoute: typeof FacultyPortalChangePasswordRoute
+  FacultyPortalProcessingRequestsRoute: typeof FacultyPortalProcessingRequestsRoute
   FacultyPortalScheduleRoute: typeof FacultyPortalScheduleRoute
   FacultyPortalIndexRoute: typeof FacultyPortalIndexRoute
   FacultyPortalMaterialsSectionIdRoute: typeof FacultyPortalMaterialsSectionIdRoute
@@ -2086,6 +2107,7 @@ interface FacultyPortalRouteChildren {
 const FacultyPortalRouteChildren: FacultyPortalRouteChildren = {
   FacultyPortalAcademicCouncilsRoute: FacultyPortalAcademicCouncilsRoute,
   FacultyPortalChangePasswordRoute: FacultyPortalChangePasswordRoute,
+  FacultyPortalProcessingRequestsRoute: FacultyPortalProcessingRequestsRoute,
   FacultyPortalScheduleRoute: FacultyPortalScheduleRoute,
   FacultyPortalIndexRoute: FacultyPortalIndexRoute,
   FacultyPortalMaterialsSectionIdRoute: FacultyPortalMaterialsSectionIdRoute,
