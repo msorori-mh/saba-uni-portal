@@ -19,6 +19,7 @@ Production migration application remains unavailable because:
 - executable service workflow/validator migrations remain missing or incomplete;
 - processing-domain staff/faculty IDs require fresh read-only identity and department verification;
 - exact per-migration apply commands and evidence capture procedures are not yet pinned.
+- the shared atomic submit/action draft is under remediation after independent review found six HIGH and two MEDIUM source/runtime gaps; no application or PR is allowed until all are closed.
 
 The exact dependency order, preflight, sequential application protocol, and post-verification checks are in `docs/B1-MIGRATION-INVENTORY-AND-VERIFICATION-PLAN-01.md`.
 

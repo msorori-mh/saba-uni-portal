@@ -1,5 +1,13 @@
 # Project Autopilot Log
 
+## 2026-07-17 — Cycle 21 atomic runtime first-review isolation
+
+- Created the isolated shared atomic submit/action draft path and encoded lock-before-mutation, exact transition, direct-assignment, transfer-scope, and fail-closed service persistence concepts.
+- Independent review found six HIGH and two MEDIUM runtime gaps, including legacy RPC bypass, incomplete identity proof, transfer-head mismatch, missing eligibility, client payload injection, and concurrency races.
+- Classified the current worktree `CONTINUE_FROM_CURRENT_STATE`; no commit/PR was created and no successful prior work will be repeated.
+- Next run begins with the eight review remediations and direct SQL/runtime regression coverage.
+- Production impact: none.
+
 ## 2026-07-17 — Cycle 20 final chance canonical write 3/3
 
 - Added the source-only canonical-write migration draft in an isolated worktree.

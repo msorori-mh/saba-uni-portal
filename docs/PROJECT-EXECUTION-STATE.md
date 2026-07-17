@@ -2,6 +2,16 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 21 — shared atomic submit/action draft review HOLD
+
+- Started isolated branch/worktree `codex/b1-atomic-submit-action-draft-04` / `C:\projects\saba-uni-portal-b1-atomic-runtime-draft` from `main@518981d`.
+- Built an uncommitted source-only first draft with transactional submit/action boundaries and a fail-closed service-persistence dispatcher.
+- Focused tests pass, but independent deep review returned HOLD: CRITICAL 0, HIGH 6, MEDIUM 2.
+- HIGH remediation required: close legacy B1 submit/action RPC bypass; validate assignment type and active linked identity; require exact faculty/department transfer heads; enforce student eligibility; remove arbitrary visible client payload; eliminate count/select races.
+- MEDIUM remediation required: fully revalidate/clear returned runtime on resubmit and preserve distinct reviewed/cleared/applied audit semantics.
+- The unsafe draft was not committed, pushed, or opened as a PR. Its worktree remains owned for remediation.
+- No SQL/migration apply, production connection/write, protected-record access, `student_visible` change, deploy or publish occurred.
+
 ## Cycle 20 — final chance canonical write draft 3/3
 
 - Isolated branch/worktree: `codex/final-chance-canonical-write-draft-03` / `C:\projects\saba-uni-portal-final-chance-write-draft`.
