@@ -329,3 +329,10 @@
 - Remediated independent-review findings so unresolved eligibility is neutral but non-submittable and controlled inline validation always runs.
 - All gates passed; pushed `ae281b1`, opened PR #143, observed Web CI PASS, and merged as `0da75d8`.
 - No SQL/migration, production access/write, `student_visible`, deploy or publish.
+
+## 2026-07-17 — B1 caller attachment helper completion
+
+- Resumed the isolated B1 caller-conversion slice after PR #143 merged.
+- Closed the review finding by canonicalizing UUIDs before duplicate detection and added a mixed-case duplicate regression.
+- Independent review returned PASS with zero findings; committed and pushed `cf11a66`.
+- No SQL/migration apply, ACL cutover, production action, visibility change, deploy or publish.

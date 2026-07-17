@@ -341,3 +341,11 @@ deploy, publish, secret change, production E2E, cleanup or discard was performed
 - Independent review: PASS, findings 0/0/0/0. Focused tests 7/7, TypeScript and diff-check PASS.
 - SQL SHA-256: `82bab7a52b44dde51c71c12acbdfd3445d08d2d4c24176c66a0b0cc39f99118c`.
 - Production impact: none.
+
+## 2026-07-17 — B1 caller attachment identity PASS
+
+- Feature branch advanced to pushed `cf11a66`.
+- Added fail-closed extraction of opaque secure attachment UUIDs for absence and transfer atomic callers.
+- UUIDs are canonicalized before duplicate checking; paths and client metadata are never authoritative.
+- Independent review PASS with CRITICAL/HIGH/MEDIUM/LOW = 0/0/0/0; focused tests 4/4, TypeScript and diff-check PASS.
+- Direct legacy caller conversion and ACL cutover remain pending; no production impact.
