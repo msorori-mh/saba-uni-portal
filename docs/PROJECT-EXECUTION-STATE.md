@@ -65,6 +65,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Remediation commit `8ea65c3` is pushed; the broader item-6 branch remains pre-PR until 05A/05B executable coverage and full gates complete.
 - No SQL/migration apply, production access/write, visibility change, deploy, publish, or backfill occurred.
 
+### Cycle 30 — file-withdrawal detail boundary draft
+
+- Added source-only `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql` and tests in commit `4db57a7`.
+- Three review rounds identified and remediated exact constraint/default/ACL/RLS/policy inventory gaps; the latest remediation adds closed ACL proof, `NO FORCE RLS`, and exact default inventory.
+- Focused tests PASS 4/4 and diff-check PASS. Final independent re-review of the latest ACL/RLS remediation remains pending; no PR is allowed before PASS.
+- The table is owner-read and direct table writes are denied to authenticated and service roles; later reviewed SECURITY DEFINER persistence owns writes.
+- No SQL/migration apply, production access/write, visibility change, deploy, publish, or protected-record action occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
