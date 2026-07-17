@@ -37,7 +37,12 @@ export type RequestFormFieldDefinition = {
   placeholderAr?: string;
   dependsOn?: RequestFormFieldDependsOn;
   defaultValue?: string | boolean | readonly string[];
-  referenceResolverKey?: "academic_years" | "semesters_for_year" | "current_student_enrollments" | "available_departments" | "available_programs";
+  referenceResolverKey?:
+    | "academic_years"
+    | "semesters_for_year"
+    | "current_student_enrollments"
+    | "available_departments"
+    | "available_programs";
   referenceDependsOnField?: string;
 };
 
@@ -180,7 +185,8 @@ const GRADE_STATEMENT_NON_GRADUATE: RequestFormDefinition = {
           name: "non_graduate_note",
           labelAr: "ملاحظة",
           type: "info",
-          defaultValue: "هذا الطلب مخصص للطلاب غير الخريجين فقط. يُخفى عن الخريجين وفق إعدادات الجمهور.",
+          defaultValue:
+            "هذا الطلب مخصص للطلاب غير الخريجين فقط. يُخفى عن الخريجين وفق إعدادات الجمهور.",
         },
       ],
     },
@@ -281,7 +287,9 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
   titleAr: "غياب بعذر",
   descriptionAr: "طلب تسجيل غياب بعذر مقبول.",
   unavailableUntilSchemaApplied: SCHEMA_PENDING,
-  requiredAttachments: [{ key: "excuse_documents", labelAr: "مرفقات العذر (وثائق داعمة)", required: true }],
+  requiredAttachments: [
+    { key: "excuse_documents", labelAr: "مرفقات العذر (وثائق داعمة)", required: true },
+  ],
   warnings: ["الخدمة تعتمد على فترة تفعيل يحددها الأدمن."],
   sections: [
     {
@@ -330,7 +338,8 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
           name: "service_window_note",
           labelAr: "ملاحظة",
           type: "info",
-          defaultValue: "تقديم طلب الغياب بعذر مرتبط بفترة تفعيل الخدمة التي يحددها مسؤول شؤون الطلاب.",
+          defaultValue:
+            "تقديم طلب الغياب بعذر مرتبط بفترة تفعيل الخدمة التي يحددها مسؤول شؤون الطلاب.",
         },
       ],
     },
@@ -498,10 +507,7 @@ export function hasStudentRequestFormDefinition(code: string | null | undefined)
   return getStudentRequestFormDefinition(code) != null;
 }
 
-function fieldVisible(
-  field: RequestFormFieldDefinition,
-  values: Record<string, unknown>,
-): boolean {
+function fieldVisible(field: RequestFormFieldDefinition, values: Record<string, unknown>): boolean {
   if (!field.dependsOn) return true;
   const current = values[field.dependsOn.field];
   if (field.dependsOn.equals !== undefined) {
@@ -540,18 +546,20 @@ function isEmptyValue(field: RequestFormFieldDefinition, value: unknown): boolea
 export function validateStudentRequestFormValues(
   def: RequestFormDefinition,
   values: Record<string, unknown>,
-): { valid: boolean; missingLabels: string[] } {
+): { valid: boolean; missingLabels: string[]; missingFields: string[] } {
   const missingLabels: string[] = [];
+  const missingFields: string[] = [];
   for (const section of def.sections) {
     for (const field of section.fields) {
       if (!field.required || field.type === "info" || field.type === "readonly") continue;
       if (!fieldVisible(field, values)) continue;
       if (isEmptyValue(field, values[field.name])) {
         missingLabels.push(field.labelAr);
+        missingFields.push(field.name);
       }
     }
   }
-  return { valid: missingLabels.length === 0, missingLabels };
+  return { valid: missingLabels.length === 0, missingLabels, missingFields };
 }
 
 function formatFieldValue(field: RequestFormFieldDefinition, value: unknown): string {
