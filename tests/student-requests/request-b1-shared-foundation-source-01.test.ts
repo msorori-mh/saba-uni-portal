@@ -112,7 +112,9 @@ describe("B1 workflows and payment policy", () => {
       const keys = B1_WORKFLOWS[code].map((s) => s.key);
       expect(keys).not.toContain("fee_assessment");
       expect(keys).toContain("payment_confirmation");
-      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBe("BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME");
+      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBe(code === "department_transfer"
+        ? "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME"
+        : "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME");
     }
   });
   it("wires authenticated reference data through the new-request route into the dynamic form", () => {
@@ -133,7 +135,9 @@ describe("B1 workflows and payment policy", () => {
     for (const code of ["department_transfer", "final_chance"] as const) {
       expect(validateB1ServiceActivation({ requestTypeCode: code })).toEqual({
         ok: false,
-        error: "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
+        error: code === "department_transfer"
+          ? "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME"
+          : "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
         activationError: "SERVICE_ACTIVATION_BLOCKED",
       });
     }

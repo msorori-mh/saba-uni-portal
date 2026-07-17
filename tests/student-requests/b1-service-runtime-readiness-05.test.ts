@@ -35,6 +35,7 @@ describe("B1 service runtime drafts 05 readiness", () => {
     expect(adapter.detailBinding.contractKey).toBe("transfer_request_details");
     expect(adapter.detailBinding.fields).toContainEqual({ formField: "transfer_reason", detailField: "transfer_reason" });
     expect(adapter.detailBinding.clientWriteAllowed).toBe(false);
+    expect(adapter.activationBlockedReason).toBe("BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME");
   });
 
   it("keeps excused absence fail-closed while its source and applied vocabularies differ", () => {

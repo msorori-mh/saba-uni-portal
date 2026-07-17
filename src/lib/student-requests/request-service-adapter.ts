@@ -13,6 +13,7 @@ export type B1FeePolicy = "FREE_NO_PAYMENT" | "EXTERNAL_UNIVERSITY_PAYMENT_CONFI
 export const SERVICE_ACTIVATION_BLOCKED = "SERVICE_ACTIVATION_BLOCKED" as const;
 export const BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME" as const;
 export const BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME = "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME" as const;
+export const BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME" as const;
 export type B1Action = "review" | "approve" | "clear" | "apply_decision" | "archive" | "confirm_payment";
 export type B1Outcome = "reviewed" | "approved" | "cleared" | "applied" | "archived" | "payment_confirmed";
 
@@ -388,7 +389,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       { formField: "transfer_reason", detailField: "transfer_reason" },
     ]),
     requiredText(["target_department_id", "target_program_id", "transfer_reason"]),
-    BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
+    BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME,
   ),
   final_chance: adapter(
     "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [

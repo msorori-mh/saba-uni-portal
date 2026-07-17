@@ -42,6 +42,9 @@ complete and independently reviewed.
 - Prove `transfer_request_details` source/target department and program foreign keys.
   Current program and department are server-derived from the locked student profile;
   the student supplies only the trusted target IDs and required `transfer_reason`.
+- Extend the private secure-attachment contract to `department_transfer` field
+  `secondary_certificate`; until then its activation requires both secure attachments
+  and external university payment confirmation and remains fail-closed.
 - Prove the required academic year, semester and reason inputs for `extra_chance_details`;
   `chance_type` is always server-written as `final_chance`.
 - Create `file_withdrawal_details` with restrictive grants and RPC-only writes; do not
