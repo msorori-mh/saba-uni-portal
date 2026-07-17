@@ -210,6 +210,32 @@ export const getStudentRequestUiContext = createServerFn({ method: "POST" })
     };
   });
 
+/** Student-scoped reference data for dynamic request forms. Uses the authenticated client/RLS. */
+export const getStudentRequestFormReferenceData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ academicYearId: z.string().uuid().optional() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const profile = await currentStudentProfile(context.userId);
+    const [yearsResult, semestersResult, enrollmentsResult] = await Promise.all([
+      context.supabase.from("academic_years").select("id, name").order("start_date", { ascending: false }),
+      data.academicYearId
+        ? context.supabase.from("semesters").select("id, name, academic_year_id").eq("academic_year_id", data.academicYearId).order("start_date")
+        : Promise.resolve({ data: [], error: null }),
+      context.supabase.from("student_enrollments").select("course_section_id, course_section:course_sections(section_code)")
+        .eq("student_profile_id", profile.id).eq("enrollment_status", "enrolled"),
+    ]);
+    const firstError = yearsResult.error ?? semestersResult.error ?? enrollmentsResult.error;
+    if (firstError) throw new Error(firstError.message);
+    return {
+      academicYears: (yearsResult.data ?? []).map((row) => ({ value: row.id, labelAr: row.name })),
+      semesters: (semestersResult.data ?? []).map((row) => ({ value: row.id, labelAr: row.name })),
+      currentStudentEnrollments: (enrollmentsResult.data ?? []).map((row) => {
+        const section = row.course_section as { section_code?: string | null } | null;
+        return { value: row.course_section_id, labelAr: section?.section_code ?? row.course_section_id };
+      }),
+    };
+  });
+
 async function assertStudentEligibleForRequestType(
   client: { rpc: RpcClient["rpc"] },
   requestTypeCode: string,
