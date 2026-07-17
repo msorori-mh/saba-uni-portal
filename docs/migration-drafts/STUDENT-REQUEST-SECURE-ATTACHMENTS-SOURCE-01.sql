@@ -130,17 +130,17 @@ CREATE FUNCTION public.reject_student_request_attachment(p_attachment_id uuid,p_
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$ BEGIN UPDATE public.student_request_attachment_uploads SET upload_status='rejected',rejected_at=now(),rejection_code=p_rejection_code WHERE id=p_attachment_id AND created_by=auth.uid() AND upload_status IN ('pending','uploaded'); IF NOT FOUND THEN RAISE EXCEPTION 'ATTACHMENT_ACCESS_DENIED'; END IF; PERFORM public.log_audit('student_request_attachment',p_attachment_id,'attachment_rejected',NULL,NULL,p_rejection_code); RETURN true; END $$;
 
 CREATE FUNCTION public.authorize_student_request_attachment_download(p_attachment_id uuid) RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$ DECLARE a public.student_request_attachment_uploads%ROWTYPE; owner_ok boolean; assigned_ok boolean; BEGIN
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$ DECLARE a public.student_request_attachment_uploads%ROWTYPE; assigned_ok boolean; BEGIN
  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'ATTACHMENT_ACCESS_DENIED'; END IF; SELECT * INTO a FROM public.student_request_attachment_uploads WHERE id=p_attachment_id AND upload_status='attached'; IF NOT FOUND THEN RAISE EXCEPTION 'ATTACHMENT_ACCESS_DENIED'; END IF;
- SELECT EXISTS(SELECT 1 FROM public.student_profiles sp WHERE sp.id=a.student_profile_id AND sp.user_id=auth.uid()) INTO owner_ok;
  SELECT EXISTS(SELECT 1 FROM public.student_request_workflow_steps s WHERE s.student_request_id=a.student_request_id AND s.status='active'
    AND s.processing_unit_id IS NOT NULL AND s.processing_role_id IS NOT NULL AND CASE
      WHEN s.assigned_user_id IS NOT NULL THEN s.assigned_user_id=auth.uid()
      WHEN s.assigned_staff_profile_id IS NOT NULL THEN EXISTS(SELECT 1 FROM public.staff_profiles sp WHERE sp.id=s.assigned_staff_profile_id AND sp.user_id=auth.uid())
      WHEN s.assigned_faculty_profile_id IS NOT NULL THEN EXISTS(SELECT 1 FROM public.faculty_profiles fp WHERE fp.id=s.assigned_faculty_profile_id AND fp.user_id=auth.uid())
      WHEN s.assigned_position_assignment_id IS NOT NULL THEN EXISTS(SELECT 1 FROM public.position_assignments pa WHERE pa.id=s.assigned_position_assignment_id AND pa.user_id=auth.uid() AND pa.is_active=true AND (pa.assigned_to IS NULL OR pa.assigned_to>=CURRENT_DATE))
-     ELSE false END) INTO assigned_ok;
- IF NOT owner_ok AND NOT assigned_ok THEN RAISE EXCEPTION 'ATTACHMENT_DIRECT_ASSIGNMENT_REQUIRED'; END IF;
+     ELSE false END
+   AND public.current_user_has_exact_processing_binding(s.processing_unit_id,s.processing_role_id)) INTO assigned_ok;
+ IF NOT assigned_ok THEN RAISE EXCEPTION 'ATTACHMENT_DIRECT_ASSIGNMENT_REQUIRED'; END IF;
  PERFORM public.log_audit('student_request_attachment',a.id,'attachment_downloaded',NULL,NULL,NULL);
  RETURN jsonb_build_object('storage_bucket',a.storage_bucket,'storage_object_path',a.storage_object_path);
 END $$;
