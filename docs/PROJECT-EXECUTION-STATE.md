@@ -2,6 +2,16 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 20 — final chance canonical write draft 3/3
+
+- Isolated branch/worktree: `codex/final-chance-canonical-write-draft-03` / `C:\projects\saba-uni-portal-final-chance-write-draft`.
+- Commit `508da3b`; PR #141 passed Web CI and merged as `518981d2be27fffa6113d56c03460e53de305420`.
+- Draft checksum: `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704`.
+- New academic chance writes are constrained to `final_chance`; the proven stored request alias remains `extra_chance`; historical aliases are retained read-only without backfill.
+- Independent review closed two HIGH and one MEDIUM findings. Final review PASS: CRITICAL 0, HIGH 0, MEDIUM 0, LOW 0.
+- Gates: 429 student-request tests, TypeScript, build, CI and diff-check PASS. Isolated PostgreSQL 17 compile, idempotency, positive/negative writes and ACL verification PASS.
+- No production connection/write, SQL/migration apply, protected-record access, `student_visible` change, deploy, publish or historical notification backfill occurred.
+
 ## Cycle 19 — external payment workflows draft 2/3
 
 - Isolated branch/worktree: `codex/external-payment-workflows-draft-02` / `C:\projects\saba-uni-portal-payment-workflows-draft`.
@@ -86,7 +96,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository: `msorori-mh/saba-uni-portal`
 - Original cycle baseline: `1905844289536de9040557d8317bbe1f09341193`
-- Current `origin/main`: `df057b9a9029ee390d5a8cfdd60b4b529f3d6129`
+- Current `origin/main`: `518981d2be27fffa6113d56c03460e53de305420`
 - PR #130 merge: `7a7e35f315a89b5376ed8eb4f2cb5c949510f7cb`
 - PR #129 merge: `be38c319aedd6d9a9257e30d0623e1b1b66b6bb7`
 - PR #131 Android heap merge: `d29949230b4f0c603f46dce6785f6e48e5b32d72`

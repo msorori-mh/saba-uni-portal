@@ -9,6 +9,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - `final_chance` means a final exam chance only. New academic writes use `chance_type='final_chance'`; historical aliases remain read-compatible without backfill.
 - The B1 source authorization matrix is complete and merged in PR #139.
 - External-payment workflow migration draft 2/3 is complete and merged in PR #140. It creates inactive drafts only and does not authorize application.
+- Final-chance canonical-write migration draft 3/3 is complete and merged in PR #141. It does not authorize application.
 
 ## Remaining technical gates
 
@@ -16,7 +17,6 @@ Production migration application remains unavailable because:
 
 - the shared atomic submit/action executable migration is missing;
 - executable service workflow/validator migrations remain missing or incomplete;
-- final-chance canonical-write migration 3/3 is missing;
 - processing-domain staff/faculty IDs require fresh read-only identity and department verification;
 - exact per-migration apply commands and evidence capture procedures are not yet pinned.
 

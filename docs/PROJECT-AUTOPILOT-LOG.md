@@ -1,5 +1,15 @@
 # Project Autopilot Log
 
+## 2026-07-17 — Cycle 20 final chance canonical write 3/3
+
+- Added the source-only canonical-write migration draft in an isolated worktree.
+- Preserved the stored `extra_chance` request alias and constrained only new academic values to `final_chance`; no historical rewrite or backfill.
+- Review found incomplete catalog reuse verification, missing transaction atomicity, and replica-only trigger acceptance. All were closed with exact catalog checks, `BEGIN/COMMIT`, and origin-only trigger enablement.
+- Final independent review PASS: CRITICAL 0, HIGH 0, MEDIUM 0, LOW 0.
+- Local PostgreSQL 17 compile, repeat application, positive/negative writes and ACL invariants passed; the temporary container was removed.
+- 429 student-request tests, TypeScript, build, diff-check and PR #141 Web CI passed; merged as `518981d2`.
+- No production, migration apply, visibility, deploy, publish, protected-request or notification-backfill action occurred.
+
 ## 2026-07-17 — Cycle 19 payment workflows draft 2/3
 
 - Closed post-merge Android CI for PR #139 successfully, including debug/release APK and release AAB artifact uploads.
