@@ -6,11 +6,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository: `msorori-mh/saba-uni-portal`
 - Original cycle baseline: `1905844289536de9040557d8317bbe1f09341193`
-- Current `origin/main`: `682b63ef93936a5fcc275c0437df4816355c41be`
+- Current `origin/main`: `2dbd299b865610f3b885ef9985ce620f91027648`
 - PR #130 merge: `7a7e35f315a89b5376ed8eb4f2cb5c949510f7cb`
 - PR #129 merge: `be38c319aedd6d9a9257e30d0623e1b1b66b6bb7`
 - PR #131 Android heap merge: `d29949230b4f0c603f46dce6785f6e48e5b32d72`
 - PR #132 Capacitor assets merge: `682b63ef93936a5fcc275c0437df4816355c41be`
+- PR #133 B1-01 merge: `2834e577e89588c9e358cdf782114d40ed3cb881`
+- PR #134 B1-03 merge: `bb48c3acd7123268cfb73c5c9817200a356f4520`
+- PR #135 B1-02 source merge: `2dbd299b865610f3b885ef9985ce620f91027648`
 - Leader branch: `chore/portal-autopilot-orchestrator`
 - Leader note: `AGENTS.md` contains an owner-authored, uncommitted policy update
   and is preserved outside the leader-state commit.
@@ -19,29 +22,30 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 | Worktree / branch | HEAD | State | Owner / dependency | Next gate |
 |---|---|---|---|---|
-| `saba-uni-portal-autopilot` / `chore/portal-autopilot-orchestrator` | `1905844` | ACTIVE | leader state files | docs verification and local state-only commit |
+| `saba-uni-portal-autopilot` / `chore/portal-autopilot-orchestrator` | local state commits | COMPLETE_LOCAL | leader state files | preserve owner-authored `AGENTS.md` outside commits |
 | `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `98c9713` | COMPLETE, PR #129 MERGED | completed | post-merge main CI monitoring |
-| `saba-uni-portal-secure-attachments-review-b1` / `review/student-request-secure-attachments-source-01` | `200c018` | COMPLETE review / HOLD source | read-only security reviewer | fix all HIGH findings, then second independent review |
+| `saba-uni-portal-secure-attachments-review-b1` / `review/student-request-secure-attachments-source-01` | `200c018` | COMPLETE historical review | read-only security reviewer | superseded by merged remediation and PASS review 2 |
 | `saba-uni-portal-secure-attachments-fix-b1` / `fix/student-request-secure-attachments-security-findings-01` | `e162edb` | COMPLETE, PR #130 MERGED | completed source/security path | runtime SQL/RPC verification still requires a safe environment |
-| `saba-uni-portal-agent-b1-01` / `feat/request-b1-suspension-absence` | `aca8179` | PR #133 DRAFT, CI_PENDING | complete source / GitHub CI | CI PASS before source-only merge |
-| `saba-uni-portal-agent-b1-02` / `feat/request-b1-transfer-final-chance` | `1905844` | HOLD, owned report artifact | B1-02 owner; waits for shared foundation and decisions | shared foundation PASS plus approved fee/chance semantics |
-| `saba-uni-portal-agent-b1-03` / `feat/request-b1-file-withdrawal` | `1e4d761` | SOURCE PASS, integration HOLD | preserved commit | shared foundation PASS and later reviewed migration/RPC gates |
+| `saba-uni-portal-agent-b1-01` / `feat/request-b1-suspension-absence` | `aca8179` | COMPLETE, PR #133 MERGED | completed source | runtime attachment/RPC verification remains pending |
+| `saba-uni-portal-agent-b1-02` / `feat/request-b1-transfer-final-chance` | `16c86f8` | COMPLETE SOURCE, PR #135 MERGED | runtime blocked by owner decisions | approve fee and chance semantics before activation |
+| `saba-uni-portal-agent-b1-03` / `feat/request-b1-file-withdrawal` | `785c6f9` | COMPLETE, PR #134 MERGED | completed source | later reviewed migration/RPC gates |
 | `saba-uni-portal-shared-foundation-b1` / `feat/request-b1-shared-foundation-source-01` | `cde27fc` | SOURCE PASS, superseded by fixes | upstream of `9ba31d9` | remediation and review |
 
 ## Security status
 
-- Secure attachments: `SECURITY_FIX_REQUIRED`.
-- Binding review verdict:
-  `HOLD_SECURE_ATTACHMENTS_SECURITY_REVIEW_FINDINGS_REQUIRE_FIX`.
+- Secure attachments source remediation: `PASS_SOURCE_SECURITY_REVIEW_2`.
+- All original HIGH findings and follow-up bypass/TOCTOU findings were closed in
+  merged PR #130.
 - Runtime feature flag must remain closed.
 - Direct assignment must have absolute priority; no admin, registrar or dean
   bypass is permitted.
-- Runtime RPC ALLOW/DENY verification remains blocked until a safe environment
-  exists and source review passes.
+- Runtime RPC ALLOW/DENY verification remains blocked until a safe
+  non-production environment exists and a separately approved migration apply
+  makes the Draft contracts available.
 
 ## GitHub status (separate from current B1 path)
 
-- Latest Web CI on `main` passed at the baseline above.
+- Latest Web CI and Android CI on `main@2dbd299` passed.
 - PR #49: separate legacy item; Migration Review failing.
 - PR #118: separate legacy item; merge state `DIRTY`.
 - PR #98: separate legacy draft; merge state `DIRTY`.
@@ -51,16 +55,12 @@ Updated: 2026-07-17 (Asia/Riyadh)
 ## Progress and priority
 
 - Repository/worktree/PR baseline inventory: complete.
-- Governance state setup: active.
-- Shared foundation and security fixes passed reviews/CI and merged through PRs
-  #130 then #129. Post-merge main CI is active.
-- B1-01 suspension/absence source implementation passed local gates and
-  independent review; Draft PR #133 is awaiting CI. Runtime remains HOLD until
-  attachment/RPC enforcement can be verified in a safe environment.
-- B1-01/B1-02 integration: blocked on shared foundation.
-- Realistic overall completion: not yet measurable as runtime-ready; source work
-  remains gated by security review, functional decisions and later explicitly
-  approved production migration work.
+- Governance state setup: complete locally.
+- Shared foundation, attachment security, B1-01, B1-02 source contracts and
+  B1-03 passed independent reviews and CI and are merged.
+- Android CI was repaired and now passes end to end, including APK/AAB uploads.
+- Remaining runtime readiness is blocked by explicit fee/chance decisions,
+  migration/SQL apply approval, and safe-environment RPC authorization testing.
 
 ## Production impact
 

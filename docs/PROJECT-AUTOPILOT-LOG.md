@@ -63,6 +63,22 @@
   attachment/RPC verification.
 - No SQL/migration apply, production access/write, deploy or publish.
 
+## 2026-07-17 — Cycle 11 B1 source closure
+
+- PR #133 (B1-01 suspension/absence) passed independent review and CI and merged
+  as `2834e577e89588c9e358cdf782114d40ed3cb881`; post-merge Web/Android CI passed.
+- B1-03 required three independent-review rounds. Closed stale parallel-flow,
+  incorrect document issuance, incomplete workflow tuple validation and UI/test
+  remnants. PR #134 merged as `bb48c3acd7123268cfb73c5c9817200a356f4520`;
+  post-merge Web/Android CI passed.
+- B1-02 implemented only source-safe, fail-closed contracts. No fee code,
+  amount/currency or chance mapping was invented. PR #135 merged as
+  `2dbd299b865610f3b885ef9985ce620f91027648`; post-merge Web/Android CI passed.
+- All current B1 source paths are merged. Runtime activation remains blocked by
+  explicit owner decisions, migration/apply approval and safe RPC verification.
+- No migration/SQL apply, Supabase production access, production write, deploy,
+  publish, cleanup, reset, stash, discard or branch/worktree deletion occurred.
+
 ## 2026-07-17 — Cycle 5 attachment security source fix
 
 - Security owner completed source-only remediation commit `24ba86bfaa847f0990e9c0d74a0c2a49bfe68a4f`.
