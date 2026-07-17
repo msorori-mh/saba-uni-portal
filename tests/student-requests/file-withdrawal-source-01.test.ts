@@ -92,6 +92,8 @@ describe("file_withdrawal source contract", () => {
       { roleKey: "dean" },
       { actionType: "approve" },
       { canSkip: true },
+      { isParallel: true },
+      { parallelGroupKey: "clearance" },
     ]) {
       const altered = { ...valid, steps: valid.steps.map((step, index) => index === 1 ? { ...step, ...patch } : step) };
       expect(validateWorkflowSaveInput(altered).issues.some((issue) => issue.code === "file_withdrawal_sequence" && issue.severity === "error")).toBe(true);
