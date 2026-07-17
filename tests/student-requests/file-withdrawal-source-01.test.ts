@@ -6,6 +6,7 @@ import {
   canCompleteFileWithdrawalStep,
   validateFileWithdrawalForm,
 } from "../../src/lib/student-requests/file-withdrawal-contract";
+import { getCanonicalWorkflowPreview } from "../../src/lib/student-requests/request-workflow-preview-registry";
 
 describe("file_withdrawal source contract", () => {
   it("validates the required student fields", () => {
@@ -56,5 +57,14 @@ describe("file_withdrawal source contract", () => {
 
   it("is free and forbids portal payment data", () => {
     expect(FILE_WITHDRAWAL_FEE_POLICY).toEqual({ feeRequired: false, portalPaymentAllowed: false, amountOrCurrencyAllowed: false });
+  });
+
+  it("keeps the shared preview aligned with the source contract", () => {
+    const preview = getCanonicalWorkflowPreview("file_withdrawal");
+    expect(preview?.steps.map(({ key, processingUnitCode, roleKey, actionType }) => [
+      key, processingUnitCode, roleKey, actionType,
+    ])).toEqual(FILE_WITHDRAWAL_STEPS.map(({ key, unit, role, action }) => [key, unit, role, action]));
+    expect(preview?.steps.every((step) => !step.requiresFee && !step.issuesDocument && !step.isParallel)).toBe(true);
+    expect(preview?.steps.some((step) => step.roleKey === "admin" || step.roleKey === "dean")).toBe(false);
   });
 });

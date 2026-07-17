@@ -76,3 +76,20 @@
 ## Production impact
 
 لا أثر إنتاجي. لم تُطبق migration، ولم يحدث اتصال كتابي بـSupabase، ولم تتغير بيانات أو طلبات أو وثائق أو `student_visible`، ولم يُعدل `enrollment_certificate`، ولم يحدث deploy أو push.
+
+## Resume after shared-foundation merge — 2026-07-17
+
+- Merged `origin/main` at `2834e577` into the isolated feature branch without rebase, reset, or force.
+- The shared foundation now supplies the B1 form, service adapter, strict direct-assignee authorization contract, fee policy, and ordered workflow.
+- Replaced the stale `file_withdrawal` preview that showed dean/department steps, parallel clearance, a fee, and document issuance. The preview now exactly follows the seven-step sequential source contract and sets `processingUnitCode`, `roleKey`, and `actionType` on every staff step.
+- Added a regression assertion that compares the shared preview to `FILE_WITHDRAWAL_STEPS` and rejects fee, document, parallel, admin, and dean semantics.
+- The source-only SQL remains a draft under `docs/migration-drafts`; it was not applied.
+
+Current decision: `PASS_BATCH_B1_AGENT_03_READY_FOR_INDEPENDENT_REVIEW` after the mandatory verification gates below complete successfully.
+
+Verification after merge and preview correction:
+
+- `bun test tests/student-requests`: PASS.
+- `bunx tsc --noEmit`: PASS.
+- `bun run build`: PASS (dependency bundler warnings only).
+- `git diff --check`: PASS.
