@@ -6,7 +6,9 @@
 
 السبب الحاكم: `HOLD_SHARED_FOUNDATION_CHANGE_REQUIRED`. لا يمكن تنفيذ العقدين كاملين ضمن ملكية ملفات الخدمتين ومن دون Migration تطبيقية، بسبب تعارضات موثقة بين العقود والمخطط/الواجهة المشتركة الحالية.
 
-## التحقق الأولي
+## التحقق الأولي — لقطة تاريخية قبل الاستئناف
+
+> البنود في هذا القسم توثق حالة الجولة الأولى عند `1905844`. الحالة النهائية بعد دمج `bb48c3a` موثقة في قسم «استئناف 2026-07-17» و«نتائج الاستئناف» أدناه.
 
 - الفرع: `feat/request-b1-transfer-final-chance`.
 - نقطة الأساس و`HEAD`: `1905844289536de9040557d8317bbe1f09341193`.
@@ -113,7 +115,7 @@
 - `docs/PROJECT-DECISIONS-NEEDED.md`.
 - `docs/ALL-STUDENT-REQUESTS-BATCH-B1-02-TRANSFER-FINAL-CHANCE-REPORT.md`.
 
-## بوابات التحقق
+## بوابات التحقق — الجولة الأولى التاريخية
 
 - `bun test tests/student-requests`: **فشل بيئي** — نجح 183 اختبارًا، وتعذر تحميل 4 ملفات بسبب تبعيات/صلاحيات محلية موجودة في خط الأساس: `@pdf-lib/fontkit` و`lucide-react` و`@tanstack/react-start` و`EPERM` عند قراءة `node_modules/react/jsx-dev-runtime.js`.
 - `bunx tsc --noEmit`: **نجح**.
