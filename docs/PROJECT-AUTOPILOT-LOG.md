@@ -336,3 +336,10 @@
 - Closed the review finding by canonicalizing UUIDs before duplicate detection and added a mixed-case duplicate regression.
 - Independent review returned PASS with zero findings; committed and pushed `cf11a66`.
 - No SQL/migration apply, ACL cutover, production action, visibility change, deploy or publish.
+
+## 2026-07-17 — B1 atomic caller integration draft
+
+- Connected the canonical B1 server submit branch to `submit_b1_student_request_atomic` with optimistic `updated_at`, canonical code, normalized form data and opaque attachment IDs.
+- B1 has no generic submit fallback; non-B1 services, including protected `enrollment_certificate`, retain the existing generic path.
+- Relevant tests 58/58, TypeScript and diff-check passed. Independent review is running before commit.
+- Activation and ACL cutover remain closed; no SQL/migration apply or production action occurred.
