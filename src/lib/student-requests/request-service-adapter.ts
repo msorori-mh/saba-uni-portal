@@ -13,6 +13,7 @@ export type B1FeePolicy = "FREE_NO_PAYMENT" | "EXTERNAL_UNIVERSITY_PAYMENT_CONFI
 export const SERVICE_ACTIVATION_BLOCKED = "SERVICE_ACTIVATION_BLOCKED" as const;
 export const BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME" as const;
 export const BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME = "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME" as const;
+export const BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME" as const;
 export type B1Action = "review" | "approve" | "clear" | "apply_decision" | "archive" | "confirm_payment";
 export type B1Outcome = "reviewed" | "approved" | "cleared" | "applied" | "archived" | "payment_confirmed";
 
@@ -382,21 +383,30 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       { key: "available_departments", field: "target_department_id", trustedServerValidationRequired: true },
       { key: "available_programs", field: "target_program_id", dependsOnField: "target_department_id", trustedServerValidationRequired: true },
     ],
-    noClientWrite("department_transfer_details", "one", [
+    noClientWrite("transfer_request_details", "one", [
       { formField: "target_department_id", detailField: "requested_department_id" },
       { formField: "target_program_id", detailField: "requested_program_id" },
+      { formField: "transfer_reason", detailField: "transfer_reason" },
     ]),
-    requiredText(["target_department_id", "target_program_id"]),
-    BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
+    requiredText(["target_department_id", "target_program_id", "transfer_reason"]),
+    BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME,
   ),
   final_chance: adapter(
-    "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [],
-    noClientWrite("extra_chance_details", "one", [{ formField: "chance_type", detailField: "chance_type" }]),
+    "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [
+      { key: "academic_years", field: "target_academic_year", trustedServerValidationRequired: true },
+      { key: "semesters_for_year", field: "target_semester", dependsOnField: "target_academic_year", trustedServerValidationRequired: true },
+    ],
+    noClientWrite("extra_chance_details", "one", [
+      { formField: "target_academic_year", detailField: "academic_year_id" },
+      { formField: "target_semester", detailField: "semester_id" },
+      { formField: "reason", detailField: "reason" },
+      { formField: "chance_type", detailField: "chance_type" },
+    ]),
     (input) => {
+      const base = requiredText(["target_academic_year", "target_semester", "reason"])(input);
       const value = input.chance_type ?? FINAL_CHANCE_TYPE;
-      return isFinalChanceTypeForWrite(value)
-        ? { valid: true, errors: {} }
-        : { valid: false, errors: { chance_type: "unknown_chance_type" } };
+      if (!isFinalChanceTypeForWrite(value)) base.errors.chance_type = "unknown_chance_type";
+      return { valid: Object.keys(base.errors).length === 0, errors: base.errors };
     },
     BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
   ),

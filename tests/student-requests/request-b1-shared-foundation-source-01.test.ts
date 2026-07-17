@@ -112,7 +112,9 @@ describe("B1 workflows and payment policy", () => {
       const keys = B1_WORKFLOWS[code].map((s) => s.key);
       expect(keys).not.toContain("fee_assessment");
       expect(keys).toContain("payment_confirmation");
-      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBe("BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME");
+      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBe(code === "department_transfer"
+        ? "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME"
+        : "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME");
     }
   });
   it("wires authenticated reference data through the new-request route into the dynamic form", () => {
@@ -133,7 +135,9 @@ describe("B1 workflows and payment policy", () => {
     for (const code of ["department_transfer", "final_chance"] as const) {
       expect(validateB1ServiceActivation({ requestTypeCode: code })).toEqual({
         ok: false,
-        error: "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
+        error: code === "department_transfer"
+          ? "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME"
+          : "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
         activationError: "SERVICE_ACTIVATION_BLOCKED",
       });
     }
@@ -219,6 +223,19 @@ describe("B1 direct assignment and authorization source contract", () => {
     }
   });
 
+  it("binds department transfer to the proven historical detail relation", () => {
+    expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.contractKey).toBe("transfer_request_details");
+    expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.clientWriteAllowed).toBe(false);
+    expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.fields).toContainEqual({
+      formField: "transfer_reason",
+      detailField: "transfer_reason",
+    });
+    expect(B1_SERVICE_ADAPTERS.department_transfer.validate({
+      target_department_id: "department",
+      target_program_id: "program",
+    })).toMatchObject({ valid: false, errors: { transfer_reason: "required" } });
+  });
+
   it("keeps excused absence blocked on secure attachments and rejects unknown reason types", () => {
     const adapter = B1_SERVICE_ADAPTERS.excused_absence;
     expect(adapter.activationBlockedReason).toBe("BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME");
@@ -243,8 +260,9 @@ describe("B1 chance compatibility and submit extension", () => {
       expect(normalizeChanceTypeForRead(value)).toBe("final_chance");
     }
     expect(normalizeChanceTypeForRead("invented_mapping")).toBeNull();
-    expect(B1_SERVICE_ADAPTERS.final_chance.validate({}).valid).toBe(true);
-    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ chance_type: "additional_chance" }).valid).toBe(false);
+    const valid = { target_academic_year: "year", target_semester: "semester", reason: "final exam" };
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate(valid).valid).toBe(true);
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ ...valid, chance_type: "additional_chance" }).valid).toBe(false);
   });
   it("exposes an optional non-runtime persistence plan without breaking legacy RPC", () => {
     expect(buildStudentRequestDetailPersistencePlan("extra_chance")).toMatchObject({ canonicalCode: "final_chance", runtimeAvailable: false });

@@ -1,6 +1,9 @@
 export const SECURE_ATTACHMENTS_BUCKET = "student-request-secure-attachments" as const;
 export const SECURE_ATTACHMENTS_TABLE = "student_request_attachment_uploads" as const;
 export const SECURE_ATTACHMENT_FIELD_KEY = "excuse_documents" as const;
+export const TRANSFER_SECURE_ATTACHMENT_FIELD_KEY = "secondary_certificate" as const;
+export const SECURE_ATTACHMENT_FIELD_KEYS = [SECURE_ATTACHMENT_FIELD_KEY, TRANSFER_SECURE_ATTACHMENT_FIELD_KEY] as const;
+export type SecureAttachmentFieldKey = (typeof SECURE_ATTACHMENT_FIELD_KEYS)[number];
 export const SECURE_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
 export const SECURE_ATTACHMENT_MIN_COUNT = 1;
 export const SECURE_ATTACHMENT_MAX_COUNT = 3;
@@ -40,7 +43,7 @@ export type SecureAttachmentReference = {
   attachmentId: string;
   studentRequestId: string;
   studentProfileId: string;
-  fieldKey: typeof SECURE_ATTACHMENT_FIELD_KEY;
+  fieldKey: SecureAttachmentFieldKey;
   status: "attached";
   mimeType: (typeof SECURE_ATTACHMENT_ALLOWED_MIME)[number];
   sizeBytes: number;
@@ -57,7 +60,7 @@ export function isAllowedSecureAttachmentMime(value: unknown): value is SecureAt
 }
 
 export function validateSecureAttachmentMetadata(input: { fileName: unknown; mimeType: unknown; sizeBytes: unknown; fieldKey: unknown; checksumSha256?: unknown }): SecureAttachmentErrorCode | null {
-  if (input.fieldKey !== SECURE_ATTACHMENT_FIELD_KEY) return "ATTACHMENT_FIELD_NOT_ALLOWED";
+  if (!(SECURE_ATTACHMENT_FIELD_KEYS as readonly unknown[]).includes(input.fieldKey)) return "ATTACHMENT_FIELD_NOT_ALLOWED";
   if (!isAllowedSecureAttachmentMime(input.mimeType)) return "ATTACHMENT_MIME_NOT_ALLOWED";
   if (!Number.isInteger(input.sizeBytes) || Number(input.sizeBytes) <= 0 || Number(input.sizeBytes) > SECURE_ATTACHMENT_MAX_BYTES) return "ATTACHMENT_SIZE_EXCEEDED";
   if (typeof input.fileName !== "string" || !input.fileName.trim() || CONTROL_OR_PATH.test(input.fileName) || input.fileName.toLowerCase().includes("placeholder")) return "ATTACHMENT_OBJECT_MISMATCH";
@@ -89,7 +92,7 @@ export function isSecureAttachmentReference(value: unknown): value is SecureAtta
   if (!value || typeof value !== "object") return false;
   const v = value as Record<string, unknown>;
   return UUID.test(String(v.attachmentId ?? "")) && UUID.test(String(v.studentRequestId ?? "")) && UUID.test(String(v.studentProfileId ?? ""))
-    && v.fieldKey === SECURE_ATTACHMENT_FIELD_KEY && v.status === "attached" && isAllowedSecureAttachmentMime(v.mimeType)
+    && (SECURE_ATTACHMENT_FIELD_KEYS as readonly unknown[]).includes(v.fieldKey) && v.status === "attached" && isAllowedSecureAttachmentMime(v.mimeType)
     && Number.isInteger(v.sizeBytes) && Number(v.sizeBytes) > 0 && Number(v.sizeBytes) <= SECURE_ATTACHMENT_MAX_BYTES
     && typeof v.originalFileName === "string" && !CONTROL_OR_PATH.test(v.originalFileName) && !v.originalFileName.toLowerCase().includes("placeholder")
     && !("storagePath" in v) && !("publicUrl" in v) && !("file" in v);
@@ -108,8 +111,13 @@ export function validateSecureAttachmentSubmit(input: { runtimeAvailable: boolea
 
 export function canCreateSecureAttachmentIntent(input: { owner: boolean; requestStatus: string; requestType: string; fieldKey: string; currentCount: number; clientSuppliedPath?: unknown; clientSuppliedBucket?: unknown }): SecureAttachmentErrorCode | null {
   if (!input.owner) return "ATTACHMENT_REQUEST_NOT_OWNED";
-  if (input.requestStatus !== "draft") return "ATTACHMENT_REQUEST_NOT_EDITABLE";
-  if (input.requestType !== "excused_absence" || input.fieldKey !== SECURE_ATTACHMENT_FIELD_KEY) return "ATTACHMENT_FIELD_NOT_ALLOWED";
+  if (!["draft", "returned", "returned_for_completion"].includes(input.requestStatus)) return "ATTACHMENT_REQUEST_NOT_EDITABLE";
+  const expectedField: SecureAttachmentFieldKey | null = input.requestType === "excused_absence" || input.requestType === "absence_excuse"
+    ? SECURE_ATTACHMENT_FIELD_KEY
+    : input.requestType === "department_transfer" || input.requestType === "transfer"
+      ? TRANSFER_SECURE_ATTACHMENT_FIELD_KEY
+      : null;
+  if (expectedField === null || input.fieldKey !== expectedField) return "ATTACHMENT_FIELD_NOT_ALLOWED";
   if (input.currentCount >= SECURE_ATTACHMENT_MAX_COUNT) return "ATTACHMENT_COUNT_EXCEEDED";
   if (input.clientSuppliedPath != null || input.clientSuppliedBucket != null) return "ATTACHMENT_OBJECT_MISMATCH";
   return null;

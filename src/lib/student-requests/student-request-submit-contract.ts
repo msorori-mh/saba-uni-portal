@@ -60,6 +60,38 @@ export type NormalizedStudentRequestSubmitInput = {
   existingRequestId: string | null;
 };
 
+const SECURE_ATTACHMENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Extract only opaque attachment ids for the atomic B1 RPC; paths and metadata remain untrusted. */
+export function extractB1SecureAttachmentIds(
+  requestTypeCode: string,
+  formData: Record<string, unknown>,
+): string[] {
+  const canonical = normalizeStudentRequestTypeCode(requestTypeCode);
+  const contract = canonical === "excused_absence"
+    ? { field: "excuse_documents", fieldKey: "excuse_documents" }
+    : canonical === "department_transfer"
+      ? { field: "secondary_certificate_file", fieldKey: "secondary_certificate" }
+      : null;
+  if (!contract) return [];
+
+  const raw = formData[contract.field];
+  const values = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
+  const ids = values.map((value) => {
+    if (!value || typeof value !== "object") throw new Error("SECURE_ATTACHMENT_REFERENCE_REQUIRED");
+    const ref = value as Record<string, unknown>;
+    if (ref.fieldKey !== contract.fieldKey || ref.status !== "attached"
+      || typeof ref.attachmentId !== "string" || !SECURE_ATTACHMENT_ID.test(ref.attachmentId)) {
+      throw new Error("SECURE_ATTACHMENT_REFERENCE_INVALID");
+    }
+    return ref.attachmentId.toLowerCase();
+  });
+  if (ids.length < 1 || ids.length > 3 || new Set(ids).size !== ids.length) {
+    throw new Error("SECURE_ATTACHMENT_REFERENCE_COUNT_INVALID");
+  }
+  return ids;
+}
+
 const BASE64_DATA_URL = /^data:[^;]+;base64,/i;
 const HTML_TAG = /<[^>]+>/;
 
