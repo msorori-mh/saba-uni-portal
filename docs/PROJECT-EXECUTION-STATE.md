@@ -73,6 +73,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - The table is owner-read and direct table writes are denied to authenticated and service roles; later reviewed SECURITY DEFINER persistence owns writes.
 - No SQL/migration apply, production access/write, visibility change, deploy, publish, or protected-record action occurred.
 
+### Cycle 31 — withdrawal review PASS and checksums pinned
+
+- Final independent review of withdrawal 05A PASS: CRITICAL/HIGH/MEDIUM/LOW = 0; all ACL/RLS/default/constraint findings are closed.
+- Pinned reviewed SHA-256 values in the migration inventory: absence 05A `c73b359...47fb27`; withdrawal 05A `e75dd442...6089a`.
+- Inventory commit `248c2d7` is pushed. Remaining item-6 work is the five-service persistence dispatcher, trusted-reference validators, and inactive free-service workflows.
+- No PR is opened until those executable pieces, full gates and a branch-wide independent review are complete.
+- No SQL/migration apply, production access/write, visibility change, deploy, publish, or protected-record action occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.

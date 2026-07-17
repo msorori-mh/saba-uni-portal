@@ -16,6 +16,7 @@
 - Added unapplied excused-absence vocabulary draft 05A in `278ab7c`; exact preflight preserves historical values and permits canonical new values without mapping/backfill. Nine focused tests and TypeScript pass.
 - Independent review held the first 05A draft at HIGH 1/MEDIUM 1. Commit `8ea65c3` closed both with canonical-write enforcement and exact idempotent catalog checks; final review PASS with zero findings.
 - Drafted the file-withdrawal RPC-write boundary in `4db57a7`. Review-driven remediation now closes constraints, defaults, ACLs, RLS mode and policy inventory; final re-review remains pending and the branch stays pre-PR.
+- Final withdrawal 05A review PASS with zero findings. Commit `248c2d7` pins the two reviewed 05A checksums and records the remaining dispatcher/validator/workflow sequence.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
