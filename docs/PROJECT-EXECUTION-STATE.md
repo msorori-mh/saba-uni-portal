@@ -349,3 +349,11 @@ deploy, publish, secret change, production E2E, cleanup or discard was performed
 - UUIDs are canonicalized before duplicate checking; paths and client metadata are never authoritative.
 - Independent review PASS with CRITICAL/HIGH/MEDIUM/LOW = 0/0/0/0; focused tests 4/4, TypeScript and diff-check PASS.
 - Direct legacy caller conversion and ACL cutover remain pending; no production impact.
+
+## 2026-07-18 — B1 atomic server caller PASS
+
+- Feature branch advanced to pushed `4dd85f6`.
+- Canonical B1 submit and standalone draft creation now fail closed and use B1 RPC paths without admin/generic fallback.
+- Existing B1 resubmits use versioned CAS; zero-row races fail closed. Admin CAS is scoped only to B1, while non-B1/protected services retain their original session/RLS path.
+- Independent review PASS with findings 0/0/0/0; relevant tests 60/60, TypeScript and diff-check PASS.
+- Legacy portal component direct writers and ACL cutover remain pending; no production impact.

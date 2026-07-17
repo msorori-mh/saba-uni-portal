@@ -343,3 +343,9 @@
 - B1 has no generic submit fallback; non-B1 services, including protected `enrollment_certificate`, retain the existing generic path.
 - Relevant tests 58/58, TypeScript and diff-check passed. Independent review is running before commit.
 - Activation and ACL cutover remain closed; no SQL/migration apply or production action occurred.
+
+## 2026-07-18 — B1 atomic server caller review completion
+
+- Remediated ineffective optimistic concurrency, zero-row updates, B1 draft fallback, protected non-B1 admin-path regression, and the standalone draft endpoint bypass.
+- Final independent review returned PASS with no findings.
+- Committed and pushed `4dd85f6`; no SQL/migration apply, ACL cutover, production action, `student_visible`, deploy or publish.
