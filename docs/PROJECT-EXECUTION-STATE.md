@@ -113,6 +113,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - No insecure upload fallback or partial dispatcher was introduced. The secure attachment extension is now an explicit dependency before transfer runtime.
 - No SQL/migration apply, production access/write, visibility change, deploy, publish, or protected-record action occurred.
 
+### Cycle 36 — transfer secure-attachment source contract started
+
+- Independent review of the combined transfer activation gate PASS: all severity counts zero; final-chance and free-service gates remain unchanged.
+- Extended the pure secure-attachment contract to bind `secondary_certificate` only to `department_transfer`/`transfer`, retaining the private MIME/size and opaque-reference rules.
+- Focused attachment tests PASS 21/21, TypeScript PASS, and diff-check PASS; commit `5213f21` is pushed.
+- SQL upload-intent/assertion/atomic-wrapper overlay remains missing, so transfer activation stays fail-closed and no dispatcher branch is enabled.
+- No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
