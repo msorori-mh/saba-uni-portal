@@ -297,3 +297,11 @@
 - Re-read the atomic submit dispatcher, readiness contract, five detail schemas, trusted validators and remaining direct client-write locations.
 - Confirmed 05A must replace `persist_validated_b1_request_details` for exactly five canonical services and invoke the locked table-boundary primitive only inside the eventual single atomic caller cutover unit.
 - No source mutation, SQL application, production access, visibility change, deployment or publication occurred in this inventory step.
+
+## 2026-07-17 — B1 five-service dispatcher draft
+
+- Added an uncommitted source-only `REQUEST-B1-SERVICE-DETAILS-05A.sql` draft plus focused contract tests in the isolated feature worktree.
+- The draft handles exactly the five B1 services, derives current transfer scope from the locked owner profile, validates trusted academic/course/program references, requires secure attachments for absence/transfer, and writes only canonical `final_chance`.
+- Dispatcher replacement and the locked detail-table boundary invocation share one transaction; no service activation or financial fields are included.
+- Focused tests 6/6, TypeScript and `git diff --check` passed. Independent security/SQL review is in progress; no commit will be made before PASS/remediation.
+- No SQL/migration apply, production access/write, `student_visible`, deploy or publish occurred.
