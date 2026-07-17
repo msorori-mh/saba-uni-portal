@@ -159,6 +159,14 @@ describe("B1 workflows and payment policy", () => {
     expect(route).toContain("serviceActivation.ok &&");
     expect(route).toContain("if (!serviceActivation.ok)");
   });
+  it("keeps the general submit path open for non-B1 enrollment_certificate", () => {
+    const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    expect(getRequestServiceAdapter("enrollment_certificate")).toBeUndefined();
+    expect(server).toContain("if (b1Adapter) {");
+    expect(server).toContain("if (b1Adapter) payload.requestType = getStoredWriteCodeForRequestType");
+    expect(route).toContain(": { ok: true as const };");
+  });
   it("keeps free services free and document-free in their previews", () => {
     for (const code of ["enrollment_suspension", "excused_absence", "file_withdrawal"] as const) {
       expect(B1_FEE_POLICIES[code]).toBe("FREE_NO_PAYMENT");

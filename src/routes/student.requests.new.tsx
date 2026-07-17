@@ -106,7 +106,7 @@ function NewStudentRequestPage() {
   const selectedAdapter = getRequestServiceAdapter(normalizedRequestType);
   const serviceActivation = selectedAdapter
     ? validateB1ServiceActivation({ requestTypeCode: normalizedRequestType })
-    : { ok: false as const };
+    : { ok: true as const };
   const selectedAcademicYear = typeof formValues.target_academic_year === "string"
     ? formValues.target_academic_year
     : undefined;

@@ -24,12 +24,13 @@
 - وُصلت بوابة التفعيل نفسها في زر الإرسال وفي server submit؛ الخدمات المدفوعة تفشل مغلقاً حتى يصل fee code معتمد من مصدر موثوق، دون قبول قيمة من العميل.
 - يتحقق server submit من وجود السنة، ومن انتماء الفصل للسنة، ومن ملكية الطالب لتسجيل نشط في الشعبة قبل إنشاء الطلب.
 - وُصل تحويل canonical code إلى stored write code في payload الفعلي، مع رفض أي كود مجهول.
+- حُصرت بوابات التفعيل والمراجع وتحويل stored code في الأنواع التي لها B1 adapter فقط؛ بقي submit العام للأنواع الأخرى، ومنها `enrollment_certificate`، على سلوكه السابق دون تعديل كيانها.
 
 ## الاختبارات
 
-- `bun test tests/student-requests`: PASS — 322 tests، 0 failures.
+- `bun test tests/student-requests`: PASS — 323 tests، 0 failures.
 - `bunx tsc --noEmit`: PASS.
-- `bun run build`: PASS. آخر تشغيل استغرق نحو 165 ثانية؛ التحذيرات الصادرة من bundler تخص `use client` في dependencies ولم تفشل البناء.
+- `bun run build`: PASS. آخر تشغيل استغرق نحو 184 ثانية؛ التحذيرات الصادرة من bundler تخص `use client` في dependencies ولم تفشل البناء.
 - `git diff --check`: PASS.
 
 ## الافتراضات

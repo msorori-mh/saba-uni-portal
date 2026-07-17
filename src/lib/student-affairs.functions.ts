@@ -431,17 +431,20 @@ export async function submitCanonicalStudentRequestCore(input: {
 
   const profile = await currentStudentProfile(input.userId);
   await assertStudentEligibleForRequestType(input.sessionClient, validation.normalized.requestTypeCode);
-  const activation = validateB1ServiceActivation({ requestTypeCode: validation.normalized.requestTypeCode });
-  if (!activation.ok) throw new Error(activation.activationError);
-  await assertTrustedB1FormReferences({
-    sessionClient: input.sessionClient,
-    profileId: profile.id,
-    requestTypeCode: validation.normalized.requestTypeCode,
-    formData: validation.normalized.formData,
-  });
+  const b1Adapter = getRequestServiceAdapter(validation.normalized.requestTypeCode);
+  if (b1Adapter) {
+    const activation = validateB1ServiceActivation({ requestTypeCode: validation.normalized.requestTypeCode });
+    if (!activation.ok) throw new Error(activation.activationError);
+    await assertTrustedB1FormReferences({
+      sessionClient: input.sessionClient,
+      profileId: profile.id,
+      requestTypeCode: validation.normalized.requestTypeCode,
+      formData: validation.normalized.formData,
+    });
+  }
 
   const payload = buildStudentRequestSubmitPayload(validation.normalized);
-  payload.requestType = getStoredWriteCodeForRequestType(validation.normalized.requestTypeCode);
+  if (b1Adapter) payload.requestType = getStoredWriteCodeForRequestType(validation.normalized.requestTypeCode);
   let requestId = validation.normalized.existingRequestId;
   let priorStatus = "draft";
 
