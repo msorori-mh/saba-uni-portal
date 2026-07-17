@@ -19,11 +19,13 @@
 6. Executable workflow/validator migrations for suspension, absence, withdrawal, department transfer, and final chance.
    - Missing/incomplete: current suspension/absence and shared files are documentary; withdrawal contains only a partial executable detail table.
 7. External-payment workflow migration 2/3 for `department_transfer` and `final_chance`.
-   - Missing; must configure exactly one `payment_confirmed` transition per payment step.
+   - Draft complete: `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql`.
+   - Current SHA-256: `f63ff4f526a5dea6b8896586375eaf01ec07433001c857f270f0f1ce155aa444`.
+   - Creates inactive, versioned drafts only; application remains gated. It fails closed on ambiguous stored aliases or processing bindings, configures exactly one `payment_confirmed` transition per payment step, and validates any reused draft structurally.
 8. Final-chance canonical-write migration 3/3.
    - Missing; new writes only `final_chance`, historical aliases read-only, and no backfill.
 
-No exact production apply command is approved while items 4, 6, 7, and 8 are missing or item 2 identity mappings remain unverified.
+No exact production apply command is approved while items 4, 6, and 8 are missing or item 2 identity mappings remain unverified.
 
 ## Preflight for each single migration
 
