@@ -79,6 +79,8 @@ Independent review remediation:
 - Removed the obsolete file-withdrawal grade-statement, clearance-summary, and archive-package document definitions. The service has no document/PDF/Storage generation contract.
 - Added an integration regression covering the disabled parallel and document contracts.
 - Independent review round 1: HOLD (two HIGH integration conflicts); both findings were remediated before round 2.
+- Independent review round 2: HOLD because save validation did not yet bind the full unit/role/action/skip tuple and legacy parallel UI/scenario semantics remained.
+- Round-2 remediation extends normalized save steps with `processingUnitCode`, `actionType`, and `canSkip`, validates the complete canonical tuple, adds negative cases for each binding, removes the file-withdrawal archive checkbox/scenarios/type literals, and makes the obsolete parallel scenario helper return an empty fail-closed matrix.
 - Build: غير مطلوب؛ التغيير عقد TypeScript واختبارات ومسودة SQL فقط.
 
 ## Production impact

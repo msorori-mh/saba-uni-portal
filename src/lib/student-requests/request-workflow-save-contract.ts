@@ -46,6 +46,9 @@ export type StudentRequestWorkflowStepInput = {
   labelAr: string;
   actorType: WorkflowActorType;
   roleKey: string | null;
+  processingUnitCode: string | null;
+  actionType: string | null;
+  canSkip: boolean;
   centralSignatoryKey?: string | null;
   departmentScope?: WorkflowDepartmentScope;
   isParallel: boolean;
@@ -383,6 +386,9 @@ function mapPreviewStepToInput(
     labelAr: def.labelAr,
     actorType,
     roleKey: def.isCentralSignatory ? null : (def.roleKey ?? null),
+    processingUnitCode: def.processingUnitCode ?? null,
+    actionType: def.actionType ?? null,
+    canSkip: false,
     centralSignatoryKey: def.centralSignatoryKey ?? null,
     departmentScope: inferDepartmentScope(def.key),
     isParallel: Boolean(def.isParallel),
@@ -542,6 +548,9 @@ export function buildWorkflowSaveInputFromDraft(
         labelAr: d.step_name_ar,
         actorType: "student" as const,
         roleKey: null,
+        processingUnitCode: null,
+        actionType: d.action_type ?? null,
+        canSkip: Boolean(d.can_skip),
         departmentScope: inferDepartmentScope(d.step_key),
         isParallel: false,
         parallelGroupKey: null,
@@ -557,8 +566,12 @@ export function buildWorkflowSaveInputFromDraft(
     }
 
     let roleKey: string | null = null;
+    let processingUnitCode: string | null = null;
     if (d.processing_role_id && resolution) {
       roleKey = resolution.rolesById.get(d.processing_role_id)?.code ?? null;
+    }
+    if (d.processing_unit_id && resolution) {
+      processingUnitCode = resolution.unitsById.get(d.processing_unit_id)?.code ?? null;
     }
 
     return {
@@ -567,6 +580,9 @@ export function buildWorkflowSaveInputFromDraft(
       labelAr: d.step_name_ar,
       actorType: "staff" as const,
       roleKey,
+      processingUnitCode,
+      actionType: d.action_type ?? null,
+      canSkip: Boolean(d.can_skip),
       departmentScope: inferDepartmentScope(d.step_key),
       isParallel: false,
       parallelGroupKey: null,
@@ -630,6 +646,9 @@ export function normalizeWorkflowSaveInput(
     labelAr: s.labelAr.trim(),
     actorType: s.actorType,
     roleKey: s.roleKey?.trim() || null,
+    processingUnitCode: s.processingUnitCode?.trim() || null,
+    actionType: s.actionType?.trim() || null,
+    canSkip: Boolean(s.canSkip),
     centralSignatoryKey: s.centralSignatoryKey?.trim() || null,
     departmentScope: s.departmentScope ?? inferDepartmentScope(s.stepKey),
     isParallel: Boolean(s.isParallel),
@@ -956,28 +975,22 @@ function validateTypeSpecificRules(
   validateAssessFeeDualTransitions(input, issues);
 
   if (code === "file_withdrawal") {
-    const expectedKeys = [
-      "student_affairs_intake",
-      "library_clearance",
-      "labs_clearance",
-      "activities_clearance",
-      "finance_clearance",
-      "registrar_apply",
-      "archive",
-    ];
-    const actualKeys = input.steps.map((step) => step.stepKey);
-    if (actualKeys.length !== expectedKeys.length || actualKeys.some((key, index) => key !== expectedKeys[index])) {
+    const expected = getCanonicalWorkflowPreview("file_withdrawal")!.steps;
+    const contractMismatch = input.steps.length !== expected.length || input.steps.some((step, index) => {
+      const wanted = expected[index]!;
+      return step.stepKey !== wanted.key
+        || step.processingUnitCode !== (wanted.processingUnitCode ?? null)
+        || step.roleKey !== (wanted.roleKey ?? null)
+        || step.actionType !== (wanted.actionType ?? null)
+        || step.canSkip
+        || step.isParallel
+        || step.parallelGroupKey !== null;
+    });
+    if (contractMismatch) {
       pushIssue(issues, {
         severity: "error",
         code: "file_withdrawal_sequence",
         messageAr: "سحب الملف يتطلب التسلسل المعتمد كاملًا دون توازٍ أو تخطٍ.",
-      });
-    }
-    if (input.steps.some((step) => step.parallelGroupKey)) {
-      pushIssue(issues, {
-        severity: "error",
-        code: "file_withdrawal_parallel_forbidden",
-        messageAr: "مخالصات سحب الملف متتابعة؛ مجموعات التنفيذ المتوازي غير مسموحة.",
       });
     }
   }
@@ -1116,7 +1129,7 @@ export function validateWorkflowSaveInput(
 
   const sorted = [...normalized.steps].sort((a, b) => a.sequence - b.sequence);
   const first = sorted[0];
-  const staffFirstTypes = new Set(["enrollment_certificate"]);
+  const staffFirstTypes = new Set(["enrollment_certificate", "file_withdrawal"]);
   if (
     first
     && first.actorType !== "student"

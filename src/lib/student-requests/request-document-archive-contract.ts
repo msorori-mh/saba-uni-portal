@@ -30,8 +30,6 @@ export type StudentRequestDocumentFoundationStatus = (typeof DOCUMENT_FOUNDATION
 export const STUDENT_REQUEST_DOCUMENT_TYPES = [
   "grade_statement_non_graduate_document",
   "enrollment_certificate_document",
-  "file_withdrawal_grade_statement",
-  "file_withdrawal_clearance_summary",
   "october_exam_entry_form_document",
   "request_decision_document",
   "request_archive_package",
@@ -849,8 +847,7 @@ function buildArchiveHandoffDryRunResult(
     requiresArchive &&
     input.finalApprovalComplete !== false &&
     input.documentsReady !== false &&
-    input.signaturesComplete !== false &&
-    (input.requestTypeCode !== "file_withdrawal" || input.parallelClearanceComplete === true);
+    input.signaturesComplete !== false;
 
   let summaryAr: string;
   if (status === "UNAUTHORIZED") {
@@ -873,7 +870,7 @@ function buildArchiveHandoffDryRunResult(
   };
 }
 
-/** Preview parallel clearance requirement for file_withdrawal documents. */
+/** Preview a parallel-clearance requirement when the canonical preview defines one. */
 export function getParallelClearancePreviewForDocuments(
   requestId: string,
   requestTypeCode: string,
@@ -1038,40 +1035,6 @@ export function runDocumentArchiveScenarioMatrix(): DocumentArchiveScenarioResul
           "enrollment_certificate_document",
           { ...staffActor, targetSignatoryKey: null },
           { manualSignatoryKey: "dean" },
-        ),
-    },
-    {
-      id: 10,
-      name: "file_withdrawal archive — clearance incomplete",
-      expected: "INVALID",
-      fn: () =>
-        validateArchiveHandoff(
-          {
-            requestId,
-            requestTypeCode: "file_withdrawal",
-            parallelClearanceComplete: false,
-            finalApprovalComplete: true,
-            documentsReady: true,
-            signaturesComplete: true,
-          },
-          staffActor,
-        ),
-    },
-    {
-      id: 11,
-      name: "file_withdrawal archive — clearance complete",
-      expected: "EXECUTION_UNAVAILABLE",
-      fn: () =>
-        validateArchiveHandoff(
-          {
-            requestId,
-            requestTypeCode: "file_withdrawal",
-            parallelClearanceComplete: true,
-            finalApprovalComplete: true,
-            documentsReady: true,
-            signaturesComplete: true,
-          },
-          staffActor,
         ),
     },
     {

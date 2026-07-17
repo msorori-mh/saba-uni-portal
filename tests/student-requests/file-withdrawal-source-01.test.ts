@@ -9,6 +9,10 @@ import {
 import { getCanonicalWorkflowPreview } from "../../src/lib/student-requests/request-workflow-preview-registry";
 import { getParallelClearanceRequirementForRequestType } from "../../src/lib/student-requests/parallel-clearance-contract";
 import { getDocumentDefinitionsForRequestType } from "../../src/lib/student-requests/request-document-archive-contract";
+import {
+  buildWorkflowSaveInputFromPreview,
+  validateWorkflowSaveInput,
+} from "../../src/lib/student-requests/request-workflow-save-contract";
 
 describe("file_withdrawal source contract", () => {
   it("validates the required student fields", () => {
@@ -77,5 +81,20 @@ describe("file_withdrawal source contract", () => {
       expectedMemberCount: 0,
     });
     expect(getDocumentDefinitionsForRequestType("file_withdrawal")).toEqual([]);
+  });
+
+  it("rejects save inputs with a wrong unit, role, action, or skip flag", () => {
+    const valid = buildWorkflowSaveInputFromPreview("00000000-0000-4000-8000-000000000001", "file_withdrawal")!;
+    expect(validateWorkflowSaveInput(valid).issues.some((issue) => issue.severity === "error")).toBe(false);
+
+    for (const patch of [
+      { processingUnitCode: "dean" },
+      { roleKey: "dean" },
+      { actionType: "approve" },
+      { canSkip: true },
+    ]) {
+      const altered = { ...valid, steps: valid.steps.map((step, index) => index === 1 ? { ...step, ...patch } : step) };
+      expect(validateWorkflowSaveInput(altered).issues.some((issue) => issue.code === "file_withdrawal_sequence" && issue.severity === "error")).toBe(true);
+    }
   });
 });
