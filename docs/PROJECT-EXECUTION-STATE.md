@@ -17,9 +17,9 @@ Updated: 2026-07-17 (Asia/Riyadh)
 | Worktree / branch | HEAD | State | Owner / dependency | Next gate |
 |---|---|---|---|---|
 | `saba-uni-portal-autopilot` / `chore/portal-autopilot-orchestrator` | `1905844` | ACTIVE | leader state files | docs verification and local state-only commit |
-| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `a3706b2` | HOLD_NON_B1_REGRESSION | fix2 owner | scope B1 checks to adapters and prove non-B1 submit regression protection |
+| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `85fd796` | PR #129 DRAFT, CI_PENDING | complete / GitHub CI | CI PASS before any merge decision |
 | `saba-uni-portal-secure-attachments-review-b1` / `review/student-request-secure-attachments-source-01` | `200c018` | COMPLETE review / HOLD source | read-only security reviewer | fix all HIGH findings, then second independent review |
-| `saba-uni-portal-secure-attachments-fix-b1` / `fix/student-request-secure-attachments-security-findings-01` | `e162edb` | SOURCE_SECURITY_PASS, clean | completed source/security path | runtime SQL/RPC verification requires a safe non-production environment and later explicit apply approval |
+| `saba-uni-portal-secure-attachments-fix-b1` / `fix/student-request-secure-attachments-security-findings-01` | `e162edb` | PR #130 DRAFT, CI_PENDING | complete / GitHub CI | CI PASS; runtime SQL/RPC verification still requires a safe environment |
 | `saba-uni-portal-agent-b1-01` / `feat/request-b1-suspension-absence` | `1905844` | HOLD, owned report artifact | B1-01 owner; waits for shared foundation | resume only after shared foundation PASS |
 | `saba-uni-portal-agent-b1-02` / `feat/request-b1-transfer-final-chance` | `1905844` | HOLD, owned report artifact | B1-02 owner; waits for shared foundation and decisions | shared foundation PASS plus approved fee/chance semantics |
 | `saba-uni-portal-agent-b1-03` / `feat/request-b1-file-withdrawal` | `1e4d761` | SOURCE PASS, integration HOLD | preserved commit | shared foundation PASS and later reviewed migration/RPC gates |
@@ -49,10 +49,11 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository/worktree/PR baseline inventory: complete.
 - Governance state setup: active.
-- Shared-foundation review 2 confirmed the prior findings closed but found a
-  HIGH non-B1 submit regression. A narrowly scoped regression fix is active.
+- Shared-foundation regression fix passed review 3 and is published as Draft
+  PR #129. CI is pending.
 - Secure-attachment source remediation completed at `e162edb`; independent
-  security review 2 passed with 321/321 tests, typecheck and diff-check.
+  security review 2 passed with 321/321 tests, typecheck and diff-check. Draft
+  PR #130 is open and CI is pending.
 - B1-01/B1-02 integration: blocked on shared foundation.
 - Realistic overall completion: not yet measurable as runtime-ready; source work
   remains gated by security review, functional decisions and later explicitly

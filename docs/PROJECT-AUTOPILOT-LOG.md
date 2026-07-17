@@ -21,6 +21,16 @@
 - Kept the owner-authored `AGENTS.md` change outside the leader-state commit.
 - Production impact: none.
 
+## 2026-07-17 — Cycle 8 publication and CI
+
+- fix2 regression remediation commit `85fd796865439a6ab1eaf94f63b24dff06144a85`
+  passed review 3 with 323/323 tests, TypeScript and `git diff --check`.
+- Pushed the clean fix2 branch and opened Draft PR #129.
+- Pushed the clean attachment-security branch and opened Draft PR #130 after
+  independent security PASS.
+- Web CI started for both PRs and is currently pending.
+- No merge, migration/SQL apply, production write, deploy or publish occurred.
+
 ## 2026-07-17 — Cycle 5 attachment security source fix
 
 - Security owner completed source-only remediation commit `24ba86bfaa847f0990e9c0d74a0c2a49bfe68a4f`.
