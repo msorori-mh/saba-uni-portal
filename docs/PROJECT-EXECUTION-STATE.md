@@ -322,3 +322,13 @@ deploy, publish, secret change, production E2E, cleanup or discard was performed
 - Validation: focused tests 6/6, TypeScript and `git diff --check` PASS.
 - Pinned SHA-256: `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495`.
 - Production impact: none; no SQL/migration apply, production access, `student_visible`, deploy or publish.
+
+## 2026-07-17 — B1 five-service dispatcher PASS
+
+- `codex/b1-service-runtime-drafts-05` advanced to pushed `b3356c7`.
+- Installation-only dispatcher covers exactly the five B1 services with owner/state/type locking, exact payload allowlists, trusted references, secure attachments, server-derived transfer source scope, and canonical `final_chance` writes.
+- Resubmission fails closed when an irreversible academic effect or withdrawal clearance already exists.
+- Caller/ACL cutover remains deliberately separate; legacy write permissions are not changed by this draft.
+- Independent review: PASS, findings 0/0/0/0. Focused tests 7/7, TypeScript and diff-check PASS.
+- SQL SHA-256: `82bab7a52b44dde51c71c12acbdfd3445d08d2d4c24176c66a0b0cc39f99118c`.
+- Production impact: none.
