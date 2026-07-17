@@ -104,36 +104,11 @@ export type StudentRequestClearanceDryRunResult = {
   executed: false;
 };
 
-/** Expected parallel clearance members for file_withdrawal. */
+/** @deprecated Compatibility-only; no request type currently has parallel clearance members. */
 export const FILE_WITHDRAWAL_CLEARANCE_MEMBERS: readonly Omit<
   StudentRequestParallelClearanceMember,
   "status" | "notes"
->[] = [
-  {
-    memberKey: "finance",
-    labelAr: "المالية (تأكيد استلام المبلغ)",
-    roleKey: "revenue_finance_officer",
-    unitKey: "finance",
-  },
-  {
-    memberKey: "library",
-    labelAr: "المكتبة",
-    roleKey: "library_officer",
-    unitKey: "library",
-  },
-  {
-    memberKey: "labs",
-    labelAr: "المعامل",
-    roleKey: "labs_manager",
-    unitKey: "labs",
-  },
-  {
-    memberKey: "activities",
-    labelAr: "الأنشطة الطلابية",
-    roleKey: "student_affairs",
-    unitKey: "student_activities",
-  },
-] as const;
+>[] = [];
 
 const APPROVED_ROLE_SET = new Set<string>(APPROVED_WORKFLOW_ROLE_KEYS);
 
@@ -170,12 +145,12 @@ export function getParallelClearanceRequirementForRequestType(
   const preview = getCanonicalWorkflowPreview(normalized);
   const parallelSteps = preview?.steps.filter((s) => s.isParallel && s.parallelGroupId) ?? [];
 
-  if (normalized === "file_withdrawal" || parallelSteps.length >= 2) {
+  if (parallelSteps.length >= 2) {
     const groupKey = parallelSteps[0]?.parallelGroupId ?? "clearance";
     return {
       parallelClearanceRequired: true,
       groupKey,
-      expectedMemberCount: normalized === "file_withdrawal" ? 4 : parallelSteps.length,
+      expectedMemberCount: parallelSteps.length,
     };
   }
 
@@ -190,21 +165,6 @@ export function buildDefaultClearanceGroup(
   if (!req.parallelClearanceRequired || !req.groupKey) return null;
 
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode) ?? requestTypeCode;
-
-  if (normalized === "file_withdrawal") {
-    return {
-      requestId,
-      requestTypeCode: normalized,
-      groupKey: req.groupKey,
-      mode: "all_required",
-      status: "pending",
-      members: FILE_WITHDRAWAL_CLEARANCE_MEMBERS.map((m) => ({
-        ...m,
-        status: "pending" as const,
-        notes: null,
-      })),
-    };
-  }
 
   const preview = getCanonicalWorkflowPreview(normalized);
   const parallelSteps = preview?.steps.filter((s) => s.isParallel) ?? [];
@@ -355,21 +315,6 @@ export function validateParallelClearanceGroup(
         messageAr: "central_signatory ليس عضو إخلاء طرف — يأتي بعد اكتمال المجموعة.",
         memberKey: m.memberKey,
       });
-    }
-  }
-
-  const req = getParallelClearanceRequirementForRequestType(normalized.requestTypeCode);
-  if (req.parallelClearanceRequired && normalized.requestTypeCode === "file_withdrawal") {
-    const expectedKeys = new Set(FILE_WITHDRAWAL_CLEARANCE_MEMBERS.map((m) => m.memberKey));
-    for (const key of expectedKeys) {
-      if (!memberKeys.has(key)) {
-        pushIssue(issues, {
-          severity: "error",
-          code: "missing_required_member",
-          messageAr: `عضو إلزامي مفقود: ${key}`,
-          memberKey: key,
-        });
-      }
     }
   }
 
@@ -608,6 +553,11 @@ export type ClearanceScenarioResult = {
 };
 
 export function runParallelClearanceScenarioMatrix(): ClearanceScenarioResult[] {
+  // No canonical request type currently defines a parallel clearance group.
+  // Keep the exported compatibility helper fail-closed instead of fabricating
+  // a file_withdrawal group that contradicts its sequential workflow.
+  return [];
+  /* legacy scenarios retained below for historical source comparison only
   const requestId = "00000000-0000-4000-8000-000000000001";
   const baseGroup = buildDefaultClearanceGroup(requestId, "file_withdrawal")!;
 
@@ -838,5 +788,5 @@ export function runParallelClearanceScenarioMatrix(): ClearanceScenarioResult[] 
       actual: result.status,
       valid: result.status === s.expected,
     };
-  });
+  }); */
 }

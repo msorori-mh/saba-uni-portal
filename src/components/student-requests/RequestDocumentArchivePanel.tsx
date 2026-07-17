@@ -123,7 +123,6 @@ export function RequestDocumentArchivePanel({
     definitions[0]?.documentType ?? "request_decision_document",
   );
   const [signatoryKey, setSignatoryKey] = useState<string>("registrar_general");
-  const [parallelClearanceComplete, setParallelClearanceComplete] = useState(false);
   const [finalApprovalComplete, setFinalApprovalComplete] = useState(true);
   const [documentsReady, setDocumentsReady] = useState(true);
   const [signaturesComplete, setSignaturesComplete] = useState(true);
@@ -150,8 +149,6 @@ export function RequestDocumentArchivePanel({
           mode,
           documentType: mode !== "archive" ? documentType : undefined,
           signatoryKey: mode === "signature" ? signatoryKey : undefined,
-          parallelClearanceComplete:
-            mode === "archive" ? parallelClearanceComplete : undefined,
           finalApprovalComplete: mode === "archive" ? finalApprovalComplete : undefined,
           documentsReady: mode === "archive" ? documentsReady : undefined,
           signaturesComplete: mode === "archive" ? signaturesComplete : undefined,
@@ -288,16 +285,6 @@ export function RequestDocumentArchivePanel({
             />
             التوقيعات مكتملة
           </label>
-          {requestTypeCode === "file_withdrawal" && (
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={parallelClearanceComplete}
-                onChange={(e) => setParallelClearanceComplete(e.target.checked)}
-              />
-              إخلاء الطرف المتوازي مكتمل
-            </label>
-          )}
         </div>
       )}
 
