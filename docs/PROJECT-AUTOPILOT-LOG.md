@@ -20,3 +20,21 @@
 - Created the four leader state/policy/decision/log documents.
 - Kept the owner-authored `AGENTS.md` change outside the leader-state commit.
 - Production impact: none.
+
+## 2026-07-17 — Cycle 3 fix2 completion and security start
+
+- Verified the six owned fix2 files were within the authorized shared-foundation
+  remediation scope and did not touch protected or production-impacting areas.
+- fix2 gates passed: student-request tests 321/321, TypeScript, build and
+  `git diff --check`.
+- fix2 owner created local commit `d7c3d6a3fe65e4280ec4a6b864b0cff79e76c475`
+  with the six implementation/test files and its final report.
+- Started an independent read-only review of that commit.
+- Extracted three attachment HIGH findings: direct-assignment priority,
+  fail-closed Storage download boundaries, and trusted submit identity/reference
+  binding inside the transaction.
+- Created `C:\projects\saba-uni-portal-secure-attachments-fix-b1` on
+  `fix/student-request-secure-attachments-security-findings-01` from `9ba31d9`.
+- Started the security remediation only after fix2 released ownership of the
+  overlapping `student-affairs.functions.ts` file.
+- No cleanup, discard, push, PR, migration/SQL apply or production action.

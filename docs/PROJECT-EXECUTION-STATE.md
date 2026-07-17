@@ -17,9 +17,9 @@ Updated: 2026-07-17 (Asia/Riyadh)
 | Worktree / branch | HEAD | State | Owner / dependency | Next gate |
 |---|---|---|---|---|
 | `saba-uni-portal-autopilot` / `chore/portal-autopilot-orchestrator` | `1905844` | ACTIVE | leader state files | docs verification and local state-only commit |
-| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `9ba31d9` | ACTIVE, owned dirty | fix2 owner | scope check, tests, typecheck, build, report, local commit, independent review |
+| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `d7c3d6a` | REVIEW, clean | independent reviewer | review commit; no push/PR before PASS |
 | `saba-uni-portal-secure-attachments-review-b1` / `review/student-request-secure-attachments-source-01` | `200c018` | COMPLETE review / HOLD source | read-only security reviewer | fix all HIGH findings, then second independent review |
-| secure-attachment remediation worktree / `fix/student-request-secure-attachments-security-findings-01` | planned from `9ba31d9` | SECURITY_FIX_REQUIRED | security fix owner | isolated source fixes, gates, report, local commit, second review |
+| `saba-uni-portal-secure-attachments-fix-b1` / `fix/student-request-secure-attachments-security-findings-01` | `9ba31d9` | ACTIVE, SECURITY_FIX_REQUIRED | security fix owner | isolated source fixes, gates, report, local commit, second review |
 | `saba-uni-portal-agent-b1-01` / `feat/request-b1-suspension-absence` | `1905844` | HOLD, owned report artifact | B1-01 owner; waits for shared foundation | resume only after shared foundation PASS |
 | `saba-uni-portal-agent-b1-02` / `feat/request-b1-transfer-final-chance` | `1905844` | HOLD, owned report artifact | B1-02 owner; waits for shared foundation and decisions | shared foundation PASS plus approved fee/chance semantics |
 | `saba-uni-portal-agent-b1-03` / `feat/request-b1-file-withdrawal` | `1e4d761` | SOURCE PASS, integration HOLD | preserved commit | shared foundation PASS and later reviewed migration/RPC gates |
@@ -49,8 +49,9 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository/worktree/PR baseline inventory: complete.
 - Governance state setup: active.
-- Shared-foundation fix2 completion: active priority A.
-- Secure-attachment HIGH remediation: active priority B (ownership-safe staging).
+- Shared-foundation fix2 implementation: complete at `d7c3d6a`; independent
+  review active. Gates passed: 321/321 tests, typecheck, build and diff-check.
+- Secure-attachment HIGH remediation: active priority B in an isolated worktree.
 - B1-01/B1-02 integration: blocked on shared foundation.
 - Realistic overall completion: not yet measurable as runtime-ready; source work
   remains gated by security review, functional decisions and later explicitly
