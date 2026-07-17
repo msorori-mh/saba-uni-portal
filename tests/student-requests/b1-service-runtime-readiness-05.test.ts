@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { B1_SERVICE_ADAPTERS } from "../../src/lib/student-requests/request-service-adapter";
+import { getStudentRequestFormDefinition } from "../../src/lib/student-requests/request-form-registry";
 
 const migration = (name: string) => readFileSync(join(process.cwd(), "supabase", "migrations", name), "utf8");
 const absenceSchema = migration("20260531235203_bea9042d-3ca6-417b-a8e6-1bfd1179394e.sql");
@@ -38,8 +39,12 @@ describe("B1 service runtime drafts 05 readiness", () => {
   it("pins final chance to the historical table but permits only the approved new value", () => {
     expect(finalChanceSchema).toContain("CREATE TABLE public.extra_chance_details");
     expect(B1_SERVICE_ADAPTERS.final_chance.detailBinding.contractKey).toBe("extra_chance_details");
-    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ chance_type: "final_chance" }).valid).toBe(true);
-    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ chance_type: "additional_chance" }).valid).toBe(false);
+    const input = { target_academic_year: "year", target_semester: "semester", reason: "final exam", chance_type: "final_chance" };
+    expect(getStudentRequestFormDefinition("final_chance")?.code).toBe("final_chance");
+    expect(B1_SERVICE_ADAPTERS.final_chance.referenceResolvers).toHaveLength(2);
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate(input).valid).toBe(true);
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ ...input, chance_type: "additional_chance" }).valid).toBe(false);
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ chance_type: "final_chance" }).valid).toBe(false);
   });
 
   it("contains no portal financial ledger contract", () => {

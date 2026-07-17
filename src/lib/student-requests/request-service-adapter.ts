@@ -391,13 +391,21 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
   ),
   final_chance: adapter(
-    "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [],
-    noClientWrite("extra_chance_details", "one", [{ formField: "chance_type", detailField: "chance_type" }]),
+    "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [
+      { key: "academic_years", field: "target_academic_year", trustedServerValidationRequired: true },
+      { key: "semesters_for_year", field: "target_semester", dependsOnField: "target_academic_year", trustedServerValidationRequired: true },
+    ],
+    noClientWrite("extra_chance_details", "one", [
+      { formField: "target_academic_year", detailField: "academic_year_id" },
+      { formField: "target_semester", detailField: "semester_id" },
+      { formField: "reason", detailField: "reason" },
+      { formField: "chance_type", detailField: "chance_type" },
+    ]),
     (input) => {
+      const base = requiredText(["target_academic_year", "target_semester", "reason"])(input);
       const value = input.chance_type ?? FINAL_CHANCE_TYPE;
-      return isFinalChanceTypeForWrite(value)
-        ? { valid: true, errors: {} }
-        : { valid: false, errors: { chance_type: "unknown_chance_type" } };
+      if (!isFinalChanceTypeForWrite(value)) base.errors.chance_type = "unknown_chance_type";
+      return { valid: Object.keys(base.errors).length === 0, errors: base.errors };
     },
     BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
   ),

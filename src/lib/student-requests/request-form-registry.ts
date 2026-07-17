@@ -473,6 +473,22 @@ const OCTOBER_EXAM_ENTRY: RequestFormDefinition = {
   ],
 };
 
+const FINAL_CHANCE: RequestFormDefinition = {
+  code: "final_chance",
+  titleAr: "فرصة نهائية للاختبار",
+  descriptionAr: "طلب فرصة نهائية لأداء الاختبار فقط، بعد التحقق الأكاديمي وتأكيد المالية الخارجي.",
+  unavailableUntilSchemaApplied: SCHEMA_PENDING,
+  warnings: ["السداد يتم في النظام الجامعي الأساسي، ولا تسجل البوابة مبلغاً أو عملة أو فاتورة."],
+  sections: [{
+    fields: [
+      { name: "target_academic_year", labelAr: "العام الجامعي", type: "select", required: true, referenceResolverKey: "academic_years" },
+      { name: "target_semester", labelAr: "الفصل الدراسي", type: "select", required: true, referenceResolverKey: "semesters_for_year", referenceDependsOnField: "target_academic_year" },
+      { name: "reason", labelAr: "سبب طلب الفرصة النهائية", type: "textarea", required: true },
+      { name: "chance_type", labelAr: "نوع الفرصة", type: "readonly", defaultValue: "final_chance" },
+    ],
+  }],
+};
+
 const FORM_BY_CANONICAL = new Map<string, RequestFormDefinition>([
   ["enrollment_suspension", ENROLLMENT_SUSPENSION],
   ["grade_statement_non_graduate", GRADE_STATEMENT_NON_GRADUATE],
@@ -481,6 +497,7 @@ const FORM_BY_CANONICAL = new Map<string, RequestFormDefinition>([
   ["excused_absence", EXCUSED_ABSENCE],
   ["grade_appeal", GRADE_APPEAL],
   ["department_transfer", DEPARTMENT_TRANSFER],
+  ["final_chance", FINAL_CHANCE],
   ["october_exam_entry_form", OCTOBER_EXAM_ENTRY],
 ]);
 

@@ -256,8 +256,9 @@ describe("B1 chance compatibility and submit extension", () => {
       expect(normalizeChanceTypeForRead(value)).toBe("final_chance");
     }
     expect(normalizeChanceTypeForRead("invented_mapping")).toBeNull();
-    expect(B1_SERVICE_ADAPTERS.final_chance.validate({}).valid).toBe(true);
-    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ chance_type: "additional_chance" }).valid).toBe(false);
+    const valid = { target_academic_year: "year", target_semester: "semester", reason: "final exam" };
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate(valid).valid).toBe(true);
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ ...valid, chance_type: "additional_chance" }).valid).toBe(false);
   });
   it("exposes an optional non-runtime persistence plan without breaking legacy RPC", () => {
     expect(buildStudentRequestDetailPersistencePlan("extra_chance")).toMatchObject({ canonicalCode: "final_chance", runtimeAvailable: false });
