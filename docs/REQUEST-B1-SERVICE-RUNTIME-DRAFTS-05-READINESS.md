@@ -35,6 +35,8 @@ complete and independently reviewed.
 - Reconcile the historical `absence_excuse_details.aed_reason_chk` vocabulary
   (`medical`, `family`, `emergency`, `other`) with the source contract vocabulary
   (`medical`, `family_emergency`, `official`, `other`) without rewriting history.
+  Draft 05A now widens the constraint with exact catalog preflight and preserves
+  both historical values without mapping or backfill; it remains unapplied.
 - Prove the secure attachment table/function contract used by `excused_absence`; the
   detail row must never accept a client URL or attachment metadata.
 - Prove `transfer_request_details` source/target department and program foreign keys.
