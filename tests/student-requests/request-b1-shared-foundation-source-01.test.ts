@@ -7,17 +7,16 @@ import {
   B1_FEE_POLICIES,
   B1_SERVICE_ADAPTERS,
   B1_WORKFLOWS,
-  CHANCE_TYPE_ACTIVATION_BLOCK,
-  CHANCE_TYPE_VALUES,
+  FINAL_CHANCE_TYPE,
   canActOnB1Step,
   canActOnDepartmentHeadStep,
   canSubmitWithReferenceData,
   getRequestServiceAdapter,
   isRealAttachmentReference,
   isResolvedReferenceValue,
-  parseChanceTypeCompatibility,
+  isFinalChanceTypeForWrite,
+  normalizeChanceTypeForRead,
   resolveDirectDepartmentHead,
-  roundTripChanceType,
   validateB1ServiceActivation,
 } from "../../src/lib/student-requests/request-service-adapter";
 import {
@@ -107,12 +106,13 @@ describe("B1 workflows and payment policy", () => {
     ]);
     expect(B1_WORKFLOWS.file_withdrawal.every((s) => !["sign", "assess_fee", "confirm_payment"].includes(s.action))).toBe(true);
   });
-  it("requires fee assessment then external manual confirmation for paid services", () => {
+  it("uses external university confirmation without portal fee assessment", () => {
     for (const code of ["department_transfer", "final_chance"] as const) {
-      expect(B1_FEE_POLICIES[code]).toBe("PAID_EXTERNAL_MANUAL_CONFIRMATION");
+      expect(B1_FEE_POLICIES[code]).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
       const keys = B1_WORKFLOWS[code].map((s) => s.key);
-      expect(keys.indexOf("fee_assessment")).toBeLessThan(keys.indexOf("payment_confirmation"));
-      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBeTruthy();
+      expect(keys).not.toContain("fee_assessment");
+      expect(keys).toContain("payment_confirmation");
+      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBe("BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME");
     }
   });
   it("wires authenticated reference data through the new-request route into the dynamic form", () => {
@@ -129,14 +129,12 @@ describe("B1 workflows and payment policy", () => {
     expect(form).toContain('referenceState?.status === "ready"');
     expect(form).not.toContain("placeholder-id");
   });
-  it("blocks paid activation without an approved fee code and never blocks free services", () => {
+  it("does not couple external confirmation activation to fee_type.code", () => {
     for (const code of ["department_transfer", "final_chance"] as const) {
-      const blockedReason = B1_SERVICE_ADAPTERS[code].activationBlockedReason!;
       expect(validateB1ServiceActivation({ requestTypeCode: code })).toEqual({
-        ok: false, error: blockedReason, activationError: "SERVICE_ACTIVATION_BLOCKED",
-      });
-      expect(validateB1ServiceActivation({ requestTypeCode: code, feeTypeCode: "approved-existing-code" })).toEqual({
-        ok: false, error: blockedReason, activationError: "SERVICE_ACTIVATION_BLOCKED",
+        ok: false,
+        error: "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
+        activationError: "SERVICE_ACTIVATION_BLOCKED",
       });
     }
     expect(validateB1ServiceActivation({ requestTypeCode: "enrollment_suspension" })).toEqual({ ok: true });
@@ -177,7 +175,7 @@ describe("B1 workflows and payment policy", () => {
   it("maps actions explicitly with no fallback", () => {
     expect(B1_ACTION_OUTCOME).toEqual({
       review: "reviewed", approve: "approved", clear: "cleared", apply_decision: "applied",
-      archive: "archived", assess_fee: "fee_assessed", confirm_payment: "payment_confirmed",
+      archive: "archived", confirm_payment: "payment_confirmed",
     });
   });
 });
@@ -237,13 +235,16 @@ describe("B1 direct assignment and authorization source contract", () => {
 });
 
 describe("B1 chance compatibility and submit extension", () => {
-  it("knows all four chance values, rejects unknown and preserves round trips", () => {
-    for (const value of CHANCE_TYPE_VALUES) {
-      expect(parseChanceTypeCompatibility(value)).toBe(value);
-      expect(roundTripChanceType(value)).toBe(value);
+  it("writes only final_chance and normalizes legacy values for read compatibility", () => {
+    expect(FINAL_CHANCE_TYPE).toBe("final_chance");
+    expect(isFinalChanceTypeForWrite("final_chance")).toBe(true);
+    for (const value of ["additional_exam", "grade_recovery", "additional_chance"]) {
+      expect(isFinalChanceTypeForWrite(value)).toBe(false);
+      expect(normalizeChanceTypeForRead(value)).toBe("final_chance");
     }
-    expect(parseChanceTypeCompatibility("invented_mapping")).toBeNull();
-    expect(CHANCE_TYPE_ACTIVATION_BLOCK).toBe("NEEDS_USER_DECISION_FOR_ACADEMIC_MAPPING");
+    expect(normalizeChanceTypeForRead("invented_mapping")).toBeNull();
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate({}).valid).toBe(true);
+    expect(B1_SERVICE_ADAPTERS.final_chance.validate({ chance_type: "additional_chance" }).valid).toBe(false);
   });
   it("exposes an optional non-runtime persistence plan without breaking legacy RPC", () => {
     expect(buildStudentRequestDetailPersistencePlan("extra_chance")).toMatchObject({ canonicalCode: "final_chance", runtimeAvailable: false });
@@ -253,7 +254,7 @@ describe("B1 chance compatibility and submit extension", () => {
   it("keeps the SQL source a non-applied draft with no invented financial values", () => {
     const sql = readFileSync(join(process.cwd(), "docs", "migration-drafts", "REQUEST-B1-SHARED-FOUNDATION-SOURCE-01.sql"), "utf8");
     expect(sql).toContain("DRAFT ONLY");
-    expect(sql).toContain("NEEDS_USER_DECISION_FOR_ACADEMIC_MAPPING");
+    expect(sql).toContain("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
     expect(sql).toContain("never fall back to the role pool");
     expect(sql).not.toMatch(/INSERT\s+INTO|UPDATE\s+public|DELETE\s+FROM/i);
     expect(sql).not.toMatch(/fee_type\.code\s*=|amount\s*=|currency\s*=/i);

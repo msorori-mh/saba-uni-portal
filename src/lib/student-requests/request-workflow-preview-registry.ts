@@ -278,7 +278,6 @@ const B1_LABELS_AR: Readonly<Record<string, string>> = {
   target_department_head_approval: "اعتماد رئيس القسم المطلوب",
   dean_approval: "اعتماد العميد",
   dean_decision: "قرار العميد",
-  fee_assessment: "تحديد استحقاق الرسم الخارجي",
   payment_confirmation: "تأكيد السداد الخارجي",
 };
 
@@ -294,12 +293,12 @@ function getB1WorkflowPreview(code: string): CanonicalWorkflowPreview | undefine
       roleKey: step.role,
       processingUnitCode: step.unit,
       actionType: step.action,
-      requiresFee: step.key === "fee_assessment" || step.key === "payment_confirmation",
+      requiresFee: step.key === "payment_confirmation",
       isArchiveStep: step.action === "archive",
     })),
     specNotesAr: B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.department_transfer
       || B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.final_chance
-      ? ["السداد خارجي والتأكيد يدوي؛ التفعيل محجوز حتى اعتماد fee_type.code"]
+      ? ["تُدفع الرسوم في النظام الجامعي الأساسي، وتؤكد المالية المعيّنة الاستلام يدوياً دون مبلغ أو عملة أو فاتورة داخل البوابة."]
       : ["لا رسوم ولا مستندات لهذه الخدمة"],
   };
 }

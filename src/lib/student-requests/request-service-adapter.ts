@@ -9,12 +9,12 @@ export const B1_CANONICAL_CODES = [
 ] as const;
 
 export type B1CanonicalCode = (typeof B1_CANONICAL_CODES)[number];
-export type B1FeePolicy = "FREE_NO_PAYMENT" | "PAID_EXTERNAL_MANUAL_CONFIRMATION";
-export const PAID_SERVICE_FEE_TYPE_CODE_REQUIRED = "PAID_SERVICE_FEE_TYPE_CODE_REQUIRED" as const;
+export type B1FeePolicy = "FREE_NO_PAYMENT" | "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION";
 export const SERVICE_ACTIVATION_BLOCKED = "SERVICE_ACTIVATION_BLOCKED" as const;
 export const BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME" as const;
-export type B1Action = "review" | "approve" | "clear" | "apply_decision" | "archive" | "assess_fee" | "confirm_payment";
-export type B1Outcome = "reviewed" | "approved" | "cleared" | "applied" | "archived" | "fee_assessed" | "payment_confirmed";
+export const BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME = "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME" as const;
+export type B1Action = "review" | "approve" | "clear" | "apply_decision" | "archive" | "confirm_payment";
+export type B1Outcome = "reviewed" | "approved" | "cleared" | "applied" | "archived" | "payment_confirmed";
 
 export type ReferenceResolverKey =
   | "academic_years"
@@ -72,15 +72,11 @@ export type RequestServiceAdapter = {
 
 export function validateB1ServiceActivation(input: {
   requestTypeCode: string;
-  feeTypeCode?: string | null;
 }): { ok: true } | { ok: false; error: string; activationError: typeof SERVICE_ACTIVATION_BLOCKED } {
   const adapter = getRequestServiceAdapter(input.requestTypeCode);
   if (!adapter) throw new Error("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
   if (adapter.activationBlockedReason) {
     return { ok: false, error: adapter.activationBlockedReason, activationError: SERVICE_ACTIVATION_BLOCKED };
-  }
-  if (adapter.feePolicy === "PAID_EXTERNAL_MANUAL_CONFIRMATION" && !input.feeTypeCode?.trim()) {
-    return { ok: false, error: PAID_SERVICE_FEE_TYPE_CODE_REQUIRED, activationError: SERVICE_ACTIVATION_BLOCKED };
   }
   return { ok: true };
 }
@@ -118,7 +114,6 @@ export const B1_ACTION_OUTCOME: Readonly<Record<B1Action, B1Outcome>> = {
   clear: "cleared",
   apply_decision: "applied",
   archive: "archived",
-  assess_fee: "fee_assessed",
   confirm_payment: "payment_confirmed",
 };
 
@@ -157,7 +152,6 @@ const transfer: readonly B1WorkflowStep[] = [
   { key: "source_department_head_approval", unit: "department", role: "department_head", action: "approve" },
   { key: "target_department_head_approval", unit: "department", role: "department_head", action: "approve" },
   { key: "dean_approval", unit: "dean", role: "dean", action: "approve" },
-  { key: "fee_assessment", unit: "finance", role: "revenue_finance_officer", action: "assess_fee" },
   { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
@@ -165,7 +159,6 @@ const finalChance: readonly B1WorkflowStep[] = [
   { key: "student_affairs_intake", unit: "student_affairs", role: "student_affairs_specialist", action: "review" },
   { key: "manager_review", unit: "student_affairs", role: "student_affairs_manager", action: "approve" },
   { key: "dean_decision", unit: "dean", role: "dean", action: "approve" },
-  { key: "fee_assessment", unit: "finance", role: "revenue_finance_officer", action: "assess_fee" },
   { key: "payment_confirmation", unit: "finance", role: "revenue_finance_officer", action: "confirm_payment" },
   { key: "registrar_apply", unit: "registrar", role: "registrar_general", action: "apply_decision" },
 ];
@@ -182,8 +175,8 @@ export const B1_FEE_POLICIES: Readonly<Record<B1CanonicalCode, B1FeePolicy>> = {
   enrollment_suspension: "FREE_NO_PAYMENT",
   excused_absence: "FREE_NO_PAYMENT",
   file_withdrawal: "FREE_NO_PAYMENT",
-  department_transfer: "PAID_EXTERNAL_MANUAL_CONFIRMATION",
-  final_chance: "PAID_EXTERNAL_MANUAL_CONFIRMATION",
+  department_transfer: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+  final_chance: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
 };
 
 export type StepActor = {
@@ -244,23 +237,18 @@ export function resolveDirectDepartmentHead(
   return { ok: true, facultyProfileId: matches[0].facultyProfileId as string };
 }
 
-export const CHANCE_TYPE_VALUES = [
-  "additional_exam",
-  "grade_recovery",
-  "final_chance",
-  "additional_chance",
-] as const;
-export type ChanceTypeCompatibilityValue = (typeof CHANCE_TYPE_VALUES)[number];
-export const CHANCE_TYPE_ACTIVATION_BLOCK = "NEEDS_USER_DECISION_FOR_ACADEMIC_MAPPING" as const;
+export const FINAL_CHANCE_TYPE = "final_chance" as const;
+const LEGACY_CHANCE_TYPE_VALUES = ["additional_exam", "grade_recovery", "additional_chance"] as const;
 
-export function parseChanceTypeCompatibility(value: unknown): ChanceTypeCompatibilityValue | null {
-  return typeof value === "string" && (CHANCE_TYPE_VALUES as readonly string[]).includes(value)
-    ? value as ChanceTypeCompatibilityValue
+export function normalizeChanceTypeForRead(value: unknown): typeof FINAL_CHANCE_TYPE | null {
+  if (value === FINAL_CHANCE_TYPE) return FINAL_CHANCE_TYPE;
+  return typeof value === "string" && (LEGACY_CHANCE_TYPE_VALUES as readonly string[]).includes(value)
+    ? FINAL_CHANCE_TYPE
     : null;
 }
 
-export function roundTripChanceType(value: ChanceTypeCompatibilityValue): ChanceTypeCompatibilityValue {
-  return value;
+export function isFinalChanceTypeForWrite(value: unknown): value is typeof FINAL_CHANCE_TYPE {
+  return value === FINAL_CHANCE_TYPE;
 }
 
 export const SHARED_SUBMIT_EXTENSION = {
@@ -358,7 +346,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME,
   ),
   department_transfer: adapter(
-    "department_transfer", ["department_transfer", "transfer"], "PAID_EXTERNAL_MANUAL_CONFIRMATION",
+    "department_transfer", ["department_transfer", "transfer"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
     [
       { key: "available_departments", field: "target_department_id", trustedServerValidationRequired: true },
       { key: "available_programs", field: "target_program_id", dependsOnField: "target_department_id", trustedServerValidationRequired: true },
@@ -368,16 +356,18 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       { formField: "target_program_id", detailField: "requested_program_id" },
     ]),
     requiredText(["target_department_id", "target_program_id"]),
-    "BLOCKED_UNTIL_FEE_TYPE_CODE_APPROVED",
+    BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
   ),
   final_chance: adapter(
-    "final_chance", ["extra_chance"], "PAID_EXTERNAL_MANUAL_CONFIRMATION", [],
+    "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [],
     noClientWrite("extra_chance_details", "one", [{ formField: "chance_type", detailField: "chance_type" }]),
     (input) => {
-      const parsed = parseChanceTypeCompatibility(input.chance_type);
-      return parsed ? { valid: true, errors: {} } : { valid: false, errors: { chance_type: "unknown_chance_type" } };
+      const value = input.chance_type ?? FINAL_CHANCE_TYPE;
+      return isFinalChanceTypeForWrite(value)
+        ? { valid: true, errors: {} }
+        : { valid: false, errors: { chance_type: "unknown_chance_type" } };
     },
-    CHANCE_TYPE_ACTIVATION_BLOCK,
+    BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
   ),
   file_withdrawal: adapter(
     "file_withdrawal", ["file_withdrawal"], "FREE_NO_PAYMENT", [],

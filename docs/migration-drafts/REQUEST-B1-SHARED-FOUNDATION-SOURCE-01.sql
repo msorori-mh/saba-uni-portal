@@ -26,8 +26,9 @@
 -- set assigned_faculty_profile_id on its matching runtime step. Missing/ambiguous/
 -- cross-department heads abort initialization; never fall back to the role pool.
 
--- Paid external/manual services remain activation-blocked until reviewed
--- fee_type.code values exist. Do not store portal amount/currency/gateway data.
+-- department_transfer and final_chance use
+-- EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION. Do not store fee_type.code, amount,
+-- currency, invoice, gateway transaction, or an internal balance.
 -- final_chance is canonical in source while extra_chance remains the stored alias.
--- chance_type needs NEEDS_USER_DECISION_FOR_ACADEMIC_MAPPING before any constraint
--- change; this draft performs no implicit conversion or data rewrite.
+-- New detail writes use chance_type='final_chance' only. Historical values are
+-- read-normalized only; this draft performs no conversion or data rewrite.
