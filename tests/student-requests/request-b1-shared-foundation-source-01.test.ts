@@ -224,7 +224,13 @@ describe("B1 direct assignment and authorization source contract", () => {
   it("keeps excused absence blocked on secure attachments and rejects unknown reason types", () => {
     const adapter = B1_SERVICE_ADAPTERS.excused_absence;
     expect(adapter.activationBlockedReason).toBe("BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME");
-    const valid = { course_section_id: "section", absence_date: "2026-07-17", reason_type: "medical", absence_reason_detail: "detail" };
+    const valid = {
+      course_section_id: "section",
+      absence_date: "2026-07-17",
+      reason_type: "medical",
+      absence_reason_detail: "detail",
+      excuse_documents: { fileName: "excuse.pdf", storagePath: "student-requests/student/request/excuse.pdf" },
+    };
     expect(adapter.validate(valid).valid).toBe(true);
     expect(adapter.validate({ ...valid, reason_type: "placeholder" })).toMatchObject({ valid: false, errors: { reason_type: "unknown_reason_type" } });
   });

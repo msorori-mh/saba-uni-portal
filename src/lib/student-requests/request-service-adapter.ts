@@ -325,9 +325,18 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     noClientWrite("enrollment_suspension_details", "one", [
       { formField: "target_academic_year", detailField: "requested_from_academic_year_id" },
       { formField: "target_semester", detailField: "requested_from_semester_id" },
-      { formField: "suspension_reason", detailField: "reason" },
+      { formField: "suspension_reason", detailField: "suspension_reason" },
+      { formField: "suspension_duration_type", detailField: "suspension_duration_type" },
+      { formField: "notes", detailField: "notes" },
     ]),
-    requiredText(["target_academic_year", "target_semester", "suspension_reason"]),
+    (input) => {
+      const base = requiredText(["target_academic_year", "target_semester", "suspension_reason", "suspension_duration_type"])(input);
+      if (!["one_semester", "full_year"].includes(String(input.suspension_duration_type ?? ""))) {
+        base.errors.suspension_duration_type = "unknown_duration_type";
+      }
+      if (input.terms_acknowledgment !== true) base.errors.terms_acknowledgment = "required_true";
+      return { valid: Object.keys(base.errors).length === 0, errors: base.errors };
+    },
   ),
   excused_absence: adapter(
     "excused_absence", ["excused_absence", "absence_excuse"], "FREE_NO_PAYMENT",
@@ -343,6 +352,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       const base = requiredText(["course_section_id", "absence_date", "reason_type", "absence_reason_detail"])(input);
       const allowedReasons = ["medical", "family_emergency", "official", "other"];
       if (typeof input.reason_type === "string" && !allowedReasons.includes(input.reason_type)) base.errors.reason_type = "unknown_reason_type";
+      if (!isRealAttachmentReference(input.excuse_documents)) base.errors.excuse_documents = "secure_attachment_required";
       return { valid: Object.keys(base.errors).length === 0, errors: base.errors };
     },
     BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME,
