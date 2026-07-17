@@ -2,6 +2,16 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 16 — isolated PostgreSQL compile finding
+
+- Started local Docker/Supabase only; no link or remote target was used.
+- Full local baseline stopped on unrelated historical faculty fixture `faculty_id = NULL`; no production apply occurred.
+- Minimal PostgreSQL 17 compile exposed and fixed the draft RPC `%ROWTYPE` multi-item `INTO` error.
+- Isolated direct-user matrix passed: assigned actor allow, wrong actor deny, negative no-transition, positive transition, confirmer/time and audit invariants.
+- New checksum: `83b4baa77b2501e44ab18d3fac62b5af69f58747ae9331dcbfa97319a046ef0c`.
+- TypeScript, 360/360 student-request tests and diff-check passed. Commit `605f9aa`; Draft PR #138 opened.
+- Production migration, visibility and deploy gates remain closed pending full-schema baseline repair and expanded assignee/replay/stale/ambiguity matrix.
+
 ## Cycle 15 — unchanged runtime gate
 
 - `origin/main` remains `d67586de173d380abe7a5424f1d9dfe02ab2ab9a`; no new project PR or CI result appeared.

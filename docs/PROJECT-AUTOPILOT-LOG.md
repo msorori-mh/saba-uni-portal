@@ -1,5 +1,13 @@
 # Project Autopilot Log
 
+## 2026-07-17 — Cycle 16 local runtime compile
+
+- Started the preinstalled Docker engine and reused an existing local Supabase CLI/bundled images without network installation or production linkage.
+- Recorded the unrelated legacy baseline fixture failure, then isolated the payment draft in PostgreSQL 17.
+- Found and fixed a real PL/pgSQL compile error; added minimal schema and direct-user RPC matrix fixtures.
+- Compile, RPC matrix, TypeScript, 360 tests and diff-check passed; pushed `605f9aa` and opened Draft PR #138.
+- No production access/write, migration apply, protected-record access, visibility change, deploy or publish occurred.
+
 ## 2026-07-17 — Cycle 15 hourly verification
 
 - Confirmed no new project PR/CI result and no change from `main@d67586d`.
