@@ -290,3 +290,10 @@
 - Third independent review returned PASS with zero findings. Focused tests 6/6, TypeScript and diff-check passed.
 - Committed `b265175`, pinned its SQL checksum in `45b7677`, and pushed the feature branch.
 - No migration, SQL, production write, deployment, publication or visibility change occurred.
+
+## 2026-07-17 — B1 dispatcher/caller cutover start
+
+- Began the next source-only task from clean `codex/b1-service-runtime-drafts-05@45b7677`.
+- Re-read the atomic submit dispatcher, readiness contract, five detail schemas, trusted validators and remaining direct client-write locations.
+- Confirmed 05A must replace `persist_validated_b1_request_details` for exactly five canonical services and invoke the locked table-boundary primitive only inside the eventual single atomic caller cutover unit.
+- No source mutation, SQL application, production access, visibility change, deployment or publication occurred in this inventory step.
