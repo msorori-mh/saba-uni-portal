@@ -305,3 +305,11 @@
 - Dispatcher replacement and the locked detail-table boundary invocation share one transaction; no service activation or financial fields are included.
 - Focused tests 6/6, TypeScript and `git diff --check` passed. Independent security/SQL review is in progress; no commit will be made before PASS/remediation.
 - No SQL/migration apply, production access/write, `student_visible`, deploy or publish occurred.
+
+## 2026-07-17 — B1 dispatcher first-review remediation
+
+- Independent review returned HOLD with two HIGH and one MEDIUM findings: transfer certificate key mismatch, stale applied/clearance markers on resubmit, and premature ACL cutover.
+- Remediation aligns the transfer payload with `secondary_certificate_file`, rejects resubmit when an academic effect or withdrawal clearance already exists, and removes boundary invocation from this installation-only dispatcher draft.
+- Caller conversion and ACL cutover remain a separate future atomic unit; installing 05A alone cannot revoke legacy table writes.
+- Focused tests now pass 7/7 with TypeScript and diff-check; independent re-review is running.
+- No SQL/migration apply or production-impacting action occurred.
