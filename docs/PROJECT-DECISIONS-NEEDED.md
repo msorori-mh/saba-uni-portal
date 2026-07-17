@@ -25,3 +25,5 @@ non-production Supabase environment after an explicitly approved Draft migration
 apply. No production credential or real user may be used.
 
 No production command is authorized or scheduled in the current source-only cycle.
+
+Cycle 14 environment evidence: the host has no callable Supabase CLI and no running Docker engine. Therefore DB compile and the RPC ALLOW/DENY matrix remain unexecuted; production must not be used as a substitute test environment.
