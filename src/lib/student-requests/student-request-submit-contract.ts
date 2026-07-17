@@ -9,6 +9,7 @@ import {
   serializeFormValuesForStorage,
   validateStudentRequestFormValues,
 } from "@/lib/student-requests/request-form-registry";
+import { getRequestServiceAdapter } from "@/lib/student-requests/request-service-adapter";
 import {
   getStudentRequestTypeDefinition,
   isCanonicalStudentRequestTypeCode,
@@ -184,7 +185,11 @@ export function validateStudentRequestSubmitInput(
   }
 
   const typeDef = getStudentRequestTypeDefinition(normalized.requestTypeCode);
-  if (typeDef?.requiresAttachment) {
+  // Secure attachment identity is deliberately not validated here. requestId and
+  // studentProfileId in form data are client-controlled. The source-only secure
+  // runtime binds exact attachment IDs to the authenticated owner inside the
+  // submit transaction; the runtime flag remains closed until that RPC is applied.
+  if (typeDef?.requiresAttachment && normalized.requestTypeCode !== "excused_absence") {
     const hasRealAttachment = normalized.attachments.some(
       (a) => a.fileName && !a.fileName.startsWith("placeholder"),
     );
@@ -229,5 +234,34 @@ export function buildStudentRequestSubmitPayload(
     formData: normalized.formData,
     studentNotes: summary?.trim() || normalized.studentNotes,
     description: normalized.description ?? summary ?? null,
+  };
+}
+
+export type StudentRequestDetailPersistencePlan = {
+  canonicalCode: string;
+  storedCodes: readonly string[];
+  validatorKey: string;
+  detailContractKey: string;
+  transactionRequired: true;
+  workflowStartsAfterValidation: true;
+  supportsResubmit: true;
+  runtimeAvailable: false;
+};
+
+/** Source-only extension metadata. It never writes detail tables from the client. */
+export function buildStudentRequestDetailPersistencePlan(
+  requestTypeCode: string,
+): StudentRequestDetailPersistencePlan | null {
+  const adapter = getRequestServiceAdapter(requestTypeCode);
+  if (!adapter) return null;
+  return {
+    canonicalCode: adapter.canonicalCode,
+    storedCodes: adapter.storedCodes,
+    validatorKey: adapter.submit.validatorKey,
+    detailContractKey: adapter.detailBinding.contractKey,
+    transactionRequired: true,
+    workflowStartsAfterValidation: true,
+    supportsResubmit: true,
+    runtimeAvailable: false,
   };
 }
