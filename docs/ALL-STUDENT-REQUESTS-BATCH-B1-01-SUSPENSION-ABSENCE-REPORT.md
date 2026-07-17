@@ -4,7 +4,7 @@
 
 **Branch:** `feat/request-b1-suspension-absence`
 
-**Merged foundation:** `origin/main@be38c319aedd6d9a9257e30d0623e1b1b66b6bb7`
+**Verified base:** `origin/main@682b63ef93936a5fcc275c0437df4816355c41be`
 **Decision:** `PASS_SOURCE_ONLY`
 
 ## Executive summary
@@ -66,6 +66,8 @@ The source tests exercise the shared authorization contract directly. Live RPC/E
 - `bunx tsc --noEmit`: **passed**.
 - `bun run build`: **passed** after 329.6 seconds; only existing bundler warnings were emitted.
 - `git diff --check`: **passed**.
+- Independent source review: **PASS**; runtime remains correctly **HOLD** pending authorized activation.
+- Post-review latest-main rerun: **338 passed, 0 failed**; typecheck, build, and diff check passed.
 
 ## Assumptions
 
