@@ -18,6 +18,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Focused tests PASS 50/50, TypeScript PASS after locked dependency installation, and `git diff --check` PASS.
 - The branch remains pre-PR while executable 05A/05B source and independent review are incomplete.
 
+### Cycle 24 — transfer persistence contract completed
+
+- Added the missing required `transfer_reason` mapping and validation to the proven `transfer_request_details` adapter contract.
+- Full student-request suite PASS 438/438, TypeScript PASS, and diff-check PASS; commit `f1b626d` is pushed.
+- Build reached Vite bundle generation but the command transport timed out twice at 59 seconds; no source build error was reported. This gate remains pending a longer isolated run before PR.
+- Generated `routeTree.gen.ts` had no normalized diff after the build and the worktree is clean.
+- No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.

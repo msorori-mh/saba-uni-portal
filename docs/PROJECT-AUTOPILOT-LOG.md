@@ -9,6 +9,7 @@
 - Production impact: none.
 
 - Follow-up source audit found and fixed an incorrect transfer detail contract key. The adapter now uses the proven `transfer_request_details` relation; 50 focused tests and TypeScript pass in commit `7e1c994`.
+- Completed the transfer detail field contract in `f1b626d` by requiring and mapping `transfer_reason`; 438 tests and TypeScript pass. Build transport timeout remains isolated as a pre-PR gate.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
