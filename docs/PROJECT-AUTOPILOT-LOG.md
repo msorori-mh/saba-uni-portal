@@ -321,3 +321,11 @@
 - Focused tests 4/4, TypeScript and diff-check passed; independent review is in progress before integration or commit.
 - Direct legacy writers remain unchanged in this slice, and ACL cutover remains closed.
 - No SQL/migration apply, production action, visibility change, deploy or publish occurred.
+
+## 2026-07-17 — Enrollment-certificate availability banner merged
+
+- Created isolated branch/worktree from `origin/main@5b8d0ef`.
+- Fixed the red unavailable banner caused by pristine required fields and separated neutral service information.
+- Remediated independent-review findings so unresolved eligibility is neutral but non-submittable and controlled inline validation always runs.
+- All gates passed; pushed `ae281b1`, opened PR #143, observed Web CI PASS, and merged as `0da75d8`.
+- No SQL/migration, production access/write, `student_visible`, deploy or publish.

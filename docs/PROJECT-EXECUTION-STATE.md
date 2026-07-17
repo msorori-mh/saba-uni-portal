@@ -313,6 +313,15 @@ Updated: 2026-07-17 (Asia/Riyadh)
 None. No migration/SQL apply, Supabase production access, data/storage write,
 deploy, publish, secret change, production E2E, cleanup or discard was performed.
 
+## 2026-07-17 — Enrollment-certificate availability banner UX fix
+
+- PR #143 merged into `main` at `0da75d8b199d516a5d6d8498a0ea0d67c9c8e360`.
+- Eligibility, form validation and service information are now separate UI contracts.
+- Focused tests 6/6, student-request suite 443/443, TypeScript, build, Web CI and independent review PASS.
+- CRITICAL/HIGH/MEDIUM/LOW = 0/0/0/0.
+- No workflow, submit backend, migration, `student_visible`, deploy, publish or production data change.
+- Production display requires a later separately authorized Deploy.
+
 ## 2026-07-17 — B1 detail RPC-write cutover boundary
 
 - Feature branch `codex/b1-service-runtime-drafts-05` advanced to `45b7677` and is pushed.

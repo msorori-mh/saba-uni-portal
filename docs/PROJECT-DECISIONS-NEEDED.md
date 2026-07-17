@@ -34,3 +34,7 @@ The exact dependency order, preflight, sequential application protocol, and post
 Direct RPC ALLOW/DENY matrices require an isolated, non-production Supabase environment after the relevant migration has a separately approved application path. No production credential, real user, or protected request may be used as test data.
 
 No production command is authorized or scheduled in the current source-only cycle. A partial apply must stop only the migration chain and retain evidence; no reset or cleanup is permitted.
+
+## Enrollment-certificate UX delivery
+
+The availability-banner source fix is merged in PR #143. A Deploy/Publish is still required for production visibility and remains outside the completed source-only phase.
