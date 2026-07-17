@@ -89,6 +89,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - The atomic persistence dispatcher remains fail-closed and no PR is opened yet.
 - No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
 
+### Cycle 33 — trusted-reference validators review PASS
+
+- Independent review initially found inactive-parent gaps for academic year, course offering, and department.
+- Commit `7201ece` now requires active linked parents for all three validators; final review PASS with CRITICAL/HIGH/MEDIUM/LOW = 0.
+- Deliberately did not infer `is_current`; the approved contract proves selectable active references, not a current-period-only rule.
+- Validator SHA-256 `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` is pinned in inventory commit `17ffb42`.
+- Remaining item-6 source: five-service persistence dispatcher and inactive workflows for three free services. No SQL/migration apply or production action occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
