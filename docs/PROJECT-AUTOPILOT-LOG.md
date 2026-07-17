@@ -313,3 +313,11 @@
 - Caller conversion and ACL cutover remain a separate future atomic unit; installing 05A alone cannot revoke legacy table writes.
 - Focused tests now pass 7/7 with TypeScript and diff-check; independent re-review is running.
 - No SQL/migration apply or production-impacting action occurred.
+
+## 2026-07-17 — B1 caller conversion attachment identity slice
+
+- Began caller conversion with a pure fail-closed extractor that passes only opaque secure attachment UUIDs to the future atomic RPC.
+- Exact mappings are `excuse_documents` → `excuse_documents` and `secondary_certificate_file` → `secondary_certificate`; paths, filenames, pending state, malformed IDs, duplicates and missing required references are rejected.
+- Focused tests 4/4, TypeScript and diff-check passed; independent review is in progress before integration or commit.
+- Direct legacy writers remain unchanged in this slice, and ACL cutover remains closed.
+- No SQL/migration apply, production action, visibility change, deploy or publish occurred.
