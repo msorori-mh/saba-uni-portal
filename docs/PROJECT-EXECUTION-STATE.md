@@ -57,6 +57,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Focused tests PASS 9/9, TypeScript PASS, and diff-check PASS; commit `278ab7c` is pushed pending independent review and later full gates.
 - No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
 
+### Cycle 29 — 05A independent review closure
+
+- Independent review initially found HIGH 1 and MEDIUM 1: historical reason values remained writable and target-state reruns were incomplete.
+- Remediation added canonical-only INSERT/changed-value enforcement, exact trigger catalog verification including `tgattr`/`tgqual`, and explicit `convalidated` handling.
+- Final independent re-review PASS: CRITICAL/HIGH/MEDIUM/LOW = 0. Focused tests PASS 6/6 and diff-check PASS.
+- Remediation commit `8ea65c3` is pushed; the broader item-6 branch remains pre-PR until 05A/05B executable coverage and full gates complete.
+- No SQL/migration apply, production access/write, visibility change, deploy, publish, or backfill occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.

@@ -14,6 +14,7 @@
 - Completed the missing final-chance form and persistence contract in `a0b5357`: trusted year/semester, required reason, final-exam-only value, and external payment policy. Focused 54 tests and TypeScript pass.
 - Fixed suspension form/validator parity in `814b558` by exposing the required schema-approved duration values; 443 full tests and TypeScript pass.
 - Added unapplied excused-absence vocabulary draft 05A in `278ab7c`; exact preflight preserves historical values and permits canonical new values without mapping/backfill. Nine focused tests and TypeScript pass.
+- Independent review held the first 05A draft at HIGH 1/MEDIUM 1. Commit `8ea65c3` closed both with canonical-write enforcement and exact idempotent catalog checks; final review PASS with zero findings.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
