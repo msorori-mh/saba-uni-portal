@@ -121,6 +121,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - SQL upload-intent/assertion/atomic-wrapper overlay remains missing, so transfer activation stays fail-closed and no dispatcher branch is enabled.
 - No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
 
+### Cycle 37 — transfer secure-attachment SQL overlay drafted
+
+- Added source-only overlay for exact transfer/absence field mapping, server-generated upload intent, locked attachment-set assertion, and revocation of the obsolete non-atomic submit wrapper.
+- Atomic submission remains exclusively through `submit_b1_student_request_atomic`; the overlay returns only an opaque attachment ID.
+- Focused tests PASS 7/7, TypeScript PASS, and diff-check PASS; commit `2a7987f` is pushed pending independent review.
+- Transfer activation and dispatcher remain fail-closed until review and full integration complete.
+- No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.

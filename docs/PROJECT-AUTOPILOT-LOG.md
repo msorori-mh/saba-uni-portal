@@ -22,6 +22,7 @@
 - Completed the excused-absence detail/RPC-write boundary in `821e959` after closing trigger and legacy direct-write bypass findings; final review PASS and checksum pinned in `37bf4ae`.
 - Dispatcher preflight isolated the missing secure-transfer attachment dependency. Commit `8f41400` now fails transfer activation closed on both private attachments and external payment; 59 tests and TypeScript pass.
 - Independent gate review PASS. Commit `5213f21` adds the transfer certificate's pure private-attachment contract and tests; SQL intent/assertion/wrapper support remains fail-closed work.
+- Added the unapplied transfer private-attachment SQL overlay in `2a7987f`; seven focused tests and TypeScript pass. Independent review is the next gate.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
