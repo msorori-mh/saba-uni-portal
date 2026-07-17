@@ -60,6 +60,15 @@ describe("secure attachments HIGH remediation source guards", () => {
     expect(submit).toBeGreaterThan(assertion);
     expect(draftSql).toContain("a.id=ANY(p_attachment_ids)");
     expect(draftSql).toContain("sp.user_id=v_uid");
+    expect(draftSql).toContain("WHERE r.id=p_student_request_id AND r.student_profile_id=v_profile_id");
+    expect(draftSql).toContain("AND a.student_profile_id=v_profile_id FOR UPDATE");
+  });
+
+  it("revokes the legacy submit bypass and routes every type through one boundary", () => {
+    expect(draftSql).toContain("REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC,anon,authenticated");
+    expect(draftSql).toContain("AND sp.user_id=auth.uid()");
+    expect(draftSql).toContain("IF v_request.request_type IN ('excused_absence','absence_excuse') THEN");
+    expect(draftSql).toContain("ELSIF coalesce(cardinality(p_attachment_ids),0)<>0 THEN");
   });
 
   it("does not trust client identity during generic form validation", () => {

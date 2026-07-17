@@ -76,19 +76,22 @@ END $$;
 CREATE FUNCTION public.assert_required_student_request_attachments(
   p_student_request_id uuid,p_attachment_ids uuid[]) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
-DECLARE v_uid uuid:=auth.uid(); v_profile_id uuid; v_expected integer; v_attached integer;
+DECLARE v_uid uuid:=auth.uid(); v_profile_id uuid; v_request public.student_requests%ROWTYPE; v_expected integer; v_attached integer;
 BEGIN
  IF v_uid IS NULL THEN RAISE EXCEPTION 'ATTACHMENT_ACCESS_DENIED' USING ERRCODE='28000'; END IF;
  SELECT sp.id INTO v_profile_id FROM public.student_profiles sp
  WHERE sp.user_id=v_uid;
- IF v_profile_id IS NULL OR NOT EXISTS(
-   SELECT 1 FROM public.student_requests r
-   WHERE r.id=p_student_request_id AND r.student_profile_id=v_profile_id
-   AND r.status IN ('draft','returned','returned_for_completion')
- ) THEN RAISE EXCEPTION 'ATTACHMENT_REQUEST_NOT_OWNED' USING ERRCODE='42501'; END IF;
+ SELECT r.* INTO v_request FROM public.student_requests r
+ WHERE r.id=p_student_request_id AND r.student_profile_id=v_profile_id
+ AND r.status IN ('draft','returned','returned_for_completion') FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'ATTACHMENT_REQUEST_NOT_OWNED' USING ERRCODE='42501'; END IF;
  v_expected:=coalesce(cardinality(p_attachment_ids),0);
  IF v_expected NOT BETWEEN 1 AND 3 OR v_expected<>(SELECT count(DISTINCT selected_id) FROM unnest(p_attachment_ids) AS selected_id)
  THEN RAISE EXCEPTION 'ATTACHMENT_UPLOAD_NOT_COMPLETED'; END IF;
+ -- Lock the exact submission set so completion/rejection cannot race the check.
+ PERFORM 1 FROM public.student_request_attachment_uploads a
+ WHERE a.id=ANY(p_attachment_ids) AND a.student_request_id=p_student_request_id
+ AND a.student_profile_id=v_profile_id FOR UPDATE;
  SELECT count(*) INTO v_attached FROM public.student_request_attachment_uploads a
  WHERE a.id=ANY(p_attachment_ids) AND a.student_request_id=p_student_request_id
  AND a.student_profile_id=v_profile_id AND a.field_key='excuse_documents'
@@ -97,13 +100,23 @@ BEGIN
  IF v_attached<>v_expected THEN RAISE EXCEPTION 'ATTACHMENT_OBJECT_MISMATCH' USING ERRCODE='42501'; END IF;
 END $$;
 
--- This is the only secure-attachment submit entrypoint. The existing reviewed
--- submit RPC performs workflow initialization; calling it here keeps assertion,
--- status transition, and initialization in this same database transaction.
+-- This becomes the only authenticated submit entrypoint when this Draft is
+-- applied. The legacy entrypoint is revoked below, closing direct bypass.
 CREATE FUNCTION public.submit_student_request_with_secure_attachments(
   p_request_id uuid,p_attachment_ids uuid[]) RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$ BEGIN
- PERFORM public.assert_required_student_request_attachments(p_request_id,p_attachment_ids);
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
+DECLARE v_request public.student_requests%ROWTYPE;
+BEGIN
+ SELECT r.* INTO v_request FROM public.student_requests r
+ JOIN public.student_profiles sp ON sp.id=r.student_profile_id
+ WHERE r.id=p_request_id AND sp.user_id=auth.uid()
+ AND r.status IN ('draft','returned','returned_for_completion') FOR UPDATE OF r;
+ IF NOT FOUND THEN RAISE EXCEPTION 'ATTACHMENT_REQUEST_NOT_OWNED' USING ERRCODE='42501'; END IF;
+ IF v_request.request_type IN ('excused_absence','absence_excuse') THEN
+   PERFORM public.assert_required_student_request_attachments(p_request_id,p_attachment_ids);
+ ELSIF coalesce(cardinality(p_attachment_ids),0)<>0 THEN
+   RAISE EXCEPTION 'ATTACHMENT_FIELD_NOT_ALLOWED' USING ERRCODE='42501';
+ END IF;
  PERFORM public.submit_student_request(p_request_id);
 END $$;
 
@@ -142,6 +155,9 @@ REVOKE ALL ON FUNCTION public.create_student_request_attachment_upload_intent(uu
 REVOKE ALL ON FUNCTION public.complete_student_request_attachment_upload(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.assert_required_student_request_attachments(uuid,uuid[]) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) FROM PUBLIC,anon;
+-- Mandatory cutover: authenticated callers cannot invoke the pre-attachment
+-- boundary. The SECURITY DEFINER wrapper above invokes it as the function owner.
+REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.list_my_student_request_attachments(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.get_owned_student_request_attachment_upload(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.authorize_student_request_attachment_download(uuid) FROM PUBLIC,anon;

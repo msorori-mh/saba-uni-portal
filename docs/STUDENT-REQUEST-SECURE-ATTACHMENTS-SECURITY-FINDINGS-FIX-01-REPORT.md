@@ -19,6 +19,13 @@ not executed or applied.
   `auth.uid()`, locks the request identity to that owner and editable state,
   rejects duplicates or non-attached/mismatched rows, and performs the assertion
   before the existing submit/workflow RPC in the same transaction.
+- The Draft revokes authenticated execution of the legacy
+  `submit_student_request(uuid)` entrypoint. All request types route through the
+  new boundary; secure references are mandatory only for the excused-absence
+  aliases and forbidden for unrelated types.
+- The request row and exact referenced attachment rows are locked with
+  `FOR UPDATE` before validation and remain locked through the legacy submit call,
+  preventing attachment-state or request-state changes between check and use.
 - Generic TypeScript form validation no longer trusts client-provided request or
   student identity. The legacy attachment fallback does not apply to
   `excused_absence`.
@@ -36,7 +43,7 @@ not executed or applied.
 ## Verification
 
 - `bun install --frozen-lockfile --backend copyfile`: PASS (109 packages).
-- `bun test tests/student-requests`: PASS — 320 pass, 0 fail, 1209 assertions,
+- `bun test tests/student-requests`: PASS — 321 pass, 0 fail, 1215 assertions,
   19 files.
 - `bunx tsc --noEmit`: PASS.
 - `bun run build`: PASS with existing dependency directive warnings.
@@ -47,7 +54,8 @@ not executed or applied.
 ## Assumptions and risks
 
 - The existing reviewed `submit_student_request(uuid)` remains the authoritative
-  status-transition and workflow-initialization RPC.
+  internal status-transition and workflow-initialization implementation, but is
+  no longer executable directly by `authenticated` after Draft cutover.
 - The SQL remains a design Draft. Syntax and direct RPC ALLOW/DENY behavior must
   be independently reviewed and later verified in a safe non-production database
   before any activation request.
