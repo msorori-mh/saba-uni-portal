@@ -13,6 +13,7 @@ import {
 } from "@/lib/student-request-rpc";
 import {
   buildStudentRequestSubmitPayload,
+  extractB1SecureAttachmentIds,
   type CanonicalStudentRequestSubmitInput,
   type CanonicalStudentRequestSubmitResult,
   validateStudentRequestSubmitInput,
@@ -379,6 +380,49 @@ async function submitViaRpcOrFallback(input: {
   });
 }
 
+async function createB1DraftFailClosed(input: {
+  sessionClient: RpcClient;
+  requestType: string;
+  title: string;
+  formData: Record<string, unknown>;
+  studentNotes: string | null;
+}): Promise<string> {
+  const result = await rpcCreateStudentRequest(input.sessionClient, {
+    requestType: input.requestType,
+    title: input.title,
+    formData: input.formData,
+    studentNotes: input.studentNotes,
+  });
+  if (result.rpcUnavailable) throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+  return result.id;
+}
+
+async function submitB1RequestAtomically(input: {
+  sessionClient: RpcClient;
+  requestId: string;
+  canonicalCode: string;
+  formData: Record<string, unknown>;
+  expectedUpdatedAt?: string;
+}): Promise<void> {
+  let expectedUpdatedAt = input.expectedUpdatedAt;
+  if (!expectedUpdatedAt) {
+    const { data: request, error: requestError } = await supabaseAdmin
+      .from("student_requests").select("updated_at").eq("id", input.requestId).maybeSingle();
+    if (requestError || !request?.updated_at) throw new Error(STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+    expectedUpdatedAt = request.updated_at;
+  }
+
+  const attachmentIds = extractB1SecureAttachmentIds(input.canonicalCode, input.formData);
+  const { error } = await input.sessionClient.rpc("submit_b1_student_request_atomic", {
+    p_request_id: input.requestId,
+    p_canonical_code: input.canonicalCode,
+    p_form_data: input.formData,
+    p_expected_updated_at: expectedUpdatedAt,
+    p_attachment_ids: attachmentIds,
+  });
+  if (error) throw new Error(error.message ?? STUDENT_REQUEST_SERVICE_UPDATING_MSG);
+}
+
 async function loadCreatedRequestMeta(requestId: string) {
   const { data: created, error } = await supabaseAdmin
     .from("student_requests")
@@ -447,11 +491,12 @@ export async function submitCanonicalStudentRequestCore(input: {
   if (b1Adapter) payload.requestType = getStoredWriteCodeForRequestType(validation.normalized.requestTypeCode);
   let requestId = validation.normalized.existingRequestId;
   let priorStatus = "draft";
+  let b1ExpectedUpdatedAt: string | undefined;
 
   if (requestId) {
     const { data: existing, error: existingErr } = await supabaseAdmin
       .from("student_requests")
-      .select("id, status, student_profile_id, request_type")
+      .select("id, status, student_profile_id, request_type, updated_at")
       .eq("id", requestId)
       .maybeSingle();
     if (existingErr) throw new Error(existingErr.message);
@@ -467,33 +512,52 @@ export async function submitCanonicalStudentRequestCore(input: {
       throw new Error("نوع الطلب لا يطابق الطلب المحفوظ");
     }
 
-    const { error: updateErr } = await input.sessionClient
-      .from("student_requests")
-      .update({
+    const updateValues = {
         title: payload.title,
         description: payload.description ?? payload.studentNotes,
         form_data: payload.formData,
         student_notes: payload.studentNotes,
-      } as any)
-      .eq("id", requestId);
-    if (updateErr) throw new Error(updateErr.message);
+      } as any;
+    if (b1Adapter) {
+      const { data: updated, error: updateErr } = await supabaseAdmin
+        .from("student_requests").update(updateValues).eq("id", requestId)
+        .eq("updated_at", existing.updated_at).select("updated_at").maybeSingle();
+      if (updateErr) throw new Error(updateErr.message);
+      if (!updated?.updated_at) throw new Error("B1_STALE_REQUEST_VERSION");
+      b1ExpectedUpdatedAt = updated.updated_at;
+    } else {
+      const { error: updateErr } = await input.sessionClient
+        .from("student_requests").update(updateValues).eq("id", requestId);
+      if (updateErr) throw new Error(updateErr.message);
+    }
   } else {
-    requestId = await createDraftViaRpcOrFallback({
-      sessionClient: input.sessionClient,
-      profileId: profile.id,
-      requestType: payload.requestType,
-      title: payload.title,
-      formData: payload.formData,
-      studentNotes: payload.studentNotes,
-      description: payload.description,
-    });
+    requestId = b1Adapter
+      ? await createB1DraftFailClosed({
+          sessionClient: input.sessionClient, requestType: payload.requestType,
+          title: payload.title, formData: payload.formData, studentNotes: payload.studentNotes,
+        })
+      : await createDraftViaRpcOrFallback({
+          sessionClient: input.sessionClient, profileId: profile.id, requestType: payload.requestType,
+          title: payload.title, formData: payload.formData, studentNotes: payload.studentNotes,
+          description: payload.description,
+        });
   }
 
-  await submitViaRpcOrFallback({
-    sessionClient: input.sessionClient,
-    requestId,
-    profileId: profile.id,
-  });
+  if (b1Adapter) {
+    await submitB1RequestAtomically({
+      sessionClient: input.sessionClient,
+      requestId,
+      canonicalCode: b1Adapter.canonicalCode,
+      formData: payload.formData,
+      expectedUpdatedAt: b1ExpectedUpdatedAt,
+    });
+  } else {
+    await submitViaRpcOrFallback({
+      sessionClient: input.sessionClient,
+      requestId,
+      profileId: profile.id,
+    });
+  }
 
   const created = await loadCreatedRequestMeta(requestId);
 
@@ -575,16 +639,25 @@ export const createStudentServiceRequest = createServerFn({ method: "POST" })
     const profile = await currentStudentProfile(context.userId);
     const requestType = normalizeStudentRequestTypeCode(data.requestType);
     await assertStudentEligibleForRequestType(context.supabase, requestType);
+    const adapter = getRequestServiceAdapter(requestType);
+    if (adapter) {
+      const activation = validateB1ServiceActivation({ requestTypeCode: requestType });
+      if (!activation.ok) throw new Error(activation.activationError);
+    }
 
-    const requestId = await createDraftViaRpcOrFallback({
-      sessionClient: context.supabase,
-      profileId: profile.id,
-      requestType,
-      title: data.title,
-      formData: data.formData,
-      studentNotes: data.studentNotes ?? null,
-      description: data.studentNotes ?? null,
-    });
+    const requestId = adapter
+      ? await createB1DraftFailClosed({
+          sessionClient: context.supabase,
+          requestType: getStoredWriteCodeForRequestType(requestType),
+          title: data.title,
+          formData: data.formData,
+          studentNotes: data.studentNotes ?? null,
+        })
+      : await createDraftViaRpcOrFallback({
+          sessionClient: context.supabase, profileId: profile.id, requestType,
+          title: data.title, formData: data.formData, studentNotes: data.studentNotes ?? null,
+          description: data.studentNotes ?? null,
+        });
     const created = await loadCreatedRequestMeta(requestId);
     await insertEvent({
       requestId: created.id,
