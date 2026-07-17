@@ -81,6 +81,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - No PR is opened until those executable pieces, full gates and a branch-wide independent review are complete.
 - No SQL/migration apply, production access/write, visibility change, deploy, publish, or protected-record action occurred.
 
+### Cycle 32 — trusted-reference validators started
+
+- Added source-only shared validators for exact academic year/semester relationship, active owned course enrollment, and active program/department relationship.
+- Functions are internal-only with authenticated/anon execution revoked and contain no data writes, service activation, or financial fields.
+- Focused tests PASS 4/4, TypeScript PASS, and diff-check PASS; commit `163ce95` is pushed pending independent review.
+- The atomic persistence dispatcher remains fail-closed and no PR is opened yet.
+- No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.

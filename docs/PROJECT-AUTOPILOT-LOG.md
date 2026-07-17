@@ -17,6 +17,7 @@
 - Independent review held the first 05A draft at HIGH 1/MEDIUM 1. Commit `8ea65c3` closed both with canonical-write enforcement and exact idempotent catalog checks; final review PASS with zero findings.
 - Drafted the file-withdrawal RPC-write boundary in `4db57a7`. Review-driven remediation now closes constraints, defaults, ACLs, RLS mode and policy inventory; final re-review remains pending and the branch stays pre-PR.
 - Final withdrawal 05A review PASS with zero findings. Commit `248c2d7` pins the two reviewed 05A checksums and records the remaining dispatcher/validator/workflow sequence.
+- Started the next dependency in `163ce95`: internal-only trusted-reference validators for period, enrollment and target program/department. Four focused tests and TypeScript pass; independent review remains pending.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
