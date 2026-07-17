@@ -23,9 +23,11 @@
    - Current SHA-256: `f63ff4f526a5dea6b8896586375eaf01ec07433001c857f270f0f1ce155aa444`.
    - Creates inactive, versioned drafts only; application remains gated. It fails closed on ambiguous stored aliases or processing bindings, configures exactly one `payment_confirmed` transition per payment step, and validates any reused draft structurally.
 8. Final-chance canonical-write migration 3/3.
-   - Missing; new writes only `final_chance`, historical aliases read-only, and no backfill.
+   - Draft complete: `FINAL-CHANCE-CANONICAL-WRITE-03.sql`.
+   - Current SHA-256: `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704`.
+   - Keeps `extra_chance` as the proven stored request-type alias, permits only `chance_type='final_chance'` for new academic writes, makes historical noncanonical rows read-only, and performs no validation scan, rewrite, or backfill.
 
-No exact production apply command is approved while items 4, 6, and 8 are missing or item 2 identity mappings remain unverified.
+No exact production apply command is approved while items 4 and 6 are missing or item 2 identity mappings remain unverified.
 
 ## Preflight for each single migration
 
