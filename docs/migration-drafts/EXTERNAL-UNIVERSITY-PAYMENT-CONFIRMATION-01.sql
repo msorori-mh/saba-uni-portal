@@ -139,6 +139,11 @@ BEGIN
   IF NOT COALESCE(v_actor_matches, false) THEN
     RAISE EXCEPTION 'DIRECT_PAYMENT_ASSIGNEE_REQUIRED' USING ERRCODE = '42501';
   END IF;
+  IF NOT public.current_user_has_exact_processing_binding(
+    v_step.processing_unit_id, v_step.processing_role_id
+  ) THEN
+    RAISE EXCEPTION 'EXACT_FINANCE_PROCESSING_BINDING_REQUIRED' USING ERRCODE = '42501';
+  END IF;
 
   -- A negative verification is audited but never completes or advances the step.
   IF p_status = 'payment_not_confirmed' THEN

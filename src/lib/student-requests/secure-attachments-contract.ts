@@ -116,5 +116,5 @@ export function canCreateSecureAttachmentIntent(input: { owner: boolean; request
 }
 
 export function canDownloadSecureAttachment(input: { authenticated: boolean; owner: boolean; directAssignee: boolean; activeStep: boolean; unitMatches: boolean }): boolean {
-  return input.authenticated && (input.owner || (input.directAssignee && input.activeStep && input.unitMatches));
+  return input.authenticated && input.directAssignee && input.activeStep && input.unitMatches;
 }

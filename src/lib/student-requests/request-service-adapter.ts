@@ -212,6 +212,37 @@ export function canActOnDepartmentHeadStep(context: StepAuthorizationContext & {
     && canActOnB1Step(context);
 }
 
+export type B1RuntimeAuthorizationContext = {
+  step: B1WorkflowStep;
+  authenticatedUserId: string | null;
+  assignedUserId: string | null;
+  actorUnit: string;
+  actorRole: string;
+  attemptedAction: string;
+  stepStatus: string;
+  stepRequestId: string;
+  actionRequestId: string;
+  predecessorComplete: boolean;
+  actorDepartmentId?: string | null;
+  requiredDepartmentId?: string | null;
+};
+
+/** Source contract mirrored by the B1-specific branch in the database gate. */
+export function canActOnB1RuntimeStep(context: B1RuntimeAuthorizationContext): boolean {
+  if (!context.authenticatedUserId || !context.assignedUserId) return false;
+  if (context.authenticatedUserId !== context.assignedUserId) return false;
+  if (context.stepStatus !== "active") return false;
+  if (context.stepRequestId !== context.actionRequestId) return false;
+  if (!context.predecessorComplete) return false;
+  if (context.actorUnit !== context.step.unit || context.actorRole !== context.step.role) return false;
+  if (!actionMatchesStep(context.step.action, context.attemptedAction)) return false;
+  if (context.step.role === "department_head") {
+    return Boolean(context.requiredDepartmentId)
+      && context.actorDepartmentId === context.requiredDepartmentId;
+  }
+  return true;
+}
+
 export type DepartmentHeadCandidate = {
   departmentId: string;
   facultyProfileId: string | null;
