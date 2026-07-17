@@ -129,6 +129,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Transfer activation and dispatcher remain fail-closed until review and full integration complete.
 - No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
 
+### Cycle 38 — transfer attachment overlay review PASS
+
+- Independent review initially found HIGH 1 (returned requests could not replace attachments) and MEDIUM 1 (field constraint lacked catalog preflight).
+- Commit `0b29ae2` aligns editable states with atomic resubmit and adds exact old/target constraint verification, validation and inventory checks.
+- Final review PASS: all severity counts zero; focused tests PASS 27/27, TypeScript and diff-check PASS.
+- Overlay checksum `ba163a3f2bc5115a22373e324d199817d58796284bb3ca0d095abc6bf12783a8` is pinned in `9a75cb9`.
+- No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
