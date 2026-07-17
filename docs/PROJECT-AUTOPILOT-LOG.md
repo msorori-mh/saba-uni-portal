@@ -21,6 +21,20 @@
 - Kept the owner-authored `AGENTS.md` change outside the leader-state commit.
 - Production impact: none.
 
+## 2026-07-17 — Cycle 5 attachment security source fix
+
+- Security owner completed source-only remediation commit `24ba86bfaa847f0990e9c0d74a0c2a49bfe68a4f`.
+- Direct/staff/faculty/position authorization now uses fail-closed priority.
+- Broad owner/assignee Storage SELECT policies were removed from the Draft SQL.
+- Submit Draft wrapper accepts exact attachment UUIDs, derives student identity
+  from the authenticated server context, verifies ownership/state/count and
+  submits in the same transaction; legacy attachment fallback was removed.
+- Runtime availability remains `false`.
+- Gates passed: 320/320 tests, TypeScript, build and `git diff --check`.
+- Started independent security review 2; no push/PR before PASS.
+- Released the overlapping file and resumed fix2 review remediation.
+- No SQL/migration apply, Supabase connection, production write, deploy or publish.
+
 ## 2026-07-17 — Cycle 3 fix2 completion and security start
 
 - Verified the six owned fix2 files were within the authorized shared-foundation
