@@ -17,6 +17,7 @@ Production migration application remains unavailable because:
 
 - the shared atomic submit/action executable draft is complete, independently reviewed, and merged in PR #142;
 - executable service workflow/validator migrations remain missing or incomplete;
+- item 6 readiness found applied-schema contracts that must be reconciled source-only before executable draft 05A: excused-absence reason values, secure attachment binding, exact transfer FKs, final-chance trusted academic inputs, and file-withdrawal detail creation;
 - processing-domain staff/faculty IDs require fresh read-only identity and department verification;
 - exact per-migration apply commands and evidence capture procedures are not yet pinned.
 - the earlier atomic-draft HOLD is resolved: all six HIGH and two MEDIUM findings are closed, with final independent review PASS and Web CI PASS.

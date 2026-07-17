@@ -2,6 +2,15 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 23 — service runtime item 6 started
+
+- Created isolated worktree/branch `codex/b1-service-runtime-drafts-05` from `main@5b8d0ef`.
+- Completed and committed the executable-readiness map as `6aaf6e2`; the branch is pushed but no PR is opened before executable source and review gates exist.
+- Proven historical persistence aliases were mapped for all five B1 services.
+- Identified fail-closed schema gates: excused-absence reason vocabulary mismatch, secure attachment binding, exact transfer detail FKs, final-chance trusted academic inputs, and the draft-only withdrawal detail relation.
+- Split item 6 into detail persistence 05A and inactive workflow drafts 05B; the existing dispatcher remains closed until 05A is complete and independently reviewed.
+- No SQL/migration apply, production access/write, `student_visible` change, deploy, publish, or protected-record action occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
