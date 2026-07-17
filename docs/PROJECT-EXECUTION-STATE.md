@@ -2,6 +2,13 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 15 — unchanged runtime gate
+
+- `origin/main` remains `d67586de173d380abe7a5424f1d9dfe02ab2ab9a`; no new project PR or CI result appeared.
+- Supabase CLI remains unavailable and Docker remains stopped, so the safe DB compile/RPC matrix gate is unchanged.
+- Legacy open PRs remain isolated; conflicting or historical PRs were not modified or merged without current scope review.
+- No SQL/migration apply, production access/write, protected-record access, `student_visible` change, deploy or publish occurred.
+
 ## Cycle 14 — post-merge runtime readiness inventory
 
 - Fetched and confirmed `origin/main@d67586de173d380abe7a5424f1d9dfe02ab2ab9a`.
