@@ -22,6 +22,7 @@
    - 05A absence vocabulary draft complete: `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`, SHA-256 `c73b359baf55f1d9ac28aa588d4c2c1d13c63c2a6036184203e8ba4a1847fb27`, independent review PASS.
    - 05A withdrawal detail boundary draft complete: `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql`, SHA-256 `e75dd442ac226529a88f8aaee72ecd55971886b841583cf5b7d35af38326089a`, independent review PASS.
    - 05A trusted-reference validators complete: `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`, SHA-256 `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c`, independent review PASS.
+   - 05A excused-absence detail/RPC-write boundary complete: `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`, SHA-256 `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe`, independent review PASS.
    - Remaining: atomic five-service persistence dispatcher and inactive workflow drafts for the three free services. These remain fail-closed and no item-6 application is approved.
 7. External-payment workflow migration 2/3 for `department_transfer` and `final_chance`.
    - Draft complete: `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql`.
