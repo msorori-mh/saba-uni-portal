@@ -46,6 +46,8 @@ complete and independently reviewed.
   `chance_type` is always server-written as `final_chance`.
 - Create `file_withdrawal_details` with restrictive grants and RPC-only writes; do not
   retain the documentary draft's broad or implicit client mutation surface.
+  The 05A detail draft now creates an owner-read/RPC-write-only relation with exact
+  catalog signature checks; it remains unapplied and does not activate the service.
 
 ## Invariants
 
