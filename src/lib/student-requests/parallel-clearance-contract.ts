@@ -170,12 +170,12 @@ export function getParallelClearanceRequirementForRequestType(
   const preview = getCanonicalWorkflowPreview(normalized);
   const parallelSteps = preview?.steps.filter((s) => s.isParallel && s.parallelGroupId) ?? [];
 
-  if (normalized === "file_withdrawal" || parallelSteps.length >= 2) {
+  if (parallelSteps.length >= 2) {
     const groupKey = parallelSteps[0]?.parallelGroupId ?? "clearance";
     return {
       parallelClearanceRequired: true,
       groupKey,
-      expectedMemberCount: normalized === "file_withdrawal" ? 4 : parallelSteps.length,
+      expectedMemberCount: parallelSteps.length,
     };
   }
 
@@ -190,21 +190,6 @@ export function buildDefaultClearanceGroup(
   if (!req.parallelClearanceRequired || !req.groupKey) return null;
 
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode) ?? requestTypeCode;
-
-  if (normalized === "file_withdrawal") {
-    return {
-      requestId,
-      requestTypeCode: normalized,
-      groupKey: req.groupKey,
-      mode: "all_required",
-      status: "pending",
-      members: FILE_WITHDRAWAL_CLEARANCE_MEMBERS.map((m) => ({
-        ...m,
-        status: "pending" as const,
-        notes: null,
-      })),
-    };
-  }
 
   const preview = getCanonicalWorkflowPreview(normalized);
   const parallelSteps = preview?.steps.filter((s) => s.isParallel) ?? [];

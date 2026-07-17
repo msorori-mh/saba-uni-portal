@@ -956,22 +956,28 @@ function validateTypeSpecificRules(
   validateAssessFeeDualTransitions(input, issues);
 
   if (code === "file_withdrawal") {
-    const clearance = input.steps.filter((s) => s.parallelGroupKey === "clearance");
-    if (clearance.length < 4) {
+    const expectedKeys = [
+      "student_affairs_intake",
+      "library_clearance",
+      "labs_clearance",
+      "activities_clearance",
+      "finance_clearance",
+      "registrar_apply",
+      "archive",
+    ];
+    const actualKeys = input.steps.map((step) => step.stepKey);
+    if (actualKeys.length !== expectedKeys.length || actualKeys.some((key, index) => key !== expectedKeys[index])) {
       pushIssue(issues, {
         severity: "error",
-        code: "file_withdrawal_clearance",
-        messageAr: `سحب الملف يتطلب 4 جهات توازي في مجموعة clearance (الموجود: ${clearance.length}).`,
+        code: "file_withdrawal_sequence",
+        messageAr: "سحب الملف يتطلب التسلسل المعتمد كاملًا دون توازٍ أو تخطٍ.",
       });
     }
-    const activities = clearance.find((s) => s.stepKey.includes("activities"));
-    if (activities?.roleKey && !APPROVED_ROLE_SET.has(activities.roleKey)) {
+    if (input.steps.some((step) => step.parallelGroupKey)) {
       pushIssue(issues, {
-        severity: "warning",
-        code: "student_activities_role_gap",
-        messageAr:
-          "الأنشطة الطلابية في إخلاء الطرف — لا يوجد app_role مخصص؛ يُستخدم student_affairs كتسمية مؤقتة.",
-        stepKey: activities.stepKey,
+        severity: "error",
+        code: "file_withdrawal_parallel_forbidden",
+        messageAr: "مخالصات سحب الملف متتابعة؛ مجموعات التنفيذ المتوازي غير مسموحة.",
       });
     }
   }

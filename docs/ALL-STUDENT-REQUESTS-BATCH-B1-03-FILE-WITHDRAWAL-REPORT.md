@@ -71,6 +71,14 @@
 - Full `bun test tests/student-requests`: PASS — 265 tests, 0 failures.
 - `bunx tsc --noEmit`: PASS.
 - `git diff --check`: PASS.
+
+Independent review remediation:
+
+- Removed the legacy parallel-clearance special case; `file_withdrawal` now has no parallel group contract.
+- Workflow-save validation now requires the exact seven-step order and rejects every parallel group.
+- Removed the obsolete file-withdrawal grade-statement, clearance-summary, and archive-package document definitions. The service has no document/PDF/Storage generation contract.
+- Added an integration regression covering the disabled parallel and document contracts.
+- Independent review round 1: HOLD (two HIGH integration conflicts); both findings were remediated before round 2.
 - Build: غير مطلوب؛ التغيير عقد TypeScript واختبارات ومسودة SQL فقط.
 
 ## Production impact

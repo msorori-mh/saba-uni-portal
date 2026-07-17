@@ -7,6 +7,8 @@ import {
   validateFileWithdrawalForm,
 } from "../../src/lib/student-requests/file-withdrawal-contract";
 import { getCanonicalWorkflowPreview } from "../../src/lib/student-requests/request-workflow-preview-registry";
+import { getParallelClearanceRequirementForRequestType } from "../../src/lib/student-requests/parallel-clearance-contract";
+import { getDocumentDefinitionsForRequestType } from "../../src/lib/student-requests/request-document-archive-contract";
 
 describe("file_withdrawal source contract", () => {
   it("validates the required student fields", () => {
@@ -66,5 +68,14 @@ describe("file_withdrawal source contract", () => {
     ])).toEqual(FILE_WITHDRAWAL_STEPS.map(({ key, unit, role, action }) => [key, unit, role, action]));
     expect(preview?.steps.every((step) => !step.requiresFee && !step.issuesDocument && !step.isParallel)).toBe(true);
     expect(preview?.steps.some((step) => step.roleKey === "admin" || step.roleKey === "dean")).toBe(false);
+  });
+
+  it("disables the obsolete parallel-clearance and document contracts", () => {
+    expect(getParallelClearanceRequirementForRequestType("file_withdrawal")).toEqual({
+      parallelClearanceRequired: false,
+      groupKey: null,
+      expectedMemberCount: 0,
+    });
+    expect(getDocumentDefinitionsForRequestType("file_withdrawal")).toEqual([]);
   });
 });
