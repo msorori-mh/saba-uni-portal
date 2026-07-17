@@ -2,6 +2,16 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 18 — B1 extended runtime authorization matrix
+
+- Isolated branch/worktree: `codex/b1-extended-runtime-authorization-matrix-01` / `C:\projects\saba-uni-portal-b1-runtime-matrix`.
+- Commit `3cd4c8d`; PR #139 passed CI and merged as `5fa1497dcd3515f8dee26daff1b33be74a001782`.
+- All 24 configured B1 staff steps have exact direct-assignee ALLOW and negative matrices for unassigned same role, wrong unit/role, admin/registrar/dean, anonymous, non-active/completed, other request, wrong action and predecessor failure.
+- SQL source now requires direct identity plus active exact processing binding; transfer heads additionally match source/target department; attachment staff download is direct-active-assignee only.
+- Gates: 414/414 student-request tests, TypeScript, build, diff-check, independent review PASS; CRITICAL 0, HIGH 0. Repository lint remains baseline-failing on existing Prettier/CRLF findings.
+- Migration inventory and sequential preflight/post-verification plan are merged. Apply remains closed because shared/service workflow executables and payment migrations 2/3 and 3/3 are missing, and processing-domain identity mappings need fresh verification.
+- No SQL/migration apply, production access/write, protected-record access, `student_visible` change, deploy or publish occurred.
+
 ## Cycle 17 — compile fix review and merge
 
 - Independent review initially HOLDed the historical stored aliases, then PASSed after verifying `transfer → department_transfer` and `extra_chance → final_chance` against the binding compatibility decision.
@@ -65,7 +75,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository: `msorori-mh/saba-uni-portal`
 - Original cycle baseline: `1905844289536de9040557d8317bbe1f09341193`
-- Current `origin/main`: `50706816172b215025e7297d673937db32cad85c`
+- Current `origin/main`: `5fa1497dcd3515f8dee26daff1b33be74a001782`
 - PR #130 merge: `7a7e35f315a89b5376ed8eb4f2cb5c949510f7cb`
 - PR #129 merge: `be38c319aedd6d9a9257e30d0623e1b1b66b6bb7`
 - PR #131 Android heap merge: `d29949230b4f0c603f46dce6785f6e48e5b32d72`

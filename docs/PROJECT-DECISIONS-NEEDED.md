@@ -12,6 +12,8 @@ The prior fee/chance decisions are resolved by the owner:
 
 Remaining gate is technical runtime readiness, not a business decision: reviewed migrations, safe-environment RPC ALLOW/DENY verification, and independent security gates before any visibility change.
 
+The B1 source authorization matrix is complete and merged in PR #139. Production migration application remains unavailable because executable shared/service workflow migrations are missing, external-payment migrations 2/3 and 3/3 do not exist, and processing-domain staff/faculty IDs require fresh read-only verification. The exact inventory and sequential checks are in `docs/B1-MIGRATION-INVENTORY-AND-VERIFICATION-PLAN-01.md`.
+
 PR #137 supplied the initial source SQL contract; merged PR #138 fixes the compile finding discovered locally. Neither authorizes production application. The current draft checksum is `9473d07ec78ee1133ffb150a2cd8173bc27040388899a79ed0a4b935bfa1379a`. The next migration decision must specify the isolated target, exact ordered command sequence, rollback/partial-apply evidence procedure, and the complete positive/negative RPC test matrix.
 
 | Decision | Why it is blocked | Production action proposed | Expected production effect |

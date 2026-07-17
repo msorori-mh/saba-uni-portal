@@ -1,5 +1,14 @@
 # Project Autopilot Log
 
+## 2026-07-17 — Cycle 18 B1 extended authorization matrix
+
+- Audited all B1 workflows, RPCs, authorization helpers, attachment download and external payment confirmation.
+- Closed role-pool fallback, pending-step, malformed tuple, wrong processing binding and transfer department-scope gaps for B1 source contracts.
+- Added a 24-step ALLOW/DENY matrix and exact migration inventory/preflight/post-verification plan.
+- Independent review initially found two HIGH gaps; both were closed and re-review PASSed with CRITICAL 0/HIGH 0.
+- 414 tests, TypeScript, build, diff-check and PR CI passed; PR #139 merged as `5fa1497d`.
+- Lint remains the known repository Prettier/CRLF baseline failure; no production or migration action occurred.
+
 ## 2026-07-17 — Cycle 17 compile fix merge
 
 - Independent review challenged legacy aliases and then confirmed they are the documented stored-code compatibility mappings for the two approved services.
