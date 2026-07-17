@@ -131,6 +131,16 @@ const ENROLLMENT_SUSPENSION: RequestFormDefinition = {
           helperTextAr: "لا يتطلب هذا النوع مرفقاً في المرحلة الحالية.",
         },
         {
+          name: "suspension_duration_type",
+          labelAr: "مدة وقف القيد",
+          type: "select",
+          required: true,
+          options: [
+            { value: "one_semester", labelAr: "فصل دراسي واحد" },
+            { value: "full_year", labelAr: "عام جامعي كامل" },
+          ],
+        },
+        {
           name: "terms_acknowledgment",
           labelAr: "أقرّ بأنني اطلعت على شروط وقف القيد المعتمدة في الكلية",
           type: "checkbox",

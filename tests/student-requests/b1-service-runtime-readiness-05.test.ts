@@ -11,6 +11,21 @@ const finalChanceSchema = migration("20260601002736_5cb74eaa-7632-4d47-b81b-0e53
 const readiness = readFileSync(join(process.cwd(), "docs", "REQUEST-B1-SERVICE-RUNTIME-DRAFTS-05-READINESS.md"), "utf8");
 
 describe("B1 service runtime drafts 05 readiness", () => {
+  it("exposes every required enrollment suspension persistence input in the canonical form", () => {
+    const form = getStudentRequestFormDefinition("enrollment_suspension");
+    const duration = form?.sections.flatMap((section) => section.fields)
+      .find((field) => field.name === "suspension_duration_type");
+    expect(duration).toMatchObject({ type: "select", required: true });
+    expect(duration?.options?.map((option) => option.value)).toEqual(["one_semester", "full_year"]);
+    expect(B1_SERVICE_ADAPTERS.enrollment_suspension.validate({
+      target_academic_year: "year",
+      target_semester: "semester",
+      suspension_reason: "reason",
+      suspension_duration_type: "one_semester",
+      terms_acknowledgment: true,
+    }).valid).toBe(true);
+  });
+
   it("pins department transfer to the proven stored relation and complete client fields", () => {
     expect(transferSchema).toContain("CREATE TABLE public.transfer_request_details");
     expect(transferSchema).toContain("current_program_id uuid NOT NULL");
