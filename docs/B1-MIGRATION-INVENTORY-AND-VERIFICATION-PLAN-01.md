@@ -19,7 +19,9 @@
    - Current SHA-256: `32cd7bde1ef73a32e23643035d27764ed27dd8e9dd4948ee295f5b6763dfa461`.
    - Vocabulary and specialized finance RPC only; no financial ledger fields.
 6. Executable workflow/validator migrations for suspension, absence, withdrawal, department transfer, and final chance.
-   - Missing/incomplete: current suspension/absence and shared files are documentary; withdrawal contains only a partial executable detail table.
+   - 05A absence vocabulary draft complete: `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`, SHA-256 `c73b359baf55f1d9ac28aa588d4c2c1d13c63c2a6036184203e8ba4a1847fb27`, independent review PASS.
+   - 05A withdrawal detail boundary draft complete: `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql`, SHA-256 `e75dd442ac226529a88f8aaee72ecd55971886b841583cf5b7d35af38326089a`, independent review PASS.
+   - Remaining: atomic five-service persistence dispatcher, exact trusted-reference validators, and inactive workflow drafts for the three free services. These remain fail-closed and no item-6 application is approved.
 7. External-payment workflow migration 2/3 for `department_transfer` and `final_chance`.
    - Draft complete: `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql`.
    - Current SHA-256: `f63ff4f526a5dea6b8896586375eaf01ec07433001c857f270f0f1ce155aa444`.
