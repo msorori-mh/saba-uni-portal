@@ -96,6 +96,8 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
+  -- transfer and extra_chance are historical stored-code aliases for the two
+  -- approved canonical services; they do not broaden the service policy.
   IF v_request_type NOT IN ('department_transfer','transfer','final_chance','extra_chance') THEN
     RAISE EXCEPTION 'REQUEST_TYPE_NOT_EXTERNAL_PAYMENT_SERVICE' USING ERRCODE = '22023';
   END IF;

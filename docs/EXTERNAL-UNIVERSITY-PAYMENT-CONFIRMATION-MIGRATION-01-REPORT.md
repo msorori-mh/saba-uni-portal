@@ -28,7 +28,7 @@
 - Production build (`bun run build`): PASS (existing non-blocking bundler/chunk warnings only).
 - `git diff --check`: PASS.
 - Independent source/security review: PASS; CRITICAL 0, HIGH 0.
-- SHA-256: `83b4baa77b2501e44ab18d3fac62b5af69f58747ae9331dcbfa97319a046ef0c`.
+- SHA-256: `9473d07ec78ee1133ffb150a2cd8173bc27040388899a79ed0a4b935bfa1379a`.
 - PostgreSQL 17 / Supabase image isolated compile: PASS after replacing an invalid composite `%ROWTYPE` multi-item `INTO` with a locked row load followed by a separate context lookup.
 - Isolated RPC matrix: PASS for exact assigned actor, wrong-actor denial, non-confirmed no-transition behavior, confirmed transition, confirmer/time persistence and audit events.
 - Exactly one `payment_confirmed` transition is required; ambiguity fails closed.

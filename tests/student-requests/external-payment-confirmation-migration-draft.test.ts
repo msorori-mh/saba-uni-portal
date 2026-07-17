@@ -61,4 +61,12 @@ describe("external payment confirmation migration draft", () => {
       expect(sql).not.toContain(protectedValue);
     }
   });
+
+  it("limits stored request codes to the two approved canonical services", () => {
+    expect(sql).toContain("historical stored-code aliases for the two");
+    expect(sql).toContain("'department_transfer','transfer','final_chance','extra_chance'");
+    expect(sql).not.toContain("'grade_recovery'");
+    expect(sql).not.toContain("'additional_chance'");
+    expect(sql).not.toContain("'additional_exam'");
+  });
 });
