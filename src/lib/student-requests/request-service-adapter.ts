@@ -308,8 +308,10 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       { formField: "course_section_id", detailField: "course_section_id" },
       { formField: "absence_date", detailField: "absence_date" },
       { formField: "reason_type", detailField: "reason_type" },
+      { formField: "absence_reason_detail", detailField: "absence_reason_detail" },
+      { formField: "excuse_documents", detailField: "excuse_documents" },
     ]),
-    requiredText(["course_section_id", "absence_date", "reason_type"]),
+    requiredText(["course_section_id", "absence_date", "reason_type", "absence_reason_detail"]),
   ),
   department_transfer: adapter(
     "department_transfer", ["department_transfer", "transfer"], "PAID_EXTERNAL_MANUAL_CONFIRMATION",

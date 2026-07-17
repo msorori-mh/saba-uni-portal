@@ -287,34 +287,40 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
     {
       fields: [
         {
-          name: "absence_start_date",
+          name: "absence_date",
           labelAr: "تاريخ بداية الغياب",
           type: "date",
           required: true,
         },
         {
-          name: "absence_end_date",
-          labelAr: "تاريخ نهاية الغياب",
-          type: "date",
+          name: "reason_type",
+          labelAr: "نوع العذر",
+          type: "select",
           required: true,
+          options: [
+            { value: "medical", labelAr: "طبي" },
+            { value: "family_emergency", labelAr: "طارئ عائلي" },
+            { value: "official", labelAr: "رسمي" },
+            { value: "other", labelAr: "أخرى" },
+          ],
         },
         {
-          name: "absence_reason",
+          name: "absence_reason_detail",
           labelAr: "سبب الغياب",
           type: "textarea",
           required: true,
           placeholderAr: "مثال: ظرف طبي، ظرف عائلي طارئ",
         },
         {
-          name: "affected_courses",
+          name: "course_section_id",
           labelAr: "المقررات المتأثرة",
-          type: "multi_select",
+          type: "select",
           required: true,
           referenceResolverKey: "current_student_enrollments",
           helperTextAr: "تُحمّل من تسجيلات الطالب الحالية، ويعاد التحقق منها على الخادم.",
         },
         {
-          name: "excuse_attachment",
+          name: "excuse_documents",
           labelAr: "مرفقات العذر",
           type: "file",
           required: true,

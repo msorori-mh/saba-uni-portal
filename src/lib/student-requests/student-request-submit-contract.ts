@@ -15,6 +15,7 @@ import {
   isCanonicalStudentRequestTypeCode,
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
+import { SECURE_ATTACHMENTS_RUNTIME_AVAILABLE, validateSecureAttachmentSubmit } from "@/lib/student-requests/secure-attachments-contract";
 
 export type CanonicalStudentRequestAttachmentMeta = {
   key: string;
@@ -185,6 +186,15 @@ export function validateStudentRequestSubmitInput(
   }
 
   const typeDef = getStudentRequestTypeDefinition(normalized.requestTypeCode);
+  if (normalized.requestTypeCode === "excused_absence") {
+    const secureError = validateSecureAttachmentSubmit({
+      runtimeAvailable: SECURE_ATTACHMENTS_RUNTIME_AVAILABLE,
+      requestId: normalized.existingRequestId ?? "",
+      studentProfileId: String(normalized.formData._studentProfileId ?? ""),
+      references: normalized.formData.excuse_documents,
+    });
+    if (secureError) return { ok: false, message: secureError, field: "attachments" };
+  }
   if (typeDef?.requiresAttachment) {
     const hasRealAttachment = normalized.attachments.some(
       (a) => a.fileName && !a.fileName.startsWith("placeholder"),

@@ -8,6 +8,8 @@ import {
 } from "@/lib/student-requests/request-form-registry";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
 import type { ReferenceDataState } from "@/lib/student-requests/request-service-adapter";
+import { SecureStudentRequestAttachmentsField } from "./SecureStudentRequestAttachmentsField";
+import type { SecureAttachmentReference } from "@/lib/student-requests/secure-attachments-contract";
 
 export type DynamicStudentRequestFormProps = {
   requestTypeCode: string;
@@ -15,6 +17,8 @@ export type DynamicStudentRequestFormProps = {
   onChange: (value: Record<string, unknown>) => void;
   disabled?: boolean;
   referenceData?: Readonly<Record<string, ReferenceDataState | undefined>>;
+  studentRequestId?: string | null;
+  studentProfileId?: string | null;
 };
 
 const SCHEMA_PENDING_MSG =
@@ -48,6 +52,8 @@ export function DynamicStudentRequestForm({
   onChange,
   disabled = false,
   referenceData = {},
+  studentRequestId = null,
+  studentProfileId = null,
 }: DynamicStudentRequestFormProps) {
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode);
   const definition = getStudentRequestFormDefinition(requestTypeCode);
@@ -125,6 +131,7 @@ export function DynamicStudentRequestForm({
                 onChange={onChange}
                 disabled={disabled}
                 referenceState={field.referenceResolverKey ? referenceData[field.referenceResolverKey] : undefined}
+                secureContext={normalized === "excused_absence" && field.name === "excuse_documents" ? { studentRequestId, studentProfileId } : undefined}
               />
             );
           })}
@@ -140,14 +147,22 @@ function FormField({
   onChange,
   disabled,
   referenceState,
+  secureContext,
 }: {
   field: RequestFormFieldDefinition;
   value: Record<string, unknown>;
   onChange: (v: Record<string, unknown>) => void;
   disabled?: boolean;
   referenceState?: ReferenceDataState;
+  secureContext?: { studentRequestId: string | null; studentProfileId: string | null };
 }) {
   const fieldValue = value[field.name];
+
+  if (field.type === "file" && secureContext) {
+    return <SecureStudentRequestAttachmentsField studentRequestId={secureContext.studentRequestId} studentProfileId={secureContext.studentProfileId}
+      value={Array.isArray(fieldValue) ? fieldValue as SecureAttachmentReference[] : []}
+      onChange={(next) => setField(value, field.name, next, onChange)} disabled={disabled} />;
+  }
 
   if (field.type === "info") {
     return (
