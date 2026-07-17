@@ -7,7 +7,9 @@
 - Implemented external university payment confirmation source contracts and final-chance policy in `211f692`.
 - Independent review initially found two HIGH fail-open paths; both were closed by a runtime-specific activation block and removal/disablement of legacy UI submit actions.
 - Re-review PASS with no HIGH/CRITICAL. Pushed the branch and opened Draft PR #136.
-- Web CI is in progress. No runtime migration, production action, visibility change, deploy, or publish occurred.
+- PR #136 Web CI passed and the PR merged as `d173fbbcbda77a3bbc0ba234a96f75188ea3e258`.
+- Post-merge Web CI and Android CI passed; Android produced and uploaded Debug APK, unsigned Release APK and unsigned AAB.
+- No runtime migration, production action, visibility change, deploy, or publish occurred.
 
 ## 2026-07-17 — Cycle 1 inventory
 

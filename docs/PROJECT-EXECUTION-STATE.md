@@ -7,12 +7,13 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Policy governance commit: `64c45dc`.
 - Source branch: `codex/external-university-payment-confirmation`.
 - Source commit: `211f692`.
-- Draft PR: #136, mergeable, Web CI initially in progress.
+- PR #136 merged as `d173fbbcbda77a3bbc0ba234a96f75188ea3e258`.
 - Policy: `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION` for `department_transfer` and `final_chance`; no fee type, amount, currency, invoice, gateway, reference, or internal balance.
 - `final_chance` new academic value is `final_chance` only; legacy values are read-normalized only.
 - Independent review: PASS after closing two HIGH fail-open findings.
 - Local gates: TypeScript PASS, student-request suite PASS, build PASS, diff-check PASS. Repository-wide lint remains baseline-failing on CRLF/Prettier in unrelated files.
 - Runtime remains fail-closed with `BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME`.
+- Post-merge Web CI and Android CI passed, including APK/AAB builds and uploads.
 - No migration/SQL apply, `student_visible` change, production access/write, deploy, or publish.
 
 ## Baseline
