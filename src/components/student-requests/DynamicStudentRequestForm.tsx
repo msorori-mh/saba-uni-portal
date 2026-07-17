@@ -7,12 +7,18 @@ import {
   type RequestFormFieldDefinition,
 } from "@/lib/student-requests/request-form-registry";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+import type { ReferenceDataState } from "@/lib/student-requests/request-service-adapter";
+import { SecureStudentRequestAttachmentsField } from "./SecureStudentRequestAttachmentsField";
+import type { SecureAttachmentReference } from "@/lib/student-requests/secure-attachments-contract";
 
 export type DynamicStudentRequestFormProps = {
   requestTypeCode: string;
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
   disabled?: boolean;
+  referenceData?: Readonly<Record<string, ReferenceDataState | undefined>>;
+  studentRequestId?: string | null;
+  studentProfileId?: string | null;
 };
 
 const SCHEMA_PENDING_MSG =
@@ -45,6 +51,9 @@ export function DynamicStudentRequestForm({
   value,
   onChange,
   disabled = false,
+  referenceData = {},
+  studentRequestId = null,
+  studentProfileId = null,
 }: DynamicStudentRequestFormProps) {
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode);
   const definition = getStudentRequestFormDefinition(requestTypeCode);
@@ -121,6 +130,8 @@ export function DynamicStudentRequestForm({
                 value={value}
                 onChange={onChange}
                 disabled={disabled}
+                referenceState={field.referenceResolverKey ? referenceData[field.referenceResolverKey] : undefined}
+                secureContext={normalized === "excused_absence" && field.name === "excuse_documents" ? { studentRequestId, studentProfileId } : undefined}
               />
             );
           })}
@@ -135,13 +146,23 @@ function FormField({
   value,
   onChange,
   disabled,
+  referenceState,
+  secureContext,
 }: {
   field: RequestFormFieldDefinition;
   value: Record<string, unknown>;
   onChange: (v: Record<string, unknown>) => void;
   disabled?: boolean;
+  referenceState?: ReferenceDataState;
+  secureContext?: { studentRequestId: string | null; studentProfileId: string | null };
 }) {
   const fieldValue = value[field.name];
+
+  if (field.type === "file" && secureContext) {
+    return <SecureStudentRequestAttachmentsField studentRequestId={secureContext.studentRequestId} studentProfileId={secureContext.studentProfileId}
+      value={Array.isArray(fieldValue) ? fieldValue as SecureAttachmentReference[] : []}
+      onChange={(next) => setField(value, field.name, next, onChange)} disabled={disabled} />;
+  }
 
   if (field.type === "info") {
     return (
@@ -187,6 +208,10 @@ function FormField({
   }
 
   if (field.type === "select") {
+    const resolvedOptions = field.referenceResolverKey
+      ? (referenceState?.status === "ready" ? referenceState.options : [])
+      : field.options;
+    const referenceBlocked = Boolean(field.referenceResolverKey && referenceState?.status !== "ready");
     return (
       <div className="space-y-1">
         <Label className="text-xs font-bold text-primary">
@@ -196,16 +221,18 @@ function FormField({
         <select
           className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
           value={String(fieldValue ?? "")}
-          disabled={disabled}
+          disabled={disabled || referenceBlocked}
           onChange={(e) => setField(value, field.name, e.target.value, onChange)}
         >
           <option value="">— اختر —</option>
-          {field.options?.map((o) => (
+          {resolvedOptions?.map((o) => (
             <option key={o.value} value={o.value}>
               {o.labelAr}
             </option>
           ))}
         </select>
+        {field.referenceResolverKey && referenceState?.status === "loading" && <p className="text-[10px] text-muted-foreground">جارٍ تحميل البيانات المرجعية…</p>}
+        {field.referenceResolverKey && (!referenceState || referenceState.status === "error") && <p className="text-[10px] text-destructive">تعذر تحميل البيانات المرجعية؛ الإرسال معطّل.</p>}
         {field.helperTextAr && (
           <p className="text-[10px] text-muted-foreground">{field.helperTextAr}</p>
         )}
@@ -215,6 +242,9 @@ function FormField({
 
   if (field.type === "multi_select") {
     const selected = Array.isArray(fieldValue) ? (fieldValue as string[]) : [];
+    const resolvedOptions = field.referenceResolverKey
+      ? (referenceState?.status === "ready" ? referenceState.options : [])
+      : field.options;
     return (
       <div className="space-y-1">
         <Label className="text-xs font-bold text-primary">
@@ -222,14 +252,14 @@ function FormField({
           {field.required && <span className="text-rose-600"> *</span>}
         </Label>
         <div className="rounded-lg border border-border p-2 space-y-1 max-h-40 overflow-y-auto">
-          {field.options?.map((o) => {
+          {resolvedOptions?.map((o) => {
             const checked = selected.includes(o.value);
             return (
               <label key={o.value} className="flex items-center gap-2 text-xs cursor-pointer">
                 <input
                   type="checkbox"
                   checked={checked}
-                  disabled={disabled}
+                  disabled={disabled || Boolean(field.referenceResolverKey && referenceState?.status !== "ready")}
                   onChange={(e) => {
                     const next = e.target.checked
                       ? [...selected, o.value]
@@ -242,6 +272,7 @@ function FormField({
             );
           })}
         </div>
+        {field.referenceResolverKey && referenceState?.status !== "ready" && <p className="text-[10px] text-destructive">تعذر تحميل تسجيلات الطالب؛ الإرسال معطّل.</p>}
         {field.helperTextAr && (
           <p className="text-[10px] text-muted-foreground">{field.helperTextAr}</p>
         )}

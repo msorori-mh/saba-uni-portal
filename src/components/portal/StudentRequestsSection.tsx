@@ -1202,7 +1202,6 @@ function ExtraChanceModal({
     },
   });
   const [semId, setSemId] = useState<string>("");
-  const [chanceType, setChanceType] = useState<"final_chance" | "additional_chance">("final_chance");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -1215,44 +1214,6 @@ function ExtraChanceModal({
   if (!semId && semesters.length > 0) {
     setSemId(semesters[0].id);
   }
-
-  const save = async (submit: boolean) => {
-    if (!yearId) { toast.error("اختر السنة الأكاديمية"); return; }
-    if (!semId) { toast.error("اختر الفصل"); return; }
-    if (!reason.trim()) { toast.error("أدخل سبب الطلب"); return; }
-    if (submit && attachmentRequired && !file) {
-      toast.error("المرفق مطلوب لهذا النوع من الطلبات");
-      return;
-    }
-    setBusy(true);
-    try {
-      const { data: created, error: e1 } = await sb.from("student_requests").insert({
-        student_profile_id: studentProfileId,
-        request_type: "extra_chance",
-        title: "طلب منح فرصة",
-        description: notes || null,
-        status: submit ? "submitted" : "draft",
-        submitted_at: submit ? new Date().toISOString() : null,
-      }).select("id").single();
-      if (e1) throw e1;
-
-      const { error: e2 } = await sb.from("extra_chance_details").insert({
-        request_id: created.id,
-        academic_year_id: yearId,
-        semester_id: semId,
-        chance_type: chanceType,
-        reason: reason.trim(),
-        notes: notes || null,
-      });
-      if (e2) throw e2;
-
-      if (file) await uploadAttachment(created.id, file);
-      toast.success(submit ? "تم إرسال الطلب" : "تم الحفظ كمسودة");
-      onSaved();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "حدث خطأ");
-    } finally { setBusy(false); }
-  };
 
   return (
     <ModalShell title="طلب منح فرصة" onClose={onClose}>
@@ -1273,16 +1234,8 @@ function ExtraChanceModal({
             </select>
           </div>
         </div>
-        <div>
-          <Label>نوع الفرصة</Label>
-          <div className="flex gap-2">
-            {(["final_chance", "additional_chance"] as const).map((d) => (
-              <label key={d} className={`flex-1 cursor-pointer border rounded-lg p-2 text-center text-xs font-semibold ${chanceType === d ? "border-primary bg-primary/5 text-primary" : "border-border"}`}>
-                <input type="radio" name="chance_type" value={d} checked={chanceType === d} onChange={() => setChanceType(d)} className="sr-only" />
-                {CHANCE_LABEL[d]}
-              </label>
-            ))}
-          </div>
+        <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+          هذا الطلب مخصص حصراً لدخول اختبار مقرر كفرصة نهائية وفق اللوائح والاعتمادات الأكاديمية.
         </div>
         <div>
           <Label>سبب الطلب <span className="text-rose-600">*</span></Label>
@@ -1293,7 +1246,9 @@ function ExtraChanceModal({
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
         </div>
         <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
-        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          التقديم مغلق مؤقتاً حتى اكتمال مسار تأكيد المالية الآمن. لن تُنشأ مسودة أو عملية دفع داخل البوابة.
+        </div>
       </div>
     </ModalShell>
   );
@@ -1410,7 +1365,9 @@ function TransferModal({
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full rounded border bg-background px-2 py-1.5 text-sm" />
         </div>
         <FilePicker file={file} setFile={setFile} required={attachmentRequired} />
-        <Actions busy={busy} onDraft={() => save(false)} onSubmit={() => save(true)} />
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          التقديم مغلق مؤقتاً حتى اكتمال مسار تأكيد المالية الآمن. لن تُنشأ مسودة أو عملية دفع داخل البوابة.
+        </div>
       </div>
     </ModalShell>
   );

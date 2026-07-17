@@ -90,6 +90,8 @@ export type WorkflowActionType =
   | "sign"
   | "archive"
   | "issue_document"
+  | "clear"
+  | "apply_decision"
   | "complete";
 
 export type WorkflowTransitionResult =
@@ -102,6 +104,10 @@ export type WorkflowTransitionResult =
   | "fee_not_required"
   | "payment_required"
   | "payment_confirmed"
+  | "reviewed"
+  | "approved"
+  | "cleared"
+  | "applied"
   | "signed"
   | "issued"
   | "archived"

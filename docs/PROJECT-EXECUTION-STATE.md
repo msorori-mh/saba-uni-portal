@@ -2,6 +2,17 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 19 — external payment workflows draft 2/3
+
+- Isolated branch/worktree: `codex/external-payment-workflows-draft-02` / `C:\projects\saba-uni-portal-payment-workflows-draft`.
+- Commit `d5a028a`; PR #140 passed Web CI and merged as `df057b9a9029ee390d5a8cfdd60b4b529f3d6129`.
+- Draft checksum: `f63ff4f526a5dea6b8896586375eaf01ec07433001c857f270f0f1ce155aa444`.
+- Both paid services receive inactive versioned drafts, exact processing bindings, direct assignment, transfer department isolation, and exactly one `payment_confirmed` transition to registrar application.
+- Independent review initially found two HIGH and one MEDIUM issue; all were closed. Final review PASS: CRITICAL 0, HIGH 0, MEDIUM 0, LOW 0.
+- Gates: 423 student-request tests, TypeScript, build, focused tests, CI and diff-check PASS. Repository lint remains baseline-failing on existing CRLF/Prettier findings.
+- Post-merge Android CI for PR #139 also completed successfully, including APK/AAB artifacts.
+- No SQL/migration apply, production access/write, protected-record access, `student_visible` change, deploy or publish occurred.
+
 ## Cycle 18 — B1 extended runtime authorization matrix
 
 - Isolated branch/worktree: `codex/b1-extended-runtime-authorization-matrix-01` / `C:\projects\saba-uni-portal-b1-runtime-matrix`.
@@ -75,7 +86,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository: `msorori-mh/saba-uni-portal`
 - Original cycle baseline: `1905844289536de9040557d8317bbe1f09341193`
-- Current `origin/main`: `5fa1497dcd3515f8dee26daff1b33be74a001782`
+- Current `origin/main`: `df057b9a9029ee390d5a8cfdd60b4b529f3d6129`
 - PR #130 merge: `7a7e35f315a89b5376ed8eb4f2cb5c949510f7cb`
 - PR #129 merge: `be38c319aedd6d9a9257e30d0623e1b1b66b6bb7`
 - PR #131 Android heap merge: `d29949230b4f0c603f46dce6785f6e48e5b32d72`

@@ -30,8 +30,6 @@ export type StudentRequestDocumentFoundationStatus = (typeof DOCUMENT_FOUNDATION
 export const STUDENT_REQUEST_DOCUMENT_TYPES = [
   "grade_statement_non_graduate_document",
   "enrollment_certificate_document",
-  "file_withdrawal_grade_statement",
-  "file_withdrawal_clearance_summary",
   "october_exam_entry_form_document",
   "request_decision_document",
   "request_archive_package",
@@ -272,26 +270,6 @@ const DOCUMENT_DEFINITIONS: readonly StudentRequestDocumentDefinition[] = [
     foundationStatus: "pending_local_signatures",
   },
   {
-    documentType: "file_withdrawal_grade_statement",
-    labelAr: "بيان تقديرات (سحب ملف)",
-    requestTypeCodes: ["file_withdrawal"],
-    signatories: [signatory("registrar_general")],
-    requiresParallelClearance: true,
-    requiresFinalApproval: true,
-    producesIssuableDocument: true,
-    foundationStatus: "pending_generation",
-  },
-  {
-    documentType: "file_withdrawal_clearance_summary",
-    labelAr: "ملخص إخلاء طرف (سحب ملف)",
-    requestTypeCodes: ["file_withdrawal"],
-    signatories: [],
-    requiresParallelClearance: true,
-    requiresFinalApproval: true,
-    producesIssuableDocument: false,
-    foundationStatus: "pending_generation",
-  },
-  {
     documentType: "october_exam_entry_form_document",
     labelAr: "استمارة دخول دور أكتوبر",
     requestTypeCodes: ["october_exam_entry_form"],
@@ -322,7 +300,6 @@ const DOCUMENT_DEFINITIONS: readonly StudentRequestDocumentDefinition[] = [
     requestTypeCodes: [
       "grade_statement_non_graduate",
       "enrollment_certificate",
-      "file_withdrawal",
       "enrollment_suspension",
       "excused_absence",
       "department_transfer",
@@ -767,13 +744,6 @@ export function validateArchiveHandoff(
   }
 
   const normalizedType = normalizeStudentRequestTypeCode(input.requestTypeCode);
-  if (normalizedType === "file_withdrawal" && input.parallelClearanceComplete !== true) {
-    pushIssue(issues, {
-      severity: "error",
-      code: "file_withdrawal_clearance_incomplete",
-      messageAr: "سحب الملف — يتطلب اكتمال إخلاء الطرف المتوازي قبل الأرشفة.",
-    });
-  }
 
   if (typeDef?.requiresArchive && expectedDocuments.length === 0) {
     pushIssue(issues, {
@@ -877,8 +847,7 @@ function buildArchiveHandoffDryRunResult(
     requiresArchive &&
     input.finalApprovalComplete !== false &&
     input.documentsReady !== false &&
-    input.signaturesComplete !== false &&
-    (input.requestTypeCode !== "file_withdrawal" || input.parallelClearanceComplete === true);
+    input.signaturesComplete !== false;
 
   let summaryAr: string;
   if (status === "UNAUTHORIZED") {
@@ -901,7 +870,7 @@ function buildArchiveHandoffDryRunResult(
   };
 }
 
-/** Preview parallel clearance requirement for file_withdrawal documents. */
+/** Preview a parallel-clearance requirement when the canonical preview defines one. */
 export function getParallelClearancePreviewForDocuments(
   requestId: string,
   requestTypeCode: string,
@@ -1066,40 +1035,6 @@ export function runDocumentArchiveScenarioMatrix(): DocumentArchiveScenarioResul
           "enrollment_certificate_document",
           { ...staffActor, targetSignatoryKey: null },
           { manualSignatoryKey: "dean" },
-        ),
-    },
-    {
-      id: 10,
-      name: "file_withdrawal archive — clearance incomplete",
-      expected: "INVALID",
-      fn: () =>
-        validateArchiveHandoff(
-          {
-            requestId,
-            requestTypeCode: "file_withdrawal",
-            parallelClearanceComplete: false,
-            finalApprovalComplete: true,
-            documentsReady: true,
-            signaturesComplete: true,
-          },
-          staffActor,
-        ),
-    },
-    {
-      id: 11,
-      name: "file_withdrawal archive — clearance complete",
-      expected: "EXECUTION_UNAVAILABLE",
-      fn: () =>
-        validateArchiveHandoff(
-          {
-            requestId,
-            requestTypeCode: "file_withdrawal",
-            parallelClearanceComplete: true,
-            finalApprovalComplete: true,
-            documentsReady: true,
-            signaturesComplete: true,
-          },
-          staffActor,
         ),
     },
     {

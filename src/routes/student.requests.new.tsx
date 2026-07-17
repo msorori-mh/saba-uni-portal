@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   getStudentRequestTypesForStudent,
   getStudentRequestUiContext,
+  getStudentRequestFormReferenceData,
   submitCanonicalStudentRequest,
 } from "@/lib/student-affairs.functions";
 import { STUDENT_REQUEST_INELIGIBLE_DEFAULT_MSG } from "@/lib/student-request-rpc";
@@ -26,6 +27,12 @@ import {
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
 import { sanitizeFormDataForSubmit } from "@/lib/student-requests/student-request-submit-contract";
+import {
+  canSubmitWithReferenceData,
+  getRequestServiceAdapter,
+  validateB1ServiceActivation,
+  type ReferenceDataState,
+} from "@/lib/student-requests/request-service-adapter";
 
 export const Route = createFileRoute("/student/requests/new")({
   validateSearch: (search: Record<string, unknown>): { type?: string } => ({
@@ -53,6 +60,7 @@ function NewStudentRequestPage() {
   const typesFn = useServerFn(getStudentRequestTypesForStudent);
   const contextFn = useServerFn(getStudentRequestUiContext);
   const submitFn = useServerFn(submitCanonicalStudentRequest);
+  const referenceDataFn = useServerFn(getStudentRequestFormReferenceData);
   const [requestType, setRequestType] = useState(typeFromSearch ?? "");
   const [subject, setSubject] = useState("");
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
@@ -95,6 +103,48 @@ function NewStudentRequestPage() {
   );
   const formSupported = isDynamicFormSupported(requestType);
   const normalizedRequestType = normalizeStudentRequestTypeCode(requestType);
+  const selectedAdapter = getRequestServiceAdapter(normalizedRequestType);
+  const serviceActivation = selectedAdapter
+    ? validateB1ServiceActivation({ requestTypeCode: normalizedRequestType })
+    : { ok: true as const };
+  const selectedAcademicYear = typeof formValues.target_academic_year === "string"
+    ? formValues.target_academic_year
+    : undefined;
+  const needsReferenceData = Boolean(selectedAdapter?.referenceResolvers.length);
+  const {
+    data: loadedReferenceData,
+    isLoading: referenceDataLoading,
+    error: referenceDataError,
+  } = useQuery({
+    queryKey: ["student-affairs", "request-form-reference-data", selectedAcademicYear ?? null],
+    queryFn: () => referenceDataFn({ data: { academicYearId: selectedAcademicYear } }),
+    enabled: needsReferenceData,
+  });
+  const referenceData = useMemo<Readonly<Record<string, ReferenceDataState>>>(() => ({
+    academic_years: referenceDataLoading
+      ? { status: "loading", options: [] }
+      : referenceDataError
+        ? { status: "error", options: [], message: (referenceDataError as Error).message }
+        : { status: "ready", options: loadedReferenceData?.academicYears ?? [] },
+    semesters_for_year: !selectedAcademicYear || referenceDataLoading
+      ? { status: "loading", options: [] }
+      : referenceDataError
+        ? { status: "error", options: [], message: (referenceDataError as Error).message }
+        : { status: "ready", options: loadedReferenceData?.semesters ?? [] },
+    current_student_enrollments: referenceDataLoading
+      ? { status: "loading", options: [] }
+      : referenceDataError
+        ? { status: "error", options: [], message: (referenceDataError as Error).message }
+        : { status: "ready", options: loadedReferenceData?.currentStudentEnrollments ?? [] },
+  }), [loadedReferenceData, referenceDataError, referenceDataLoading, selectedAcademicYear]);
+
+  useEffect(() => {
+    if (selectedAcademicYear && formValues.target_semester) {
+      setFormValues((current) => ({ ...current, target_semester: "" }));
+    }
+    // Reset the dependent semester only when the academic year changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAcademicYear]);
 
   useEffect(() => {
     if (!requestType) {
@@ -151,11 +201,17 @@ function NewStudentRequestPage() {
     selectedType.is_eligible &&
     !selectedType.is_disabled &&
     !selectedType.requires_attachment &&
+    serviceActivation.ok &&
+    (!selectedAdapter || canSubmitWithReferenceData(selectedAdapter.referenceResolvers, referenceData)) &&
     canSubmitStudentRequestFromUi(eligibilityInput);
 
   const submitRequest = async () => {
     if (submitInFlightRef.current || submitting) return;
     if (!selectedType?.is_eligible || selectedType.is_disabled || !formDefinition) return;
+    if (!serviceActivation.ok) {
+      toast.error("الخدمة غير متاحة للتفعيل حالياً");
+      return;
+    }
     if (!canSubmitStudentRequestFromUi(eligibilityInput)) {
       toast.error("لا يمكن إرسال الطلب حالياً", {
         description: "راجع بطاقة الأهلية والتوفر أعلاه.",
@@ -337,6 +393,7 @@ function NewStudentRequestPage() {
               value={formValues}
               onChange={setFormValues}
               disabled={selectedType.is_disabled || submitting}
+              referenceData={referenceData}
             />
           </>
         )}

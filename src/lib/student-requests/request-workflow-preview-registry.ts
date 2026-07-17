@@ -9,6 +9,7 @@ import {
   getStudentRequestTypeDefinition,
   normalizeStudentRequestTypeCode,
 } from "@/lib/student-requests/request-type-registry";
+import { B1_WORKFLOWS, type B1CanonicalCode } from "@/lib/student-requests/request-service-adapter";
 
 export type PreviewWorkflowTimelineStep = {
   id: string;
@@ -188,42 +189,18 @@ const PREVIEW_BY_CODE: Readonly<Record<string, CanonicalWorkflowPreview>> = {
   file_withdrawal: {
     requestTypeCode: "file_withdrawal",
     requestTypeNameAr: "سحب ملف",
-    specNotesAr: ["بعد موافقة العميد: إنشاء بيان تقديرات تلقائياً", "بوابة توازي: مالية + مكتبة + معامل + أنشطة"],
+    specNotesAr: [
+      "المخالصات متتابعة، وكل خطوة مقيدة بالتعيين المباشر والوحدة والدور المحددين.",
+      "الخدمة مجانية ولا تنشئ وثيقة أو PDF أو ملف تخزين.",
+    ],
     steps: [
-      { key: "student", labelAr: "الطالب", roleKey: "student" },
-      { key: "dept_head", labelAr: "رئيس القسم", roleKey: "department_head" },
-      { key: "dean", labelAr: "العميد", roleKey: "dean", notesAr: "يُنشئ بيان تقديرات تلقائياً" },
-      { key: "sa", labelAr: "شؤون الطلاب", roleKey: "student_affairs", requiresFee: true },
-      {
-        key: "parallel_finance",
-        labelAr: "المالية",
-        roleKey: "revenue_finance_officer",
-        isParallel: true,
-        parallelGroupId: "clearance",
-      },
-      {
-        key: "parallel_library",
-        labelAr: "المكتبة",
-        roleKey: "library_officer",
-        isParallel: true,
-        parallelGroupId: "clearance",
-      },
-      {
-        key: "parallel_labs",
-        labelAr: "المعامل",
-        roleKey: "labs_manager",
-        isParallel: true,
-        parallelGroupId: "clearance",
-      },
-      {
-        key: "parallel_activities",
-        labelAr: "الأنشطة الطلابية",
-        roleKey: "student_affairs",
-        isParallel: true,
-        parallelGroupId: "clearance",
-      },
-      { key: "registrar", labelAr: "مسجل الكلية", roleKey: "registrar_general", issuesDocument: true },
-      { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer", actionType: "archive", isArchiveStep: true },
+      { key: "student_affairs_intake", labelAr: "استلام شؤون الطلاب", roleKey: "student_affairs_specialist", processingUnitCode: "student_affairs", actionType: "review" },
+      { key: "library_clearance", labelAr: "مخالصة المكتبة", roleKey: "library_officer", processingUnitCode: "library", actionType: "clear" },
+      { key: "labs_clearance", labelAr: "مخالصة المعامل", roleKey: "labs_manager", processingUnitCode: "labs", actionType: "clear" },
+      { key: "activities_clearance", labelAr: "مخالصة الأنشطة الطلابية", roleKey: "student_affairs_manager", processingUnitCode: "student_affairs", actionType: "clear" },
+      { key: "finance_clearance", labelAr: "المخالصة المالية", roleKey: "revenue_finance_officer", processingUnitCode: "finance", actionType: "clear" },
+      { key: "registrar_apply", labelAr: "تطبيق قرار المسجل", roleKey: "registrar_general", processingUnitCode: "registrar", actionType: "apply_decision" },
+      { key: "archive", labelAr: "الأرشيف", roleKey: "archive_officer", processingUnitCode: "archive", actionType: "archive", isArchiveStep: true },
     ],
   },
   excused_absence: {
@@ -282,8 +259,49 @@ const PREVIEW_BY_CODE: Readonly<Record<string, CanonicalWorkflowPreview>> = {
 };
 
 export const CANONICAL_WORKFLOW_PREVIEW_CODES = Object.freeze(
-  Object.keys(PREVIEW_BY_CODE),
+  [...new Set([...Object.keys(PREVIEW_BY_CODE), ...Object.keys(B1_WORKFLOWS)])],
 ) as readonly string[];
+
+const B1_LABELS_AR: Readonly<Record<string, string>> = {
+  initial_review: "المراجعة الأولية",
+  manager_approval: "اعتماد مدير شؤون الطلاب",
+  registrar_apply: "تطبيق قرار المسجل",
+  student_affairs_intake: "استقبال شؤون الطلاب",
+  manager_review: "مراجعة مدير شؤون الطلاب",
+  record_apply: "تطبيق العذر في السجل",
+  library_clearance: "مخالصة المكتبة",
+  labs_clearance: "مخالصة المعامل",
+  activities_clearance: "مخالصة الأنشطة",
+  finance_clearance: "المخالصة المالية الخارجية",
+  archive: "الأرشفة",
+  source_department_head_approval: "اعتماد رئيس القسم الحالي",
+  target_department_head_approval: "اعتماد رئيس القسم المطلوب",
+  dean_approval: "اعتماد العميد",
+  dean_decision: "قرار العميد",
+  payment_confirmation: "تأكيد السداد الخارجي",
+};
+
+function getB1WorkflowPreview(code: string): CanonicalWorkflowPreview | undefined {
+  const steps = B1_WORKFLOWS[code as B1CanonicalCode];
+  if (!steps) return undefined;
+  return {
+    requestTypeCode: code,
+    requestTypeNameAr: getStudentRequestTypeDefinition(code)?.nameAr ?? code,
+    steps: steps.map((step) => ({
+      key: step.key,
+      labelAr: B1_LABELS_AR[step.key] ?? step.key,
+      roleKey: step.role,
+      processingUnitCode: step.unit,
+      actionType: step.action,
+      requiresFee: step.key === "payment_confirmation",
+      isArchiveStep: step.action === "archive",
+    })),
+    specNotesAr: B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.department_transfer
+      || B1_WORKFLOWS[code as B1CanonicalCode] === B1_WORKFLOWS.final_chance
+      ? ["تُدفع الرسوم في النظام الجامعي الأساسي، وتؤكد المالية المعيّنة الاستلام يدوياً دون مبلغ أو عملة أو فاتورة داخل البوابة."]
+      : ["لا رسوم ولا مستندات لهذه الخدمة"],
+  };
+}
 
 /** Alias codes must not have standalone preview entries. */
 export function isAliasOnlyRequestTypeCode(code: string): boolean {
@@ -293,7 +311,7 @@ export function isAliasOnlyRequestTypeCode(code: string): boolean {
 
 export function hasCanonicalWorkflowPreview(code: string | null | undefined): boolean {
   const normalized = normalizeStudentRequestTypeCode(code);
-  return normalized != null && normalized in PREVIEW_BY_CODE;
+  return normalized != null && (normalized in PREVIEW_BY_CODE || normalized in B1_WORKFLOWS);
 }
 
 export function getCanonicalWorkflowPreview(
@@ -301,6 +319,8 @@ export function getCanonicalWorkflowPreview(
 ): CanonicalWorkflowPreview | undefined {
   const normalized = normalizeStudentRequestTypeCode(code);
   if (!normalized) return undefined;
+  const b1 = getB1WorkflowPreview(normalized);
+  if (b1) return b1;
   const base = PREVIEW_BY_CODE[normalized];
   if (!base) return undefined;
   const def = getStudentRequestTypeDefinition(normalized);

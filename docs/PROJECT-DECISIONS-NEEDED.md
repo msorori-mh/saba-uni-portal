@@ -4,28 +4,30 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 ## Resolved functional decisions
 
-The prior fee/chance decisions are resolved by the owner:
+- `department_transfer` and `final_chance` use `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION`.
+- The portal stores no fee type, amount, currency, invoice, gateway transaction, payment reference, or internal balance.
+- `final_chance` means a final exam chance only. New academic writes use `chance_type='final_chance'`; historical aliases remain read-compatible without backfill.
+- The B1 source authorization matrix is complete and merged in PR #139.
+- External-payment workflow migration draft 2/3 is complete and merged in PR #140. It creates inactive drafts only and does not authorize application.
 
-- `department_transfer` and `final_chance`: `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION`.
-- No `fee_type.code`, amount, currency, invoice, gateway transaction, payment reference, or internal balance.
-- New `chance_type` writes: `final_chance` only; historical values are read compatibility only.
+## Remaining technical gates
 
-Remaining gate is technical runtime readiness, not a business decision: reviewed migrations, safe-environment RPC ALLOW/DENY verification, and independent security gates before any visibility change.
+Production migration application remains unavailable because:
 
-The B1 source authorization matrix is complete and merged in PR #139. Production migration application remains unavailable because executable shared/service workflow migrations are missing, external-payment migrations 2/3 and 3/3 do not exist, and processing-domain staff/faculty IDs require fresh read-only verification. The exact inventory and sequential checks are in `docs/B1-MIGRATION-INVENTORY-AND-VERIFICATION-PLAN-01.md`.
+- the shared atomic submit/action executable migration is missing;
+- executable service workflow/validator migrations remain missing or incomplete;
+- final-chance canonical-write migration 3/3 is missing;
+- processing-domain staff/faculty IDs require fresh read-only identity and department verification;
+- exact per-migration apply commands and evidence capture procedures are not yet pinned.
 
-PR #137 supplied the initial source SQL contract; merged PR #138 fixes the compile finding discovered locally. Neither authorizes production application. The current draft checksum is `9473d07ec78ee1133ffb150a2cd8173bc27040388899a79ed0a4b935bfa1379a`. The next migration decision must specify the isolated target, exact ordered command sequence, rollback/partial-apply evidence procedure, and the complete positive/negative RPC test matrix.
+The exact dependency order, preflight, sequential application protocol, and post-verification checks are in `docs/B1-MIGRATION-INVENTORY-AND-VERIFICATION-PLAN-01.md`.
 
 | Decision | Why it is blocked | Production action proposed | Expected production effect |
 |---|---|---|---|
-| Apply future reviewed B1/attachment migrations | All SQL and migration application is production-impacting | Proposed later: an exact reviewed Supabase migration command, not yet selected or executed | Would create or alter runtime database/storage contracts |
+| Apply future reviewed B1/attachment migrations | Required executable migrations, verified identity mappings, exact commands, and all per-migration gates are incomplete | Proposed later: one exact reviewed migration command at a time | Would create or alter runtime database/storage contracts |
 
 ## Safe-environment verification prerequisite
 
-Direct RPC ALLOW/DENY matrices for the merged Draft contracts require a safe,
-non-production Supabase environment after an explicitly approved Draft migration
-apply. No production credential or real user may be used.
+Direct RPC ALLOW/DENY matrices require an isolated, non-production Supabase environment after the relevant migration has a separately approved application path. No production credential, real user, or protected request may be used as test data.
 
-No production command is authorized or scheduled in the current source-only cycle.
-
-Cycle 14 environment evidence: the host has no callable Supabase CLI and no running Docker engine. Therefore DB compile and the RPC ALLOW/DENY matrix remain unexecuted; production must not be used as a substitute test environment.
+No production command is authorized or scheduled in the current source-only cycle. A partial apply must stop only the migration chain and retain evidence; no reset or cleanup is permitted.
