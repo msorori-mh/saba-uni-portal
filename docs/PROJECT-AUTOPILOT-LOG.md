@@ -281,3 +281,12 @@
 - Validation passed: TypeScript, 360/360 student-request tests, production build and `git diff --check`.
 - Committed as `18f00ea4231a0c57f1fa593e8d68311d755a3ada`; PR #137 passed Web CI and merged as `d67586de173d380abe7a5424f1d9dfe02ab2ab9a`.
 - Did not connect to Supabase, apply SQL/migrations, change `student_visible`, deploy, publish or write production data.
+
+## 2026-07-17 — B1 detail boundary review remediation
+
+- Initial independent review found one HIGH (unknown policies were dropped) and one MEDIUM (premature cutover window).
+- Replaced dynamic policy deletion with an exact approved allowlist and fail-closed unknown-policy preflight.
+- Converted the boundary into a locked installation-only primitive with no top-level invocation; a future reviewed atomic dispatcher/caller migration must invoke it.
+- Third independent review returned PASS with zero findings. Focused tests 6/6, TypeScript and diff-check passed.
+- Committed `b265175`, pinned its SQL checksum in `45b7677`, and pushed the feature branch.
+- No migration, SQL, production write, deployment, publication or visibility change occurred.

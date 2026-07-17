@@ -312,3 +312,13 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 None. No migration/SQL apply, Supabase production access, data/storage write,
 deploy, publish, secret change, production E2E, cleanup or discard was performed.
+
+## 2026-07-17 — B1 detail RPC-write cutover boundary
+
+- Feature branch `codex/b1-service-runtime-drafts-05` advanced to `45b7677` and is pushed.
+- Added an installation-only, locked cutover primitive for the three legacy B1 detail tables; installation does not invoke it or mutate table ACL/RLS/policies.
+- Unknown policies and missing/stub dispatcher state fail closed. Invocation is reserved for the future single reviewed dispatcher/caller cutover transaction.
+- Independent review: PASS; CRITICAL/HIGH/MEDIUM/LOW = 0/0/0/0.
+- Validation: focused tests 6/6, TypeScript and `git diff --check` PASS.
+- Pinned SHA-256: `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495`.
+- Production impact: none; no SQL/migration apply, production access, `student_visible`, deploy or publish.
