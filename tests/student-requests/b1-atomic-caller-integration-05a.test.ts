@@ -1,9 +1,28 @@
 import { describe,expect,it } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync,readdirSync,statSync } from "node:fs";
 import { join } from "node:path";
 const source=readFileSync(join(process.cwd(),"src","lib","student-affairs.functions.ts"),"utf8");
 
+function runtimeSources(directory:string):string[]{
+  return readdirSync(directory).flatMap((entry)=>{
+    const path=join(directory,entry);
+    return statSync(path).isDirectory()?runtimeSources(path):[path];
+  }).filter((path)=>/\.(?:ts|tsx)$/.test(path));
+}
+
 describe("B1 atomic caller integration 05A",()=>{
+  it("keeps the deprecated inline writer outside the active runtime graph",()=>{
+    const legacyRelativePath="components/portal/StudentRequestsSection";
+    const legacy=readFileSync(join(process.cwd(),"src",`${legacyRelativePath}.tsx`),"utf8");
+    expect(legacy).toContain("@deprecated Legacy inline request forms with direct INSERT/UPDATE");
+    expect(legacy).toContain("do not mount in student dashboard");
+    for(const path of runtimeSources(join(process.cwd(),"src"))){
+      if(path.endsWith("StudentRequestsSection.tsx")) continue;
+      const candidate=readFileSync(path,"utf8");
+      expect(candidate).not.toContain(legacyRelativePath);
+      expect(candidate).not.toContain("<StudentRequestsSection");
+    }
+  });
   it("routes B1 adapters only through the atomic RPC with optimistic version and opaque attachment ids",()=>{
     expect(source).toContain("if (b1Adapter) {");
     expect(source).toContain("submitB1RequestAtomically");
