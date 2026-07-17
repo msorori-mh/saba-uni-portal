@@ -25,6 +25,7 @@
    - 05A excused-absence detail/RPC-write boundary complete: `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`, SHA-256 `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe`, independent review PASS.
    - 05A transfer secure-attachment overlay complete: `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql`, SHA-256 `ba163a3f2bc5115a22373e324d199817d58796284bb3ca0d095abc6bf12783a8`, independent review PASS.
    - 05A detail RPC-write cutover primitive complete: `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql`, SHA-256 `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495`, independent review PASS. Installation alone does not invoke the primitive; invocation belongs inside the future reviewed atomic dispatcher/caller cutover migration.
+   - 05A five-service detail dispatcher complete: `REQUEST-B1-SERVICE-DETAILS-05A.sql`, SHA-256 `82bab7a52b44dde51c71c12acbdfd3445d08d2d4c24176c66a0b0cc39f99118c`, independent review PASS. This installation-only draft does not invoke the ACL boundary; caller conversion and ACL cutover remain a later atomic unit.
    - Remaining: atomic five-service persistence dispatcher and inactive workflow drafts for the three free services. These remain fail-closed and no item-6 application is approved.
 7. External-payment workflow migration 2/3 for `department_transfer` and `final_chance`.
    - Draft complete: `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql`.
