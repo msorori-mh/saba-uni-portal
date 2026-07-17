@@ -4,11 +4,35 @@
 
 BEGIN;
 
-ALTER TABLE public.student_request_attachment_uploads
-  DROP CONSTRAINT IF EXISTS student_request_attachment_uploads_field_key_check;
-ALTER TABLE public.student_request_attachment_uploads
-  ADD CONSTRAINT student_request_attachment_uploads_field_key_check
-  CHECK (field_key IN ('excuse_documents','secondary_certificate'));
+DO $field_constraint$
+DECLARE v_def text; v_norm text; v_validated boolean;
+BEGIN
+  SELECT pg_get_constraintdef(c.oid,true),c.convalidated INTO v_def,v_validated
+  FROM pg_constraint c WHERE c.conrelid='public.student_request_attachment_uploads'::regclass
+    AND c.conname='student_request_attachment_uploads_field_key_check' AND c.contype='c';
+  IF v_def IS NULL THEN RAISE EXCEPTION 'ATTACHMENT_FIELD_CONSTRAINT_MISSING'; END IF;
+  v_norm:=regexp_replace(v_def,'\s+','','g');
+  IF v_norm='CHECK((field_key=''excuse_documents''::text))' THEN
+    ALTER TABLE public.student_request_attachment_uploads
+      DROP CONSTRAINT student_request_attachment_uploads_field_key_check;
+    ALTER TABLE public.student_request_attachment_uploads
+      ADD CONSTRAINT student_request_attachment_uploads_field_key_check
+      CHECK (field_key IN ('excuse_documents','secondary_certificate')) NOT VALID;
+    ALTER TABLE public.student_request_attachment_uploads
+      VALIDATE CONSTRAINT student_request_attachment_uploads_field_key_check;
+  ELSIF v_norm NOT IN (
+    'CHECK((field_key=ANY(ARRAY[''excuse_documents''::text,''secondary_certificate''::text])))',
+    'CHECK((field_key=ANY(ARRAY[''excuse_documents''::text,''secondary_certificate''::text])))NOTVALID'
+  ) THEN RAISE EXCEPTION 'ATTACHMENT_FIELD_CONSTRAINT_UNEXPECTED:%',v_def;
+  ELSIF NOT v_validated THEN
+    ALTER TABLE public.student_request_attachment_uploads
+      VALIDATE CONSTRAINT student_request_attachment_uploads_field_key_check;
+  END IF;
+  IF (SELECT count(*) FROM pg_constraint c WHERE c.conrelid='public.student_request_attachment_uploads'::regclass
+      AND c.contype='c' AND pg_get_constraintdef(c.oid,true) ILIKE '%field_key%')<>1
+    THEN RAISE EXCEPTION 'ATTACHMENT_FIELD_CONSTRAINT_INVENTORY_MISMATCH'; END IF;
+END
+$field_constraint$;
 
 CREATE OR REPLACE FUNCTION public.b1_expected_secure_attachment_field(p_request_type text)
 RETURNS text LANGUAGE sql IMMUTABLE SET search_path=public AS $$
@@ -34,7 +58,8 @@ BEGIN
   SELECT * INTO v_req FROM public.student_requests r
     WHERE r.id=p_student_request_id AND r.student_profile_id=v_profile_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'ATTACHMENT_REQUEST_NOT_OWNED' USING ERRCODE='42501'; END IF;
-  IF v_req.status<>'draft' THEN RAISE EXCEPTION 'ATTACHMENT_REQUEST_NOT_EDITABLE' USING ERRCODE='42501'; END IF;
+  IF v_req.status NOT IN ('draft','returned','returned_for_completion')
+    THEN RAISE EXCEPTION 'ATTACHMENT_REQUEST_NOT_EDITABLE' USING ERRCODE='42501'; END IF;
   v_expected_field:=public.b1_expected_secure_attachment_field(v_req.request_type);
   IF v_expected_field IS NULL OR p_field_key IS DISTINCT FROM v_expected_field
     THEN RAISE EXCEPTION 'ATTACHMENT_FIELD_NOT_ALLOWED' USING ERRCODE='42501'; END IF;

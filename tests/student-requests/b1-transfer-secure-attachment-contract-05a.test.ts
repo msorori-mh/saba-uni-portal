@@ -9,7 +9,10 @@ describe("B1 transfer secure attachment contract 05A", () => {
   it("binds secondary_certificate to transfer aliases only", () => {
     for (const requestType of ["department_transfer", "transfer"]) {
       expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"draft",requestType,fieldKey:"secondary_certificate",currentCount:0 })).toBeNull();
+      expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"returned",requestType,fieldKey:"secondary_certificate",currentCount:0 })).toBeNull();
+      expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"returned_for_completion",requestType,fieldKey:"secondary_certificate",currentCount:0 })).toBeNull();
     }
+    expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"completed",requestType:"transfer",fieldKey:"secondary_certificate",currentCount:0 })).toBe("ATTACHMENT_REQUEST_NOT_EDITABLE");
     expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"draft",requestType:"department_transfer",fieldKey:"excuse_documents",currentCount:0 })).toBe("ATTACHMENT_FIELD_NOT_ALLOWED");
     expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"draft",requestType:"excused_absence",fieldKey:"secondary_certificate",currentCount:0 })).toBe("ATTACHMENT_FIELD_NOT_ALLOWED");
   });

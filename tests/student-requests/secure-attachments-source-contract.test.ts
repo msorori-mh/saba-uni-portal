@@ -19,7 +19,8 @@ const submitContractSource = readFileSync(new URL("../../src/lib/student-request
 
 describe("secure attachments source-contract — upload", () => {
   it("allows only owner draft excused_absence intent", () => expect(canCreateSecureAttachmentIntent({ owner: true, requestStatus: "draft", requestType: "excused_absence", fieldKey: "excuse_documents", currentCount: 0 })).toBeNull());
-  it.each([[false,"draft"],[true,"submitted"],[true,"completed"],[true,"returned"]] as const)("denies other owner/state combinations", (owner,status) => expect(canCreateSecureAttachmentIntent({ owner, requestStatus: status, requestType: "excused_absence", fieldKey: "excuse_documents", currentCount: 0 })).not.toBeNull());
+  it.each([[false,"draft"],[true,"submitted"],[true,"completed"]] as const)("denies other owner/state combinations", (owner,status) => expect(canCreateSecureAttachmentIntent({ owner, requestStatus: status, requestType: "excused_absence", fieldKey: "excuse_documents", currentCount: 0 })).not.toBeNull());
+  it.each(["returned","returned_for_completion"] as const)("allows owned resubmit attachment replacement", (status) => expect(canCreateSecureAttachmentIntent({ owner:true, requestStatus:status, requestType:"excused_absence", fieldKey:"excuse_documents", currentCount:0 })).toBeNull());
   it("denies client path/bucket and fourth attachment", () => {
     expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"draft",requestType:"excused_absence",fieldKey:"excuse_documents",currentCount:0,clientSuppliedPath:"x" })).toBe("ATTACHMENT_OBJECT_MISMATCH");
     expect(canCreateSecureAttachmentIntent({ owner:true,requestStatus:"draft",requestType:"excused_absence",fieldKey:"excuse_documents",currentCount:0,clientSuppliedBucket:"x" })).toBe("ATTACHMENT_OBJECT_MISMATCH");

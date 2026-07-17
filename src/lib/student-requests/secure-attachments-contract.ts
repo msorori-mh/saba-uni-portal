@@ -111,7 +111,7 @@ export function validateSecureAttachmentSubmit(input: { runtimeAvailable: boolea
 
 export function canCreateSecureAttachmentIntent(input: { owner: boolean; requestStatus: string; requestType: string; fieldKey: string; currentCount: number; clientSuppliedPath?: unknown; clientSuppliedBucket?: unknown }): SecureAttachmentErrorCode | null {
   if (!input.owner) return "ATTACHMENT_REQUEST_NOT_OWNED";
-  if (input.requestStatus !== "draft") return "ATTACHMENT_REQUEST_NOT_EDITABLE";
+  if (!["draft", "returned", "returned_for_completion"].includes(input.requestStatus)) return "ATTACHMENT_REQUEST_NOT_EDITABLE";
   const expectedField: SecureAttachmentFieldKey | null = input.requestType === "excused_absence" || input.requestType === "absence_excuse"
     ? SECURE_ATTACHMENT_FIELD_KEY
     : input.requestType === "department_transfer" || input.requestType === "transfer"
