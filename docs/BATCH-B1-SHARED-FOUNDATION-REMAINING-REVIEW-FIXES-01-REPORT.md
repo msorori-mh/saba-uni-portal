@@ -25,12 +25,13 @@
 - يتحقق server submit من وجود السنة، ومن انتماء الفصل للسنة، ومن ملكية الطالب لتسجيل نشط في الشعبة قبل إنشاء الطلب.
 - وُصل تحويل canonical code إلى stored write code في payload الفعلي، مع رفض أي كود مجهول.
 - حُصرت بوابات التفعيل والمراجع وتحويل stored code في الأنواع التي لها B1 adapter فقط؛ بقي submit العام للأنواع الأخرى، ومنها `enrollment_certificate`، على سلوكه السابق دون تعديل كيانها.
+- دُمج `origin/main` عند `7a7e35f` بعد دمج إصلاحات المرفقات الآمنة `e162edb`؛ لم تقع تعارضات، وبقيت إصلاحات الأمان وB1 معاً.
 
 ## الاختبارات
 
-- `bun test tests/student-requests`: PASS — 323 tests، 0 failures.
+- `bun test tests/student-requests`: PASS — 328 tests، 0 failures.
 - `bunx tsc --noEmit`: PASS.
-- `bun run build`: PASS. آخر تشغيل استغرق نحو 184 ثانية؛ التحذيرات الصادرة من bundler تخص `use client` في dependencies ولم تفشل البناء.
+- `bun run build`: PASS. آخر تشغيل بعد الدمج استغرق نحو 355 ثانية؛ التحذيرات الصادرة من bundler تخص `use client` في dependencies ولم تفشل البناء.
 - `git diff --check`: PASS.
 
 ## الافتراضات
