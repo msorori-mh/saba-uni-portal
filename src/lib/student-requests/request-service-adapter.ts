@@ -382,7 +382,7 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       { key: "available_departments", field: "target_department_id", trustedServerValidationRequired: true },
       { key: "available_programs", field: "target_program_id", dependsOnField: "target_department_id", trustedServerValidationRequired: true },
     ],
-    noClientWrite("department_transfer_details", "one", [
+    noClientWrite("transfer_request_details", "one", [
       { formField: "target_department_id", detailField: "requested_department_id" },
       { formField: "target_program_id", detailField: "requested_program_id" },
     ]),

@@ -219,6 +219,11 @@ describe("B1 direct assignment and authorization source contract", () => {
     }
   });
 
+  it("binds department transfer to the proven historical detail relation", () => {
+    expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.contractKey).toBe("transfer_request_details");
+    expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.clientWriteAllowed).toBe(false);
+  });
+
   it("keeps excused absence blocked on secure attachments and rejects unknown reason types", () => {
     const adapter = B1_SERVICE_ADAPTERS.excused_absence;
     expect(adapter.activationBlockedReason).toBe("BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME");

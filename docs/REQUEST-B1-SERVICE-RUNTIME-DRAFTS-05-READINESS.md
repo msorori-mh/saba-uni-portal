@@ -8,7 +8,7 @@ Status: SOURCE-ONLY / FAIL-CLOSED / NO APPLY
 |---|---|---|---|
 | `enrollment_suspension` | `enrollment_suspension` | `enrollment_suspension_details` | replace client writes with the atomic dispatcher |
 | `excused_absence` | `absence_excuse` | `absence_excuse_details` | reconcile reason vocabulary and secure attachment binding before persistence |
-| `department_transfer` | `transfer` | `department_transfer_details` | prove exact column/FK contract and source/target department isolation |
+| `department_transfer` | `transfer` | `transfer_request_details` | prove exact column/FK contract and source/target department isolation |
 | `final_chance` | `extra_chance` | `extra_chance_details` | write only `chance_type='final_chance'`; require trusted year/semester/reason inputs |
 | `file_withdrawal` | `file_withdrawal` | draft-only `file_withdrawal_details` | create the detail relation before installing its dispatcher branch |
 
@@ -37,7 +37,7 @@ complete and independently reviewed.
   (`medical`, `family_emergency`, `official`, `other`) without rewriting history.
 - Prove the secure attachment table/function contract used by `excused_absence`; the
   detail row must never accept a client URL or attachment metadata.
-- Prove `department_transfer_details` source/target department and program foreign keys.
+- Prove `transfer_request_details` source/target department and program foreign keys.
 - Prove the required academic year, semester and reason inputs for `extra_chance_details`;
   `chance_type` is always server-written as `final_chance`.
 - Create `file_withdrawal_details` with restrictive grants and RPC-only writes; do not
