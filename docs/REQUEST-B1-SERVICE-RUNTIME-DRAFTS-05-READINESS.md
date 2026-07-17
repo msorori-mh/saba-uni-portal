@@ -38,6 +38,8 @@ complete and independently reviewed.
 - Prove the secure attachment table/function contract used by `excused_absence`; the
   detail row must never accept a client URL or attachment metadata.
 - Prove `transfer_request_details` source/target department and program foreign keys.
+  Current program and department are server-derived from the locked student profile;
+  the student supplies only the trusted target IDs and required `transfer_reason`.
 - Prove the required academic year, semester and reason inputs for `extra_chance_details`;
   `chance_type` is always server-written as `final_chance`.
 - Create `file_withdrawal_details` with restrictive grants and RPC-only writes; do not

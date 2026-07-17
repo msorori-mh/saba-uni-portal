@@ -222,6 +222,14 @@ describe("B1 direct assignment and authorization source contract", () => {
   it("binds department transfer to the proven historical detail relation", () => {
     expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.contractKey).toBe("transfer_request_details");
     expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.clientWriteAllowed).toBe(false);
+    expect(B1_SERVICE_ADAPTERS.department_transfer.detailBinding.fields).toContainEqual({
+      formField: "transfer_reason",
+      detailField: "transfer_reason",
+    });
+    expect(B1_SERVICE_ADAPTERS.department_transfer.validate({
+      target_department_id: "department",
+      target_program_id: "program",
+    })).toMatchObject({ valid: false, errors: { transfer_reason: "required" } });
   });
 
   it("keeps excused absence blocked on secure attachments and rejects unknown reason types", () => {

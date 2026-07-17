@@ -385,8 +385,9 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
     noClientWrite("transfer_request_details", "one", [
       { formField: "target_department_id", detailField: "requested_department_id" },
       { formField: "target_program_id", detailField: "requested_program_id" },
+      { formField: "transfer_reason", detailField: "transfer_reason" },
     ]),
-    requiredText(["target_department_id", "target_program_id"]),
+    requiredText(["target_department_id", "target_program_id", "transfer_reason"]),
     BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
   ),
   final_chance: adapter(
