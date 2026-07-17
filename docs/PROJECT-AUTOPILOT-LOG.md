@@ -31,6 +31,20 @@
 - Web CI started for both PRs and is currently pending.
 - No merge, migration/SQL apply, production write, deploy or publish occurred.
 
+## 2026-07-17 — Cycle 9 safe merges and B1-01 resume
+
+- PR #130 passed CI and independent security review, then merged first as
+  `7a7e35f315a89b5376ed8eb4f2cb5c949510f7cb` without deleting its branch.
+- Merged current main into PR #129's branch and verified the final diff contained
+  seven B1 files only while preserving all security fixes.
+- Post-merge gates for #129 passed: 328/328 tests, TypeScript, build,
+  `git diff --check`, independent review, and GitHub Web CI.
+- PR #129 merged as `be38c319aedd6d9a9257e30d0623e1b1b66b6bb7`
+  without deleting its branch.
+- Started post-merge CI monitoring and resumed the authorized B1-01 owner from
+  its preserved report artifact.
+- No SQL/migration apply, Supabase access, production write, deploy or publish.
+
 ## 2026-07-17 — Cycle 5 attachment security source fix
 
 - Security owner completed source-only remediation commit `24ba86bfaa847f0990e9c0d74a0c2a49bfe68a4f`.
