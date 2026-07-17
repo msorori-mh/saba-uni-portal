@@ -78,17 +78,23 @@ BEGIN
 
   -- Lock before authorization: the assignee and active state cannot change
   -- between authorization and mutation.
-  SELECT s, r.request_type, u.code, pr.code
-  INTO v_step, v_request_type, v_unit_code, v_role_code
+  SELECT s.* INTO v_step
   FROM public.student_request_workflow_steps s
-  JOIN public.student_requests r ON r.id = s.student_request_id
-  LEFT JOIN public.request_processing_units u ON u.id = s.processing_unit_id
-  LEFT JOIN public.request_processing_roles pr ON pr.id = s.processing_role_id
   WHERE s.id = p_step_id
   FOR UPDATE OF s;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'PAYMENT_CONFIRMATION_STEP_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+
+  SELECT r.request_type, u.code, pr.code
+  INTO v_request_type, v_unit_code, v_role_code
+  FROM public.student_requests r
+  LEFT JOIN public.request_processing_units u ON u.id = v_step.processing_unit_id
+  LEFT JOIN public.request_processing_roles pr ON pr.id = v_step.processing_role_id
+  WHERE r.id = v_step.student_request_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
   IF v_request_type NOT IN ('department_transfer','transfer','final_chance','extra_chance') THEN
     RAISE EXCEPTION 'REQUEST_TYPE_NOT_EXTERNAL_PAYMENT_SERVICE' USING ERRCODE = '22023';
