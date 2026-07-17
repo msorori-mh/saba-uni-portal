@@ -19,6 +19,7 @@
 - Final withdrawal 05A review PASS with zero findings. Commit `248c2d7` pins the two reviewed 05A checksums and records the remaining dispatcher/validator/workflow sequence.
 - Started the next dependency in `163ce95`: internal-only trusted-reference validators for period, enrollment and target program/department. Four focused tests and TypeScript pass; independent review remains pending.
 - Review held the validator draft for three inactive-parent gaps. `7201ece` closed them; final review PASS with zero findings, and `17ffb42` pins checksum `52936640...44897c`.
+- Completed the excused-absence detail/RPC-write boundary in `821e959` after closing trigger and legacy direct-write bypass findings; final review PASS and checksum pinned in `37bf4ae`.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 

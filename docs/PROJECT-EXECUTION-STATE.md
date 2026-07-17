@@ -97,6 +97,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Validator SHA-256 `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` is pinned in inventory commit `17ffb42`.
 - Remaining item-6 source: five-service persistence dispatcher and inactive workflows for three free services. No SQL/migration apply or production action occurred.
 
+### Cycle 34 — excused-absence detail boundary PASS
+
+- Added nullable/no-default `absence_reason_detail` for historical compatibility without backfill, while enforcing meaningful values on new or substantively changed rows.
+- Closed legacy authenticated/service-role mutation grants and write policies; exact owner-read/RPC-write ACL, RLS and policy inventories are enforced.
+- Independent review findings progressed from HIGH 2 to MEDIUM 1 and then final PASS: all severity counts zero.
+- Commit `821e959`; checksum `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` pinned by `37bf4ae`. Tests 11/11 and diff-check PASS.
+- Dispatcher remains fail-closed; no SQL/migration apply, production access/write, visibility change, deploy, publish, or backfill occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
