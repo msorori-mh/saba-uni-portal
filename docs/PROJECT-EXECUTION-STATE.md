@@ -105,6 +105,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Commit `821e959`; checksum `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` pinned by `37bf4ae`. Tests 11/11 and diff-check PASS.
 - Dispatcher remains fail-closed; no SQL/migration apply, production access/write, visibility change, deploy, publish, or backfill occurred.
 
+### Cycle 35 — transfer attachment dependency isolated
+
+- Dispatcher preflight found `department_transfer` requires `secondary_certificate`, while the reviewed private attachment runtime currently supports excused absence only.
+- Corrected the activation gate to `BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME`; payment policy remains `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION`.
+- Focused tests PASS 59/59, TypeScript PASS, and diff-check PASS; commit `8f41400` is pushed.
+- No insecure upload fallback or partial dispatcher was introduced. The secure attachment extension is now an explicit dependency before transfer runtime.
+- No SQL/migration apply, production access/write, visibility change, deploy, publish, or protected-record action occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.

@@ -20,6 +20,7 @@
 - Started the next dependency in `163ce95`: internal-only trusted-reference validators for period, enrollment and target program/department. Four focused tests and TypeScript pass; independent review remains pending.
 - Review held the validator draft for three inactive-parent gaps. `7201ece` closed them; final review PASS with zero findings, and `17ffb42` pins checksum `52936640...44897c`.
 - Completed the excused-absence detail/RPC-write boundary in `821e959` after closing trigger and legacy direct-write bypass findings; final review PASS and checksum pinned in `37bf4ae`.
+- Dispatcher preflight isolated the missing secure-transfer attachment dependency. Commit `8f41400` now fails transfer activation closed on both private attachments and external payment; 59 tests and TypeScript pass.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
