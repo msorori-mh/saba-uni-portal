@@ -12,7 +12,7 @@ The prior fee/chance decisions are resolved by the owner:
 
 Remaining gate is technical runtime readiness, not a business decision: reviewed migrations, safe-environment RPC ALLOW/DENY verification, and independent security gates before any visibility change.
 
-PR #137 supplied the initial source SQL contract; Draft PR #138 fixes a compile finding discovered locally. Neither authorizes production application. The current draft checksum is `83b4baa77b2501e44ab18d3fac62b5af69f58747ae9331dcbfa97319a046ef0c`. The next migration decision must specify the isolated target, exact ordered command sequence, rollback/partial-apply evidence procedure, and the complete positive/negative RPC test matrix.
+PR #137 supplied the initial source SQL contract; merged PR #138 fixes the compile finding discovered locally. Neither authorizes production application. The current draft checksum is `9473d07ec78ee1133ffb150a2cd8173bc27040388899a79ed0a4b935bfa1379a`. The next migration decision must specify the isolated target, exact ordered command sequence, rollback/partial-apply evidence procedure, and the complete positive/negative RPC test matrix.
 
 | Decision | Why it is blocked | Production action proposed | Expected production effect |
 |---|---|---|---|

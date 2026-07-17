@@ -1,5 +1,12 @@
 # Project Autopilot Log
 
+## 2026-07-17 — Cycle 17 compile fix merge
+
+- Independent review challenged legacy aliases and then confirmed they are the documented stored-code compatibility mappings for the two approved services.
+- Added an explicit closed-list contract and rejection assertions for unapproved grade/additional variants.
+- Review PASS (CRITICAL 0, HIGH 0), CI PASS; PR #138 merged as `5070681`.
+- Kept runtime and all production gates closed pending the remaining expanded local matrix.
+
 ## 2026-07-17 — Cycle 16 local runtime compile
 
 - Started the preinstalled Docker engine and reused an existing local Supabase CLI/bundled images without network installation or production linkage.

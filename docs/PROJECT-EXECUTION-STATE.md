@@ -2,6 +2,15 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
+## Cycle 17 — compile fix review and merge
+
+- Independent review initially HOLDed the historical stored aliases, then PASSed after verifying `transfer → department_transfer` and `extra_chance → final_chance` against the binding compatibility decision.
+- Final source/security review: CRITICAL 0, HIGH 0; contract tests 6/6 and CI PASS.
+- PR #138 merged as `50706816172b215025e7297d673937db32cad85c`.
+- Current draft checksum: `9473d07ec78ee1133ffb150a2cd8173bc27040388899a79ed0a4b935bfa1379a`.
+- Runtime/apply remains closed pending the expanded assignee, replay, stale-step and ambiguous-transition matrix on a full compatible schema.
+- No production access/write, SQL apply, visibility change, deploy or publish occurred.
+
 ## Cycle 16 — isolated PostgreSQL compile finding
 
 - Started local Docker/Supabase only; no link or remote target was used.
@@ -56,7 +65,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository: `msorori-mh/saba-uni-portal`
 - Original cycle baseline: `1905844289536de9040557d8317bbe1f09341193`
-- Current `origin/main`: `d67586de173d380abe7a5424f1d9dfe02ab2ab9a`
+- Current `origin/main`: `50706816172b215025e7297d673937db32cad85c`
 - PR #130 merge: `7a7e35f315a89b5376ed8eb4f2cb5c949510f7cb`
 - PR #129 merge: `be38c319aedd6d9a9257e30d0623e1b1b66b6bb7`
 - PR #131 Android heap merge: `d29949230b4f0c603f46dce6785f6e48e5b32d72`
