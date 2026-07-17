@@ -38,3 +38,18 @@
 - Started the security remediation only after fix2 released ownership of the
   overlapping `student-affairs.functions.ts` file.
 - No cleanup, discard, push, PR, migration/SQL apply or production action.
+
+## 2026-07-17 — Cycle 4 fix2 independent review
+
+- Independent review of `d7c3d6a` returned HOLD.
+- HIGH: activation gates are defined but not enforced by the real UI/server
+  submit path, so undecided fee/chance services are not fail-closed.
+- HIGH: reference options are loaded for UI use but server submit does not prove
+  ownership or validate academic-year/semester relationships.
+- MEDIUM: canonical-to-historical stored request code mapping is not wired into
+  the runtime payload builder.
+- Review verification passed: 321/321 student-request tests, TypeScript and
+  `git diff --check`; the gaps are missing integration enforcement.
+- fix2 remediation waits only for the security path to release exclusive
+  ownership of the overlapping server file.
+- Production impact: none.

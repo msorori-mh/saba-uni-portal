@@ -17,7 +17,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 | Worktree / branch | HEAD | State | Owner / dependency | Next gate |
 |---|---|---|---|---|
 | `saba-uni-portal-autopilot` / `chore/portal-autopilot-orchestrator` | `1905844` | ACTIVE | leader state files | docs verification and local state-only commit |
-| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `d7c3d6a` | REVIEW, clean | independent reviewer | review commit; no push/PR before PASS |
+| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `d7c3d6a` | HOLD_REVIEW_FINDINGS, clean | fix2 owner after security ownership release | fix two HIGH and one MEDIUM, rerun gates and review |
 | `saba-uni-portal-secure-attachments-review-b1` / `review/student-request-secure-attachments-source-01` | `200c018` | COMPLETE review / HOLD source | read-only security reviewer | fix all HIGH findings, then second independent review |
 | `saba-uni-portal-secure-attachments-fix-b1` / `fix/student-request-secure-attachments-security-findings-01` | `9ba31d9` | ACTIVE, SECURITY_FIX_REQUIRED | security fix owner | isolated source fixes, gates, report, local commit, second review |
 | `saba-uni-portal-agent-b1-01` / `feat/request-b1-suspension-absence` | `1905844` | HOLD, owned report artifact | B1-01 owner; waits for shared foundation | resume only after shared foundation PASS |
@@ -49,8 +49,10 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository/worktree/PR baseline inventory: complete.
 - Governance state setup: active.
-- Shared-foundation fix2 implementation: complete at `d7c3d6a`; independent
-  review active. Gates passed: 321/321 tests, typecheck, build and diff-check.
+- Shared-foundation fix2 implementation committed at `d7c3d6a`; independent
+  review returned HOLD despite 321/321 tests, typecheck and diff-check passing.
+  Two HIGH findings require server-side activation/reference validation and one
+  MEDIUM requires wiring the historical storage-code mapping.
 - Secure-attachment HIGH remediation: active priority B in an isolated worktree.
 - B1-01/B1-02 integration: blocked on shared foundation.
 - Realistic overall completion: not yet measurable as runtime-ready; source work
