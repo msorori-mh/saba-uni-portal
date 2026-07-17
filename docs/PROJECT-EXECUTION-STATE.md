@@ -49,6 +49,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Focused tests PASS 15/15; full student-request suite PASS 443/443; TypeScript and diff-check PASS. Commit `814b558` is pushed.
 - The service remains free and runtime remains closed pending 05A/05B; no SQL/migration apply or production action occurred.
 
+### Cycle 28 — excused-absence vocabulary draft 05A
+
+- Added source-only `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql` with exact catalog preflight and transaction bounds.
+- The draft admits canonical new values while retaining historical `family`/`emergency` values without mapping, rewrite, or backfill.
+- It does not activate the service or install the dispatcher and contains no financial fields.
+- Focused tests PASS 9/9, TypeScript PASS, and diff-check PASS; commit `278ab7c` is pushed pending independent review and later full gates.
+- No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
