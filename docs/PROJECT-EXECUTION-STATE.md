@@ -26,6 +26,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Generated `routeTree.gen.ts` had no normalized diff after the build and the worktree is clean.
 - No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
 
+### Cycle 25 — schema-contract preflight tests
+
+- Re-ran build with an extended transport window: PASS in 60.5 seconds; the earlier timeout was environmental, not a source failure.
+- Added catalog-backed readiness tests for transfer, excused absence, final chance, and the no-financial-ledger invariant in commit `27d61f6`.
+- Focused readiness tests PASS 4/4; full student-request suite PASS 442/442; TypeScript and diff-check PASS.
+- Excused absence remains fail-closed because source values `family_emergency`/`official` do not match the applied historical check values `family`/`emergency`; no mapping was invented and no history was rewritten.
+- No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
