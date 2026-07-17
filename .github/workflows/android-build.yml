@@ -81,6 +81,9 @@ jobs:
           test -f android/gradlew || (echo "gradlew missing after cap add" && exit 1)
           ls -la android/gradlew
 
+      - name: Ensure Capacitor Android assets directory
+        run: mkdir -p android/app/src/main/assets
+
       - name: Capacitor sync
         run: ./node_modules/.bin/cap sync android
 
