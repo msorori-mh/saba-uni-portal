@@ -28,15 +28,17 @@
 - Production build (`bun run build`): PASS (existing non-blocking bundler/chunk warnings only).
 - `git diff --check`: PASS.
 - Independent source/security review: PASS; CRITICAL 0, HIGH 0.
-- SHA-256: `674fcbb319f0399015b76a5685a8125d13f9b465b123de8cc40fc35de4388aa5`.
+- SHA-256: `9473d07ec78ee1133ffb150a2cd8173bc27040388899a79ed0a4b935bfa1379a`.
+- PostgreSQL 17 / Supabase image isolated compile: PASS after replacing an invalid composite `%ROWTYPE` multi-item `INTO` with a locked row load followed by a separate context lookup.
+- Isolated RPC matrix: PASS for exact assigned actor, wrong-actor denial, non-confirmed no-transition behavior, confirmed transition, confirmer/time persistence and audit events.
 - Exactly one `payment_confirmed` transition is required; ambiguity fails closed.
 - The request remains `under_review` on this non-terminal transition, matching the generic workflow executor; only the active runtime step changes.
 
 ## Pre-apply gates still required
 
-- Compile the SQL in an isolated, non-production database that matches the target schema.
-- Run the direct RPC authorization matrix: the exact assigned finance officer must pass; every other role and user must fail.
-- Verify positive, negative, replay, stale-step and ambiguous-transition behavior transactionally.
+- Compile against the full isolated project schema after repairing the unrelated historical baseline fixture failure.
+- Extend the direct RPC matrix from the verified assigned-user/wrong-user cases to staff, faculty and position direct-assignee variants.
+- Verify replay, stale-step and ambiguous-transition behavior transactionally.
 - Recalculate and approve the SQL checksum immediately before any separately authorized apply sequence.
 
 ## Production impact

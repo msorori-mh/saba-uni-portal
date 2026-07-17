@@ -42,7 +42,9 @@ describe("external payment confirmation migration draft", () => {
     expect(sql).toContain("AND t.action_result = 'payment_confirmed'");
     expect(sql).toContain("NEXT_PAYMENT_WORKFLOW_STEP_NOT_READY");
     expect(sql).toContain("EXACTLY_ONE_PAYMENT_CONFIRMED_TRANSITION_REQUIRED");
-    expect(sql).toContain("SELECT s, r.request_type, u.code, pr.code");
+    expect(sql).toContain("SELECT s.* INTO v_step");
+    expect(sql).toContain("SELECT r.request_type, u.code, pr.code");
+    expect(sql).toContain("PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND");
     expect(sql).not.toContain("SELECT s.*, r.request_type");
     expect(sql).not.toMatch(/UPDATE\s+public\.student_requests/i);
   });
@@ -58,5 +60,13 @@ describe("external payment confirmation migration draft", () => {
     ]) {
       expect(sql).not.toContain(protectedValue);
     }
+  });
+
+  it("limits stored request codes to the two approved canonical services", () => {
+    expect(sql).toContain("historical stored-code aliases for the two");
+    expect(sql).toContain("'department_transfer','transfer','final_chance','extra_chance'");
+    expect(sql).not.toContain("'grade_recovery'");
+    expect(sql).not.toContain("'additional_chance'");
+    expect(sql).not.toContain("'additional_exam'");
   });
 });
