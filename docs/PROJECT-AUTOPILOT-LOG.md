@@ -178,5 +178,5 @@
 - Reworked the design after review to reuse workflow step/event fields instead of creating a redundant financial confirmation table.
 - Closed review findings for composite row assignment and ambiguous transitions; final independent decision: PASS, CRITICAL 0, HIGH 0.
 - Validation passed: TypeScript, 360/360 student-request tests, production build and `git diff --check`.
-- Committed as `18f00ea4231a0c57f1fa593e8d68311d755a3ada`, pushed the isolated branch and opened Draft PR #137; Web CI is running.
+- Committed as `18f00ea4231a0c57f1fa593e8d68311d755a3ada`; PR #137 passed Web CI and merged as `d67586de173d380abe7a5424f1d9dfe02ab2ab9a`.
 - Did not connect to Supabase, apply SQL/migrations, change `student_visible`, deploy, publish or write production data.

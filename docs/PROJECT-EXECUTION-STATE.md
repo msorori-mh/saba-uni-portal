@@ -6,7 +6,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Isolated branch/worktree: `codex/external-payment-runtime-draft` / `C:\projects\saba-uni-portal-payment-runtime-draft`.
 - Source-only draft commit: `18f00ea4231a0c57f1fa593e8d68311d755a3ada`.
-- Draft PR #137 is open; Web CI is in progress.
+- PR #137 passed Web CI and merged as `d67586de173d380abe7a5424f1d9dfe02ab2ab9a`.
 - Draft RPC records confirmation through existing workflow step/event fields, requires exactly one direct finance assignee, and contains no financial ledger fields or bypass.
 - Gates passed locally: TypeScript, 360/360 student-request tests, build, diff-check, and independent source/security review (CRITICAL 0, HIGH 0).
 - SQL remains under `docs/migration-drafts`; it was not copied to `supabase/migrations` or applied.
@@ -53,7 +53,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 | `saba-uni-portal-agent-b1-01` / `feat/request-b1-suspension-absence` | `aca8179` | COMPLETE, PR #133 MERGED | completed source | runtime attachment/RPC verification remains pending |
 | `saba-uni-portal-agent-b1-02` / `feat/request-b1-transfer-final-chance` | `16c86f8` | SUPERSEDED BY PR #136 | fee/chance decisions resolved | reviewed runtime migration and safe RPC matrix |
 | `saba-uni-portal-payment-policy` / `codex/external-university-payment-confirmation` | `211f692` | COMPLETE, PR #136 MERGED | payment/final-chance policy source | runtime remains fail-closed |
-| `saba-uni-portal-payment-runtime-draft` / `codex/external-payment-runtime-draft` | `18f00ea` | DRAFT PR #137, CI IN PROGRESS | executable source-only SQL/RPC contract | isolated DB compile and RPC authorization matrix |
+| `saba-uni-portal-payment-runtime-draft` / `codex/external-payment-runtime-draft` | `18f00ea` | COMPLETE, PR #137 MERGED | executable source-only SQL/RPC contract | isolated DB compile and RPC authorization matrix |
 | `saba-uni-portal-agent-b1-03` / `feat/request-b1-file-withdrawal` | `785c6f9` | COMPLETE, PR #134 MERGED | completed source | later reviewed migration/RPC gates |
 | `saba-uni-portal-shared-foundation-b1` / `feat/request-b1-shared-foundation-source-01` | `cde27fc` | SOURCE PASS, superseded by fixes | upstream of `9ba31d9` | remediation and review |
 
