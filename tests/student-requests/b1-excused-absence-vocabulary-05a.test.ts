@@ -26,6 +26,26 @@ describe("B1 excused absence vocabulary 05A draft", () => {
     expect(sql).not.toMatch(/CASE\s+reason_type|family_emergency\s*(?:=>|->)|official\s*(?:=>|->)/i);
   });
 
+  it("rejects new historical values while allowing untouched historical rows", () => {
+    expect(sql).toContain("TG_OP = 'INSERT' OR NEW.reason_type IS DISTINCT FROM OLD.reason_type");
+    expect(sql).toContain("NEW.reason_type NOT IN ('medical','family_emergency','official','other')");
+    expect(sql).toContain("CANONICAL_ABSENCE_REASON_REQUIRED");
+    expect(sql).toContain("BEFORE INSERT OR UPDATE OF reason_type");
+    expect(sql).toContain("REVOKE ALL ON FUNCTION public.enforce_canonical_absence_reason_write()");
+  });
+
+  it("recognizes the exact target constraint and trigger state on rerun", () => {
+    expect(sql).toContain("'family_emergency''::text,''official''::text");
+    expect(sql).toContain("CANONICAL_ABSENCE_REASON_TRIGGER_MISMATCH");
+    expect(sql).toContain("tgfoid='public.enforce_canonical_absence_reason_write()'::regprocedure");
+    expect(sql).toContain("tgtype=23");
+    expect(sql).toContain("tgqual IS NULL");
+    expect(sql).toContain("tgattr::smallint[] = ARRAY[");
+    expect(sql).toContain("a.attname='reason_type'");
+    expect(sql).toContain("c.convalidated");
+    expect(sql).toContain("ELSIF NOT v_validated THEN");
+  });
+
   it("does not activate services or introduce financial data", () => {
     expect(sql).not.toMatch(/student_visible|is_active\s*=|fee_type|amount|currency|invoice|gateway|balance/i);
   });
