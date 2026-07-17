@@ -1,50 +1,36 @@
 # Contract — `final_chance` (فرصة أخيرة)
 
-Source: `request_types.code='final_chance'`. Detail table **exists**: `extra_chance_details (request_id, academic_year_id, semester_id, reason, chance_type, notes, chance_applied_at)`. Validate RPC exists: `validate_extra_chance_request`.
+الخدمة هي طلب السماح للطالب بدخول اختبار مقرر محدد كفرصة نهائية وفق اللوائح والاعتمادات الأكاديمية. الكود المعياري هو `final_chance`، ويظل `extra_chance` alias تخزينياً تاريخياً عند الحاجة حتى تطبيق migration توافق مستقلة.
 
-## Form fields → binding
-| Form field | Column |
-|---|---|
-| `academic_year_id` | `extra_chance_details.academic_year_id` |
-| `semester_id` | `extra_chance_details.semester_id` |
-| `chance_type` (select: `additional_exam`, `grade_recovery`) | `extra_chance_details.chance_type` |
-| `reason` (textarea, required) | `extra_chance_details.reason` |
-| `notes` (textarea) | `extra_chance_details.notes` |
+## البيانات
 
-## Attachments
-None mandatory (supporting docs optional).
+- لا تعرض الواجهة `chance_type` للطالب.
+- كل كتابة جديدة إلى `extra_chance_details.chance_type` تستخدم `final_chance` فقط.
+- `additional_exam` و`grade_recovery` و`additional_chance` تقرأ وتطبّع للعرض التاريخي فقط، ولا تنشأ بها سجلات جديدة.
+- unknown values ترفض fail-closed.
+- السنة والفصل والمقرر والسبب يجب التحقق منها خادمياً قبل الحفظ.
 
-## Eligibility
-- Student `status='active'`.
-- Prior recorded failure or specific case matching `validate_extra_chance_request` rules.
-- Not already granted a final chance for the same academic period.
+## الرسوم
 
-## Classification
-- **Type:** exceptional academic decision, no PDF.
-- **Fee:** pending approval — likely `exam(30)` or dedicated new fee (report §8 row 1).
-- **Outcome:** enables extra exam sitting; recorded in `extra_chance_details.chance_applied_at`.
+السياسة: `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION`.
 
-## Operational steps
+- يدفع الطالب في النظام الأساسي للجامعة.
+- لا تسجل البوابة `fee_type.code` أو مبلغاً أو عملة أو فاتورة أو وسيلة دفع أو مرجع معاملة أو رصيداً.
+- يتوقف الطلب عند `payment_confirmation`.
+- موظف المالية المعيّن مباشرة للخطوة فقط يؤكد الاستلام، مع وقت التأكيد وملاحظة اختيارية وaudit event.
+
+## دورة العمل
+
 | # | step_key | unit | role | action_type |
 |---|---|---|---|---|
 | 1 | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` |
 | 2 | `manager_review` | `student_affairs` | `student_affairs_manager` | `approve` |
 | 3 | `dean_decision` | `dean` | `dean` | `approve` |
-| 4 | `fee_assessment` | `finance` | `revenue_finance_officer` | `assess_fee` (skipped if fee=0) |
-| 5 | `payment_confirmation` | `finance` | `revenue_finance_officer` | `confirm_payment` (skipped if fee=0) |
-| 6 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` |
+| 4 | `payment_confirmation` | `finance` | `revenue_finance_officer` | `confirm_payment` |
+| 5 | `registrar_apply` | `registrar` | `registrar_general` | `apply_decision` |
 
-## Transitions
-Return/reject at steps 1, 2, 3. Fee steps guard-skipped when `student_fees.amount=0`.
+لا يوجد `fee_assessment` ولا bypass للأدمن أو المسجل أو العميد. لا ينتقل الطلب إلى `registrar_apply` قبل `payment_confirmed`.
 
-## Completion condition
-`extra_chance_details.chance_applied_at IS NOT NULL` AND request completed.
+## حالة runtime
 
-## Final notification
-«تم منحك فرصة إضافية للفصل … — نوع الفرصة: …».
-
-## Bypass check
-Dean step uses `is_current_user_dean_for_student` for step ownership only — not as a shortcut to bypass earlier steps.
-
-## Blockers
-Fee decision.
+المصدر جاهز للسياسة، لكن runtime يبقى مغلقاً حتى تطبيق migration جديدة مراجعة واختبار مصفوفة RPC الإيجابية والسلبية في بيئة آمنة.

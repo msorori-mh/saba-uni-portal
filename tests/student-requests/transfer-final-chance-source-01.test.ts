@@ -49,17 +49,17 @@ describe("B1-02 transfer and final-chance source contract", () => {
     }
   });
 
-  it("keeps both services fail-closed pending explicit fee and academic decisions", () => {
+  it("records the approved external university confirmation policy", () => {
     expect(getB102ActivationDecision("department_transfer")).toEqual({
-      status: "NEEDS_USER_DECISION",
-      reason: "NEEDS_USER_DECISION_FOR_APPROVED_FEE_CONFIGURATION",
-      activationBlockedReason: "BLOCKED_UNTIL_FEE_TYPE_CODE_APPROVED",
+      status: "SOURCE_POLICY_APPROVED",
+      policy: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      activationBlockedReason: "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
       runtimeAvailable: false,
     });
     expect(getB102ActivationDecision("final_chance")).toEqual({
-      status: "NEEDS_USER_DECISION",
-      reason: "NEEDS_USER_DECISION_FOR_FEE_AND_ACADEMIC_MAPPING",
-      activationBlockedReason: "NEEDS_USER_DECISION_FOR_ACADEMIC_MAPPING",
+      status: "SOURCE_POLICY_APPROVED",
+      policy: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      activationBlockedReason: "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
       runtimeAvailable: false,
     });
   });

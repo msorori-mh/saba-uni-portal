@@ -8,10 +8,7 @@ import {
   type StepActor,
 } from "./request-service-adapter";
 
-export const B1_02_DECISION_REQUIRED = {
-  department_transfer: "NEEDS_USER_DECISION_FOR_APPROVED_FEE_CONFIGURATION",
-  final_chance: "NEEDS_USER_DECISION_FOR_FEE_AND_ACADEMIC_MAPPING",
-} as const;
+export const B1_02_POLICY = "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION" as const;
 
 export type TransferDepartmentAssignments = {
   sourceDepartmentId: string | null;
@@ -75,8 +72,8 @@ export function canActOnTransferOrFinalChanceStep(input: {
 export function getB102ActivationDecision(service: "department_transfer" | "final_chance") {
   const adapter = B1_SERVICE_ADAPTERS[service];
   return {
-    status: "NEEDS_USER_DECISION" as const,
-    reason: B1_02_DECISION_REQUIRED[service],
+    status: "SOURCE_POLICY_APPROVED" as const,
+    policy: B1_02_POLICY,
     activationBlockedReason: adapter.activationBlockedReason,
     runtimeAvailable: adapter.submit.runtimeAvailable,
   };
