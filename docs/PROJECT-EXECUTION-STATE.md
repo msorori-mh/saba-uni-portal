@@ -42,6 +42,13 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Focused tests PASS 54/54, TypeScript PASS, and diff-check PASS; commit `a0b5357` is pushed on the isolated item-6 branch.
 - No SQL/migration apply, production access/write, visibility change, deploy, publish, or historical backfill occurred.
 
+### Cycle 27 — suspension form/validator parity
+
+- Fixed an impossible-submit gap: `enrollment_suspension` validation required `suspension_duration_type`, but the canonical form did not expose it.
+- Added the schema-approved choices `one_semester` and `full_year` plus a regression test covering complete form-to-adapter parity.
+- Focused tests PASS 15/15; full student-request suite PASS 443/443; TypeScript and diff-check PASS. Commit `814b558` is pushed.
+- The service remains free and runtime remains closed pending 05A/05B; no SQL/migration apply or production action occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.

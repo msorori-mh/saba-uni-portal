@@ -12,6 +12,7 @@
 - Completed the transfer detail field contract in `f1b626d` by requiring and mapping `transfer_reason`; 438 tests and TypeScript pass. Build transport timeout remains isolated as a pre-PR gate.
 - Extended build PASS closed the transport-only gate. Commit `27d61f6` pins applied schema contracts with 4 focused and 442 full tests passing; excused-absence vocabulary remains explicitly fail-closed without an invented mapping.
 - Completed the missing final-chance form and persistence contract in `a0b5357`: trusted year/semester, required reason, final-exam-only value, and external payment policy. Focused 54 tests and TypeScript pass.
+- Fixed suspension form/validator parity in `814b558` by exposing the required schema-approved duration values; 443 full tests and TypeScript pass.
 
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
