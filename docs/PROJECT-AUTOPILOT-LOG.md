@@ -35,6 +35,23 @@
 - Released the overlapping file and resumed fix2 review remediation.
 - No SQL/migration apply, Supabase connection, production write, deploy or publish.
 
+## 2026-07-17 — Cycle 6 review remediation
+
+- Security review 2 initially held `24ba86b` because the legacy submit RPC was
+  still callable and attachment state checks lacked row locks.
+- Security owner closed the bypass and TOCTOU in local commit `e162edbbb45ab924b591c7bc7dad930d2729cecf`:
+  legacy public roles are revoked, all request types route through the secure
+  boundary, and request/exact attachment rows are locked through submission.
+- Security review 2 then passed the source. Verification: 321/321 tests,
+  TypeScript and `git diff --check`; runtime flag remains closed.
+- fix2 owner connected activation gates to UI/server submit, added trusted
+  server validation for academic references/enrollment ownership, and wired the
+  historical storage-code mapping without inventing fee/chance semantics.
+- fix2 follow-up commit: `a3706b24f0fb77cb9501656c1af990eaedf4bbe9`.
+- fix2 gates passed: 322/322 tests, TypeScript, build and `git diff --check`;
+  independent review 2 started.
+- No push, PR, migration/SQL apply or production action.
+
 ## 2026-07-17 — Cycle 3 fix2 completion and security start
 
 - Verified the six owned fix2 files were within the authorized shared-foundation
