@@ -2,12 +2,18 @@
 
 Updated: 2026-07-17 (Asia/Riyadh)
 
-## Functional decisions requiring explicit owner approval
+## Resolved functional decisions
+
+The prior fee/chance decisions are resolved by the owner:
+
+- `department_transfer` and `final_chance`: `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION`.
+- No `fee_type.code`, amount, currency, invoice, gateway transaction, payment reference, or internal balance.
+- New `chance_type` writes: `final_chance` only; historical values are read compatibility only.
+
+Remaining gate is technical runtime readiness, not a business decision: reviewed migrations, safe-environment RPC ALLOW/DENY verification, and independent security gates before any visibility change.
 
 | Decision | Why it is blocked | Production action proposed | Expected production effect |
 |---|---|---|---|
-| Approve whether `transfer_between_departments` and `final_chance` are free or require external manual payment confirmation; if required, provide the authoritative existing `fee_type.code` | Inventing or approving a fee code, amount or currency is prohibited | No command; provide the authoritative business value first. Any later migration/apply needs separate approval | Would allow the currently fail-closed services to pass their financial activation gate |
-| Approve the authoritative persisted `chance_type` mapping for `final_chance` | The repository must not invent academic semantics | No command; provide the authoritative academic mapping first. Any later migration/apply needs separate approval | Would allow final-chance details to be persisted with an approved classification |
 | Apply future reviewed B1/attachment migrations | All SQL and migration application is production-impacting | Proposed later: an exact reviewed Supabase migration command, not yet selected or executed | Would create or alter runtime database/storage contracts |
 
 ## Safe-environment verification prerequisite

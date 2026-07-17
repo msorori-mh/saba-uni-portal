@@ -1,5 +1,14 @@
 # Project Autopilot Log
 
+## 2026-07-17 — Cycle 12 payment policy source
+
+- Normalized and committed non-blocking governance as `64c45dc`.
+- Created isolated worktree/branch from `origin/main@2dbd299`.
+- Implemented external university payment confirmation source contracts and final-chance policy in `211f692`.
+- Independent review initially found two HIGH fail-open paths; both were closed by a runtime-specific activation block and removal/disablement of legacy UI submit actions.
+- Re-review PASS with no HIGH/CRITICAL. Pushed the branch and opened Draft PR #136.
+- Web CI is in progress. No runtime migration, production action, visibility change, deploy, or publish occurred.
+
 ## 2026-07-17 — Cycle 1 inventory
 
 - Fetched origin and confirmed `main == origin/main` at `1905844`.
