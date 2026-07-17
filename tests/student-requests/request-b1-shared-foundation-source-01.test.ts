@@ -10,6 +10,7 @@ import {
   CHANCE_TYPE_ACTIVATION_BLOCK,
   CHANCE_TYPE_VALUES,
   canActOnB1Step,
+  canActOnDepartmentHeadStep,
   canSubmitWithReferenceData,
   getRequestServiceAdapter,
   isRealAttachmentReference,
@@ -17,11 +18,14 @@ import {
   parseChanceTypeCompatibility,
   resolveDirectDepartmentHead,
   roundTripChanceType,
+  validateB1ServiceActivation,
 } from "../../src/lib/student-requests/request-service-adapter";
 import {
   getDbCodesForRequestTypeFilter,
+  getStoredWriteCodeForRequestType,
   getStudentRequestTypeDefinition,
   normalizeStudentRequestTypeCode,
+  requireCanonicalStudentRequestTypeCode,
 } from "../../src/lib/student-requests/request-type-registry";
 import { getCanonicalWorkflowPreview } from "../../src/lib/student-requests/request-workflow-preview-registry";
 import { buildStudentRequestDetailPersistencePlan } from "../../src/lib/student-requests/student-request-submit-contract";
@@ -40,6 +44,12 @@ describe("B1 canonical and stored-code compatibility", () => {
   it("expands canonical filters to stored legacy codes", () => {
     expect(new Set(getDbCodesForRequestTypeFilter("department_transfer"))).toEqual(new Set(["department_transfer", "transfer"]));
     expect(new Set(getDbCodesForRequestTypeFilter("final_chance"))).toEqual(new Set(["final_chance", "extra_chance"]));
+  });
+  it("uses explicit historical write codes and rejects unknown writes", () => {
+    expect(getStoredWriteCodeForRequestType("final_chance")).toBe("extra_chance");
+    expect(getStoredWriteCodeForRequestType("department_transfer")).toBe("transfer");
+    expect(requireCanonicalStudentRequestTypeCode("extra_chance")).toBe("final_chance");
+    expect(() => getStoredWriteCodeForRequestType("unknown_b1")).toThrow("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
   });
   it("keeps enrollment_certificate identity and policy unchanged", () => {
     const def = getStudentRequestTypeDefinition("enrollment_certificate");
@@ -105,6 +115,58 @@ describe("B1 workflows and payment policy", () => {
       expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBeTruthy();
     }
   });
+  it("wires authenticated reference data through the new-request route into the dynamic form", () => {
+    const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    const form = readFileSync(join(process.cwd(), "src", "components", "student-requests", "DynamicStudentRequestForm.tsx"), "utf8");
+    expect(server).toContain("getStudentRequestFormReferenceData");
+    expect(server).toContain('context.supabase.from("academic_years")');
+    expect(server).toContain('context.supabase.from("semesters")');
+    expect(server).toContain('context.supabase.from("student_enrollments")');
+    expect(route).toContain("referenceData={referenceData}");
+    expect(route).toContain("canSubmitWithReferenceData");
+    expect(route).toContain('target_semester: ""');
+    expect(form).toContain('referenceState?.status === "ready"');
+    expect(form).not.toContain("placeholder-id");
+  });
+  it("blocks paid activation without an approved fee code and never blocks free services", () => {
+    for (const code of ["department_transfer", "final_chance"] as const) {
+      const blockedReason = B1_SERVICE_ADAPTERS[code].activationBlockedReason!;
+      expect(validateB1ServiceActivation({ requestTypeCode: code })).toEqual({
+        ok: false, error: blockedReason, activationError: "SERVICE_ACTIVATION_BLOCKED",
+      });
+      expect(validateB1ServiceActivation({ requestTypeCode: code, feeTypeCode: "approved-existing-code" })).toEqual({
+        ok: false, error: blockedReason, activationError: "SERVICE_ACTIVATION_BLOCKED",
+      });
+    }
+    expect(validateB1ServiceActivation({ requestTypeCode: "enrollment_suspension" })).toEqual({ ok: true });
+    expect(validateB1ServiceActivation({ requestTypeCode: "excused_absence" })).toEqual({
+      ok: false,
+      error: "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME",
+      activationError: "SERVICE_ACTIVATION_BLOCKED",
+    });
+    expect(() => validateB1ServiceActivation({ requestTypeCode: "unknown" })).toThrow("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
+  });
+  it("connects activation, trusted reference validation, and stored codes to the submit boundary", () => {
+    const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    expect(server).toContain("validateB1ServiceActivation({ requestTypeCode: validation.normalized.requestTypeCode })");
+    expect(server).toContain("assertTrustedB1FormReferences");
+    expect(server).toContain('.eq("student_profile_id", input.profileId)');
+    expect(server).toContain('.eq("enrollment_status", "enrolled")');
+    expect(server).toContain('.eq("academic_year_id", academicYear)');
+    expect(server).toContain("getStoredWriteCodeForRequestType(validation.normalized.requestTypeCode)");
+    expect(route).toContain("serviceActivation.ok &&");
+    expect(route).toContain("if (!serviceActivation.ok)");
+  });
+  it("keeps the general submit path open for non-B1 enrollment_certificate", () => {
+    const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    expect(getRequestServiceAdapter("enrollment_certificate")).toBeUndefined();
+    expect(server).toContain("if (b1Adapter) {");
+    expect(server).toContain("if (b1Adapter) payload.requestType = getStoredWriteCodeForRequestType");
+    expect(route).toContain(": { ok: true as const };");
+  });
   it("keeps free services free and document-free in their previews", () => {
     for (const code of ["enrollment_suspension", "excused_absence", "file_withdrawal"] as const) {
       expect(B1_FEE_POLICIES[code]).toBe("FREE_NO_PAYMENT");
@@ -144,6 +206,27 @@ describe("B1 direct assignment and authorization source contract", () => {
     expect(resolveDirectDepartmentHead(null, [head])).toEqual({ ok: false, reason: "missing_department_id" });
     expect(resolveDirectDepartmentHead("target", [head])).toEqual({ ok: false, reason: "department_head_not_found" });
     expect(resolveDirectDepartmentHead("source", [head, { ...head, facultyProfileId: "other" }])).toEqual({ ok: false, reason: "ambiguous_department_head" });
+  });
+  it("isolates source and target department heads by direct assignment and department scope", () => {
+    const sourceStep = B1_WORKFLOWS.department_transfer.find((s) => s.key === "source_department_head_approval")!;
+    const targetStep = B1_WORKFLOWS.department_transfer.find((s) => s.key === "target_department_head_approval")!;
+    const base = { assignedFacultyProfileId: "source-head", actor: { facultyProfileId: "source-head", unit: "department", role: "department_head", departmentId: "source" }, action: "approve", predecessorComplete: true };
+    expect(canActOnDepartmentHeadStep({ ...base, step: sourceStep, requiredDepartmentId: "source" })).toBe(true);
+    expect(canActOnDepartmentHeadStep({ ...base, step: targetStep, requiredDepartmentId: "target" })).toBe(false);
+    expect(canActOnDepartmentHeadStep({ ...base, assignedFacultyProfileId: "target-head", actor: { ...base.actor, facultyProfileId: "target-head", departmentId: "target" }, step: targetStep, requiredDepartmentId: "target" })).toBe(true);
+    expect(canActOnDepartmentHeadStep({ ...base, step: sourceStep, requiredDepartmentId: null })).toBe(false);
+    expect(canActOnDepartmentHeadStep({ ...base, actor: { ...base.actor, facultyProfileId: "third-head", departmentId: "third" }, step: sourceStep, requiredDepartmentId: "source" })).toBe(false);
+    for (const role of ["admin", "registrar_general", "dean"]) {
+      expect(canActOnDepartmentHeadStep({ ...base, actor: { ...base.actor, role }, step: sourceStep, requiredDepartmentId: "source" })).toBe(false);
+    }
+  });
+
+  it("keeps excused absence blocked on secure attachments and rejects unknown reason types", () => {
+    const adapter = B1_SERVICE_ADAPTERS.excused_absence;
+    expect(adapter.activationBlockedReason).toBe("BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME");
+    const valid = { course_section_id: "section", absence_date: "2026-07-17", reason_type: "medical", absence_reason_detail: "detail" };
+    expect(adapter.validate(valid).valid).toBe(true);
+    expect(adapter.validate({ ...valid, reason_type: "placeholder" })).toMatchObject({ valid: false, errors: { reason_type: "unknown_reason_type" } });
   });
 });
 

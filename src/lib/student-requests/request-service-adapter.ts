@@ -10,6 +10,9 @@ export const B1_CANONICAL_CODES = [
 
 export type B1CanonicalCode = (typeof B1_CANONICAL_CODES)[number];
 export type B1FeePolicy = "FREE_NO_PAYMENT" | "PAID_EXTERNAL_MANUAL_CONFIRMATION";
+export const PAID_SERVICE_FEE_TYPE_CODE_REQUIRED = "PAID_SERVICE_FEE_TYPE_CODE_REQUIRED" as const;
+export const SERVICE_ACTIVATION_BLOCKED = "SERVICE_ACTIVATION_BLOCKED" as const;
+export const BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME = "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME" as const;
 export type B1Action = "review" | "approve" | "clear" | "apply_decision" | "archive" | "assess_fee" | "confirm_payment";
 export type B1Outcome = "reviewed" | "approved" | "cleared" | "applied" | "archived" | "fee_assessed" | "payment_confirmed";
 
@@ -66,6 +69,21 @@ export type RequestServiceAdapter = {
   feePolicy: B1FeePolicy;
   activationBlockedReason?: string;
 };
+
+export function validateB1ServiceActivation(input: {
+  requestTypeCode: string;
+  feeTypeCode?: string | null;
+}): { ok: true } | { ok: false; error: string; activationError: typeof SERVICE_ACTIVATION_BLOCKED } {
+  const adapter = getRequestServiceAdapter(input.requestTypeCode);
+  if (!adapter) throw new Error("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
+  if (adapter.activationBlockedReason) {
+    return { ok: false, error: adapter.activationBlockedReason, activationError: SERVICE_ACTIVATION_BLOCKED };
+  }
+  if (adapter.feePolicy === "PAID_EXTERNAL_MANUAL_CONFIRMATION" && !input.feeTypeCode?.trim()) {
+    return { ok: false, error: PAID_SERVICE_FEE_TYPE_CODE_REQUIRED, activationError: SERVICE_ACTIVATION_BLOCKED };
+  }
+  return { ok: true };
+}
 
 export function canSubmitWithReferenceData(
   requiredResolvers: readonly ReferenceResolverDefinition[],
@@ -172,6 +190,7 @@ export type StepActor = {
   facultyProfileId: string;
   unit: string;
   role: string;
+  departmentId?: string | null;
 };
 
 export type StepAuthorizationContext = {
@@ -189,6 +208,15 @@ export function canActOnB1Step(context: StepAuthorizationContext): boolean {
     && context.actor.unit === context.step.unit
     && context.actor.role === context.step.role
     && actionMatchesStep(context.step.action, context.action);
+}
+
+export function canActOnDepartmentHeadStep(context: StepAuthorizationContext & {
+  requiredDepartmentId: string | null | undefined;
+}): boolean {
+  return Boolean(context.requiredDepartmentId)
+    && context.step.role === "department_head"
+    && context.actor.departmentId === context.requiredDepartmentId
+    && canActOnB1Step(context);
 }
 
 export type DepartmentHeadCandidate = {
@@ -311,7 +339,13 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       { formField: "absence_reason_detail", detailField: "absence_reason_detail" },
       { formField: "excuse_documents", detailField: "excuse_documents" },
     ]),
-    requiredText(["course_section_id", "absence_date", "reason_type", "absence_reason_detail"]),
+    (input) => {
+      const base = requiredText(["course_section_id", "absence_date", "reason_type", "absence_reason_detail"])(input);
+      const allowedReasons = ["medical", "family_emergency", "official", "other"];
+      if (typeof input.reason_type === "string" && !allowedReasons.includes(input.reason_type)) base.errors.reason_type = "unknown_reason_type";
+      return { valid: Object.keys(base.errors).length === 0, errors: base.errors };
+    },
+    BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME,
   ),
   department_transfer: adapter(
     "department_transfer", ["department_transfer", "transfer"], "PAID_EXTERNAL_MANUAL_CONFIRMATION",

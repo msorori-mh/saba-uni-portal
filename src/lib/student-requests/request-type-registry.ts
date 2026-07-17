@@ -27,6 +27,11 @@ const LEGACY_ALIAS_TO_CANONICAL: Readonly<Record<string, string>> = {
   reenrollment: "enrollment_reinstatement",
 };
 
+const CANONICAL_TO_STORED_WRITE_CODE: Readonly<Record<string, string>> = {
+  final_chance: "extra_chance",
+  department_transfer: "transfer",
+};
+
 /** Approved canonical request types (spec scope). */
 export const CANONICAL_STUDENT_REQUEST_TYPES: readonly StudentRequestTypeDefinition[] = [
   {
@@ -155,6 +160,21 @@ export function normalizeStudentRequestTypeCode(code: string | null | undefined)
   const trimmed = (code ?? "").trim();
   if (!trimmed) return "";
   return LEGACY_ALIAS_TO_CANONICAL[trimmed] ?? trimmed;
+}
+
+/** Strict canonicalization for write/configuration boundaries. Unknown codes fail closed. */
+export function requireCanonicalStudentRequestTypeCode(code: string | null | undefined): string {
+  const normalized = normalizeStudentRequestTypeCode(code);
+  if (!normalized || !DEFINITION_BY_CANONICAL.has(normalized)) {
+    throw new Error("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
+  }
+  return normalized;
+}
+
+/** Historical DB write code. The client never invents or selects this mapping. */
+export function getStoredWriteCodeForRequestType(code: string | null | undefined): string {
+  const canonical = requireCanonicalStudentRequestTypeCode(code);
+  return CANONICAL_TO_STORED_WRITE_CODE[canonical] ?? canonical;
 }
 
 export function isLegacyStudentRequestTypeAlias(code: string | null | undefined): boolean {
