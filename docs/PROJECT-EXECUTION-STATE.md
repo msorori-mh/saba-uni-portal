@@ -17,7 +17,7 @@ Updated: 2026-07-17 (Asia/Riyadh)
 | Worktree / branch | HEAD | State | Owner / dependency | Next gate |
 |---|---|---|---|---|
 | `saba-uni-portal-autopilot` / `chore/portal-autopilot-orchestrator` | `1905844` | ACTIVE | leader state files | docs verification and local state-only commit |
-| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `a3706b2` | REVIEW_2, clean | independent reviewer | confirm two HIGH and one MEDIUM are closed |
+| `saba-uni-portal-shared-foundation-fix2-b1` / `fix/request-b1-remaining-review-findings-01` | `a3706b2` | HOLD_NON_B1_REGRESSION | fix2 owner | scope B1 checks to adapters and prove non-B1 submit regression protection |
 | `saba-uni-portal-secure-attachments-review-b1` / `review/student-request-secure-attachments-source-01` | `200c018` | COMPLETE review / HOLD source | read-only security reviewer | fix all HIGH findings, then second independent review |
 | `saba-uni-portal-secure-attachments-fix-b1` / `fix/student-request-secure-attachments-security-findings-01` | `e162edb` | SOURCE_SECURITY_PASS, clean | completed source/security path | runtime SQL/RPC verification requires a safe non-production environment and later explicit apply approval |
 | `saba-uni-portal-agent-b1-01` / `feat/request-b1-suspension-absence` | `1905844` | HOLD, owned report artifact | B1-01 owner; waits for shared foundation | resume only after shared foundation PASS |
@@ -49,8 +49,8 @@ Updated: 2026-07-17 (Asia/Riyadh)
 
 - Repository/worktree/PR baseline inventory: complete.
 - Governance state setup: active.
-- Shared-foundation fix2 remediation committed at `a3706b2`; gates passed with
-  322/322 tests, typecheck, build and diff-check. Independent review 2 is active.
+- Shared-foundation review 2 confirmed the prior findings closed but found a
+  HIGH non-B1 submit regression. A narrowly scoped regression fix is active.
 - Secure-attachment source remediation completed at `e162edb`; independent
   security review 2 passed with 321/321 tests, typecheck and diff-check.
 - B1-01/B1-02 integration: blocked on shared foundation.

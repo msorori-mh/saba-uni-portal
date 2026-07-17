@@ -52,6 +52,17 @@
   independent review 2 started.
 - No push, PR, migration/SQL apply or production action.
 
+## 2026-07-17 — Cycle 7 fix2 review 2 regression
+
+- Review 2 confirmed activation, trusted-reference and storage-code findings
+  were closed for B1.
+- Review 2 returned HOLD for a new HIGH regression: B1 validation ran on the
+  generic submit path even when no B1 adapter existed, blocking non-B1 request
+  types including protected enrollment-certificate behavior.
+- Authorized a narrow fix only to scope checks behind adapter presence and add
+  a real non-B1 submit regression test; no protected entity redesign is allowed.
+- Production impact: none.
+
 ## 2026-07-17 — Cycle 3 fix2 completion and security start
 
 - Verified the six owned fix2 files were within the authorized shared-foundation
