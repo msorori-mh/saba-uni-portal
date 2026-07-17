@@ -172,3 +172,11 @@
 - fix2 remediation waits only for the security path to release exclusive
   ownership of the overlapping server file.
 - Production impact: none.
+## 2026-07-17 — Cycle 13 payment runtime draft
+
+- Created an isolated source-only runtime draft for `EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION`.
+- Reworked the design after review to reuse workflow step/event fields instead of creating a redundant financial confirmation table.
+- Closed review findings for composite row assignment and ambiguous transitions; final independent decision: PASS, CRITICAL 0, HIGH 0.
+- Validation passed: TypeScript, 360/360 student-request tests, production build and `git diff --check`.
+- Committed as `18f00ea4231a0c57f1fa593e8d68311d755a3ada`, pushed the isolated branch and opened Draft PR #137; Web CI is running.
+- Did not connect to Supabase, apply SQL/migrations, change `student_visible`, deploy, publish or write production data.
