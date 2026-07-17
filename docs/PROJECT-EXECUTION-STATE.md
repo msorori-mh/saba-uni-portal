@@ -34,6 +34,14 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Excused absence remains fail-closed because source values `family_emergency`/`official` do not match the applied historical check values `family`/`emergency`; no mapping was invented and no history was rewritten.
 - No SQL/migration apply, production access/write, visibility change, deploy, or publish occurred.
 
+### Cycle 26 — final chance request contract completed
+
+- Added the missing canonical `final_chance` form, explicitly limited to a final exam chance.
+- Added trusted academic-year and dependent-semester resolvers plus required reason persistence matching `extra_chance_details`.
+- New writes remain server-constrained to `chance_type='final_chance'`; payment remains external confirmation with no portal financial fields.
+- Focused tests PASS 54/54, TypeScript PASS, and diff-check PASS; commit `a0b5357` is pushed on the isolated item-6 branch.
+- No SQL/migration apply, production access/write, visibility change, deploy, publish, or historical backfill occurred.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
