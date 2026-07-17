@@ -7,15 +7,19 @@ const sql = readFileSync(join(process.cwd(), "docs", "migration-drafts", "REQUES
 describe("B1 trusted reference validators 05A", () => {
   it("binds semester to the selected academic year", () => {
     expect(sql).toContain("s.id=p_semester_id AND y.id=p_academic_year_id");
+    expect(sql).toContain("s.status='active' AND y.status='active'");
     expect(sql).toContain("B1_TRUSTED_ACADEMIC_PERIOD_REQUIRED");
   });
   it("requires the student's active course enrollment", () => {
     expect(sql).toContain("e.student_profile_id=p_student_profile_id");
     expect(sql).toContain("e.enrollment_status='enrolled' AND s.status='active'");
+    expect(sql).toContain("JOIN public.course_offerings o ON o.id=s.course_offering_id");
+    expect(sql).toContain("o.status='active'");
     expect(sql).toContain("B1_ACTIVE_COURSE_ENROLLMENT_REQUIRED");
   });
   it("binds an active target program to its exact department", () => {
-    expect(sql).toContain("p.id=p_program_id AND d.id=p_department_id AND p.is_active=true");
+    expect(sql).toContain("p.id=p_program_id AND d.id=p_department_id");
+    expect(sql).toContain("p.is_active=true AND d.is_active=true");
     expect(sql).toContain("B1_TARGET_PROGRAM_DEPARTMENT_REQUIRED");
   });
   it("is internal-only and has no writes, activation, or financial fields", () => {
