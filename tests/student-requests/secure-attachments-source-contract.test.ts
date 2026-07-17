@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   SECURE_ATTACHMENT_MAX_BYTES,
   buildSecureAttachmentObjectPath,
@@ -13,6 +14,8 @@ import {
 
 const ids = { studentProfileId: "11111111-1111-4111-8111-111111111111", studentRequestId: "22222222-2222-4222-8222-222222222222", attachmentId: "33333333-3333-4333-8333-333333333333" };
 const ref = { ...ids, fieldKey: "excuse_documents" as const, status: "attached" as const, mimeType: "application/pdf" as const, sizeBytes: 100, originalFileName: "excuse.pdf" };
+const draftSql = readFileSync(new URL("../../docs/migration-drafts/STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql", import.meta.url), "utf8");
+const submitContractSource = readFileSync(new URL("../../src/lib/student-requests/student-request-submit-contract.ts", import.meta.url), "utf8");
 
 describe("secure attachments source-contract — upload", () => {
   it("allows only owner draft excused_absence intent", () => expect(canCreateSecureAttachmentIntent({ owner: true, requestStatus: "draft", requestType: "excused_absence", fieldKey: "excuse_documents", currentCount: 0 })).toBeNull());
@@ -27,6 +30,42 @@ describe("secure attachments source-contract — upload", () => {
     expect(validateSecureAttachmentMetadata({fileName:"a.exe",mimeType:"application/octet-stream",sizeBytes:1,fieldKey:"excuse_documents"})).toBe("ATTACHMENT_MIME_NOT_ALLOWED");
     expect(validateSecureAttachmentMetadata({fileName:"a.pdf",mimeType:"application/pdf",sizeBytes:SECURE_ATTACHMENT_MAX_BYTES+1,fieldKey:"excuse_documents"})).toBe("ATTACHMENT_SIZE_EXCEEDED");
     expect(buildSecureAttachmentObjectPath({...ids,mimeType:"application/pdf"})).toBe(`student-requests/${ids.studentProfileId}/${ids.studentRequestId}/${ids.attachmentId}/content.pdf`);
+  });
+});
+
+describe("secure attachments HIGH remediation source guards", () => {
+  it("uses fail-closed direct-assignment precedence", () => {
+    const direct = draftSql.indexOf("WHEN s.assigned_user_id IS NOT NULL");
+    const staff = draftSql.indexOf("WHEN s.assigned_staff_profile_id IS NOT NULL");
+    const faculty = draftSql.indexOf("WHEN s.assigned_faculty_profile_id IS NOT NULL");
+    const position = draftSql.indexOf("WHEN s.assigned_position_assignment_id IS NOT NULL");
+    expect(direct).toBeGreaterThan(-1);
+    expect(direct).toBeLessThan(staff);
+    expect(staff).toBeLessThan(faculty);
+    expect(faculty).toBeLessThan(position);
+  });
+
+  it("has no authenticated Storage SELECT policy", () => {
+    expect(draftSql).not.toContain("FOR SELECT TO authenticated");
+    expect(draftSql).not.toContain("secure_attachment_owner_select");
+    expect(draftSql).not.toContain("secure_attachment_direct_assignee_select");
+  });
+
+  it("binds exact IDs before the real submit RPC in one wrapper", () => {
+    const wrapper = draftSql.indexOf("CREATE FUNCTION public.submit_student_request_with_secure_attachments");
+    const assertion = draftSql.indexOf("PERFORM public.assert_required_student_request_attachments", wrapper);
+    const submit = draftSql.indexOf("PERFORM public.submit_student_request(p_request_id)", wrapper);
+    expect(wrapper).toBeGreaterThan(-1);
+    expect(assertion).toBeGreaterThan(wrapper);
+    expect(submit).toBeGreaterThan(assertion);
+    expect(draftSql).toContain("a.id=ANY(p_attachment_ids)");
+    expect(draftSql).toContain("sp.user_id=v_uid");
+  });
+
+  it("does not trust client identity during generic form validation", () => {
+    expect(submitContractSource).not.toContain("String(normalized.formData._studentProfileId");
+    expect(submitContractSource).not.toContain("requestId: normalized.existingRequestId ??");
+    expect(submitContractSource).toContain('normalized.requestTypeCode !== "excused_absence"');
   });
 });
 
