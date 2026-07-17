@@ -40,7 +40,8 @@ ALTER TABLE public.student_request_workflow_events
   CHECK (event_type IN (
     'created','submitted','step_entered','assigned','commented','approved','rejected',
     'returned','attachment_requested','payment_requested','payment_confirmed',
-    'payment_not_confirmed','signed','archived','document_issued','completed','cancelled'
+    'payment_not_confirmed','reviewed','cleared','applied','signed','archived',
+    'document_issued','completed','cancelled'
   ));
 
 CREATE OR REPLACE FUNCTION public.record_external_university_payment_confirmation(
@@ -69,6 +70,7 @@ BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'AUTH_REQUIRED' USING ERRCODE = '28000';
   END IF;
+  PERFORM set_config('b1.specialized_action', '1', true);
   IF p_status NOT IN ('payment_confirmed', 'payment_not_confirmed') THEN
     RAISE EXCEPTION 'INVALID_EXTERNAL_PAYMENT_CONFIRMATION_STATUS' USING ERRCODE = '22023';
   END IF;

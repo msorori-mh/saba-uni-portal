@@ -12,9 +12,11 @@
    - Current SHA-256: `dd93cb52a640a09faf7a906d75b818017621373671c1c0927981b9dee9f69152`.
    - Depends on actor hardening, workflow tables, `log_audit`, submission boundary, storage schema, and separately approved bucket/policy creation.
 4. Shared atomic submit/action vocabulary executable migration.
-   - Missing: `REQUEST-B1-SHARED-FOUNDATION-SOURCE-01.sql` is documentary only.
+   - Draft complete: `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`.
+   - Current SHA-256: `769e8af5c3a34bc81c793fb4a36bcebf80a3a522c15ca6868f66b48d65d9e277`.
+   - Installs fail-closed service persistence, exact direct-assignment workflow initialization, atomic submit/action boundaries, legacy B1 mutation guards, strict resubmit coverage, and closed action outcomes. Service persistence remains deliberately unavailable until item 6 replaces its dispatcher.
 5. `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`.
-   - Current SHA-256: `2ce6500f55edcc2ebd858bd5bfae35b5bd7dd5ba6032a7405dc76aebbdb670d3`.
+   - Current SHA-256: `32cd7bde1ef73a32e23643035d27764ed27dd8e9dd4948ee295f5b6763dfa461`.
    - Vocabulary and specialized finance RPC only; no financial ledger fields.
 6. Executable workflow/validator migrations for suspension, absence, withdrawal, department transfer, and final chance.
    - Missing/incomplete: current suspension/absence and shared files are documentary; withdrawal contains only a partial executable detail table.
@@ -27,7 +29,7 @@
    - Current SHA-256: `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704`.
    - Keeps `extra_chance` as the proven stored request-type alias, permits only `chance_type='final_chance'` for new academic writes, makes historical noncanonical rows read-only, and performs no validation scan, rewrite, or backfill.
 
-No exact production apply command is approved while items 4 and 6 are missing or item 2 identity mappings remain unverified.
+No exact production apply command is approved while item 6 is missing or item 2 identity mappings remain unverified.
 
 ## Preflight for each single migration
 
