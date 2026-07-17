@@ -45,6 +45,24 @@
   its preserved report artifact.
 - No SQL/migration apply, Supabase access, production write, deploy or publish.
 
+## 2026-07-17 — Cycle 10 Android CI recovery and B1-01 publication
+
+- Diagnosed Android run `29550939454`: Vite exhausted Node's default heap near
+  2 GB. Added the existing Web-CI 4096 MB heap setting in PR #131 after
+  independent review and CI; merged as `d299492`.
+- The next Android run proved Vite fixed, then exposed an independent Capacitor
+  `ENOENT` for the missing Android assets directory.
+- Added an idempotent assets-directory preparation step in PR #132 after
+  independent review and CI; merged as `682b63e`.
+- Android run `29551872583` then passed end to end: Vite, Capacitor sync, Debug
+  APK, Release APK, AAB and artifact uploads.
+- B1-01 completed at `aca81791ecce14b5515aecbb96327c830ac8db12`
+  on current main. Gates: 338/338 tests, TypeScript, build, diff-check and
+  independent source review PASS.
+- Opened Draft PR #133; runtime remains explicitly blocked pending safe
+  attachment/RPC verification.
+- No SQL/migration apply, production access/write, deploy or publish.
+
 ## 2026-07-17 — Cycle 5 attachment security source fix
 
 - Security owner completed source-only remediation commit `24ba86bfaa847f0990e9c0d74a0c2a49bfe68a4f`.
