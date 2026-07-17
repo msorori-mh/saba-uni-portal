@@ -8,6 +8,8 @@
 - Commit `6aaf6e2` was pushed for continuity. No PR is opened until executable source, tests, and independent review are complete.
 - Production impact: none.
 
+- Follow-up source audit found and fixed an incorrect transfer detail contract key. The adapter now uses the proven `transfer_request_details` relation; 50 focused tests and TypeScript pass in commit `7e1c994`.
+
 ## 2026-07-17 — Cycle 22 atomic runtime closure
 
 - Closed all shared atomic submit/action findings; independent review returned PASS with zero findings at every severity.

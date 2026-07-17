@@ -11,6 +11,13 @@ Updated: 2026-07-17 (Asia/Riyadh)
 - Split item 6 into detail persistence 05A and inactive workflow drafts 05B; the existing dispatcher remains closed until 05A is complete and independently reviewed.
 - No SQL/migration apply, production access/write, `student_visible` change, deploy, publish, or protected-record action occurred.
 
+### Cycle 23 continuation — transfer persistence binding fixed
+
+- Proved the applied historical relation is `transfer_request_details`, not the adapter's previous nonexistent `department_transfer_details` value.
+- Corrected the source adapter and readiness map and added a regression assertion; commit `7e1c994` is pushed on the isolated item-6 branch.
+- Focused tests PASS 50/50, TypeScript PASS after locked dependency installation, and `git diff --check` PASS.
+- The branch remains pre-PR while executable 05A/05B source and independent review are incomplete.
+
 ## Cycle 22 — shared atomic submit/action merged
 
 - PR #142 passed Web CI and merged as `5b8d0ef4cec3bae32719ba94b8559945a07a38f6`.
