@@ -30,6 +30,7 @@ import { sanitizeFormDataForSubmit } from "@/lib/student-requests/student-reques
 import {
   canSubmitWithReferenceData,
   getRequestServiceAdapter,
+  validateB1ServiceActivation,
   type ReferenceDataState,
 } from "@/lib/student-requests/request-service-adapter";
 
@@ -103,6 +104,9 @@ function NewStudentRequestPage() {
   const formSupported = isDynamicFormSupported(requestType);
   const normalizedRequestType = normalizeStudentRequestTypeCode(requestType);
   const selectedAdapter = getRequestServiceAdapter(normalizedRequestType);
+  const serviceActivation = selectedAdapter
+    ? validateB1ServiceActivation({ requestTypeCode: normalizedRequestType })
+    : { ok: false as const };
   const selectedAcademicYear = typeof formValues.target_academic_year === "string"
     ? formValues.target_academic_year
     : undefined;
@@ -197,12 +201,17 @@ function NewStudentRequestPage() {
     selectedType.is_eligible &&
     !selectedType.is_disabled &&
     !selectedType.requires_attachment &&
+    serviceActivation.ok &&
     (!selectedAdapter || canSubmitWithReferenceData(selectedAdapter.referenceResolvers, referenceData)) &&
     canSubmitStudentRequestFromUi(eligibilityInput);
 
   const submitRequest = async () => {
     if (submitInFlightRef.current || submitting) return;
     if (!selectedType?.is_eligible || selectedType.is_disabled || !formDefinition) return;
+    if (!serviceActivation.ok) {
+      toast.error("الخدمة غير متاحة للتفعيل حالياً");
+      return;
+    }
     if (!canSubmitStudentRequestFromUi(eligibilityInput)) {
       toast.error("لا يمكن إرسال الطلب حالياً", {
         description: "راجع بطاقة الأهلية والتوفر أعلاه.",

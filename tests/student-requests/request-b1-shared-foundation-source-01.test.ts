@@ -131,15 +131,33 @@ describe("B1 workflows and payment policy", () => {
   });
   it("blocks paid activation without an approved fee code and never blocks free services", () => {
     for (const code of ["department_transfer", "final_chance"] as const) {
+      const blockedReason = B1_SERVICE_ADAPTERS[code].activationBlockedReason!;
       expect(validateB1ServiceActivation({ requestTypeCode: code })).toEqual({
-        ok: false,
-        error: "PAID_SERVICE_FEE_TYPE_CODE_REQUIRED",
-        activationError: "SERVICE_ACTIVATION_BLOCKED",
+        ok: false, error: blockedReason, activationError: "SERVICE_ACTIVATION_BLOCKED",
       });
-      expect(validateB1ServiceActivation({ requestTypeCode: code, feeTypeCode: "approved-existing-code" })).toEqual({ ok: true });
+      expect(validateB1ServiceActivation({ requestTypeCode: code, feeTypeCode: "approved-existing-code" })).toEqual({
+        ok: false, error: blockedReason, activationError: "SERVICE_ACTIVATION_BLOCKED",
+      });
     }
     expect(validateB1ServiceActivation({ requestTypeCode: "enrollment_suspension" })).toEqual({ ok: true });
+    expect(validateB1ServiceActivation({ requestTypeCode: "excused_absence" })).toEqual({
+      ok: false,
+      error: "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME",
+      activationError: "SERVICE_ACTIVATION_BLOCKED",
+    });
     expect(() => validateB1ServiceActivation({ requestTypeCode: "unknown" })).toThrow("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
+  });
+  it("connects activation, trusted reference validation, and stored codes to the submit boundary", () => {
+    const server = readFileSync(join(process.cwd(), "src", "lib", "student-affairs.functions.ts"), "utf8");
+    const route = readFileSync(join(process.cwd(), "src", "routes", "student.requests.new.tsx"), "utf8");
+    expect(server).toContain("validateB1ServiceActivation({ requestTypeCode: validation.normalized.requestTypeCode })");
+    expect(server).toContain("assertTrustedB1FormReferences");
+    expect(server).toContain('.eq("student_profile_id", input.profileId)');
+    expect(server).toContain('.eq("enrollment_status", "enrolled")');
+    expect(server).toContain('.eq("academic_year_id", academicYear)');
+    expect(server).toContain("getStoredWriteCodeForRequestType(validation.normalized.requestTypeCode)");
+    expect(route).toContain("serviceActivation.ok &&");
+    expect(route).toContain("if (!serviceActivation.ok)");
   });
   it("keeps free services free and document-free in their previews", () => {
     for (const code of ["enrollment_suspension", "excused_absence", "file_withdrawal"] as const) {

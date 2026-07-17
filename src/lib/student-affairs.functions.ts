@@ -17,7 +17,14 @@ import {
   type CanonicalStudentRequestSubmitResult,
   validateStudentRequestSubmitInput,
 } from "@/lib/student-requests/student-request-submit-contract";
-import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+import {
+  getStoredWriteCodeForRequestType,
+  normalizeStudentRequestTypeCode,
+} from "@/lib/student-requests/request-type-registry";
+import {
+  getRequestServiceAdapter,
+  validateB1ServiceActivation,
+} from "@/lib/student-requests/request-service-adapter";
 
 const ADMIN_ROLES = [
   "admin",
@@ -383,6 +390,37 @@ async function loadCreatedRequestMeta(requestId: string) {
   return created;
 }
 
+async function assertTrustedB1FormReferences(input: {
+  sessionClient: RpcClient;
+  profileId: string;
+  requestTypeCode: string;
+  formData: Record<string, unknown>;
+}): Promise<void> {
+  const adapter = getRequestServiceAdapter(input.requestTypeCode);
+  if (!adapter) throw new Error("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
+
+  for (const resolver of adapter.referenceResolvers) {
+    const value = input.formData[resolver.field];
+    if (typeof value !== "string" || !value.trim()) throw new Error(`INVALID_REFERENCE:${resolver.field}`);
+
+    if (resolver.key === "academic_years") {
+      const result = await input.sessionClient.from("academic_years").select("id").eq("id", value).maybeSingle();
+      if (result.error || !result.data) throw new Error(`INVALID_REFERENCE:${resolver.field}`);
+    } else if (resolver.key === "semesters_for_year") {
+      const academicYear = resolver.dependsOnField ? input.formData[resolver.dependsOnField] : null;
+      if (typeof academicYear !== "string" || !academicYear.trim()) throw new Error(`INVALID_REFERENCE:${resolver.field}`);
+      const result = await input.sessionClient.from("semesters").select("id").eq("id", value).eq("academic_year_id", academicYear).maybeSingle();
+      if (result.error || !result.data) throw new Error(`INVALID_REFERENCE:${resolver.field}`);
+    } else if (resolver.key === "current_student_enrollments") {
+      const result = await input.sessionClient.from("student_enrollments").select("course_section_id")
+        .eq("student_profile_id", input.profileId).eq("course_section_id", value).eq("enrollment_status", "enrolled").maybeSingle();
+      if (result.error || !result.data) throw new Error(`INVALID_REFERENCE:${resolver.field}`);
+    } else {
+      throw new Error(`UNSUPPORTED_REFERENCE_RESOLVER:${resolver.key}`);
+    }
+  }
+}
+
 export async function submitCanonicalStudentRequestCore(input: {
   userId: string;
   sessionClient: RpcClient;
@@ -393,8 +431,17 @@ export async function submitCanonicalStudentRequestCore(input: {
 
   const profile = await currentStudentProfile(input.userId);
   await assertStudentEligibleForRequestType(input.sessionClient, validation.normalized.requestTypeCode);
+  const activation = validateB1ServiceActivation({ requestTypeCode: validation.normalized.requestTypeCode });
+  if (!activation.ok) throw new Error(activation.activationError);
+  await assertTrustedB1FormReferences({
+    sessionClient: input.sessionClient,
+    profileId: profile.id,
+    requestTypeCode: validation.normalized.requestTypeCode,
+    formData: validation.normalized.formData,
+  });
 
   const payload = buildStudentRequestSubmitPayload(validation.normalized);
+  payload.requestType = getStoredWriteCodeForRequestType(validation.normalized.requestTypeCode);
   let requestId = validation.normalized.existingRequestId;
   let priorStatus = "draft";
 

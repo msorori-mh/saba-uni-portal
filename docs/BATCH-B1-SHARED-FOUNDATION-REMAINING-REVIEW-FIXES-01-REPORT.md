@@ -21,12 +21,15 @@
 - أضيف منع تفعيل الخدمات المدفوعة دون fee code معتمد مسبقاً، دون اعتماد مبلغ أو عملة أو اختراع fee code.
 - شُدد نطاق اعتماد رئيس القسم ليشمل التعيين المباشر والقسم المطلوب، دون admin/registrar/dean bypass.
 - بقيت خدمة العذر عن الغياب محجوبة خلف `BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME` مع رفض قيم سبب الغياب المجهولة.
+- وُصلت بوابة التفعيل نفسها في زر الإرسال وفي server submit؛ الخدمات المدفوعة تفشل مغلقاً حتى يصل fee code معتمد من مصدر موثوق، دون قبول قيمة من العميل.
+- يتحقق server submit من وجود السنة، ومن انتماء الفصل للسنة، ومن ملكية الطالب لتسجيل نشط في الشعبة قبل إنشاء الطلب.
+- وُصل تحويل canonical code إلى stored write code في payload الفعلي، مع رفض أي كود مجهول.
 
 ## الاختبارات
 
-- `bun test tests/student-requests`: PASS — 321 tests، 0 failures.
+- `bun test tests/student-requests`: PASS — 322 tests، 0 failures.
 - `bunx tsc --noEmit`: PASS.
-- `bun run build`: PASS. استغرق نحو 144 ثانية؛ التحذيرات الصادرة من bundler تخص `use client` في dependencies ولم تفشل البناء.
+- `bun run build`: PASS. آخر تشغيل استغرق نحو 165 ثانية؛ التحذيرات الصادرة من bundler تخص `use client` في dependencies ولم تفشل البناء.
 - `git diff --check`: PASS.
 
 ## الافتراضات
@@ -43,6 +46,7 @@
 
 - لا عوائق ضمن نطاق المصدر الحالي.
 - يلزم review مستقل قبل أي دمج.
+- تظل الخدمات المدفوعة HOLD بشكل مقصود حتى يتوفر fee code معتمد عبر إعداد موثوق؛ لم يخترع هذا التغيير قيمة بديلة.
 
 ## أثر الإنتاج
 

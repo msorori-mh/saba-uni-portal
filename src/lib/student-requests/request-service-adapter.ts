@@ -73,9 +73,12 @@ export type RequestServiceAdapter = {
 export function validateB1ServiceActivation(input: {
   requestTypeCode: string;
   feeTypeCode?: string | null;
-}): { ok: true } | { ok: false; error: typeof PAID_SERVICE_FEE_TYPE_CODE_REQUIRED; activationError: typeof SERVICE_ACTIVATION_BLOCKED } {
+}): { ok: true } | { ok: false; error: string; activationError: typeof SERVICE_ACTIVATION_BLOCKED } {
   const adapter = getRequestServiceAdapter(input.requestTypeCode);
   if (!adapter) throw new Error("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
+  if (adapter.activationBlockedReason) {
+    return { ok: false, error: adapter.activationBlockedReason, activationError: SERVICE_ACTIVATION_BLOCKED };
+  }
   if (adapter.feePolicy === "PAID_EXTERNAL_MANUAL_CONFIRMATION" && !input.feeTypeCode?.trim()) {
     return { ok: false, error: PAID_SERVICE_FEE_TYPE_CODE_REQUIRED, activationError: SERVICE_ACTIVATION_BLOCKED };
   }
