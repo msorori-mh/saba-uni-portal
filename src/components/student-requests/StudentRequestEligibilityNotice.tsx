@@ -53,8 +53,8 @@ export function StudentRequestEligibilityNotice({
 
   // Never re-evaluate creation eligibility for an already-submitted request.
   if (
-    existingRequestStatus
-    && HIDDEN_FOR_EXISTING_REQUEST.has(existingRequestStatus.toLowerCase())
+    existingRequestStatus &&
+    HIDDEN_FOR_EXISTING_REQUEST.has(existingRequestStatus.toLowerCase())
   ) {
     return null;
   }
@@ -69,36 +69,56 @@ export function StudentRequestEligibilityNotice({
     hasSubject,
   });
 
+  const informationCard =
+    eligibility.notices.length > 0 ? (
+      <div
+        dir="rtl"
+        role="note"
+        className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900"
+      >
+        <div className="font-bold mb-1">معلومات الخدمة</div>
+        <ul className="list-disc list-inside space-y-0.5">
+          {eligibility.notices.map((notice) => (
+            <li key={notice}>{notice}</li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
   // Eligible path: no big card. The type picker itself already shows the
   // service as selectable; a positive banner would be visual noise.
   if (eligibility.badge === "available") {
-    return null;
+    return informationCard && className ? (
+      <div className={className}>{informationCard}</div>
+    ) : (
+      informationCard
+    );
   }
 
   const typeName = getStudentRequestTypeDisplayName(requestTypeCode);
 
   // Needs-verification path: compact neutral hint, not a red error card.
   if (eligibility.badge === "needs_verification") {
-    const hints = [
-      ...eligibility.warnings,
-      ...eligibility.notices,
-    ];
-    if (hints.length === 0) return null;
+    const hints = eligibility.warnings;
+    if (hints.length === 0) return informationCard;
     return (
-      <div
-        dir="rtl"
-        role="note"
-        className={`rounded-lg border border-amber-200 bg-amber-50/70 text-amber-900 p-3 text-xs space-y-1 ${className}`}
-      >
-        <div className="flex items-center gap-1.5 font-bold">
-          <HelpCircle className="h-3.5 w-3.5" />
-          <span>ملاحظات لخدمة «{typeName}»</span>
+      <div className={`space-y-2 ${className}`}>
+        {informationCard}
+        <div
+          dir="rtl"
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50/70 text-amber-900 p-3 text-xs space-y-1"
+        >
+          <div className="flex items-center gap-1.5 font-bold">
+            <HelpCircle className="h-3.5 w-3.5" />
+            <span>تعذر إكمال التحقق من خدمة «{typeName}»</span>
+          </div>
+          <ul className="list-disc list-inside space-y-0.5 opacity-90">
+            {hints.slice(0, 4).map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
         </div>
-        <ul className="list-disc list-inside space-y-0.5 opacity-90">
-          {hints.slice(0, 4).map((h) => (
-            <li key={h}>{h}</li>
-          ))}
-        </ul>
       </div>
     );
   }
@@ -109,58 +129,53 @@ export function StudentRequestEligibilityNotice({
   const styles = BLOCKED_CARD_STYLES[eligibility.badge];
 
   return (
-    <div
-      dir="rtl"
-      className={`rounded-xl border p-4 space-y-3 ${styles} ${className}`}
-      role="alert"
-      aria-live="polite"
-    >
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Icon className="h-5 w-5 shrink-0" />
-          <div>
-            <div className="text-sm font-bold">{typeName}</div>
-            <div className="text-[11px] opacity-80">حالة التوفر والأهلية (واجهة)</div>
+    <div className={`space-y-2 ${className}`}>
+      {informationCard}
+      <div
+        dir="rtl"
+        className={`rounded-xl border p-4 space-y-3 ${styles}`}
+        role="alert"
+        aria-live="polite"
+      >
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Icon className="h-5 w-5 shrink-0" />
+            <div>
+              <div className="text-sm font-bold">{typeName}</div>
+              <div className="text-[11px] opacity-80">حالة التوفر والأهلية (واجهة)</div>
+            </div>
           </div>
+          <span className="text-xs font-extrabold px-2.5 py-1 rounded-full border border-current/20 bg-white/40">
+            {labelAr}
+          </span>
         </div>
-        <span className="text-xs font-extrabold px-2.5 py-1 rounded-full border border-current/20 bg-white/40">
-          {labelAr}
-        </span>
+
+        {eligibility.warnings.length > 0 && (
+          <div className="text-xs space-y-1">
+            <div className="font-bold">تنبيهات</div>
+            <ul className="space-y-0.5 list-disc list-inside">
+              {eligibility.warnings.map((w) => (
+                <li key={w}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {eligibility.blockedReasons.length > 0 && (
+          <div className="text-xs space-y-1">
+            <div className="font-bold">أسباب المنع (واجهة)</div>
+            <ul className="space-y-0.5 list-disc list-inside">
+              {eligibility.blockedReasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p className="text-[10px] border-t border-current/10 pt-2 opacity-80">
+          {eligibility.rpcNoticeAr}
+        </p>
       </div>
-
-      {eligibility.notices.length > 0 && (
-        <ul className="text-xs space-y-1 list-disc list-inside opacity-90">
-          {eligibility.notices.map((n) => (
-            <li key={n}>{n}</li>
-          ))}
-        </ul>
-      )}
-
-      {eligibility.warnings.length > 0 && (
-        <div className="text-xs space-y-1">
-          <div className="font-bold">تنبيهات</div>
-          <ul className="space-y-0.5 list-disc list-inside">
-            {eligibility.warnings.map((w) => (
-              <li key={w}>{w}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {eligibility.blockedReasons.length > 0 && (
-        <div className="text-xs space-y-1">
-          <div className="font-bold">أسباب المنع (واجهة)</div>
-          <ul className="space-y-0.5 list-disc list-inside">
-            {eligibility.blockedReasons.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <p className="text-[10px] border-t border-current/10 pt-2 opacity-80">
-        {eligibility.rpcNoticeAr}
-      </p>
     </div>
   );
 }

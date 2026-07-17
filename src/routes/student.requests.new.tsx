@@ -21,7 +21,10 @@ import {
   getStudentRequestFormDefinition,
   validateStudentRequestFormValues,
 } from "@/lib/student-requests/request-form-registry";
-import { canSubmitStudentRequestFromUi } from "@/lib/student-requests/request-eligibility-ui";
+import {
+  canSubmitStudentRequestFromUi,
+  getStudentRequestUiEligibility,
+} from "@/lib/student-requests/request-eligibility-ui";
 import {
   filterStudentRequestTypesForDisplay,
   normalizeStudentRequestTypeCode,
@@ -66,6 +69,7 @@ function NewStudentRequestPage() {
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const submitInFlightRef = useRef(false);
   const completedClientIdsRef = useRef(new Set<string>());
 
@@ -78,7 +82,11 @@ function NewStudentRequestPage() {
     queryFn: () => typesFn({ data: {} }),
   });
 
-  const { data: studentContext } = useQuery({
+  const {
+    data: studentContext,
+    isLoading: contextLoading,
+    error: contextError,
+  } = useQuery({
     queryKey: ["student-affairs", "ui-context"],
     queryFn: () => contextFn({ data: {} }),
     staleTime: 60_000,
@@ -107,9 +115,10 @@ function NewStudentRequestPage() {
   const serviceActivation = selectedAdapter
     ? validateB1ServiceActivation({ requestTypeCode: normalizedRequestType })
     : { ok: true as const };
-  const selectedAcademicYear = typeof formValues.target_academic_year === "string"
-    ? formValues.target_academic_year
-    : undefined;
+  const selectedAcademicYear =
+    typeof formValues.target_academic_year === "string"
+      ? formValues.target_academic_year
+      : undefined;
   const needsReferenceData = Boolean(selectedAdapter?.referenceResolvers.length);
   const {
     data: loadedReferenceData,
@@ -120,23 +129,27 @@ function NewStudentRequestPage() {
     queryFn: () => referenceDataFn({ data: { academicYearId: selectedAcademicYear } }),
     enabled: needsReferenceData,
   });
-  const referenceData = useMemo<Readonly<Record<string, ReferenceDataState>>>(() => ({
-    academic_years: referenceDataLoading
-      ? { status: "loading", options: [] }
-      : referenceDataError
-        ? { status: "error", options: [], message: (referenceDataError as Error).message }
-        : { status: "ready", options: loadedReferenceData?.academicYears ?? [] },
-    semesters_for_year: !selectedAcademicYear || referenceDataLoading
-      ? { status: "loading", options: [] }
-      : referenceDataError
-        ? { status: "error", options: [], message: (referenceDataError as Error).message }
-        : { status: "ready", options: loadedReferenceData?.semesters ?? [] },
-    current_student_enrollments: referenceDataLoading
-      ? { status: "loading", options: [] }
-      : referenceDataError
-        ? { status: "error", options: [], message: (referenceDataError as Error).message }
-        : { status: "ready", options: loadedReferenceData?.currentStudentEnrollments ?? [] },
-  }), [loadedReferenceData, referenceDataError, referenceDataLoading, selectedAcademicYear]);
+  const referenceData = useMemo<Readonly<Record<string, ReferenceDataState>>>(
+    () => ({
+      academic_years: referenceDataLoading
+        ? { status: "loading", options: [] }
+        : referenceDataError
+          ? { status: "error", options: [], message: (referenceDataError as Error).message }
+          : { status: "ready", options: loadedReferenceData?.academicYears ?? [] },
+      semesters_for_year:
+        !selectedAcademicYear || referenceDataLoading
+          ? { status: "loading", options: [] }
+          : referenceDataError
+            ? { status: "error", options: [], message: (referenceDataError as Error).message }
+            : { status: "ready", options: loadedReferenceData?.semesters ?? [] },
+      current_student_enrollments: referenceDataLoading
+        ? { status: "loading", options: [] }
+        : referenceDataError
+          ? { status: "error", options: [], message: (referenceDataError as Error).message }
+          : { status: "ready", options: loadedReferenceData?.currentStudentEnrollments ?? [] },
+    }),
+    [loadedReferenceData, referenceDataError, referenceDataLoading, selectedAcademicYear],
+  );
 
   useEffect(() => {
     if (selectedAcademicYear && formValues.target_semester) {
@@ -147,6 +160,7 @@ function NewStudentRequestPage() {
   }, [selectedAcademicYear]);
 
   useEffect(() => {
+    setSubmitAttempted(false);
     if (!requestType) {
       setFormValues({});
       return;
@@ -171,7 +185,8 @@ function NewStudentRequestPage() {
     : null;
 
   const formValidation = useMemo(() => {
-    if (!formDefinition) return { valid: false, missingLabels: [] as string[] };
+    if (!formDefinition)
+      return { valid: false, missingLabels: [] as string[], missingFields: [] as string[] };
     return validateStudentRequestFormValues(formDefinition, formValues);
   }, [formDefinition, formValues]);
 
@@ -196,20 +211,29 @@ function NewStudentRequestPage() {
     [requestType, studentContext, selectedType, formValidation, formSupported, subject],
   );
 
+  const eligibilityDecision = getStudentRequestUiEligibility(eligibilityInput);
   const canSubmitForm =
     !!selectedType &&
     selectedType.is_eligible &&
     !selectedType.is_disabled &&
     !selectedType.requires_attachment &&
     serviceActivation.ok &&
-    (!selectedAdapter || canSubmitWithReferenceData(selectedAdapter.referenceResolvers, referenceData)) &&
-    canSubmitStudentRequestFromUi(eligibilityInput);
+    (!selectedAdapter ||
+      canSubmitWithReferenceData(selectedAdapter.referenceResolvers, referenceData)) &&
+    eligibilityDecision.badge === "available";
 
   const submitRequest = async () => {
     if (submitInFlightRef.current || submitting) return;
+    setSubmitAttempted(true);
     if (!selectedType?.is_eligible || selectedType.is_disabled || !formDefinition) return;
     if (!serviceActivation.ok) {
       toast.error("الخدمة غير متاحة للتفعيل حالياً");
+      return;
+    }
+    if (!formValidation.valid || !subject.trim()) {
+      toast.error("يرجى إكمال الحقول المطلوبة", {
+        description: formValidation.missingLabels.slice(0, 3).join("، "),
+      });
       return;
     }
     if (!canSubmitStudentRequestFromUi(eligibilityInput)) {
@@ -218,13 +242,6 @@ function NewStudentRequestPage() {
       });
       return;
     }
-    if (!formValidation.valid) {
-      toast.error("يرجى إكمال الحقول المطلوبة", {
-        description: formValidation.missingLabels.slice(0, 3).join("، "),
-      });
-      return;
-    }
-
     const clientRequestId = crypto.randomUUID();
     if (completedClientIdsRef.current.has(clientRequestId)) return;
 
@@ -280,9 +297,28 @@ function NewStudentRequestPage() {
         </p>
       </header>
 
-      {(typesError || error) && (
+      {(typesError || contextError) && (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+        >
+          تعذر التحقق من أهلية الخدمة حالياً. أعد المحاولة أو حدّث الصفحة؛ لم يصدر قرار بعدم
+          الأهلية.
+        </div>
+      )}
+
+      {contextLoading && requestType && (
+        <div
+          role="status"
+          className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground"
+        >
+          <Loader2 className="ml-2 inline h-4 w-4 animate-spin" /> جارٍ التحقق من أهلية الخدمة…
+        </div>
+      )}
+
+      {error && (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-          {(typesError as Error | null)?.message ?? error}
+          {error}
         </div>
       )}
 
@@ -348,6 +384,7 @@ function NewStudentRequestPage() {
 
       <form
         onSubmit={onSubmit}
+        noValidate
         className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4"
       >
         {selectableTypes.length > 0 && !requestType && (
@@ -386,6 +423,11 @@ function NewStudentRequestPage() {
                 onChange={(e) => setSubject(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm disabled:opacity-50"
               />
+              {submitAttempted && !subject.trim() && (
+                <span role="alert" className="text-[11px] text-destructive">
+                  موضوع الطلب مطلوب.
+                </span>
+              )}
             </label>
 
             <DynamicStudentRequestForm
@@ -394,6 +436,13 @@ function NewStudentRequestPage() {
               onChange={setFormValues}
               disabled={selectedType.is_disabled || submitting}
               referenceData={referenceData}
+              fieldErrors={
+                submitAttempted
+                  ? Object.fromEntries(
+                      formValidation.missingFields.map((field) => [field, "هذا الحقل مطلوب."]),
+                    )
+                  : {}
+              }
             />
           </>
         )}

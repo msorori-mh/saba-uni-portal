@@ -69,18 +69,15 @@ export type StudentRequestUiEligibility = {
 const RPC_NOTICE =
   "التحقق النهائي من الأهلية وتوفر الخدمة يتم عند المعالجة النظامية (RPC) وليس من هذه الواجهة فقط.";
 
-const ACADEMIC_BLOCK_MSG =
-  "لا يمكن تقديم هذا الطلب حالياً بسبب حالة القيد الأكاديمية.";
+const ACADEMIC_BLOCK_MSG = "لا يمكن تقديم هذا الطلب حالياً بسبب حالة القيد الأكاديمية.";
 
-const ACADEMIC_STATUS_UNCHECKED_MSG =
-  "لم يُتحقق بعد من حالة القيد الأكاديمي في الواجهة.";
+const ACADEMIC_STATUS_UNCHECKED_MSG = "لم يُتحقق بعد من حالة القيد الأكاديمي في الواجهة.";
 
 const SERVICE_WINDOW_NEEDS_MSG = "تحتاج هذه الخدمة إلى فترة تفعيل من الإدارة.";
 
 const SERVICE_WINDOW_UNCHECKED_MSG = "لم يتم التحقق من فترة التفعيل بعد.";
 
-const UNSUPPORTED_MSG =
-  "هذا النوع من الطلب غير مدعوم حالياً في النموذج الجديد.";
+const UNSUPPORTED_MSG = "هذا النوع من الطلب غير مدعوم حالياً في النموذج الجديد.";
 
 const SERVICE_WINDOW_TYPES = new Set([
   "enrollment_suspension",
@@ -96,19 +93,16 @@ const BADGE_LABELS: Record<UiEligibilityBadge, string> = {
   unsupported: "غير مدعوم",
 };
 
-export function getStudentRequestAvailabilityBadge(
-  badge: UiEligibilityBadge,
-): { badge: UiEligibilityBadge; labelAr: string } {
+export function getStudentRequestAvailabilityBadge(badge: UiEligibilityBadge): {
+  badge: UiEligibilityBadge;
+  labelAr: string;
+} {
   return { badge, labelAr: BADGE_LABELS[badge] };
 }
 
 function audienceFromInput(input: StudentRequestUiEligibilityInput): StudentRequestAudience {
   const fromPicker = input.typePickerState?.request_audience;
-  if (
-    fromPicker === "active_student"
-    || fromPicker === "graduate"
-    || fromPicker === "both"
-  ) {
+  if (fromPicker === "active_student" || fromPicker === "graduate" || fromPicker === "both") {
     return fromPicker;
   }
   const def = getStudentRequestTypeDefinition(input.requestTypeCode);
@@ -144,14 +138,14 @@ function appendTypeSpecificNotices(
         blockedReasons.push("وقف القيد غير متاح للطالب المحوّل في نفس العام الدراسي.");
       }
       if (
-        ctx?.previousSuspensionSemestersCount != null
-        && ctx.previousSuspensionSemestersCount >= 4
+        ctx?.previousSuspensionSemestersCount != null &&
+        ctx.previousSuspensionSemestersCount >= 4
       ) {
         blockedReasons.push("تم تجاوز الحد المسموح لفترات وقف القيد السابقة.");
       }
       if (
-        ctx?.consecutiveSuspensionYearsCount != null
-        && ctx.consecutiveSuspensionYearsCount >= 2
+        ctx?.consecutiveSuspensionYearsCount != null &&
+        ctx.consecutiveSuspensionYearsCount >= 2
       ) {
         blockedReasons.push("تم تجاوز الحد المسموح لسنوات وقف القيد المتتالية.");
       }
@@ -178,9 +172,7 @@ function appendTypeSpecificNotices(
       notices.push("التحويل يتطلب مراجعة رئيس القسم ومعادلة مقررات لاحقة.");
       break;
     case "october_exam_entry_form":
-      notices.push(
-        "استمارة دور أكتوبر تعتمد على حد أعلى للمقررات المتبقية/الراسبة يحدده الأدمن.",
-      );
+      notices.push("استمارة دور أكتوبر تعتمد على حد أعلى للمقررات المتبقية/الراسبة يحدده الأدمن.");
       break;
     default:
       break;
@@ -232,9 +224,7 @@ function evaluateServiceWindow(
   }
 
   if (serviceWindow.isOpen === false) {
-    blockedReasons.push(
-      serviceWindow.message ?? "فترة تفعيل هذه الخدمة غير مفتوحة حالياً.",
-    );
+    blockedReasons.push(serviceWindow.message ?? "فترة تفعيل هذه الخدمة غير مفتوحة حالياً.");
     return false;
   }
 
@@ -246,9 +236,7 @@ function evaluateServiceWindow(
   return false;
 }
 
-export function getStudentRequestBlockedReasons(
-  input: StudentRequestUiEligibilityInput,
-): string[] {
+export function getStudentRequestBlockedReasons(input: StudentRequestUiEligibilityInput): string[] {
   return getStudentRequestUiEligibility(input).blockedReasons;
 }
 
@@ -282,9 +270,7 @@ export function getStudentRequestUiEligibility(
 
   const picker = input.typePickerState;
   if (picker?.is_eligible === false) {
-    blockedReasons.push(
-      picker.disabled_reason ?? "نوع الطلب غير متاح لحسابك حسب بيانات النظام.",
-    );
+    blockedReasons.push(picker.disabled_reason ?? "نوع الطلب غير متاح لحسابك حسب بيانات النظام.");
   }
   if (picker?.is_disabled) {
     blockedReasons.push(picker.disabled_reason ?? "نوع الطلب معطّل حالياً.");
@@ -298,13 +284,7 @@ export function getStudentRequestUiEligibility(
   }
 
   evaluateAudience(input, blockedReasons, warnings);
-  appendTypeSpecificNotices(
-    normalized,
-    notices,
-    warnings,
-    blockedReasons,
-    input.studentContext,
-  );
+  appendTypeSpecificNotices(normalized, notices, warnings, blockedReasons, input.studentContext);
 
   const needsWindowVerification = evaluateServiceWindow(
     normalized,
@@ -313,18 +293,9 @@ export function getStudentRequestUiEligibility(
     blockedReasons,
   );
 
+  // Form completeness is submit readiness, never service eligibility. Missing
+  // pristine fields must not produce a red "unavailable" decision.
   const formValidation = input.formValidation;
-  if (formValidation && !formValidation.valid) {
-    blockedReasons.push(
-      formValidation.missingLabels?.length
-        ? `يرجى إكمال الحقول: ${formValidation.missingLabels.join("، ")}`
-        : "يرجى إكمال جميع الحقول المطلوبة.",
-    );
-  }
-
-  if (input.hasSubject === false) {
-    blockedReasons.push("موضوع الطلب مطلوب.");
-  }
 
   const hasHardBlock = blockedReasons.length > 0;
   let badge: UiEligibilityBadge;
@@ -334,9 +305,9 @@ export function getStudentRequestUiEligibility(
   } else if (hasHardBlock) {
     badge = "blocked";
   } else if (
-    needsWindowVerification
-    || warnings.some((w) => w.includes("لم يُتحقق") || w.includes("لم يتم التحقق"))
-    || picker?.is_eligible == null
+    needsWindowVerification ||
+    warnings.some((w) => w.includes("لم يُتحقق") || w.includes("لم يتم التحقق")) ||
+    picker?.is_eligible == null
   ) {
     badge = "needs_verification";
   } else {
@@ -344,10 +315,11 @@ export function getStudentRequestUiEligibility(
   }
 
   const canSubmit =
-    formSupported
-    && !hasHardBlock
-    && (formValidation?.valid !== false)
-    && input.hasSubject !== false;
+    formSupported &&
+    !hasHardBlock &&
+    badge === "available" &&
+    formValidation?.valid !== false &&
+    input.hasSubject !== false;
 
   const canSaveDraft = canSubmit;
 
@@ -362,9 +334,7 @@ export function getStudentRequestUiEligibility(
   };
 }
 
-export function canSubmitStudentRequestFromUi(
-  input: StudentRequestUiEligibilityInput,
-): boolean {
+export function canSubmitStudentRequestFromUi(input: StudentRequestUiEligibilityInput): boolean {
   return getStudentRequestUiEligibility(input).canSubmit;
 }
 

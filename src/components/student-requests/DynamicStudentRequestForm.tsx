@@ -19,18 +19,14 @@ export type DynamicStudentRequestFormProps = {
   referenceData?: Readonly<Record<string, ReferenceDataState | undefined>>;
   studentRequestId?: string | null;
   studentProfileId?: string | null;
+  fieldErrors?: Readonly<Record<string, string | undefined>>;
 };
 
-const SCHEMA_PENDING_MSG =
-  "سيتم تفعيل حفظ تفاصيل هذا النموذج بعد تطبيق مخطط طلبات الطلاب.";
+const SCHEMA_PENDING_MSG = "سيتم تفعيل حفظ تفاصيل هذا النموذج بعد تطبيق مخطط طلبات الطلاب.";
 
-const UNSUPPORTED_MSG =
-  "هذا النوع من الطلب غير مدعوم حالياً في النموذج الجديد.";
+const UNSUPPORTED_MSG = "هذا النوع من الطلب غير مدعوم حالياً في النموذج الجديد.";
 
-function fieldVisible(
-  field: RequestFormFieldDefinition,
-  values: Record<string, unknown>,
-): boolean {
+function fieldVisible(field: RequestFormFieldDefinition, values: Record<string, unknown>): boolean {
   if (!field.dependsOn) return true;
   const current = values[field.dependsOn.field];
   if (field.dependsOn.equals !== undefined) return current === field.dependsOn.equals;
@@ -54,6 +50,7 @@ export function DynamicStudentRequestForm({
   referenceData = {},
   studentRequestId = null,
   studentProfileId = null,
+  fieldErrors = {},
 }: DynamicStudentRequestFormProps) {
   const normalized = normalizeStudentRequestTypeCode(requestTypeCode);
   const definition = getStudentRequestFormDefinition(requestTypeCode);
@@ -68,9 +65,7 @@ export function DynamicStudentRequestForm({
         <div>
           <p className="font-bold">{UNSUPPORTED_MSG}</p>
           {normalized && normalized !== requestTypeCode && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              الكود المُطبَّع: {normalized}
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">الكود المُطبَّع: {normalized}</p>
           )}
         </div>
       </div>
@@ -130,8 +125,15 @@ export function DynamicStudentRequestForm({
                 value={value}
                 onChange={onChange}
                 disabled={disabled}
-                referenceState={field.referenceResolverKey ? referenceData[field.referenceResolverKey] : undefined}
-                secureContext={normalized === "excused_absence" && field.name === "excuse_documents" ? { studentRequestId, studentProfileId } : undefined}
+                referenceState={
+                  field.referenceResolverKey ? referenceData[field.referenceResolverKey] : undefined
+                }
+                secureContext={
+                  normalized === "excused_absence" && field.name === "excuse_documents"
+                    ? { studentRequestId, studentProfileId }
+                    : undefined
+                }
+                error={fieldErrors[field.name]}
               />
             );
           })}
@@ -148,6 +150,7 @@ function FormField({
   disabled,
   referenceState,
   secureContext,
+  error,
 }: {
   field: RequestFormFieldDefinition;
   value: Record<string, unknown>;
@@ -155,13 +158,20 @@ function FormField({
   disabled?: boolean;
   referenceState?: ReferenceDataState;
   secureContext?: { studentRequestId: string | null; studentProfileId: string | null };
+  error?: string;
 }) {
   const fieldValue = value[field.name];
 
   if (field.type === "file" && secureContext) {
-    return <SecureStudentRequestAttachmentsField studentRequestId={secureContext.studentRequestId} studentProfileId={secureContext.studentProfileId}
-      value={Array.isArray(fieldValue) ? fieldValue as SecureAttachmentReference[] : []}
-      onChange={(next) => setField(value, field.name, next, onChange)} disabled={disabled} />;
+    return (
+      <SecureStudentRequestAttachmentsField
+        studentRequestId={secureContext.studentRequestId}
+        studentProfileId={secureContext.studentProfileId}
+        value={Array.isArray(fieldValue) ? (fieldValue as SecureAttachmentReference[]) : []}
+        onChange={(next) => setField(value, field.name, next, onChange)}
+        disabled={disabled}
+      />
+    );
   }
 
   if (field.type === "info") {
@@ -184,6 +194,11 @@ function FormField({
         </div>
         {field.helperTextAr && (
           <p className="text-[10px] text-muted-foreground">{field.helperTextAr}</p>
+        )}
+        {error && (
+          <p role="alert" className="text-[11px] text-destructive">
+            {error}
+          </p>
         )}
       </div>
     );
@@ -209,9 +224,13 @@ function FormField({
 
   if (field.type === "select") {
     const resolvedOptions = field.referenceResolverKey
-      ? (referenceState?.status === "ready" ? referenceState.options : [])
+      ? referenceState?.status === "ready"
+        ? referenceState.options
+        : []
       : field.options;
-    const referenceBlocked = Boolean(field.referenceResolverKey && referenceState?.status !== "ready");
+    const referenceBlocked = Boolean(
+      field.referenceResolverKey && referenceState?.status !== "ready",
+    );
     return (
       <div className="space-y-1">
         <Label className="text-xs font-bold text-primary">
@@ -231,10 +250,21 @@ function FormField({
             </option>
           ))}
         </select>
-        {field.referenceResolverKey && referenceState?.status === "loading" && <p className="text-[10px] text-muted-foreground">جارٍ تحميل البيانات المرجعية…</p>}
-        {field.referenceResolverKey && (!referenceState || referenceState.status === "error") && <p className="text-[10px] text-destructive">تعذر تحميل البيانات المرجعية؛ الإرسال معطّل.</p>}
+        {field.referenceResolverKey && referenceState?.status === "loading" && (
+          <p className="text-[10px] text-muted-foreground">جارٍ تحميل البيانات المرجعية…</p>
+        )}
+        {field.referenceResolverKey && (!referenceState || referenceState.status === "error") && (
+          <p className="text-[10px] text-destructive">
+            تعذر تحميل البيانات المرجعية؛ الإرسال معطّل.
+          </p>
+        )}
         {field.helperTextAr && (
           <p className="text-[10px] text-muted-foreground">{field.helperTextAr}</p>
+        )}
+        {error && (
+          <p role="alert" className="text-[11px] text-destructive">
+            {error}
+          </p>
         )}
       </div>
     );
@@ -243,7 +273,9 @@ function FormField({
   if (field.type === "multi_select") {
     const selected = Array.isArray(fieldValue) ? (fieldValue as string[]) : [];
     const resolvedOptions = field.referenceResolverKey
-      ? (referenceState?.status === "ready" ? referenceState.options : [])
+      ? referenceState?.status === "ready"
+        ? referenceState.options
+        : []
       : field.options;
     return (
       <div className="space-y-1">
@@ -259,7 +291,10 @@ function FormField({
                 <input
                   type="checkbox"
                   checked={checked}
-                  disabled={disabled || Boolean(field.referenceResolverKey && referenceState?.status !== "ready")}
+                  disabled={
+                    disabled ||
+                    Boolean(field.referenceResolverKey && referenceState?.status !== "ready")
+                  }
                   onChange={(e) => {
                     const next = e.target.checked
                       ? [...selected, o.value]
@@ -272,7 +307,9 @@ function FormField({
             );
           })}
         </div>
-        {field.referenceResolverKey && referenceState?.status !== "ready" && <p className="text-[10px] text-destructive">تعذر تحميل تسجيلات الطالب؛ الإرسال معطّل.</p>}
+        {field.referenceResolverKey && referenceState?.status !== "ready" && (
+          <p className="text-[10px] text-destructive">تعذر تحميل تسجيلات الطالب؛ الإرسال معطّل.</p>
+        )}
         {field.helperTextAr && (
           <p className="text-[10px] text-muted-foreground">{field.helperTextAr}</p>
         )}
@@ -381,6 +418,11 @@ function FormField({
         {field.helperTextAr && (
           <p className="text-[10px] text-muted-foreground">{field.helperTextAr}</p>
         )}
+        {error && (
+          <p role="alert" className="text-[11px] text-destructive">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
@@ -399,6 +441,11 @@ function FormField({
       />
       {field.helperTextAr && (
         <p className="text-[10px] text-muted-foreground">{field.helperTextAr}</p>
+      )}
+      {error && (
+        <p role="alert" className="text-[11px] text-destructive">
+          {error}
+        </p>
       )}
     </div>
   );
