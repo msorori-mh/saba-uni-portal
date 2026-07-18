@@ -23,6 +23,32 @@ export type TermScopedEnrollment = {
   } | null;
 };
 
+export type CurrentTermSectionRow = {
+  section: {
+    status: string;
+    offering: {
+      academic_year_id: string;
+      semester_id: string;
+      status: string;
+    } | null;
+  } | null;
+};
+
+export function filterActiveCurrentTermSections<T extends CurrentTermSectionRow>(
+  rows: T[],
+  currentTerm: CurrentTerm | null,
+): T[] {
+  if (!currentTerm) return [];
+
+  return rows.filter(
+    (row) =>
+      row.section?.status === "active" &&
+      row.section.offering?.status === "active" &&
+      row.section.offering.academic_year_id === currentTerm.year.id &&
+      row.section.offering.semester_id === currentTerm.semester.id,
+  );
+}
+
 export function filterEnrollmentsForCurrentTerm<T extends TermScopedEnrollment>(
   enrollments: T[],
   currentTerm: CurrentTerm | null,
