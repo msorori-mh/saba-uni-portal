@@ -42,9 +42,10 @@ begin
     raise exception 'IMMUTABLE_TARGET_VIOLATION';
   end if;
 
-  v_fingerprint := encode(digest(
+  v_fingerprint := encode(extensions.digest(convert_to(
     concat_ws('|', p_action, coalesce(p_material_id::text,''), coalesce(p_section_id::text,''),
-      coalesce(p_expected_updated_at::text,''), coalesce(p_patch,'{}'::jsonb)::text), 'sha256'), 'hex');
+      coalesce(p_expected_updated_at::text,''), coalesce(p_patch,'{}'::jsonb)::text),
+    'UTF8'), 'sha256'), 'hex');
 
   -- Lost-response retry: the same stable key is accepted only for the exact
   -- canonical action/target/version/payload fingerprint.
@@ -53,13 +54,6 @@ begin
   from public.course_material_events e
   where e.actor_user_id = v_uid and e.meta ->> 'idempotency_key' = p_idempotency_key::text
   limit 1;
-  if v_prior is not null then
-    if v_prior_fingerprint is distinct from v_fingerprint then raise exception 'IDEMPOTENCY_KEY_REUSE'; end if;
-    select * into strict v_material from public.course_materials where id = v_prior;
-    return query select v_material.id, false, v_material.updated_at;
-    return;
-  end if;
-
   -- Deterministic lock order for every action: faculty -> canonical term tables
   -- -> section -> offering -> material. Table SHARE locks serialize current-term
   -- changes until this transaction commits.
@@ -90,6 +84,24 @@ begin
       and m.course_section_id = v_target_section
       and m.faculty_profile_id = v_fp_id
     for update;
+  elsif v_prior is not null then
+    select m.* into strict v_material from public.course_materials m
+    where m.id = v_prior
+      and m.course_section_id = v_target_section
+      and m.faculty_profile_id = v_fp_id
+    for update;
+  end if;
+
+  -- Replay metadata is returned only after the caller is still active and the
+  -- exact current section/material ownership has been revalidated under locks.
+  if v_prior is not null then
+    if v_prior_fingerprint is distinct from v_fingerprint then raise exception 'IDEMPOTENCY_KEY_REUSE'; end if;
+    if p_action <> 'create' and v_prior <> p_material_id then raise exception 'IDEMPOTENCY_KEY_REUSE'; end if;
+    return query select v_material.id, false, v_material.updated_at;
+    return;
+  end if;
+
+  if p_action <> 'create' then
     if p_expected_updated_at is null or v_material.updated_at <> p_expected_updated_at then
       raise exception 'STALE_MATERIAL_VERSION';
     end if;
@@ -130,6 +142,22 @@ begin
     update public.course_materials set status='archived'
       where id=v_material.id returning * into v_material;
     v_event := 'archived';
+  end if;
+
+  if v_event = 'published' then
+    insert into public.notifications(
+      user_id,title,message,notification_type,reference_type,reference_id,is_read
+    )
+    select distinct sp.user_id,'مادة تعليمية جديدة','تم نشر: '||v_material.title,
+      'info','course_material',v_material.id,false
+    from public.student_enrollments se
+    join public.student_profiles sp on sp.id = se.student_profile_id
+    where se.course_section_id = v_material.course_section_id
+      and se.enrollment_status = 'enrolled'
+      and sp.user_id is not null
+      and sp.study_system in ('regular','parallel')
+      and v_material.study_system in ('regular','parallel','both')
+      and (v_material.study_system = 'both' or v_material.study_system = sp.study_system);
   end if;
 
   insert into public.course_material_events(course_material_id,actor_user_id,event,meta)
@@ -215,18 +243,81 @@ revoke insert,update,delete on public.course_material_events from authenticated,
 
 END INERT CUTOVER REFERENCE */
 
-create or replace procedure public.apply_materials_rpc_only_dml_cutover()
+create or replace procedure public.apply_materials_rpc_only_dml_cutover(
+  p_external_caller_release_evidence text,
+  p_upload_reserve_definition_sha256 text,
+  p_upload_finalize_definition_sha256 text,
+  p_download_audit_definition_sha256 text
+)
 language plpgsql security definer set search_path = public, pg_temp
 as $$
 declare
   v_policies text[];
   v_grants text[];
+  v_proc regprocedure;
+  v_metadata_owner oid;
+  v_bad_acl boolean;
+  v_required regprocedure[];
+  v_expected text[];
+  v_i integer;
 begin
-  if to_regprocedure('public.faculty_reserve_course_material_upload(uuid,uuid,jsonb)') is null
-    or to_regprocedure('public.faculty_finalize_course_material_upload(uuid,uuid,jsonb)') is null
-    or to_regprocedure('public.record_course_material_download(uuid,uuid)') is null then
-    raise exception 'UPLOAD_AND_DOWNLOAD_ATOMIC_PATHS_REQUIRED_BEFORE_DML_CUTOVER';
+  -- SQL cannot prove that callers were deployed. A separately reviewed release
+  -- evidence reference is mandatory, but operators must verify its truth out of band.
+  if p_external_caller_release_evidence is null
+    or length(btrim(p_external_caller_release_evidence)) < 12 then
+    raise exception 'EXTERNAL_CALLER_RELEASE_EVIDENCE_REQUIRED';
   end if;
+
+  select p.proowner into strict v_metadata_owner from pg_proc p
+  where p.oid='public.faculty_mutate_course_material_atomic(text,uuid,uuid,timestamptz,uuid,jsonb)'::regprocedure;
+
+  v_required := array[
+    to_regprocedure('public.faculty_reserve_course_material_upload(uuid,uuid,jsonb)'),
+    to_regprocedure('public.faculty_finalize_course_material_upload(uuid,uuid,jsonb)'),
+    to_regprocedure('public.record_course_material_download(uuid,uuid)')
+  ];
+  v_expected := array[
+    lower(p_upload_reserve_definition_sha256),
+    lower(p_upload_finalize_definition_sha256),
+    lower(p_download_audit_definition_sha256)
+  ];
+
+  for v_i in 1..3 loop
+    v_proc := v_required[v_i];
+    if v_proc is null then
+      raise exception 'UPLOAD_AND_DOWNLOAD_ATOMIC_PATHS_REQUIRED_BEFORE_DML_CUTOVER';
+    end if;
+    if v_expected[v_i] !~ '^[0-9a-f]{64}$'
+      or encode(extensions.digest(convert_to(pg_get_functiondef(v_proc::oid),'UTF8'),'sha256'),'hex') <> v_expected[v_i] then
+      raise exception 'UNREVIEWED_OR_STUB_MATERIAL_RPC_DEFINITION: %', v_proc;
+    end if;
+    if not exists (
+      select 1 from pg_proc p
+      where p.oid=v_proc
+        and p.proowner=v_metadata_owner
+        and p.prosecdef=true
+        and p.proconfig = array['search_path=public, pg_temp']::text[]
+    ) then
+      raise exception 'UNSAFE_MATERIAL_RPC_METADATA: %', v_proc;
+    end if;
+    select exists (
+      select 1
+      from pg_proc p,
+        lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) acl
+      where p.oid=v_proc
+        and acl.privilege_type='EXECUTE'
+        and (
+          acl.grantee not in (p.proowner,(select oid from pg_roles where rolname='authenticated'))
+          or (acl.grantee=(select oid from pg_roles where rolname='authenticated') and acl.is_grantable)
+        )
+    ) into v_bad_acl;
+    if v_bad_acl
+      or not has_function_privilege((select oid from pg_roles where rolname='authenticated'),v_proc::oid,'EXECUTE')
+      or has_function_privilege((select oid from pg_roles where rolname='anon'),v_proc::oid,'EXECUTE')
+      or has_function_privilege((select oid from pg_roles where rolname='service_role'),v_proc::oid,'EXECUTE') then
+      raise exception 'UNSAFE_MATERIAL_RPC_EXECUTE_ACL: %', v_proc;
+    end if;
+  end loop;
 
   select array_agg(tablename||':'||policyname order by tablename,policyname) into v_policies
   from pg_policies where schemaname='public' and tablename in
@@ -264,6 +355,7 @@ begin
   execute 'revoke insert,update,delete on public.course_material_events from authenticated,service_role';
 end $$;
 
-revoke all on procedure public.apply_materials_rpc_only_dml_cutover() from public,anon,authenticated,service_role;
+revoke all on procedure public.apply_materials_rpc_only_dml_cutover(text,text,text,text)
+  from public,anon,authenticated,service_role;
 
 commit;

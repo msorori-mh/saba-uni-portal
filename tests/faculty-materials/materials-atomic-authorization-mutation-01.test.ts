@@ -28,12 +28,40 @@ describe("materials atomic mutation remediation", () => {
 
   it("requires a caller-stable key and binds lost-response retries to a canonical fingerprint", () => {
     expect(sql).toContain("p_idempotency_key uuid");
-    expect(sql).toContain("v_fingerprint := encode(digest(");
+    expect(sql).toContain("v_fingerprint := encode(extensions.digest(convert_to(");
     expect(sql).toContain("coalesce(p_expected_updated_at::text,'')");
     expect(sql).toContain("coalesce(p_patch,'{}'::jsonb)::text");
     expect(sql).toContain("v_prior_fingerprint is distinct from v_fingerprint");
     expect(sql).toContain("IDEMPOTENCY_KEY_REUSE");
     expect(report).toContain("retain one stable `mutationId` across lost-response retries");
+  });
+
+  it("reauthorizes replay before returning and denies deactivated or reassigned former owners", () => {
+    const activeFaculty = sql.indexOf("fp.user_id = v_uid and fp.status = 'active'");
+    const lockedSection = sql.indexOf(
+      "cs.id = v_target_section and cs.faculty_profile_id = v_fp_id",
+    );
+    const lockedMaterial = sql.indexOf("m.faculty_profile_id = v_fp_id", lockedSection);
+    const replayReturn = sql.indexOf("Replay metadata is returned only after");
+    expect(activeFaculty).toBeGreaterThan(-1);
+    expect(lockedSection).toBeGreaterThan(activeFaculty);
+    expect(lockedMaterial).toBeGreaterThan(lockedSection);
+    expect(replayReturn).toBeGreaterThan(lockedMaterial);
+    expect(report).toContain("deactivated or reassigned former owner");
+  });
+
+  it("writes first-publish notifications transactionally for exact enrolled known-system students only", () => {
+    const replayReturn = sql.indexOf("Replay metadata is returned only after");
+    const notificationInsert = sql.indexOf("insert into public.notifications(");
+    const eventInsert = sql.indexOf("insert into public.course_material_events(");
+    expect(notificationInsert).toBeGreaterThan(replayReturn);
+    expect(eventInsert).toBeGreaterThan(notificationInsert);
+    expect(sql).toContain("se.course_section_id = v_material.course_section_id");
+    expect(sql).toContain("se.enrollment_status = 'enrolled'");
+    expect(sql).toContain("sp.study_system in ('regular','parallel')");
+    expect(sql).toContain("v_material.study_system in ('regular','parallel','both')");
+    expect(sql).not.toContain("student_academic_status");
+    expect(report).toContain("return before both event and notification insertion");
   });
 
   it("uses deterministic locks and serializes canonical-term changes", () => {
@@ -59,10 +87,23 @@ describe("materials atomic mutation remediation", () => {
     expect(sql).toContain("faculty_reserve_course_material_upload");
     expect(sql).toContain("faculty_finalize_course_material_upload");
     expect(sql).toContain("record_course_material_download");
+    expect(sql).toContain("p.proowner=v_metadata_owner");
+    expect(sql).toContain("p.prosecdef=true");
+    expect(sql).toContain("search_path=public, pg_temp");
+    expect(sql).toContain("UNSAFE_MATERIAL_RPC_METADATA");
+    expect(sql).toContain("UNSAFE_MATERIAL_RPC_EXECUTE_ACL");
+    expect(sql).toContain("convert_to(pg_get_functiondef(v_proc::oid),'UTF8')");
+    expect(sql).toContain("UNREVIEWED_OR_STUB_MATERIAL_RPC_DEFINITION");
+    expect(sql).toContain("p_upload_reserve_definition_sha256 text");
+    expect(sql).toContain("p_upload_finalize_definition_sha256 text");
+    expect(sql).toContain("p_download_audit_definition_sha256 text");
+    expect(sql).toContain("EXTERNAL_CALLER_RELEASE_EVIDENCE_REQUIRED");
+    expect(sql).toContain("acl.is_grantable");
     expect(sql).toContain(
       "revoke insert,update,delete on public.course_materials,public.course_material_files from authenticated,service_role",
     );
     expect(sql).not.toContain("has_any_role");
+    expect(report).toContain("cannot prove deployment");
   });
 
   it("binds exact owner and immutable target with no generic privileged execution", () => {
