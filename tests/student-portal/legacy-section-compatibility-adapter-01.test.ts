@@ -67,16 +67,19 @@ describe("legacy section compatibility adapter", () => {
     }
   });
 
-  it.each([[], ["regular", "parallel"]] as const)(
-    "fails closed when study-system evidence is missing or ambiguous",
-    (studySystems) => {
-      expect(
-        adaptLegacySectionToDeliveryGroup(
-          input({ study_system_evidence: [...studySystems] }),
-        ),
-      ).toEqual({ ok: false, reason: "ambiguous_study_system" });
-    },
-  );
+  it("fails closed when study-system evidence is missing", () => {
+    expect(
+      adaptLegacySectionToDeliveryGroup(input({ study_system_evidence: [] })),
+    ).toEqual({ ok: false, reason: "ambiguous_study_system" });
+  });
+
+  it("fails closed when study-system evidence is ambiguous", () => {
+    expect(
+      adaptLegacySectionToDeliveryGroup(
+        input({ study_system_evidence: ["regular", "parallel"] }),
+      ),
+    ).toEqual({ ok: false, reason: "ambiguous_study_system" });
+  });
 
   it("fails closed for missing or multi-component evidence", () => {
     expect(adaptLegacySectionToDeliveryGroup(input({ component_evidence: [] }))).toEqual({
@@ -93,6 +96,19 @@ describe("legacy section compatibility adapter", () => {
         }),
       ),
     ).toEqual({ ok: false, reason: "ambiguous_component" });
+  });
+
+  it("fails closed when the sole component identity or kind is empty", () => {
+    for (const component of [
+      { component_id: "", component_kind: "lecture" },
+      { component_id: "   ", component_kind: "lecture" },
+      { component_id: "component-1", component_kind: "" },
+      { component_id: "component-1", component_kind: " \t " },
+    ]) {
+      expect(
+        adaptLegacySectionToDeliveryGroup(input({ component_evidence: [component] })),
+      ).toEqual({ ok: false, reason: "ambiguous_component" });
+    }
   });
 
   it("fails closed when authoritative relational identity is incomplete", () => {

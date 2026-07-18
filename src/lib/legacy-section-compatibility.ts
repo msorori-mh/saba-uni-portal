@@ -77,6 +77,10 @@ export function adaptLegacySectionToDeliveryGroup(
   if (input.component_evidence.length !== 1) {
     return { ok: false, reason: "ambiguous_component" };
   }
+  const component = input.component_evidence[0]!;
+  if (component.component_id.trim().length === 0 || component.component_kind.trim().length === 0) {
+    return { ok: false, reason: "ambiguous_component" };
+  }
 
   return {
     ok: true,
@@ -89,7 +93,7 @@ export function adaptLegacySectionToDeliveryGroup(
       academic_year_id: input.academic_year_id,
       semester_id: input.semester_id,
       study_system: input.study_system_evidence[0]!,
-      component: { ...input.component_evidence[0]! },
+      component: { ...component },
       faculty_profile_id: input.faculty_profile_id,
       status: {
         section: input.section_status,
