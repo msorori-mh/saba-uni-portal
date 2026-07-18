@@ -13,3 +13,11 @@
 - يبقى `student_visible` دون تغيير حتى اكتمال runtime والمصفوفة الأمنية وE2E ببيانات اختبار معتمدة.
 
 Production impact now: none.
+
+## 2026-07-19 gates retained
+
+- `B1-PRODUCTION-MIGRATION-SEQUENCE = REQUIRES_USER_APPROVAL`.
+- Draft PR #166 is HOLD with CRITICAL=0 HIGH=3. Remediation must close predecessor authorization across all five B1 services and extend the harness to the complete coordinated draft order plus actual mutation zero-delta and realistic source/target department isolation evidence.
+- The implementation remediation belongs to the already isolated Cursor source-remediation path; this cycle made no overlapping edit.
+- Department-chair package PR #165 is source-only and unapplied. Applying it requires separate explicit authorization and production preflight.
+- Release pack PR #164 records actual deployed SHA as `UNKNOWN`; no release, deploy, migration, workflow activation, or visibility action is authorized.
