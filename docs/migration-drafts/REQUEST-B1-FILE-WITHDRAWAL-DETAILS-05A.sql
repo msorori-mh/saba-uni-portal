@@ -63,10 +63,10 @@ BEGIN
 
   IF NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid='public.file_withdrawal_details'::regclass
       AND c.conname='file_withdrawal_details_reason_check' AND c.contype='c' AND c.convalidated
-      AND regexp_replace(pg_get_constraintdef(c.oid,true),'\s+','','g')='CHECK((length(btrim(withdrawal_reason))>=10))')
+      AND regexp_replace(pg_get_constraintdef(c.oid,false),'\s+','','g')='CHECK((length(btrim(withdrawal_reason))>=10))')
     OR NOT EXISTS (SELECT 1 FROM pg_constraint c WHERE c.conrelid='public.file_withdrawal_details'::regclass
       AND c.conname='file_withdrawal_details_impact_check' AND c.contype='c' AND c.convalidated
-      AND regexp_replace(pg_get_constraintdef(c.oid,true),'\s+','','g')='CHECK(impact_ack)') THEN
+      AND regexp_replace(pg_get_constraintdef(c.oid,false),'\s+','','g') IN ('CHECK(impact_ack)','CHECK((impact_ack))')) THEN
     RAISE EXCEPTION 'FILE_WITHDRAWAL_CHECK_CONSTRAINT_MISMATCH';
   END IF;
 

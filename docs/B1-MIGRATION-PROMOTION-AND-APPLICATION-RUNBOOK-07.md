@@ -34,19 +34,19 @@ post-verification. No service is activated anywhere in this sequence.
 | 1 | Runtime release containing atomic caller + `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql` | stamp `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357`; release SHA `MISSING RELEASE EVIDENCE` | Deploy reviewed web/server artifact; replace placeholder with exact 40-char lowercase SHA; all B1 services remain inactive |
 | 2 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | Review current bytes and schema signatures |
 | 3 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql` | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity and department |
-| 4 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql` | `769e8af5c3a34bc81c793fb4a36bcebf80a3a522c15ca6868f66b48d65d9e277` | Installs the fail-closed dispatcher stub only |
+| 4 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql` | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Installs the fail-closed dispatcher stub only |
 | 5 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql` | `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b` | External university confirmation; no `fee_type.code`, amount, currency, invoice, gateway transaction, or internal balance |
 | 6 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql` | `8487c5ae0ac8b85965de9dd08dafb934550a16e1450b0bedf4f847c5ef17849c` | Caller release already proven; approved private bucket/policy prerequisite; no public URLs |
 | 7 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql` | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact academic reference catalog signatures |
-| 8 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql` | `c73b359baf55f1d9ac28aa588d4c2c1d13c63c2a6036184203e8ba4a1847fb27` | Preserve historical values without mapping/backfill |
+| 8 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql` | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Preserve historical values without mapping/backfill |
 | 9 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql` | `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` | Caller release already proven; exact trigger, ACL, RLS and owner policy inventory |
-| 10 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql` | `e75dd442ac226529a88f8aaee72ecd55971886b841583cf5b7d35af38326089a` | Caller release already proven; exact table/constraint/ACL/RLS inventory |
-| 11 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql` | `ba163a3f2bc5115a22373e324d199817d58796284bb3ca0d095abc6bf12783a8` | Secure opaque attachment contract present |
+| 10 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql` | `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9` | Caller release already proven; exact table/constraint/ACL/RLS inventory |
+| 11 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql` | `4b2124a829b3e6b57979ce50a7638d3b9b6af798f83f6a4e8772cb8ff36ceded` | Secure opaque attachment contract present |
 | 12 | `FINAL-CHANCE-CANONICAL-WRITE-03.sql` | `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704` | Final exam chance only; new writes use `final_chance`; no scan or backfill |
 | 13 | `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql` | `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495` | Installs locked primitive without invoking it |
-| 14 | `REQUEST-B1-SERVICE-DETAILS-05A.sql` | `82bab7a52b44dde51c71c12acbdfd3445d08d2d4c24176c66a0b0cc39f99118c` | Replaces stub with exact five-service dispatcher |
-| 15 | Free-service workflows `B1-FREE-SERVICE-WORKFLOWS-08.sql` | `6ae62b5346a21d10a43c88738477f1ecffe57826948d85c9854689debdc4f6f6` | Inactive drafts for `enrollment_suspension`, `excused_absence`, `file_withdrawal`; no payment steps |
-| 16 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql` for `department_transfer` and `final_chance` only | `f63ff4f526a5dea6b8896586375eaf01ec07433001c857f270f0f1ce155aa444` | Inactive drafts only; exact bindings; no duplicate definitions from row 15 |
+| 14 | `REQUEST-B1-SERVICE-DETAILS-05A.sql` | `d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c` | Replaces stub with exact five-service dispatcher |
+| 15 | Free-service workflows `B1-FREE-SERVICE-WORKFLOWS-08.sql` | `1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c` | Inactive drafts for `enrollment_suspension`, `excused_absence`, `file_withdrawal`; no payment steps |
+| 16 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql` for `department_transfer` and `final_chance` only | `64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250` | Inactive drafts only; exact bindings; no duplicate definitions from row 15 |
 | 17 | ACL cutover `REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql` | `55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383` | Requires row-1 release evidence comment; proves all five detail boundaries; one atomic write-revoke cutover |
 | 18 | Per-service activation and `student_visible` | `SEPARATE APPROVAL` | Never bundled with schema/runtime migrations |
 

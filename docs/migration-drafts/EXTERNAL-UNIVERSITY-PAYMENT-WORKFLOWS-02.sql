@@ -12,8 +12,8 @@ DECLARE
   v_existing_count integer;
   v_unit_id uuid;
   v_role_id uuid;
-  v_step jsonb;
-  v_transition jsonb;
+  v_step record;
+  v_transition record;
   v_step_ids jsonb;
   v_from_id uuid;
   v_to_id uuid;
@@ -169,15 +169,15 @@ BEGIN
 
       FOR v_transition IN SELECT value FROM jsonb_array_elements(v_service.transitions)
       LOOP
-        v_from_id := CASE WHEN v_transition ->> 'from' IS NULL THEN NULL
-          ELSE (v_step_ids ->> (v_transition ->> 'from'))::uuid END;
-        v_to_id := CASE WHEN v_transition ->> 'to' IS NULL THEN NULL
-          ELSE (v_step_ids ->> (v_transition ->> 'to'))::uuid END;
+        v_from_id := CASE WHEN v_transition.value ->> 'from' IS NULL THEN NULL
+          ELSE (v_step_ids ->> (v_transition.value ->> 'from'))::uuid END;
+        v_to_id := CASE WHEN v_transition.value ->> 'to' IS NULL THEN NULL
+          ELSE (v_step_ids ->> (v_transition.value ->> 'to'))::uuid END;
 
         INSERT INTO public.request_type_workflow_transitions (
           workflow_id, from_step_id, to_step_id, action_result, is_default
         ) VALUES (
-          v_workflow_id, v_from_id, v_to_id, v_transition ->> 'result', true
+          v_workflow_id, v_from_id, v_to_id, v_transition.value ->> 'result', true
         );
       END LOOP;
     END IF;

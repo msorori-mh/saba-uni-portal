@@ -31,7 +31,7 @@ function lfSha(path: string): string {
 const pinned: Array<[string, string]> = [
   [
     "B1-FREE-SERVICE-WORKFLOWS-08.sql",
-    "6ae62b5346a21d10a43c88738477f1ecffe57826948d85c9854689debdc4f6f6",
+    "1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c",
   ],
   [
     "REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql",
@@ -43,13 +43,16 @@ const pinned: Array<[string, string]> = [
   ],
   [
     "REQUEST-B1-SERVICE-DETAILS-05A.sql",
-    "82bab7a52b44dde51c71c12acbdfd3445d08d2d4c24176c66a0b0cc39f99118c",
+    "d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c",
   ],
 ];
 
 describe("B1 five-services controlled runtime promotion 01", () => {
   it("holds production apply and records the five-service scope only", () => {
     expect(report).toContain("HOLD_B1_FIVE_SERVICES_RUNTIME_PROMOTION");
+    expect(report).toContain("SOURCE READY");
+    expect(report).toContain("PRODUCTION APPLY BLOCKED");
+    expect(report).toContain("PASS_LOCAL_PG17_COMPILE");
     for (const service of [
       "enrollment_suspension",
       "excused_absence",

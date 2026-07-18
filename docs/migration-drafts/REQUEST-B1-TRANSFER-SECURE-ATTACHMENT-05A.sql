@@ -7,12 +7,15 @@ BEGIN;
 DO $field_constraint$
 DECLARE v_def text; v_norm text; v_validated boolean;
 BEGIN
-  SELECT pg_get_constraintdef(c.oid,true),c.convalidated INTO v_def,v_validated
+  SELECT pg_get_constraintdef(c.oid,false),c.convalidated INTO v_def,v_validated
   FROM pg_constraint c WHERE c.conrelid='public.student_request_attachment_uploads'::regclass
     AND c.conname='student_request_attachment_uploads_field_key_check' AND c.contype='c';
   IF v_def IS NULL THEN RAISE EXCEPTION 'ATTACHMENT_FIELD_CONSTRAINT_MISSING'; END IF;
   v_norm:=regexp_replace(v_def,'\s+','','g');
-  IF v_norm='CHECK((field_key=''excuse_documents''::text))' THEN
+  IF v_norm IN (
+    'CHECK((field_key=''excuse_documents''::text))',
+    'CHECK(field_key=''excuse_documents''::text)'
+  ) THEN
     ALTER TABLE public.student_request_attachment_uploads
       DROP CONSTRAINT student_request_attachment_uploads_field_key_check;
     ALTER TABLE public.student_request_attachment_uploads
@@ -22,7 +25,9 @@ BEGIN
       VALIDATE CONSTRAINT student_request_attachment_uploads_field_key_check;
   ELSIF v_norm NOT IN (
     'CHECK((field_key=ANY(ARRAY[''excuse_documents''::text,''secondary_certificate''::text])))',
-    'CHECK((field_key=ANY(ARRAY[''excuse_documents''::text,''secondary_certificate''::text])))NOTVALID'
+    'CHECK((field_key=ANY(ARRAY[''excuse_documents''::text,''secondary_certificate''::text])))NOTVALID',
+    'CHECK(field_key=ANY(ARRAY[''excuse_documents''::text,''secondary_certificate''::text]))',
+    'CHECK(field_key=ANY(ARRAY[''excuse_documents''::text,''secondary_certificate''::text]))NOTVALID'
   ) THEN RAISE EXCEPTION 'ATTACHMENT_FIELD_CONSTRAINT_UNEXPECTED:%',v_def;
   ELSIF NOT v_validated THEN
     ALTER TABLE public.student_request_attachment_uploads

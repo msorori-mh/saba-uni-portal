@@ -14,7 +14,7 @@ describe("B1 migration promotion and application runbook 07",()=>{
     for(const gate of ["Free-service workflows","MISSING RELEASE EVIDENCE","ACL cutover","SEPARATE APPROVAL"])
       expect(doc).toContain(gate);
     expect(doc).toContain("B1-FREE-SERVICE-WORKFLOWS-08.sql");
-    expect(doc).toContain("6ae62b5346a21d10a43c88738477f1ecffe57826948d85c9854689debdc4f6f6");
+    expect(doc).toContain("1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c");
     expect(doc).toContain("REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql");
     expect(doc).toContain("55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383");
     expect(doc.indexOf("REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql")).toBeLessThan(doc.indexOf("REQUEST-B1-SERVICE-DETAILS-05A.sql"));
