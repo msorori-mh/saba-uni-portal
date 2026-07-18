@@ -200,7 +200,7 @@ Supabase production writes: NO
 | `git diff --check` | PASS |
 | Isolated PostgreSQL compile of candidate migrations | NOT EXECUTED (no local isolated DB in this cycle) |
 | Production SQL apply | NO |
-| Independent review | pending after PR open |
+| Independent review | pending on PR #162 |
 
 ## Next authorized action
 
