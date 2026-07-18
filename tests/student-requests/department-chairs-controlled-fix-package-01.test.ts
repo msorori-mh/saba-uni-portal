@@ -30,6 +30,10 @@ describe("department chairs controlled fix package", () => {
     expect(sql).toContain("department_chairs_controlled_fix_actor");
     expect(sql).toContain("v_actor::uuid");
     expect(sql).not.toContain("auth.uid()");
+    expect(sql).toContain("from auth.users u join public.user_roles ur");
+    expect(sql).toContain("u.banned_until is null or u.banned_until<=now()");
+    expect(sql).toContain("CONTROLLED_FIX_EXPLICIT_SYSTEM_ADMIN_ROLE_REQUIRED");
+    expect(sql).toContain("CONTROLLED_FIX_ACTOR_NOT_ACTIVE_AUTHORIZED_SYSTEM_ADMIN");
   });
   it("is concurrent, idempotent, and reuses zero-or-one inactive CS row", () => {
     expect(sql).toContain("pg_advisory_xact_lock");
@@ -45,7 +49,18 @@ describe("department chairs controlled fix package", () => {
   });
   it("ships an isolated PostgreSQL 17 behavioral harness", () => {
     expect(runner).toContain("postgres:17");
-    for (const scenario of ["positive", "reuse", "idempotency", "stale", "duplicate", "rollback"])
+    for (const scenario of [
+      "positive",
+      "reuse",
+      "idempotency",
+      "stale",
+      "duplicate",
+      "rollback",
+      "actor_missing",
+      "actor_inactive",
+      "actor_wrong_role",
+    ])
       expect(runner).toContain(scenario);
+    expect(runner).toContain("mutated state or wrote audit");
   });
 });

@@ -11,6 +11,7 @@ The canonical faculty schema has `employee_number`, not `academic_number`. The a
 ## Transaction and concurrency contract
 
 - One transaction, transaction-local ticket and actor UUID preflight, advisory lock, and table locks.
+- The future operator identity is deliberately parameterized because no production actor was approved. An arbitrary UUID is rejected: the actor must resolve through canonical `auth.users` plus `public.user_roles`, must not have a future `auth.users.banned_until`, and must hold the explicitly approved `system_admin` role. The package never invents or embeds a production operator ID.
 - Exact 7-argument `public.log_audit(text,uuid,text,jsonb,jsonb,text,uuid)` existence check and fully typed call; no overload ambiguity and no `auth.uid()` reliance.
 - Exact account/profile/assignment assertions before mutation.
 - Reuses exactly one inactive matching Osama CS assignment; inserts only when zero; aborts when more than one.
@@ -19,7 +20,7 @@ The canonical faculty schema has `employee_number`, not `academic_number`. The a
 
 ## PostgreSQL 17 verification
 
-The isolated Docker harness compiles and executes the package on `postgres:17` and covers positive apply, inactive-row reuse, idempotent rerun, stale identity rejection, duplicate-candidate rejection, and forced-audit-failure rollback. Result: PASS.
+The isolated Docker harness compiles and executes the package on `postgres:17` and covers positive apply, inactive-row reuse, idempotent rerun, stale identity rejection, duplicate-candidate rejection, and forced-audit-failure rollback. It additionally proves nonexistent, banned/inactive, and wrong-role actors fail before mutation, produce no audit row, and leave the original department mapping intact. Result: PASS.
 
 ## Production effect and decision
 

@@ -20,6 +20,7 @@ declare
   v_khaled_a constant uuid := '912bdb96-3fb9-494c-8caa-7778c7d0d402';
   v_ramzi_a constant uuid := '4d0f434e-57ab-40b2-8a6f-5f27f330db97';
   v_actor uuid;
+  v_actor_role text;
   v_unit uuid;
   v_role uuid;
   v_cs_assignment uuid;
@@ -41,6 +42,17 @@ begin
     raise exception 'CONTROLLED_FIX_ACTOR_UUID_REQUIRED';
   end;
   if v_actor is null then raise exception 'CONTROLLED_FIX_ACTOR_UUID_REQUIRED'; end if;
+  v_actor_role := current_setting('app.department_chairs_controlled_fix_actor_role',true);
+  if v_actor_role is distinct from 'system_admin' then
+    raise exception 'CONTROLLED_FIX_EXPLICIT_SYSTEM_ADMIN_ROLE_REQUIRED';
+  end if;
+  if not exists (
+    select 1 from auth.users u join public.user_roles ur on ur.user_id=u.id
+    where u.id=v_actor and (u.banned_until is null or u.banned_until<=now())
+      and ur.role::text=v_actor_role
+  ) then
+    raise exception 'CONTROLLED_FIX_ACTOR_NOT_ACTIVE_AUTHORIZED_SYSTEM_ADMIN';
+  end if;
   if to_regprocedure('public.log_audit(text,uuid,text,jsonb,jsonb,text,uuid)') is null then
     raise exception 'LOG_AUDIT_7_ARG_REQUIRED';
   end if;

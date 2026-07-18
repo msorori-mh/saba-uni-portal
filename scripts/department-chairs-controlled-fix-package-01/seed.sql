@@ -1,5 +1,6 @@
 create schema auth;
-create table auth.users(id uuid primary key);
+create table auth.users(id uuid primary key,banned_until timestamptz);
+create table public.user_roles(user_id uuid,role text);
 create table public.departments(id uuid primary key);
 create table public.faculty_profiles(id uuid primary key,user_id uuid,full_name_ar text,employee_number text,status text,department_id uuid,updated_at timestamptz default now());
 create table public.request_processing_units(id uuid primary key,code text,is_active boolean);
@@ -7,7 +8,9 @@ create table public.request_processing_roles(id uuid primary key,unit_id uuid,co
 create table public.request_processing_assignments(id uuid primary key default gen_random_uuid(),unit_id uuid,role_id uuid,assignment_type text,faculty_profile_id uuid,user_id uuid,staff_profile_id uuid,position_assignment_id uuid,department_id uuid,is_active boolean,starts_at timestamptz,ends_at timestamptz,updated_at timestamptz default now());
 create table public.audit_logs(id bigint generated always as identity,entity_id uuid,actor_id uuid,payload jsonb);
 create function public.log_audit(text,uuid,text,jsonb,jsonb,text,uuid) returns void language plpgsql as $$begin insert into audit_logs(entity_id,actor_id,payload) values($2,$7,$5); end$$;
-insert into auth.users values ('97acbe02-c59c-409c-8d51-7d4ef72e6db7'),('d4aaa5c9-72d1-4996-b0e8-d30c6327da6e'),('f602b62c-194b-4591-8e9c-956e5cbb347d');
+insert into auth.users(id) values ('97acbe02-c59c-409c-8d51-7d4ef72e6db7'),('d4aaa5c9-72d1-4996-b0e8-d30c6327da6e'),('f602b62c-194b-4591-8e9c-956e5cbb347d');
+insert into auth.users values ('aaaaaaaa-0000-4000-8000-000000000001',null),('aaaaaaaa-0000-4000-8000-000000000002','2099-01-01'),('aaaaaaaa-0000-4000-8000-000000000003',null);
+insert into user_roles values ('aaaaaaaa-0000-4000-8000-000000000001','system_admin'),('aaaaaaaa-0000-4000-8000-000000000002','system_admin'),('aaaaaaaa-0000-4000-8000-000000000003','admin');
 insert into departments values ('11111111-1111-4111-8111-111111111111'),('ce485c67-5f7c-498d-b120-4b1130a86ae8'),('22222222-2222-4222-8222-222222222222');
 insert into request_processing_units values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','department',true);
 insert into request_processing_roles values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','department_head',true);
