@@ -1,9 +1,9 @@
 # B1-FIVE-SERVICES-CONTROLLED-RUNTIME-PROMOTION-01 — Report
 
-Updated: 2026-07-18 (Asia/Riyadh)  
-Repository: `msorori-mh/saba-uni-portal`  
-Branch: `codex/b1-five-services-controlled-runtime-promotion-01`  
-Base: `origin/main@ae959be8c0aa3c3a5797a936f6e62f1feaa29933`  
+Updated: 2026-07-18 (Asia/Riyadh)
+Repository: `msorori-mh/saba-uni-portal`
+Branch: `codex/b1-five-services-controlled-runtime-promotion-01`
+Base: `origin/main@ae959be8c0aa3c3a5797a936f6e62f1feaa29933`
 Worktree: `C:\projects\saba-uni-portal-b1-five-services-promotion`
 
 ## Decision
@@ -204,6 +204,6 @@ Supabase production writes: NO
 
 ## Next authorized action
 
-Independent review of the ACL cutover + checksum reconciliation PR.  
+Independent review of the ACL cutover + checksum reconciliation PR.
 Do **not** apply migrations, change visibility, or publish until a separate
 explicit production authorization names the exact migration and SHA.
