@@ -158,12 +158,12 @@ BEGIN
     'final_chance','file_withdrawal'
   ) THEN RAISE EXCEPTION 'B1_CANONICAL_CODE_REQUIRED' USING ERRCODE='22023'; END IF;
 
-  IF CASE v_request.request_type
+  IF (CASE v_request.request_type
        WHEN 'absence_excuse' THEN 'excused_absence'
        WHEN 'transfer' THEN 'department_transfer'
        WHEN 'extra_chance' THEN 'final_chance'
        ELSE v_request.request_type
-     END IS DISTINCT FROM p_canonical_code THEN
+     END) IS DISTINCT FROM p_canonical_code THEN
     RAISE EXCEPTION 'B1_REQUEST_TYPE_MISMATCH' USING ERRCODE='42501';
   END IF;
 
@@ -434,7 +434,7 @@ BEGIN
   IF v_next_id IS NOT NULL THEN UPDATE public.student_request_workflow_steps SET status='active',entered_at=now(),updated_at=now()
     WHERE id=v_next_id AND status='pending'; END IF;
   IF (SELECT count(*) FROM public.student_request_workflow_steps s WHERE s.student_request_id=v_step.student_request_id AND s.status='active')
-     <> CASE WHEN v_next_id IS NULL THEN 0 ELSE 1 END THEN RAISE EXCEPTION 'B1_ACTIVE_STEP_INVARIANT_FAILED'; END IF;
+     <> (CASE WHEN v_next_id IS NULL THEN 0 ELSE 1 END) THEN RAISE EXCEPTION 'B1_ACTIVE_STEP_INVARIANT_FAILED'; END IF;
   INSERT INTO public.student_request_workflow_events(student_request_id,workflow_step_runtime_id,event_type,actor_user_id,
     actor_unit_id,actor_role_id,message_ar,payload,visible_to_student)
   VALUES(v_step.student_request_id,v_step.id,CASE p_action WHEN 'reject' THEN 'rejected' WHEN 'return' THEN 'returned'

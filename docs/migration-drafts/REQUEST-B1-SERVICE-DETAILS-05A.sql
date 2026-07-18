@@ -25,9 +25,9 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'B1_ACTIVE_REQUEST_OWNER_REQUIRED' USING ERRCODE='42501'; END IF;
   IF v_request.status NOT IN ('draft','returned','returned_for_completion')
     THEN RAISE EXCEPTION 'B1_REQUEST_NOT_WRITABLE' USING ERRCODE='42501'; END IF;
-  IF CASE v_request.request_type WHEN 'absence_excuse' THEN 'excused_absence'
+  IF (CASE v_request.request_type WHEN 'absence_excuse' THEN 'excused_absence'
        WHEN 'transfer' THEN 'department_transfer' WHEN 'extra_chance' THEN 'final_chance'
-       ELSE v_request.request_type END IS DISTINCT FROM p_canonical_code
+       ELSE v_request.request_type END) IS DISTINCT FROM p_canonical_code
     THEN RAISE EXCEPTION 'B1_REQUEST_TYPE_MISMATCH' USING ERRCODE='42501'; END IF;
 
   v_allowed:=CASE p_canonical_code

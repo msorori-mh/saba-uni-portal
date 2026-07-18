@@ -10,7 +10,9 @@ DECLARE
   v_normalized text;
   v_validated boolean;
 BEGIN
-  SELECT pg_get_constraintdef(c.oid, true), c.convalidated
+  -- Use the raw catalog definition so CHECK((...)) parentheses match production
+  -- signatures; pretty=true strips the outer grouping parentheses.
+  SELECT pg_get_constraintdef(c.oid, false), c.convalidated
   INTO v_definition, v_validated
   FROM pg_constraint c
   WHERE c.conrelid = 'public.absence_excuse_details'::regclass

@@ -11,17 +11,21 @@ describe("B1 migration promotion and application runbook 07",()=>{
       expect(doc).toContain(`\`${file}\``);
   });
   it("orders every executable draft and preserves the fail-closed missing gates",()=>{
-    for(const gate of ["Free-service workflows","MISSING RELEASE EVIDENCE","ACL cutover migration","SEPARATE APPROVAL"])
+    for(const gate of ["Free-service workflows","MISSING RELEASE EVIDENCE","ACL cutover","SEPARATE APPROVAL"])
       expect(doc).toContain(gate);
+    expect(doc).toContain("B1-FREE-SERVICE-WORKFLOWS-08.sql");
+    expect(doc).toContain("1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c");
+    expect(doc).toContain("REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql");
+    expect(doc).toContain("55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383");
     expect(doc.indexOf("REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql")).toBeLessThan(doc.indexOf("REQUEST-B1-SERVICE-DETAILS-05A.sql"));
     expect(doc.indexOf("Runtime release containing atomic caller")).toBeLessThan(doc.indexOf("STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql"));
     expect(doc.indexOf("Free-service workflows")).toBeLessThan(doc.indexOf("EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql"));
   });
   it("allows only one dry-run-proven migration and forbids unsafe history shortcuts",()=>{
     expect(doc).toContain("supabase db push --linked --dry-run");
-    expect(doc).toContain("Get-FileHash -LiteralPath $migrationPath -Algorithm SHA256");
+    expect(doc).toContain("git cat-file blob");
     expect(doc).toContain("exactly one expected timestamp");
-    expect(doc).toContain("Get-FileHash` checks match the separately approved SHA");
+    expect(doc).toContain("two SHA checks match the separately approved SHA");
     for(const unsafe of ["--include-all","migration repair","direct history writes","raw `psql -f` substitute"])
       expect(doc).toContain(unsafe);
   });
