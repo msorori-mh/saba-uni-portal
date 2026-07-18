@@ -26,7 +26,7 @@ flowchart TD
   STAFF[Stable faculty and departments] --> GPI
   SAFE[Secure attachments, notifications and authorization] --> GPI
   PMIG[Current priority migrations complete] --> GPI
-  GPA --> GAA[Graduates affairs MVP audit/design]
+  GAA[Graduates affairs MVP audit/design]
   GPI --> GAI[Graduates affairs implementation gate]
   GAA --> GAI
   GDEF[Approved graduate definition and final results] --> GAI
