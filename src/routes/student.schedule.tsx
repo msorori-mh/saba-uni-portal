@@ -6,6 +6,12 @@ import { CalendarClock, Loader2, ArrowRight, Printer, FileSpreadsheet } from "lu
 import { Button } from "@/components/ui/button";
 import { exportScheduleXlsx, logScheduleAudit, todayLabel, type ScheduleRow } from "@/lib/schedule-export";
 import { PRINT_CSS, PrintHeader, WeeklyGrid, DayList, useSiteIdentity } from "@/components/schedule/ScheduleView";
+import {
+  fetchCanonicalCurrentTerm,
+  filterActiveCurrentTermSections,
+  type CurrentTerm,
+  type CurrentTermClient,
+} from "@/lib/current-term";
 
 export const Route = createFileRoute("/student/schedule")({
   head: () => ({
@@ -35,10 +41,15 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | n
     .eq("user_id", auth.user.id).maybeSingle();
   if (!sp?.id) return { rows: [], info: null };
 
-  const [{ data: cy }, { data: cs }] = await Promise.all([
-    supabase.from("academic_years").select("id, name").eq("is_current", true).maybeSingle(),
-    supabase.from("semesters").select("id, name").eq("is_current", true).maybeSingle(),
-  ]);
+  let currentTerm: CurrentTerm | null;
+  try {
+    currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient);
+  } catch {
+    return { rows: [], info: null };
+  }
+  if (!currentTerm) return { rows: [], info: null };
+  const cy = currentTerm.year;
+  const cs = currentTerm.semester;
 
   let levelName: string | null = null;
   if (cy?.id && cs?.id) {
@@ -63,18 +74,19 @@ async function fetchData(): Promise<{ rows: ScheduleRow[]; info: StudentInfo | n
 
   const { data, error } = await supabase
     .from("student_enrollments")
-    .select("id, enrollment_status, section:course_sections(id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty:faculty_profiles(full_name_ar)))")
+    .select("id, enrollment_status, section:course_sections(id, section_code, status, offering:course_offerings(academic_year_id, semester_id, status, course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty:faculty_profiles(full_name_ar)))")
     .eq("student_profile_id", (sp as any).id)
     .eq("enrollment_status", "enrolled");
   if (error) throw error;
 
-  type Raw = { id: string; section: { section_code: string; offering: { course: { code: string; name_ar: string } | null } | null;
+  type Raw = { id: string; section: { section_code: string; status: string; offering: { academic_year_id: string; semester_id: string; status: string; course: { code: string; name_ar: string } | null } | null;
       schedule: Array<{ id: string; schedule_type: string; status: string;
         time_slot: { day_of_week: string; start_time: string; end_time: string } | null;
         room: { name_ar: string; code: string } | null;
         faculty: { full_name_ar: string } | null; }> | null; } | null; };
   const rows: ScheduleRow[] = [];
-  for (const e of (data ?? []) as unknown as Raw[]) {
+  const currentEnrollments = filterActiveCurrentTermSections((data ?? []) as unknown as Raw[], currentTerm);
+  for (const e of currentEnrollments) {
     const sec = e.section; if (!sec) continue;
     for (const s of sec.schedule ?? []) {
       if (s.status !== "published" || !s.time_slot) continue;

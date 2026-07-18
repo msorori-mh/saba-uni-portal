@@ -3,6 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { CalendarClock, MapPin, Clock, User, ArrowRight, AlertTriangle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { DAYS, dayLabel, TYPE_LABELS, type ScheduleRow } from "@/lib/schedule-export";
+import {
+  fetchCanonicalCurrentTerm,
+  filterActiveCurrentTermSections,
+  type CurrentTerm,
+  type CurrentTermClient,
+} from "@/lib/current-term";
 
 export const Route = createFileRoute("/mobile/student/schedule")({
   head: () => ({
@@ -35,15 +41,18 @@ async function fetchMobileSchedule(): Promise<ScheduleData> {
     .maybeSingle();
   if (!sp?.id) return { rows: [], term: { year: null, semester: null } };
 
-  const [{ data: cy }, { data: cs }] = await Promise.all([
-    supabase.from("academic_years").select("name").eq("is_current", true).maybeSingle(),
-    supabase.from("semesters").select("name").eq("is_current", true).maybeSingle(),
-  ]);
+  let currentTerm: CurrentTerm | null;
+  try {
+    currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient);
+  } catch {
+    return { rows: [], term: { year: null, semester: null } };
+  }
+  if (!currentTerm) return { rows: [], term: { year: null, semester: null } };
 
   const { data, error } = await supabase
     .from("student_enrollments")
     .select(
-      "id, enrollment_status, section:course_sections(id, section_code, offering:course_offerings(course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty:faculty_profiles(full_name_ar)))",
+      "id, enrollment_status, section:course_sections(id, section_code, status, offering:course_offerings(academic_year_id, semester_id, status, course:courses(code, name_ar)), schedule:class_schedule(id, schedule_type, status, time_slot:time_slots(day_of_week, start_time, end_time), room:rooms(name_ar, code), faculty:faculty_profiles(full_name_ar)))",
     )
     .eq("student_profile_id", (sp as { id: string }).id)
     .eq("enrollment_status", "enrolled");
@@ -54,7 +63,13 @@ async function fetchMobileSchedule(): Promise<ScheduleData> {
     id: string;
     section: {
       section_code: string;
-      offering: { course: { code: string; name_ar: string } | null } | null;
+      status: string;
+      offering: {
+        academic_year_id: string;
+        semester_id: string;
+        status: string;
+        course: { code: string; name_ar: string } | null;
+      } | null;
       schedule: Array<{
         id: string;
         schedule_type: string;
@@ -67,7 +82,11 @@ async function fetchMobileSchedule(): Promise<ScheduleData> {
   };
 
   const rows: ScheduleRow[] = [];
-  for (const e of (data ?? []) as unknown as Raw[]) {
+  const currentEnrollments = filterActiveCurrentTermSections(
+    (data ?? []) as unknown as Raw[],
+    currentTerm,
+  );
+  for (const e of currentEnrollments) {
     const sec = e.section;
     if (!sec) continue;
     for (const s of sec.schedule ?? []) {
@@ -90,8 +109,8 @@ async function fetchMobileSchedule(): Promise<ScheduleData> {
   return {
     rows,
     term: {
-      year: (cy as { name: string } | null)?.name ?? null,
-      semester: (cs as { name: string } | null)?.name ?? null,
+      year: currentTerm.year.name,
+      semester: currentTerm.semester.name,
     },
   };
 }
