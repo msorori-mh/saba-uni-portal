@@ -2,10 +2,10 @@
 
 | task_id | status | blocker | safe next action | production_impact |
 |---|---|---|---|---|
-| B1-FIVE-SERVICES-CONTROLLED-RUNTIME-PROMOTION-01 | HOLD_B1_FIVE_SERVICES_RUNTIME_PROMOTION | Source path closed for five services; production sequence still gated on release evidence, identities, storage, safe RPC matrix, and explicit approval | merge source/docs/tests after independent review PASS; stop before any apply | none |
-| B1-ACL-CUTOVER-DRAFT-06 | READY_FOR_REVIEW | Five-boundary source remediation landed; apply still requires order-1 release stamp with real deploy SHA | independent review; do not apply until stamp approved | none |
+| B1-FIVE-SERVICES-CONTROLLED-RUNTIME-PROMOTION-01 | SOURCE_MERGED; HOLD_B1_FIVE_SERVICES_RUNTIME_PROMOTION | Source merged via PR #162; production sequence still gated on release evidence, identities, storage, safe RPC matrix, and explicit approval | begin production preflight only after separate approval; do not apply | none |
+| B1-ACL-CUTOVER-DRAFT-06 | SOURCE_MERGED_UNAPPLIED | Cutover draft merged in #162; apply still requires order-1 release stamp with real deploy SHA | do not apply until stamp approved | none |
 | REMAINING-STUDENT-REQUESTS-SOURCE-READINESS-01 | DEFERRED_USER_LIFECYCLE_INPUT | Owner has not approved lifecycles for the six deferred services | keep deferred; no Workflow/SQL/UI work | none |
-| B1-PRODUCTION-MIGRATION-SEQUENCE | REQUIRES_USER_APPROVAL | identities, storage, release evidence, cutover review, exact single-migration dry run, and explicit approval | continue source/tests/docs and preflight preparation | would write production if approved |
+| B1-PRODUCTION-MIGRATION-SEQUENCE | REQUIRES_USER_APPROVAL | identities, storage, release evidence, cutover review, exact single-migration dry run, and explicit approval | production preflight preparation only; no apply without approval | would write production if approved |
 | B1-STUDENT-VISIBILITY-ACTIVATION | REQUIRES_USER_APPROVAL | separate per-service approval and post-migration verification | keep unchanged | would change production visibility |
 | PORTAL-DEPLOY-PUBLISH | REQUIRES_USER_APPROVAL | explicit deploy/publish authorization and release evidence | prepare source/release manifest only | would change deployed runtime |
 | COHORT-INTEGRATED-RELEASE | BLOCKED | resolver and security source work is merged, but migration drafts remain unapplied, feature flags remain inactive, production enrollment/import readiness is unverified, and PR #155's read-model architecture remains on HOLD | resolve PR #155 independently; verify production data readiness; retain unapplied drafts and inactive flags until separate migration/release authorization | none until separately authorized release |
