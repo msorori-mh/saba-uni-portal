@@ -58,8 +58,26 @@ describe("TIMETABLE-ANON-READ-HARDENING-01 source contract", () => {
 
   it("guards authenticated and service-role compatibility before and after", () => {
     expect(draft).not.toMatch(/REVOKE[^;]+FROM (?:authenticated|service_role)/i);
-    expect(draft).toContain("TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_BASELINE_MISMATCH");
-    expect(draft).toContain("TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_PRIVILEGE_CHANGED");
+    expect(draft).toContain("TIMETABLE_AUTHENTICATED_BASELINE_MISMATCH");
+    expect(draft).toContain("TIMETABLE_SERVICE_ROLE_BASELINE_MISMATCH");
+    expect(draft).toContain("TIMETABLE_AUTHENTICATED_PRIVILEGE_CHANGED");
+    expect(draft).toContain("TIMETABLE_SERVICE_ROLE_PRIVILEGE_CHANGED");
+  });
+
+  it("checks one exact privilege per has_table_privilege call", () => {
+    expect(draft.split("has_table_privilege('authenticated', format('public.%I', v_table), v_privilege)")).toHaveLength(3);
+    expect(draft.split("has_table_privilege('service_role', format('public.%I', v_table), v_privilege)")).toHaveLength(3);
+    expect(draft).toContain("has_table_privilege('anon', format('public.%I', v_table), v_privilege)");
+    expect(draft).not.toMatch(/has_table_privilege\([^)]*'(?:SELECT|INSERT|UPDATE|DELETE),/);
+  });
+
+  it("covers authenticated four and service-role seven privileges in both phases", () => {
+    const authenticatedSet = "ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE']";
+    const serviceSet = "ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']";
+    expect(draft.split(authenticatedSet)).toHaveLength(3);
+    // preflight service-role, postverify anon-denial, postverify service-role
+    expect(draft.split(serviceSet)).toHaveLength(4);
+    expect(draft.split("FOREACH v_table IN ARRAY ARRAY['class_schedule', 'course_sections', 'course_offerings'] LOOP").length).toBeGreaterThanOrEqual(3);
   });
 
   it("records the authenticated least-privilege follow-up contract", () => {

@@ -13,6 +13,8 @@ DO $preflight$
 DECLARE
   v_missing integer;
   v_unexpected integer;
+  v_table text;
+  v_privilege text;
 BEGIN
   WITH expected(policyname, tablename) AS (
     VALUES
@@ -69,16 +71,18 @@ BEGIN
 
   -- These direct grants are the compatibility boundary this focused draft must
   -- preserve while removing PUBLIC/anon access.
-  IF NOT (
-    has_table_privilege('authenticated', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE')
-    AND has_table_privilege('authenticated', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE')
-    AND has_table_privilege('authenticated', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE')
-    AND has_table_privilege('service_role', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-    AND has_table_privilege('service_role', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-    AND has_table_privilege('service_role', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-  ) THEN
-    RAISE EXCEPTION 'TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_BASELINE_MISMATCH';
-  END IF;
+  FOREACH v_table IN ARRAY ARRAY['class_schedule', 'course_sections', 'course_offerings'] LOOP
+    FOREACH v_privilege IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE'] LOOP
+      IF NOT has_table_privilege('authenticated', format('public.%I', v_table), v_privilege) THEN
+        RAISE EXCEPTION 'TIMETABLE_AUTHENTICATED_BASELINE_MISMATCH: %.%', v_table, v_privilege;
+      END IF;
+    END LOOP;
+    FOREACH v_privilege IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] LOOP
+      IF NOT has_table_privilege('service_role', format('public.%I', v_table), v_privilege) THEN
+        RAISE EXCEPTION 'TIMETABLE_SERVICE_ROLE_BASELINE_MISMATCH: %.%', v_table, v_privilege;
+      END IF;
+    END LOOP;
+  END LOOP;
 END
 $preflight$;
 
@@ -129,16 +133,18 @@ BEGIN
     RAISE EXCEPTION 'TIMETABLE_ANON_EFFECTIVE_SELECT_POLICY_REMAINS';
   END IF;
 
-  IF NOT (
-    has_table_privilege('authenticated', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE')
-    AND has_table_privilege('authenticated', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE')
-    AND has_table_privilege('authenticated', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE')
-    AND has_table_privilege('service_role', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-    AND has_table_privilege('service_role', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-    AND has_table_privilege('service_role', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
-  ) THEN
-    RAISE EXCEPTION 'TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_PRIVILEGE_CHANGED';
-  END IF;
+  FOREACH v_table IN ARRAY ARRAY['class_schedule', 'course_sections', 'course_offerings'] LOOP
+    FOREACH v_privilege IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE'] LOOP
+      IF NOT has_table_privilege('authenticated', format('public.%I', v_table), v_privilege) THEN
+        RAISE EXCEPTION 'TIMETABLE_AUTHENTICATED_PRIVILEGE_CHANGED: %.%', v_table, v_privilege;
+      END IF;
+    END LOOP;
+    FOREACH v_privilege IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] LOOP
+      IF NOT has_table_privilege('service_role', format('public.%I', v_table), v_privilege) THEN
+        RAISE EXCEPTION 'TIMETABLE_SERVICE_ROLE_PRIVILEGE_CHANGED: %.%', v_table, v_privilege;
+      END IF;
+    END LOOP;
+  END LOOP;
 END
 $postverify$;
 
