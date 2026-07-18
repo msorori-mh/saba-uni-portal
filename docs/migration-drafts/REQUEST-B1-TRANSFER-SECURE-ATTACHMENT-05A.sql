@@ -84,8 +84,15 @@ BEGIN
     storage_bucket,storage_object_path,checksum_sha256,created_by)
   VALUES(v_id,v_req.id,v_profile_id,p_field_key,p_original_file_name,p_mime_type,p_size_bytes,
     'student-request-secure-attachments',v_path,p_checksum_sha256,v_uid);
-  PERFORM public.log_audit('student_request_attachment',v_id,'attachment_upload_intent_created',NULL,
-    jsonb_build_object('request_id',v_req.id,'field_key',p_field_key),NULL);
+  PERFORM public.log_audit(
+    'student_request_attachment'::text,
+    v_id::uuid,
+    'attachment_upload_intent_created'::text,
+    NULL::jsonb,
+    jsonb_build_object('request_id',v_req.id,'field_key',p_field_key)::jsonb,
+    NULL::text,
+    v_uid::uuid
+  );
   RETURN jsonb_build_object('attachment_id',v_id);
 END $$;
 

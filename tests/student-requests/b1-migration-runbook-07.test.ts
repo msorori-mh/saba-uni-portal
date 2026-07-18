@@ -17,6 +17,15 @@ describe("B1 migration promotion and application runbook 07",()=>{
     expect(doc).toContain("1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c");
     expect(doc).toContain("REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql");
     expect(doc).toContain("55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383");
+    expect(doc).toContain("REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql");
+    expect(doc).toContain("3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab");
+    expect(doc).toContain("First B1 runtime migration");
+    expect(doc.indexOf("REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql")).toBeLessThan(
+      doc.indexOf("STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql"),
+    );
+    expect(doc.indexOf("STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql")).toBeLessThan(
+      doc.indexOf("STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql"),
+    );
     expect(doc.indexOf("REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql")).toBeLessThan(doc.indexOf("REQUEST-B1-SERVICE-DETAILS-05A.sql"));
     expect(doc.indexOf("Runtime release containing atomic caller")).toBeLessThan(doc.indexOf("STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql"));
     expect(doc.indexOf("Free-service workflows")).toBeLessThan(doc.indexOf("EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql"));
