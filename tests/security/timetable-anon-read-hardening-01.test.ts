@@ -17,8 +17,9 @@ describe("TIMETABLE-ANON-READ-HARDENING-01 source contract", () => {
   });
 
   for (const table of ["class_schedule", "course_sections", "course_offerings"]) {
-    it(`revokes every anonymous table privilege on ${table}`, () => {
+    it(`revokes every anonymous and PUBLIC table privilege on ${table}`, () => {
       expect(draft).toContain(`REVOKE ALL ON TABLE public.${table} FROM anon;`);
+      expect(draft).toContain(`REVOKE ALL ON TABLE public.${table} FROM PUBLIC;`);
       expect(draft).not.toContain(`GRANT SELECT ON public.${table} TO anon`);
     });
   }
@@ -28,8 +29,9 @@ describe("TIMETABLE-ANON-READ-HARDENING-01 source contract", () => {
     ["cs_select_anon", "course_sections"],
     ["co_select_anon", "course_offerings"],
   ] as const) {
-    it(`removes ${policy} idempotently`, () => {
-      expect(draft).toContain(`DROP POLICY IF EXISTS ${policy} ON public.${table};`);
+    it(`requires and removes the exact reviewed ${policy} policy`, () => {
+      expect(draft).toContain(`('${policy}', '${table}')`);
+      expect(draft).toContain(`DROP POLICY ${policy} ON public.${table};`);
     });
   }
 
@@ -39,9 +41,25 @@ describe("TIMETABLE-ANON-READ-HARDENING-01 source contract", () => {
     expect(draft).not.toMatch(/\b(?:DROP|ALTER)\s+TABLE\b/i);
   });
 
-  it("does not modify authenticated or service-role privileges in this focused draft", () => {
-    const executable = draft.split("COMMIT;")[0];
-    expect(executable).not.toMatch(/\b(?:authenticated|service_role)\b/i);
+  it("fails on missing, renamed, or unexpected anon-applicable policies", () => {
+    expect(draft).toContain("TIMETABLE_ANON_POLICY_INVENTORY_MISSING_OR_RENAMED");
+    expect(draft).toContain("TIMETABLE_ANON_UNEXPECTED_APPLICABLE_POLICY");
+    expect(draft).toContain("pg_catalog.pg_has_role('anon'");
+    expect(draft).toContain("lower(granted_role.role_name::text) = 'public'");
+  });
+
+  it("post-verifies every effective anon table privilege and SELECT policy", () => {
+    for (const privilege of ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"]) {
+      expect(draft).toContain(`'${privilege}'`);
+    }
+    expect(draft).toContain("TIMETABLE_ANON_EFFECTIVE_PRIVILEGE_REMAINS");
+    expect(draft).toContain("TIMETABLE_ANON_EFFECTIVE_SELECT_POLICY_REMAINS");
+  });
+
+  it("guards authenticated and service-role compatibility before and after", () => {
+    expect(draft).not.toMatch(/REVOKE[^;]+FROM (?:authenticated|service_role)/i);
+    expect(draft).toContain("TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_BASELINE_MISMATCH");
+    expect(draft).toContain("TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_PRIVILEGE_CHANGED");
   });
 
   it("records the authenticated least-privilege follow-up contract", () => {

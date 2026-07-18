@@ -6,16 +6,141 @@
 
 BEGIN;
 
--- Table privileges and permissive RLS policies are independent gates. Revoke
--- the privileges and remove the policies so anonymous access fails closed even
--- if either layer is inspected or changed independently later.
+-- Fail closed unless the live policy inventory is exactly the reviewed state.
+-- Policies granted to PUBLIC or to a role inherited by anon are effective for
+-- anon too; an unexpected applicable policy must never be silently preserved.
+DO $preflight$
+DECLARE
+  v_missing integer;
+  v_unexpected integer;
+BEGIN
+  WITH expected(policyname, tablename) AS (
+    VALUES
+      ('sch_select_anon', 'class_schedule'),
+      ('cs_select_anon', 'course_sections'),
+      ('co_select_anon', 'course_offerings')
+  )
+  SELECT count(*) INTO v_missing
+  FROM expected e
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_policies p
+    WHERE p.schemaname = 'public'
+      AND p.tablename = e.tablename
+      AND p.policyname = e.policyname
+      AND p.cmd = 'SELECT'
+      AND p.roles = ARRAY['anon']::name[]
+  );
+
+  IF v_missing <> 0 THEN
+    RAISE EXCEPTION 'TIMETABLE_ANON_POLICY_INVENTORY_MISSING_OR_RENAMED';
+  END IF;
+
+  WITH expected(policyname, tablename) AS (
+    VALUES
+      ('sch_select_anon', 'class_schedule'),
+      ('cs_select_anon', 'course_sections'),
+      ('co_select_anon', 'course_offerings')
+  ), applicable AS (
+    SELECT p.policyname, p.tablename
+    FROM pg_catalog.pg_policies p
+    WHERE p.schemaname = 'public'
+      AND p.tablename IN ('class_schedule', 'course_sections', 'course_offerings')
+      AND p.cmd IN ('ALL', 'SELECT')
+      AND EXISTS (
+        SELECT 1
+        FROM unnest(p.roles) AS granted_role(role_name)
+        WHERE lower(granted_role.role_name::text) = 'public'
+           OR lower(granted_role.role_name::text) = 'anon'
+           OR (
+             lower(granted_role.role_name::text) <> 'public'
+             AND pg_catalog.pg_has_role('anon', granted_role.role_name::text, 'MEMBER')
+           )
+      )
+  )
+  SELECT count(*) INTO v_unexpected
+  FROM applicable a
+  LEFT JOIN expected e USING (policyname, tablename)
+  WHERE e.policyname IS NULL;
+
+  IF v_unexpected <> 0 THEN
+    RAISE EXCEPTION 'TIMETABLE_ANON_UNEXPECTED_APPLICABLE_POLICY';
+  END IF;
+
+  -- These direct grants are the compatibility boundary this focused draft must
+  -- preserve while removing PUBLIC/anon access.
+  IF NOT (
+    has_table_privilege('authenticated', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE')
+    AND has_table_privilege('authenticated', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE')
+    AND has_table_privilege('authenticated', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE')
+    AND has_table_privilege('service_role', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    AND has_table_privilege('service_role', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    AND has_table_privilege('service_role', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+  ) THEN
+    RAISE EXCEPTION 'TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_BASELINE_MISMATCH';
+  END IF;
+END
+$preflight$;
+
+-- Table privileges and RLS policies are independent gates. PUBLIC is revoked
+-- as well as anon because PUBLIC grants are effective for anon through role
+-- membership. Any other inherited grant is detected by post-verification.
 REVOKE ALL ON TABLE public.class_schedule FROM anon;
 REVOKE ALL ON TABLE public.course_sections FROM anon;
 REVOKE ALL ON TABLE public.course_offerings FROM anon;
+REVOKE ALL ON TABLE public.class_schedule FROM PUBLIC;
+REVOKE ALL ON TABLE public.course_sections FROM PUBLIC;
+REVOKE ALL ON TABLE public.course_offerings FROM PUBLIC;
 
-DROP POLICY IF EXISTS sch_select_anon ON public.class_schedule;
-DROP POLICY IF EXISTS cs_select_anon ON public.course_sections;
-DROP POLICY IF EXISTS co_select_anon ON public.course_offerings;
+DROP POLICY sch_select_anon ON public.class_schedule;
+DROP POLICY cs_select_anon ON public.course_sections;
+DROP POLICY co_select_anon ON public.course_offerings;
+
+DO $postverify$
+DECLARE
+  v_table text;
+  v_privilege text;
+  v_applicable_policy_count integer;
+BEGIN
+  FOREACH v_table IN ARRAY ARRAY['class_schedule', 'course_sections', 'course_offerings'] LOOP
+    FOREACH v_privilege IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'] LOOP
+      IF has_table_privilege('anon', format('public.%I', v_table), v_privilege) THEN
+        RAISE EXCEPTION 'TIMETABLE_ANON_EFFECTIVE_PRIVILEGE_REMAINS: %.%', v_table, v_privilege;
+      END IF;
+    END LOOP;
+  END LOOP;
+
+  SELECT count(*) INTO v_applicable_policy_count
+  FROM pg_catalog.pg_policies p
+  WHERE p.schemaname = 'public'
+    AND p.tablename IN ('class_schedule', 'course_sections', 'course_offerings')
+    AND p.cmd IN ('ALL', 'SELECT')
+    AND EXISTS (
+      SELECT 1
+      FROM unnest(p.roles) AS granted_role(role_name)
+      WHERE lower(granted_role.role_name::text) = 'public'
+         OR lower(granted_role.role_name::text) = 'anon'
+         OR (
+           lower(granted_role.role_name::text) <> 'public'
+           AND pg_catalog.pg_has_role('anon', granted_role.role_name::text, 'MEMBER')
+         )
+    );
+  IF v_applicable_policy_count <> 0 THEN
+    RAISE EXCEPTION 'TIMETABLE_ANON_EFFECTIVE_SELECT_POLICY_REMAINS';
+  END IF;
+
+  IF NOT (
+    has_table_privilege('authenticated', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE')
+    AND has_table_privilege('authenticated', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE')
+    AND has_table_privilege('authenticated', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE')
+    AND has_table_privilege('service_role', 'public.class_schedule', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    AND has_table_privilege('service_role', 'public.course_sections', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+    AND has_table_privilege('service_role', 'public.course_offerings', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+  ) THEN
+    RAISE EXCEPTION 'TIMETABLE_AUTHENTICATED_OR_SERVICE_ROLE_PRIVILEGE_CHANGED';
+  END IF;
+END
+$postverify$;
 
 COMMIT;
 

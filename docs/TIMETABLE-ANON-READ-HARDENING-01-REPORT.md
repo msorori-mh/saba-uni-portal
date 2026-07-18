@@ -7,9 +7,10 @@ anonymous RLS policies on `class_schedule`, `course_sections`, and
 `course_offerings`. In particular, `sch_select_anon` uses `USING (true)`, making
 every schedule row eligible for anonymous reads when the table privilege exists.
 
-The applied migration was not edited. The forward draft removes both independent
-authorization gates: all anonymous table privileges and the three anonymous
-SELECT policies.
+The applied migration was not edited. The forward draft verifies the exact
+reviewed policy inventory, rejects unexpected policies inherited by `anon`,
+revokes direct `anon` and `PUBLIC` privileges, removes the three expected SELECT
+policies, and post-verifies effective privileges and policies before commit.
 
 ## Files
 
@@ -36,13 +37,16 @@ restored as a fallback.
 
 This file is a draft only. Before any separately authorized application:
 
-1. Verify the three tables and named policies exist and capture current ACLs.
+1. Verify the three tables and exact named policies exist and capture current
+   ACLs and role memberships. The draft aborts on missing, renamed, or unexpected
+   policies applicable to `anon`.
 2. Verify no public website feature intentionally depends on anonymous timetable
    metadata.
 3. Record the reviewed draft hash and confirm independent security review PASS.
 4. Apply as one transaction and stop on any partial or unexpected result.
-5. Verify `anon` has no table privilege and no applicable SELECT policy on all
-   three tables; direct REST/RPC reads with an anonymous JWT must be denied.
+5. Verify `anon` has no effective table privilege (including grants inherited
+   from `PUBLIC` or another role) and no SELECT/ALL policy applicable directly or
+   through membership on all three tables; anonymous REST reads must be denied.
 6. Regression-test authenticated student, faculty, and admin timetable reads.
 
 ## Assumptions and risks
