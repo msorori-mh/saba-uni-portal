@@ -18,7 +18,16 @@ describe("dynamic queue state reconciliation 02", () => {
     expect(graph).toContain("Merged migration drafts remain unapplied");
   });
   test("preserves open PR and architectural hold truth", () => {
-    expect(completed).toContain("PR #149 is not recorded as merged completion");
+    const cohortAuditRow = queue.split(/\r?\n/).find((line) =>
+      line.startsWith("| PORTAL-COHORT-DELIVERY-GROUP-INTEGRATION-AUDIT-01 |"),
+    );
+    expect(cohortAuditRow).toBeDefined();
+    expect(cohortAuditRow).toContain("`audit/portal-cohort-delivery-group-integration-01`");
+    expect(cohortAuditRow).toContain("`d569dda` (`449844a` audit)");
+    expect(cohortAuditRow).toContain("Draft #149 OPEN");
+    expect(cohortAuditRow).toContain("PASS_AUDIT_COMPLETE / HOLD_OPEN_DRAFT_NOT_MERGED");
+    expect(completed).toContain("Draft PR #149 OPEN");
+    expect(blocked).toContain("HOLD_OPEN_DRAFT_NOT_MERGED");
     expect(queue).toContain("#155 OPEN");
     expect(queue).toContain("HOLD architectural");
     expect(blocked).toContain("PR #155 is OPEN with an architectural HOLD");

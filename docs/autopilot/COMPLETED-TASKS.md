@@ -8,7 +8,7 @@
 | ENROLLMENT-CERTIFICATE-AVAILABILITY-BANNER-UX-FIX-01 | PASS | PR #143 / `0da75d8` | PASS | 0/0/0/0 | source merged; no deploy |
 | B1-SERVICE-RUNTIME-SOURCE-CONTRACTS-05 | PASS | PR #144 / `f375bc9` | Web+Android PASS | CRITICAL/HIGH=0/0 | none; drafts unapplied |
 | B1-MIGRATION-RUNBOOK-07 | PASS | PR #145 / `2a72eeb` | PASS | 0/0/0/1 nonblocking | none; documentation only |
-| PORTAL-COHORT-DELIVERY-GROUP-INTEGRATION-AUDIT-01 | PASS audit / HOLD integrated release | read-only | n/a | authoritative exact enrollment binding and P0 gaps identified | none |
+| PORTAL-COHORT-DELIVERY-GROUP-INTEGRATION-AUDIT-01 | PASS_AUDIT_COMPLETE / HOLD_OPEN_DRAFT_NOT_MERGED | Draft PR #149 OPEN / `d569dda` (`449844a` audit) | PASS | audit work reviewed; artifact not merged; integrated release separately HOLD | none |
 | FLUTTER-BACKEND-CONSUMPTION-CONTRACT-AUDIT-01 | HOLD consumer verification / PASS backend inventory | read-only | n/a | Flutter artifact absent; RPC/read-model gaps decomposed | none |
 | DYNAMIC-AGENT-QUEUE-ACTIVATION-01 | PASS | PR #146 / `bbbfbf5` | PASS | PASS | none |
 | B1-FREE-SERVICE-WORKFLOWS-DRAFT-08 | PASS source draft | PR #147 / `7b60ad3` | PASS | 0/0/0/0 | none; unapplied draft |
@@ -24,5 +24,6 @@
 | GRADUATION-PROJECTS-MVP-AUDIT-AND-DESIGN-01 | PASS_AUDIT_COMPLETE / HOLD implementation | PR #159 / `a794903` | PASS | 0/0/0/0 | none; design only |
 | GRADUATES-AFFAIRS-MVP-AUDIT-AND-DESIGN-01 | PASS_AUDIT_COMPLETE / HOLD implementation | PR #160 / `033ef41` | PASS | 0/0/0/0 | none; design only |
 
-PR #149 is not recorded as merged completion: its audit is review-complete but
-the PR remains OPEN. PR #155 remains an architectural HOLD and is not complete.
+PR #149 appears here only because its **audit work** is complete; its structured
+result remains `HOLD_OPEN_DRAFT_NOT_MERGED`, Draft PR OPEN, and is not a merged
+artifact completion. PR #155 remains an architectural HOLD and is not complete.
