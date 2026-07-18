@@ -2,56 +2,30 @@
 
 ## Outcome
 
-Prepared a forward-only, never-applied controlled SQL draft from
-`DEPARTMENT-CHAIRS-IDENTITY-RESOLUTION-READONLY-01`. The approved identities are
-CS Dr Osama Abduljalil, IT Dr Khaled Albrahi, and IS Dr Ramzi Aljabri.
+The source-only forward package is fail-closed, idempotent, and locally verified on PostgreSQL 17. It corrects only Osama's CS mapping, preserves the wrong IT assignment as inactive history, and never touches `position_assignments`. Khaled remains the sole IT chair; Ramzi and his IS assignment remain byte-for-byte unchanged.
 
-The package performs only the approved minimal correction when deliberately run
-in a separately authorized environment: disable Osama's exact wrong IT
-processing assignment without deletion, move his exact faculty profile from IT
-to CS, and insert exactly one active CS `department_head` faculty assignment.
-Khaled remains the sole IT chair. Ramzi and his IS assignment remain byte-for-byte
-unchanged. No employee, account, position, or chair identity is created.
+## Exact approved identity anchors
 
-## Fail-closed preflight
+The canonical faculty schema has `employee_number`, not `academic_number`. The approved administrative academic numbers are therefore asserted against `faculty_profiles.employee_number`: Osama `F2025006`, Khaled `F2025005`, and Ramzi `F2025004`. The SQL also asserts each exact stored Arabic name, user ID, faculty-profile ID, department ID, and assignment ID. No email is present in this report, the SQL, or its audit payload.
 
-- Requires a transaction-local controlled-fix ticket.
-- Takes an advisory lock and table locks before resolving or writing.
-- Anchors every known department, user, faculty profile, and existing assignment
-  to IDs documented by the read-only report; no new identity ID is invented.
-- Resolves exactly one active `department` unit and its exact active
-  `department_head` role dynamically.
-- Requires the exact pre-state: CS zero effective chairs, IT two (Khaled plus the
-  wrong Osama row), and IS one (Ramzi). Zero/one/multiple drift aborts.
-- Snapshots Khaled and Ramzi profiles and assignments before mutation.
+## Transaction and concurrency contract
 
-## Post-verification
+- One transaction, transaction-local ticket and actor UUID preflight, advisory lock, and table locks.
+- Exact 7-argument `public.log_audit(text,uuid,text,jsonb,jsonb,text,uuid)` existence check and fully typed call; no overload ambiguity and no `auth.uid()` reliance.
+- Exact account/profile/assignment assertions before mutation.
+- Reuses exactly one inactive matching Osama CS assignment; inserts only when zero; aborts when more than one.
+- A second execution verifies the final state without another chair row. No DELETE, cleanup, backfill, or history loss.
+- Any stale identity, duplicate inactive candidate, postcondition failure, or audit failure rolls back the entire transaction.
 
-The transaction commits only when CS, IT, and IS each have exactly one effective
-active chair with the approved direct faculty assignment; Osama belongs to CS;
-his old IT row is inactive; Khaled is the sole IT chair; and Khaled/Ramzi
-snapshots are unchanged. Every UPDATE requires row count one. No DELETE exists.
+## PostgreSQL 17 verification
 
-## Rollback by forward correction
-
-There is no destructive rollback. A separately approved forward correction must
-resolve the generated CS assignment from its exact tuple, require exactly one
-match, disable it without deletion, restore only report-anchored values, and
-rerun all invariants. The generated assignment ID is deliberately not guessed.
+The isolated Docker harness compiles and executes the package on `postgres:17` and covers positive apply, inactive-row reuse, idempotent rerun, stale identity rejection, duplicate-candidate rejection, and forced-audit-failure rollback. Result: PASS.
 
 ## Production effect and decision
 
-This PR is source-only. No SQL, Supabase connection, production read/write,
-employee modification, migration apply, deploy, or publish occurred.
+No SQL, Supabase connection, production read/write, migration apply, deploy, or publish occurred. Production execution remains prohibited.
 
 - CRITICAL: 0
 - HIGH: 0
-- Focused package tests: PASS (5 tests, 45 assertions).
-- TypeScript, focused ESLint/Prettier, and `git diff --check`: PASS.
-- Assumption: the read-only report remains the sole identity evidence; any drift
-  must produce a fresh read-only report rather than weakening predicates.
-- Blockers: production execution remains prohibited and was not attempted.
-- Residual operational risk: applying against state different from the report
-  aborts and requires a fresh read-only resolution; it must never be bypassed.
-- Decision: `PASS_SOURCE_PACKAGE_READY_FOR_INDEPENDENT_REVIEW`; production/apply
-  remains `HOLD_REQUIRES_SEPARATE_EXPLICIT_AUTHORIZATION`.
+- Risk: an authorized operator must supply the exact transaction-local ticket and actor UUID; state drift aborts and requires new read-only evidence.
+- Decision: `PASS_SOURCE_PACKAGE_READY_FOR_INDEPENDENT_REVIEW`; apply remains `HOLD_REQUIRES_SEPARATE_EXPLICIT_AUTHORIZATION`.
