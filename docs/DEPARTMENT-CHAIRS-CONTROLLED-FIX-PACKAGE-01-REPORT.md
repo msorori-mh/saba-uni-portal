@@ -28,5 +28,8 @@ No SQL, Supabase connection, production read/write, migration apply, deploy, or 
 
 - CRITICAL: 0
 - HIGH: 0
+- MEDIUM: 0
+- LOW: 0
 - Risk: an authorized operator must supply the exact transaction-local ticket and actor UUID; state drift aborts and requires new read-only evidence.
-- Decision: `PASS_SOURCE_PACKAGE_READY_FOR_INDEPENDENT_REVIEW`; apply remains `HOLD_REQUIRES_SEPARATE_EXPLICIT_AUTHORIZATION`.
+- Independent review: PASS on commit `d42fb5a` with all finding counts zero.
+- Decision: `PASS_DEPARTMENT_CHAIRS_CONTROLLED_FIX_PACKAGE_READY_FOR_APPLY_APPROVAL`; apply remains `HOLD_REQUIRES_SEPARATE_EXPLICIT_AUTHORIZATION`.
