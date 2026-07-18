@@ -28,7 +28,7 @@ export function resolveCanonicalCurrentTerm(
 }
 
 type QueryResult<T> = { data: T[] | null; error: { message?: string } | null };
-type CurrentTermClient = {
+export type CurrentTermClient = {
   from: (table: string) => {
     select: (columns: string) => {
       eq: (column: string, value: boolean) => {

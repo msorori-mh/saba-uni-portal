@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Award, ArrowRight, AlertTriangle, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchCanonicalCurrentTerm, type CurrentTermClient } from "@/lib/current-term";
 
 export const Route = createFileRoute("/mobile/student/grades")({
   head: () => ({
@@ -43,10 +44,9 @@ async function fetchMobileGrades(): Promise<GradesData> {
     .maybeSingle();
   if (!sp?.id) return { rows: [], term: { year: null, semester: null } };
 
-  const [{ data: cy }, { data: cs }] = await Promise.all([
-    supabase.from("academic_years").select("id, name").eq("is_current", true).maybeSingle(),
-    supabase.from("semesters").select("id, name").eq("is_current", true).maybeSingle(),
-  ]);
+  const currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient);
+  const cy = currentTerm?.year ?? null;
+  const cs = currentTerm?.semester ?? null;
 
   const { data: enr, error: e1 } = await supabase
     .from("student_enrollments")
