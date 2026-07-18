@@ -134,6 +134,27 @@ matrix before implementation.
    feature activation each require their separately authorized, ordered command
    and preflight/post-verification plan. Production remains closed until then.
 
+## Source-only migration bundle dependency sequence
+
+This is an implementation inventory and dependency order, not SQL. Every item
+below remains **DRAFTS_ONLY_NO_APPLY**. A bundle may move from HOLD to PASS only
+after its named decisions, source drafts, direct authorization tests and
+independent review are complete. PASS means ready for the next source-only
+bundle; it never authorizes applying a migration.
+
+| Priority / bundle | Depends on | Source-only contents and gate | Current decision |
+|---|---|---|---|
+| **P0 — core project authority** | Approved academic contract and threat/data model | Draft root project, team/member, supervisor/evaluator direct-assignment, immutable provenance, state/version, uniqueness/retention and append-only audit constraints; draft default-deny RLS and atomic RPC foundations; prove exact member/assignee ALLOW plus wrong project/department, same-role-unassigned, inactive, anonymous and admin/registrar/dean/graduate-affairs bypass DENY with zero side effects | **HOLD_PENDING_ACADEMIC_DECISIONS** |
+| **P1 — milestones, submissions and evaluation** | P0 source review PASS | Draft milestone and versioned-submission contracts; rubric/version snapshots, evaluator assignment, conflict declarations, quorum/finalization, resubmission and immutable-score rules; prove transition ownership, deadline/concurrency/idempotency and conflict separation | **HOLD_DEPENDS_ON_P0_AND_EVALUATION_POLICY** |
+| **P2 — private project files** | P0 authority PASS and P1 submission identity PASS | Draft project-specific private bucket/prefix inventory, object-key contract, upload/finalize/scan/retention state, RLS/storage policies and signed read/download RPC authorization; prove exact project membership/direct assignment, object-to-submission binding, traversal resistance, expiry and audited access | **HOLD_DEPENDS_ON_P0_P1_AND_STORAGE_POLICY_APPROVAL** |
+| **P2 — notifications and idempotency** | P0 event identity PASS; P1 lifecycle PASS | Draft event-to-recipient vocabulary, reference identity, unique idempotency keys and retry semantics; prove no notification on denied/rolled-back mutation, no duplicates and no unauthorized data disclosure | **HOLD_DEPENDS_ON_P0_P1_AND_NOTIFICATION_POLICY** |
+| **Later — runtime/UI/staging/release** | All source bundles PASS, full CI and independent security review | Implement server adapters, then feature-flagged UI default OFF, then synthetic staging. Prepare exact ordered migration commands with preflight, partial-apply stop rule and post-verification evidence; migration apply, storage creation, deployment, publication and activation remain separate release approvals | **HOLD_NO_RELEASE_AUTHORIZATION** |
+
+The mandatory order is P0 core authority, then P1 lifecycle/evaluation, then P2
+files and notifications (parallel only after their dependencies), and only then
+runtime/UI/staging/release gates. No bundle may reference a later bundle to make
+its own authorization complete, and no partial bundle is activation-ready.
+
 ## Acceptance and no-go conditions
 
 MVP is acceptable only with approved academic mappings, complete positive and
@@ -148,4 +169,3 @@ grade writeback or destructive retention behavior is a release HOLD.
 Zero. No SQL or migration was created or applied; no production system was
 contacted; no `student_visible`, runtime, UI, storage, deployment or publication
 was changed.
-

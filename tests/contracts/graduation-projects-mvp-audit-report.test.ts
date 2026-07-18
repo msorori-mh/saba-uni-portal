@@ -69,6 +69,26 @@ describe("graduation projects MVP audit/design report", () => {
     ]) expect(report).toContain(gate);
   });
 
+  test("defines a fail-closed source-only migration bundle sequence", () => {
+    for (const token of [
+      "DRAFTS_ONLY_NO_APPLY",
+      "P0 — core project authority",
+      "P1 — milestones, submissions and evaluation",
+      "P2 — private project files",
+      "P2 — notifications and idempotency",
+      "Later — runtime/UI/staging/release",
+      "HOLD_PENDING_ACADEMIC_DECISIONS",
+      "HOLD_DEPENDS_ON_P0_AND_EVALUATION_POLICY",
+      "HOLD_DEPENDS_ON_P0_P1_AND_STORAGE_POLICY_APPROVAL",
+      "HOLD_DEPENDS_ON_P0_P1_AND_NOTIFICATION_POLICY",
+      "HOLD_NO_RELEASE_AUTHORIZATION",
+    ]) expect(report).toContain(token);
+    expect(normalized).toContain(
+      "mandatory order is P0 core authority, then P1 lifecycle/evaluation, then P2 files and notifications",
+    );
+    expect(normalized).toContain("PASS means ready for the next source-only bundle; it never authorizes applying a migration");
+  });
+
   test("records zero production impact and no forbidden change", () => {
     expect(report).toContain("Production impact");
     expect(report).toContain("Zero. No SQL or migration was created or applied");
