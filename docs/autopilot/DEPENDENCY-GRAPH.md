@@ -39,15 +39,22 @@ flowchart TD
   FB --> MR[Student request mobile RPC cutover]
   FB --> MD[Mobile document read/download]
 
-  W[B1 free workflows draft 08] --> REL[Reviewed atomic caller release evidence]
+  W[B1 free workflows draft 08] --> PROMO[B1 five-services controlled promotion]
+  PROMO --> REL[Reviewed atomic caller release evidence stamp]
   REL --> MIG[B1 sequential migrations]
   W --> MIG
-  MIG --> ACL[B1 ACL cutover]
+  PROMO --> ACLSRC[ACL cutover source remediation]
+  MIG --> ACL[B1 ACL cutover apply]
+  ACLSRC --> ACL
   ACL --> VIS[Separate activation and student_visible]
+  DEFER[Six deferred services lifecycle input] -.->|PHASE 2 only| PHASE2[Remaining student requests readiness]
 ```
 
 Production nodes `REL`, `MIG`, `ACL`, and `VIS` remain fail-closed and require the
 specific approvals and verification gates recorded in the project runbook.
+`PROMO` is source-only and stops at the production apply gate.
+`DEFER` / `PHASE2` must not create Workflow/SQL/UI until the owner supplies
+approved lifecycles.
 
 Reconciled merge state: PRs #146-#148, #150-#154 and #156-#160 are merged with
 CI PASS. PR #149 remains OPEN (review-complete audit artifact); PR #155 remains

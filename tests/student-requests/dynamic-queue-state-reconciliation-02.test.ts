@@ -37,10 +37,12 @@ describe("dynamic queue state reconciliation 02", () => {
       expect(blocked).toContain(gate);
     expect(graph).toContain("remain fail-closed");
   });
-  test("marks only reconciliation active for this cycle", () => {
-    expect(workers).toContain("DYNAMIC-QUEUE-STATE-RECONCILIATION-02");
-    expect(normalizedWorkers).toContain("sole ACTIVE worker");
-    expect(normalizedWorkers).toContain("all three slots are released");
+  test("marks only the current promotion worker active", () => {
+    expect(workers).toContain("B1-FIVE-SERVICES-CONTROLLED-RUNTIME-PROMOTION-01");
+    expect(normalizedWorkers).toContain("DYNAMIC-QUEUE-STATE-RECONCILIATION-02 is complete");
+    expect(normalizedWorkers).toContain("No workers share an editable file or worktree");
+    expect(workers).toMatch(/\| 2 \| — \|/);
+    expect(workers).toMatch(/\| 3 \| — \|/);
   });
   test("preserves audit-only implementation holds", () => {
     expect(blocked).toContain("HOLD_PENDING_ACADEMIC_DECISIONS");
