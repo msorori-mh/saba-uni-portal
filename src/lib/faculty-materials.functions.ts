@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   MATERIALS_ALLOWED_MIME,
@@ -8,17 +8,12 @@ import {
   MATERIALS_MAX_BYTES_DEFAULT,
   MATERIALS_BUCKET,
   sanitizeFileName,
-  type StudySystemTag,
-  type LinkageMode,
 } from "@/lib/course-materials.shared";
+import { mutateCourseMaterialAtomically } from "@/lib/materials-atomic-mutation";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // NOTE: `course_materials*` tables are not yet in supabase/types.ts (migration not applied).
 // Server-side calls cast clients to `any` until types are regenerated post-migration.
-
-
-
-
 
 async function getFacultyProfileForUser(supabase: any, userId: string) {
   const { data, error } = await supabase
@@ -46,20 +41,20 @@ async function assertOwnsSection(supabase: any, sectionId: string, facultyProfil
 async function assertOwnsMaterial(supabase: any, materialId: string, facultyProfileId: string) {
   const { data, error } = await supabase
     .from("course_materials")
-    .select("id, faculty_profile_id, course_section_id, status")
+    .select("id, faculty_profile_id, course_section_id, status, updated_at")
     .eq("id", materialId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data || data.faculty_profile_id !== facultyProfileId) {
     throw new Error("ليس لديك صلاحية على هذه المادة");
   }
-  return data as { id: string; course_section_id: string; status: string };
+  return data as { id: string; course_section_id: string; status: string; updated_at: string };
 }
 
 export const getMyAssignedSectionsForMaterials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
+    const fp = await getFacultyProfileForUser(context.supabase as any, context.userId);
     const { data, error } = await (context.supabase as any)
       .from("course_sections")
       .select(
@@ -95,11 +90,13 @@ export const listMyCourseMaterials = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ sectionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
-    await assertOwnsSection((context.supabase as any), data.sectionId, fp.id);
+    const fp = await getFacultyProfileForUser(context.supabase as any, context.userId);
+    await assertOwnsSection(context.supabase as any, data.sectionId, fp.id);
     const { data: rows, error } = await (context.supabase as any)
       .from("course_materials")
-      .select("id, title, description, lecture_number, study_system, status, published_at, created_at, updated_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, uploaded_at)")
+      .select(
+        "id, title, description, lecture_number, study_system, status, published_at, created_at, updated_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, uploaded_at)",
+      )
       .eq("course_section_id", data.sectionId)
       .order("lecture_number", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false });
@@ -110,54 +107,49 @@ export const listMyCourseMaterials = createServerFn({ method: "POST" })
 export const createCourseMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      sectionId: z.string().uuid(),
-      title: z.string().trim().min(1).max(200),
-      description: z.string().trim().max(2000).optional().nullable(),
-      lecture_number: z.number().int().min(1).max(200).optional().nullable(),
-      study_system: z.enum(["regular", "parallel", "both"]),
-    }).parse(input),
+    z
+      .object({
+        sectionId: z.string().uuid(),
+        title: z.string().trim().min(1).max(200),
+        description: z.string().trim().max(2000).optional().nullable(),
+        lecture_number: z.number().int().min(1).max(200).optional().nullable(),
+        study_system: z.enum(["regular", "parallel", "both"]),
+        mutationId: z.string().uuid().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
-    await assertOwnsSection((context.supabase as any), data.sectionId, fp.id);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("course_materials")
-      .insert({
-        course_section_id: data.sectionId,
-        faculty_profile_id: fp.id,
+    const row = await mutateCourseMaterialAtomically(context.supabase as any, {
+      action: "create",
+      sectionId: data.sectionId,
+      idempotencyKey: data.mutationId ?? randomUUID(),
+      patch: {
         title: data.title,
         description: data.description ?? null,
         lecture_number: data.lecture_number ?? null,
         study_system: data.study_system,
-        status: "draft",
-      })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    await (supabaseAdmin as any).from("course_material_events").insert({
-      course_material_id: row.id,
-      actor_user_id: context.userId,
-      event: "created",
+      },
     });
-    return { id: row.id as string };
+    return { id: row.material_id };
   });
 
 export const updateCourseMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      materialId: z.string().uuid(),
-      title: z.string().trim().min(1).max(200).optional(),
-      description: z.string().trim().max(2000).nullable().optional(),
-      lecture_number: z.number().int().min(1).max(200).nullable().optional(),
-      study_system: z.enum(["regular", "parallel", "both"]).optional(),
-    }).parse(input),
+    z
+      .object({
+        materialId: z.string().uuid(),
+        title: z.string().trim().min(1).max(200).optional(),
+        description: z.string().trim().max(2000).nullable().optional(),
+        lecture_number: z.number().int().min(1).max(200).nullable().optional(),
+        study_system: z.enum(["regular", "parallel", "both"]).optional(),
+        mutationId: z.string().uuid().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
-    const existing = await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
+    const fp = await getFacultyProfileForUser(context.supabase as any, context.userId);
+    const existing = await assertOwnsMaterial(context.supabase as any, data.materialId, fp.id);
     if (existing.status === "archived") throw new Error("المادة مؤرشفة");
     const patch: Record<string, unknown> = {};
     if (data.title !== undefined) patch.title = data.title;
@@ -165,14 +157,12 @@ export const updateCourseMaterial = createServerFn({ method: "POST" })
     if (data.lecture_number !== undefined) patch.lecture_number = data.lecture_number;
     if (data.study_system !== undefined) patch.study_system = data.study_system;
     if (Object.keys(patch).length === 0) return { ok: true as const };
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await (supabaseAdmin as any).from("course_materials").update(patch).eq("id", data.materialId);
-    if (error) throw new Error(error.message);
-    await (supabaseAdmin as any).from("course_material_events").insert({
-      course_material_id: data.materialId,
-      actor_user_id: context.userId,
-      event: "updated",
-      meta: patch,
+    await mutateCourseMaterialAtomically(context.supabase as any, {
+      action: "update",
+      materialId: data.materialId,
+      expectedUpdatedAt: existing.updated_at,
+      idempotencyKey: data.mutationId ?? randomUUID(),
+      patch,
     });
     return { ok: true as const };
   });
@@ -180,16 +170,18 @@ export const updateCourseMaterial = createServerFn({ method: "POST" })
 export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
-    z.object({
-      materialId: z.string().uuid(),
-      fileBase64: z.string().min(1),
-      filename: z.string().min(1).max(200),
-      mimeType: z.string().min(1),
-    }).parse(input),
+    z
+      .object({
+        materialId: z.string().uuid(),
+        fileBase64: z.string().min(1),
+        filename: z.string().min(1).max(200),
+        mimeType: z.string().min(1),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
-    const material = await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
+    const fp = await getFacultyProfileForUser(context.supabase as any, context.userId);
+    const material = await assertOwnsMaterial(context.supabase as any, data.materialId, fp.id);
     if (material.status === "archived") throw new Error("المادة مؤرشفة");
 
     if (!(MATERIALS_ALLOWED_MIME as readonly string[]).includes(data.mimeType)) {
@@ -249,139 +241,41 @@ export const uploadCourseMaterialFile = createServerFn({ method: "POST" })
     return { id: fileRow.id as string, version_number: nextVersion };
   });
 
-async function eligibleStudentsForMaterial(
-  supabaseAdmin: any,
-  material: {
-    id: string;
-    course_section_id: string;
-    study_system: StudySystemTag;
-  },
-  linkageMode: LinkageMode,
-): Promise<string[]> {
-  // Enrollment path
-  const { data: enrolled } = await supabaseAdmin
-    .from("student_enrollments")
-    .select("student:student_profiles(user_id, study_system)")
-    .eq("course_section_id", material.course_section_id)
-    .eq("enrollment_status", "enrolled");
-  type ER = { student: { user_id: string; study_system: string | null } | null };
-  const enrolledIds = ((enrolled ?? []) as ER[])
-    .map((r) => r.student)
-    .filter((s): s is { user_id: string; study_system: string | null } => !!s?.user_id)
-    .filter((s) => material.study_system === "both" || s.study_system === material.study_system)
-    .map((s) => s.user_id);
-
-  if (linkageMode === "enrollment_only") return Array.from(new Set(enrolledIds));
-
-  // Cohort fallback: match on offering keys
-  const { data: section } = await supabaseAdmin
-    .from("course_sections")
-    .select("offering:course_offerings(academic_year_id, semester_id, program_id, level_id)")
-    .eq("id", material.course_section_id)
-    .maybeSingle();
-  const o = (section as any)?.offering as
-    | { academic_year_id: string; semester_id: string; program_id: string; level_id: string }
-    | null;
-  if (!o) return Array.from(new Set(enrolledIds));
-
-  const { data: cohort } = await supabaseAdmin
-    .from("student_academic_status")
-    .select("student:student_profiles(user_id, study_system, program_id)")
-    .eq("academic_year_id", o.academic_year_id)
-    .eq("semester_id", o.semester_id)
-    .eq("level_id", o.level_id)
-    .eq("enrollment_status", "enrolled");
-  type CR = { student: { user_id: string; study_system: string | null; program_id: string | null } | null };
-  const cohortIds = ((cohort ?? []) as CR[])
-    .map((r) => r.student)
-    .filter((s): s is { user_id: string; study_system: string | null; program_id: string | null } => !!s?.user_id)
-    .filter((s) => s.program_id === o.program_id)
-    .filter((s) => material.study_system === "both" || s.study_system === material.study_system)
-    .map((s) => s.user_id);
-
-  return Array.from(new Set([...enrolledIds, ...cohortIds]));
-}
-
-async function getLinkageMode(supabaseAdmin: any): Promise<LinkageMode> {
-  const { data } = await supabaseAdmin
-    .from("site_settings")
-    .select("setting_value")
-    .eq("setting_key", "materials_linkage_mode")
-    .maybeSingle();
-  const v = (data?.setting_value as string | undefined) ?? "cohort_fallback";
-  return v === "enrollment_only" ? "enrollment_only" : "cohort_fallback";
-}
-
 export const publishCourseMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ materialId: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({ materialId: z.string().uuid(), mutationId: z.string().uuid().optional() })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
-    await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const fp = await getFacultyProfileForUser(context.supabase as any, context.userId);
+    const existing = await assertOwnsMaterial(context.supabase as any, data.materialId, fp.id);
+    await mutateCourseMaterialAtomically(context.supabase as any, {
+      action: "publish",
+      materialId: data.materialId,
+      expectedUpdatedAt: existing.updated_at,
+      idempotencyKey: data.mutationId ?? randomUUID(),
+    });
 
-    // Idempotency: already published event?
-    const { data: prevEvent } = await supabaseAdmin
-      .from("course_material_events")
-      .select("id")
-      .eq("course_material_id", data.materialId)
-      .eq("event", "published")
-      .limit(1);
-
-    const { data: material, error } = await supabaseAdmin
-      .from("course_materials")
-      .update({ status: "published", published_at: new Date().toISOString() })
-      .eq("id", data.materialId)
-      .select("id, course_section_id, study_system, title")
-      .single();
-    if (error) throw new Error(error.message);
-
-    if (!prevEvent || prevEvent.length === 0) {
-      await (supabaseAdmin as any).from("course_material_events").insert({
-        course_material_id: data.materialId,
-        actor_user_id: context.userId,
-        event: "published",
-      });
-      // Notifications (in-portal only), idempotent by first publish
-      try {
-        const mode = await getLinkageMode(supabaseAdmin);
-        const userIds = await eligibleStudentsForMaterial(supabaseAdmin, material as any, mode);
-        if (userIds.length > 0) {
-          const rows = userIds.map((uid) => ({
-            user_id: uid,
-            title: "مادة تعليمية جديدة",
-            message: `تم نشر: ${(material as any).title}`,
-            notification_type: "info",
-            reference_type: "course_material",
-            reference_id: data.materialId,
-            is_read: false,
-          }));
-          await (supabaseAdmin as any).from("notifications").insert(rows);
-        }
-      } catch (e) {
-        // Non-fatal
-        console.error("[materials] notification dispatch failed", e);
-      }
-    }
     return { ok: true as const };
   });
 
 export const archiveCourseMaterial = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ materialId: z.string().uuid() }).parse(input))
+  .inputValidator((input: unknown) =>
+    z
+      .object({ materialId: z.string().uuid(), mutationId: z.string().uuid().optional() })
+      .parse(input),
+  )
   .handler(async ({ data, context }) => {
-    const fp = await getFacultyProfileForUser((context.supabase as any), context.userId);
-    await assertOwnsMaterial((context.supabase as any), data.materialId, fp.id);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("course_materials")
-      .update({ status: "archived" })
-      .eq("id", data.materialId);
-    if (error) throw new Error(error.message);
-    await (supabaseAdmin as any).from("course_material_events").insert({
-      course_material_id: data.materialId,
-      actor_user_id: context.userId,
-      event: "archived",
+    const fp = await getFacultyProfileForUser(context.supabase as any, context.userId);
+    const existing = await assertOwnsMaterial(context.supabase as any, data.materialId, fp.id);
+    await mutateCourseMaterialAtomically(context.supabase as any, {
+      action: "archive",
+      materialId: data.materialId,
+      expectedUpdatedAt: existing.updated_at,
+      idempotencyKey: data.mutationId ?? randomUUID(),
     });
     return { ok: true as const };
   });
