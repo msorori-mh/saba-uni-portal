@@ -1,8 +1,11 @@
 # PORTAL-COHORT-DELIVERY-GROUP-INTEGRATION-AUDIT-01
 
-**Decision:** `PASS_PORTAL_COHORT_DELIVERY_GROUP_INTEGRATION_AUDIT_READY_FOR_DESIGN`  
-**Mode:** Source-only and read-only audit  
-**Portal baseline:** `origin/main@7b60ad33f03437d4e52a54633db3de857742ed5f`  
+**Decision:** `PASS_PORTAL_COHORT_DELIVERY_GROUP_INTEGRATION_AUDIT_READY_FOR_DESIGN`
+
+**Mode:** Source-only and read-only audit
+
+**Portal baseline:** `origin/main@7b60ad33f03437d4e52a54633db3de857742ed5f`
+
 **Production impact:** None. No runtime source, applied migration, database, production data, deployment, publication, or `student_visible` value was changed.
 
 ## Executive summary
