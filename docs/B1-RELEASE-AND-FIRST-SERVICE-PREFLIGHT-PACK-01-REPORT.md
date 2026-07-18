@@ -24,6 +24,7 @@ production record access occurred. The six deferred services were not touched.
 |---|---|
 | Source base | `origin/main@309992be6acff351bd7c9a8f6503c64d25b2430a` |
 | Expected deploy candidate SHA | `309992be6acff351bd7c9a8f6503c64d25b2430a` |
+| Actual deployed SHA | `DEPLOYED_SHA=UNKNOWN` |
 | Deployment evidence | **MISSING — this SHA is an expected source candidate, not a claimed deployed SHA** |
 | Release stamp | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql`; placeholder remains fail-closed |
 | Services at release boundary | all five B1 services remain `runtimeAvailable:false`, workflows inactive, and `student_visible` unchanged |

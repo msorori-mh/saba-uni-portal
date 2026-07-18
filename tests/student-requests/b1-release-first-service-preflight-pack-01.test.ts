@@ -31,6 +31,7 @@ const ordered = [
 describe("B1 release and enrollment-suspension preflight pack", () => {
   test("pins candidate source without claiming deployment", () => {
     expect(report).toContain("309992be6acff351bd7c9a8f6503c64d25b2430a");
+    expect(report).toContain("DEPLOYED_SHA=UNKNOWN");
     expect(report).toContain("expected source candidate, not a claimed deployed SHA");
     expect(report).toContain("HOLD_RELEASE_NOT_DEPLOYED");
   });
