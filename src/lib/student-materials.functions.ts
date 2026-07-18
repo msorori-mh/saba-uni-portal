@@ -2,6 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MATERIALS_BUCKET, type LinkageMode, type StudySystemTag } from "@/lib/course-materials.shared";
+import { fetchCanonicalCurrentTerm, type CurrentTermClient } from "@/lib/current-term";
+import {
+  canAccessPublishedMaterial,
+  exactCurrentMaterialSectionIds,
+  materialStudySystemMatches,
+  type MaterialEnrollmentRow,
+} from "@/lib/materials-audience";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -35,45 +42,24 @@ async function eligibleSectionIdsForStudent(
   student: { id: string; program_id: string | null; study_system: string | null },
   mode: LinkageMode,
 ): Promise<Set<string>> {
-  const result = new Set<string>();
-  const { data: enrolled } = await supabaseAdmin
+  // Preserve the setting surface, but never use either mode to infer sibling
+  // sections. Exact current enrollment is the only authoritative audience.
+  void mode;
+  const currentTerm = await fetchCanonicalCurrentTerm(
+    supabaseAdmin as unknown as CurrentTermClient,
+  );
+  if (!currentTerm) return new Set<string>();
+
+  const { data: enrolled, error } = await supabaseAdmin
     .from("student_enrollments")
-    .select("course_section_id")
+    .select("course_section_id, enrollment_status, section:course_sections(status, offering:course_offerings(academic_year_id, semester_id, status))")
     .eq("student_profile_id", student.id)
     .eq("enrollment_status", "enrolled");
-  for (const r of ((enrolled ?? []) as { course_section_id: string }[])) result.add(r.course_section_id);
-
-  if (mode === "enrollment_only") return result;
-  if (!student.program_id || !student.study_system) return result;
-
-  const { data: statuses } = await supabaseAdmin
-    .from("student_academic_status")
-    .select("academic_year_id, semester_id, level_id")
-    .eq("student_profile_id", student.id)
-    .eq("enrollment_status", "enrolled");
-  const keys = (statuses ?? []) as { academic_year_id: string; semester_id: string; level_id: string }[];
-  if (keys.length === 0) return result;
-
-  for (const k of keys) {
-    if (!k.academic_year_id || !k.semester_id || !k.level_id) continue;
-    const { data: offerings } = await supabaseAdmin
-      .from("course_offerings")
-      .select("id, sections:course_sections(id)")
-      .eq("academic_year_id", k.academic_year_id)
-      .eq("semester_id", k.semester_id)
-      .eq("level_id", k.level_id)
-      .eq("program_id", student.program_id);
-    type O = { id: string; sections: { id: string }[] | null };
-    for (const o of ((offerings ?? []) as O[])) {
-      for (const s of o.sections ?? []) result.add(s.id);
-    }
-  }
-  return result;
-}
-
-function studySystemMatches(materialTag: StudySystemTag, studentSystem: string | null): boolean {
-  if (materialTag === "both") return true;
-  return !!studentSystem && studentSystem === materialTag;
+  if (error) throw new Error(error.message);
+  return exactCurrentMaterialSectionIds(
+    (enrolled ?? []) as unknown as MaterialEnrollmentRow[],
+    currentTerm,
+  );
 }
 
 export const listStudentCourseMaterials = createServerFn({ method: "POST" })
@@ -99,7 +85,7 @@ export const listStudentCourseMaterials = createServerFn({ method: "POST" })
 
     const countBySection = new Map<string, number>();
     for (const m of ((materials ?? []) as { course_section_id: string; study_system: StudySystemTag }[])) {
-      if (!studySystemMatches(m.study_system, student.study_system)) continue;
+      if (!materialStudySystemMatches(m.study_system, student.study_system)) continue;
       countBySection.set(m.course_section_id, (countBySection.get(m.course_section_id) ?? 0) + 1);
     }
 
@@ -134,7 +120,13 @@ export const listStudentMaterialsForCourse = createServerFn({ method: "POST" })
       .order("published_at", { ascending: false });
 
     type R = { id: string; title: string; description: string | null; lecture_number: number | null; study_system: StudySystemTag; published_at: string | null; files: any[] };
-    return ((rows ?? []) as R[]).filter((m) => studySystemMatches(m.study_system, student.study_system));
+    return ((rows ?? []) as R[]).filter((m) => canAccessPublishedMaterial({
+      eligibleSectionIds: sectionIds,
+      sectionId: data.sectionId,
+      status: "published",
+      materialTag: m.study_system,
+      studentSystem: student.study_system,
+    }));
   });
 
 export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
@@ -163,12 +155,16 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
     const isOwner = !!fp && (fp as any).id === material.faculty_profile_id;
 
     if (!isOwner) {
-      if (material.status !== "published") throw new Error("المادة غير متاحة");
       const student = await getStudentProfile((context.supabase as any), context.userId);
       const mode = await getLinkageMode(supabaseAdmin);
       const sectionIds = await eligibleSectionIdsForStudent(supabaseAdmin, student, mode);
-      if (!sectionIds.has(material.course_section_id)) throw new Error("لا يمكنك الوصول إلى هذا الملف");
-      if (!studySystemMatches(material.study_system, student.study_system)) throw new Error("لا يمكنك الوصول إلى هذا الملف");
+      if (!canAccessPublishedMaterial({
+        eligibleSectionIds: sectionIds,
+        sectionId: material.course_section_id,
+        status: material.status,
+        materialTag: material.study_system,
+        studentSystem: student.study_system,
+      })) throw new Error("لا يمكنك الوصول إلى هذا الملف");
     }
 
     const { data: signed, error: sErr } = await (supabaseAdmin as any).storage
