@@ -14,6 +14,28 @@ export type CurrentTerm = {
   semester: CurrentSemester;
 };
 
+export type TermScopedEnrollment = {
+  section: {
+    offering: {
+      academic_year_id: string;
+      semester_id: string;
+    } | null;
+  } | null;
+};
+
+export function filterEnrollmentsForCurrentTerm<T extends TermScopedEnrollment>(
+  enrollments: T[],
+  currentTerm: CurrentTerm | null,
+): T[] {
+  if (!currentTerm) return [];
+
+  return enrollments.filter(
+    (enrollment) =>
+      enrollment.section?.offering?.academic_year_id === currentTerm.year.id &&
+      enrollment.section.offering.semester_id === currentTerm.semester.id,
+  );
+}
+
 export function resolveCanonicalCurrentTerm(
   years: CurrentAcademicYear[],
   semesters: CurrentSemester[],

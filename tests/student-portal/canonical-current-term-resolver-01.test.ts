@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   fetchCanonicalCurrentTerm,
+  filterEnrollmentsForCurrentTerm,
   resolveCanonicalCurrentTerm,
 } from "../../src/lib/current-term";
 import { readFileSync } from "node:fs";
@@ -126,8 +127,43 @@ describe("canonical current-term resolver", () => {
     expect(mobileGrades).toContain(
       "const currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient)",
     );
-    expect(mobileGrades).toContain("const cy = currentTerm?.year ?? null");
-    expect(mobileGrades).toContain("const cs = currentTerm?.semester ?? null");
+    expect(mobileGrades).toContain("if (!currentTerm) return unavailableCurrentTerm");
+    expect(mobileGrades).toContain("return unavailableCurrentTerm");
+    expect(mobileGrades).toContain("enrollments = filterEnrollmentsForCurrentTerm(enrollments, currentTerm)");
     expect(mobileGrades).not.toContain('from("academic_years").select("id, name").eq("is_current", true)');
+  });
+
+  const term = {
+    year: { id: "year-1", name: "2026/2027" },
+    semester: { id: "semester-1", name: "First", academic_year_id: "year-1" },
+  };
+  const enrollments = [
+    {
+      id: "matching",
+      section: { offering: { academic_year_id: "year-1", semester_id: "semester-1" } },
+    },
+    {
+      id: "historical",
+      section: { offering: { academic_year_id: "year-0", semester_id: "semester-0" } },
+    },
+  ];
+
+  it("returns no enrollments when the canonical current term is unavailable", () => {
+    expect(filterEnrollmentsForCurrentTerm(enrollments, null)).toEqual([]);
+  });
+
+  it("returns an empty array for a valid term with zero matching enrollments", () => {
+    const otherTerm = {
+      year: { id: "year-2", name: "2027/2028" },
+      semester: { id: "semester-2", name: "Second", academic_year_id: "year-2" },
+    };
+
+    expect(filterEnrollmentsForCurrentTerm(enrollments, otherTerm)).toEqual([]);
+  });
+
+  it("returns only enrollments matching both canonical term identifiers", () => {
+    expect(filterEnrollmentsForCurrentTerm(enrollments, term).map((row) => row.id)).toEqual([
+      "matching",
+    ]);
   });
 });

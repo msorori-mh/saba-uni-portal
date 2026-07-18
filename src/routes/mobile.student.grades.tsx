@@ -2,7 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Award, ArrowRight, AlertTriangle, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchCanonicalCurrentTerm, type CurrentTermClient } from "@/lib/current-term";
+import {
+  fetchCanonicalCurrentTerm,
+  filterEnrollmentsForCurrentTerm,
+  type CurrentTerm,
+  type CurrentTermClient,
+} from "@/lib/current-term";
 
 export const Route = createFileRoute("/mobile/student/grades")({
   head: () => ({
@@ -31,6 +36,7 @@ type GradeCard = {
 type GradesData = {
   rows: GradeCard[];
   term: { year: string | null; semester: string | null };
+  unavailableReason?: "current_term_unavailable";
 };
 
 async function fetchMobileGrades(): Promise<GradesData> {
@@ -44,9 +50,21 @@ async function fetchMobileGrades(): Promise<GradesData> {
     .maybeSingle();
   if (!sp?.id) return { rows: [], term: { year: null, semester: null } };
 
-  const currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient);
-  const cy = currentTerm?.year ?? null;
-  const cs = currentTerm?.semester ?? null;
+  const unavailableCurrentTerm: GradesData = {
+    rows: [],
+    term: { year: null, semester: null },
+    unavailableReason: "current_term_unavailable",
+  };
+  let currentTerm: CurrentTerm | null;
+  try {
+    currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient);
+  } catch {
+    return unavailableCurrentTerm;
+  }
+  if (!currentTerm) return unavailableCurrentTerm;
+
+  const cy = currentTerm.year;
+  const cs = currentTerm.semester;
 
   const { data: enr, error: e1 } = await supabase
     .from("student_enrollments")
@@ -74,14 +92,7 @@ async function fetchMobileGrades(): Promise<GradesData> {
     (e) => e.enrollment_status !== "dropped" && e.section?.offering,
   );
 
-  if (cy?.id && cs?.id) {
-    const currentTerm = enrollments.filter(
-      (e) =>
-        e.section?.offering?.academic_year_id === cy.id &&
-        e.section?.offering?.semester_id === cs.id,
-    );
-    if (currentTerm.length > 0) enrollments = currentTerm;
-  }
+  enrollments = filterEnrollmentsForCurrentTerm(enrollments, currentTerm);
 
   if (enrollments.length === 0) {
     return { rows: [], term: { year: cy?.name ?? null, semester: cs?.name ?? null } };
