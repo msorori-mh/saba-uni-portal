@@ -49,6 +49,12 @@ flowchart TD
 Production nodes `REL`, `MIG`, `ACL`, and `VIS` remain fail-closed and require the
 specific approvals and verification gates recorded in the project runbook.
 
+Reconciled merge state: PRs #146-#148, #150-#154 and #156-#160 are merged with
+CI PASS. PR #149 remains OPEN (review-complete audit artifact); PR #155 remains
+OPEN and `COHORT-CURRENT-TERM-COURSE-READ-MODEL-01` is an architectural HOLD.
+Merged migration drafts remain unapplied and do not satisfy `PMIG`, `MIG`, `ACL`
+or `VIS`.
+
 `GPA` and `GAA` are P2 design-only nodes and never displace eligible P0/P1 work.
 `GPI` must precede `GAI`. All implementation-gate nodes remain blocked until their
 incoming dependencies are complete and separately approved.
