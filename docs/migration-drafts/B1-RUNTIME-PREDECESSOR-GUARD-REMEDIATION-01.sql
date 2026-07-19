@@ -55,6 +55,14 @@ begin
   if exists(select 1 from public.request_type_workflow_transitions t
     where t.workflow_id=v_step.workflow_id and t.to_step_id=v_step.workflow_step_id
     group by t.from_step_id,t.to_step_id having count(*)<>1) then return false; end if;
+  if exists(
+    select 1 from public.request_type_workflow_transitions t
+    left join public.request_type_workflow_steps source_config on source_config.id=t.from_step_id
+    left join public.request_type_workflow_steps target_config on target_config.id=t.to_step_id
+    where t.workflow_id=v_step.workflow_id and
+      ((t.from_step_id is not null and source_config.workflow_id is distinct from t.workflow_id) or
+       (t.to_step_id is not null and target_config.workflow_id is distinct from t.workflow_id))
+  ) then return false; end if;
 
   -- Every incoming edge is unique and its exact predecessor runtime is terminal-valid.
   for v_pred in
@@ -94,7 +102,12 @@ begin
             select t.to_step_id from reachable r
             join public.request_type_workflow_transitions t
               on t.workflow_id=v_step.workflow_id and t.from_step_id=r.step_id
-            join public.request_type_workflow_steps source_config on source_config.id=t.from_step_id
+            join public.request_type_workflow_steps source_config
+              on source_config.id=t.from_step_id and source_config.workflow_id=t.workflow_id
+                and source_config.workflow_id=v_step.workflow_id
+            join public.request_type_workflow_steps target_config
+              on target_config.id=t.to_step_id and target_config.workflow_id=t.workflow_id
+                and target_config.workflow_id=v_step.workflow_id
             where t.to_step_id is not null and
               (public.workflow_action_result_matches(source_config.action_type,t.action_result) or
                (t.action_result='skip' and source_config.can_skip))

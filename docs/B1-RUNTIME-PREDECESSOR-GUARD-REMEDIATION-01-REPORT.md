@@ -10,6 +10,8 @@ Parallel all-required joins are represented by multiple incoming edges: every me
 
 The HIGH review finding is closed source-side: a non-entry step rejects every null-from entry edge; duplicate incoming edges deny; incoming results must match the canonical action/result mapping (`reviewed`, `approved`, `applied`, `cleared`, `archived`, `payment_confirmed`, `signed`, `issued`); and every earlier required config step must have one terminal-valid runtime plus a legal recursive directed path to the target. A disconnected runtime row cannot satisfy the guard.
 
+The follow-up MEDIUM finding is also closed: every transition in the selected workflow is rejected if either non-null endpoint belongs to another workflow/version. Recursive traversal joins both source and target config rows on `t.workflow_id` and again on the active runtime's `workflow_id`; cross-version edges cannot enter the reachable graph.
+
 ## Mutation ordering
 
 The guard is read-only. Atomic action paths call `can_current_user_act_on_step` before their first mutation; denial therefore produces no step mutation, event, notification, or advancement. The composed PR #166 PostgreSQL 17 harness directly verified the atomic finance and attachment specialized paths preserve zero mutation on denial.
@@ -17,7 +19,7 @@ The guard is read-only. Atomic action paths call `can_current_user_act_on_step` 
 ## Verification
 
 - Isolated PostgreSQL 17 compile and behavioral matrix: `285/285 PASS` after the remediation was loaded over the reviewed authorization draft.
-- Independent focused PostgreSQL 17 HIGH suite: `4/4 PASS` for null entry to non-first, disconnected pending required config, malformed edge result, and duplicate ambiguous edge. Every denial preserves the target runtime row, workflow-event count, and advancement state.
+- Independent focused PostgreSQL 17 suite: `5/5 PASS` for null entry to non-first, disconnected pending required config, malformed edge result, duplicate ambiguous edge, and cross-version traversal. Every denial preserves the target runtime row, workflow-event count, and advancement state.
 - The harness seeds explicit entry and outgoing transitions, then adds a canonical pending predecessor/config/edge per service to prove premature activation denies.
 - Direct cases include exact assignee ALLOW; same-role, bypass, anonymous, wrong action/unit/role, inactive/completed, other request, department isolation, and incomplete predecessor DENY; specialized finance/attachment denial proves zero mutation.
 - Source-contract tests cover exact request/workflow/config/runtime correspondence, required and optional legal-skip semantics, missing/duplicate fail-closed counts, all-incoming-edge (parallel join) completion, exact transition cardinality, and absence of role bypass or writes.

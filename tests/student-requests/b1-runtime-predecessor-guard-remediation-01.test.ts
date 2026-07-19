@@ -35,6 +35,8 @@ describe("B1 runtime predecessor guard remediation", () => {
       "having count(*)<>1",
       "with recursive reachable",
       "workflow_action_result_matches",
+      "source_config.workflow_id=v_step.workflow_id",
+      "target_config.workflow_id=v_step.workflow_id",
     ])
       expect(sql).toContain(s);
   });
@@ -60,6 +62,7 @@ describe("B1 runtime predecessor guard remediation", () => {
       "duplicate_ambiguous_edge",
       "zero_mutation",
       "zero_events",
+      "cross_version_traversal",
     ])
       expect(harness).toContain(scenario);
   });
