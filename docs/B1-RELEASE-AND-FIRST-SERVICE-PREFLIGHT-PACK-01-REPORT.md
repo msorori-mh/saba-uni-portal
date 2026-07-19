@@ -20,14 +20,14 @@ production record access occurred. The six deferred services were not touched.
 
 ## Release candidate manifest
 
-| Field | Pinned value / gate |
-|---|---|
-| Source base | `origin/main@309992be6acff351bd7c9a8f6503c64d25b2430a` |
-| Expected deploy candidate SHA | `309992be6acff351bd7c9a8f6503c64d25b2430a` |
-| Actual deployed SHA | `DEPLOYED_SHA=UNKNOWN` |
-| Deployment evidence | **MISSING — this SHA is an expected source candidate, not a claimed deployed SHA** |
-| Release stamp | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql`; placeholder remains fail-closed |
-| Services at release boundary | all five B1 services remain `runtimeAvailable:false`, workflows inactive, and `student_visible` unchanged |
+| Field                         | Pinned value / gate                                                                                       |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Source base                   | `origin/main@b50979a8d8ccf07d0c8339f31e589441e44bd8bf`                                                    |
+| Expected deploy candidate SHA | `b50979a8d8ccf07d0c8339f31e589441e44bd8bf`                                                                |
+| Actual deployed SHA           | `DEPLOYED_SHA=UNKNOWN`                                                                                    |
+| Deployment evidence           | **MISSING — this SHA is an expected source candidate, not a claimed deployed SHA**                        |
+| Release stamp                 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql`; placeholder remains fail-closed                 |
+| Services at release boundary  | all five B1 services remain `runtimeAvailable:false`, workflows inactive, and `student_visible` unchanged |
 
 The deploy candidate must contain the reviewed B1 runtime boundary already in
 this source tip: form/adapter registry, atomic submit/action caller, service
@@ -49,6 +49,8 @@ the expected candidate above must never be copied as evidence by assumption.
    behave exactly as the approved baseline.
 5. Confirm no B1 workflow activation, visibility, payment record, public storage
    URL or notification backfill is introduced by the release.
+6. Confirm the source calls the explicit seven-argument `log_audit` overload and
+   no six/seven-argument ambiguity remains in any coordinated RPC.
 
 ### Release rollback plan
 
@@ -65,32 +67,33 @@ repair, delete, clean up, or continue the sequence.
 `enrollment_suspension` is the first service promoted, but its atomic dispatcher,
 workflow actor contract and final ACL cutover are five-service coordinated
 boundaries. There is no approved safe extraction that applies only part of the
-dispatcher/cutover. Therefore orders 1–17 below must pass sequentially while
+dispatcher/cutover. Therefore orders 1–18 below must pass sequentially while
 **all five services stay fail-closed**. Only afterward may the separately gated
 `enrollment_suspension` workflow/RPC/E2E/visibility sequence begin. This does not
 activate or implement any of the other four services.
 
 ## Exact coordinated migration order and LF/git-blob SHA-256
 
-| # | Draft | SHA-256 | Enrollment-suspension gate |
-|---:|---|---|---|
-| 1 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql` | `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357` | Replace placeholder only with independently proven actual deploy SHA |
-| 2 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | Exact actor tuples; no bypass |
-| 3 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql` | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department |
-| 4 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql` | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Atomic fail-closed submit/action foundation |
-| 5 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql` | `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT |
-| 6 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql` | `8487c5ae0ac8b85965de9dd08dafb934550a16e1450b0bedf4f847c5ef17849c` | Private bucket/policy approval still required; no public URLs |
-| 7 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql` | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references |
-| 8 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql` | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Coupled compile order; no activation/backfill |
-| 9 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql` | `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` | Coupled five-service dispatcher/cutover prerequisite |
-| 10 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql` | `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9` | Coupled five-service dispatcher/cutover prerequisite |
-| 11 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql` | `4b2124a829b3e6b57979ce50a7638d3b9b6af798f83f6a4e8772cb8ff36ceded` | Coupled five-service dispatcher/cutover prerequisite |
-| 12 | `FINAL-CHANCE-CANONICAL-WRITE-03.sql` | `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704` | Coupled prerequisite; no historical scan/backfill |
-| 13 | `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql` | `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495` | Install primitive; do not invoke cutover yet |
-| 14 | `REQUEST-B1-SERVICE-DETAILS-05A.sql` | `d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c` | Exact dispatcher including suspension details |
-| 15 | `B1-FREE-SERVICE-WORKFLOWS-08.sql` | `1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c` | Three inactive suspension steps; no payment step |
-| 16 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql` | `64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250` | Other paid workflows stay inactive |
-| 17 | `REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql` | `55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383` | Requires release stamp; verifies all five boundaries atomically |
+|   # | Draft                                                        | SHA-256                                                            | Enrollment-suspension gate                                           |
+| --: | ------------------------------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
+|   1 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql`     | `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357` | Replace placeholder only with independently proven actual deploy SHA |
+|   2 | `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql`            | `3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab` | Explicit typed audit-call contract before dependent RPCs             |
+|   3 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | Exact actor tuples; no bypass                                        |
+|   4 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql`         | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department   |
+|   5 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Atomic fail-closed submit/action foundation                          |
+|   6 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
+|   7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20` | Private bucket/policy approval still required; no public URLs        |
+|   8 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`            | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references                                       |
+|   9 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`              | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Coupled compile order; no activation/backfill                        |
+|  10 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`                  | `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` | Coupled five-service dispatcher/cutover prerequisite                 |
+|  11 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql`                 | `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9` | Coupled five-service dispatcher/cutover prerequisite                 |
+|  12 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql`              | `d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284` | Coupled five-service dispatcher/cutover prerequisite                 |
+|  13 | `FINAL-CHANCE-CANONICAL-WRITE-03.sql`                        | `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704` | Coupled prerequisite; no historical scan/backfill                    |
+|  14 | `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql`             | `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495` | Install primitive; do not invoke cutover yet                         |
+|  15 | `REQUEST-B1-SERVICE-DETAILS-05A.sql`                         | `d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c` | Exact dispatcher including suspension details                        |
+|  16 | `B1-FREE-SERVICE-WORKFLOWS-08.sql`                           | `1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c` | Three inactive suspension steps; no payment step                     |
+|  17 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql`               | `64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250` | Other paid workflows stay inactive                                   |
+|  18 | `REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql`                       | `55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383` | Requires release stamp; verifies all five boundaries atomically      |
 
 Hashes are authoritative only for LF-normalized Git blob bytes at the pinned
 source. Before each future promotion, recompute from the reviewed commit and
@@ -102,8 +105,13 @@ These query intents must be implemented/captured by an approved operator in a
 safe preflight session; they were **not executed here**:
 
 ```sql
--- migration history: prove none of the 17 promoted versions exists
+-- migration history: prove none of the 18 promoted versions exists
 select version, name from supabase_migrations.schema_migrations order by version;
+
+-- capture both audit overload signatures before order 2; calls must bind 7 args
+select p.oid::regprocedure::text from pg_proc p
+where p.pronamespace='public'::regnamespace and p.proname='log_audit'
+order by 1;
 
 -- five services remain unavailable and hidden
 select code, is_active, student_visible
@@ -144,6 +152,10 @@ failure is a HOLD; it never justifies inferred identity mappings.
 ```sql
 -- exactly one newly approved migration history row; compare to before snapshot
 select version, name from supabase_migrations.schema_migrations order by version;
+
+-- order 2 must leave an unambiguous explicit seven-argument callable signature
+select to_regprocedure('public.log_audit(text,uuid,text,jsonb,jsonb,text,uuid)') is not null
+  as seven_argument_log_audit_present;
 
 -- visibility and activation must remain byte-for-byte equivalent to before
 select code, is_active, student_visible
