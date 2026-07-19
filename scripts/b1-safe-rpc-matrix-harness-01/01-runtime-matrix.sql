@@ -25,6 +25,7 @@ CREATE TEMP TABLE matrix (
   service text, step_key text, unit_code text, role_code text, action_type text,
   request_id uuid DEFAULT gen_random_uuid(), workflow_id uuid DEFAULT gen_random_uuid(),
   config_id uuid DEFAULT gen_random_uuid(), runtime_id uuid DEFAULT gen_random_uuid(),
+  predecessor_config_id uuid DEFAULT gen_random_uuid(), predecessor_runtime_id uuid DEFAULT gen_random_uuid(),
   unit_id uuid, role_id uuid
 );
 
@@ -97,17 +98,41 @@ INSERT INTO public.request_type_workflow_steps(
  id,workflow_id,step_key,step_name_ar,step_order,processing_unit_id,processing_role_id,
  assignment_strategy,action_type,status_on_enter,status_on_complete,is_required,can_skip
 )
-SELECT config_id,workflow_id,step_key,step_key,1,unit_id,role_id,'specific_user',
+SELECT config_id,workflow_id,step_key,step_key,2,unit_id,role_id,'specific_user',
  action_type,'in_progress','completed',true,false FROM matrix;
+INSERT INTO public.request_type_workflow_steps(
+ id,workflow_id,step_key,step_name_ar,step_order,assignment_strategy,action_type,
+ status_on_enter,status_on_complete,is_required,can_skip
+)
+SELECT predecessor_config_id,workflow_id,'harness_predecessor','harness predecessor',1,
+ 'specific_user','approve','in_progress','completed',true,false FROM matrix;
+INSERT INTO public.request_type_workflow_transitions(workflow_id,from_step_id,to_step_id,action_result,is_default)
+SELECT workflow_id,NULL,predecessor_config_id,'submit',true FROM matrix
+UNION ALL
+SELECT workflow_id,predecessor_config_id,config_id,'approved',true FROM matrix
+UNION ALL
+SELECT workflow_id,config_id,NULL,
+ CASE action_type WHEN 'review' THEN 'reviewed' WHEN 'approve' THEN 'approved'
+  WHEN 'apply_decision' THEN 'applied' WHEN 'clear' THEN 'cleared'
+  WHEN 'archive' THEN 'archived' WHEN 'confirm_payment' THEN 'payment_confirmed'
+  WHEN 'sign' THEN 'signed' WHEN 'issue_document' THEN 'issued' ELSE 'approved' END,true FROM matrix;
 INSERT INTO public.student_requests(id,request_type,status,request_number)
 SELECT request_id,service,'under_review','SYN-'||row_number() over () FROM matrix;
 INSERT INTO public.student_request_workflow_steps(
  id,student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,step_order,
  processing_unit_id,processing_role_id,status,assigned_user_id,assigned_faculty_profile_id
 )
-SELECT runtime_id,request_id,workflow_id,config_id,step_key,step_key,1,unit_id,role_id,'active',
+SELECT runtime_id,request_id,workflow_id,config_id,step_key,step_key,2,unit_id,role_id,'active',
  CASE WHEN role_code='department_head' THEN NULL ELSE '10000000-0000-0000-0000-000000000001'::uuid END,
  CASE WHEN role_code='department_head' THEN '10000000-0000-0000-0000-000000000001'::uuid ELSE NULL END
+FROM matrix;
+INSERT INTO public.student_request_workflow_steps(
+ id,student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,step_order,status,
+ assigned_user_id,completed_by,completed_at
+)
+SELECT predecessor_runtime_id,request_id,workflow_id,predecessor_config_id,
+ 'harness_predecessor','harness predecessor',1,'completed',
+ '10000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001',now()
 FROM matrix;
 
 -- Synthetic transfer scope is deliberately exact for both rows.
@@ -186,13 +211,19 @@ DO $$ DECLARE m matrix%ROWTYPE; ok boolean; BEGIN
  UPDATE public.faculty_profiles SET department_id='60000000-0000-0000-0000-000000000006' WHERE id='10000000-0000-0000-0000-000000000001';
 END $$;
 
--- A target marked active while a synthetic predecessor remains pending must fail closed.
+-- A target marked active while a canonical synthetic predecessor remains pending must fail closed.
 -- This is intentionally a behavioral gate, not merely a source-string assertion.
-DO $$ DECLARE m matrix%ROWTYPE; predecessor_id uuid; ok boolean; BEGIN
+DO $$ DECLARE m matrix%ROWTYPE; predecessor_id uuid; predecessor_config_id uuid; ok boolean; BEGIN
  FOR m IN SELECT DISTINCT ON (service) * FROM matrix ORDER BY service,step_key LOOP
   predecessor_id:=gen_random_uuid();
-  INSERT INTO public.student_request_workflow_steps(id,student_request_id,workflow_id,step_key,step_name_ar,step_order,status)
-  VALUES(predecessor_id,m.request_id,m.workflow_id,'synthetic_predecessor','predecessor',0,'pending');
+  predecessor_config_id:=gen_random_uuid();
+  DELETE FROM public.request_type_workflow_transitions WHERE workflow_id=m.workflow_id AND to_step_id=m.config_id;
+  INSERT INTO public.request_type_workflow_steps(id,workflow_id,step_key,step_name_ar,step_order,action_type,is_required,can_skip)
+  VALUES(predecessor_config_id,m.workflow_id,'synthetic_predecessor','predecessor',0,'approve',true,false);
+  INSERT INTO public.request_type_workflow_transitions(workflow_id,from_step_id,to_step_id,action_result,is_default)
+  VALUES(m.workflow_id,predecessor_config_id,m.config_id,'approved',true);
+  INSERT INTO public.student_request_workflow_steps(id,student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,step_order,status)
+  VALUES(predecessor_id,m.request_id,m.workflow_id,predecessor_config_id,'synthetic_predecessor','predecessor',0,'pending');
   PERFORM set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',true);
   ok:=public.can_current_user_act_on_step(m.runtime_id,m.action_type);
   PERFORM pg_temp.record_result(m.service,m.step_key,'incomplete_predecessor','DENY',CASE WHEN ok THEN 'ALLOW' ELSE 'DENY' END);

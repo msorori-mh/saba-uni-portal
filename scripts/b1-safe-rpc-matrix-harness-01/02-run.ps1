@@ -25,13 +25,14 @@ try {
 
   Copy-LocalFile (Join-Path $root 'scripts\b1-local-pg-compile\01-minimal-compatible-schema.sql') 'schema.sql'
   Copy-LocalFile (Join-Path $root 'docs\migration-drafts\STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql') 'actor.sql'
+  Copy-LocalFile (Join-Path $root 'docs\migration-drafts\B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql') 'predecessor.sql'
   Copy-LocalFile (Join-Path $root 'docs\migration-drafts\EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql') 'payment.sql'
   Copy-LocalFile (Join-Path $root 'docs\migration-drafts\STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql') 'attachments.sql'
   Copy-LocalFile (Join-Path $root 'docs\migration-drafts\FINAL-CHANCE-CANONICAL-WRITE-03.sql') 'final-chance.sql'
   Copy-LocalFile (Join-Path $here '01-runtime-matrix.sql') 'matrix.sql'
   Copy-LocalFile (Join-Path $here '03-specialized-rpcs.sql') 'specialized.sql'
   $output = & docker exec $container psql -X -v ON_ERROR_STOP=1 -U postgres -d $db `
-    -f /tmp/schema.sql -f /tmp/actor.sql -f /tmp/payment.sql -f /tmp/attachments.sql `
+    -f /tmp/schema.sql -f /tmp/actor.sql -f /tmp/predecessor.sql -f /tmp/payment.sql -f /tmp/attachments.sql `
     -f /tmp/matrix.sql -f /tmp/specialized.sql 2>&1
   $matrixOutput = (($output | ForEach-Object { "$_" }) -join "`n")
   if ($LASTEXITCODE -ne 0) { throw $matrixOutput }
