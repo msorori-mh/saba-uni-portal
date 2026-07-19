@@ -37,12 +37,14 @@ describe("dynamic queue state reconciliation 02", () => {
       expect(blocked).toContain(gate);
     expect(graph).toContain("remain fail-closed");
   });
-  test("marks only the current promotion worker active", () => {
-    expect(workers).toContain("B1-PREFLIGHT-BLOCKERS-SOURCE-REMEDIATION-01");
-    expect(normalizedWorkers).toContain("DYNAMIC-QUEUE-STATE-RECONCILIATION-02 is complete");
-    expect(normalizedWorkers).toContain("No workers share an editable file or worktree");
-    expect(workers).toMatch(/\| 2 \| — \|/);
-    expect(workers).toMatch(/\| 3 \| — \|/);
+  test("releases all worker slots after source closure", () => {
+    expect(workers).not.toContain("| B1-PREFLIGHT-BLOCKERS-SOURCE-REMEDIATION-01 |");
+    expect(workers.match(/\| READY \|/g)).toHaveLength(3);
+    expect(normalizedWorkers).toContain("B1 source closure tasks are merged");
+    expect(normalizedWorkers).toContain(
+      "B1-PRODUCTION-MIGRATION-SEQUENCE = REQUIRES_USER_APPROVAL",
+    );
+    expect(blocked).not.toContain("| B1-PREFLIGHT-BLOCKERS-SOURCE-REMEDIATION-01 |");
   });
   test("preserves audit-only implementation holds", () => {
     expect(blocked).toContain("HOLD_PENDING_ACADEMIC_DECISIONS");

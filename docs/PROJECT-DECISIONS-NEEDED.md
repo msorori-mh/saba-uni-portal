@@ -17,7 +17,6 @@ Production impact now: none.
 ## 2026-07-19 gates retained
 
 - `B1-PRODUCTION-MIGRATION-SEQUENCE = REQUIRES_USER_APPROVAL`.
-- Draft PR #166 is HOLD with CRITICAL=0 HIGH=3. Remediation must close predecessor authorization across all five B1 services and extend the harness to the complete coordinated draft order plus actual mutation zero-delta and realistic source/target department isolation evidence.
-- The implementation remediation belongs to the already isolated Cursor source-remediation path; this cycle made no overlapping edit.
-- Department-chair package PR #165 is source-only and unapplied. Applying it requires separate explicit authorization and production preflight.
-- Release pack PR #164 records actual deployed SHA as `UNKNOWN`; no release, deploy, migration, workflow activation, or visibility action is authorized.
+- Predecessor remediation #169 and safe RPC matrix #166 are resolved and merged source-only; final PostgreSQL 17 result is 285/285 with independent review CRITICAL=0 HIGH=0 MEDIUM=0.
+- Department-chair package #165 is merged source-only and remains unapplied. Applying it requires separate explicit authorization and production preflight.
+- Release pack #164 is merged source-only and records actual deployed SHA as `UNKNOWN`; no release, deploy, migration, workflow activation, or visibility action is authorized.
