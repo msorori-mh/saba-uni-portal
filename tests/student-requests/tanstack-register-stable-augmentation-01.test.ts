@@ -5,8 +5,8 @@ import { join } from "node:path";
 import {
   assertStableRegister,
   generatedRegisterFooter,
-  normalizeRouteTreeRegister,
-} from "../../scripts/normalize-tanstack-route-tree-register";
+  validateGeneratedRegister,
+} from "../../scripts/validate-tanstack-route-tree-register";
 
 const ROOT = join(import.meta.dir, "../..");
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
@@ -40,68 +40,79 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
     );
   });
 
-  it("keeps generated routeTree free from manual module augmentation", () => {
+  it("accepts only an absent or one exact terminal generated augmentation", () => {
     const routeTree = read(ROUTE_TREE_PATH);
     expect(routeTree).toContain("This file was automatically generated");
-    expect(routeTree).not.toContain(
-      "declare module '@tanstack/react-start'",
-    );
-    expect(routeTree).not.toContain(
-      'declare module "@tanstack/react-start"',
-    );
-    expect(routeTree).not.toContain("startInstance.getOptions");
-    expect(routeTree).not.toContain("ReturnType<typeof getRouter>");
+    expect(["absent", "present"]).toContain(validateGeneratedRegister(routeTree));
   });
 
   it("includes the stable declaration in TypeScript compilation", () => {
     expect(read("tsconfig.json")).toContain('"src/**/*.ts"');
   });
 
-  it("normalizes only the exact generated React Start footer after build", () => {
+  it("validates generated output without rewriting routeTree during build", () => {
     const packageJson = read("package.json");
-    const normalizer = read(
-      "scripts/normalize-tanstack-route-tree-register.ts",
+    const validator = read(
+      "scripts/validate-tanstack-route-tree-register.ts",
     );
 
     expect(packageJson).toContain(
-      "vite build && bun run scripts/normalize-tanstack-route-tree-register.ts",
+      "vite build && bun run scripts/validate-tanstack-route-tree-register.ts",
     );
-    expect(normalizer).toContain(
+    expect(packageJson).not.toContain("normalize-tanstack-route-tree-register");
+    expect(validator).not.toContain("writeFile");
+    expect(validator).toContain(
       "firstMatch !== normalized.lastIndexOf(generatedRegisterFooter)",
     );
-    expect(normalizer).toContain(
+    expect(validator).toContain(
       "firstMatch + generatedRegisterFooter.length !== normalized.length",
     );
-    expect(normalizer).not.toMatch(/\bid:\s*['\"]/);
-    expect(normalizer).not.toMatch(/\bpath:\s*['\"]/);
-    expect(normalizer).not.toContain("getParentRoute");
+    expect(validator).not.toMatch(/\bid:\s*['\"]/);
+    expect(validator).not.toMatch(/\bpath:\s*['\"]/);
+    expect(validator).not.toContain("getParentRoute");
   });
 
-  it("accepts clean output and strips the exact generated suffix", () => {
+  it("accepts both legal generated-footer fixtures without changing input", () => {
     const clean = "export const routeTree = rootRouteImport\n";
-    expect(normalizeRouteTreeRegister(clean)).toBe(clean);
-    expect(normalizeRouteTreeRegister(clean + generatedRegisterFooter)).toBe(
-      clean,
-    );
+    const withFooter = clean + generatedRegisterFooter;
+    expect(validateGeneratedRegister(clean)).toBe("absent");
+    expect(validateGeneratedRegister(withFooter)).toBe("present");
+    expect(clean).toBe("export const routeTree = rootRouteImport\n");
+    expect(withFooter).toBe(clean + generatedRegisterFooter);
   });
 
-  it("fails closed on altered, duplicate, and non-suffix augmentation", () => {
+  it("fails closed on altered types, duplicate, and non-suffix augmentation", () => {
     const clean = "export const routeTree = rootRouteImport\n";
     const altered = generatedRegisterFooter.replace(
       "interface Register",
       "interface  Register",
     );
 
-    expect(() => normalizeRouteTreeRegister(clean + altered)).toThrow();
+    expect(() => validateGeneratedRegister(clean + altered)).toThrow();
     expect(() =>
-      normalizeRouteTreeRegister(
+      validateGeneratedRegister(
         clean + generatedRegisterFooter + generatedRegisterFooter,
       ),
     ).toThrow();
     expect(() =>
-      normalizeRouteTreeRegister(
+      validateGeneratedRegister(
         clean + generatedRegisterFooter + "export const drift = true\n",
       ),
+    ).toThrow();
+  });
+
+  it("fails closed on changed imports and extra augmentation", () => {
+    const clean = "export const routeTree = rootRouteImport\n";
+    const changedImport = generatedRegisterFooter.replace(
+      "from './router.tsx'",
+      "from './router'",
+    );
+    const extraAugmentation =
+      "declare module '@tanstack/react-start' { interface Register {} }\n";
+
+    expect(() => validateGeneratedRegister(clean + changedImport)).toThrow();
+    expect(() =>
+      validateGeneratedRegister(clean + extraAugmentation + generatedRegisterFooter),
     ).toThrow();
   });
 

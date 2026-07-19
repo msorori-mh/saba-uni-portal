@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const routeTreePath = join(process.cwd(), "src", "routeTree.gen.ts");
@@ -29,7 +29,9 @@ const generatedRegisterMarkers = [
   "import type { startInstance } from './start.ts'",
 ];
 
-export function normalizeRouteTreeRegister(source: string): string {
+export type GeneratedRegisterState = "absent" | "present";
+
+export function validateGeneratedRegister(source: string): GeneratedRegisterState {
   const normalized = source.replaceAll("\r\n", "\n");
   const firstMatch = normalized.indexOf(generatedRegisterFooter);
 
@@ -39,7 +41,7 @@ export function normalizeRouteTreeRegister(source: string): string {
         "Unknown TanStack Register augmentation shape found in generated route tree",
       );
     }
-    return source;
+    return "absent";
   }
 
   if (
@@ -51,13 +53,12 @@ export function normalizeRouteTreeRegister(source: string): string {
     );
   }
 
-  const result = normalized.slice(0, firstMatch);
-  if (generatedRegisterMarkers.some((marker) => result.includes(marker))) {
-    throw new Error(
-      "TanStack Register markers remain after exact footer normalization",
-    );
+  const routeTreeBody = normalized.slice(0, firstMatch);
+  if (generatedRegisterMarkers.some((marker) => routeTreeBody.includes(marker))) {
+    throw new Error("Unexpected TanStack Register markers precede the legal footer");
   }
-  return result;
+
+  return "present";
 }
 
 export function assertStableRegister(source: string): void {
@@ -76,9 +77,6 @@ export function assertStableRegister(source: string): void {
 
 if (import.meta.main) {
   assertStableRegister(readFileSync(stableRegisterPath, "utf8"));
-  const source = readFileSync(routeTreePath, "utf8");
-  const normalized = normalizeRouteTreeRegister(source);
-  if (normalized !== source) {
-    writeFileSync(routeTreePath, normalized, "utf8");
-  }
+  const state = validateGeneratedRegister(readFileSync(routeTreePath, "utf8"));
+  console.log(`TanStack generated Register footer: ${state}`);
 }
