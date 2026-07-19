@@ -46,6 +46,12 @@ flowchart TD
   PROMO --> ACLSRC[ACL cutover source remediation]
   MIG --> ACL[B1 ACL cutover apply]
   ACLSRC --> ACL
+  PROMO --> RPCM[B1 safe RPC matrix harness]
+  RPCM -->|predecessor guard and full evidence must pass| MIG
+  PROMO --> RPACK[Release and first-service preflight pack]
+  RPACK --> MIG
+  CHAIRS[Approved chair identity resolution] --> CPKG[Controlled chair fix package]
+  CPKG -->|separate apply approval| MIG
   ACL --> VIS[Separate activation and student_visible]
   DEFER[Six deferred services lifecycle input] -.->|PHASE 2 only| PHASE2[Remaining student requests readiness]
 ```
@@ -53,6 +59,11 @@ flowchart TD
 Production nodes `REL`, `MIG`, `ACL`, and `VIS` remain fail-closed and require the
 specific approvals and verification gates recorded in the project runbook.
 `PROMO` is source-only and stops at the production apply gate.
+`RPCM` is source-complete after predecessor remediation #169 and harness #166:
+PostgreSQL 17 is 285/285 PASS and independent review is CRITICAL=0, HIGH=0,
+MEDIUM=0. `RPACK` and `CPKG` are merged source packages and remain unapplied.
+All three feed the separately approved production migration gate; none authorizes
+SQL apply, visibility, workflow activation, deploy, or publish.
 `DEFER` / `PHASE2` must not create Workflow/SQL/UI until the owner supplies
 approved lifecycles.
 

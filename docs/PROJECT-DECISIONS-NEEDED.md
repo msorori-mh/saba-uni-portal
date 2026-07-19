@@ -13,3 +13,10 @@
 - يبقى `student_visible` دون تغيير حتى اكتمال runtime والمصفوفة الأمنية وE2E ببيانات اختبار معتمدة.
 
 Production impact now: none.
+
+## 2026-07-19 gates retained
+
+- `B1-PRODUCTION-MIGRATION-SEQUENCE = REQUIRES_USER_APPROVAL`.
+- Predecessor remediation #169 and safe RPC matrix #166 are resolved and merged source-only; final PostgreSQL 17 result is 285/285 with independent review CRITICAL=0 HIGH=0 MEDIUM=0.
+- Department-chair package #165 is merged source-only and remains unapplied. Applying it requires separate explicit authorization and production preflight.
+- Release pack #164 is merged source-only and records actual deployed SHA as `UNKNOWN`; no release, deploy, migration, workflow activation, or visibility action is authorized.
