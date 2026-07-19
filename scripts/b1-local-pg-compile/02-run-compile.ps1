@@ -13,10 +13,14 @@ $db = 'b1compile'
 $user = 'postgres'
 $password = [guid]::NewGuid().ToString('N')
 
-# Local harness order mirrors production sequencing with one honest adjustment:
-# the release stamp is applied after the atomic SQL draft installs the caller,
-# because COMMENT ON FUNCTION is otherwise lost by CREATE OR REPLACE.
+# Local harness order mirrors the remediated production sequencing with one
+# honest adjustment: the release stamp is applied after the atomic SQL draft
+# installs the caller, because COMMENT ON FUNCTION is otherwise lost by
+# CREATE OR REPLACE.
+# Actor Authorization Hardening is the first B1 runtime migration after the
+# log_audit disambiguation draft.
 $order = @(
+  'REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql',
   'STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql',
   'REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql',
   'REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql',
@@ -113,6 +117,23 @@ try {
 
   $schema = Invoke-PsqlFile (Join-Path $here '01-minimal-compatible-schema.sql') 'schema.sql'
   if ($schema.ExitCode -ne 0) { throw "Minimal schema failed:`n$($schema.Output)" }
+
+  # Prove dual-overload ambiguity still exists for untyped 6-arg calls, and that
+  # the explicit typed 7-arg form resolves cleanly (no ambiguous_function /
+  # undefined_function).
+  $amb = Invoke-PsqlSql "SELECT public.log_audit('t', gen_random_uuid(), 'a', NULL, NULL, NULL);"
+  if ($amb.ExitCode -eq 0 -or $amb.Output -notmatch 'ambiguous|not unique|42725') {
+    throw "Expected ambiguous_function for untyped 6-arg log_audit; got:`n$($amb.Output)"
+  }
+  $ok7 = Invoke-PsqlSql @"
+SELECT public.log_audit(
+  't'::text, gen_random_uuid()::uuid, 'a'::text,
+  NULL::jsonb, NULL::jsonb, NULL::text, NULL::uuid
+);
+"@
+  if ($ok7.ExitCode -ne 0) {
+    throw "Explicit typed 7-arg log_audit failed:`n$($ok7.Output)"
+  }
 
   foreach ($file in $order) {
     $real = Join-Path $drafts $file
@@ -276,5 +297,5 @@ finally {
 Write-Output "RESULTS_PATH=$resultsPath"
 Write-Output "SUMMARY_PATH=$summaryPath"
 Get-Content $summaryPath
-if (@($results | Where-Object { $_.compile -ne 'PASS' -and $_.file -ne '__HARNESS__' }).Count -gt 0) { exit 2 }
+if (@($results | Where-Object { $_.compile -ne 'PASS' }).Count -gt 0) { exit 2 }
 exit 0
