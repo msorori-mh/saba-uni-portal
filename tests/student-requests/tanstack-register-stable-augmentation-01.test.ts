@@ -52,6 +52,26 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
     expect(read("tsconfig.json")).toContain('"src/**/*.ts"');
   });
 
+  it("normalizes only the exact generated React Start footer after build", () => {
+    const packageJson = read("package.json");
+    const normalizer = read(
+      "scripts/normalize-tanstack-route-tree-register.ts",
+    );
+
+    expect(packageJson).toContain(
+      "vite build && bun run scripts/normalize-tanstack-route-tree-register.ts",
+    );
+    expect(normalizer).toContain(
+      "firstMatch !== source.lastIndexOf(generatedRegisterFooter)",
+    );
+    expect(normalizer).toContain(
+      "firstMatch + generatedRegisterFooter.length !== source.length",
+    );
+    expect(normalizer).not.toMatch(/\bid:\s*['\"]/);
+    expect(normalizer).not.toMatch(/\bpath:\s*['\"]/);
+    expect(normalizer).not.toContain("getParentRoute");
+  });
+
   it("pins route ids, paths, full paths and parent relationships", () => {
     expect(routeSemanticHash(read(ROUTE_TREE_PATH))).toBe(
       ROUTE_SEMANTIC_SHA256,
