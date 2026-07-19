@@ -37,10 +37,9 @@ describe("dynamic queue state reconciliation 02", () => {
       expect(blocked).toContain(gate);
     expect(graph).toContain("remain fail-closed");
   });
-  test("releases source-closure workers while preserving three queue slots", () => {
+  test("releases all worker slots after source closure", () => {
     expect(workers).not.toContain("| B1-PREFLIGHT-BLOCKERS-SOURCE-REMEDIATION-01 |");
-    expect(workers.match(/\| (?:READY|ACTIVE) \|/g)).toHaveLength(3);
-    expect(workers).toContain("| B1-REPRODUCIBLE-RELEASE-BUILD-REMEDIATION-01 |");
+    expect(workers.match(/\| READY \|/g)).toHaveLength(3);
     expect(normalizedWorkers).toContain("B1 source closure tasks are merged");
     expect(normalizedWorkers).toContain(
       "B1-PRODUCTION-MIGRATION-SEQUENCE = REQUIRES_USER_APPROVAL",
