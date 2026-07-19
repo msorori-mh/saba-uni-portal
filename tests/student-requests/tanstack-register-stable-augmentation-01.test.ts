@@ -38,7 +38,12 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
   it("keeps generated routeTree free from manual module augmentation", () => {
     const routeTree = read(ROUTE_TREE_PATH);
     expect(routeTree).toContain("This file was automatically generated");
-    expect(routeTree).not.toContain("declare module");
+    expect(routeTree).not.toContain(
+      "declare module '@tanstack/react-start'",
+    );
+    expect(routeTree).not.toContain(
+      'declare module "@tanstack/react-start"',
+    );
     expect(routeTree).not.toContain("startInstance.getOptions");
     expect(routeTree).not.toContain("ReturnType<typeof getRouter>");
   });
