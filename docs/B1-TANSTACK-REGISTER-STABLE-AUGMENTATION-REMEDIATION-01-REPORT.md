@@ -13,7 +13,7 @@ migrations, Supabase writes, workflow activation, or `student_visible` changes.
 - Branch: `codex/b1-tanstack-register-stable-augmentation-01`.
 - Worktree: `C:\projects\saba-uni-portal-tanstack-register-fix`.
 - Route semantics were not changed. The pinned route-model hash remains
-  `7a1f5f309ab08af68c091ef6c2441d793872f69841147344e396f015cf9d50a7`.
+  `7a1f5fd65a1716e5e5e09cb85ce240ba5ec7c1f6af0e04cf1d2c7d8bef6669b5`.
 
 ## Remediation
 
