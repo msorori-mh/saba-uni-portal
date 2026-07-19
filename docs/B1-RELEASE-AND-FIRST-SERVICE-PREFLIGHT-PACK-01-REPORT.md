@@ -1,6 +1,6 @@
 # B1-RELEASE-AND-FIRST-SERVICE-PREFLIGHT-PACK-01
 
-Updated: 2026-07-19 (Asia/Riyadh)  
+Updated: 2026-07-19 (Asia/Riyadh)
 Mode: SOURCE-ONLY / READ-ONLY PREFLIGHT
 
 ## Decision
