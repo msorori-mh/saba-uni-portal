@@ -4,6 +4,7 @@
 |---|---|---|---|---|
 | B1-FIVE-SERVICES-CONTROLLED-RUNTIME-PROMOTION-01 | SOURCE_MERGED; HOLD_B1_FIVE_SERVICES_RUNTIME_PROMOTION | Source merged via PR #162; production sequence still gated on release evidence, identities, storage, safe RPC matrix, and explicit approval | begin production preflight only after separate approval; do not apply | none |
 | B1-ACL-CUTOVER-DRAFT-06 | SOURCE_MERGED_UNAPPLIED | Cutover draft merged in #162; apply still requires order-1 release stamp with real deploy SHA | do not apply until stamp approved | none |
+| B1-PREFLIGHT-BLOCKERS-SOURCE-REMEDIATION-01 | SOURCE_COMPLETE | log_audit/source remediation merged in #167; production execution remains gated | retain source evidence; do not deploy/apply without separate approval | none |
 | REMAINING-STUDENT-REQUESTS-SOURCE-READINESS-01 | DEFERRED_USER_LIFECYCLE_INPUT | Owner has not approved lifecycles for the six deferred services | keep deferred; no Workflow/SQL/UI work | none |
 | B1-PRODUCTION-MIGRATION-SEQUENCE | REQUIRES_USER_APPROVAL | identities, storage, release evidence, cutover review, exact single-migration dry run, and explicit approval | production preflight preparation only; no apply without approval | would write production if approved |
 | B1-STUDENT-VISIBILITY-ACTIVATION | REQUIRES_USER_APPROVAL | separate per-service approval and post-migration verification | keep unchanged | would change production visibility |

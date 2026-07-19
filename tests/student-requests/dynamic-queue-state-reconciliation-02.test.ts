@@ -38,7 +38,7 @@ describe("dynamic queue state reconciliation 02", () => {
     expect(graph).toContain("remain fail-closed");
   });
   test("marks only the current promotion worker active", () => {
-    expect(workers).toContain("B1-FIVE-SERVICES-CONTROLLED-RUNTIME-PROMOTION-01");
+    expect(workers).toContain("B1-PREFLIGHT-BLOCKERS-SOURCE-REMEDIATION-01");
     expect(normalizedWorkers).toContain("DYNAMIC-QUEUE-STATE-RECONCILIATION-02 is complete");
     expect(normalizedWorkers).toContain("No workers share an editable file or worktree");
     expect(workers).toMatch(/\| 2 \| — \|/);

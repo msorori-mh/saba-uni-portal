@@ -152,7 +152,22 @@ CREATE OR REPLACE FUNCTION public.current_student_profile_for_auth()
 RETURNS TABLE(profile_id uuid, profile_status text) LANGUAGE sql STABLE AS $$ SELECT NULL::uuid,NULL::text $$;
 CREATE OR REPLACE FUNCTION public.assert_student_can_use_request_type(text,text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN END $$;
 CREATE OR REPLACE FUNCTION public.submit_student_request(uuid) RETURNS void LANGUAGE plpgsql AS $$ BEGIN END $$;
-CREATE OR REPLACE FUNCTION public.log_audit(text,uuid,text,jsonb,jsonb,text) RETURNS void LANGUAGE plpgsql AS $$ BEGIN END $$;
+-- Mirror production dual overloads so local compile can prove ambiguity and explicit 7-arg resolution.
+CREATE OR REPLACE FUNCTION public.log_audit(
+  _entity_type text, _entity_id uuid, _action_type text,
+  _old jsonb DEFAULT NULL, _new jsonb DEFAULT NULL, _notes text DEFAULT NULL
+) RETURNS void LANGUAGE plpgsql AS $$ BEGIN END $$;
+CREATE OR REPLACE FUNCTION public.log_audit(
+  _entity_type text, _entity_id uuid, _action_type text,
+  _old jsonb DEFAULT NULL, _new jsonb DEFAULT NULL, _notes text DEFAULT NULL,
+  _actor_user_id uuid DEFAULT NULL
+) RETURNS void LANGUAGE plpgsql AS $$ BEGIN END $$;
+CREATE TABLE IF NOT EXISTS public.official_documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_number text, status text NOT NULL DEFAULT 'issued', updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE OR REPLACE FUNCTION public.has_any_role(uuid, text[]) RETURNS boolean
+LANGUAGE sql STABLE AS $$ SELECT true $$;
 CREATE OR REPLACE FUNCTION public.can_current_user_act_on_step(uuid,text) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 CREATE OR REPLACE FUNCTION public.current_user_has_exact_processing_binding(uuid,uuid) RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
 

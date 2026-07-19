@@ -1,5 +1,14 @@
 ﻿[
     {
+        "file":  "REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql",
+        "sha256_lf":  "3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab",
+        "compile":  "PASS",
+        "idempotency":  "PASS",
+        "acl_rls_checks":  "SKIP",
+        "positive_negative_writes":  "SKIP",
+        "error":  ""
+    },
+    {
         "file":  "STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql",
         "sha256_lf":  "0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0",
         "compile":  "PASS",
@@ -46,12 +55,12 @@
     },
     {
         "file":  "STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql",
-        "sha256_lf":  "8487c5ae0ac8b85965de9dd08dafb934550a16e1450b0bedf4f847c5ef17849c",
+        "sha256_lf":  "bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "PASS",
         "positive_negative_writes":  "SKIP",
-        "error":  "BEGIN\nINSERT 0 1\npsql:/tmp/repeat-5.sql:26: ERROR:  relation \"student_request_attachment_uploads\" already exists"
+        "error":  "BEGIN\nINSERT 0 1\npsql:/tmp/repeat-6.sql:26: ERROR:  relation \"student_request_attachment_uploads\" already exists"
     },
     {
         "file":  "REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql",
@@ -69,7 +78,7 @@
         "idempotency":  "PASS",
         "acl_rls_checks":  "SKIP",
         "positive_negative_writes":  "SKIP",
-        "error":  "BEGIN\nDO\nCREATE FUNCTION\nREVOKE\npsql:/tmp/repeat-7.sql:93: ERROR:  CANONICAL_ABSENCE_REASON_TRIGGER_MISMATCH\nCONTEXT:  PL/pgSQL function inline_code_block line 25 at RAISE"
+        "error":  "BEGIN\nDO\nCREATE FUNCTION\nREVOKE\npsql:/tmp/repeat-8.sql:93: ERROR:  CANONICAL_ABSENCE_REASON_TRIGGER_MISMATCH\nCONTEXT:  PL/pgSQL function inline_code_block line 25 at RAISE"
     },
     {
         "file":  "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql",
@@ -91,7 +100,7 @@
     },
     {
         "file":  "REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql",
-        "sha256_lf":  "4b2124a829b3e6b57979ce50a7638d3b9b6af798f83f6a4e8772cb8ff36ceded",
+        "sha256_lf":  "d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "SKIP",

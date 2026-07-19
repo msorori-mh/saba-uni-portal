@@ -59,11 +59,11 @@ flowchart TD
 Production nodes `REL`, `MIG`, `ACL`, and `VIS` remain fail-closed and require the
 specific approvals and verification gates recorded in the project runbook.
 `PROMO` is source-only and stops at the production apply gate.
-`RPCM` is HOLD with CRITICAL=0 and HIGH=3: predecessor checks fail for all five
-services, the harness does not yet compose the full reviewed draft order, and
-actual mutation zero-delta/department-isolation evidence is incomplete. This
-freezes B1 migration promotion only. `RPACK` and `CPKG` are source-complete
-Draft PRs and remain unapplied.
+`RPCM` is source-complete after predecessor remediation #169 and harness #166:
+PostgreSQL 17 is 285/285 PASS and independent review is CRITICAL=0, HIGH=0,
+MEDIUM=0. `RPACK` and `CPKG` are merged source packages and remain unapplied.
+All three feed the separately approved production migration gate; none authorizes
+SQL apply, visibility, workflow activation, deploy, or publish.
 `DEFER` / `PHASE2` must not create Workflow/SQL/UI until the owner supplies
 approved lifecycles.
 
