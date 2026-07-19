@@ -3,6 +3,20 @@
 
 begin;
 
+create or replace function public.workflow_action_result_matches(p_action_type text,p_result text)
+returns boolean language sql immutable set search_path=public as $function$
+  select case p_action_type
+    when 'review' then p_result='reviewed'
+    when 'approve' then p_result='approved'
+    when 'apply_decision' then p_result='applied'
+    when 'clear' then p_result='cleared'
+    when 'archive' then p_result='archived'
+    when 'confirm_payment' then p_result='payment_confirmed'
+    when 'sign' then p_result='signed'
+    when 'issue_document' then p_result='issued'
+    else false end
+$function$;
+
 create or replace function public.workflow_runtime_predecessors_satisfied(p_step_id uuid)
 returns boolean
 language plpgsql stable security definer set search_path=public
@@ -35,15 +49,23 @@ begin
         and t.to_step_id=v_step.workflow_step_id and t.action_result='submit') then return false; end if;
   elsif v_incoming=0 then return false;
   end if;
+  if v_config.step_order<>1 and exists(select 1 from public.request_type_workflow_transitions t
+    where t.workflow_id=v_step.workflow_id and t.to_step_id=v_step.workflow_step_id
+      and t.from_step_id is null) then return false; end if;
+  if exists(select 1 from public.request_type_workflow_transitions t
+    where t.workflow_id=v_step.workflow_id and t.to_step_id=v_step.workflow_step_id
+    group by t.from_step_id,t.to_step_id having count(*)<>1) then return false; end if;
 
   -- Every incoming edge is unique and its exact predecessor runtime is terminal-valid.
   for v_pred in
-    select t.from_step_id,pc.can_skip from public.request_type_workflow_transitions t
+    select t.from_step_id,t.action_result,pc.can_skip,pc.action_type from public.request_type_workflow_transitions t
     left join public.request_type_workflow_steps pc on pc.id=t.from_step_id and pc.workflow_id=t.workflow_id
     where t.workflow_id=v_step.workflow_id and t.to_step_id=v_step.workflow_step_id
       and t.from_step_id is not null
   loop
     if v_pred.can_skip is null then return false; end if;
+    if not public.workflow_action_result_matches(v_pred.action_type,v_pred.action_result)
+      and not (v_pred.action_result='skip' and v_pred.can_skip) then return false; end if;
     if (select count(*) from public.student_request_workflow_steps pr
         where pr.student_request_id=v_step.student_request_id and pr.workflow_id=v_step.workflow_id
           and pr.workflow_step_id=v_pred.from_step_id)<>1 then return false; end if;
@@ -53,13 +75,31 @@ begin
           and (pr.status='completed' or (pr.status='skipped' and v_pred.can_skip))) then return false; end if;
   end loop;
 
-  -- No required earlier config step may be omitted from the transition graph/runtime.
+  -- Every earlier required config must have one terminal-valid runtime and a
+  -- legal directed path to this step. A mere runtime row is never sufficient.
   if exists (
     select 1 from public.request_type_workflow_steps pc
     where pc.workflow_id=v_step.workflow_id and pc.step_order<v_config.step_order and pc.is_required
-      and (select count(*) from public.student_request_workflow_steps pr
-           where pr.student_request_id=v_step.student_request_id and pr.workflow_id=v_step.workflow_id
-             and pr.workflow_step_id=pc.id)<>1
+      and ((select count(*) from public.student_request_workflow_steps pr
+            where pr.student_request_id=v_step.student_request_id and pr.workflow_id=v_step.workflow_id
+              and pr.workflow_step_id=pc.id)<>1
+        or not exists(select 1 from public.student_request_workflow_steps pr
+            where pr.student_request_id=v_step.student_request_id and pr.workflow_id=v_step.workflow_id
+              and pr.workflow_step_id=pc.id
+              and (pr.status='completed' or (pr.status='skipped' and pc.can_skip)))
+        or not exists(
+          with recursive reachable(step_id) as (
+            select pc.id
+            union
+            select t.to_step_id from reachable r
+            join public.request_type_workflow_transitions t
+              on t.workflow_id=v_step.workflow_id and t.from_step_id=r.step_id
+            join public.request_type_workflow_steps source_config on source_config.id=t.from_step_id
+            where t.to_step_id is not null and
+              (public.workflow_action_result_matches(source_config.action_type,t.action_result) or
+               (t.action_result='skip' and source_config.can_skip))
+          ) select 1 from reachable where step_id=v_step.workflow_step_id
+        ))
   ) then return false; end if;
 
   return true;
@@ -100,7 +140,7 @@ begin
   if p_action=v_config.action_type then
     select count(*) into v_transition_count from public.request_type_workflow_transitions t
       where t.workflow_id=v_step.workflow_id and t.from_step_id=v_step.workflow_step_id
-        and t.action_result in ('approve','complete');
+        and public.workflow_action_result_matches(v_config.action_type,t.action_result);
     return v_transition_count=1;
   elsif p_action='skip' then
     select count(*) into v_transition_count from public.request_type_workflow_transitions t
@@ -113,5 +153,7 @@ $function$;
 
 revoke all on function public.can_current_user_act_on_step(uuid,text) from public,anon;
 grant execute on function public.can_current_user_act_on_step(uuid,text) to authenticated;
+revoke all on function public.workflow_action_result_matches(text,text) from public,anon;
+grant execute on function public.workflow_action_result_matches(text,text) to authenticated,service_role;
 
 commit;

@@ -31,6 +31,10 @@ describe("B1 runtime predecessor guard remediation", () => {
       "pr.status='completed'",
       "pr.status='skipped' and v_pred.can_skip",
       "pc.is_required",
+      "v_config.step_order<>1",
+      "having count(*)<>1",
+      "with recursive reachable",
+      "workflow_action_result_matches",
     ])
       expect(sql).toContain(s);
   });
@@ -43,5 +47,20 @@ describe("B1 runtime predecessor guard remediation", () => {
   it("checks authorization before any mutation", () => {
     expect(sql).toContain("workflow_runtime_predecessors_satisfied(p_step_id)");
     expect(sql).not.toMatch(/\b(update|insert)\b/i);
+  });
+  it("ships direct PG17 HIGH-regression cases with zero side effects", () => {
+    const harness = readFileSync(
+      join(import.meta.dir, "../../scripts/b1-runtime-predecessor-guard-focused-pg17/01-cases.sql"),
+      "utf8",
+    );
+    for (const scenario of [
+      "null_entry_nonfirst",
+      "disconnected_pending_required",
+      "malformed_edge_result",
+      "duplicate_ambiguous_edge",
+      "zero_mutation",
+      "zero_events",
+    ])
+      expect(harness).toContain(scenario);
   });
 });

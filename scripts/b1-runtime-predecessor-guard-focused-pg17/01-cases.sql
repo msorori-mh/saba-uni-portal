@@ -1,0 +1,37 @@
+\set ON_ERROR_STOP on
+insert into auth.users(id) values ('10000000-0000-0000-0000-000000000001');
+insert into public.request_processing_units(id,code,name_ar,is_active) values ('20000000-0000-0000-0000-000000000001','guard_unit','guard',true);
+insert into public.request_processing_roles(id,unit_id,code,name_ar,is_active) values ('30000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','guard_role','guard',true);
+insert into public.request_processing_assignments(unit_id,role_id,assignment_type,user_id,is_active) values ('20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','user','10000000-0000-0000-0000-000000000001',true);
+insert into public.request_types(id,code,name_ar,is_active) values ('40000000-0000-0000-0000-000000000001','guard_request','guard',true);
+insert into public.request_type_workflows(id,request_type_id,code,name_ar,version,status,is_active) values ('50000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','guard_v1','guard',1,'draft',false);
+insert into public.request_type_workflow_steps(id,workflow_id,step_key,step_name_ar,step_order,processing_unit_id,processing_role_id,assignment_strategy,action_type,is_required,can_skip) values
+('60000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','first','first',1,'20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','specific_user','approve',true,false),
+('60000000-0000-0000-0000-000000000002','50000000-0000-0000-0000-000000000001','required_middle','middle',2,'20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','specific_user','approve',true,false),
+('60000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000001','target','target',3,'20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','specific_user','approve',true,false);
+insert into public.request_type_workflow_transitions(id,workflow_id,from_step_id,to_step_id,action_result,is_default) values
+('70000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',null,'60000000-0000-0000-0000-000000000001','submit',true),
+('70000000-0000-0000-0000-000000000002','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','approved',true),
+('70000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','60000000-0000-0000-0000-000000000003','approved',true),
+('70000000-0000-0000-0000-000000000004','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000003',null,'approved',true);
+insert into public.student_requests(id,request_type,status,request_number) values ('80000000-0000-0000-0000-000000000001','guard_request','under_review','GUARD-1');
+insert into public.student_request_workflow_steps(id,student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,step_order,processing_unit_id,processing_role_id,status,assigned_user_id) values
+('90000000-0000-0000-0000-000000000001','80000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000001','first','first',1,'20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','completed','10000000-0000-0000-0000-000000000001'),
+('90000000-0000-0000-0000-000000000002','80000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','required_middle','middle',2,'20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','completed','10000000-0000-0000-0000-000000000001'),
+('90000000-0000-0000-0000-000000000003','80000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000003','target','target',3,'20000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','active','10000000-0000-0000-0000-000000000001');
+select set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',false);
+
+create temp table guard_results(case_name text,denied boolean,zero_mutation boolean,zero_events boolean);
+create function pg_temp.check_case(p_name text) returns void language plpgsql as $$declare b jsonb;a jsonb;e bigint;begin
+ select to_jsonb(s) into b from student_request_workflow_steps s where id='90000000-0000-0000-0000-000000000003';
+ select count(*) into e from student_request_workflow_events where student_request_id='80000000-0000-0000-0000-000000000001';
+ insert into guard_results select p_name,not can_current_user_act_on_step('90000000-0000-0000-0000-000000000003','approve'),
+   b=(select to_jsonb(s) from student_request_workflow_steps s where id='90000000-0000-0000-0000-000000000003'),
+   e=(select count(*) from student_request_workflow_events where student_request_id='80000000-0000-0000-0000-000000000001');
+end$$;
+insert into request_type_workflow_transitions(id,workflow_id,from_step_id,to_step_id,action_result) values('70000000-0000-0000-0000-000000000011','50000000-0000-0000-0000-000000000001',null,'60000000-0000-0000-0000-000000000003','submit'); select pg_temp.check_case('null_entry_nonfirst'); delete from request_type_workflow_transitions where id='70000000-0000-0000-0000-000000000011';
+delete from request_type_workflow_transitions where id='70000000-0000-0000-0000-000000000003'; update student_request_workflow_steps set status='pending' where id='90000000-0000-0000-0000-000000000002'; select pg_temp.check_case('disconnected_pending_required'); update student_request_workflow_steps set status='completed' where id='90000000-0000-0000-0000-000000000002'; insert into request_type_workflow_transitions(id,workflow_id,from_step_id,to_step_id,action_result) values('70000000-0000-0000-0000-000000000003','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','60000000-0000-0000-0000-000000000003','approved');
+update request_type_workflow_transitions set action_result='return' where id='70000000-0000-0000-0000-000000000003'; select pg_temp.check_case('malformed_edge_result'); update request_type_workflow_transitions set action_result='approved' where id='70000000-0000-0000-0000-000000000003';
+insert into request_type_workflow_transitions(id,workflow_id,from_step_id,to_step_id,action_result) values('70000000-0000-0000-0000-000000000012','50000000-0000-0000-0000-000000000001','60000000-0000-0000-0000-000000000002','60000000-0000-0000-0000-000000000003','approved'); select pg_temp.check_case('duplicate_ambiguous_edge'); delete from request_type_workflow_transitions where id='70000000-0000-0000-0000-000000000012';
+do $$begin if exists(select 1 from guard_results where not denied or not zero_mutation or not zero_events) or (select count(*) from guard_results)<>4 then raise exception 'FOCUSED_GUARD_FAILURE %',(select jsonb_agg(guard_results) from guard_results); end if; end$$;
+select jsonb_build_object('total',count(*),'passed',count(*) filter(where denied and zero_mutation and zero_events),'failed',count(*) filter(where not(denied and zero_mutation and zero_events))) focused_summary from guard_results;
