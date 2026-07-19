@@ -54,7 +54,15 @@ BEGIN
  v_path:=format('student-requests/%s/%s/%s/content.%s',v_profile_id,v_req.id,v_id,CASE p_mime_type WHEN 'application/pdf' THEN 'pdf' WHEN 'image/png' THEN 'png' ELSE 'jpg' END);
  INSERT INTO public.student_request_attachment_uploads(id,student_request_id,student_profile_id,field_key,original_file_name,mime_type,size_bytes,storage_bucket,storage_object_path,checksum_sha256,created_by)
  VALUES(v_id,v_req.id,v_profile_id,p_field_key,p_original_file_name,p_mime_type,p_size_bytes,'student-request-secure-attachments',v_path,p_checksum_sha256,v_uid);
- PERFORM public.log_audit('student_request_attachment',v_id,'attachment_upload_intent_created',NULL,jsonb_build_object('request_id',v_req.id,'field_key',p_field_key),NULL);
+ PERFORM public.log_audit(
+   'student_request_attachment'::text,
+   v_id::uuid,
+   'attachment_upload_intent_created'::text,
+   NULL::jsonb,
+   jsonb_build_object('request_id',v_req.id,'field_key',p_field_key)::jsonb,
+   NULL::text,
+   v_uid::uuid
+ );
  RETURN jsonb_build_object('attachment_id',v_id,'storage_bucket','student-request-secure-attachments','storage_object_path',v_path);
 END $$;
 
@@ -68,8 +76,24 @@ BEGIN
  IF NOT FOUND OR coalesce((o.metadata->>'size')::bigint,-1)<>a.size_bytes OR coalesce(o.metadata->>'mimetype','')<>a.mime_type THEN RAISE EXCEPTION 'ATTACHMENT_OBJECT_MISMATCH'; END IF;
  UPDATE public.student_request_attachment_uploads SET upload_status='uploaded',uploaded_at=now() WHERE id=a.id;
  UPDATE public.student_request_attachment_uploads SET upload_status='attached',attached_at=now() WHERE id=a.id;
- PERFORM public.log_audit('student_request_attachment',a.id,'attachment_upload_completed',NULL,NULL,NULL);
- PERFORM public.log_audit('student_request_attachment',a.id,'attachment_attached',NULL,NULL,NULL);
+ PERFORM public.log_audit(
+   'student_request_attachment'::text,
+   a.id::uuid,
+   'attachment_upload_completed'::text,
+   NULL::jsonb,
+   NULL::jsonb,
+   NULL::text,
+   v_uid::uuid
+ );
+ PERFORM public.log_audit(
+   'student_request_attachment'::text,
+   a.id::uuid,
+   'attachment_attached'::text,
+   NULL::jsonb,
+   NULL::jsonb,
+   NULL::text,
+   v_uid::uuid
+ );
  RETURN jsonb_build_object('attachmentId',a.id,'studentRequestId',a.student_request_id,'studentProfileId',a.student_profile_id,'fieldKey',a.field_key,'status','attached','mimeType',a.mime_type,'sizeBytes',a.size_bytes,'originalFileName',a.original_file_name,'checksumSha256',a.checksum_sha256);
 END $$;
 
@@ -127,7 +151,24 @@ CREATE FUNCTION public.get_owned_student_request_attachment_upload(p_attachment_
 LANGUAGE sql SECURITY DEFINER SET search_path=public,pg_temp AS $$ SELECT a.* FROM public.student_request_attachment_uploads a JOIN public.student_profiles sp ON sp.id=a.student_profile_id WHERE a.id=p_attachment_id AND sp.user_id=auth.uid() AND a.upload_status='pending' $$;
 
 CREATE FUNCTION public.reject_student_request_attachment(p_attachment_id uuid,p_rejection_code text) RETURNS boolean
-LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$ BEGIN UPDATE public.student_request_attachment_uploads SET upload_status='rejected',rejected_at=now(),rejection_code=p_rejection_code WHERE id=p_attachment_id AND created_by=auth.uid() AND upload_status IN ('pending','uploaded'); IF NOT FOUND THEN RAISE EXCEPTION 'ATTACHMENT_ACCESS_DENIED'; END IF; PERFORM public.log_audit('student_request_attachment',p_attachment_id,'attachment_rejected',NULL,NULL,p_rejection_code); RETURN true; END $$;
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
+DECLARE v_uid uuid:=auth.uid();
+BEGIN
+ UPDATE public.student_request_attachment_uploads
+    SET upload_status='rejected',rejected_at=now(),rejection_code=p_rejection_code
+  WHERE id=p_attachment_id AND created_by=v_uid AND upload_status IN ('pending','uploaded');
+ IF NOT FOUND THEN RAISE EXCEPTION 'ATTACHMENT_ACCESS_DENIED'; END IF;
+ PERFORM public.log_audit(
+   'student_request_attachment'::text,
+   p_attachment_id::uuid,
+   'attachment_rejected'::text,
+   NULL::jsonb,
+   NULL::jsonb,
+   p_rejection_code::text,
+   v_uid::uuid
+ );
+ RETURN true;
+END $$;
 
 CREATE FUNCTION public.authorize_student_request_attachment_download(p_attachment_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$ DECLARE a public.student_request_attachment_uploads%ROWTYPE; assigned_ok boolean; BEGIN
@@ -141,7 +182,15 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$ DECLARE a
      ELSE false END
    AND public.current_user_has_exact_processing_binding(s.processing_unit_id,s.processing_role_id)) INTO assigned_ok;
  IF NOT assigned_ok THEN RAISE EXCEPTION 'ATTACHMENT_DIRECT_ASSIGNMENT_REQUIRED'; END IF;
- PERFORM public.log_audit('student_request_attachment',a.id,'attachment_downloaded',NULL,NULL,NULL);
+ PERFORM public.log_audit(
+   'student_request_attachment'::text,
+   a.id::uuid,
+   'attachment_downloaded'::text,
+   NULL::jsonb,
+   NULL::jsonb,
+   NULL::text,
+   auth.uid()::uuid
+ );
  RETURN jsonb_build_object('storage_bucket',a.storage_bucket,'storage_object_path',a.storage_object_path);
 END $$;
 
