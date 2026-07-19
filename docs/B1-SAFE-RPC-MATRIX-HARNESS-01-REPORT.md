@@ -14,7 +14,9 @@ The harness executed exactly 285 authorization assertions against the final merg
 
 Each target now has a canonical same-request/same-workflow graph: submit entry to a required predecessor, one completed predecessor runtime, a legal `approved` edge into the active target, and an exact canonical outgoing result derived from the target action (`reviewed`, `approved`, `applied`, `cleared`, `archived`, or `payment_confirmed`). This makes every exact-direct-assignee ALLOW fixture valid under the final guard rather than bypassing it.
 
-The dedicated incomplete-predecessor case remains a true DENY: it removes the valid incoming edge, introduces a canonical required pending predecessor, and proves the target cannot act. The matrix also proves same-role unassigned, wrong unit/role/action, admin/registrar/dean, anonymous, inactive/completed replay, another request, and department-scope mismatch DENY.
+The dedicated incomplete-predecessor case isolates only the status predicate. For one representative target per service it first proves the intact canonical graph ALLOWs with the exact predecessor `completed`, snapshots target/config/edges and every non-status predecessor field, flips only that runtime status to `pending`, proves DENY, restores `completed`, and requires the snapshot to remain identical. It never deletes an edge or introduces disconnected config/runtime data.
+
+The matrix also proves same-role unassigned, wrong unit/role/action, admin/registrar/dean, anonymous, inactive/completed replay, another request, and department-scope mismatch DENY.
 
 Specialized RPC evidence retains exact finance and attachment ALLOW plus unassigned DENY with unchanged runtime/event or attachment state. External payment contains no portal fee code, amount, currency, invoice, gateway transaction, or balance; final chance remains exam-only.
 

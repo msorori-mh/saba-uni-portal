@@ -211,22 +211,38 @@ DO $$ DECLARE m matrix%ROWTYPE; ok boolean; BEGIN
  UPDATE public.faculty_profiles SET department_id='60000000-0000-0000-0000-000000000006' WHERE id='10000000-0000-0000-0000-000000000001';
 END $$;
 
--- A target marked active while a canonical synthetic predecessor remains pending must fail closed.
--- This is intentionally a behavioral gate, not merely a source-string assertion.
-DO $$ DECLARE m matrix%ROWTYPE; predecessor_id uuid; predecessor_config_id uuid; ok boolean; BEGIN
+-- Isolate the predecessor-status predicate: prove the intact canonical graph ALLOWs,
+-- flip only its exact predecessor runtime completed -> pending, prove DENY, restore.
+DO $$ DECLARE m matrix%ROWTYPE; ok boolean; graph_before jsonb; graph_after jsonb; BEGIN
  FOR m IN SELECT DISTINCT ON (service) * FROM matrix ORDER BY service,step_key LOOP
-  predecessor_id:=gen_random_uuid();
-  predecessor_config_id:=gen_random_uuid();
-  DELETE FROM public.request_type_workflow_transitions WHERE workflow_id=m.workflow_id AND to_step_id=m.config_id;
-  INSERT INTO public.request_type_workflow_steps(id,workflow_id,step_key,step_name_ar,step_order,action_type,is_required,can_skip)
-  VALUES(predecessor_config_id,m.workflow_id,'synthetic_predecessor','predecessor',0,'approve',true,false);
-  INSERT INTO public.request_type_workflow_transitions(workflow_id,from_step_id,to_step_id,action_result,is_default)
-  VALUES(m.workflow_id,predecessor_config_id,m.config_id,'approved',true);
-  INSERT INTO public.student_request_workflow_steps(id,student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,step_order,status)
-  VALUES(predecessor_id,m.request_id,m.workflow_id,predecessor_config_id,'synthetic_predecessor','predecessor',0,'pending');
   PERFORM set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',true);
+  IF NOT public.can_current_user_act_on_step(m.runtime_id,m.action_type) THEN
+    RAISE EXCEPTION 'COMPLETED_PREDECESSOR_BASELINE_MUST_ALLOW: %/%',m.service,m.step_key;
+  END IF;
+  SELECT jsonb_build_object(
+    'target',to_jsonb(target_runtime),
+    'predecessor',to_jsonb(predecessor_runtime)-'status',
+    'config',(SELECT jsonb_agg(to_jsonb(c) ORDER BY c.step_order) FROM public.request_type_workflow_steps c WHERE c.workflow_id=m.workflow_id),
+    'edges',(SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id) FROM public.request_type_workflow_transitions t WHERE t.workflow_id=m.workflow_id)
+  ) INTO graph_before
+  FROM public.student_request_workflow_steps target_runtime
+  CROSS JOIN public.student_request_workflow_steps predecessor_runtime
+  WHERE target_runtime.id=m.runtime_id AND predecessor_runtime.id=m.predecessor_runtime_id;
+  UPDATE public.student_request_workflow_steps SET status='pending' WHERE id=m.predecessor_runtime_id AND status='completed';
+  IF NOT FOUND THEN RAISE EXCEPTION 'EXACT_COMPLETED_PREDECESSOR_MISSING'; END IF;
   ok:=public.can_current_user_act_on_step(m.runtime_id,m.action_type);
   PERFORM pg_temp.record_result(m.service,m.step_key,'incomplete_predecessor','DENY',CASE WHEN ok THEN 'ALLOW' ELSE 'DENY' END);
+  UPDATE public.student_request_workflow_steps SET status='completed' WHERE id=m.predecessor_runtime_id AND status='pending';
+  SELECT jsonb_build_object(
+    'target',to_jsonb(target_runtime),
+    'predecessor',to_jsonb(predecessor_runtime)-'status',
+    'config',(SELECT jsonb_agg(to_jsonb(c) ORDER BY c.step_order) FROM public.request_type_workflow_steps c WHERE c.workflow_id=m.workflow_id),
+    'edges',(SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id) FROM public.request_type_workflow_transitions t WHERE t.workflow_id=m.workflow_id)
+  ) INTO graph_after
+  FROM public.student_request_workflow_steps target_runtime
+  CROSS JOIN public.student_request_workflow_steps predecessor_runtime
+  WHERE target_runtime.id=m.runtime_id AND predecessor_runtime.id=m.predecessor_runtime_id;
+  IF graph_after IS DISTINCT FROM graph_before THEN RAISE EXCEPTION 'NON_STATUS_PREDICATE_CHANGED'; END IF;
  END LOOP;
 END $$;
 
