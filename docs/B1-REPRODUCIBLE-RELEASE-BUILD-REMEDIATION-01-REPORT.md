@@ -119,6 +119,8 @@ owning worktree was also clean before this report was added.
 
 ## Review gate
 
-Independent source review must report `CRITICAL=0`, `HIGH=0`, and `MEDIUM=0`
-before PR readiness or merge. Web CI and applicable Android CI must pass before
+Independent source review completed with `CRITICAL=0`, `HIGH=0`, and `MEDIUM=0`.
+The reviewer confirmed the bounded Windows/Bun diagnosis, the two Git-clean
+cycles, unchanged queue tests and dependencies, semantic route equivalence, and
+closed production gates. Web CI and applicable Android CI must still pass before
 merge. No deployment is authorized by a source merge.
