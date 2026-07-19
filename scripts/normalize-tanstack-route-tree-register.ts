@@ -2,7 +2,14 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const routeTreePath = join(process.cwd(), "src", "routeTree.gen.ts");
-const generatedRegisterFooter = `
+const stableRegisterPath = join(
+  process.cwd(),
+  "src",
+  "types",
+  "tanstack-start-register.d.ts",
+);
+
+export const generatedRegisterFooter = `
 import type { getRouter } from './router.tsx'
 import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
@@ -14,20 +21,64 @@ declare module '@tanstack/react-start' {
 }
 `;
 
-const source = readFileSync(routeTreePath, "utf8").replaceAll("\r\n", "\n");
-const firstMatch = source.indexOf(generatedRegisterFooter);
+const generatedRegisterMarkers = [
+  "@tanstack/react-start",
+  "startInstance.getOptions",
+  "ReturnType<typeof getRouter>",
+  "import type { getRouter } from './router.tsx'",
+  "import type { startInstance } from './start.ts'",
+];
 
-if (firstMatch === -1) {
-  process.exit(0);
+export function normalizeRouteTreeRegister(source: string): string {
+  const normalized = source.replaceAll("\r\n", "\n");
+  const firstMatch = normalized.indexOf(generatedRegisterFooter);
+
+  if (firstMatch === -1) {
+    if (generatedRegisterMarkers.some((marker) => normalized.includes(marker))) {
+      throw new Error(
+        "Unknown TanStack Register augmentation shape found in generated route tree",
+      );
+    }
+    return source;
+  }
+
+  if (
+    firstMatch !== normalized.lastIndexOf(generatedRegisterFooter) ||
+    firstMatch + generatedRegisterFooter.length !== normalized.length
+  ) {
+    throw new Error(
+      "TanStack Register footer is duplicated or is not the exact generated suffix",
+    );
+  }
+
+  const result = normalized.slice(0, firstMatch);
+  if (generatedRegisterMarkers.some((marker) => result.includes(marker))) {
+    throw new Error(
+      "TanStack Register markers remain after exact footer normalization",
+    );
+  }
+  return result;
 }
 
-if (
-  firstMatch !== source.lastIndexOf(generatedRegisterFooter) ||
-  firstMatch + generatedRegisterFooter.length !== source.length
-) {
-  throw new Error(
-    "TanStack Register footer is duplicated or is not the exact generated suffix",
-  );
+export function assertStableRegister(source: string): void {
+  for (const marker of [
+    'declare module "@tanstack/react-start"',
+    'import type { getRouter } from "../router"',
+    'import type { startInstance } from "../start"',
+    "router: Awaited<ReturnType<typeof getRouter>>",
+    "config: Awaited<ReturnType<typeof startInstance.getOptions>>",
+  ]) {
+    if (!source.includes(marker)) {
+      throw new Error(`Stable TanStack Register declaration is missing: ${marker}`);
+    }
+  }
 }
 
-writeFileSync(routeTreePath, source.slice(0, firstMatch), "utf8");
+if (import.meta.main) {
+  assertStableRegister(readFileSync(stableRegisterPath, "utf8"));
+  const source = readFileSync(routeTreePath, "utf8");
+  const normalized = normalizeRouteTreeRegister(source);
+  if (normalized !== source) {
+    writeFileSync(routeTreePath, normalized, "utf8");
+  }
+}

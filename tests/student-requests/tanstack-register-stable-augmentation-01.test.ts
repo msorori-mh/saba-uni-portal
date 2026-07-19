@@ -2,6 +2,11 @@ import { describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  assertStableRegister,
+  generatedRegisterFooter,
+  normalizeRouteTreeRegister,
+} from "../../scripts/normalize-tanstack-route-tree-register";
 
 const ROOT = join(import.meta.dir, "../..");
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
@@ -62,14 +67,47 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
       "vite build && bun run scripts/normalize-tanstack-route-tree-register.ts",
     );
     expect(normalizer).toContain(
-      "firstMatch !== source.lastIndexOf(generatedRegisterFooter)",
+      "firstMatch !== normalized.lastIndexOf(generatedRegisterFooter)",
     );
     expect(normalizer).toContain(
-      "firstMatch + generatedRegisterFooter.length !== source.length",
+      "firstMatch + generatedRegisterFooter.length !== normalized.length",
     );
     expect(normalizer).not.toMatch(/\bid:\s*['\"]/);
     expect(normalizer).not.toMatch(/\bpath:\s*['\"]/);
     expect(normalizer).not.toContain("getParentRoute");
+  });
+
+  it("accepts clean output and strips the exact generated suffix", () => {
+    const clean = "export const routeTree = rootRouteImport\n";
+    expect(normalizeRouteTreeRegister(clean)).toBe(clean);
+    expect(normalizeRouteTreeRegister(clean + generatedRegisterFooter)).toBe(
+      clean,
+    );
+  });
+
+  it("fails closed on altered, duplicate, and non-suffix augmentation", () => {
+    const clean = "export const routeTree = rootRouteImport\n";
+    const altered = generatedRegisterFooter.replace(
+      "interface Register",
+      "interface  Register",
+    );
+
+    expect(() => normalizeRouteTreeRegister(clean + altered)).toThrow();
+    expect(() =>
+      normalizeRouteTreeRegister(
+        clean + generatedRegisterFooter + generatedRegisterFooter,
+      ),
+    ).toThrow();
+    expect(() =>
+      normalizeRouteTreeRegister(
+        clean + generatedRegisterFooter + "export const drift = true\n",
+      ),
+    ).toThrow();
+  });
+
+  it("fails closed when the stable Register declaration is incomplete", () => {
+    expect(() => assertStableRegister(read(REGISTER_PATH))).not.toThrow();
+    expect(() => assertStableRegister("declare module only")).toThrow();
   });
 
   it("pins route ids, paths, full paths and parent relationships", () => {
