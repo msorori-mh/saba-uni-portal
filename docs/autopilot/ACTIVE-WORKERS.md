@@ -9,9 +9,9 @@
 No workers share an editable file or worktree.
 
 Most recent isolated worker:
-`B1-TANSTACK-REGISTER-STABLE-AUGMENTATION-REMEDIATION-01` on
-`codex/b1-tanstack-register-stable-augmentation-01` at
-`C:\projects\saba-uni-portal-tanstack-register-fix`; its bounded source changes
+`B1-LOVABLE-GENERATED-REGISTER-COMPATIBILITY-REMEDIATION-01` on
+`codex/b1-lovable-generated-register-compatibility-01` at
+`C:\projects\saba-uni-portal-register-generator-compat`; its bounded source changes
 were completed and the slot was released before clean-room validation.
 
 B1 source closure tasks are merged: predecessor remediation #169, safe RPC
