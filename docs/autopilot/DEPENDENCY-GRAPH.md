@@ -52,6 +52,8 @@ flowchart TD
   RPACK --> MIG
   PROMO --> REPRO[B1 reproducible release build remediation]
   REPRO --> DEPLOYAUTH[Separate release deploy authorization]
+  REPRO --> TREG[B1 stable TanStack Register augmentation]
+  TREG --> DEPLOYAUTH
   DEPLOYAUTH -.->|does not authorize migration apply| MIG
   CHAIRS[Approved chair identity resolution] --> CPKG[Controlled chair fix package]
   CPKG -->|separate apply approval| MIG

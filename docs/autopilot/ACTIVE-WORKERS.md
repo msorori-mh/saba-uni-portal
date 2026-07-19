@@ -2,7 +2,7 @@
 
 | slot | task_id | agent_type | branch/worktree | scope | started | state |
 |---:|---|---|---|---|---|---|
-| 1 | — | — | — | available | 2026-07-19 | READY |
+| 1 | B1-TANSTACK-REGISTER-STABLE-AUGMENTATION-REMEDIATION-01 | RELEASE_INTEGRATION_AGENT | `codex/b1-tanstack-register-stable-augmentation-01` / `C:\projects\saba-uni-portal-tanstack-register-fix` | stable TanStack Register declaration, contract test, report | 2026-07-19 | ACTIVE |
 | 2 | — | — | — | available | 2026-07-19 | READY |
 | 3 | — | — | — | available | 2026-07-19 | READY |
 
