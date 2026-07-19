@@ -11,190 +11,115 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as AdminRouteImport } from './routes/admin'
-import { Route as ContactRouteImport } from './routes/contact'
-import { Route as DepartmentsRouteImport } from './routes/departments'
-import { Route as EventsRouteImport } from './routes/events'
-import { Route as FacultyRouteImport } from './routes/faculty'
-import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as MessagesRouteImport } from './routes/messages'
-import { Route as NewsRouteImport } from './routes/news'
-import { Route as PortalLoginRouteImport } from './routes/portal-login'
-import { Route as ResearchRouteImport } from './routes/research'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as StaffRouteImport } from './routes/staff'
-import { Route as StudentRouteImport } from './routes/student'
 import { Route as VerifyDocumentRouteImport } from './routes/verify-document'
-import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
-import { Route as AdminAcademicCouncilsRouteImport } from './routes/admin/academic-councils'
-import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
-import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
-import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
-import { Route as AdminAutomationRouteImport } from './routes/admin/automation'
-import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-status'
-import { Route as AdminCommunicationsRouteImport } from './routes/admin/communications'
-import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
-import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
-import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
-import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments'
-import { Route as AdminEventsRouteImport } from './routes/admin/events'
-import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
-import { Route as AdminFacultyAccountsRouteImport } from './routes/admin/faculty-accounts'
-import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
-import { Route as AdminGraduationCandidatesRouteImport } from './routes/admin/graduation-candidates'
-import { Route as AdminImportsRouteImport } from './routes/admin/imports'
-import { Route as AdminLoginRouteImport } from './routes/admin/login'
-import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
-import { Route as AdminNewsRouteImport } from './routes/admin/news'
-import { Route as AdminOperationsRouteImport } from './routes/admin/operations'
-import { Route as AdminOrganizationalStructureRouteImport } from './routes/admin/organizational-structure'
-import { Route as AdminPilotCenterRouteImport } from './routes/admin/pilot-center'
-import { Route as AdminProcessingAssignmentsRouteImport } from './routes/admin/processing-assignments'
-import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
-import { Route as AdminReportsRouteImport } from './routes/admin/reports'
-import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
-import { Route as AdminResearchRouteImport } from './routes/admin/research'
-import { Route as AdminRolesRouteImport } from './routes/admin/roles'
-import { Route as AdminSchedulesRouteImport } from './routes/admin/schedules'
-import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
-import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
-import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
-import { Route as AdminStudentProgressRouteImport } from './routes/admin/student-progress'
-import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
-import { Route as AdminUserRolesRouteImport } from './routes/admin/user-roles'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
-import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
-import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
-import { Route as FacultyPortalAcademicCouncilsRouteImport } from './routes/faculty-portal.academic-councils'
-import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
-import { Route as FacultyPortalProcessingRequestsRouteImport } from './routes/faculty-portal.processing-requests'
-import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
-import { Route as MobileStudentRouteImport } from './routes/mobile.student'
-import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
-import { Route as NewsSlugRouteImport } from './routes/news.$slug'
-import { Route as StaffIndexRouteImport } from './routes/staff.index'
-import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
+import { Route as StudentRouteImport } from './routes/student'
+import { Route as StaffRouteImport } from './routes/staff'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ResearchRouteImport } from './routes/research'
+import { Route as PortalLoginRouteImport } from './routes/portal-login'
+import { Route as NewsRouteImport } from './routes/news'
+import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as FacultyPortalRouteImport } from './routes/faculty-portal'
+import { Route as FacultyRouteImport } from './routes/faculty'
+import { Route as EventsRouteImport } from './routes/events'
+import { Route as DepartmentsRouteImport } from './routes/departments'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudentIndexRouteImport } from './routes/student.index'
-import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
-import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
-import { Route as StudentProgressRouteImport } from './routes/student.progress'
-import { Route as StudentRequestsRouteImport } from './routes/student.requests'
-import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
+import { Route as StaffIndexRouteImport } from './routes/staff.index'
+import { Route as FacultyPortalIndexRouteImport } from './routes/faculty-portal.index'
 import { Route as StudentStudyPlanRouteImport } from './routes/student.study-plan'
-import { Route as FacultyPortalMaterialsIndexRouteImport } from './routes/faculty-portal.materials.index'
-import { Route as FacultyPortalMaterialsSectionIdRouteImport } from './routes/faculty-portal.materials.$sectionId'
-import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
-import { Route as MobileStudentIndexRouteImport } from './routes/mobile.student.index'
-import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile.student.academic-record'
-import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.student.documents'
-import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.student.finance'
-import { Route as MobileStudentGradesRouteImport } from './routes/mobile.student.grades'
-import { Route as MobileStudentRequestsRouteImport } from './routes/mobile.student.requests'
-import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
-import { Route as StudentMaterialsIndexRouteImport } from './routes/student.materials.index'
-import { Route as StudentMaterialsSectionIdRouteImport } from './routes/student.materials.$sectionId'
+import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
+import { Route as StudentRequestsRouteImport } from './routes/student.requests'
+import { Route as StudentProgressRouteImport } from './routes/student.progress'
+import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
+import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
+import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
+import { Route as NewsSlugRouteImport } from './routes/news.$slug'
+import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
+import { Route as MobileStudentRouteImport } from './routes/mobile.student'
+import { Route as FacultyPortalScheduleRouteImport } from './routes/faculty-portal.schedule'
+import { Route as FacultyPortalProcessingRequestsRouteImport } from './routes/faculty-portal.processing-requests'
+import { Route as FacultyPortalChangePasswordRouteImport } from './routes/faculty-portal.change-password'
+import { Route as FacultyPortalAcademicCouncilsRouteImport } from './routes/faculty-portal.academic-councils'
+import { Route as DocumentViewIdRouteImport } from './routes/document-view.$id'
+import { Route as DepartmentsCodeRouteImport } from './routes/departments.$code'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminUserRolesRouteImport } from './routes/admin/user-roles'
+import { Route as AdminSystemReadinessRouteImport } from './routes/admin/system-readiness'
+import { Route as AdminStudentProgressRouteImport } from './routes/admin/student-progress'
+import { Route as AdminStaffManagementRouteImport } from './routes/admin/staff-management'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminSecurityStatusRouteImport } from './routes/admin/security-status'
+import { Route as AdminSchedulesRouteImport } from './routes/admin/schedules'
+import { Route as AdminRolesRouteImport } from './routes/admin/roles'
+import { Route as AdminResearchRouteImport } from './routes/admin/research'
+import { Route as AdminRequestTypesRouteImport } from './routes/admin/request-types'
+import { Route as AdminReportsRouteImport } from './routes/admin/reports'
+import { Route as AdminProgramsRouteImport } from './routes/admin/programs'
+import { Route as AdminProcessingAssignmentsRouteImport } from './routes/admin/processing-assignments'
+import { Route as AdminPilotCenterRouteImport } from './routes/admin/pilot-center'
+import { Route as AdminOrganizationalStructureRouteImport } from './routes/admin/organizational-structure'
+import { Route as AdminOperationsRouteImport } from './routes/admin/operations'
+import { Route as AdminNewsRouteImport } from './routes/admin/news'
+import { Route as AdminMessagesRouteImport } from './routes/admin/messages'
+import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminImportsRouteImport } from './routes/admin/imports'
+import { Route as AdminGraduationCandidatesRouteImport } from './routes/admin/graduation-candidates'
+import { Route as AdminFacultyManagementRouteImport } from './routes/admin/faculty-management'
+import { Route as AdminFacultyAccountsRouteImport } from './routes/admin/faculty-accounts'
+import { Route as AdminFacultyRouteImport } from './routes/admin/faculty'
+import { Route as AdminEventsRouteImport } from './routes/admin/events'
+import { Route as AdminEnrollmentsRouteImport } from './routes/admin/enrollments'
+import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
+import { Route as AdminCourseOfferingsRouteImport } from './routes/admin/course-offerings'
+import { Route as AdminContactsRouteImport } from './routes/admin/contacts'
+import { Route as AdminCommunicationsRouteImport } from './routes/admin/communications'
+import { Route as AdminBackupStatusRouteImport } from './routes/admin/backup-status'
+import { Route as AdminAutomationRouteImport } from './routes/admin/automation'
+import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
+import { Route as AdminAtRiskStudentsRouteImport } from './routes/admin/at-risk-students'
+import { Route as AdminAcademicOperationsRouteImport } from './routes/admin/academic-operations'
+import { Route as AdminAcademicCouncilsRouteImport } from './routes/admin/academic-councils'
+import { Route as AdminAcademicCoreRouteImport } from './routes/admin/academic-core'
 import { Route as StudentRequestsIndexRouteImport } from './routes/student.requests.index'
-import { Route as StudentRequestsIdRouteImport } from './routes/student.requests.$id'
+import { Route as StudentMaterialsIndexRouteImport } from './routes/student.materials.index'
+import { Route as MobileStudentIndexRouteImport } from './routes/mobile.student.index'
+import { Route as FacultyPortalMaterialsIndexRouteImport } from './routes/faculty-portal.materials.index'
 import { Route as StudentRequestsNewRouteImport } from './routes/student.requests.new'
+import { Route as StudentRequestsIdRouteImport } from './routes/student.requests.$id'
+import { Route as StudentMaterialsSectionIdRouteImport } from './routes/student.materials.$sectionId'
+import { Route as MobileStudentScheduleRouteImport } from './routes/mobile.student.schedule'
+import { Route as MobileStudentRequestsRouteImport } from './routes/mobile.student.requests'
+import { Route as MobileStudentGradesRouteImport } from './routes/mobile.student.grades'
+import { Route as MobileStudentFinanceRouteImport } from './routes/mobile.student.finance'
+import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.student.documents'
+import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile.student.academic-record'
+import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
+import { Route as FacultyPortalMaterialsSectionIdRouteImport } from './routes/faculty-portal.materials.$sectionId'
 import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types_.$id.workflow'
 
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
-const AdminDocumentsLazyRouteImport = createFileRoute('/admin/documents')()
-const AdminExecutiveDashboardLazyRouteImport = createFileRoute(
-  '/admin/executive-dashboard',
-)()
-const AdminFinanceLazyRouteImport = createFileRoute('/admin/finance')()
-const AdminGradesLazyRouteImport = createFileRoute('/admin/grades')()
+const AdminTranscriptsLazyRouteImport = createFileRoute('/admin/transcripts')()
+const AdminStudyPlansLazyRouteImport = createFileRoute('/admin/study-plans')()
+const AdminStudentsLazyRouteImport = createFileRoute('/admin/students')()
 const AdminStudentRequestsLazyRouteImport = createFileRoute(
   '/admin/student-requests',
 )()
-const AdminStudentsLazyRouteImport = createFileRoute('/admin/students')()
-const AdminStudyPlansLazyRouteImport = createFileRoute('/admin/study-plans')()
-const AdminTranscriptsLazyRouteImport = createFileRoute('/admin/transcripts')()
+const AdminGradesLazyRouteImport = createFileRoute('/admin/grades')()
+const AdminFinanceLazyRouteImport = createFileRoute('/admin/finance')()
+const AdminExecutiveDashboardLazyRouteImport = createFileRoute(
+  '/admin/executive-dashboard',
+)()
+const AdminDocumentsLazyRouteImport = createFileRoute('/admin/documents')()
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminRoute = AdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ContactRoute = ContactRouteImport.update({
-  id: '/contact',
-  path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DepartmentsRoute = DepartmentsRouteImport.update({
-  id: '/departments',
-  path: '/departments',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EventsRoute = EventsRouteImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FacultyRoute = FacultyRouteImport.update({
-  id: '/faculty',
-  path: '/faculty',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FacultyPortalRoute = FacultyPortalRouteImport.update({
-  id: '/faculty-portal',
-  path: '/faculty-portal',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MessagesRoute = MessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NewsRoute = NewsRouteImport.update({
-  id: '/news',
-  path: '/news',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PortalLoginRoute = PortalLoginRouteImport.update({
-  id: '/portal-login',
-  path: '/portal-login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResearchRoute = ResearchRouteImport.update({
-  id: '/research',
-  path: '/research',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StaffRoute = StaffRouteImport.update({
-  id: '/staff',
-  path: '/staff',
+const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
+  id: '/verify-document',
+  path: '/verify-document',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StudentRoute = StudentRouteImport.update({
@@ -202,9 +127,84 @@ const StudentRoute = StudentRouteImport.update({
   path: '/student',
   getParentRoute: () => rootRouteImport,
 } as any)
-const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
-  id: '/verify-document',
-  path: '/verify-document',
+const StaffRoute = StaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResearchRoute = ResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalLoginRoute = PortalLoginRouteImport.update({
+  id: '/portal-login',
+  path: '/portal-login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsRoute = NewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyPortalRoute = FacultyPortalRouteImport.update({
+  id: '/faculty-portal',
+  path: '/faculty-portal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyRoute = FacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepartmentsRoute = DepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexLazyRoute = AdminIndexLazyRouteImport.update({
@@ -212,235 +212,20 @@ const AdminIndexLazyRoute = AdminIndexLazyRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any).lazy(() => import('./routes/admin/index.lazy').then((d) => d.Route))
-const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
-  id: '/academic-core',
-  path: '/academic-core',
-  getParentRoute: () => AdminRoute,
+const StudentIndexRoute = StudentIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudentRoute,
 } as any)
-const AdminAcademicCouncilsRoute = AdminAcademicCouncilsRouteImport.update({
-  id: '/academic-councils',
-  path: '/academic-councils',
-  getParentRoute: () => AdminRoute,
+const StaffIndexRoute = StaffIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StaffRoute,
 } as any)
-const AdminAcademicOperationsRoute = AdminAcademicOperationsRouteImport.update({
-  id: '/academic-operations',
-  path: '/academic-operations',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAtRiskStudentsRoute = AdminAtRiskStudentsRouteImport.update({
-  id: '/at-risk-students',
-  path: '/at-risk-students',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
-  id: '/audit-log',
-  path: '/audit-log',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminAutomationRoute = AdminAutomationRouteImport.update({
-  id: '/automation',
-  path: '/automation',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminBackupStatusRoute = AdminBackupStatusRouteImport.update({
-  id: '/backup-status',
-  path: '/backup-status',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCommunicationsRoute = AdminCommunicationsRouteImport.update({
-  id: '/communications',
-  path: '/communications',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminContactsRoute = AdminContactsRouteImport.update({
-  id: '/contacts',
-  path: '/contacts',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminCourseOfferingsRoute = AdminCourseOfferingsRouteImport.update({
-  id: '/course-offerings',
-  path: '/course-offerings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
-  id: '/departments',
-  path: '/departments',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminDocumentsLazyRoute = AdminDocumentsLazyRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() =>
-  import('./routes/admin/documents.lazy').then((d) => d.Route),
-)
-const AdminEnrollmentsRoute = AdminEnrollmentsRouteImport.update({
-  id: '/enrollments',
-  path: '/enrollments',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminEventsRoute = AdminEventsRouteImport.update({
-  id: '/events',
-  path: '/events',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminExecutiveDashboardLazyRoute =
-  AdminExecutiveDashboardLazyRouteImport.update({
-    id: '/executive-dashboard',
-    path: '/executive-dashboard',
-    getParentRoute: () => AdminRoute,
-  } as any).lazy(() =>
-    import('./routes/admin/executive-dashboard.lazy').then((d) => d.Route),
-  )
-const AdminFacultyRoute = AdminFacultyRouteImport.update({
-  id: '/faculty',
-  path: '/faculty',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminFacultyAccountsRoute = AdminFacultyAccountsRouteImport.update({
-  id: '/faculty-accounts',
-  path: '/faculty-accounts',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminFacultyManagementRoute = AdminFacultyManagementRouteImport.update({
-  id: '/faculty-management',
-  path: '/faculty-management',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminFinanceLazyRoute = AdminFinanceLazyRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() => import('./routes/admin/finance.lazy').then((d) => d.Route))
-const AdminGradesLazyRoute = AdminGradesLazyRouteImport.update({
-  id: '/grades',
-  path: '/grades',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() => import('./routes/admin/grades.lazy').then((d) => d.Route))
-const AdminGraduationCandidatesRoute =
-  AdminGraduationCandidatesRouteImport.update({
-    id: '/graduation-candidates',
-    path: '/graduation-candidates',
-    getParentRoute: () => AdminRoute,
-  } as any)
-const AdminImportsRoute = AdminImportsRouteImport.update({
-  id: '/imports',
-  path: '/imports',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLoginRoute = AdminLoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminMessagesRoute = AdminMessagesRouteImport.update({
-  id: '/messages',
-  path: '/messages',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminNewsRoute = AdminNewsRouteImport.update({
-  id: '/news',
-  path: '/news',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminOperationsRoute = AdminOperationsRouteImport.update({
-  id: '/operations',
-  path: '/operations',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminOrganizationalStructureRoute =
-  AdminOrganizationalStructureRouteImport.update({
-    id: '/organizational-structure',
-    path: '/organizational-structure',
-    getParentRoute: () => AdminRoute,
-  } as any)
-const AdminPilotCenterRoute = AdminPilotCenterRouteImport.update({
-  id: '/pilot-center',
-  path: '/pilot-center',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminProcessingAssignmentsRoute =
-  AdminProcessingAssignmentsRouteImport.update({
-    id: '/processing-assignments',
-    path: '/processing-assignments',
-    getParentRoute: () => AdminRoute,
-  } as any)
-const AdminProgramsRoute = AdminProgramsRouteImport.update({
-  id: '/programs',
-  path: '/programs',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminReportsRoute = AdminReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminRequestTypesRoute = AdminRequestTypesRouteImport.update({
-  id: '/request-types',
-  path: '/request-types',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminResearchRoute = AdminResearchRouteImport.update({
-  id: '/research',
-  path: '/research',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminRolesRoute = AdminRolesRouteImport.update({
-  id: '/roles',
-  path: '/roles',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSchedulesRoute = AdminSchedulesRouteImport.update({
-  id: '/schedules',
-  path: '/schedules',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSecurityStatusRoute = AdminSecurityStatusRouteImport.update({
-  id: '/security-status',
-  path: '/security-status',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStaffManagementRoute = AdminStaffManagementRouteImport.update({
-  id: '/staff-management',
-  path: '/staff-management',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudentProgressRoute = AdminStudentProgressRouteImport.update({
-  id: '/student-progress',
-  path: '/student-progress',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminStudentRequestsLazyRoute =
-  AdminStudentRequestsLazyRouteImport.update({
-    id: '/student-requests',
-    path: '/student-requests',
-    getParentRoute: () => AdminRoute,
-  } as any).lazy(() =>
-    import('./routes/admin/student-requests.lazy').then((d) => d.Route),
-  )
-const AdminStudentsLazyRoute = AdminStudentsLazyRouteImport.update({
-  id: '/students',
-  path: '/students',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() =>
-  import('./routes/admin/students.lazy').then((d) => d.Route),
-)
-const AdminStudyPlansLazyRoute = AdminStudyPlansLazyRouteImport.update({
-  id: '/study-plans',
-  path: '/study-plans',
-  getParentRoute: () => AdminRoute,
-} as any).lazy(() =>
-  import('./routes/admin/study-plans.lazy').then((d) => d.Route),
-)
-const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
-  id: '/system-readiness',
-  path: '/system-readiness',
-  getParentRoute: () => AdminRoute,
+const FacultyPortalIndexRoute = FacultyPortalIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => FacultyPortalRoute,
 } as any)
 const AdminTranscriptsLazyRoute = AdminTranscriptsLazyRouteImport.update({
   id: '/transcripts',
@@ -449,35 +234,112 @@ const AdminTranscriptsLazyRoute = AdminTranscriptsLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/admin/transcripts.lazy').then((d) => d.Route),
 )
-const AdminUserRolesRoute = AdminUserRolesRouteImport.update({
-  id: '/user-roles',
-  path: '/user-roles',
+const AdminStudyPlansLazyRoute = AdminStudyPlansLazyRouteImport.update({
+  id: '/study-plans',
+  path: '/study-plans',
   getParentRoute: () => AdminRoute,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
+} as any).lazy(() =>
+  import('./routes/admin/study-plans.lazy').then((d) => d.Route),
+)
+const AdminStudentsLazyRoute = AdminStudentsLazyRouteImport.update({
+  id: '/students',
+  path: '/students',
   getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin/students.lazy').then((d) => d.Route),
+)
+const AdminStudentRequestsLazyRoute =
+  AdminStudentRequestsLazyRouteImport.update({
+    id: '/student-requests',
+    path: '/student-requests',
+    getParentRoute: () => AdminRoute,
+  } as any).lazy(() =>
+    import('./routes/admin/student-requests.lazy').then((d) => d.Route),
+  )
+const AdminGradesLazyRoute = AdminGradesLazyRouteImport.update({
+  id: '/grades',
+  path: '/grades',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin/grades.lazy').then((d) => d.Route))
+const AdminFinanceLazyRoute = AdminFinanceLazyRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() => import('./routes/admin/finance.lazy').then((d) => d.Route))
+const AdminExecutiveDashboardLazyRoute =
+  AdminExecutiveDashboardLazyRouteImport.update({
+    id: '/executive-dashboard',
+    path: '/executive-dashboard',
+    getParentRoute: () => AdminRoute,
+  } as any).lazy(() =>
+    import('./routes/admin/executive-dashboard.lazy').then((d) => d.Route),
+  )
+const AdminDocumentsLazyRoute = AdminDocumentsLazyRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AdminRoute,
+} as any).lazy(() =>
+  import('./routes/admin/documents.lazy').then((d) => d.Route),
+)
+const StudentStudyPlanRoute = StudentStudyPlanRouteImport.update({
+  id: '/study-plan',
+  path: '/study-plan',
+  getParentRoute: () => StudentRoute,
 } as any)
-const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
-  id: '/$code',
-  path: '/$code',
-  getParentRoute: () => DepartmentsRoute,
+const StudentScheduleRoute = StudentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => StudentRoute,
 } as any)
-const DocumentViewIdRoute = DocumentViewIdRouteImport.update({
-  id: '/document-view/$id',
-  path: '/document-view/$id',
+const StudentRequestsRoute = StudentRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentProgressRoute = StudentProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StudentChangePasswordRoute = StudentChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => StudentRoute,
+} as any)
+const StaffChangePasswordRoute = StaffChangePasswordRouteImport.update({
+  id: '/change-password',
+  path: '/change-password',
+  getParentRoute: () => StaffRoute,
+} as any)
+const NewsSlugRoute = NewsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => NewsRoute,
+} as any)
+const MobileStudentLoginRoute = MobileStudentLoginRouteImport.update({
+  id: '/mobile/student-login',
+  path: '/mobile/student-login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const FacultyPortalIndexRoute = FacultyPortalIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const MobileStudentRoute = MobileStudentRouteImport.update({
+  id: '/mobile/student',
+  path: '/mobile/student',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyPortalScheduleRoute = FacultyPortalScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
   getParentRoute: () => FacultyPortalRoute,
 } as any)
-const FacultyPortalAcademicCouncilsRoute =
-  FacultyPortalAcademicCouncilsRouteImport.update({
-    id: '/academic-councils',
-    path: '/academic-councils',
+const FacultyPortalProcessingRequestsRoute =
+  FacultyPortalProcessingRequestsRouteImport.update({
+    id: '/processing-requests',
+    path: '/processing-requests',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
 const FacultyPortalChangePasswordRoute =
@@ -486,76 +348,229 @@ const FacultyPortalChangePasswordRoute =
     path: '/change-password',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
-const FacultyPortalProcessingRequestsRoute =
-  FacultyPortalProcessingRequestsRouteImport.update({
-    id: '/processing-requests',
-    path: '/processing-requests',
+const FacultyPortalAcademicCouncilsRoute =
+  FacultyPortalAcademicCouncilsRouteImport.update({
+    id: '/academic-councils',
+    path: '/academic-councils',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
-const FacultyPortalScheduleRoute = FacultyPortalScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
-  getParentRoute: () => FacultyPortalRoute,
-} as any)
-const MobileStudentRoute = MobileStudentRouteImport.update({
-  id: '/mobile/student',
-  path: '/mobile/student',
+const DocumentViewIdRoute = DocumentViewIdRouteImport.update({
+  id: '/document-view/$id',
+  path: '/document-view/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MobileStudentLoginRoute = MobileStudentLoginRouteImport.update({
-  id: '/mobile/student-login',
-  path: '/mobile/student-login',
-  getParentRoute: () => rootRouteImport,
+const DepartmentsCodeRoute = DepartmentsCodeRouteImport.update({
+  id: '/$code',
+  path: '/$code',
+  getParentRoute: () => DepartmentsRoute,
 } as any)
-const NewsSlugRoute = NewsSlugRouteImport.update({
-  id: '/$slug',
-  path: '/$slug',
-  getParentRoute: () => NewsRoute,
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
 } as any)
-const StaffIndexRoute = StaffIndexRouteImport.update({
+const AdminUserRolesRoute = AdminUserRolesRouteImport.update({
+  id: '/user-roles',
+  path: '/user-roles',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSystemReadinessRoute = AdminSystemReadinessRouteImport.update({
+  id: '/system-readiness',
+  path: '/system-readiness',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStudentProgressRoute = AdminStudentProgressRouteImport.update({
+  id: '/student-progress',
+  path: '/student-progress',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminStaffManagementRoute = AdminStaffManagementRouteImport.update({
+  id: '/staff-management',
+  path: '/staff-management',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSecurityStatusRoute = AdminSecurityStatusRouteImport.update({
+  id: '/security-status',
+  path: '/security-status',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSchedulesRoute = AdminSchedulesRouteImport.update({
+  id: '/schedules',
+  path: '/schedules',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRolesRoute = AdminRolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminResearchRoute = AdminResearchRouteImport.update({
+  id: '/research',
+  path: '/research',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminRequestTypesRoute = AdminRequestTypesRouteImport.update({
+  id: '/request-types',
+  path: '/request-types',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProgramsRoute = AdminProgramsRouteImport.update({
+  id: '/programs',
+  path: '/programs',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProcessingAssignmentsRoute =
+  AdminProcessingAssignmentsRouteImport.update({
+    id: '/processing-assignments',
+    path: '/processing-assignments',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminPilotCenterRoute = AdminPilotCenterRouteImport.update({
+  id: '/pilot-center',
+  path: '/pilot-center',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminOrganizationalStructureRoute =
+  AdminOrganizationalStructureRouteImport.update({
+    id: '/organizational-structure',
+    path: '/organizational-structure',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminOperationsRoute = AdminOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminNewsRoute = AdminNewsRouteImport.update({
+  id: '/news',
+  path: '/news',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminMessagesRoute = AdminMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminImportsRoute = AdminImportsRouteImport.update({
+  id: '/imports',
+  path: '/imports',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminGraduationCandidatesRoute =
+  AdminGraduationCandidatesRouteImport.update({
+    id: '/graduation-candidates',
+    path: '/graduation-candidates',
+    getParentRoute: () => AdminRoute,
+  } as any)
+const AdminFacultyManagementRoute = AdminFacultyManagementRouteImport.update({
+  id: '/faculty-management',
+  path: '/faculty-management',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFacultyAccountsRoute = AdminFacultyAccountsRouteImport.update({
+  id: '/faculty-accounts',
+  path: '/faculty-accounts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminFacultyRoute = AdminFacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEventsRoute = AdminEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminEnrollmentsRoute = AdminEnrollmentsRouteImport.update({
+  id: '/enrollments',
+  path: '/enrollments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCourseOfferingsRoute = AdminCourseOfferingsRouteImport.update({
+  id: '/course-offerings',
+  path: '/course-offerings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminContactsRoute = AdminContactsRouteImport.update({
+  id: '/contacts',
+  path: '/contacts',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCommunicationsRoute = AdminCommunicationsRouteImport.update({
+  id: '/communications',
+  path: '/communications',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBackupStatusRoute = AdminBackupStatusRouteImport.update({
+  id: '/backup-status',
+  path: '/backup-status',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAutomationRoute = AdminAutomationRouteImport.update({
+  id: '/automation',
+  path: '/automation',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAtRiskStudentsRoute = AdminAtRiskStudentsRouteImport.update({
+  id: '/at-risk-students',
+  path: '/at-risk-students',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAcademicOperationsRoute = AdminAcademicOperationsRouteImport.update({
+  id: '/academic-operations',
+  path: '/academic-operations',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAcademicCouncilsRoute = AdminAcademicCouncilsRouteImport.update({
+  id: '/academic-councils',
+  path: '/academic-councils',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAcademicCoreRoute = AdminAcademicCoreRouteImport.update({
+  id: '/academic-core',
+  path: '/academic-core',
+  getParentRoute: () => AdminRoute,
+} as any)
+const StudentRequestsIndexRoute = StudentRequestsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => StaffRoute,
+  getParentRoute: () => StudentRequestsRoute,
 } as any)
-const StaffChangePasswordRoute = StaffChangePasswordRouteImport.update({
-  id: '/change-password',
-  path: '/change-password',
-  getParentRoute: () => StaffRoute,
+const StudentMaterialsIndexRoute = StudentMaterialsIndexRouteImport.update({
+  id: '/materials/',
+  path: '/materials/',
+  getParentRoute: () => StudentRoute,
 } as any)
-const StudentIndexRoute = StudentIndexRouteImport.update({
+const MobileStudentIndexRoute = MobileStudentIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentChangePasswordRoute = StudentChangePasswordRouteImport.update({
-  id: '/change-password',
-  path: '/change-password',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentNotificationsRoute = StudentNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentProgressRoute = StudentProgressRouteImport.update({
-  id: '/progress',
-  path: '/progress',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentRequestsRoute = StudentRequestsRouteImport.update({
-  id: '/requests',
-  path: '/requests',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentScheduleRoute = StudentScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentStudyPlanRoute = StudentStudyPlanRouteImport.update({
-  id: '/study-plan',
-  path: '/study-plan',
-  getParentRoute: () => StudentRoute,
+  getParentRoute: () => MobileStudentRoute,
 } as any)
 const FacultyPortalMaterialsIndexRoute =
   FacultyPortalMaterialsIndexRouteImport.update({
@@ -563,21 +578,45 @@ const FacultyPortalMaterialsIndexRoute =
     path: '/materials/',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
-const FacultyPortalMaterialsSectionIdRoute =
-  FacultyPortalMaterialsSectionIdRouteImport.update({
+const StudentRequestsNewRoute = StudentRequestsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => StudentRequestsRoute,
+} as any)
+const StudentRequestsIdRoute = StudentRequestsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => StudentRequestsRoute,
+} as any)
+const StudentMaterialsSectionIdRoute =
+  StudentMaterialsSectionIdRouteImport.update({
     id: '/materials/$sectionId',
     path: '/materials/$sectionId',
-    getParentRoute: () => FacultyPortalRoute,
+    getParentRoute: () => StudentRoute,
   } as any)
-const FacultyPortalStudentProgressStudentIdRoute =
-  FacultyPortalStudentProgressStudentIdRouteImport.update({
-    id: '/student-progress/$studentId',
-    path: '/student-progress/$studentId',
-    getParentRoute: () => FacultyPortalRoute,
-  } as any)
-const MobileStudentIndexRoute = MobileStudentIndexRouteImport.update({
-  id: '/',
-  path: '/',
+const MobileStudentScheduleRoute = MobileStudentScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
+const MobileStudentRequestsRoute = MobileStudentRequestsRouteImport.update({
+  id: '/requests',
+  path: '/requests',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
+const MobileStudentGradesRoute = MobileStudentGradesRouteImport.update({
+  id: '/grades',
+  path: '/grades',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
+const MobileStudentFinanceRoute = MobileStudentFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => MobileStudentRoute,
+} as any)
+const MobileStudentDocumentsRoute = MobileStudentDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
   getParentRoute: () => MobileStudentRoute,
 } as any)
 const MobileStudentAcademicRecordRoute =
@@ -586,57 +625,18 @@ const MobileStudentAcademicRecordRoute =
     path: '/academic-record',
     getParentRoute: () => MobileStudentRoute,
   } as any)
-const MobileStudentDocumentsRoute = MobileStudentDocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => MobileStudentRoute,
-} as any)
-const MobileStudentFinanceRoute = MobileStudentFinanceRouteImport.update({
-  id: '/finance',
-  path: '/finance',
-  getParentRoute: () => MobileStudentRoute,
-} as any)
-const MobileStudentGradesRoute = MobileStudentGradesRouteImport.update({
-  id: '/grades',
-  path: '/grades',
-  getParentRoute: () => MobileStudentRoute,
-} as any)
-const MobileStudentRequestsRoute = MobileStudentRequestsRouteImport.update({
-  id: '/requests',
-  path: '/requests',
-  getParentRoute: () => MobileStudentRoute,
-} as any)
-const MobileStudentScheduleRoute = MobileStudentScheduleRouteImport.update({
-  id: '/schedule',
-  path: '/schedule',
-  getParentRoute: () => MobileStudentRoute,
-} as any)
-const StudentMaterialsIndexRoute = StudentMaterialsIndexRouteImport.update({
-  id: '/materials/',
-  path: '/materials/',
-  getParentRoute: () => StudentRoute,
-} as any)
-const StudentMaterialsSectionIdRoute =
-  StudentMaterialsSectionIdRouteImport.update({
+const FacultyPortalStudentProgressStudentIdRoute =
+  FacultyPortalStudentProgressStudentIdRouteImport.update({
+    id: '/student-progress/$studentId',
+    path: '/student-progress/$studentId',
+    getParentRoute: () => FacultyPortalRoute,
+  } as any)
+const FacultyPortalMaterialsSectionIdRoute =
+  FacultyPortalMaterialsSectionIdRouteImport.update({
     id: '/materials/$sectionId',
     path: '/materials/$sectionId',
-    getParentRoute: () => StudentRoute,
+    getParentRoute: () => FacultyPortalRoute,
   } as any)
-const StudentRequestsIndexRoute = StudentRequestsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => StudentRequestsRoute,
-} as any)
-const StudentRequestsIdRoute = StudentRequestsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => StudentRequestsRoute,
-} as any)
-const StudentRequestsNewRoute = StudentRequestsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => StudentRequestsRoute,
-} as any)
 const AdminRequestTypesIdWorkflowRoute =
   AdminRequestTypesIdWorkflowRouteImport.update({
     id: '/request-types_/$id/workflow',
@@ -1274,116 +1274,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/contact': {
-      id: '/contact'
-      path: '/contact'
-      fullPath: '/contact'
-      preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/departments': {
-      id: '/departments'
-      path: '/departments'
-      fullPath: '/departments'
-      preLoaderRoute: typeof DepartmentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/events': {
-      id: '/events'
-      path: '/events'
-      fullPath: '/events'
-      preLoaderRoute: typeof EventsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faculty': {
-      id: '/faculty'
-      path: '/faculty'
-      fullPath: '/faculty'
-      preLoaderRoute: typeof FacultyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/faculty-portal': {
-      id: '/faculty-portal'
-      path: '/faculty-portal'
-      fullPath: '/faculty-portal'
-      preLoaderRoute: typeof FacultyPortalRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/messages': {
-      id: '/messages'
-      path: '/messages'
-      fullPath: '/messages'
-      preLoaderRoute: typeof MessagesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/news': {
-      id: '/news'
-      path: '/news'
-      fullPath: '/news'
-      preLoaderRoute: typeof NewsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/portal-login': {
-      id: '/portal-login'
-      path: '/portal-login'
-      fullPath: '/portal-login'
-      preLoaderRoute: typeof PortalLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/research': {
-      id: '/research'
-      path: '/research'
-      fullPath: '/research'
-      preLoaderRoute: typeof ResearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/staff': {
-      id: '/staff'
-      path: '/staff'
-      fullPath: '/staff'
-      preLoaderRoute: typeof StaffRouteImport
+    '/verify-document': {
+      id: '/verify-document'
+      path: '/verify-document'
+      fullPath: '/verify-document'
+      preLoaderRoute: typeof VerifyDocumentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/student': {
@@ -1393,11 +1288,116 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/verify-document': {
-      id: '/verify-document'
-      path: '/verify-document'
-      fullPath: '/verify-document'
-      preLoaderRoute: typeof VerifyDocumentRouteImport
+    '/staff': {
+      id: '/staff'
+      path: '/staff'
+      fullPath: '/staff'
+      preLoaderRoute: typeof StaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/research': {
+      id: '/research'
+      path: '/research'
+      fullPath: '/research'
+      preLoaderRoute: typeof ResearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal-login': {
+      id: '/portal-login'
+      path: '/portal-login'
+      fullPath: '/portal-login'
+      preLoaderRoute: typeof PortalLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/news': {
+      id: '/news'
+      path: '/news'
+      fullPath: '/news'
+      preLoaderRoute: typeof NewsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty-portal': {
+      id: '/faculty-portal'
+      path: '/faculty-portal'
+      fullPath: '/faculty-portal'
+      preLoaderRoute: typeof FacultyPortalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty': {
+      id: '/faculty'
+      path: '/faculty'
+      fullPath: '/faculty'
+      preLoaderRoute: typeof FacultyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/departments': {
+      id: '/departments'
+      path: '/departments'
+      fullPath: '/departments'
+      preLoaderRoute: typeof DepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -1407,291 +1407,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexLazyRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/academic-core': {
-      id: '/admin/academic-core'
-      path: '/academic-core'
-      fullPath: '/admin/academic-core'
-      preLoaderRoute: typeof AdminAcademicCoreRouteImport
-      parentRoute: typeof AdminRoute
+    '/student/': {
+      id: '/student/'
+      path: '/'
+      fullPath: '/student/'
+      preLoaderRoute: typeof StudentIndexRouteImport
+      parentRoute: typeof StudentRoute
     }
-    '/admin/academic-councils': {
-      id: '/admin/academic-councils'
-      path: '/academic-councils'
-      fullPath: '/admin/academic-councils'
-      preLoaderRoute: typeof AdminAcademicCouncilsRouteImport
-      parentRoute: typeof AdminRoute
+    '/staff/': {
+      id: '/staff/'
+      path: '/'
+      fullPath: '/staff/'
+      preLoaderRoute: typeof StaffIndexRouteImport
+      parentRoute: typeof StaffRoute
     }
-    '/admin/academic-operations': {
-      id: '/admin/academic-operations'
-      path: '/academic-operations'
-      fullPath: '/admin/academic-operations'
-      preLoaderRoute: typeof AdminAcademicOperationsRouteImport
-      parentRoute: typeof AdminRoute
+    '/faculty-portal/': {
+      id: '/faculty-portal/'
+      path: '/'
+      fullPath: '/faculty-portal/'
+      preLoaderRoute: typeof FacultyPortalIndexRouteImport
+      parentRoute: typeof FacultyPortalRoute
     }
-    '/admin/at-risk-students': {
-      id: '/admin/at-risk-students'
-      path: '/at-risk-students'
-      fullPath: '/admin/at-risk-students'
-      preLoaderRoute: typeof AdminAtRiskStudentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/audit-log': {
-      id: '/admin/audit-log'
-      path: '/audit-log'
-      fullPath: '/admin/audit-log'
-      preLoaderRoute: typeof AdminAuditLogRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/automation': {
-      id: '/admin/automation'
-      path: '/automation'
-      fullPath: '/admin/automation'
-      preLoaderRoute: typeof AdminAutomationRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/backup-status': {
-      id: '/admin/backup-status'
-      path: '/backup-status'
-      fullPath: '/admin/backup-status'
-      preLoaderRoute: typeof AdminBackupStatusRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/communications': {
-      id: '/admin/communications'
-      path: '/communications'
-      fullPath: '/admin/communications'
-      preLoaderRoute: typeof AdminCommunicationsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/contacts': {
-      id: '/admin/contacts'
-      path: '/contacts'
-      fullPath: '/admin/contacts'
-      preLoaderRoute: typeof AdminContactsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/course-offerings': {
-      id: '/admin/course-offerings'
-      path: '/course-offerings'
-      fullPath: '/admin/course-offerings'
-      preLoaderRoute: typeof AdminCourseOfferingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/departments': {
-      id: '/admin/departments'
-      path: '/departments'
-      fullPath: '/admin/departments'
-      preLoaderRoute: typeof AdminDepartmentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/documents': {
-      id: '/admin/documents'
-      path: '/documents'
-      fullPath: '/admin/documents'
-      preLoaderRoute: typeof AdminDocumentsLazyRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/enrollments': {
-      id: '/admin/enrollments'
-      path: '/enrollments'
-      fullPath: '/admin/enrollments'
-      preLoaderRoute: typeof AdminEnrollmentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/events': {
-      id: '/admin/events'
-      path: '/events'
-      fullPath: '/admin/events'
-      preLoaderRoute: typeof AdminEventsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/executive-dashboard': {
-      id: '/admin/executive-dashboard'
-      path: '/executive-dashboard'
-      fullPath: '/admin/executive-dashboard'
-      preLoaderRoute: typeof AdminExecutiveDashboardLazyRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/faculty': {
-      id: '/admin/faculty'
-      path: '/faculty'
-      fullPath: '/admin/faculty'
-      preLoaderRoute: typeof AdminFacultyRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/faculty-accounts': {
-      id: '/admin/faculty-accounts'
-      path: '/faculty-accounts'
-      fullPath: '/admin/faculty-accounts'
-      preLoaderRoute: typeof AdminFacultyAccountsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/faculty-management': {
-      id: '/admin/faculty-management'
-      path: '/faculty-management'
-      fullPath: '/admin/faculty-management'
-      preLoaderRoute: typeof AdminFacultyManagementRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/finance': {
-      id: '/admin/finance'
-      path: '/finance'
-      fullPath: '/admin/finance'
-      preLoaderRoute: typeof AdminFinanceLazyRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/grades': {
-      id: '/admin/grades'
-      path: '/grades'
-      fullPath: '/admin/grades'
-      preLoaderRoute: typeof AdminGradesLazyRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/graduation-candidates': {
-      id: '/admin/graduation-candidates'
-      path: '/graduation-candidates'
-      fullPath: '/admin/graduation-candidates'
-      preLoaderRoute: typeof AdminGraduationCandidatesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/imports': {
-      id: '/admin/imports'
-      path: '/imports'
-      fullPath: '/admin/imports'
-      preLoaderRoute: typeof AdminImportsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/login': {
-      id: '/admin/login'
-      path: '/login'
-      fullPath: '/admin/login'
-      preLoaderRoute: typeof AdminLoginRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/messages': {
-      id: '/admin/messages'
-      path: '/messages'
-      fullPath: '/admin/messages'
-      preLoaderRoute: typeof AdminMessagesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/news': {
-      id: '/admin/news'
-      path: '/news'
-      fullPath: '/admin/news'
-      preLoaderRoute: typeof AdminNewsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/operations': {
-      id: '/admin/operations'
-      path: '/operations'
-      fullPath: '/admin/operations'
-      preLoaderRoute: typeof AdminOperationsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/organizational-structure': {
-      id: '/admin/organizational-structure'
-      path: '/organizational-structure'
-      fullPath: '/admin/organizational-structure'
-      preLoaderRoute: typeof AdminOrganizationalStructureRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/pilot-center': {
-      id: '/admin/pilot-center'
-      path: '/pilot-center'
-      fullPath: '/admin/pilot-center'
-      preLoaderRoute: typeof AdminPilotCenterRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/processing-assignments': {
-      id: '/admin/processing-assignments'
-      path: '/processing-assignments'
-      fullPath: '/admin/processing-assignments'
-      preLoaderRoute: typeof AdminProcessingAssignmentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/programs': {
-      id: '/admin/programs'
-      path: '/programs'
-      fullPath: '/admin/programs'
-      preLoaderRoute: typeof AdminProgramsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/reports': {
-      id: '/admin/reports'
-      path: '/reports'
-      fullPath: '/admin/reports'
-      preLoaderRoute: typeof AdminReportsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/request-types': {
-      id: '/admin/request-types'
-      path: '/request-types'
-      fullPath: '/admin/request-types'
-      preLoaderRoute: typeof AdminRequestTypesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/research': {
-      id: '/admin/research'
-      path: '/research'
-      fullPath: '/admin/research'
-      preLoaderRoute: typeof AdminResearchRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/roles': {
-      id: '/admin/roles'
-      path: '/roles'
-      fullPath: '/admin/roles'
-      preLoaderRoute: typeof AdminRolesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/schedules': {
-      id: '/admin/schedules'
-      path: '/schedules'
-      fullPath: '/admin/schedules'
-      preLoaderRoute: typeof AdminSchedulesRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/security-status': {
-      id: '/admin/security-status'
-      path: '/security-status'
-      fullPath: '/admin/security-status'
-      preLoaderRoute: typeof AdminSecurityStatusRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/staff-management': {
-      id: '/admin/staff-management'
-      path: '/staff-management'
-      fullPath: '/admin/staff-management'
-      preLoaderRoute: typeof AdminStaffManagementRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/student-progress': {
-      id: '/admin/student-progress'
-      path: '/student-progress'
-      fullPath: '/admin/student-progress'
-      preLoaderRoute: typeof AdminStudentProgressRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/student-requests': {
-      id: '/admin/student-requests'
-      path: '/student-requests'
-      fullPath: '/admin/student-requests'
-      preLoaderRoute: typeof AdminStudentRequestsLazyRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/students': {
-      id: '/admin/students'
-      path: '/students'
-      fullPath: '/admin/students'
-      preLoaderRoute: typeof AdminStudentsLazyRouteImport
+    '/admin/transcripts': {
+      id: '/admin/transcripts'
+      path: '/transcripts'
+      fullPath: '/admin/transcripts'
+      preLoaderRoute: typeof AdminTranscriptsLazyRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/study-plans': {
@@ -1701,151 +1442,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStudyPlansLazyRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/system-readiness': {
-      id: '/admin/system-readiness'
-      path: '/system-readiness'
-      fullPath: '/admin/system-readiness'
-      preLoaderRoute: typeof AdminSystemReadinessRouteImport
+    '/admin/students': {
+      id: '/admin/students'
+      path: '/students'
+      fullPath: '/admin/students'
+      preLoaderRoute: typeof AdminStudentsLazyRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/transcripts': {
-      id: '/admin/transcripts'
-      path: '/transcripts'
-      fullPath: '/admin/transcripts'
-      preLoaderRoute: typeof AdminTranscriptsLazyRouteImport
+    '/admin/student-requests': {
+      id: '/admin/student-requests'
+      path: '/student-requests'
+      fullPath: '/admin/student-requests'
+      preLoaderRoute: typeof AdminStudentRequestsLazyRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/user-roles': {
-      id: '/admin/user-roles'
-      path: '/user-roles'
-      fullPath: '/admin/user-roles'
-      preLoaderRoute: typeof AdminUserRolesRouteImport
+    '/admin/grades': {
+      id: '/admin/grades'
+      path: '/grades'
+      fullPath: '/admin/grades'
+      preLoaderRoute: typeof AdminGradesLazyRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
+    '/admin/finance': {
+      id: '/admin/finance'
+      path: '/finance'
+      fullPath: '/admin/finance'
+      preLoaderRoute: typeof AdminFinanceLazyRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/departments/$code': {
-      id: '/departments/$code'
-      path: '/$code'
-      fullPath: '/departments/$code'
-      preLoaderRoute: typeof DepartmentsCodeRouteImport
-      parentRoute: typeof DepartmentsRoute
+    '/admin/executive-dashboard': {
+      id: '/admin/executive-dashboard'
+      path: '/executive-dashboard'
+      fullPath: '/admin/executive-dashboard'
+      preLoaderRoute: typeof AdminExecutiveDashboardLazyRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/document-view/$id': {
-      id: '/document-view/$id'
-      path: '/document-view/$id'
-      fullPath: '/document-view/$id'
-      preLoaderRoute: typeof DocumentViewIdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/admin/documents': {
+      id: '/admin/documents'
+      path: '/documents'
+      fullPath: '/admin/documents'
+      preLoaderRoute: typeof AdminDocumentsLazyRouteImport
+      parentRoute: typeof AdminRoute
     }
-    '/faculty-portal/': {
-      id: '/faculty-portal/'
-      path: '/'
-      fullPath: '/faculty-portal/'
-      preLoaderRoute: typeof FacultyPortalIndexRouteImport
-      parentRoute: typeof FacultyPortalRoute
-    }
-    '/faculty-portal/academic-councils': {
-      id: '/faculty-portal/academic-councils'
-      path: '/academic-councils'
-      fullPath: '/faculty-portal/academic-councils'
-      preLoaderRoute: typeof FacultyPortalAcademicCouncilsRouteImport
-      parentRoute: typeof FacultyPortalRoute
-    }
-    '/faculty-portal/change-password': {
-      id: '/faculty-portal/change-password'
-      path: '/change-password'
-      fullPath: '/faculty-portal/change-password'
-      preLoaderRoute: typeof FacultyPortalChangePasswordRouteImport
-      parentRoute: typeof FacultyPortalRoute
-    }
-    '/faculty-portal/processing-requests': {
-      id: '/faculty-portal/processing-requests'
-      path: '/processing-requests'
-      fullPath: '/faculty-portal/processing-requests'
-      preLoaderRoute: typeof FacultyPortalProcessingRequestsRouteImport
-      parentRoute: typeof FacultyPortalRoute
-    }
-    '/faculty-portal/schedule': {
-      id: '/faculty-portal/schedule'
-      path: '/schedule'
-      fullPath: '/faculty-portal/schedule'
-      preLoaderRoute: typeof FacultyPortalScheduleRouteImport
-      parentRoute: typeof FacultyPortalRoute
-    }
-    '/mobile/student': {
-      id: '/mobile/student'
-      path: '/mobile/student'
-      fullPath: '/mobile/student'
-      preLoaderRoute: typeof MobileStudentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mobile/student-login': {
-      id: '/mobile/student-login'
-      path: '/mobile/student-login'
-      fullPath: '/mobile/student-login'
-      preLoaderRoute: typeof MobileStudentLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/news/$slug': {
-      id: '/news/$slug'
-      path: '/$slug'
-      fullPath: '/news/$slug'
-      preLoaderRoute: typeof NewsSlugRouteImport
-      parentRoute: typeof NewsRoute
-    }
-    '/staff/': {
-      id: '/staff/'
-      path: '/'
-      fullPath: '/staff/'
-      preLoaderRoute: typeof StaffIndexRouteImport
-      parentRoute: typeof StaffRoute
-    }
-    '/staff/change-password': {
-      id: '/staff/change-password'
-      path: '/change-password'
-      fullPath: '/staff/change-password'
-      preLoaderRoute: typeof StaffChangePasswordRouteImport
-      parentRoute: typeof StaffRoute
-    }
-    '/student/': {
-      id: '/student/'
-      path: '/'
-      fullPath: '/student/'
-      preLoaderRoute: typeof StudentIndexRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/change-password': {
-      id: '/student/change-password'
-      path: '/change-password'
-      fullPath: '/student/change-password'
-      preLoaderRoute: typeof StudentChangePasswordRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/notifications': {
-      id: '/student/notifications'
-      path: '/notifications'
-      fullPath: '/student/notifications'
-      preLoaderRoute: typeof StudentNotificationsRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/progress': {
-      id: '/student/progress'
-      path: '/progress'
-      fullPath: '/student/progress'
-      preLoaderRoute: typeof StudentProgressRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/requests': {
-      id: '/student/requests'
-      path: '/requests'
-      fullPath: '/student/requests'
-      preLoaderRoute: typeof StudentRequestsRouteImport
+    '/student/study-plan': {
+      id: '/student/study-plan'
+      path: '/study-plan'
+      fullPath: '/student/study-plan'
+      preLoaderRoute: typeof StudentStudyPlanRouteImport
       parentRoute: typeof StudentRoute
     }
     '/student/schedule': {
@@ -1855,82 +1498,376 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentScheduleRouteImport
       parentRoute: typeof StudentRoute
     }
-    '/student/study-plan': {
-      id: '/student/study-plan'
-      path: '/study-plan'
-      fullPath: '/student/study-plan'
-      preLoaderRoute: typeof StudentStudyPlanRouteImport
+    '/student/requests': {
+      id: '/student/requests'
+      path: '/requests'
+      fullPath: '/student/requests'
+      preLoaderRoute: typeof StudentRequestsRouteImport
       parentRoute: typeof StudentRoute
     }
-    '/faculty-portal/materials/': {
-      id: '/faculty-portal/materials/'
-      path: '/materials'
-      fullPath: '/faculty-portal/materials/'
-      preLoaderRoute: typeof FacultyPortalMaterialsIndexRouteImport
-      parentRoute: typeof FacultyPortalRoute
+    '/student/progress': {
+      id: '/student/progress'
+      path: '/progress'
+      fullPath: '/student/progress'
+      preLoaderRoute: typeof StudentProgressRouteImport
+      parentRoute: typeof StudentRoute
     }
-    '/faculty-portal/materials/$sectionId': {
-      id: '/faculty-portal/materials/$sectionId'
-      path: '/materials/$sectionId'
-      fullPath: '/faculty-portal/materials/$sectionId'
-      preLoaderRoute: typeof FacultyPortalMaterialsSectionIdRouteImport
-      parentRoute: typeof FacultyPortalRoute
+    '/student/notifications': {
+      id: '/student/notifications'
+      path: '/notifications'
+      fullPath: '/student/notifications'
+      preLoaderRoute: typeof StudentNotificationsRouteImport
+      parentRoute: typeof StudentRoute
     }
-    '/faculty-portal/student-progress/$studentId': {
-      id: '/faculty-portal/student-progress/$studentId'
-      path: '/student-progress/$studentId'
-      fullPath: '/faculty-portal/student-progress/$studentId'
-      preLoaderRoute: typeof FacultyPortalStudentProgressStudentIdRouteImport
-      parentRoute: typeof FacultyPortalRoute
+    '/student/change-password': {
+      id: '/student/change-password'
+      path: '/change-password'
+      fullPath: '/student/change-password'
+      preLoaderRoute: typeof StudentChangePasswordRouteImport
+      parentRoute: typeof StudentRoute
     }
-    '/mobile/student/': {
-      id: '/mobile/student/'
-      path: '/'
-      fullPath: '/mobile/student/'
-      preLoaderRoute: typeof MobileStudentIndexRouteImport
-      parentRoute: typeof MobileStudentRoute
+    '/staff/change-password': {
+      id: '/staff/change-password'
+      path: '/change-password'
+      fullPath: '/staff/change-password'
+      preLoaderRoute: typeof StaffChangePasswordRouteImport
+      parentRoute: typeof StaffRoute
     }
-    '/mobile/student/academic-record': {
-      id: '/mobile/student/academic-record'
-      path: '/academic-record'
-      fullPath: '/mobile/student/academic-record'
-      preLoaderRoute: typeof MobileStudentAcademicRecordRouteImport
-      parentRoute: typeof MobileStudentRoute
+    '/news/$slug': {
+      id: '/news/$slug'
+      path: '/$slug'
+      fullPath: '/news/$slug'
+      preLoaderRoute: typeof NewsSlugRouteImport
+      parentRoute: typeof NewsRoute
     }
-    '/mobile/student/documents': {
-      id: '/mobile/student/documents'
-      path: '/documents'
-      fullPath: '/mobile/student/documents'
-      preLoaderRoute: typeof MobileStudentDocumentsRouteImport
-      parentRoute: typeof MobileStudentRoute
+    '/mobile/student-login': {
+      id: '/mobile/student-login'
+      path: '/mobile/student-login'
+      fullPath: '/mobile/student-login'
+      preLoaderRoute: typeof MobileStudentLoginRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/mobile/student/finance': {
-      id: '/mobile/student/finance'
-      path: '/finance'
-      fullPath: '/mobile/student/finance'
-      preLoaderRoute: typeof MobileStudentFinanceRouteImport
-      parentRoute: typeof MobileStudentRoute
+    '/mobile/student': {
+      id: '/mobile/student'
+      path: '/mobile/student'
+      fullPath: '/mobile/student'
+      preLoaderRoute: typeof MobileStudentRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/mobile/student/grades': {
-      id: '/mobile/student/grades'
-      path: '/grades'
-      fullPath: '/mobile/student/grades'
-      preLoaderRoute: typeof MobileStudentGradesRouteImport
-      parentRoute: typeof MobileStudentRoute
-    }
-    '/mobile/student/requests': {
-      id: '/mobile/student/requests'
-      path: '/requests'
-      fullPath: '/mobile/student/requests'
-      preLoaderRoute: typeof MobileStudentRequestsRouteImport
-      parentRoute: typeof MobileStudentRoute
-    }
-    '/mobile/student/schedule': {
-      id: '/mobile/student/schedule'
+    '/faculty-portal/schedule': {
+      id: '/faculty-portal/schedule'
       path: '/schedule'
-      fullPath: '/mobile/student/schedule'
-      preLoaderRoute: typeof MobileStudentScheduleRouteImport
-      parentRoute: typeof MobileStudentRoute
+      fullPath: '/faculty-portal/schedule'
+      preLoaderRoute: typeof FacultyPortalScheduleRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/faculty-portal/processing-requests': {
+      id: '/faculty-portal/processing-requests'
+      path: '/processing-requests'
+      fullPath: '/faculty-portal/processing-requests'
+      preLoaderRoute: typeof FacultyPortalProcessingRequestsRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/faculty-portal/change-password': {
+      id: '/faculty-portal/change-password'
+      path: '/change-password'
+      fullPath: '/faculty-portal/change-password'
+      preLoaderRoute: typeof FacultyPortalChangePasswordRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/faculty-portal/academic-councils': {
+      id: '/faculty-portal/academic-councils'
+      path: '/academic-councils'
+      fullPath: '/faculty-portal/academic-councils'
+      preLoaderRoute: typeof FacultyPortalAcademicCouncilsRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/document-view/$id': {
+      id: '/document-view/$id'
+      path: '/document-view/$id'
+      fullPath: '/document-view/$id'
+      preLoaderRoute: typeof DocumentViewIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/departments/$code': {
+      id: '/departments/$code'
+      path: '/$code'
+      fullPath: '/departments/$code'
+      preLoaderRoute: typeof DepartmentsCodeRouteImport
+      parentRoute: typeof DepartmentsRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/user-roles': {
+      id: '/admin/user-roles'
+      path: '/user-roles'
+      fullPath: '/admin/user-roles'
+      preLoaderRoute: typeof AdminUserRolesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/system-readiness': {
+      id: '/admin/system-readiness'
+      path: '/system-readiness'
+      fullPath: '/admin/system-readiness'
+      preLoaderRoute: typeof AdminSystemReadinessRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/student-progress': {
+      id: '/admin/student-progress'
+      path: '/student-progress'
+      fullPath: '/admin/student-progress'
+      preLoaderRoute: typeof AdminStudentProgressRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/staff-management': {
+      id: '/admin/staff-management'
+      path: '/staff-management'
+      fullPath: '/admin/staff-management'
+      preLoaderRoute: typeof AdminStaffManagementRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/security-status': {
+      id: '/admin/security-status'
+      path: '/security-status'
+      fullPath: '/admin/security-status'
+      preLoaderRoute: typeof AdminSecurityStatusRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/schedules': {
+      id: '/admin/schedules'
+      path: '/schedules'
+      fullPath: '/admin/schedules'
+      preLoaderRoute: typeof AdminSchedulesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/roles': {
+      id: '/admin/roles'
+      path: '/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AdminRolesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/research': {
+      id: '/admin/research'
+      path: '/research'
+      fullPath: '/admin/research'
+      preLoaderRoute: typeof AdminResearchRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/request-types': {
+      id: '/admin/request-types'
+      path: '/request-types'
+      fullPath: '/admin/request-types'
+      preLoaderRoute: typeof AdminRequestTypesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/programs': {
+      id: '/admin/programs'
+      path: '/programs'
+      fullPath: '/admin/programs'
+      preLoaderRoute: typeof AdminProgramsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/processing-assignments': {
+      id: '/admin/processing-assignments'
+      path: '/processing-assignments'
+      fullPath: '/admin/processing-assignments'
+      preLoaderRoute: typeof AdminProcessingAssignmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/pilot-center': {
+      id: '/admin/pilot-center'
+      path: '/pilot-center'
+      fullPath: '/admin/pilot-center'
+      preLoaderRoute: typeof AdminPilotCenterRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/organizational-structure': {
+      id: '/admin/organizational-structure'
+      path: '/organizational-structure'
+      fullPath: '/admin/organizational-structure'
+      preLoaderRoute: typeof AdminOrganizationalStructureRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/operations': {
+      id: '/admin/operations'
+      path: '/operations'
+      fullPath: '/admin/operations'
+      preLoaderRoute: typeof AdminOperationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/news': {
+      id: '/admin/news'
+      path: '/news'
+      fullPath: '/admin/news'
+      preLoaderRoute: typeof AdminNewsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/messages': {
+      id: '/admin/messages'
+      path: '/messages'
+      fullPath: '/admin/messages'
+      preLoaderRoute: typeof AdminMessagesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/imports': {
+      id: '/admin/imports'
+      path: '/imports'
+      fullPath: '/admin/imports'
+      preLoaderRoute: typeof AdminImportsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/graduation-candidates': {
+      id: '/admin/graduation-candidates'
+      path: '/graduation-candidates'
+      fullPath: '/admin/graduation-candidates'
+      preLoaderRoute: typeof AdminGraduationCandidatesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/faculty-management': {
+      id: '/admin/faculty-management'
+      path: '/faculty-management'
+      fullPath: '/admin/faculty-management'
+      preLoaderRoute: typeof AdminFacultyManagementRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/faculty-accounts': {
+      id: '/admin/faculty-accounts'
+      path: '/faculty-accounts'
+      fullPath: '/admin/faculty-accounts'
+      preLoaderRoute: typeof AdminFacultyAccountsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/faculty': {
+      id: '/admin/faculty'
+      path: '/faculty'
+      fullPath: '/admin/faculty'
+      preLoaderRoute: typeof AdminFacultyRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/events': {
+      id: '/admin/events'
+      path: '/events'
+      fullPath: '/admin/events'
+      preLoaderRoute: typeof AdminEventsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/enrollments': {
+      id: '/admin/enrollments'
+      path: '/enrollments'
+      fullPath: '/admin/enrollments'
+      preLoaderRoute: typeof AdminEnrollmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/departments': {
+      id: '/admin/departments'
+      path: '/departments'
+      fullPath: '/admin/departments'
+      preLoaderRoute: typeof AdminDepartmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/course-offerings': {
+      id: '/admin/course-offerings'
+      path: '/course-offerings'
+      fullPath: '/admin/course-offerings'
+      preLoaderRoute: typeof AdminCourseOfferingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/contacts': {
+      id: '/admin/contacts'
+      path: '/contacts'
+      fullPath: '/admin/contacts'
+      preLoaderRoute: typeof AdminContactsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/communications': {
+      id: '/admin/communications'
+      path: '/communications'
+      fullPath: '/admin/communications'
+      preLoaderRoute: typeof AdminCommunicationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/backup-status': {
+      id: '/admin/backup-status'
+      path: '/backup-status'
+      fullPath: '/admin/backup-status'
+      preLoaderRoute: typeof AdminBackupStatusRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/automation': {
+      id: '/admin/automation'
+      path: '/automation'
+      fullPath: '/admin/automation'
+      preLoaderRoute: typeof AdminAutomationRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/audit-log': {
+      id: '/admin/audit-log'
+      path: '/audit-log'
+      fullPath: '/admin/audit-log'
+      preLoaderRoute: typeof AdminAuditLogRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/at-risk-students': {
+      id: '/admin/at-risk-students'
+      path: '/at-risk-students'
+      fullPath: '/admin/at-risk-students'
+      preLoaderRoute: typeof AdminAtRiskStudentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/academic-operations': {
+      id: '/admin/academic-operations'
+      path: '/academic-operations'
+      fullPath: '/admin/academic-operations'
+      preLoaderRoute: typeof AdminAcademicOperationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/academic-councils': {
+      id: '/admin/academic-councils'
+      path: '/academic-councils'
+      fullPath: '/admin/academic-councils'
+      preLoaderRoute: typeof AdminAcademicCouncilsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/academic-core': {
+      id: '/admin/academic-core'
+      path: '/academic-core'
+      fullPath: '/admin/academic-core'
+      preLoaderRoute: typeof AdminAcademicCoreRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/student/requests/': {
+      id: '/student/requests/'
+      path: '/'
+      fullPath: '/student/requests/'
+      preLoaderRoute: typeof StudentRequestsIndexRouteImport
+      parentRoute: typeof StudentRequestsRoute
     }
     '/student/materials/': {
       id: '/student/materials/'
@@ -1939,18 +1876,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentMaterialsIndexRouteImport
       parentRoute: typeof StudentRoute
     }
-    '/student/materials/$sectionId': {
-      id: '/student/materials/$sectionId'
-      path: '/materials/$sectionId'
-      fullPath: '/student/materials/$sectionId'
-      preLoaderRoute: typeof StudentMaterialsSectionIdRouteImport
-      parentRoute: typeof StudentRoute
-    }
-    '/student/requests/': {
-      id: '/student/requests/'
+    '/mobile/student/': {
+      id: '/mobile/student/'
       path: '/'
-      fullPath: '/student/requests/'
-      preLoaderRoute: typeof StudentRequestsIndexRouteImport
+      fullPath: '/mobile/student/'
+      preLoaderRoute: typeof MobileStudentIndexRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
+    '/faculty-portal/materials/': {
+      id: '/faculty-portal/materials/'
+      path: '/materials'
+      fullPath: '/faculty-portal/materials/'
+      preLoaderRoute: typeof FacultyPortalMaterialsIndexRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/student/requests/new': {
+      id: '/student/requests/new'
+      path: '/new'
+      fullPath: '/student/requests/new'
+      preLoaderRoute: typeof StudentRequestsNewRouteImport
       parentRoute: typeof StudentRequestsRoute
     }
     '/student/requests/$id': {
@@ -1960,12 +1904,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentRequestsIdRouteImport
       parentRoute: typeof StudentRequestsRoute
     }
-    '/student/requests/new': {
-      id: '/student/requests/new'
-      path: '/new'
-      fullPath: '/student/requests/new'
-      preLoaderRoute: typeof StudentRequestsNewRouteImport
-      parentRoute: typeof StudentRequestsRoute
+    '/student/materials/$sectionId': {
+      id: '/student/materials/$sectionId'
+      path: '/materials/$sectionId'
+      fullPath: '/student/materials/$sectionId'
+      preLoaderRoute: typeof StudentMaterialsSectionIdRouteImport
+      parentRoute: typeof StudentRoute
+    }
+    '/mobile/student/schedule': {
+      id: '/mobile/student/schedule'
+      path: '/schedule'
+      fullPath: '/mobile/student/schedule'
+      preLoaderRoute: typeof MobileStudentScheduleRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
+    '/mobile/student/requests': {
+      id: '/mobile/student/requests'
+      path: '/requests'
+      fullPath: '/mobile/student/requests'
+      preLoaderRoute: typeof MobileStudentRequestsRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
+    '/mobile/student/grades': {
+      id: '/mobile/student/grades'
+      path: '/grades'
+      fullPath: '/mobile/student/grades'
+      preLoaderRoute: typeof MobileStudentGradesRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
+    '/mobile/student/finance': {
+      id: '/mobile/student/finance'
+      path: '/finance'
+      fullPath: '/mobile/student/finance'
+      preLoaderRoute: typeof MobileStudentFinanceRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
+    '/mobile/student/documents': {
+      id: '/mobile/student/documents'
+      path: '/documents'
+      fullPath: '/mobile/student/documents'
+      preLoaderRoute: typeof MobileStudentDocumentsRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
+    '/mobile/student/academic-record': {
+      id: '/mobile/student/academic-record'
+      path: '/academic-record'
+      fullPath: '/mobile/student/academic-record'
+      preLoaderRoute: typeof MobileStudentAcademicRecordRouteImport
+      parentRoute: typeof MobileStudentRoute
+    }
+    '/faculty-portal/student-progress/$studentId': {
+      id: '/faculty-portal/student-progress/$studentId'
+      path: '/student-progress/$studentId'
+      fullPath: '/faculty-portal/student-progress/$studentId'
+      preLoaderRoute: typeof FacultyPortalStudentProgressStudentIdRouteImport
+      parentRoute: typeof FacultyPortalRoute
+    }
+    '/faculty-portal/materials/$sectionId': {
+      id: '/faculty-portal/materials/$sectionId'
+      path: '/materials/$sectionId'
+      fullPath: '/faculty-portal/materials/$sectionId'
+      preLoaderRoute: typeof FacultyPortalMaterialsSectionIdRouteImport
+      parentRoute: typeof FacultyPortalRoute
     }
     '/admin/request-types_/$id/workflow': {
       id: '/admin/request-types_/$id/workflow'
@@ -2235,3 +2235,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
