@@ -6,6 +6,10 @@ Repository: `msorori-mh/saba-uni-portal`
 
 Pinned source: `origin/main@427b7eb48f8771f31bd08a46fc4590cf883ab7e2`
 
+Latest source-only integration tip after safe merges:
+`origin/main@b565200851b4988f0257133498af015b7ef2e053`. This does not change
+the Release Candidate SHA whose deployed provenance must be proved.
+
 Mode: command preparation and review only. No Deploy, Publish, production SQL,
 Migration apply, Supabase write, Workflow activation, `student_visible` change,
 request creation, document creation, or data mutation is authorized by this report.
@@ -31,11 +35,11 @@ file replaces the placeholder.
 
 | Workstream | Artifact | Status |
 |---|---|---|
-| Release and production preflight | Draft PR #173, `B1-FIVE-SERVICES-PRODUCTION-ACTIVATION-PREFLIGHT-02-REPORT.md` | HOLD: deployed SHA unproven; production DB reads not started |
-| 18-draft integrity | PR #173 | PASS_SOURCE_HASHES: 18/18 LF/git-blob SHA-256 values match |
-| Academic clearance | Draft PR #175 | focused and student-request tests/typecheck PASS; merge HOLD until Web CI/Build PASS |
-| Graduation projects | Draft PR #174 | source tests/typecheck PASS; merge HOLD until Web CI/Build PASS |
-| Graduates affairs | independent worktree and Draft PR pending | source verification in progress |
+| Release and production preflight | PR #173 merged as `0477206`; report in main | HOLD: deployed SHA unproven; production DB reads not started |
+| 18-draft integrity | PR #173 | PASS: canonical order reviewed; 18/18 LF/git-blob SHA-256 values match |
+| Academic clearance | PR #175 merged as `b565200` | PASS source: independent review zero findings; PG17, tests, typecheck, build, Web CI PASS |
+| Graduation projects | PR #174 merged as `f970b9c` | PASS source: independent review zero findings; PG17 matrix, tests, typecheck, Web CI PASS |
+| Graduates affairs | PR #179 merged as `53c4014` | PASS source: independent review zero findings; PG17 verifier, tests, typecheck, Web CI PASS |
 
 No workstream has production impact.
 
