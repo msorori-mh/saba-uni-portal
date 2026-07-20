@@ -37,7 +37,7 @@ create table public.academic_clearance_source_courses (
   student_grade_id uuid not null references public.student_grades(id) on delete restrict,
   course_id uuid not null references public.courses(id) on delete restrict,
   course_code text not null, course_name text not null, credit_hours numeric(5,2) not null check (credit_hours >= 0),
-  final_grade text, passed boolean not null, snapshot jsonb not null, unique(case_id, student_grade_id), unique(case_id,id)
+  final_grade text, passed boolean not null, snapshot jsonb not null, unique(case_id, student_grade_id), unique(case_id,course_id), unique(case_id,id)
 );
 create table public.academic_clearance_target_courses (
   id uuid primary key default gen_random_uuid(), case_id uuid not null references public.academic_clearance_cases(id) on delete restrict,
@@ -117,14 +117,12 @@ create trigger clearance_credit_guard before insert or update on public.academic
 -- No broad admin/registrar/dean bypass. Direct processing assignment wins and must
 -- bind the department_head role to this exact target department.
 create function public.current_user_can_edit_academic_clearance(p_case_id uuid) returns boolean language sql stable security definer set search_path=public as $$
-  select (select count(*) from academic_clearance_cases c
-    join request_processing_assignments a on a.department_id=c.target_department_id and a.is_active=true
-    join request_processing_units u on u.id=a.unit_id and u.code='department' and u.is_active
-    join request_processing_roles r on r.id=a.role_id and r.unit_id=u.id and r.code='department_head' and r.is_active
-    where c.id=p_case_id and c.status in ('draft','department_review')
-  )=1 and exists (
-    select 1 from academic_clearance_cases c join request_processing_assignments a
-      on a.department_id=c.target_department_id and a.is_active and a.user_id=auth.uid()
+  select exists (
+    select 1 from academic_clearance_cases c
+    join student_request_workflow_steps ws on ws.student_request_id=c.student_request_id
+      and ws.status='active' and ws.assigned_user_id=auth.uid()
+    join request_processing_assignments a on a.department_id=c.target_department_id
+      and a.is_active and a.user_id=ws.assigned_user_id and a.unit_id=ws.processing_unit_id and a.role_id=ws.processing_role_id
     join request_processing_units u on u.id=a.unit_id and u.code='department' and u.is_active
     join request_processing_roles r on r.id=a.role_id and r.unit_id=u.id and r.code='department_head' and r.is_active
     where c.id=p_case_id and c.status in ('draft','department_review')
@@ -162,8 +160,35 @@ create policy clearance_decision_assignee_read on public.academic_clearance_equi
 create policy clearance_approval_assignee_read on public.academic_clearance_approvals for select to authenticated using (current_user_can_edit_academic_clearance(case_id) or current_user_can_review_academic_clearance(case_id));
 -- Mutations are RPC-only; audit has no client policy and is RPC/service readable only.
 
+create function public.save_academic_clearance_equivalency(p_case_id uuid,p_expected_lock_version bigint,p_source_course_id uuid,p_target_course_id uuid,p_decision public.course_equivalency_decision,p_accepted_credit_hours numeric,p_rationale text) returns void language plpgsql security definer set search_path=public as $$
+declare v_case academic_clearance_cases;
+begin
+  if not current_user_can_edit_academic_clearance(p_case_id) then raise exception 'ACADEMIC_CLEARANCE_FORBIDDEN'; end if;
+  select * into v_case from academic_clearance_cases where id=p_case_id for update;
+  if v_case.lock_version<>p_expected_lock_version or v_case.status not in ('draft','department_review') then raise exception 'ACADEMIC_CLEARANCE_STALE_OR_INVALID_STATE'; end if;
+  insert into academic_clearance_equivalencies(case_id,source_course_id,target_course_id,decision,accepted_credit_hours,rationale,decided_by)
+  values(p_case_id,p_source_course_id,p_target_course_id,p_decision,p_accepted_credit_hours,p_rationale,auth.uid())
+  on conflict(case_id,source_course_id) do update set target_course_id=excluded.target_course_id,decision=excluded.decision,accepted_credit_hours=excluded.accepted_credit_hours,rationale=excluded.rationale,decided_by=auth.uid(),decided_at=now();
+  update academic_clearance_cases set status='department_review',lock_version=lock_version+1,updated_at=now() where id=p_case_id;
+  insert into academic_clearance_audit_log(case_id,actor_id,action,before_state,after_state) values(p_case_id,auth.uid(),'chair_equivalency_saved',to_jsonb(v_case),jsonb_build_object('source_course_id',p_source_course_id,'decision',p_decision));
+end $$;
+
+create function public.submit_academic_clearance_for_review(p_case_id uuid,p_expected_lock_version bigint,p_rationale text) returns void language plpgsql security definer set search_path=public as $$
+declare v_case academic_clearance_cases; v_missing bigint; v_unresolved bigint;
+begin
+  if not current_user_can_edit_academic_clearance(p_case_id) then raise exception 'ACADEMIC_CLEARANCE_FORBIDDEN'; end if;
+  select * into v_case from academic_clearance_cases where id=p_case_id for update;
+  if v_case.lock_version<>p_expected_lock_version or v_case.status<>'department_review' or length(btrim(p_rationale))=0 then raise exception 'ACADEMIC_CLEARANCE_STALE_OR_INVALID_STATE'; end if;
+  select count(*) into v_missing from academic_clearance_source_courses s where s.case_id=p_case_id and not exists(select 1 from academic_clearance_equivalencies e where e.case_id=s.case_id and e.source_course_id=s.id);
+  select count(*) into v_unresolved from academic_clearance_equivalencies where case_id=p_case_id and decision in ('needs_review','committee_decision_required');
+  if v_missing>0 or v_unresolved>0 then raise exception 'ACADEMIC_CLEARANCE_COMPARISON_INCOMPLETE'; end if;
+  update academic_clearance_cases set status='academic_affairs_review',lock_version=lock_version+1,updated_at=now() where id=p_case_id;
+  insert into academic_clearance_approvals(case_id,stage,decision,actor_id,rationale) values(p_case_id,'target_department','approved',auth.uid(),p_rationale);
+  insert into academic_clearance_audit_log(case_id,actor_id,action,before_state,after_state) values(p_case_id,auth.uid(),'submitted_for_academic_review',to_jsonb(v_case),(select to_jsonb(c) from academic_clearance_cases c where c.id=p_case_id));
+end $$;
+
 create function public.approve_academic_clearance(p_case_id uuid,p_expected_lock_version bigint,p_rationale text) returns void language plpgsql security definer set search_path=public as $$
-declare v_case academic_clearance_cases; v_unresolved bigint; v_missing bigint;
+declare v_case academic_clearance_cases; v_unresolved bigint; v_missing bigint; v_accepted numeric; v_plan_total numeric;
 begin
   if not current_user_can_review_academic_clearance(p_case_id) then raise exception 'ACADEMIC_CLEARANCE_FORBIDDEN'; end if;
   select * into v_case from academic_clearance_cases where id=p_case_id for update;
@@ -174,12 +199,15 @@ begin
     where s.case_id=p_case_id and not exists(select 1 from academic_clearance_equivalencies e where e.case_id=s.case_id and e.source_course_id=s.id);
   if v_missing > 0 or not exists(select 1 from academic_clearance_source_courses where case_id=p_case_id)
   then raise exception 'ACADEMIC_CLEARANCE_COMPARISON_INCOMPLETE'; end if;
+  select coalesce(sum(accepted_credit_hours),0) into v_accepted from academic_clearance_equivalencies where case_id=p_case_id;
+  select total_credit_hours into v_plan_total from study_plans where id=v_case.target_study_plan_id;
+  if v_accepted>v_plan_total then raise exception 'ACADEMIC_CLEARANCE_ACCEPTED_CREDITS_EXCEED_PLAN'; end if;
   update academic_clearance_cases c set status='approved',approved_at=now(),approved_by=auth.uid(),lock_version=lock_version+1,
-    accepted_credit_hours=(select coalesce(sum(accepted_credit_hours),0) from academic_clearance_equivalencies where case_id=p_case_id),
-    remaining_credit_hours=(select total_credit_hours from study_plans where id=c.target_study_plan_id)-(select coalesce(sum(accepted_credit_hours),0) from academic_clearance_equivalencies where case_id=p_case_id),
+    accepted_credit_hours=v_accepted, remaining_credit_hours=v_plan_total-v_accepted,
     proposed_level_id=(select tc.level_id from academic_clearance_target_courses tc join academic_levels l on l.id=tc.level_id
       where tc.case_id=p_case_id and tc.is_required and not exists(select 1 from academic_clearance_equivalencies e where e.case_id=tc.case_id and e.target_course_id=tc.id and e.accepted_credit_hours>=tc.credit_hours)
       order by l.level_number limit 1) where id=p_case_id;
+  -- proposed_level_id NULL means every required target-plan course is fulfilled.
   insert into academic_clearance_approvals(case_id,stage,decision,actor_id,rationale) values(p_case_id,'academic_affairs','approved',auth.uid(),p_rationale);
   insert into academic_clearance_audit_log(case_id,actor_id,action,before_state,after_state) values(p_case_id,auth.uid(),'approved',to_jsonb(v_case),(select to_jsonb(x) from academic_clearance_cases x where x.id=p_case_id));
 end $$;
@@ -249,7 +277,9 @@ create view public.academic_clearance_course_outcomes as select s.course_id sour
 
 revoke all on function public.approve_academic_clearance(uuid,bigint,text),public.assert_department_transfer_clearance_approved(uuid) from public,anon;
 revoke all on function public.correct_academic_clearance(uuid,bigint,text) from public,anon;
+revoke all on function public.save_academic_clearance_equivalency(uuid,bigint,uuid,uuid,public.course_equivalency_decision,numeric,text),public.submit_academic_clearance_for_review(uuid,bigint,text) from public,anon;
 grant execute on function public.approve_academic_clearance(uuid,bigint,text) to authenticated;
 grant execute on function public.correct_academic_clearance(uuid,bigint,text) to authenticated;
+grant execute on function public.save_academic_clearance_equivalency(uuid,bigint,uuid,uuid,public.course_equivalency_decision,numeric,text),public.submit_academic_clearance_for_review(uuid,bigint,text) to authenticated;
 -- assert guard is intentionally not granted to clients; only transfer finalization owner invokes it.
 commit;

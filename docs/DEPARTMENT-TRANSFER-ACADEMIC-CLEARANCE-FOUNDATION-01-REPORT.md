@@ -22,6 +22,8 @@ Source, SQL draft, UI component and tests only. No SQL was applied and no produc
 
 All initial `HIGH=5 / MEDIUM=4` findings were addressed: canonical schema names, unapproved mapping, dormant transfer guard, cross-case/provenance integrity, over-credit/duplicate target, immutable correction, exact direct assignee, comparison coverage, proposed level, usable UI, rejected outcome reporting and executable security/integrity tests.
 
+The first re-review found three additional HIGH and two MEDIUM findings. They were remediated by unique source-course credit, chair save/submit RPCs bound to the active workflow step's `assigned_user_id`, expanded RLS/RPC negative and positive execution, an explicit aggregate plan cap, and documented `proposed_level_id=NULL` semantics (all required target courses fulfilled). UTF-8 source inspection confirms the Arabic UI strings are not mojibake.
+
 ## Verification
 
 - Isolated PostgreSQL 17 compile and executable positive/negative verifier: PASS.

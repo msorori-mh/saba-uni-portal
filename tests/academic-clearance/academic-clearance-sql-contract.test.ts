@@ -47,6 +47,9 @@ describe("academic clearance SQL draft", () => {
     expect(sql).toContain("ACADEMIC_CLEARANCE_CREDIT_EXCEEDS_BOUND");
     expect(sql).toContain("ACADEMIC_CLEARANCE_COMPARISON_INCOMPLETE");
     expect(sql).toContain("correct_academic_clearance");
+    expect(sql).toContain("save_academic_clearance_equivalency"); expect(sql).toContain("submit_academic_clearance_for_review");
+    expect(sql).toContain("student_request_workflow_steps"); expect(sql).toContain("ws.assigned_user_id=auth.uid()");
+    expect(sql).toContain("ACADEMIC_CLEARANCE_ACCEPTED_CREDITS_EXCEED_PLAN");
   });
   it("provides minutes and operational/outcome reports", () => {
     for (const view of [

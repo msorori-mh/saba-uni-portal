@@ -19,6 +19,7 @@ create table public.study_plan_courses(id uuid primary key,study_plan_id uuid no
 create table public.request_processing_units(id uuid primary key,code text unique,is_active boolean);
 create table public.request_processing_roles(id uuid primary key,unit_id uuid,code text,is_active boolean);
 create table public.request_processing_assignments(id uuid primary key,unit_id uuid,role_id uuid,department_id uuid,is_active boolean,user_id uuid);
+create table public.student_request_workflow_steps(id uuid primary key,student_request_id uuid,status text,assigned_user_id uuid,processing_unit_id uuid,processing_role_id uuid);
 create table public.transfer_request_details(request_id uuid primary key,requested_program_id uuid,requested_department_id uuid);
 create function public.apply_transfer_on_approval() returns trigger language plpgsql as $$begin return new; end$$;
 create trigger trg_apply_transfer_on_approval after update on public.student_requests for each row execute function public.apply_transfer_on_approval();
@@ -40,4 +41,5 @@ insert into study_plan_courses values('95000000-0000-4000-8000-000000000001','50
 insert into request_processing_units values('a0000000-0000-4000-8000-000000000001','department',true),('a0000000-0000-4000-8000-000000000002','synthetic_academic_office',true);
 insert into request_processing_roles values('b0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','department_head',true),('b0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002','synthetic_reviewer',true);
 insert into request_processing_assignments values('c0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002',true,'10000000-0000-4000-8000-000000000001'),('c0000000-0000-4000-8000-000000000002','a0000000-0000-4000-8000-000000000002','b0000000-0000-4000-8000-000000000002',null,true,'10000000-0000-4000-8000-000000000002');
+insert into student_request_workflow_steps values('c1000000-0000-4000-8000-000000000001','80000000-0000-4000-8000-000000000001','active','10000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001');
 insert into transfer_request_details values('80000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002');
