@@ -26,4 +26,34 @@ describe("graduation projects SQL draft", () => {
     expect(sql).toContain("from anon, authenticated");
     expect(sql).toContain("active direct assignment");
   });
+
+  test("binds actor and evidence rows to the same project", () => {
+    expect((sql.match(/references public\.graduation_project_assignments\(id, project_id\)/g) ?? []).length).toBeGreaterThanOrEqual(9);
+    for (const binding of [
+      "references public.graduation_project_milestones(id, project_id)",
+      "references public.graduation_project_submissions(id, project_id)",
+      "references public.graduation_project_files(id, project_id)",
+      "references public.graduation_project_discussion_requests(id, project_id)",
+      "references public.graduation_project_discussions(id, project_id)",
+      "references public.graduation_project_panel_members(id, discussion_id, project_id)",
+    ]) expect(sql).toContain(binding);
+  });
+
+  test("enforces identity shape, append-only audit and locked idempotent archive RPC", () => {
+    expect(sql).toContain("assignment_subject_shape");
+    expect(sql).toContain("assignment identity/department mismatch");
+    expect(sql).toContain("graduation_project_events_append_only");
+    expect(sql).toContain("project not archive-ready");
+    expect(sql).toContain("m.milestone_kind='final'");
+    expect(sql).toContain("correlation_id uuid not null unique");
+    expect(sql).toContain("security definer set search_path = public, pg_temp");
+  });
+
+  test("is transaction bounded and contains fail-closed readiness/report sources", () => {
+    expect(sql.trimStart().indexOf("begin;")).toBeGreaterThan(0);
+    expect(sql.trimEnd().endsWith("commit;")).toBe(true);
+    expect(sql).toContain("refuse ambiguous retry");
+    expect(sql).toContain("graduation_project_is_discussion_ready");
+    expect(sql).toContain("graduation_project_reporting");
+  });
 });

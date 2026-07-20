@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { authorizeProjectAction, calculateProgress, isSafePrivateObjectKey, isValidTransition } from "../../src/lib/graduation-projects/domain";
+import { assessDiscussionReadiness, authorizeProjectAction, calculateProgress, isSafePrivateObjectKey, isValidTransition, summarizeProjects } from "../../src/lib/graduation-projects/domain";
 
 const project = { id: "p1", departmentId: "d1", state: "active" as const };
 const supervisor = { actorId: "f1", role: "supervisor" as const, departmentId: "d1", projectId: "p1", active: true, directlyAssigned: true };
@@ -36,5 +36,17 @@ describe("graduation projects fail-closed foundation", () => {
     expect(isSafePrivateObjectKey("p1", "graduation-projects/p2/a.pdf")).toBe(false);
     expect(isSafePrivateObjectKey("p1", "graduation-projects/p1/../secret")).toBe(false);
     expect(isSafePrivateObjectKey("p1", "https://public.example/a.pdf")).toBe(false);
+  });
+
+  test("fails discussion readiness closed with explicit blockers", () => {
+    expect(assessDiscussionReadiness({ projectState: "active", teamMembers: 2, activeSupervisors: 1, milestoneWeight: 90, incompleteMilestones: 1, overdueMilestones: 1, pendingCorrections: 0, cleanFinalFiles: 0 }))
+      .toEqual({ ready: false, blockers: ["milestone_weight_invalid", "milestones_incomplete", "clean_final_file_missing"], atRisk: true });
+  });
+
+  test("summarizes delay, readiness and supervisor load", () => {
+    expect(summarizeProjects([
+      { projectId: "p1", supervisorIds: ["s1"], progressPercent: 80, overdueMilestones: 1, discussionReady: false },
+      { projectId: "p2", supervisorIds: ["s1", "s2"], progressPercent: 100, overdueMilestones: 0, discussionReady: true },
+    ])).toEqual({ projects: 2, delayed: 1, readyForDiscussion: 1, supervisorLoad: { s1: 2, s2: 1 } });
   });
 });

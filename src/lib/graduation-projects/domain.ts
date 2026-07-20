@@ -86,3 +86,45 @@ export function calculateProgress(milestones: readonly ProgressInput[], now = ne
 export function isSafePrivateObjectKey(projectId: string, key: string): boolean {
   return key.startsWith(`graduation-projects/${projectId}/`) && !key.includes("..") && !/^https?:\/\//i.test(key);
 }
+
+export interface DiscussionReadiness {
+  projectState: ProjectState;
+  teamMembers: number;
+  activeSupervisors: number;
+  milestoneWeight: number;
+  incompleteMilestones: number;
+  overdueMilestones: number;
+  pendingCorrections: number;
+  cleanFinalFiles: number;
+}
+
+export function assessDiscussionReadiness(input: DiscussionReadiness) {
+  const blockers: string[] = [];
+  if (input.projectState !== "active") blockers.push("project_not_active");
+  if (input.teamMembers < 1) blockers.push("team_missing");
+  if (input.activeSupervisors < 1) blockers.push("supervisor_missing");
+  if (input.milestoneWeight !== 100) blockers.push("milestone_weight_invalid");
+  if (input.incompleteMilestones > 0) blockers.push("milestones_incomplete");
+  if (input.pendingCorrections > 0) blockers.push("corrections_pending");
+  if (input.cleanFinalFiles < 1) blockers.push("clean_final_file_missing");
+  return { ready: blockers.length === 0, blockers, atRisk: input.overdueMilestones > 0 };
+}
+
+export interface ProjectReportRow {
+  projectId: string;
+  supervisorIds: readonly string[];
+  progressPercent: number;
+  overdueMilestones: number;
+  discussionReady: boolean;
+}
+
+export function summarizeProjects(rows: readonly ProjectReportRow[]) {
+  const supervisorLoad: Record<string, number> = {};
+  for (const row of rows) for (const id of new Set(row.supervisorIds)) supervisorLoad[id] = (supervisorLoad[id] ?? 0) + 1;
+  return {
+    projects: rows.length,
+    delayed: rows.filter((r) => r.overdueMilestones > 0).length,
+    readyForDiscussion: rows.filter((r) => r.discussionReady).length,
+    supervisorLoad,
+  };
+}
