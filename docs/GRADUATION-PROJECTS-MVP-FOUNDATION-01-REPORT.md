@@ -67,6 +67,7 @@ or feature-activated.
 - `tests/graduation-projects/graduation-projects-sql-draft.test.ts`
 - `tests/graduation-projects/postgres-foundation-verifier.sql`
 - `tests/graduation-projects/postgres-minimal-schema.sql`
+- `tests/graduation-projects/POSTGRES-17-VERIFICATION-RESULT.md`
 
 ## Risks and blockers
 
@@ -87,6 +88,8 @@ do not prevent this source-only foundation from review.
 - Disposable PostgreSQL 17: minimal schema compile PASS; complete draft compile
   PASS; executable positive/negative lifecycle, cross-project, archive,
   idempotency and append-only matrix PASS with final `ROLLBACK`.
+  Sanitized evidence is recorded in
+  `tests/graduation-projects/POSTGRES-17-VERIFICATION-RESULT.md`.
 - Connected staging `security:test`: not run because safe staging credentials
   were absent; no production connection was substituted.
 

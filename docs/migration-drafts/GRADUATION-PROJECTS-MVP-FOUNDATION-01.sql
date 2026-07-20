@@ -301,13 +301,16 @@ end $$;
 
 create function public.finalize_graduation_project_evaluation(p_evaluation_id uuid,p_correlation_id uuid)
 returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
-declare a public.graduation_project_assignments; e public.graduation_project_evaluations;
+declare a public.graduation_project_assignments; e public.graduation_project_evaluations; d public.graduation_project_discussions; p public.graduation_projects;
 begin
  select * into e from public.graduation_project_evaluations where id=p_evaluation_id for update;
  if e.id is null then raise exception 'evaluation not found'; end if;
+ select * into d from public.graduation_project_discussions where id=e.discussion_id and project_id=e.project_id for update;
+ select * into p from public.graduation_projects where id=e.project_id for update;
  a:=public.require_graduation_project_assignment(e.project_id,array['panel_member']::public.graduation_project_assignment_role[]);
  if not exists(select 1 from public.graduation_project_panel_members where id=e.panel_member_id and assignment_id=a.id and project_id=e.project_id) then raise exception 'evaluator panel assignment mismatch'; end if;
  if exists(select 1 from public.graduation_project_events where project_id=e.project_id and correlation_id=p_correlation_id and event_type='evaluation_finalized') then return e.id; end if;
+ if d.state<>'held' or p.state<>'evaluating' then raise exception 'evaluation lifecycle precondition failed'; end if;
  if e.state<>'submitted' or e.total_score is null then raise exception 'evaluation finalization precondition failed'; end if;
  update public.graduation_project_evaluations set state='finalized',finalized_at=now() where id=e.id;
  insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)

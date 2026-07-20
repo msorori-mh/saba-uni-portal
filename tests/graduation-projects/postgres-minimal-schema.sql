@@ -8,8 +8,8 @@ create table public.academic_years(id uuid primary key);
 create table public.semesters(id uuid primary key);
 create table public.student_profiles(id uuid primary key,user_id uuid references auth.users(id),department_id uuid references public.departments(id));
 create table public.faculty_profiles(id uuid primary key,user_id uuid references auth.users(id),department_id uuid references public.departments(id));
-create role anon nologin;
-create role authenticated nologin;
+do $$ begin if not exists(select 1 from pg_roles where rolname='anon') then create role anon nologin; end if; end $$;
+do $$ begin if not exists(select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if; end $$;
 
 insert into auth.users values
  ('10000000-0000-0000-0000-000000000001'),('10000000-0000-0000-0000-000000000002');
