@@ -47,11 +47,11 @@ No production request, document, attachment object, student, staff member, assig
 
 | # | Draft | SHA-256 |
 |---:|---|---|
-| 1 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql` | `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357` |
-| 2 | `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql` | `3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab` |
-| 3 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` |
-| 4 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql` | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` |
-| 5 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql` | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` |
+| 1 | `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql` | `3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab` |
+| 2 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` |
+| 3 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql` | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` |
+| 4 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql` | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` |
+| 5 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql` | `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357` |
 | 6 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql` | `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b` |
 | 7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql` | `bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20` |
 | 8 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql` | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` |
@@ -66,7 +66,7 @@ No production request, document, attachment object, student, staff member, assig
 | 17 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql` | `64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250` |
 | 18 | `REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql` | `55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383` |
 
-Order 1 remains intentionally non-applicable while its placeholder is present. The exact deployed SHA must be independently proved, substituted in a reviewed promoted migration, and separately authorized.
+Order 5 remains intentionally non-applicable while its placeholder is present. Before any SQL begins, the exact deployed SHA must be independently proved. After orders 1–4 install the audited atomic caller prerequisites, that proven SHA may be substituted only in a reviewed, separately authorized order-5 promoted migration.
 
 ## Sequential apply plan (planning only)
 
@@ -100,7 +100,7 @@ Any failed gate returns the service to HOLD without attempting rollback SQL or a
 - Risk: a responding endpoint with a deployment id can mask source drift; exact artifact provenance remains mandatory.
 - Risk: the 2026-07-18 database snapshot may have drifted. It must not be reused as current evidence.
 - Sole current blocker to continuing the production preflight: independently verifiable evidence that the deployed artifact is exactly `427b7eb48f8771f31bd08a46fc4590cf883ab7e2`. Once proved, the remaining production reads become the next ordered checks, not pre-existing independent blockers.
-- Production impact: **zero**. No production database or Storage query was possible, and no write, migration, activation, visibility change, deploy, publish, or production E2E occurred.
+- Production impact: **zero**. No production database or Storage query was attempted after the release-evidence gate failed, and no write, migration, activation, visibility change, deploy, publish, or production E2E occurred.
 
 ## Exit criteria
 
