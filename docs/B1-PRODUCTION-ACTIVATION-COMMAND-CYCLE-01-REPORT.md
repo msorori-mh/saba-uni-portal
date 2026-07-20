@@ -149,7 +149,11 @@ After all schema packages pass, activate one service at a time in this order:
 
 For each service, stop between independently authorized gates:
 
-`schema verifier -> direct RPC authorization matrix -> Workflow activation -> authenticated safe E2E -> student_visible=true -> post-activation smoke`
+`Migration apply -> verifier -> direct RPC authorization tests -> Workflow activation -> authenticated safe E2E -> student_visible=true -> post-activation smoke`
+
+This follows the ordering in the current command-cycle instruction. It supersedes
+the earlier first-service sketch that placed Workflow activation before the RPC
+matrix and visibility before E2E. No gate may be combined with the next one.
 
 The RPC matrix must ALLOW only the direct assignee matching both
 `processing_unit` and `processing_role`, and DENY every other role including any
