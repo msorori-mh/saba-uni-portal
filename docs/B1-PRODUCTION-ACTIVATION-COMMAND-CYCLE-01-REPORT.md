@@ -20,15 +20,12 @@ built from `427b7eb48f8771f31bd08a46fc4590cf883ab7e2`. The release gate therefor
 fails closed. Production database preflight and every apply authorization remain
 blocked behind that gate.
 
-There is also an order conflict that must be reconciled before the first apply
-package can be approved: the new preflight report numbers
-`REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql` as order 1, while
-`B1-MIGRATION-INVENTORY-AND-VERIFICATION-PLAN-01.md` places it after atomic
-submit and identifies `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql` as the
-first SQL apply. The stamp still contains
-`APPROVED_RELEASE_COMMIT_PLACEHOLDER`, so it is non-applicable in either
-position. Independent review PR #177 classifies this as a HIGH command-package
-finding until one reviewed canonical manifest replaces both interpretations.
+The initial order conflict in PR #173 was remediated by commit `d754049`.
+Independent re-review now records CRITICAL=0 / HIGH=0 / MEDIUM=0 / LOW=0,
+canonical order 1-18, and 18/18 matching Git-blob hashes. The release-evidence
+stamp still contains `APPROVED_RELEASE_COMMIT_PLACEHOLDER` and remains
+non-applicable until exact release provenance is proved and a reviewed promoted
+file replaces the placeholder.
 
 ## Workstream status
 
@@ -98,9 +95,8 @@ next authorization.
 
 ## Canonical-order reconciliation required
 
-The 18 files and their hashes are pinned in PR #173, but their executable order
-is not approved while the manifest conflict remains. The reconciled manifest
-must preserve these dependency facts:
+The 18 files, hashes, and executable order are reconciled in PR #173 at
+`d754049`. The manifest preserves these dependency facts:
 
 1. Log-audit disambiguation precedes every draft that calls `log_audit`.
 2. Actor authorization hardening precedes B1 runtime writes.
@@ -114,8 +110,10 @@ must preserve these dependency facts:
 8. ACL cutover is last among schema packages.
 9. Workflow activation and `student_visible` are never part of these 18 applies.
 
-Until a reviewed manifest assigns one unambiguous number to every file,
-`FIRST_MIGRATION_READY_FOR_APPLY_AUTHORIZATION = NONE`.
+The first SQL package in that order is
+`REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql`. It is not ready for apply
+authorization until exact deployed SHA proof and the fresh read-only production
+preflight pass. Therefore `FIRST_MIGRATION_READY_FOR_APPLY_AUTHORIZATION = NONE`.
 
 ## Department-chair package
 
@@ -158,11 +156,9 @@ approved safe environment and identity.
 ## Reviews, tests, risks, and production impact
 
 - Required independent review threshold: CRITICAL=0 / HIGH=0 / MEDIUM=0.
-- PR #173 independent review (PR #177) found CRITICAL=0 / HIGH=1 / MEDIUM=0.
-  The manifest-order conflict above currently makes the command cycle ineligible
-  for PASS. It also recorded one LOW wording issue: production reads were not
-  attempted after the gate failed; the evidence does not show they were
-  technically impossible.
+- PR #173 remediation `d754049` passed independent re-review with
+  CRITICAL=0 / HIGH=0 / MEDIUM=0 / LOW=0. Production reads were not attempted
+  after the release-provenance gate failed.
 - Web CI, typecheck, build, focused tests, security tests in a safe environment,
   and `git diff --check` are mandatory before merge or execution.
 - Risk: a live endpoint can mask source drift when build provenance is absent.
