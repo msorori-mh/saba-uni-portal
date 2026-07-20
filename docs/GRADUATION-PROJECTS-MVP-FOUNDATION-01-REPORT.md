@@ -7,8 +7,11 @@ supervisors, approvals, milestones, versioned deliverables, supervisor notes,
 weighted progress/risk, private attachment metadata, discussion readiness,
 panels/schedules, rubric evaluations, corrections, approval and final archival.
 
-Decision: **PASS_GRADUATION_PROJECTS_MVP_FOUNDATION_SOURCE_READY**.
-This means ready for source review only. It does not authorize SQL application,
+Decision: **HOLD_GRADUATION_PROJECTS_LIFECYCLE_RPCS_AND_EXECUTED_PG_MATRIX_REQUIRED**.
+The data/integrity foundation is ready for source review, but the complete MVP
+is not source-ready until proposal, team, milestone, discussion and evaluation
+lifecycle RPCs plus their direct role matrices exist and the executable
+PostgreSQL verifier passes in an isolated fixture environment. This does not authorize SQL application,
 bucket creation, deployment, publication or feature activation.
 
 ## Authorization and safety
@@ -74,7 +77,7 @@ do not prevent this source-only foundation from review.
 
 ## Verification
 
-- `bun test tests/graduation-projects`: PASS, 13 tests / 58 assertions.
+- `bun test tests/graduation-projects`: PASS, 14 tests / 72 assertions.
 - `bunx tsc --noEmit`: PASS after locked dependency installation.
 - Standalone strict TypeScript check of the new domain module: PASS.
 - `git diff --check`: PASS.
@@ -85,7 +88,9 @@ do not prevent this source-only foundation from review.
 - `security:test`: not run because this source-only foundation creates no
   connected runtime/RPC and the required safe staging credentials were absent.
 
-Review findings: CRITICAL 0, HIGH 0, MEDIUM 0. Build remains a merge gate.
+Self-review after remediation: CRITICAL 0 / HIGH 0 / MEDIUM 1. The remaining
+MEDIUM is the intentionally absent lifecycle RPC/matrix surface described above.
+Build and executable PostgreSQL verification remain merge gates.
 
 ## Independent review remediation
 
@@ -100,8 +105,12 @@ The #178 findings were addressed in source as follows:
   corrections, atomic event insertion and correlation-id idempotency.
 - MEDIUM-03: event UPDATE/DELETE is rejected by an append-only trigger and
   direct client writes stay revoked.
-- MEDIUM-04: contract tests cover the boundaries and a PostgreSQL catalog plus
-  positive/negative matrix verifier is supplied. Its execution remains an
-  explicit pre-merge HOLD until a disposable compatible PostgreSQL fixture
-  environment is available; it was not misrepresented as executed.
+- MEDIUM-04: contract tests cover the boundaries and the executable PostgreSQL
+  verifier performs fixture validation, composite-FK inspection, wrong-role and
+  wrong-owner inserts, cross-project denial, unassigned/inactive/state/file/
+  correction archive denials with side-effect checks, successful idempotent
+  retry and event UPDATE/DELETE rejection. Its execution remains an explicit
+  pre-merge HOLD until a disposable compatible fixture environment is available.
+  Lifecycle RPCs beyond archive are absent and explicitly keep the source HOLD;
+  neither matrix execution nor full lifecycle authorization is misrepresented.
 - LOW-01: the draft is transaction bounded and refuses ambiguous retries.

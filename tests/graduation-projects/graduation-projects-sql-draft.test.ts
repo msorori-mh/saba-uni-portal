@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const sql = readFileSync("docs/migration-drafts/GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql", "utf8");
+const verifier = readFileSync("tests/graduation-projects/postgres-foundation-verifier.sql", "utf8");
 
 describe("graduation projects SQL draft", () => {
   test("is explicitly source-only and does not create public storage", () => {
@@ -55,5 +56,24 @@ describe("graduation projects SQL draft", () => {
     expect(sql).toContain("refuse ambiguous retry");
     expect(sql).toContain("graduation_project_is_discussion_ready");
     expect(sql).toContain("graduation_project_reporting");
+  });
+
+  test("ships an executable PostgreSQL denial/idempotency verifier, not a comment matrix", () => {
+    for (const statement of [
+      "insert into public.graduation_project_approvals",
+      "wrong-role assignment unexpectedly allowed",
+      "wrong-owner assignment unexpectedly allowed",
+      "unassigned caller unexpectedly allowed",
+      "inactive assignment unexpectedly allowed",
+      "active project unexpectedly archived",
+      "dirty archive unexpectedly allowed",
+      "pending-correction archive unexpectedly allowed",
+      "idempotent retry returned a different id",
+      "update public.graduation_project_events",
+      "delete from public.graduation_project_events",
+      "rollback;",
+    ]) expect(verifier).toContain(statement);
+    expect(verifier).toContain("denial had side effects");
+    expect(verifier).toContain("Lifecycle RPC matrix remains intentionally unavailable");
   });
 });
