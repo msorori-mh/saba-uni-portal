@@ -6,6 +6,7 @@
 
 | PR | العنوان | النوع | الفحص | التصرف |
 |---|---|---|---|---|
+| #181 | docs: portal swarm coordination program 01 | تنسيق docs-only (هذا البرنامج) | مراجعة مستقلة مطلوبة قبل الدمج | قيد المراجعة |
 | #178 | review: graduation projects MVP foundation 01 | مراجعة مستقلة (draft) على #174 المدموج | findings: HIGH 1 / MEDIUM 4 / LOW 1 عند head b2938c1 | ✅ مغلق 2026-07-21 — SUPERSEDED_BY_MERGED_REMEDIATION (تحقق مستقل: commits 4559fdd→fff3e73 داخل #174 عالجت الكل قبل الدمج f970b9c) |
 | #177 | docs: independent review of B1 activation preflight 02 | مراجعة مستقلة (draft) على #173 المدموج | HIGH 1 (تعارض ترتيب) / LOW 1 | ✅ مغلق 2026-07-21 — SUPERSEDED_BY_RECONCILIATION (تحقق مستقل: 18/18 MATCH مع runbook-07 على main@ff570f3b) |
 | #155 | feat: current-term course read contract (draft) | مصدر | build محلي HOLD؛ CI هو الحكم | إبقاء — D-20 |
@@ -34,12 +35,6 @@
 | #166 | B1 safe RPC matrix harness | `a0794cc` | 285/285 |
 | #165 | department chairs controlled fix package | `b50979a` | جاهز — ينتظر D-01 |
 | #164 | B1 release & first-service preflight pack | `754cdc2` | deployed SHA = UNKNOWN |
-
-## PR التنسيق الحالي
-
-| PR | العنوان | الحالة |
-|---|---|---|
-| (يُنشأ) | swarm: coordination program 01 — master state and gates registers | قيد الإعداد على swarm/coordination-program-01 |
 
 ## قاعدة الإغلاق
 
