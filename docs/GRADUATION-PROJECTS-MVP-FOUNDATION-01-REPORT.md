@@ -77,7 +77,7 @@ do not prevent this source-only foundation from review.
 
 ## Verification
 
-- `bun test tests/graduation-projects`: PASS, 14 tests / 72 assertions.
+- `bun test tests/graduation-projects`: PASS, 14 tests / 74 assertions.
 - `bunx tsc --noEmit`: PASS after locked dependency installation.
 - Standalone strict TypeScript check of the new domain module: PASS.
 - `git diff --check`: PASS.

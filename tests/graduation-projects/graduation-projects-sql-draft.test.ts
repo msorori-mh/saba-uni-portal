@@ -63,17 +63,19 @@ describe("graduation projects SQL draft", () => {
       "insert into public.graduation_project_approvals",
       "wrong-role assignment unexpectedly allowed",
       "wrong-owner assignment unexpectedly allowed",
-      "unassigned caller unexpectedly allowed",
-      "inactive assignment unexpectedly allowed",
-      "active project unexpectedly archived",
-      "dirty archive unexpectedly allowed",
-      "pending-correction archive unexpectedly allowed",
+      "direct archive assignment required",
+      "project not archive-ready",
+      "clean accepted final evidence and accepted corrections required",
       "idempotent retry returned a different id",
       "update public.graduation_project_events",
       "delete from public.graduation_project_events",
       "rollback;",
     ]) expect(verifier).toContain(statement);
     expect(verifier).toContain("denial had side effects");
+    expect(verifier).not.toContain("exception when others");
+    expect((verifier.match(/pg_temp\.expect_fk\(/g) ?? []).length).toBeGreaterThanOrEqual(11);
+    expect((verifier.match(/\\quit 1/g) ?? []).length).toBe(5);
+    expect(verifier).toContain("has_function_privilege('anon'");
     expect(verifier).toContain("Lifecycle RPC matrix remains intentionally unavailable");
   });
 });

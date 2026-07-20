@@ -6,23 +6,23 @@
 \set ON_ERROR_STOP on
 \if :{?department_id}
 \else
-  \warn 'department_id is required'; \quit
+  \warn 'department_id is required'; \quit 1
 \endif
 \if :{?student_profile_id}
 \else
-  \warn 'student_profile_id is required'; \quit
+  \warn 'student_profile_id is required'; \quit 1
 \endif
 \if :{?student_user_id}
 \else
-  \warn 'student_user_id is required'; \quit
+  \warn 'student_user_id is required'; \quit 1
 \endif
 \if :{?faculty_profile_id}
 \else
-  \warn 'faculty_profile_id is required'; \quit
+  \warn 'faculty_profile_id is required'; \quit 1
 \endif
 \if :{?faculty_user_id}
 \else
-  \warn 'faculty_user_id is required'; \quit
+  \warn 'faculty_user_id is required'; \quit 1
 \endif
 
 begin;
@@ -42,6 +42,15 @@ do $$ begin
 end $$;
 
 create temporary table gp_ids(k text primary key,v uuid not null) on commit drop;
+create function pg_temp.expect_fk(statement text,label text) returns void language plpgsql as $$
+begin execute statement; raise exception '% unexpectedly allowed',label;
+exception when foreign_key_violation then null;
+end $$;
+create function pg_temp.expect_gp_error(statement text,expected_message text) returns void language plpgsql as $$
+begin execute statement; raise exception 'expected graduation-project error was not raised';
+exception when sqlstate 'P0001' then
+  if sqlerrm<>expected_message then raise exception 'unexpected error: %, expected: %',sqlerrm,expected_message; end if;
+end $$;
 with x as (insert into public.graduation_projects(department_id,proposal_title,state) values(:'department_id','Verifier A','completed') returning id)
 insert into gp_ids select 'p1',id from x;
 with x as (insert into public.graduation_projects(department_id,proposal_title,state) values(:'department_id','Verifier B','active') returning id)
@@ -62,8 +71,9 @@ end $$;
 insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by)
 select v,'dean',:'faculty_profile_id',:'faculty_user_id',:'department_id',:'faculty_user_id' from gp_ids where k='p1';
 insert into gp_ids select 'a1',id from public.graduation_project_assignments where project_id=(select v from gp_ids where k='p1');
-insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by,active,ended_at)
-select v,'dean',:'faculty_profile_id',:'faculty_user_id',:'department_id',:'faculty_user_id',false,now() from gp_ids where k='p2';
+with x as (insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by,active,ended_at)
+select v,'dean',:'faculty_profile_id',:'faculty_user_id',:'department_id',:'faculty_user_id',false,now() from gp_ids where k='p2' returning id)
+insert into gp_ids select 'a2',id from x;
 
 -- Wrong role/subject and wrong profile owner must be rejected by executable inserts.
 do $$ begin
@@ -71,14 +81,22 @@ do $$ begin
     insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by)
     values((select v from gp_ids where k='p1'),'student',current_setting('gp.faculty_profile_id')::uuid,current_setting('gp.faculty_user_id')::uuid,current_setting('gp.department_id')::uuid,current_setting('gp.faculty_user_id')::uuid);
     raise exception 'wrong-role assignment unexpectedly allowed';
-  exception when check_violation then null; end;
+  exception when check_violation then
+    if sqlstate<>'23514' or sqlerrm not like '%assignment_subject_shape%' then raise; end if;
+  end;
   begin
     insert into public.graduation_project_assignments(project_id,role,student_profile_id,user_id,department_id,assigned_by)
     values((select v from gp_ids where k='p1'),'student',current_setting('gp.student_profile_id')::uuid,current_setting('gp.faculty_user_id')::uuid,current_setting('gp.department_id')::uuid,current_setting('gp.faculty_user_id')::uuid);
     raise exception 'wrong-owner assignment unexpectedly allowed';
-  exception when others then
-    if sqlerrm='wrong-owner assignment unexpectedly allowed' then raise; end if;
+  exception when sqlstate 'P0001' then
+    if sqlerrm<>'assignment identity/department mismatch' then raise; end if;
   end;
+end $$;
+
+do $$ begin
+  if has_function_privilege('anon','public.archive_graduation_project(uuid,uuid,bigint,uuid)','EXECUTE') then
+    raise exception 'anon unexpectedly has archive RPC execution';
+  end if;
 end $$;
 
 -- Cross-project actor evidence must fail and leave zero rows.
@@ -101,35 +119,67 @@ insert into public.graduation_project_files(project_id,submission_id,object_key,
 select (select v from gp_ids where k='p1'),v,'graduation-projects/verifier/final.pdf','final.pdf','application/pdf',1,repeat('a',64),'quarantined',(select v from gp_ids where k='a1') from gp_ids where k='s1';
 insert into gp_ids select 'f1',id from public.graduation_project_files where project_id=(select v from gp_ids where k='p1');
 
+with x as (insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by)
+select v,'panel_member',:'faculty_profile_id',:'faculty_user_id',:'department_id',:'faculty_user_id' from gp_ids where k='p1' returning id)
+insert into gp_ids select 'panel_assignment',id from x;
+with x as (insert into public.graduation_project_discussion_requests(project_id,requested_by_assignment_id,state)
+select (select v from gp_ids where k='p1'),(select v from gp_ids where k='a1'),'approved' returning id)
+insert into gp_ids select 'r1',id from x;
+with x as (insert into public.graduation_project_discussions(project_id,request_id,starts_at,venue,coordinator_assignment_id)
+select (select v from gp_ids where k='p1'),v,now(),'Verifier',(select v from gp_ids where k='a1') from gp_ids where k='r1' returning id)
+insert into gp_ids select 'd1',id from x;
+with x as (insert into public.graduation_project_panel_members(project_id,discussion_id,assignment_id)
+select (select v from gp_ids where k='p1'),v,(select v from gp_ids where k='panel_assignment') from gp_ids where k='d1' returning id)
+insert into gp_ids select 'panel1',id from x;
+
+-- Executable cross-project DML for every sensitive child binding. Only the
+-- expected composite-FK SQLSTATE is accepted; any other error fails the script.
+select pg_temp.expect_fk($q$insert into public.graduation_project_submissions(project_id,milestone_id,version_no,submitted_by_assignment_id)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='m1'),99,(select v from gp_ids where k='a2'))$q$,'submission milestone');
+select pg_temp.expect_fk($q$insert into public.graduation_project_supervisor_notes(project_id,submission_id,supervisor_assignment_id,note)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='s1'),(select v from gp_ids where k='a2'),'cross')$q$,'supervisor note');
+select pg_temp.expect_fk($q$insert into public.graduation_project_files(project_id,submission_id,object_key,original_name,media_type,byte_size,sha256,uploaded_by_assignment_id)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='s1'),'graduation-projects/cross/file','x','x',1,repeat('b',64),(select v from gp_ids where k='a2'))$q$,'file submission');
+select pg_temp.expect_fk($q$insert into public.graduation_project_discussion_requests(project_id,requested_by_assignment_id)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='a1'))$q$,'discussion request actor');
+select pg_temp.expect_fk($q$insert into public.graduation_project_discussions(project_id,request_id,starts_at,venue,coordinator_assignment_id)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='r1'),now(),'cross',(select v from gp_ids where k='a2'))$q$,'discussion request');
+select pg_temp.expect_fk($q$insert into public.graduation_project_panel_members(project_id,discussion_id,assignment_id)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='d1'),(select v from gp_ids where k='a2'))$q$,'panel discussion');
+select pg_temp.expect_fk($q$insert into public.graduation_project_evaluations(project_id,discussion_id,panel_member_id,rubric_version)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='d1'),(select v from gp_ids where k='panel1'),'v1')$q$,'evaluation panel');
+select pg_temp.expect_fk($q$insert into public.graduation_project_corrections(project_id,requested_by_assignment_id,description)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='a1'),'cross')$q$,'correction actor');
+select pg_temp.expect_fk($q$insert into public.graduation_project_final_archives(project_id,final_file_id,approved_by_assignment_id,correlation_id)
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='f1'),(select v from gp_ids where k='a2'),gen_random_uuid())$q$,'archive file');
+select pg_temp.expect_fk($q$insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,correlation_id)
+ values((select v from gp_ids where k='p2'),current_setting('gp.faculty_user_id')::uuid,(select v from gp_ids where k='a1'),'cross','test',gen_random_uuid())$q$,'event actor');
+
 -- Anonymous/unassigned and inactive-assignment RPC denials.
 do $$ declare before_archives bigint; begin
   select count(*) into before_archives from public.graduation_project_final_archives;
   perform set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),true);
-  begin perform public.archive_graduation_project((select v from gp_ids where k='p1'),(select v from gp_ids where k='f1'),1,gen_random_uuid());
-    raise exception 'unassigned caller unexpectedly allowed';
-  exception when others then if sqlerrm='unassigned caller unexpectedly allowed' then raise; end if; end;
+  perform pg_temp.expect_gp_error(format('select public.archive_graduation_project(%L,%L,1,%L)',
+    (select v from gp_ids where k='p1'),(select v from gp_ids where k='f1'),gen_random_uuid()),'direct archive assignment required');
   perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
-  begin perform public.archive_graduation_project((select v from gp_ids where k='p2'),(select v from gp_ids where k='f1'),1,gen_random_uuid());
-    raise exception 'inactive assignment unexpectedly allowed';
-  exception when others then if sqlerrm='inactive assignment unexpectedly allowed' then raise; end if; end;
+  perform pg_temp.expect_gp_error(format('select public.archive_graduation_project(%L,%L,1,%L)',
+    (select v from gp_ids where k='p2'),(select v from gp_ids where k='f1'),gen_random_uuid()),'direct archive assignment required');
   if (select count(*) from public.graduation_project_final_archives)<>before_archives then raise exception 'caller denial had side effects'; end if;
 end $$;
 
 -- With an active actor, non-completed state is independently rejected.
 update public.graduation_project_assignments set active=true,ended_at=null where project_id=(select v from gp_ids where k='p2');
 do $$ begin
-  begin perform public.archive_graduation_project((select v from gp_ids where k='p2'),(select v from gp_ids where k='f1'),1,gen_random_uuid());
-    raise exception 'active project unexpectedly archived';
-  exception when others then if sqlerrm='active project unexpectedly archived' then raise; end if; end;
+  perform pg_temp.expect_gp_error(format('select public.archive_graduation_project(%L,%L,1,%L)',
+    (select v from gp_ids where k='p2'),(select v from gp_ids where k='f1'),gen_random_uuid()),'project not archive-ready');
 end $$;
 
 -- Dirty evidence denial and zero side effects.
 do $$ declare before_archives bigint; before_events bigint; begin
   select count(*) into before_archives from public.graduation_project_final_archives;
   select count(*) into before_events from public.graduation_project_events;
-  begin perform public.archive_graduation_project((select v from gp_ids where k='p1'),(select v from gp_ids where k='f1'),1,gen_random_uuid());
-    raise exception 'dirty archive unexpectedly allowed';
-  exception when others then if sqlerrm='dirty archive unexpectedly allowed' then raise; end if; end;
+  perform pg_temp.expect_gp_error(format('select public.archive_graduation_project(%L,%L,1,%L)',
+    (select v from gp_ids where k='p1'),(select v from gp_ids where k='f1'),gen_random_uuid()),'clean accepted final evidence and accepted corrections required');
   if (select count(*) from public.graduation_project_final_archives)<>before_archives or (select count(*) from public.graduation_project_events)<>before_events then raise exception 'archive denial had side effects'; end if;
 end $$;
 
@@ -137,9 +187,8 @@ update public.graduation_project_files set scan_state='clean' where id=(select v
 insert into public.graduation_project_corrections(project_id,requested_by_assignment_id,description)
 values((select v from gp_ids where k='p1'),(select v from gp_ids where k='a1'),'pending');
 do $$ begin
-  begin perform public.archive_graduation_project((select v from gp_ids where k='p1'),(select v from gp_ids where k='f1'),1,gen_random_uuid());
-    raise exception 'pending-correction archive unexpectedly allowed';
-  exception when others then if sqlerrm='pending-correction archive unexpectedly allowed' then raise; end if; end;
+  perform pg_temp.expect_gp_error(format('select public.archive_graduation_project(%L,%L,1,%L)',
+    (select v from gp_ids where k='p1'),(select v from gp_ids where k='f1'),gen_random_uuid()),'clean accepted final evidence and accepted corrections required');
 end $$;
 update public.graduation_project_corrections set completed_at=now(),accepted_at=now() where project_id=(select v from gp_ids where k='p1');
 
@@ -156,10 +205,10 @@ end $$;
 
 -- Append-only mutation boundary is executable.
 do $$ begin
-  begin update public.graduation_project_events set reason='tamper' where correlation_id=(select v from gp_ids where k='corr'); raise exception 'event update allowed';
-  exception when others then if sqlerrm='event update allowed' then raise; end if; end;
-  begin delete from public.graduation_project_events where correlation_id=(select v from gp_ids where k='corr'); raise exception 'event delete allowed';
-  exception when others then if sqlerrm='event delete allowed' then raise; end if; end;
+  perform pg_temp.expect_gp_error(format('update public.graduation_project_events set reason=''tamper'' where correlation_id=%L',
+    (select v from gp_ids where k='corr')),'graduation project events are append-only');
+  perform pg_temp.expect_gp_error(format('delete from public.graduation_project_events where correlation_id=%L',
+    (select v from gp_ids where k='corr')),'graduation project events are append-only');
 end $$;
 
 -- Lifecycle RPC matrix remains intentionally unavailable: direct table writes are
