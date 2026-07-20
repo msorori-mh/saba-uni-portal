@@ -1,8 +1,11 @@
 # B1-FIVE-SERVICES-PRODUCTION-ACTIVATION-PREFLIGHT-02
 
-Date: 2026-07-20 (Asia/Riyadh)  
-Repository: `msorori-mh/saba-uni-portal`  
-Pinned source: `origin/main@427b7eb48f8771f31bd08a46fc4590cf883ab7e2`  
+Date: 2026-07-20 (Asia/Riyadh)
+
+Repository: `msorori-mh/saba-uni-portal`
+
+Pinned source: `origin/main@427b7eb48f8771f31bd08a46fc4590cf883ab7e2`
+
 Mode: production read-only preflight; no migration, SQL write, activation, visibility change, deploy, publish, account creation, or data mutation.
 
 ## Decision
