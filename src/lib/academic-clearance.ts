@@ -26,6 +26,7 @@ export interface CourseSnapshot {
 
 export interface EquivalencyRow {
   sourceCourseId: string;
+  sourceCreditHours: number;
   targetCourseId?: string | null;
   decision: EquivalencyDecision;
   acceptedCreditHours: number;
@@ -40,10 +41,7 @@ export interface ClearanceSummary {
   canSubmitDepartmentDecision: boolean;
 }
 
-const unresolved = new Set<EquivalencyDecision>([
-  "needs_review",
-  "committee_decision_required",
-]);
+const unresolved = new Set<EquivalencyDecision>(["needs_review", "committee_decision_required"]);
 
 export function summarizeClearance(
   targetPlanCredits: number,
@@ -55,16 +53,32 @@ export function summarizeClearance(
   }
 
   const acceptedCredits = rows.reduce((total, row) => {
-    if (!Number.isFinite(row.acceptedCreditHours) || row.acceptedCreditHours < 0) {
+    const target = targetCourses.find((course) => course.id === row.targetCourseId);
+    if (
+      !Number.isFinite(row.acceptedCreditHours) ||
+      row.acceptedCreditHours < 0 ||
+      row.acceptedCreditHours > row.sourceCreditHours ||
+      (target && row.acceptedCreditHours > target.creditHours)
+    ) {
       throw new Error("INVALID_ACCEPTED_CREDITS");
     }
     return total + row.acceptedCreditHours;
   }, 0);
+  const acceptedTargets = rows.filter((row) => row.targetCourseId).map((row) => row.targetCourseId);
+  if (new Set(acceptedTargets).size !== acceptedTargets.length)
+    throw new Error("DUPLICATE_TARGET_CREDIT");
+  if (acceptedCredits > targetPlanCredits) throw new Error("ACCEPTED_CREDITS_EXCEED_PLAN");
   const unresolvedCount = rows.filter((row) => unresolved.has(row.decision)).length;
   const remainingCredits = Math.max(0, targetPlanCredits - acceptedCredits);
 
   const unfulfilledLevels = targetCourses
-    .filter((course) => !rows.some((row) => row.targetCourseId === course.id && row.acceptedCreditHours >= course.creditHours))
+    .filter(
+      (course) =>
+        !rows.some(
+          (row) =>
+            row.targetCourseId === course.id && row.acceptedCreditHours >= course.creditHours,
+        ),
+    )
     .map((course) => course.levelNumber)
     .filter((level): level is number => typeof level === "number" && level > 0);
 
@@ -74,7 +88,9 @@ export function summarizeClearance(
     proposedLevel: unfulfilledLevels.length ? Math.min(...unfulfilledLevels) : null,
     unresolvedCount,
     canSubmitDepartmentDecision:
-      rows.length > 0 && unresolvedCount === 0 && rows.every((row) => row.rationale.trim().length > 0),
+      rows.length > 0 &&
+      unresolvedCount === 0 &&
+      rows.every((row) => row.rationale.trim().length > 0),
   };
 }
 
