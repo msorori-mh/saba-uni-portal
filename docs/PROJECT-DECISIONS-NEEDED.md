@@ -27,3 +27,4 @@ Production impact now: none.
 - No first Migration is ready for apply authorization until exact deployed-artifact provenance, the authoritative 18-file apply manifest, readable applied-Migration evidence, the `log_audit` overload gate, and the CS/IT chair correction gate all pass.
 - Academic clearance needs an owner-approved exact academic-affairs processing unit/role and official passed-result vocabulary before its draft may be promoted.
 - Graduation projects and graduates affairs remain source-only foundations; their SQL, Storage/runtime activation, permissions and production data creation require separate future approvals.
+- Latest main is not a clean-tree release candidate: build re-adds the legal generated Register footer. A separate source remediation must reconcile generator output and committed state without restoring a build-time writer.

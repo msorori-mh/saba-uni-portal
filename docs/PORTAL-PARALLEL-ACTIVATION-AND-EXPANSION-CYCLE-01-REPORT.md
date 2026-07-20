@@ -51,6 +51,12 @@ The current blockers are:
    correction package remains unapplied;
 6. `origin/main` has advanced beyond the separately published release SHA, so a
    new release candidate would need its own CI/build/provenance gate.
+7. Clean-room validation of current `origin/main` plus this report passed 561/561
+   student-request tests, 15/15 route/Register tests, typecheck and build, but the
+   TanStack generator added the legal Register footer to `src/routeTree.gen.ts`.
+   Post-build Git status was therefore dirty. The validator accepted the footer,
+   but latest main is not a reproducible clean-tree release candidate until the
+   generator/source-state contract is reconciled in a separate source fix.
 
 The five services remain `student_visible=false`, have zero active Workflows and
 zero production requests. The protected request/document evidence remained
@@ -85,3 +91,17 @@ No gate in this report authorizes the next one.
 
 The three foundations are ready for their next separately authorized source or
 Migration-promotion phases, but not for production application.
+
+## Reconciliation validation
+
+- `bun install --frozen-lockfile`: PASS in isolated Linux/Bun 1.3.14.
+- `bun test tests/student-requests`: 561 pass, 0 fail.
+- `bunx tsc --noEmit`: PASS.
+- `bun run build`: PASS; SSR output generated.
+- route/navigation and Register contract: 15 pass, 0 fail.
+- `git diff --check`: PASS.
+- post-build `git status --porcelain`: HOLD — generated legal Register footer
+  added to `src/routeTree.gen.ts`.
+
+This existing latest-main drift does not invalidate the already merged P1 source
+packages, but it is an additional release gate and is not waived by this report.

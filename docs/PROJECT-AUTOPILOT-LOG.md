@@ -24,3 +24,4 @@
 - Confirmed the subsequent source-only B1 command-cycle PR #176 is merged and records the sequential one-Migration protocol.
 - Reconciled the cycle on latest `origin/main@99f1b48` and recorded independent PASS decisions for all three expansion foundations.
 - Kept B1 activation on an isolated HOLD; no production write or activation was attempted.
+- Isolated a new latest-main release finding: TanStack generation re-adds the legal Register footer during build, so post-build status is dirty despite tests/typecheck/build passing. Recorded it without modifying the generated file.
