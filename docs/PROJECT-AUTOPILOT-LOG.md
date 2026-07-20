@@ -20,7 +20,7 @@
 ## 2026-07-21 — parallel cycle captured without duplicate work
 
 - Detected and reused the completed isolated worktrees instead of redispatching duplicate agents.
-- Confirmed merged PRs #173, #174, #175 and #179 with Web CI PASS; corresponding main pushes also have Android CI PASS.
+- Confirmed merged PRs #173, #174, #175 and #179 with Web CI PASS; Android CI on the applicable runtime-source main pushes #174, #175 and #179 also passed, while docs-only #173 had no Android run.
 - Confirmed the subsequent source-only B1 command-cycle PR #176 is merged and records the sequential one-Migration protocol.
 - Reconciled the cycle on latest `origin/main@99f1b48` and recorded independent PASS decisions for all three expansion foundations.
 - Kept B1 activation on an isolated HOLD; no production write or activation was attempted.
