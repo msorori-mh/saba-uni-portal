@@ -31,6 +31,8 @@ create table public.graduation_project_assignments (
   role public.graduation_project_assignment_role not null, student_profile_id uuid references public.student_profiles(id) on delete restrict,
   faculty_profile_id uuid references public.faculty_profiles(id) on delete restrict, user_id uuid not null references auth.users(id) on delete restrict,
   department_id uuid not null references public.departments(id) on delete restrict, active boolean not null default true,
+  processing_unit_id uuid generated always as (department_id) stored,
+  processing_role public.graduation_project_assignment_role generated always as (role) stored,
   assigned_at timestamptz not null default now(), ended_at timestamptz, assigned_by uuid not null references auth.users(id) on delete restrict,
   constraint assignment_subject_shape check (
     (role = 'student' and student_profile_id is not null and faculty_profile_id is null) or
@@ -224,6 +226,95 @@ begin
   return v_id;
 end $$;
 
+create function public.require_graduation_project_assignment(p_project_id uuid,p_roles public.graduation_project_assignment_role[])
+returns public.graduation_project_assignments language plpgsql security definer set search_path=public,pg_temp as $$
+declare a public.graduation_project_assignments;
+begin
+ select * into a from public.graduation_project_assignments x where x.project_id=p_project_id and x.user_id=auth.uid()
+   and x.active and x.ended_at is null and x.role=any(p_roles)
+   and x.processing_unit_id=x.department_id and x.processing_role=x.role;
+ if a.id is null then raise exception 'exact direct processing assignment required'; end if;
+ return a;
+end $$;
+
+create function public.submit_graduation_project_proposal(p_project_id uuid,p_expected_version bigint,p_correlation_id uuid)
+returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+declare a public.graduation_project_assignments; p public.graduation_projects;
+begin
+ select * into p from public.graduation_projects where id=p_project_id for update;
+ a:=public.require_graduation_project_assignment(p_project_id,array['student']::public.graduation_project_assignment_role[]);
+ if exists(select 1 from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='proposal_submitted') then return p_project_id; end if;
+ if p.state<>'draft' or p.version<>p_expected_version then raise exception 'proposal transition precondition failed'; end if;
+ update public.graduation_projects set state='submitted',version=version+1,updated_at=now() where id=p_project_id;
+ insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
+ values(p_project_id,auth.uid(),a.id,'proposal_submitted','graduation_projects',p_project_id,p_correlation_id);
+ return p_project_id;
+end $$;
+
+create function public.add_graduation_project_team_member(p_project_id uuid,p_student_profile_id uuid,p_student_user_id uuid,p_correlation_id uuid)
+returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+declare a public.graduation_project_assignments; p public.graduation_projects; new_id uuid;
+begin
+ select * into p from public.graduation_projects where id=p_project_id for update;
+ a:=public.require_graduation_project_assignment(p_project_id,array['coordinator','department_head']::public.graduation_project_assignment_role[]);
+ if p.state not in ('draft','revision_required') then raise exception 'team mutation state denied'; end if;
+ select entity_id into new_id from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='team_member_added';
+ if new_id is not null then return new_id; end if;
+ insert into public.graduation_project_assignments(project_id,role,student_profile_id,user_id,department_id,assigned_by)
+ values(p_project_id,'student',p_student_profile_id,p_student_user_id,p.department_id,auth.uid()) returning id into new_id;
+ insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
+ values(p_project_id,auth.uid(),a.id,'team_member_added','graduation_project_assignments',new_id,p_correlation_id);
+ return new_id;
+end $$;
+
+create function public.set_graduation_project_milestone(p_project_id uuid,p_title text,p_kind text,p_sequence integer,p_weight numeric,p_correlation_id uuid)
+returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+declare a public.graduation_project_assignments; p public.graduation_projects; new_id uuid;
+begin
+ select * into p from public.graduation_projects where id=p_project_id for update;
+ a:=public.require_graduation_project_assignment(p_project_id,array['supervisor','coordinator']::public.graduation_project_assignment_role[]);
+ if p.state not in ('approved','active') then raise exception 'milestone mutation state denied'; end if;
+ select entity_id into new_id from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='milestone_set';
+ if new_id is not null then return new_id; end if;
+ insert into public.graduation_project_milestones(project_id,title,milestone_kind,sequence_no,weight)
+ values(p_project_id,p_title,p_kind,p_sequence,p_weight) returning id into new_id;
+ insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
+ values(p_project_id,auth.uid(),a.id,'milestone_set','graduation_project_milestones',new_id,p_correlation_id);
+ return new_id;
+end $$;
+
+create function public.request_graduation_project_discussion(p_project_id uuid,p_correlation_id uuid)
+returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+declare a public.graduation_project_assignments; p public.graduation_projects; new_id uuid;
+begin
+ select * into p from public.graduation_projects where id=p_project_id for update;
+ a:=public.require_graduation_project_assignment(p_project_id,array['student','supervisor']::public.graduation_project_assignment_role[]);
+ select entity_id into new_id from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='discussion_requested';
+ if new_id is not null then return new_id; end if;
+ if not public.graduation_project_is_discussion_ready(p_project_id) then raise exception 'discussion readiness failed'; end if;
+ insert into public.graduation_project_discussion_requests(project_id,requested_by_assignment_id) values(p_project_id,a.id) returning id into new_id;
+ update public.graduation_projects set state='discussion_requested',version=version+1 where id=p_project_id and state='active';
+ insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
+ values(p_project_id,auth.uid(),a.id,'discussion_requested','graduation_project_discussion_requests',new_id,p_correlation_id);
+ return new_id;
+end $$;
+
+create function public.finalize_graduation_project_evaluation(p_evaluation_id uuid,p_correlation_id uuid)
+returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
+declare a public.graduation_project_assignments; e public.graduation_project_evaluations;
+begin
+ select * into e from public.graduation_project_evaluations where id=p_evaluation_id for update;
+ if e.id is null then raise exception 'evaluation not found'; end if;
+ a:=public.require_graduation_project_assignment(e.project_id,array['panel_member']::public.graduation_project_assignment_role[]);
+ if not exists(select 1 from public.graduation_project_panel_members where id=e.panel_member_id and assignment_id=a.id and project_id=e.project_id) then raise exception 'evaluator panel assignment mismatch'; end if;
+ if exists(select 1 from public.graduation_project_events where project_id=e.project_id and correlation_id=p_correlation_id and event_type='evaluation_finalized') then return e.id; end if;
+ if e.state<>'submitted' or e.total_score is null then raise exception 'evaluation finalization precondition failed'; end if;
+ update public.graduation_project_evaluations set state='finalized',finalized_at=now() where id=e.id;
+ insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
+ values(e.project_id,auth.uid(),a.id,'evaluation_finalized','graduation_project_evaluations',e.id,p_correlation_id);
+ return e.id;
+end $$;
+
 -- Default deny: grants are intentionally absent. Runtime mutations must be SECURITY INVOKER
 -- or narrowly reviewed atomic RPCs that verify auth.uid(), active direct assignment,
 -- exact project and department, lifecycle/version preconditions, and append an event.
@@ -253,6 +344,17 @@ revoke all on public.graduation_projects, public.graduation_project_assignments,
  public.graduation_project_events from anon, authenticated;
 revoke all on function public.archive_graduation_project(uuid,uuid,bigint,uuid) from public, anon;
 grant execute on function public.archive_graduation_project(uuid,uuid,bigint,uuid) to authenticated;
+revoke all on function public.require_graduation_project_assignment(uuid,public.graduation_project_assignment_role[]) from public, anon, authenticated;
+revoke all on function public.submit_graduation_project_proposal(uuid,bigint,uuid) from public, anon;
+revoke all on function public.add_graduation_project_team_member(uuid,uuid,uuid,uuid) from public, anon;
+revoke all on function public.set_graduation_project_milestone(uuid,text,text,integer,numeric,uuid) from public, anon;
+revoke all on function public.request_graduation_project_discussion(uuid,uuid) from public, anon;
+revoke all on function public.finalize_graduation_project_evaluation(uuid,uuid) from public, anon;
+grant execute on function public.submit_graduation_project_proposal(uuid,bigint,uuid),
+ public.add_graduation_project_team_member(uuid,uuid,uuid,uuid),
+ public.set_graduation_project_milestone(uuid,text,text,integer,numeric,uuid),
+ public.request_graduation_project_discussion(uuid,uuid),
+ public.finalize_graduation_project_evaluation(uuid,uuid) to authenticated;
 revoke all on function public.graduation_project_is_discussion_ready(uuid) from public, anon, authenticated;
 revoke all on public.graduation_project_reporting from public, anon, authenticated;
 -- Do not create a bucket here. A later separately authorized draft must create a private

@@ -76,6 +76,22 @@ describe("graduation projects SQL draft", () => {
     expect((verifier.match(/pg_temp\.expect_fk\(/g) ?? []).length).toBeGreaterThanOrEqual(11);
     expect((verifier.match(/\\quit 1/g) ?? []).length).toBe(5);
     expect(verifier).toContain("has_function_privilege('anon'");
-    expect(verifier).toContain("Lifecycle RPC matrix remains intentionally unavailable");
+    expect(verifier).toContain("RPC matrices above exercise");
+  });
+
+  test("defines direct-assignment lifecycle RPC boundaries and executable matrices", () => {
+    for (const rpc of [
+      "submit_graduation_project_proposal",
+      "add_graduation_project_team_member",
+      "set_graduation_project_milestone",
+      "request_graduation_project_discussion",
+      "finalize_graduation_project_evaluation",
+    ]) {
+      expect(sql).toContain(`create function public.${rpc}`);
+      expect(verifier).toContain(`public.${rpc}`);
+    }
+    expect(sql).toContain("processing_unit_id uuid generated always as (department_id)");
+    expect(sql).toContain("processing_role public.graduation_project_assignment_role generated always as (role)");
+    expect(sql).toContain("exact direct processing assignment required");
   });
 });

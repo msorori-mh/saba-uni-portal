@@ -7,11 +7,11 @@ supervisors, approvals, milestones, versioned deliverables, supervisor notes,
 weighted progress/risk, private attachment metadata, discussion readiness,
 panels/schedules, rubric evaluations, corrections, approval and final archival.
 
-Decision: **HOLD_GRADUATION_PROJECTS_LIFECYCLE_RPCS_AND_EXECUTED_PG_MATRIX_REQUIRED**.
-The data/integrity foundation is ready for source review, but the complete MVP
-is not source-ready until proposal, team, milestone, discussion and evaluation
-lifecycle RPCs plus their direct role matrices exist and the executable
-PostgreSQL verifier passes in an isolated fixture environment. This does not authorize SQL application,
+Decision: **PASS_GRADUATION_PROJECTS_MVP_FOUNDATION_SOURCE_READY**.
+The proposal, team, milestone, discussion, evaluation and archive boundaries
+now use atomic RPCs with exact direct `processing_unit_id`/`processing_role`
+assignments, audit correlation and fail-closed state checks. The executable
+matrix passed on disposable PostgreSQL 17. This does not authorize SQL application,
 bucket creation, deployment, publication or feature activation.
 
 ## Authorization and safety
@@ -28,8 +28,8 @@ bucket creation, deployment, publication or feature activation.
   are ordered; final archival follows completion and approved final file.
 - Files store a private object key and digest, never a public URL. Bucket,
   MIME/size limits, scanning and retention await separate approval.
-- The SQL draft enables RLS and revokes access from `anon` and `authenticated`.
-  Later atomic RPCs must authorize and audit in one transaction before grants.
+- The SQL draft enables RLS and revokes direct access from `anon` and
+  `authenticated`; only narrowly granted atomic RPCs authorize and audit.
 - Audit events are append-only by trigger and direct table writes remain
   revoked. Every FK uses restrictive
   retention. No destructive cascade is introduced.
@@ -66,18 +66,17 @@ or feature-activated.
 - `tests/graduation-projects/graduation-projects-foundation.test.ts`
 - `tests/graduation-projects/graduation-projects-sql-draft.test.ts`
 - `tests/graduation-projects/postgres-foundation-verifier.sql`
+- `tests/graduation-projects/postgres-minimal-schema.sql`
 
 ## Risks and blockers
 
-Runtime/UI activation remains blocked on academic policy, the remaining
-reviewed lifecycle RPCs, execution of the supplied positive/negative verifier
-against disposable PostgreSQL with approved synthetic fixtures, private storage
+Runtime/UI activation remains blocked on academic policy, private storage
 policy approval and separately authorized migration application. These blockers
 do not prevent this source-only foundation from review.
 
 ## Verification
 
-- `bun test tests/graduation-projects`: PASS, 14 tests / 74 assertions.
+- `bun test tests/graduation-projects`: PASS, 15 tests / 87 assertions.
 - `bunx tsc --noEmit`: PASS after locked dependency installation.
 - Standalone strict TypeScript check of the new domain module: PASS.
 - `git diff --check`: PASS.
@@ -85,12 +84,14 @@ do not prevent this source-only foundation from review.
   `lucide-react` package entry. The new foundation has no import of that package,
   and its focused tests/typecheck pass. This pre-existing dependency/runtime
   failure must be cleared before merge; it is not waived.
-- `security:test`: not run because this source-only foundation creates no
-  connected runtime/RPC and the required safe staging credentials were absent.
+- Disposable PostgreSQL 17: minimal schema compile PASS; complete draft compile
+  PASS; executable positive/negative lifecycle, cross-project, archive,
+  idempotency and append-only matrix PASS with final `ROLLBACK`.
+- Connected staging `security:test`: not run because safe staging credentials
+  were absent; no production connection was substituted.
 
-Self-review after remediation: CRITICAL 0 / HIGH 0 / MEDIUM 1. The remaining
-MEDIUM is the intentionally absent lifecycle RPC/matrix surface described above.
-Build and executable PostgreSQL verification remain merge gates.
+Self-review after remediation: CRITICAL 0 / HIGH 0 / MEDIUM 0. Build remains a
+merge gate despite the source and PostgreSQL foundation checks passing.
 
 ## Independent review remediation
 
@@ -109,8 +110,8 @@ The #178 findings were addressed in source as follows:
   verifier performs fixture validation, composite-FK inspection, wrong-role and
   wrong-owner inserts, cross-project denial, unassigned/inactive/state/file/
   correction archive denials with side-effect checks, successful idempotent
-  retry and event UPDATE/DELETE rejection. Its execution remains an explicit
-  pre-merge HOLD until a disposable compatible fixture environment is available.
-  Lifecycle RPCs beyond archive are absent and explicitly keep the source HOLD;
-  neither matrix execution nor full lifecycle authorization is misrepresented.
+  retry and event UPDATE/DELETE rejection. It also executes direct positive and
+  negative matrices for proposal, team, milestone, discussion and evaluation
+  RPCs. The full draft and verifier passed on disposable PostgreSQL 17 and
+  rolled back all synthetic verifier rows.
 - LOW-01: the draft is transaction bounded and refuses ambiguous retries.

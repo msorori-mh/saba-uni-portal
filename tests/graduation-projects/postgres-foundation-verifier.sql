@@ -131,6 +131,9 @@ insert into gp_ids select 'd1',id from x;
 with x as (insert into public.graduation_project_panel_members(project_id,discussion_id,assignment_id)
 select (select v from gp_ids where k='p1'),v,(select v from gp_ids where k='panel_assignment') from gp_ids where k='d1' returning id)
 insert into gp_ids select 'panel1',id from x;
+with x as (insert into public.graduation_project_discussion_requests(project_id,requested_by_assignment_id,state)
+select (select v from gp_ids where k='p1'),(select v from gp_ids where k='a1'),'approved' returning id)
+insert into gp_ids select 'r1cross',id from x;
 
 -- Executable cross-project DML for every sensitive child binding. Only the
 -- expected composite-FK SQLSTATE is accepted; any other error fails the script.
@@ -143,7 +146,7 @@ select pg_temp.expect_fk($q$insert into public.graduation_project_files(project_
 select pg_temp.expect_fk($q$insert into public.graduation_project_discussion_requests(project_id,requested_by_assignment_id)
  values((select v from gp_ids where k='p2'),(select v from gp_ids where k='a1'))$q$,'discussion request actor');
 select pg_temp.expect_fk($q$insert into public.graduation_project_discussions(project_id,request_id,starts_at,venue,coordinator_assignment_id)
- values((select v from gp_ids where k='p2'),(select v from gp_ids where k='r1'),now(),'cross',(select v from gp_ids where k='a2'))$q$,'discussion request');
+ values((select v from gp_ids where k='p2'),(select v from gp_ids where k='r1cross'),now(),'cross',(select v from gp_ids where k='a2'))$q$,'discussion request');
 select pg_temp.expect_fk($q$insert into public.graduation_project_panel_members(project_id,discussion_id,assignment_id)
  values((select v from gp_ids where k='p2'),(select v from gp_ids where k='d1'),(select v from gp_ids where k='a2'))$q$,'panel discussion');
 select pg_temp.expect_fk($q$insert into public.graduation_project_evaluations(project_id,discussion_id,panel_member_id,rubric_version)
@@ -154,6 +157,72 @@ select pg_temp.expect_fk($q$insert into public.graduation_project_final_archives
  values((select v from gp_ids where k='p2'),(select v from gp_ids where k='f1'),(select v from gp_ids where k='a2'),gen_random_uuid())$q$,'archive file');
 select pg_temp.expect_fk($q$insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,correlation_id)
  values((select v from gp_ids where k='p2'),current_setting('gp.faculty_user_id')::uuid,(select v from gp_ids where k='a1'),'cross','test',gen_random_uuid())$q$,'event actor');
+
+-- Executable positive/negative direct-RPC lifecycle matrix on p2.
+with x as (insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by)
+select v,'coordinator',:'faculty_profile_id',:'faculty_user_id',:'department_id',:'faculty_user_id' from gp_ids where k='p2' returning id)
+insert into gp_ids select 'coordinator2',id from x;
+with x as (insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by)
+select v,'supervisor',:'faculty_profile_id',:'faculty_user_id',:'department_id',:'faculty_user_id' from gp_ids where k='p2' returning id)
+insert into gp_ids select 'supervisor2',id from x;
+with x as (insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by)
+select v,'panel_member',:'faculty_profile_id',:'faculty_user_id',:'department_id',:'faculty_user_id' from gp_ids where k='p2' returning id)
+insert into gp_ids select 'panel_assignment2',id from x;
+update public.graduation_projects set state='draft',version=1 where id=(select v from gp_ids where k='p2');
+insert into gp_ids values('team_corr',gen_random_uuid());
+insert into gp_ids select 'student2',public.add_graduation_project_team_member((select v from gp_ids where k='p2'),:'student_profile_id',:'student_user_id',(select v from gp_ids where k='team_corr'));
+do $$ begin
+ if (select count(*) from public.graduation_project_events where correlation_id=(select v from gp_ids where k='team_corr') and event_type='team_member_added')<>1 then raise exception 'team RPC positive failed'; end if;
+ perform set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),true);
+ perform pg_temp.expect_gp_error(format('select public.add_graduation_project_team_member(%L,%L,%L,%L)',(select v from gp_ids where k='p2'),current_setting('gp.student_profile_id'),current_setting('gp.student_user_id'),gen_random_uuid()),'exact direct processing assignment required');
+end $$;
+
+insert into gp_ids values('proposal_corr',gen_random_uuid());
+insert into gp_ids select 'proposal_result',public.submit_graduation_project_proposal((select v from gp_ids where k='p2'),1,(select v from gp_ids where k='proposal_corr'));
+do $$ begin
+ if (select state from public.graduation_projects where id=(select v from gp_ids where k='p2'))<>'submitted' then raise exception 'proposal RPC positive failed'; end if;
+ perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
+ perform pg_temp.expect_gp_error(format('select public.submit_graduation_project_proposal(%L,2,%L)',(select v from gp_ids where k='p2'),gen_random_uuid()),'exact direct processing assignment required');
+end $$;
+
+update public.graduation_projects set state='approved' where id=(select v from gp_ids where k='p2');
+insert into gp_ids values('milestone_corr',gen_random_uuid());
+insert into gp_ids select 'm2',public.set_graduation_project_milestone((select v from gp_ids where k='p2'),'Final','final',1,100,(select v from gp_ids where k='milestone_corr'));
+do $$ begin
+ perform set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),true);
+ perform pg_temp.expect_gp_error(format('select public.set_graduation_project_milestone(%L,%L,%L,2,1,%L)',(select v from gp_ids where k='p2'),'Denied','progress',gen_random_uuid()),'exact direct processing assignment required');
+end $$;
+update public.graduation_project_milestones set status='accepted',completion_percent=100 where id=(select v from gp_ids where k='m2');
+insert into public.graduation_project_submissions(project_id,milestone_id,version_no,submitted_by_assignment_id,state,accepted_at)
+values((select v from gp_ids where k='p2'),(select v from gp_ids where k='m2'),1,(select v from gp_ids where k='student2'),'accepted',now()) returning id;
+insert into gp_ids select 's2',id from public.graduation_project_submissions where milestone_id=(select v from gp_ids where k='m2');
+insert into public.graduation_project_files(project_id,submission_id,object_key,original_name,media_type,byte_size,sha256,scan_state,uploaded_by_assignment_id)
+values((select v from gp_ids where k='p2'),(select v from gp_ids where k='s2'),'graduation-projects/verifier/p2-final.pdf','final.pdf','application/pdf',1,repeat('c',64),'clean',(select v from gp_ids where k='student2'));
+update public.graduation_projects set state='active' where id=(select v from gp_ids where k='p2');
+insert into gp_ids values('discussion_corr',gen_random_uuid());
+insert into gp_ids select 'request2',public.request_graduation_project_discussion((select v from gp_ids where k='p2'),(select v from gp_ids where k='discussion_corr'));
+do $$ begin
+ perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
+ perform pg_temp.expect_gp_error(format('select public.request_graduation_project_discussion(%L,%L)',(select v from gp_ids where k='p2'),gen_random_uuid()),'discussion readiness failed');
+end $$;
+
+insert into public.graduation_project_discussions(project_id,request_id,starts_at,venue,coordinator_assignment_id)
+values((select v from gp_ids where k='p2'),(select v from gp_ids where k='request2'),now(),'Verifier',(select v from gp_ids where k='coordinator2')) returning id;
+insert into gp_ids select 'd2',id from public.graduation_project_discussions where request_id=(select v from gp_ids where k='request2');
+insert into public.graduation_project_panel_members(project_id,discussion_id,assignment_id)
+values((select v from gp_ids where k='p2'),(select v from gp_ids where k='d2'),(select v from gp_ids where k='panel_assignment2')) returning id;
+insert into gp_ids select 'panel2',id from public.graduation_project_panel_members where discussion_id=(select v from gp_ids where k='d2');
+insert into public.graduation_project_evaluations(project_id,discussion_id,panel_member_id,rubric_version,state,total_score)
+values((select v from gp_ids where k='p2'),(select v from gp_ids where k='d2'),(select v from gp_ids where k='panel2'),'v1','submitted',90) returning id;
+insert into gp_ids select 'evaluation2',id from public.graduation_project_evaluations where discussion_id=(select v from gp_ids where k='d2');
+insert into gp_ids values('evaluation_corr',gen_random_uuid());
+insert into gp_ids select 'evaluation_result',public.finalize_graduation_project_evaluation((select v from gp_ids where k='evaluation2'),(select v from gp_ids where k='evaluation_corr'));
+do $$ begin
+ if (select state from public.graduation_project_evaluations where id=(select v from gp_ids where k='evaluation2'))<>'finalized' then raise exception 'evaluation RPC positive failed'; end if;
+ perform set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),true);
+ perform pg_temp.expect_gp_error(format('select public.finalize_graduation_project_evaluation(%L,%L)',(select v from gp_ids where k='evaluation2'),gen_random_uuid()),'exact direct processing assignment required');
+ perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
+end $$;
 
 -- Anonymous/unassigned and inactive-assignment RPC denials.
 do $$ declare before_archives bigint; begin
@@ -211,7 +280,6 @@ do $$ begin
     (select v from gp_ids where k='corr')),'graduation project events are append-only');
 end $$;
 
--- Lifecycle RPC matrix remains intentionally unavailable: direct table writes are
--- denied and source status stays HOLD until proposal/team/milestone/discussion/
--- evaluation transition RPCs and their role matrices are implemented.
+-- Proposal/team/milestone/discussion/evaluation RPC matrices above exercise
+-- exact direct processing assignments. Direct client table writes remain denied.
 rollback;
