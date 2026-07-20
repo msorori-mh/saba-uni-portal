@@ -27,8 +27,8 @@ package can be approved: the new preflight report numbers
 submit and identifies `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql` as the
 first SQL apply. The stamp still contains
 `APPROVED_RELEASE_COMMIT_PLACEHOLDER`, so it is non-applicable in either
-position. This is a MEDIUM command-package finding until one reviewed canonical
-manifest replaces both interpretations.
+position. Independent review PR #177 classifies this as a HIGH command-package
+finding until one reviewed canonical manifest replaces both interpretations.
 
 ## Workstream status
 
@@ -158,8 +158,11 @@ approved safe environment and identity.
 ## Reviews, tests, risks, and production impact
 
 - Required independent review threshold: CRITICAL=0 / HIGH=0 / MEDIUM=0.
-- PR #173 independent review is in progress. The manifest-order conflict above
-  currently makes the command cycle ineligible for PASS.
+- PR #173 independent review (PR #177) found CRITICAL=0 / HIGH=1 / MEDIUM=0.
+  The manifest-order conflict above currently makes the command cycle ineligible
+  for PASS. It also recorded one LOW wording issue: production reads were not
+  attempted after the gate failed; the evidence does not show they were
+  technically impossible.
 - Web CI, typecheck, build, focused tests, security tests in a safe environment,
   and `git diff --check` are mandatory before merge or execution.
 - Risk: a live endpoint can mask source drift when build provenance is absent.
