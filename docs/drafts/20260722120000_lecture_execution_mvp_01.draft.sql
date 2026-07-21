@@ -103,7 +103,7 @@ create table lecture_execution_actor_assignments (
   ended_at timestamptz,
   assigned_by uuid references auth.users(id) on delete set null,
   unique (id, department_id),
-  check (
+  constraint lecture_execution_assignment_subject_shape check (
     (role in ('faculty_recorder', 'department_monitor', 'college_monitor')
       and faculty_profile_id is not null and student_profile_id is null)
     or (role = 'section_delegate'
@@ -177,7 +177,7 @@ begin
         and fp.user_id = new.user_id
         and fp.department_id = new.department_id
     ) then
-      raise exception 'staff assignment must reference a faculty profile owned by the same user in the same department';
+      raise exception 'lecture-execution assignment identity/department mismatch';
     end if;
   elsif new.role = 'section_delegate' then
     if not exists (
@@ -186,7 +186,7 @@ begin
         and sp.user_id = new.user_id
         and sp.department_id = new.department_id
     ) then
-      raise exception 'delegate assignment must reference a student profile owned by the same user in the same department';
+      raise exception 'lecture-execution assignment identity/department mismatch';
     end if;
   end if;
   return new;
@@ -253,7 +253,7 @@ begin
     and a.active
   limit 1;
   if v_id is null then
-    raise exception 'missing active lecture-execution assignment for this department';
+    raise exception 'exact direct processing assignment required';
   end if;
   return v_id;
 end $$;
@@ -346,7 +346,7 @@ begin
     and a.course_section_id = v_slot.course_section_id
   limit 1;
   if v_assignment is null then
-    raise exception 'missing active faculty recorder assignment for this exact section';
+    raise exception 'exact direct processing assignment required';
   end if;
 
   select s.term_weeks, s.delegate_confirmation_enabled
@@ -379,7 +379,7 @@ begin
 
   if not found then
     if not lecture_execution_transition_allowed('not_started', p_state) then
-      raise exception 'invalid initial execution transition: not_started -> %', p_state;
+      raise exception 'invalid execution transition: not_started -> %', p_state;
     end if;
     insert into lecture_execution_sessions (
       department_id, class_schedule_id, course_section_id, course_id, level_id,
@@ -494,7 +494,7 @@ begin
     and a.level_id = v_session.level_id
   limit 1;
   if v_assignment is null then
-    raise exception 'missing active delegate assignment for this level';
+    raise exception 'exact direct processing assignment required';
   end if;
   if v_session.confirmation_status <> 'awaiting_delegate' then
     raise exception 'session is not awaiting delegate confirmation';
