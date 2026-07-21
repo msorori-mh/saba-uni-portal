@@ -162,8 +162,14 @@ export function summarizeClearance(
 }
 
 // Client-side mirror of the equivalencies CHECK constraints and the credit
-// guard trigger. Standalone validator (not wired into summarizeClearance) so
-// callers choose when to enforce the full row shape.
+// guard trigger (validate_academic_clearance_credit): target coupling, the
+// zero-credit rule for non-credit decisions, the source-credit bound
+// (accepted <= source course hours), the positive-credit rule for
+// credit-bearing decisions, and a non-empty rationale. The target-credit
+// bound (accepted <= target course hours) needs the target course row and is
+// enforced by summarizeClearance against the target course list. Standalone
+// validator (not wired into summarizeClearance) so callers choose when to
+// enforce the full row shape.
 export function assertValidEquivalencyRow(row: EquivalencyRow): void {
   const targetMapped = TARGET_MAPPED_DECISIONS.includes(row.decision);
   if (targetMapped !== (row.targetCourseId != null)) {
@@ -177,8 +183,14 @@ export function assertValidEquivalencyRow(row: EquivalencyRow): void {
   ) {
     throw new Error("INVALID_EQUIVALENCY_ACCEPTED_HOURS");
   }
+  if (row.acceptedCreditHours > row.sourceCreditHours) {
+    throw new Error("INVALID_EQUIVALENCY_ACCEPTED_HOURS_EXCEED_SOURCE");
+  }
   if (CREDIT_BEARING_DECISIONS.includes(row.decision) && row.acceptedCreditHours <= 0) {
     throw new Error("INVALID_EQUIVALENCY_ACCEPTED_HOURS");
+  }
+  if (row.rationale.trim().length === 0) {
+    throw new Error("INVALID_EQUIVALENCY_RATIONALE_REQUIRED");
   }
 }
 
@@ -216,6 +228,14 @@ export function nextClearanceStatus(
   throw new Error("INVALID_CLEARANCE_TRANSITION");
 }
 
+// Capability check for UI affordances. It intentionally reports the target
+// chair's edit/submit capability across the whole editable set (draft,
+// department_review, returned): the SQL save RPC moves any editable case to
+// department_review, from which submission is valid, so "submit" from draft
+// is a two-step client affordance rather than a single transition. Strict
+// single-step transitions are enforced by the RPCs and mirrored by
+// nextClearanceStatus — use nextClearanceStatus wherever an exact transition
+// result is needed.
 export function canActorTransitionClearance(input: {
   status: ClearanceStatus;
   actorRole: string;

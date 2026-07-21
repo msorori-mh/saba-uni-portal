@@ -4,7 +4,9 @@
 --   -> docs/migration-drafts/DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-FOUNDATION-01.sql
 --   -> docs/drafts/ACADEMIC-CLEARANCE-COMPLETION-01.sql
 --   -> this file.
--- Self-contained: seeds are idempotent, so it also runs after the foundation verifier.
+-- Seeds are on-conflict guarded, so the file is safe to run after the
+-- foundation verifier in the same database; the scenario flow itself runs
+-- once per fresh database.
 \set ON_ERROR_STOP on
 
 -- Seven clearance statuses including 'returned'; seven decisions including 'supporting_requirement'.
@@ -23,7 +25,8 @@ insert into student_requests values('80000000-0000-4000-8000-000000000002','7000
 insert into student_request_workflow_steps values('c1000000-0000-4000-8000-000000000002','80000000-0000-4000-8000-000000000002','active','10000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001') on conflict (id) do nothing;
 insert into transfer_request_details values('80000000-0000-4000-8000-000000000002','30000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002') on conflict (request_id) do nothing;
 insert into academic_clearance_cases(id,student_request_id,student_profile_id,source_department_id,target_department_id,target_study_plan_id,status,source_snapshot_at,target_snapshot_at,remaining_credit_hours)
-  values('e0000000-0000-4000-8000-000000000001','80000000-0000-4000-8000-000000000002','70000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000001','draft',now(),now(),6);
+  values('e0000000-0000-4000-8000-000000000001','80000000-0000-4000-8000-000000000002','70000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000001','draft',now(),now(),6)
+  on conflict (id) do nothing;
 -- A second passed official result chain for the supporting_requirement decision.
 insert into courses values('60000000-0000-4000-8000-000000000003',2) on conflict (id) do nothing;
 insert into course_offerings values('90000000-0000-4000-8000-000000000003','60000000-0000-4000-8000-000000000003') on conflict (id) do nothing;
@@ -31,13 +34,21 @@ insert into course_sections values('91000000-0000-4000-8000-000000000003','90000
 insert into student_enrollments values('92000000-0000-4000-8000-000000000003','91000000-0000-4000-8000-000000000003','70000000-0000-4000-8000-000000000001') on conflict (id) do nothing;
 insert into grade_components values('93000000-0000-4000-8000-000000000003','91000000-0000-4000-8000-000000000003') on conflict (id) do nothing;
 insert into student_grades values('94000000-0000-4000-8000-000000000003','92000000-0000-4000-8000-000000000003','93000000-0000-4000-8000-000000000003','approved',now()) on conflict (id) do nothing;
-insert into student_course_grade_summary values('92000000-0000-4000-8000-000000000003','70000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000003','synthetic_passed');
+insert into student_course_grade_summary
+  select '92000000-0000-4000-8000-000000000003','70000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000003','synthetic_passed'
+  where not exists(
+    select 1 from student_course_grade_summary
+    where enrollment_id='92000000-0000-4000-8000-000000000003'
+      and course_id='60000000-0000-4000-8000-000000000003');
 insert into academic_clearance_source_courses(id,case_id,student_grade_id,course_id,course_code,course_name,credit_hours,passed,snapshot)
-  values('e1000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-000000000001','94000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000001','SRC1','Source 1',3,true,'{"official_result_reference":"R1"}');
+  values('e1000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-000000000001','94000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000001','SRC1','Source 1',3,true,'{"official_result_reference":"R1"}')
+  on conflict (id) do nothing;
 insert into academic_clearance_source_courses(id,case_id,student_grade_id,course_id,course_code,course_name,credit_hours,passed,snapshot)
-  values('e1000000-0000-4000-8000-000000000002','e0000000-0000-4000-8000-000000000001','94000000-0000-4000-8000-000000000003','60000000-0000-4000-8000-000000000003','SRC2','Source 2',2,true,'{"official_result_reference":"R2"}');
+  values('e1000000-0000-4000-8000-000000000002','e0000000-0000-4000-8000-000000000001','94000000-0000-4000-8000-000000000003','60000000-0000-4000-8000-000000000003','SRC2','Source 2',2,true,'{"official_result_reference":"R2"}')
+  on conflict (id) do nothing;
 insert into academic_clearance_target_courses(id,case_id,study_plan_course_id,course_id,course_code,course_name,credit_hours,level_id,is_required,snapshot)
-  values('e2000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-000000000001','95000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000002','TGT','Target',3,'40000000-0000-4000-8000-000000000002',true,'{}');
+  values('e2000000-0000-4000-8000-000000000001','e0000000-0000-4000-8000-000000000001','95000000-0000-4000-8000-000000000001','60000000-0000-4000-8000-000000000002','TGT','Target',3,'40000000-0000-4000-8000-000000000002',true,'{}')
+  on conflict (id) do nothing;
 
 -- The chair cannot reject; the reviewer cannot act before submission.
 do $$begin
@@ -107,7 +118,8 @@ end$$;
 
 -- A new clearance attempt for the same request starts as a fresh draft case.
 insert into academic_clearance_cases(id,student_request_id,student_profile_id,source_department_id,target_department_id,target_study_plan_id,status,source_snapshot_at,target_snapshot_at,remaining_credit_hours)
-  values('e0000000-0000-4000-8000-000000000002','80000000-0000-4000-8000-000000000002','70000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000001','draft',now(),now(),6);
+  values('e0000000-0000-4000-8000-000000000002','80000000-0000-4000-8000-000000000002','70000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002','50000000-0000-4000-8000-000000000001','draft',now(),now(),6)
+  on conflict (id) do nothing;
 
 -- Reporting counts returned work; outcomes count supporting requirements.
 do $$begin

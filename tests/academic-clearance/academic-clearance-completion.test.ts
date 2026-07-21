@@ -107,6 +107,48 @@ describe("academic clearance completion: resolved D-10 vocabulary", () => {
       }),
     ).not.toThrow();
   });
+
+  it("mirrors the credit guard source bound and the rationale requirement", () => {
+    expect(() =>
+      assertValidEquivalencyRow({
+        sourceCourseId: "s1",
+        sourceCreditHours: 3,
+        targetCourseId: "t1",
+        decision: "equivalent",
+        acceptedCreditHours: 4,
+        rationale: "x",
+      }),
+    ).toThrow("INVALID_EQUIVALENCY_ACCEPTED_HOURS_EXCEED_SOURCE");
+    expect(() =>
+      assertValidEquivalencyRow({
+        sourceCourseId: "s1",
+        sourceCreditHours: 3,
+        targetCourseId: "t1",
+        decision: "equivalent",
+        acceptedCreditHours: 3,
+        rationale: "x",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertValidEquivalencyRow({
+        sourceCourseId: "s1",
+        sourceCreditHours: 3,
+        targetCourseId: "t1",
+        decision: "equivalent",
+        acceptedCreditHours: 3,
+        rationale: "   ",
+      }),
+    ).toThrow("INVALID_EQUIVALENCY_RATIONALE_REQUIRED");
+    expect(() =>
+      assertValidEquivalencyRow({
+        sourceCourseId: "s1",
+        sourceCreditHours: 3,
+        decision: "supporting_requirement",
+        acceptedCreditHours: 2,
+        rationale: "supporting credit",
+      }),
+    ).not.toThrow();
+  });
 });
 
 describe("academic clearance completion: seven statuses", () => {
@@ -186,6 +228,23 @@ describe("academic clearance completion: seven statuses", () => {
         action: "return",
       }),
     ).toBe(false);
+  });
+
+  it("documents submit capability vs strict transition semantics", () => {
+    // canActorTransitionClearance is a UI affordance check: the chair can
+    // submit across the editable set because the save RPC moves any editable
+    // case to department_review, from which submission is valid. The strict
+    // single-step machine (nextClearanceStatus) rejects draft -> submit.
+    expect(
+      canActorTransitionClearance({
+        status: "draft",
+        actorRole: "department_head",
+        actorDepartmentId: "target",
+        targetDepartmentId: "target",
+        action: "submit",
+      }),
+    ).toBe(true);
+    expect(() => nextClearanceStatus("draft", "submit")).toThrow("INVALID_CLEARANCE_TRANSITION");
   });
 
   it("blocks final transfer in every status except approved", () => {
