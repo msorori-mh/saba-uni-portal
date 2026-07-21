@@ -1,13 +1,35 @@
+// Approved comparison vocabulary (D-10, resolved): exactly seven values.
 export const EQUIVALENCY_DECISIONS = [
   "equivalent",
   "partially_equivalent",
   "general_requirement",
+  "supporting_requirement",
   "not_equivalent",
   "needs_review",
   "committee_decision_required",
 ] as const;
 
 export type EquivalencyDecision = (typeof EQUIVALENCY_DECISIONS)[number];
+
+// Decisions that map to a specific target-plan course (target required).
+export const TARGET_MAPPED_DECISIONS: readonly EquivalencyDecision[] = [
+  "equivalent",
+  "partially_equivalent",
+];
+
+// Decisions that carry accepted credit hours (mirror of the SQL credit guard).
+export const CREDIT_BEARING_DECISIONS: readonly EquivalencyDecision[] = [
+  "equivalent",
+  "partially_equivalent",
+  "general_requirement",
+  "supporting_requirement",
+];
+
+// Decisions that block submission until resolved.
+export const UNRESOLVED_DECISIONS: readonly EquivalencyDecision[] = [
+  "needs_review",
+  "committee_decision_required",
+];
 
 // The seven clearance case statuses. Mirrors public.academic_clearance_status:
 // six values from the foundation draft plus 'returned' from the
@@ -39,6 +61,7 @@ export const EQUIVALENCY_DECISION_LABELS: Record<EquivalencyDecision, string> = 
   equivalent: "معادل",
   partially_equivalent: "معادل جزئياً",
   general_requirement: "متطلب عام",
+  supporting_requirement: "متطلب مساند",
   not_equivalent: "غير معادل",
   needs_review: "يحتاج مراجعة",
   committee_decision_required: "يتطلب قرار لجنة",
@@ -85,7 +108,7 @@ export interface ClearanceSummary {
   canSubmitDepartmentDecision: boolean;
 }
 
-const unresolved = new Set<EquivalencyDecision>(["needs_review", "committee_decision_required"]);
+const unresolved = new Set<EquivalencyDecision>(UNRESOLVED_DECISIONS);
 
 export function summarizeClearance(
   targetPlanCredits: number,
@@ -136,6 +159,27 @@ export function summarizeClearance(
       unresolvedCount === 0 &&
       rows.every((row) => row.rationale.trim().length > 0),
   };
+}
+
+// Client-side mirror of the equivalencies CHECK constraints and the credit
+// guard trigger. Standalone validator (not wired into summarizeClearance) so
+// callers choose when to enforce the full row shape.
+export function assertValidEquivalencyRow(row: EquivalencyRow): void {
+  const targetMapped = TARGET_MAPPED_DECISIONS.includes(row.decision);
+  if (targetMapped !== (row.targetCourseId != null)) {
+    throw new Error("INVALID_EQUIVALENCY_TARGET_COUPLING");
+  }
+  if (
+    (row.decision === "not_equivalent" ||
+      row.decision === "needs_review" ||
+      row.decision === "committee_decision_required") &&
+    row.acceptedCreditHours !== 0
+  ) {
+    throw new Error("INVALID_EQUIVALENCY_ACCEPTED_HOURS");
+  }
+  if (CREDIT_BEARING_DECISIONS.includes(row.decision) && row.acceptedCreditHours <= 0) {
+    throw new Error("INVALID_EQUIVALENCY_ACCEPTED_HOURS");
+  }
 }
 
 export type ClearanceAction = "edit" | "submit" | "approve" | "reject" | "return" | "correct";
@@ -201,8 +245,9 @@ export function canFinalizeDepartmentTransfer(clearanceStatus: ClearanceStatus):
 
 // ---------------------------------------------------------------------------
 // Snapshot builders: fail-closed client-side mirror of the SQL binding
-// triggers. The "official successful result" vocabulary (D-10 / authority
-// config) is never hardcoded; callers pass the approved vocabulary.
+// triggers. Original grades are never mutated: snapshots are new, immutable
+// rows. The "official successful result" vocabulary (authority config) is
+// never hardcoded; callers pass the approved vocabulary.
 // ---------------------------------------------------------------------------
 
 export interface ClearanceAuthorityVocabulary {
@@ -473,6 +518,7 @@ export function summarizeCourseOutcomes(rows: readonly CourseOutcomeInput[]): Co
   const counted: ReadonlySet<EquivalencyDecision> = new Set([
     "equivalent",
     "partially_equivalent",
+    "supporting_requirement",
     "not_equivalent",
   ]);
   const groups = new Map<string, CourseOutcomeRow>();

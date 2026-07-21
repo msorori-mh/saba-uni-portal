@@ -4,6 +4,7 @@ const labels: Record<EquivalencyDecision, string> = {
   equivalent: "معادل",
   partially_equivalent: "معادل جزئياً",
   general_requirement: "متطلب عام",
+  supporting_requirement: "متطلب مساند",
   not_equivalent: "غير معادل",
   needs_review: "يحتاج مراجعة",
   committee_decision_required: "يتطلب قرار لجنة",
