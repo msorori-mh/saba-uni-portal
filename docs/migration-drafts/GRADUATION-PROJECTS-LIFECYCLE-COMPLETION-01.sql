@@ -136,11 +136,19 @@ begin
   if p.id is null then raise exception 'project not found'; end if;
   a:=public.require_graduation_project_assignment(p_project_id,array['coordinator','department_head']::public.graduation_project_assignment_role[]);
   if p_role not in ('supervisor','coordinator','panel_member') then raise exception 'faculty assignment role denied'; end if;
+  -- LOW-3 (review 4982): the idempotency replay check runs before the state
+  -- gates, matching the sibling write RPCs, so a faithful retry returns the
+  -- recorded assignment even after the project left the assignable states.
+  select entity_id into new_id from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='faculty_assigned';
+  if new_id is not null then return new_id; end if;
   if p_role='panel_member' then
     if p.state not in ('approved','active','discussion_requested','discussion_scheduled') then raise exception 'faculty assignment state denied'; end if;
   elsif p.state not in ('draft','revision_required','approved','active') then raise exception 'faculty assignment state denied'; end if;
-  select entity_id into new_id from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='faculty_assigned';
-  if new_id is not null then return new_id; end if;
+  -- LOW-1 (review 4982): guard the active-assignment unique index with a
+  -- guarded P0001 message instead of surfacing raw 23505.
+  if exists(select 1 from public.graduation_project_assignments where project_id=p_project_id and role=p_role::public.graduation_project_assignment_role and user_id=p_user_id and active) then
+    raise exception 'faculty assignment already exists';
+  end if;
   insert into public.graduation_project_assignments(project_id,role,faculty_profile_id,user_id,department_id,assigned_by)
     values(p_project_id,p_role::public.graduation_project_assignment_role,p_faculty_profile_id,p_user_id,p.department_id,auth.uid()) returning id into new_id;
   insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
@@ -153,11 +161,14 @@ create function public.end_graduation_project_assignment(
   p_project_id uuid, p_assignment_id uuid, p_correlation_id uuid
 ) returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
 declare a public.graduation_project_assignments; t public.graduation_project_assignments; p public.graduation_projects;
+  v_recorded uuid;
 begin
   select * into p from public.graduation_projects where id=p_project_id for update;
   if p.id is null then raise exception 'project not found'; end if;
   a:=public.require_graduation_project_assignment(p_project_id,array['coordinator','department_head']::public.graduation_project_assignment_role[]);
-  if exists(select 1 from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='assignment_ended') then return p_assignment_id; end if;
+  -- LOW-2 (review 4982): replay returns the recorded entity_id, never the passed-in id.
+  select entity_id into v_recorded from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='assignment_ended';
+  if v_recorded is not null then return v_recorded; end if;
   if p.state in ('completed','archived','rejected','cancelled') then raise exception 'assignment end state denied'; end if;
   select * into t from public.graduation_project_assignments where id=p_assignment_id and project_id=p_project_id for update;
   if t.id is null then raise exception 'assignment not found'; end if;
@@ -262,9 +273,12 @@ create function public.resolve_graduation_project_supervisor_note(
   p_project_id uuid, p_note_id uuid, p_correlation_id uuid
 ) returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
 declare a public.graduation_project_assignments; n public.graduation_project_supervisor_notes;
+  v_recorded uuid;
 begin
   a:=public.require_graduation_project_assignment(p_project_id,array['supervisor']::public.graduation_project_assignment_role[]);
-  if exists(select 1 from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='supervisor_note_resolved') then return p_note_id; end if;
+  -- LOW-2 (review 4982): replay returns the recorded entity_id, never the passed-in id.
+  select entity_id into v_recorded from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='supervisor_note_resolved';
+  if v_recorded is not null then return v_recorded; end if;
   select * into n from public.graduation_project_supervisor_notes where id=p_note_id and project_id=p_project_id for update;
   if n.id is null or n.resolved_at is not null then raise exception 'note resolution precondition failed'; end if;
   update public.graduation_project_supervisor_notes set resolved_at=now() where id=n.id;
@@ -298,6 +312,11 @@ begin
   end if;
   if p_submission_id is not null and not exists(select 1 from public.graduation_project_submissions where id=p_submission_id and project_id=p_project_id) then
     raise exception 'submission not found';
+  end if;
+  -- LOW-1 (review 4982): guard the object_key unique constraint with a guarded
+  -- P0001 message instead of surfacing raw 23505.
+  if exists(select 1 from public.graduation_project_files where object_key=p_object_key) then
+    raise exception 'file object key already registered';
   end if;
   insert into public.graduation_project_files(project_id,submission_id,object_key,original_name,media_type,byte_size,sha256,uploaded_by_assignment_id)
     values(p_project_id,p_submission_id,p_object_key,trim(p_original_name),trim(p_media_type),p_byte_size,p_sha256,a.id) returning id into new_id;
@@ -336,12 +355,14 @@ create function public.reject_graduation_project_discussion_request(
   p_project_id uuid, p_request_id uuid, p_reason text, p_correlation_id uuid
 ) returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
 declare a public.graduation_project_assignments; p public.graduation_projects;
-  r public.graduation_project_discussion_requests;
+  r public.graduation_project_discussion_requests; v_recorded uuid;
 begin
   select * into p from public.graduation_projects where id=p_project_id for update;
   if p.id is null then raise exception 'project not found'; end if;
   a:=public.require_graduation_project_assignment(p_project_id,array['coordinator','department_head']::public.graduation_project_assignment_role[]);
-  if exists(select 1 from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='discussion_request_rejected') then return p_request_id; end if;
+  -- LOW-2 (review 4982): replay returns the recorded entity_id, never the passed-in id.
+  select entity_id into v_recorded from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='discussion_request_rejected';
+  if v_recorded is not null then return v_recorded; end if;
   if p.state<>'discussion_requested' then raise exception 'discussion rejection precondition failed'; end if;
   select * into r from public.graduation_project_discussion_requests where id=p_request_id and project_id=p_project_id for update;
   if r.id is null or r.state<>'pending' then raise exception 'discussion rejection precondition failed'; end if;
@@ -368,6 +389,11 @@ begin
   if d.state<>'scheduled' then raise exception 'panel assignment precondition failed'; end if;
   select * into t from public.graduation_project_assignments where id=p_assignment_id and project_id=p_project_id and active and role='panel_member';
   if t.id is null then raise exception 'panel assignment precondition failed'; end if;
+  -- LOW-1 (review 4982): guard the (discussion_id, assignment_id) unique index
+  -- with a guarded P0001 message instead of surfacing raw 23505.
+  if exists(select 1 from public.graduation_project_panel_members where discussion_id=d.id and assignment_id=t.id) then
+    raise exception 'panel member already assigned';
+  end if;
   insert into public.graduation_project_panel_members(project_id,discussion_id,assignment_id,chair)
     values(p_project_id,d.id,t.id,coalesce(p_chair,false)) returning id into new_id;
   insert into public.graduation_project_events(project_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
@@ -437,7 +463,8 @@ begin
   if exists(select 1 from jsonb_array_elements(p_scores) el where jsonb_typeof(el)<>'object'
       or coalesce(el->>'criterion_code','')='' or coalesce(el->>'criterion_label','')=''
       or coalesce(el->>'maximum_score','') !~ '^[0-9]+([.][0-9]+)?$' or coalesce(el->>'awarded_score','') !~ '^[0-9]+([.][0-9]+)?$'
-      or (el->>'maximum_score')::numeric<=0 or (el->>'awarded_score')::numeric<0
+      -- LOW-5 (review 4982): the magnitude cap prevents a raw numeric(7,2) overflow.
+      or (el->>'maximum_score')::numeric<=0 or (el->>'maximum_score')::numeric>99999.99 or (el->>'awarded_score')::numeric<0
       or (el->>'awarded_score')::numeric>(el->>'maximum_score')::numeric) then
     raise exception 'evaluation scores invalid';
   end if;
@@ -515,11 +542,14 @@ create function public.complete_graduation_project_correction(
   p_project_id uuid, p_correction_id uuid, p_correlation_id uuid
 ) returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
 declare a public.graduation_project_assignments; p public.graduation_projects; c public.graduation_project_corrections;
+  v_recorded uuid;
 begin
   select * into p from public.graduation_projects where id=p_project_id for update;
   if p.id is null then raise exception 'project not found'; end if;
   a:=public.require_graduation_project_assignment(p_project_id,array['student']::public.graduation_project_assignment_role[]);
-  if exists(select 1 from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='correction_completed') then return p_correction_id; end if;
+  -- LOW-2 (review 4982): replay returns the recorded entity_id, never the passed-in id.
+  select entity_id into v_recorded from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='correction_completed';
+  if v_recorded is not null then return v_recorded; end if;
   if p.state<>'corrections_required' then raise exception 'correction completion precondition failed'; end if;
   select * into c from public.graduation_project_corrections where id=p_correction_id and project_id=p_project_id for update;
   if c.id is null or c.completed_at is not null then raise exception 'correction completion precondition failed'; end if;
@@ -535,11 +565,14 @@ create function public.accept_graduation_project_correction(
   p_project_id uuid, p_correction_id uuid, p_correlation_id uuid
 ) returns uuid language plpgsql security definer set search_path=public,pg_temp as $$
 declare a public.graduation_project_assignments; p public.graduation_projects; c public.graduation_project_corrections;
+  v_recorded uuid;
 begin
   select * into p from public.graduation_projects where id=p_project_id for update;
   if p.id is null then raise exception 'project not found'; end if;
   a:=public.require_graduation_project_assignment(p_project_id,array['department_head','dean']::public.graduation_project_assignment_role[]);
-  if exists(select 1 from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='correction_accepted') then return p_correction_id; end if;
+  -- LOW-2 (review 4982): replay returns the recorded entity_id, never the passed-in id.
+  select entity_id into v_recorded from public.graduation_project_events where project_id=p_project_id and correlation_id=p_correlation_id and event_type='correction_accepted';
+  if v_recorded is not null then return v_recorded; end if;
   if p.state not in ('corrections_required','evaluating') then raise exception 'correction acceptance precondition failed'; end if;
   select * into c from public.graduation_project_corrections where id=p_correction_id and project_id=p_project_id for update;
   if c.id is null or c.completed_at is null or c.accepted_at is not null then raise exception 'correction acceptance precondition failed'; end if;
