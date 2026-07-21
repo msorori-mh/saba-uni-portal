@@ -2,6 +2,40 @@
 
 التاريخ: 2026-07-21 · الفرع: `ci/add-tests-and-pg-verifiers` · الأساس: `main` @ `265df127`
 
+## حالة التسليم وخطوة التطبيق الدقيقة للمالك (إغلاق 2026-07-21)
+
+- **PR ‎#194 بصيغته الحالية (الملف المسرَّح + هذا التقرير) هو التسليم النهائي**
+  لهذه المهمة — لا دمج؛ بانتظار تطبيق المالك.
+- ملف سير العمل مسرَّح عند
+  `docs/ci/CI-ADD-TESTS-AND-PG-VERIFIERS.proposed.yml` على نفس الفرع
+  (الالتزام `e694a3c2`)، مطابق بايت-بايت للمحتوى المقصود لـ
+  `.github/workflows/ci.yml` (مع ترويسة تعليق من 7 أسطر في الأعلى).
+  سبب التسرِيح: توكن الأتمتة يفتقد صلاحية `workflow` — أي كتابة تحت
+  `.github/workflows/` تُعاد بـ **404** (أُثبت بمسبار مضبوط: كتابة مسار
+  غير workflow على نفس الفرع **نجحت**، وأي كتابة تحت
+  `.github/workflows/` — حتى لملف جديد كلياً — **فشلت بـ 404**).
+- **جُرّبت الكتابة المباشرة بتوكن القائد أيضاً** (`create_or_update_file`
+  على `.github/workflows/ci.yml`) ففشلت بنفس الخطأ **404** — حاجز
+  الصلاحية نفسه، فبقي الحل البديل هو التسليم.
+- خطوة التطبيق للمالك (بحساب يملك صلاحية `workflow` على المستودع):
+
+  ```bash
+  git fetch origin ci/add-tests-and-pg-verifiers
+  git checkout ci/add-tests-and-pg-verifiers
+  git mv docs/ci/CI-ADD-TESTS-AND-PG-VERIFIERS.proposed.yml .github/workflows/ci.yml
+  git commit -m "ci: apply bun tests + PG 17 verifier matrix (Q-20)"
+  git push origin ci/add-tests-and-pg-verifiers
+  ```
+
+  بعد الـ `git mv` تبقى في رأس الملف 7 أسطر تعليق (`#`) خاصة بالتسرِيح —
+  عديمة الأثر تماماً في YAML؛ وللتطابق البايتي التام مع المحتوى المُتحقَّق
+  منه محلياً يمكن استبدال الخطوة بـ
+  `tail -n +8 docs/ci/CI-ADD-TESTS-AND-PG-VERIFIERS.proposed.yml > .github/workflows/ci.yml`.
+- **فرع مسبار متبقٍّ**: `ci/q20-probe` — فارغ (استُخدم لإثبات حاجز صلاحية
+  `workflow` ثم حُذف ملف المسبار منه). أداة الأتمتة لا تملك حذف الفروع؛
+  يُحذف يدوياً من واجهة GitHub أو بـ
+  `git push origin --delete ci/q20-probe`.
+
 ## ما تغيّر
 
 ملف `.github/workflows/ci.yml` فقط (بالإضافة إلى هذا التقرير). مهمة `quality`
