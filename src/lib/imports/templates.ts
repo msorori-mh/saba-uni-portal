@@ -318,18 +318,23 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
   },
   student_academic_status: {
     sheetName: "StudentAcademicStatus",
-    headers: ["academic_number", "academic_year", "semester", "academic_level", "enrollment_status"],
+    headers: [
+      "academic_number",
+      "academic_year",
+      "semester",
+      "academic_level",
+      "enrollment_status",
+    ],
     sample: ["2026001", "2026-2027", "first", "2", "enrolled"],
     instructions: [
-      "يُستخدم لترحيل/تحديث الحالة الأكاديمية للطلاب لفصل دراسي (السنة + الفصل + المستوى + حالة القيد) — مطلوب قبل استيراد التسجيلات أو الدرجات للفصل الجديد.",
-      "academic_number = الرقم الأكاديمي لطالب موجود مسبقاً (مطلوب)",
-      "academic_year = اسم السنة الأكاديمية (مثل 2026-2027) ويجب أن تكون موجودة مسبقاً (مطلوب)",
-      "semester = first / second أو اسم الفصل — يُحلّ ضمن السنة المحددة في الصف نفسه (مطلوب)",
-      "academic_level = رقم المستوى أو اسمه؛ يجب ألا يتجاوز عدد سنوات برنامج الطالب (مطلوب)",
+      "academic_number, academic_year, semester, academic_level حقول مطلوبة",
+      "academic_number = الرقم الأكاديمي للطالب الموجود في النظام (نص وليس UUID)",
+      "academic_year = اسم السنة الأكاديمية (مثل 2026-2027) ويجب أن تكون موجودة في النظام",
+      "semester = كود أو اسم الفصل (مثل first) — يُحلّ ضمن السنة المحددة في الصف نفسه",
+      "academic_level = رقم المستوى (مثل 2) أو اسمه — يجب ألا يتجاوز عدد سنوات برنامج الطالب",
       "enrollment_status = enrolled / active / suspended / graduated / withdrawn / transferred / completed (افتراضي enrolled)",
-      "لكل طالب صف واحد لكل (سنة + فصل) — التكرار داخل الملف مرفوض",
-      "فعّل (تحديث القائم) لتحديث حالة موجودة لنفس الطالب والفصل",
-      "التنفيذ ذرّي على مستوى الدفعة: إن فشل الإدراج لأي سبب لا يُكتب أي صف",
+      "الإدراج ذرّي: إن فشلت الدفعة لا يُدرَج أي صف — راجع تقرير الاستيراد قبل إعادة المحاولة",
+      "فعّل (تحديث القائم) لتحديث حالة موجودة لنفس الطالب والسنة والفصل",
     ],
   },
   student_fees: {
@@ -416,77 +421,75 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
 function applyStudentTemplateOverrides(
   def: TemplateDef,
   overrides?: StudentTemplateOverrides,
-): TemplateDef {
-  if (!overrides) return def;
-
-  const lockedColumns: Array<[keyof StudentTemplateOverrides, string]> = [
-    ["study_system", "study_system"],
-    ["department_code", "department_code"],
-    ["program_code", "program_code"],
-    ["academic_level", "academic_level"],
-    ["academic_year", "academic_year"],
-    ["semester", "semester"],
-  ];
-
-  const headers = def.headers.filter((h) => {
-    const lock = lockedColumns.find(([, col]) => col === h);
-    if (!lock) return true;
-    const [key] = lock;
-    const value = overrides[key]?.trim();
-    return !value;
-  });
-
-  const sample = headers.map((h) => {
-    const idx = def.headers.indexOf(h);
-    return def.sample[idx] ?? "";
-  });
-
-  const notes = lockedColumns.flatMap(([key, col]) => {
-    const value = overrides[key]?.trim();
-    return value ? [`${col} مثبت من اختيارك في الشاشة: ${value}`] : [];
-  });
-
-  return {
-    ...def,
-    headers,
-    sample,
-    instructions: [...notes, ...def.instructions],
+): (string | number)[] {
+  if (!overrides) return def.sample;
+  const byHeader: Partial<Record<keyof StudentTemplateOverrides, string>> = {
+    study_system: overrides.study_system,
+    department_code: overrides.department_code,
+    program_code: overrides.program_code,
+    academic_level: overrides.academic_level,
+    academic_year: overrides.academic_year,
+    semester: overrides.semester,
   };
-}
-
-async function buildTemplateWorkbook(def: TemplateDef) {
-  const XLSX = await loadXLSX();
-  const wb = XLSX.utils.book_new();
-  const rows = [def.headers, def.sample, ...def.instructions.map((line) => [line])];
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = def.headers.map(() => ({ wch: 22 }));
-  XLSX.utils.book_append_sheet(wb, ws, def.sheetName);
-  return wb;
-}
-
-function writeWorkbook(wb: unknown, fileName: string) {
-  return import("@/lib/xlsx-loader").then(({ loadXLSX }) =>
-    loadXLSX().then((XLSX) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      XLSX.writeFile(wb as any, fileName);
-    }),
-  );
+  return def.headers.map((header, idx) => {
+    const override = byHeader[header as keyof StudentTemplateOverrides];
+    return override && override.trim() ? override : def.sample[idx];
+  });
 }
 
 export async function downloadTemplate(
   type: ImportType,
-  options: TemplateDownloadOptions = {},
-): Promise<void> {
+  studentOverrides?: StudentTemplateOverrides,
+  options?: TemplateDownloadOptions,
+) {
+  const XLSX = await loadXLSX();
   const def = TEMPLATES[type];
-  const wb = await buildTemplateWorkbook(def);
-  await writeWorkbook(wb, options.fileName ?? `template_${type}.xlsx`);
+  const wb = XLSX.utils.book_new();
+  const sample =
+    type === "students" ? applyStudentTemplateOverrides(def, studentOverrides) : def.sample;
+  const wsData = [def.headers, sample];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws["!cols"] = def.headers.map(() => ({ wch: 22 }));
+  XLSX.utils.book_append_sheet(wb, ws, def.sheetName);
+
+  const extraInstructions =
+    type === "students" && studentOverrides
+      ? [
+          "تم تجهيز هذا القالب بسياق استيراد الطلاب المحدد من الواجهة.",
+          "لا تغيّر قيم study_system أو department_code أو program_code أو academic_level أو academic_year أو semester إلا إذا غيّرت إعدادات الاستيراد قبل الرفع.",
+        ]
+      : [];
+  const instructions = [
+    ["التعليمات"],
+    ...def.instructions.map((i) => [i]),
+    ...extraInstructions.map((i) => [i]),
+  ];
+  const wsi = XLSX.utils.aoa_to_sheet(instructions);
+  wsi["!cols"] = [{ wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, wsi, "Instructions");
+
+  XLSX.writeFile(wb, options?.fileName || `template_${type}.xlsx`);
 }
 
-export async function downloadStudentsTemplate(
-  overrides?: StudentTemplateOverrides,
-  options: TemplateDownloadOptions = {},
-): Promise<void> {
-  const def = applyStudentTemplateOverrides(TEMPLATES.students, overrides);
-  const wb = await buildTemplateWorkbook(def);
-  await writeWorkbook(wb, options.fileName ?? "template_students.xlsx");
+export function parseExcel(file: File): Promise<Record<string, unknown>[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const XLSX = await loadXLSX();
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
+          defval: null,
+          raw: false,
+        });
+        resolve(rows);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
 }
