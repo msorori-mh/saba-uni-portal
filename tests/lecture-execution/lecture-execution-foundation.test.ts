@@ -79,8 +79,10 @@ describe("lecture execution domain model", () => {
     expect(isValidWeek(16, policy)).toBe(false);
     expect(isValidWeek(0, policy)).toBe(false);
     expect(isValidWeek(2.5, policy)).toBe(false);
-    expect(isValidWeek(25, { termWeeks: 40, delegateConfirmationEnabled: false })).toBe(false); // hard cap 30
+    // Configurations beyond the hard cap are clamped to 30 weeks.
+    expect(isValidWeek(25, { termWeeks: 40, delegateConfirmationEnabled: false })).toBe(true);
     expect(isValidWeek(30, { termWeeks: 40, delegateConfirmationEnabled: false })).toBe(true);
+    expect(isValidWeek(31, { termWeeks: 40, delegateConfirmationEnabled: false })).toBe(false);
   });
 
   test("enforces the execution lifecycle transitions", () => {
@@ -170,7 +172,7 @@ describe("lecture execution reporting", () => {
     expect(byDept[1]).toMatchObject({ planned: 1, delivered: 0, missed: 1 });
 
     const byLevel = summarizeExecutionBy(rows, "level");
-    expect(byLevel.find((r) => r.key === "level-1")).toMatchObject({ planned: 3, delivered: 2 });
+    expect(byLevel.find((r) => r.key === "level-1")).toMatchObject({ planned: 4, delivered: 2, missed: 2 });
     expect(byLevel.find((r) => r.key === "level-2")).toMatchObject({ planned: 1, pending: 1 });
 
     const byCourse = summarizeExecutionBy(rows, "course");

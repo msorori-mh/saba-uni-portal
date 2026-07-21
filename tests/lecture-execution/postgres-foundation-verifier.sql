@@ -107,8 +107,8 @@ insert into lex_ids select 'foreign_recorder',id from x;
 -- Wrong subject shape and wrong profile owner must be rejected.
 do $$ begin
   begin
-    insert into public.lecture_execution_actor_assignments(role,faculty_profile_id,user_id,department_id,course_section_id,assigned_by)
-    values('section_delegate',current_setting('lex.faculty_profile_id')::uuid,current_setting('lex.faculty_user_id')::uuid,current_setting('lex.department_id')::uuid,current_setting('lex.class_schedule_id')::uuid,current_setting('lex.faculty_user_id')::uuid);
+    insert into public.lecture_execution_actor_assignments(role,faculty_profile_id,user_id,department_id,level_id,assigned_by)
+    values('section_delegate',current_setting('lex.faculty_profile_id')::uuid,current_setting('lex.faculty_user_id')::uuid,current_setting('lex.department_id')::uuid,current_setting('lex.level_id')::uuid,current_setting('lex.faculty_user_id')::uuid);
     raise exception 'wrong-role assignment unexpectedly allowed';
   exception when check_violation then
     if sqlstate <> '23514' or sqlerrm not like '%lecture_execution_assignment_subject_shape%' then raise; end if;
@@ -137,7 +137,7 @@ do $$ declare before_sessions bigint; before_events bigint; begin
   select count(*) into before_events from public.lecture_execution_events;
   perform set_config('request.jwt.claim.sub', current_setting('lex.student_user_id'), true);
   perform pg_temp.expect_le_error(format(
-    'select public.record_lecture_execution(%L,1,''theory'',''scheduled'',null,%L)',
+    'select public.record_lecture_execution(%L,1::smallint,''theory'',''scheduled'',null,%L)',
     current_setting('lex.class_schedule_id'), gen_random_uuid()),
     'exact direct processing assignment required');
   if (select count(*) from public.lecture_execution_sessions) <> before_sessions
@@ -150,8 +150,8 @@ select set_config('request.jwt.claim.sub', :'faculty_user_id', true);
 
 -- D-15 pending default: faculty recording is final without the delegate.
 insert into lex_ids values('corr1', gen_random_uuid());
-insert into lex_ids select 's1', public.record_lecture_execution(:'class_schedule_id',1,'theory','scheduled',null,(select v from lex_ids where k='corr1'));
-insert into lex_ids select 's1_retry', public.record_lecture_execution(:'class_schedule_id',1,'theory','scheduled',null,(select v from lex_ids where k='corr1'));
+insert into lex_ids select 's1', public.record_lecture_execution(:'class_schedule_id',1::smallint,'theory','scheduled',null,(select v from lex_ids where k='corr1'));
+insert into lex_ids select 's1_retry', public.record_lecture_execution(:'class_schedule_id',1::smallint,'theory','scheduled',null,(select v from lex_ids where k='corr1'));
 do $$ begin
   if (select v from lex_ids where k='s1') <> (select v from lex_ids where k='s1_retry') then raise exception 'idempotent retry returned a different id'; end if;
   if (select state from public.lecture_execution_sessions where id=(select v from lex_ids where k='s1')) <> 'scheduled' then raise exception 'record RPC positive failed'; end if;
@@ -162,7 +162,7 @@ end $$;
 -- Invalid initial transition is rejected (not_started -> executed).
 insert into lex_ids values('corr_bad', gen_random_uuid());
 select pg_temp.expect_le_error(format(
-  'select public.record_lecture_execution(%L,2,''theory'',''executed'',null,%L)',
+  'select public.record_lecture_execution(%L,2::smallint,''theory'',''executed'',null,%L)',
   current_setting('lex.class_schedule_id'), (select v from lex_ids where k='corr_bad')),
   'invalid execution transition: not_started -> executed');
 
@@ -174,8 +174,8 @@ select pg_temp.expect_le_error(format(
 
 -- Lifecycle advance: scheduled -> executed, then terminal states are locked.
 insert into lex_ids values('corr2', gen_random_uuid());
-insert into lex_ids select 's1_done', public.record_lecture_execution(:'class_schedule_id',1,'theory','executed',null,(select v from lex_ids where k='corr2'));
-insert into lex_ids select 's1_done_retry', public.record_lecture_execution(:'class_schedule_id',1,'theory','executed',null,gen_random_uuid());
+insert into lex_ids select 's1_done', public.record_lecture_execution(:'class_schedule_id',1::smallint,'theory','executed',null,(select v from lex_ids where k='corr2'));
+insert into lex_ids select 's1_done_retry', public.record_lecture_execution(:'class_schedule_id',1::smallint,'theory','executed',null,gen_random_uuid());
 do $$ begin
   if (select v from lex_ids where k='s1_done') <> (select v from lex_ids where k='s1') then raise exception 'advance returned a different session id'; end if;
   if (select v from lex_ids where k='s1_done_retry') <> (select v from lex_ids where k='s1') then raise exception 'same-state retry must be a no-op returning the same id'; end if;
@@ -183,7 +183,7 @@ do $$ begin
   if (select count(*) from public.lecture_execution_events where session_id=(select v from lex_ids where k='s1') and event_type='execution_recorded') <> 2 then raise exception 'natural idempotency wrote an event'; end if;
 end $$;
 select pg_temp.expect_le_error(format(
-  'select public.record_lecture_execution(%L,1,''theory'',''scheduled'',null,%L)',
+  'select public.record_lecture_execution(%L,1::smallint,''theory'',''scheduled'',null,%L)',
   current_setting('lex.class_schedule_id'), gen_random_uuid()),
   'invalid execution transition: executed -> scheduled');
 
@@ -192,7 +192,7 @@ insert into public.lecture_execution_settings(department_id,term_weeks,delegate_
 values(null,15,true);
 
 insert into lex_ids values('corr3', gen_random_uuid());
-insert into lex_ids select 's2', public.record_lecture_execution(:'class_schedule_id',2,'theory','scheduled',null,(select v from lex_ids where k='corr3'));
+insert into lex_ids select 's2', public.record_lecture_execution(:'class_schedule_id',2::smallint,'theory','scheduled',null,(select v from lex_ids where k='corr3'));
 do $$ begin
   if (select confirmation_status from public.lecture_execution_sessions where id=(select v from lex_ids where k='s2')) <> 'awaiting_delegate' then raise exception 'D-15-enabled recording must await the delegate'; end if;
 end $$;
@@ -223,7 +223,7 @@ select pg_temp.expect_le_error(format(
 -- Rejection requires a note.
 select set_config('request.jwt.claim.sub', :'faculty_user_id', true);
 insert into lex_ids values('corr5', gen_random_uuid());
-insert into lex_ids select 's3', public.record_lecture_execution(:'class_schedule_id',3,'theory','scheduled',null,(select v from lex_ids where k='corr5'));
+insert into lex_ids select 's3', public.record_lecture_execution(:'class_schedule_id',3::smallint,'theory','scheduled',null,(select v from lex_ids where k='corr5'));
 select set_config('request.jwt.claim.sub', :'student_user_id', true);
 select pg_temp.expect_le_error(format(
   'select public.confirm_lecture_execution(%L,''rejected'',null,%L)',
@@ -238,19 +238,19 @@ end $$;
 -- Term-week bound is enforced from configuration (15 weeks).
 select set_config('request.jwt.claim.sub', :'faculty_user_id', true);
 select pg_temp.expect_le_error(format(
-  'select public.record_lecture_execution(%L,16,''theory'',''scheduled'',null,%L)',
+  'select public.record_lecture_execution(%L,16::smallint,''theory'',''scheduled'',null,%L)',
   current_setting('lex.class_schedule_id'), gen_random_uuid()),
   'week number 16 is outside the configured term weeks (1..15)');
 
 -- Session kind must match the published slot type (lecture = theory only).
 select pg_temp.expect_le_error(format(
-  'select public.record_lecture_execution(%L,4,''practical'',''scheduled'',null,%L)',
+  'select public.record_lecture_execution(%L,4::smallint,''practical'',''scheduled'',null,%L)',
   current_setting('lex.class_schedule_id'), gen_random_uuid()),
   'session kind does not match the published schedule slot type');
 
 -- Cross-department composite integrity is executable on child tables.
 select pg_temp.expect_fk($q$insert into public.lecture_execution_confirmations(session_id,department_id,delegate_assignment_id,decision)
- values((select v from lex_ids where k='s2'),'20000000-0000-0000-0000-000000000002',(select v from lex_ids where k='foreign_recorder'),'confirmed')$q$,'confirmation scope');
+ values((select v from lex_ids where k='s1'),'20000000-0000-0000-0000-000000000002',(select v from lex_ids where k='foreign_recorder'),'confirmed')$q$,'confirmation scope');
 select pg_temp.expect_fk($q$insert into public.lecture_execution_events(department_id,session_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
  values('20000000-0000-0000-0000-000000000002',(select v from lex_ids where k='s2'),current_setting('lex.faculty_user_id')::uuid,(select v from lex_ids where k='foreign_recorder'),'execution_recorded','lecture_execution_session',(select v from lex_ids where k='s2'),gen_random_uuid())$q$,'event scope');
 do $$ begin
