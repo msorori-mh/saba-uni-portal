@@ -93,6 +93,12 @@ CREATE TRIGGER graduate_followup_state_guard
 BEFORE UPDATE ON public.graduate_followups
 FOR EACH ROW EXECUTE FUNCTION public.enforce_graduate_followup_update();
 
+-- Follow-up history is append-only: states reach terminal by guarded
+-- transition and rows are never deleted.
+CREATE TRIGGER graduate_followups_append_only
+BEFORE DELETE ON public.graduate_followups
+FOR EACH ROW EXECUTE FUNCTION public.reject_graduate_immutable_mutation();
+
 CREATE OR REPLACE FUNCTION public.enforce_graduate_communication_consent()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -184,6 +190,9 @@ AS $$
 DECLARE
   v_policy public.graduate_account_continuity_policies%ROWTYPE;
 BEGIN
+  IF p_at IS NULL THEN
+    RETURN false;
+  END IF;
   SELECT * INTO v_policy
   FROM public.graduate_account_continuity_policies
   WHERE policy_code = p_policy_code;
@@ -212,8 +221,10 @@ BEGIN
 END;
 $$;
 
--- Aggregate-only cohort report. Every metric is NULL with suppressed=true
--- when the cohort is smaller than the enforced threshold; row-level
+-- Aggregate-only cohort report. Every cell smaller than the enforced
+-- threshold is suppressed (returned as NULL), not only the population:
+-- suppressed=true means the whole cohort is below threshold; a NULL metric
+-- in a returned row means that single cell is suppressed. Row-level
 -- employment or contact exports remain prohibited.
 CREATE OR REPLACE FUNCTION public.graduate_aggregate_employment_report(
   p_program_id uuid,
@@ -260,7 +271,12 @@ BEGIN
     RETURN QUERY SELECT NULL::bigint, NULL::bigint, NULL::bigint, NULL::bigint, true;
     RETURN;
   END IF;
-  RETURN QUERY SELECT v_population, v_employed, v_related, v_verified, false;
+  RETURN QUERY SELECT
+    v_population,
+    CASE WHEN v_employed < v_threshold THEN NULL::bigint ELSE v_employed END,
+    CASE WHEN v_related < v_threshold THEN NULL::bigint ELSE v_related END,
+    CASE WHEN v_verified < v_threshold THEN NULL::bigint ELSE v_verified END,
+    false;
 END;
 $$;
 

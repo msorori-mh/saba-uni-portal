@@ -57,11 +57,11 @@ function isFiniteTimestamp(value: string): boolean {
 }
 
 /**
- * Pure, non-mutating evaluation. Fails closed on every ambiguity: undecided
- * or rejected policy, missing decision provenance, policy outside its validity
- * window, or a capability that is not explicitly listed (with the sensitive
- * portal sign-in and email-reuse capabilities additionally requiring their
- * dedicated flags).
+ * Pure, non-mutating evaluation. Fails closed on every ambiguity: undecided,
+ * rejected, or unrecognized policy state, missing decision provenance, policy
+ * outside its validity window, or a capability that is not explicitly listed
+ * (with the sensitive portal sign-in and email-reuse capabilities additionally
+ * requiring their dedicated flags).
  */
 export function evaluateAccountContinuityAccess(
   policy: AccountContinuityPolicy,
@@ -76,6 +76,9 @@ export function evaluateAccountContinuityAccess(
   }
   if (policy.state === "rejected") {
     return { ok: false, reason: "account_continuity_policy_rejected" };
+  }
+  if (policy.state !== "approved") {
+    return { ok: false, reason: "account_continuity_policy_unknown_state" };
   }
   if (!policy.decidedBy || !policy.decidedAt || !isFiniteTimestamp(policy.decidedAt)) {
     return { ok: false, reason: "missing_policy_decision_provenance" };
