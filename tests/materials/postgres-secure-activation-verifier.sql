@@ -31,11 +31,13 @@ insert into public.course_sections (id, section_code, status, faculty_profile_id
 insert into public.student_profiles (id, user_id, study_system) values
   ('40000000-0000-0000-0000-0000000000a1', '20000000-0000-0000-0000-0000000000a1', 'regular'),
   ('40000000-0000-0000-0000-0000000000a2', '20000000-0000-0000-0000-0000000000a2', 'regular'),
-  ('40000000-0000-0000-0000-0000000000a3', '20000000-0000-0000-0000-0000000000a3', 'parallel');
+  ('40000000-0000-0000-0000-0000000000a3', '20000000-0000-0000-0000-0000000000a3', 'parallel'),
+  ('40000000-0000-0000-0000-0000000000a4', '20000000-0000-0000-0000-0000000000a4', null); -- ST4 NULL study_system
 insert into public.student_enrollments (student_profile_id, course_section_id, enrollment_status) values
   ('40000000-0000-0000-0000-0000000000a1', '70000000-0000-0000-0000-000000000001', 'enrolled'), -- ST1 current
   ('40000000-0000-0000-0000-0000000000a2', '70000000-0000-0000-0000-000000000000', 'enrolled'), -- ST2 old term only
-  ('40000000-0000-0000-0000-0000000000a3', '70000000-0000-0000-0000-000000000001', 'enrolled'); -- ST3 parallel
+  ('40000000-0000-0000-0000-0000000000a3', '70000000-0000-0000-0000-000000000001', 'enrolled'), -- ST3 parallel
+  ('40000000-0000-0000-0000-0000000000a4', '70000000-0000-0000-0000-000000000001', 'enrolled'); -- ST4 current
 insert into public.course_materials (id, course_section_id, faculty_profile_id, title, study_system, status) values
   ('80000000-0000-0000-0000-000000000001', '70000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-0000000000f1', 'منشورة', 'regular', 'published'),
   ('80000000-0000-0000-0000-000000000002', '70000000-0000-0000-0000-000000000001', '30000000-0000-0000-0000-0000000000f1', 'مسودة', 'regular', 'draft'),
@@ -581,6 +583,21 @@ begin
   end;
 end $$;
 
+-- 33b: enrolled student with NULL study_system -> AUTHORIZATION_DENIED (fail-closed)
+set local test.uid = '20000000-0000-0000-0000-0000000000a4';
+do $$
+begin
+  begin
+    perform public.record_course_material_download(
+      (select v::uuid from test_results where k = 'file1'),
+      '80000000-0000-0000-0000-000000000001');
+    raise exception 'CHECK FAILED: 33b NULL study_system download accepted';
+  exception when others then
+    if sqlerrm like 'CHECK FAILED:%' then raise; end if;
+    if sqlerrm <> 'AUTHORIZATION_DENIED' then raise exception 'CHECK FAILED: 33b wrong error: %', sqlerrm; end if;
+  end;
+end $$;
+
 -- ---------------------------------------------------------------------------
 -- 34: security metadata (definer + pinned search_path) on all four RPCs
 -- ---------------------------------------------------------------------------
@@ -630,6 +647,6 @@ begin
   end if;
 end $$;
 
-do $$ begin raise notice 'ALL CHECKS PASSED (37 groups)'; end $$;
+do $$ begin raise notice 'ALL CHECKS PASSED (38 groups)'; end $$;
 
 rollback;

@@ -448,7 +448,7 @@ begin
       raise exception 'AUTHORIZATION_DENIED';
     end if;
     if v_material.status <> 'published'
-      or v_student.study_system not in ('regular','parallel')
+      or coalesce(v_student.study_system, '') not in ('regular','parallel')
       or (v_material.study_system <> 'both' and v_material.study_system <> v_student.study_system)
     then
       raise exception 'AUTHORIZATION_DENIED';
