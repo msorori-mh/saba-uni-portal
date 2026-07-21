@@ -273,7 +273,7 @@ export const runBulkImport = createServerFn({ method: "POST" })
               data.updateExisting,
             )
           ).rows
-        : await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[]);
+        : await revalidateBulkImportRows(data.type, data.rows as ValidatedRow[], data.updateExisting);
     assertServerValidationPassed(serverRows);
 
     const ctx: ServerImportContext = {
@@ -513,6 +513,7 @@ export const getStudyPlanImportContextOptions = createServerFn({ method: "POST" 
       departments: departmentsRes.data ?? [],
       programs: programsRes.data ?? [],
       levels: levelsRes.data ?? [],
+      academicYears: yearsRes.data ?? [],
       academicYears: yearsRes.data ?? [],
       semesters: semestersRes.data ?? [],
       studyPlans: plansRes.data ?? [],
