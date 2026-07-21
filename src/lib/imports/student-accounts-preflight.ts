@@ -325,7 +325,9 @@ export function classifyStudentAccountsPreflightRows(
 
     if (academic_number) seenAcademic.add(academic_number);
     if (emailRaw && isValidUniversityLoginEmail(email)) seenEmail.add(email);
-    seenPairs.add(pair);
+    // Pair-dedup only applies to rows with an academic number; empty-academic
+    // rows must each stay STUDENT_NOT_FOUND, never DUPLICATE_IN_FILE.
+    if (academic_number) seenPairs.add(pair);
     out.push({ rowNumber, academic_number, code });
   }
   return out;
