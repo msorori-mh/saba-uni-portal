@@ -14,6 +14,7 @@ import type {
   CourseSectionRow,
   StudentEnrollmentRow,
   StudentGradeRow,
+  StudentAcademicStatusRow,
   StudentFeeRow,
   StudentDiscountRow,
   DocumentRow,
@@ -471,13 +472,15 @@ export async function importStudyPlans(
     version: string,
     status: "draft" | "active",
   ): Promise<string | null> {
-    const key = `${program_id}|${name}|${version}`;
+    // G-14: plan identity is (program_id, version) — the DB UNIQUE key.
+    // Looking up by (program_id, name, version) missed same-version/different-name
+    // plans and produced confusing insert violations.
+    const key = `${program_id}|${version}`;
     if (planCache.has(key)) return planCache.get(key)!;
     const { data: existing } = await sb
       .from("study_plans")
       .select("id")
       .eq("program_id", program_id)
-      .eq("name", name)
       .eq("version", version)
       .maybeSingle();
     if (existing) {
@@ -489,7 +492,20 @@ export async function importStudyPlans(
       .insert({ program_id, name, version, status, is_active: status === "active" })
       .select("id")
       .maybeSingle();
-    if (error || !created) return null;
+    if (error || !created) {
+      // Possible race/constraint on UNIQUE(program_id, version) — re-read before failing.
+      const { data: after } = await sb
+        .from("study_plans")
+        .select("id")
+        .eq("program_id", program_id)
+        .eq("version", version)
+        .maybeSingle();
+      if (after) {
+        planCache.set(key, after.id);
+        return after.id;
+      }
+      return null;
+    }
     planCache.set(key, created.id);
     return created.id;
   }
@@ -503,7 +519,10 @@ export async function importStudyPlans(
     );
     if (!planId) {
       report.rows_failed += 1;
-      report.errors.push({ row: r.rowNumber, message: "تعذر إنشاء أو إيجاد الخطة" });
+      report.errors.push({
+        row: r.rowNumber,
+        message: `تعذر إنشاء أو إيجاد الخطة (إصدار ${r.parsed.version})`,
+      });
       continue;
     }
     const { error } = await sb.from("study_plan_courses").insert({
@@ -606,6 +625,7 @@ export async function finalizeImportServer(opts: {
     course_sections: "course_sections_imported",
     student_enrollments: "student_enrollments_imported",
     student_grades: "student_grades_imported",
+    student_academic_status: "student_academic_status_imported",
     student_fees: "student_fees_imported",
     student_discounts: "student_discounts_imported",
     student_eligibility: "student_eligibility_data_imported",
@@ -1001,6 +1021,72 @@ export async function importStudentGrades(
       }
     }
   }
+  return report;
+}
+
+// ============================================================
+// ACADEMIC-STATUS-IMPORTER-01 (G-05) — student_academic_status
+// Batch-atomic: new rows go in ONE insert statement; updates in ONE upsert
+// statement. Postgres applies each statement atomically — a failure aborts
+// the whole batch instead of leaving partial writes (ذرّية الدفعة).
+// ============================================================
+export async function importStudentAcademicStatus(
+  rows: ValidatedRow<StudentAcademicStatusRow>[],
+  dryRun = false,
+  updateExisting = false,
+): Promise<ImportReport> {
+  if (dryRun) return structDryRun(rows, updateExisting);
+  const report = emptyStructReport(rows.length);
+  const valid = splitRows(rows, report);
+
+  const now = new Date().toISOString();
+  // No silent field loss: every parsed field is mapped into the payload.
+  const toPayload = (p: StudentAcademicStatusRow) => ({
+    student_profile_id: p.student_profile_id,
+    academic_year_id: p.academic_year_id,
+    semester_id: p.semester_id,
+    level_id: p.level_id,
+    enrollment_status: p.enrollment_status,
+    updated_at: now,
+  });
+
+  const newRows = valid.filter((r) => !r.parsed._existingId);
+  const updateRows = valid.filter((r) => r.parsed._existingId);
+
+  if (newRows.length) {
+    const { error } = await sb
+      .from("student_academic_status")
+      .insert(newRows.map((r) => toPayload(r.parsed)));
+    if (error) {
+      report.rows_failed += newRows.length;
+      report.errors.push({
+        row: 0,
+        message: `فشل الإدراج الذرّي للدفعة (${newRows.length} صف — لم يُدرَج أي صف): ${error.message}`,
+      });
+    } else {
+      report.rows_success += newRows.length;
+      report.rows_created! += newRows.length;
+    }
+  }
+
+  if (updateRows.length) {
+    const { error } = await sb
+      .from("student_academic_status")
+      .upsert(updateRows.map((r) => toPayload(r.parsed)), {
+        onConflict: "student_profile_id,academic_year_id,semester_id",
+      });
+    if (error) {
+      report.rows_failed += updateRows.length;
+      report.errors.push({
+        row: 0,
+        message: `فشل التحديث الذرّي للدفعة (${updateRows.length} صف — لم يُحدَّث أي صف): ${error.message}`,
+      });
+    } else {
+      report.rows_success += updateRows.length;
+      report.rows_updated! += updateRows.length;
+    }
+  }
+
   return report;
 }
 

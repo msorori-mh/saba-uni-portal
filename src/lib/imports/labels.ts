@@ -13,6 +13,7 @@ export const IMPORT_TYPE_LABEL_AR: Record<ImportType, string> = {
   course_sections: "مجموعات المقررات",
   student_enrollments: "تسجيلات الطلاب",
   student_grades: "درجات الطلاب",
+  student_academic_status: "الحالة الأكاديمية للطلاب",
   student_fees: "رسوم الطلاب",
   student_discounts: "خصومات الطلاب",
   student_eligibility: "بيانات أهلية الطلبات",
@@ -67,6 +68,7 @@ const STRUCTURE_TYPES = new Set<ImportType>([
   "course_sections",
   "student_enrollments",
   "student_grades",
+  "student_academic_status",
   "student_fees",
   "student_discounts",
 ]);

@@ -316,6 +316,27 @@ const TEMPLATES: Record<ImportType, TemplateDef> = {
       "فعّل (تحديث القائم) لتحديث درجة موجودة",
     ],
   },
+  student_academic_status: {
+    sheetName: "StudentAcademicStatus",
+    headers: [
+      "academic_number",
+      "academic_year",
+      "semester",
+      "academic_level",
+      "enrollment_status",
+    ],
+    sample: ["2026001", "2026-2027", "first", "2", "enrolled"],
+    instructions: [
+      "academic_number, academic_year, semester, academic_level حقول مطلوبة",
+      "academic_number = الرقم الأكاديمي للطالب الموجود في النظام (نص وليس UUID)",
+      "academic_year = اسم السنة الأكاديمية (مثل 2026-2027) ويجب أن تكون موجودة في النظام",
+      "semester = كود أو اسم الفصل (مثل first) — يُحلّ ضمن السنة المحددة في الصف نفسه",
+      "academic_level = رقم المستوى (مثل 2) أو اسمه — يجب ألا يتجاوز عدد سنوات برنامج الطالب",
+      "enrollment_status = enrolled / active / suspended / graduated / withdrawn / transferred / completed (افتراضي enrolled)",
+      "الإدراج ذرّي: إن فشلت الدفعة لا يُدرَج أي صف — راجع تقرير الاستيراد قبل إعادة المحاولة",
+      "فعّل (تحديث القائم) لتحديث حالة موجودة لنفس الطالب والسنة والفصل",
+    ],
+  },
   student_fees: {
     sheetName: "StudentFees",
     headers: [
