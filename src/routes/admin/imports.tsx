@@ -72,6 +72,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "course_sections", label: "مجموعات المقررات" },
   { id: "student_enrollments", label: "تسجيلات الطلاب" },
   { id: "student_grades", label: "درجات الطلاب" },
+  { id: "student_academic_status", label: "الحالة الأكاديمية للطلاب" },
   { id: "student_eligibility", label: "بيانات أهلية الطلبات" },
   { id: "student_fees", label: "رسوم الطلاب" },
   { id: "student_discounts", label: "خصومات الطلاب" },
@@ -89,6 +90,12 @@ const IMPORT_TAB_INFO: Partial<Record<ImportType, { description: string; warning
     warning:
       "هذه البيانات تؤثر مستقبلاً في قبول أو رفض طلبات الطلاب. يجب استخدام ملف رسمي معتمد ومراجعة نتيجة التحقق قبل التنفيذ.",
   },
+  student_academic_status: {
+    description:
+      "ترحيل/تحديث الحالة الأكاديمية للطلاب (المستوى وحالة القيد) لفصل دراسي محدد ضمن سنة أكاديمية محددة. لا ينشئ طلابًا ولا يغيّر بياناتهم الأساسية.",
+    warning:
+      "تُكتب الحالة لكل طالب/سنة/فصل بدفعة ذرّية واحدة: إن فشلت الدفعة لا يُدرَج أو يُحدَّث أي صف. فعّل «تحديث القائم» فقط عند قصد تحديث سجلات موجودة لنفس الفصل.",
+  },
 };
 
 const STRUCTURE_TYPES = new Set<ImportType>([
@@ -98,6 +105,7 @@ const STRUCTURE_TYPES = new Set<ImportType>([
   "course_sections",
   "student_enrollments",
   "student_grades",
+  "student_academic_status",
   "student_fees",
   "student_discounts",
 ]);
