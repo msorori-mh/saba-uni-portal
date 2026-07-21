@@ -172,6 +172,28 @@ describe("binding rule vs production reality", () => {
     });
   });
 
+  it("binding rule UPPER bound: READY_TO_CREATE (2) > snapshot.unlinked (1) ⇒ HOLD", async () => {
+    // Drift in the other direction: the file would create MORE accounts than
+    // production has unlinked profiles ⇒ fail closed, never create extras.
+    const file = rows([1, 2]);
+    const readers = makeReaders({ unlinked: [1, 2] });
+    const snapshot = makeSnapshot({ total: 3, linked: 2 }); // unlinked=1
+    const report = await runStudentAccountsPreflight(
+      file,
+      readers,
+      makeGate(file, snapshot),
+    );
+    expect(report.summary.READY_TO_CREATE).toBe(2);
+    expect(snapshot.unlinked_profiles).toBe(1);
+    expect(report.decision.decision).toBe("HOLD");
+    expect(report.decision.hold_reasons).toContain("BINDING_RULE_VIOLATION");
+    expect(report.decision.binding_rule).toEqual({
+      ready_to_create: 2,
+      snapshot_unlinked_profiles: 1,
+      satisfied: false,
+    });
+  });
+
   it("GO-eligible: 563 ALREADY_LINKED + 3 READY_TO_CREATE matching unlinked=3", async () => {
     const file = rows(seq(1, 566));
     const readers = makeReaders({ linked: seq(1, 563), unlinked: seq(564, 566) });
@@ -426,6 +448,16 @@ describe("blocking conditions", () => {
     expect(report.summary.STUDENT_NOT_FOUND).toBe(1);
     expect(report.decision.decision).toBe("HOLD");
     expect(report.decision.hold_reasons).toContain("STUDENT_NOT_FOUND_PRESENT");
+  });
+
+  it("empty academic_number rows are each STUDENT_NOT_FOUND, never DUPLICATE_IN_FILE", () => {
+    const file = [
+      row(1, { academic_number: "" }),
+      row(2, { academic_number: "" }), // same email shape, still not a pair-dup
+    ];
+    const classified = classifyStudentAccountsPreflightRows(file, [], new Set());
+    expect(classified[0]?.code).toBe("STUDENT_NOT_FOUND");
+    expect(classified[1]?.code).toBe("STUDENT_NOT_FOUND");
   });
 
   it("is_active=false on an unlinked profile ⇒ CONFLICT (validator parity)", () => {
