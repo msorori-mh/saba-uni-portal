@@ -173,6 +173,21 @@ export async function validateStudents(
     if (!level_id)
       errors.push({ row: rowNumber, column: "academic_level", message: "المستوى غير موجود" });
 
+    // G-11: level must not exceed the program's duration in years.
+    const studentLevelNumber = level_id ? lookups.levelNumberById?.get(level_id) : undefined;
+    if (
+      level_id &&
+      prog &&
+      studentLevelNumber != null &&
+      prog.years != null &&
+      studentLevelNumber > prog.years
+    )
+      errors.push({
+        row: rowNumber,
+        column: "academic_level",
+        message: `المستوى يتجاوز عدد سنوات البرنامج (${prog.years})`,
+      });
+
     const status = str(raw.status) || "active";
     if (!STUDENT_STATUSES.has(status))
       errors.push({ row: rowNumber, column: "status", message: "الحالة غير صحيحة" });
@@ -567,11 +582,38 @@ const STUDY_PLAN_SEMESTER_CODES = new Map<string, string>([
   ["3", "summer"],
 ]);
 
+/** G-12: does a prerequisite path already exist from `from` to `to` in the plan graph? */
+function prereqPathExists(graph: Map<string, string[]>, from: string, to: string): boolean {
+  const stack = [from];
+  const visited = new Set<string>();
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node === to) return true;
+    if (visited.has(node)) continue;
+    visited.add(node);
+    (graph.get(node) ?? []).forEach((n) => stack.push(n));
+  }
+  return false;
+}
+
 export async function validateStudyPlans(
   rows: Record<string, unknown>[],
   lookups: LookupMaps,
 ): Promise<ValidationResult<StudyPlanRow>> {
+  // G-13: one active plan per program — block activating a second version.
+  const { data: activePlans } = await getImportDb()
+    .from("study_plans")
+    .select("program_id, version")
+    .eq("is_active", true);
+  const activeVersionByProgram = new Map<string, string>();
+  (activePlans ?? []).forEach((p: { program_id: string; version: string }) => {
+    if (!activeVersionByProgram.has(p.program_id))
+      activeVersionByProgram.set(p.program_id, p.version);
+  });
+
   const seen = new Set<string>();
+  // G-12: per-plan prerequisite graph (course -> its prerequisites) for cycle detection.
+  const planPrereqGraphs = new Map<string, Map<string, string[]>>();
   const out: ValidatedRow<StudyPlanRow>[] = [];
 
   rows.forEach((raw, idx) => {
@@ -602,12 +644,38 @@ export async function validateStudyPlans(
     const level_id = lookups.levelsByNumber.get(levelKey) ?? lookups.levelsByName.get(levelKey);
     if (!level_id) errors.push({ row: rowNumber, column: "level", message: "المستوى غير موجود" });
 
+    // G-11: level must not exceed the program's duration in years.
+    const planLevelNumber = level_id ? lookups.levelNumberById?.get(level_id) : undefined;
+    if (
+      level_id &&
+      prog &&
+      planLevelNumber != null &&
+      prog.years != null &&
+      planLevelNumber > prog.years
+    )
+      errors.push({
+        row: rowNumber,
+        column: "level",
+        message: `المستوى يتجاوز عدد سنوات البرنامج (${prog.years})`,
+      });
+
     const plan_name = str(raw.plan_name);
     if (!plan_name)
       errors.push({ row: rowNumber, column: "plan_name", message: "اسم الخطة مطلوب" });
     const version = str(raw.version) || "1.0";
     const planStatusRaw = str(raw.plan_status) || "active";
     const plan_status = planStatusRaw === "draft" ? "draft" : "active";
+
+    // G-13: refuse activating a second plan version for the same program.
+    if (prog && plan_status === "active") {
+      const activeVersion = activeVersionByProgram.get(prog.id);
+      if (activeVersion && normKey(activeVersion) !== normKey(version))
+        errors.push({
+          row: rowNumber,
+          column: "plan_status",
+          message: `توجد خطة نشطة أخرى لهذا البرنامج (إصدار ${activeVersion}) — عطّلها أولاً أو استورد كمسودة`,
+        });
+    }
 
     const preReqCode = str(raw.prerequisite_course_code);
     let prereq_id: string | null = null;
@@ -638,6 +706,37 @@ export async function validateStudyPlans(
             message: "المتطلب السابق غير موجود",
           });
         else prereq_id = p.id;
+      }
+    }
+
+    // G-12: prerequisite coherence — no self-reference, no cycles within the plan file.
+    if (course && prereq_id) {
+      const courseKey = normKey(courseCode);
+      const prereqKey = normKey(preReqCode);
+      if (courseKey === prereqKey) {
+        errors.push({
+          row: rowNumber,
+          column: "prerequisite_course_code",
+          message: "المقرر لا يمكن أن يكون متطلباً سابقاً لنفسه",
+        });
+      } else {
+        const planKey = `${prog?.id}|${plan_name}|${version}`;
+        let graph = planPrereqGraphs.get(planKey);
+        if (!graph) {
+          graph = new Map<string, string[]>();
+          planPrereqGraphs.set(planKey, graph);
+        }
+        if (prereqPathExists(graph, prereqKey, courseKey)) {
+          errors.push({
+            row: rowNumber,
+            column: "prerequisite_course_code",
+            message: "متطلب سابق يُنشئ دورة داخل الخطة",
+          });
+        } else {
+          const list = graph.get(courseKey) ?? [];
+          list.push(prereqKey);
+          graph.set(courseKey, list);
+        }
       }
     }
 
@@ -1041,6 +1140,21 @@ export async function validateCourseSections(
     const levelKey = normKey(str(raw.level));
     const level_id = lookups.levelsByNumber.get(levelKey) ?? lookups.levelsByName.get(levelKey);
     if (!level_id) errors.push({ row: rowNumber, column: "level", message: "المستوى غير موجود" });
+
+    // G-11: level must not exceed the program's duration in years.
+    const sectionLevelNumber = level_id ? lookups.levelNumberById?.get(level_id) : undefined;
+    if (
+      level_id &&
+      prog &&
+      sectionLevelNumber != null &&
+      prog.years != null &&
+      sectionLevelNumber > prog.years
+    )
+      errors.push({
+        row: rowNumber,
+        column: "level",
+        message: `المستوى يتجاوز عدد سنوات البرنامج (${prog.years})`,
+      });
 
     const section_code = str(raw.section_code).toUpperCase();
     if (!section_code)
@@ -1678,6 +1792,163 @@ export async function validateStudentGrades(
             grade_component_id: grade_component_id!,
             score: scoreN,
             status,
+            _existingId,
+          },
+    });
+  });
+
+  return summarize(out);
+}
+
+// =========================
+// Student academic status (G-05 — term progression)
+// =========================
+export type StudentAcademicStatusRow = {
+  student_profile_id: string;
+  academic_year_id: string;
+  semester_id: string;
+  level_id: string;
+  enrollment_status: string;
+  _existingId: string | null;
+};
+
+const ACADEMIC_ENROLLMENT_STATUSES = new Set([
+  "enrolled",
+  "active",
+  "suspended",
+  "graduated",
+  "withdrawn",
+  "transferred",
+  "completed",
+]);
+
+export async function validateStudentAcademicStatus(
+  rows: Record<string, unknown>[],
+  lookups: LookupMaps,
+  updateExisting = false,
+): Promise<ValidationResult<StudentAcademicStatusRow>> {
+  const sb = getImportDb();
+  const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
+  const studentByAc = new Map<string, { id: string; program_id: string | null }>();
+  if (acNumbers.length) {
+    for (let i = 0; i < acNumbers.length; i += 500) {
+      const chunk = acNumbers.slice(i, i + 500);
+      const { data } = await sb
+        .from("student_profiles")
+        .select("id, academic_number, program_id")
+        .in("academic_number", chunk);
+      (data ?? []).forEach(
+        (s: { id: string; academic_number: string; program_id: string | null }) => {
+          studentByAc.set(normKey(s.academic_number), { id: s.id, program_id: s.program_id });
+        },
+      );
+    }
+  }
+
+  const { data: existingStatuses } = await sb
+    .from("student_academic_status")
+    .select("id, student_profile_id, academic_year_id, semester_id");
+  const statusIdByKey = new Map<string, string>();
+  (existingStatuses ?? []).forEach(
+    (s: {
+      id: string;
+      student_profile_id: string;
+      academic_year_id: string;
+      semester_id: string;
+    }) => {
+      statusIdByKey.set(`${s.student_profile_id}|${s.academic_year_id}|${s.semester_id}`, s.id);
+    },
+  );
+
+  const seenInFile = new Set<string>();
+  const out: ValidatedRow<StudentAcademicStatusRow>[] = [];
+
+  rows.forEach((raw, idx) => {
+    const rowNumber = idx + 2;
+    const errors: RowError[] = [];
+
+    const academic_number = str(raw.academic_number);
+    if (!academic_number)
+      errors.push({ row: rowNumber, column: "academic_number", message: "الرقم الأكاديمي مطلوب" });
+    const student = academic_number ? (studentByAc.get(normKey(academic_number)) ?? null) : null;
+    if (academic_number && !student)
+      errors.push({ row: rowNumber, column: "academic_number", message: "الطالب غير موجود" });
+
+    const ay_id = lookups.academicYearsByName.get(normKey(str(raw.academic_year)));
+    if (!ay_id)
+      errors.push({
+        row: rowNumber,
+        column: "academic_year",
+        message: "السنة الأكاديمية غير موجودة",
+      });
+
+    // G-02: semester resolved strictly within the row's academic year.
+    const semKey = normKey(str(raw.semester));
+    const sem_id = resolveSemesterId(lookups, ay_id, semKey);
+    if (ay_id && !sem_id)
+      errors.push({ row: rowNumber, column: "semester", message: SEMESTER_YEAR_ERROR_AR });
+
+    // Accept `academic_level` (canonical) and `level` (legacy) as fallback
+    const levelRaw = str(raw.academic_level) || str(raw.level);
+    const levelKey = normKey(levelRaw);
+    const level_id = lookups.levelsByNumber.get(levelKey) ?? lookups.levelsByName.get(levelKey);
+    if (!level_id)
+      errors.push({ row: rowNumber, column: "academic_level", message: "المستوى غير موجود" });
+
+    // G-11: level must not exceed the student's program duration in years.
+    const statusLevelNumber = level_id ? lookups.levelNumberById?.get(level_id) : undefined;
+    const progYears = student?.program_id
+      ? lookups.programYearsById?.get(student.program_id)
+      : undefined;
+    if (level_id && statusLevelNumber != null && progYears != null && statusLevelNumber > progYears)
+      errors.push({
+        row: rowNumber,
+        column: "academic_level",
+        message: `المستوى يتجاوز عدد سنوات البرنامج (${progYears})`,
+      });
+
+    const enrollment_status = str(raw.enrollment_status) || "enrolled";
+    if (!ACADEMIC_ENROLLMENT_STATUSES.has(enrollment_status))
+      errors.push({
+        row: rowNumber,
+        column: "enrollment_status",
+        message:
+          "حالة القيد غير صحيحة (enrolled/active/suspended/graduated/withdrawn/transferred/completed)",
+      });
+
+    let _existingId: string | null = null;
+    if (student && ay_id && sem_id) {
+      const key = `${student.id}|${ay_id}|${sem_id}`;
+      if (seenInFile.has(key))
+        errors.push({
+          row: rowNumber,
+          column: "academic_number",
+          message: "حالة أكاديمية مكررة في الملف لنفس الطالب والفصل",
+        });
+      else seenInFile.add(key);
+
+      _existingId = statusIdByKey.get(key) ?? null;
+      if (_existingId && !updateExisting) {
+        errors.push({
+          row: rowNumber,
+          column: "academic_number",
+          message: "الحالة الأكاديمية موجودة مسبقاً لهذا الفصل (فعّل تحديث القائم)",
+        });
+      }
+    }
+
+    out.push({
+      rowNumber,
+      raw,
+      errors,
+      parsed: errors.length
+        ? null
+        : {
+            student_profile_id: student!.id,
+            academic_year_id: ay_id!,
+            semester_id: sem_id!,
+            level_id: level_id!,
+            enrollment_status,
             _existingId,
           },
     });
