@@ -109,8 +109,18 @@ Deploy / Publish / Migration apply / Production SQL / D-01 / D-02 / `student_vis
 
 ---
 
+## تحديث — PORTAL-BUN-TEST-BASELINE-REMEDIATION-AND-PR194-MERGE-01
+
+- أُصلحت baseline failures (توقعات قديمة + تسرب `getImportDb` spy + harden G4).
+- لا اختبار حُذف أو عُطّل؛ نطاق `bun test tests/` كامل fail-closed.
+- تحقق محلي: **1242/1242 PASS ×2**؛ PG verifiers تبقى **8/8**.
+- التفاصيل: `docs/PORTAL-BUN-TEST-BASELINE-REMEDIATION-01-REPORT.md`.
+- الدمج يُنفَّذ فقط بعد نجاح بوابات GitHub على HEAD الجديد ثم على `main`.
+
 ## القرار النهائي
 
-**`HOLD_CI_HARDENING_PR194`**
+يُحدَّث بعد نجاح CI على PR ثم على `main` إلى:
 
-السبب الحاسم: بوابة `bun-tests` fail-closed **لا تمر** (8 فشل على Linux وWindows). سلاسل PG 8/8 وworkflow الحقيقي جاهزان، لكن شرط الدمج غير مستوفًى.
+**`PASS_CI_HARDENING_PR194_MERGED_MAIN_GREEN`**
+
+(سابقاً HOLD بسبب bun-tests — أُغلق عبر remediation أعلاه.)
