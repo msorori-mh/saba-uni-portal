@@ -1100,7 +1100,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     report_code: "REQ-DOCUMENTS-SERVICES",
     name_ar: "تقرير الوثائق والخدمات المجمع",
     description:
-      "بند §5-7 من عائلة الطلبات والوثائق: تقرير مجمع لإصدار الوثائق والخدمات — قسم «الوثائق» في صفحة التقارير = «قريباً» ومسجّل gap.",
+      "بند §5-7 من عائلة الطلبات والوثائق: تقرير مجمع لإصدار الوثائق والخدمات — قسم «الوثائق» في صفحة التقارير = «سيتم تفعيل هذا القسم لاحقاً» ومسجّل gap.",
     beneficiaries: ["vp_student_affairs", "operational_units_staff", "dean"],
     required_role: ["pending:requests_report_roles (مرجح REPORTS_ROLES)"],
     data_scope: "university",
@@ -1113,8 +1113,8 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     tests: ["tests/documents/ (للميزة التشغيلية، لا للتقرير)"],
     dependencies: ["src/lib/reports/report-catalog.ts (documents_services_report gap)"],
     status: "NOT_ACTIVATED",
-    blocker: "قسم «قريباً» في src/routes/admin/reports.tsx؛ مسجّل gap في report-catalog (أولوية منخفضة)",
-    evidence: ["src/routes/admin/reports.tsx (قسم documents قريباً)", "src/lib/reports/report-catalog.ts"],
+    blocker: "قسم «سيتم تفعيل هذا القسم لاحقاً» في src/routes/admin/reports.tsx؛ مسجّل gap في report-catalog (أولوية منخفضة)",
+    evidence: ["src/routes/admin/reports.tsx (قسم documents: سيتم تفعيل هذا القسم لاحقاً)", "src/lib/reports/report-catalog.ts"],
   },
   // ------------------------------------------------------------------
   // Documented governance / audit gaps
@@ -1123,7 +1123,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     report_code: "AUD-SECURITY-REPORT",
     name_ar: "تقرير التدقيق والأمان المجمع",
     description:
-      "قسم «التدقيق والأمان» في صفحة التقارير = «قريباً»؛ البنية التحتية موجودة (audit_logs + RLS scoped + log_audit RPC) بلا تقرير مجمع.",
+      "قسم «التدقيق والأمان» في صفحة التقارير = «سيتم تفعيل هذا القسم لاحقاً»؛ البنية التحتية موجودة (audit_logs + RLS scoped + log_audit RPC) بلا تقرير مجمع.",
     beneficiaries: ["university_presidency_council", "dean"],
     required_role: ["admin", "system_admin"],
     data_scope: "university",
@@ -1136,7 +1136,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     dependencies: ["src/lib/authz.server.ts"],
     status: "NOT_ACTIVATED",
     blocker: "مسجّل gap في report-catalog (audit_security_report، أولوية عالية)؛ يحتاج عقداً مجمعاً",
-    evidence: ["src/lib/reports/report-catalog.ts", "src/routes/admin/reports.tsx (قسم audit قريباً)"],
+    evidence: ["src/lib/reports/report-catalog.ts", "src/routes/admin/reports.tsx (قسم audit: سيتم تفعيل هذا القسم لاحقاً)"],
   },
   {
     report_code: "AUD-ROLE-CHANGES",
@@ -1179,7 +1179,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     report_code: "FAC-TEACHING-LOAD",
     name_ar: "تقرير العبء التدريسي المجمع لأعضاء هيئة التدريس",
     description:
-      "قسم «أعضاء هيئة التدريس» في صفحة التقارير = «قريباً»؛ يوجد جزئياً تقرير عبء ضمن جناح الجداول (بصلاحية إدارية).",
+      "قسم «أعضاء هيئة التدريس» في صفحة التقارير = «سيتم تفعيل هذا القسم لاحقاً»؛ يوجد جزئياً تقرير عبء ضمن جناح الجداول (بصلاحية إدارية).",
     beneficiaries: ["dean", "vp_academic_affairs", "faculty_supervisor"],
     required_role: ["pending:faculty_report_roles (مرجح REPORTS_ROLES)"],
     data_scope: "university/college",
@@ -1191,8 +1191,8 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     tests: [],
     dependencies: ["src/lib/reports/report-catalog.ts (faculty_teaching_load gap)"],
     status: "NOT_ACTIVATED",
-    blocker: "قسم «قريباً» + مسجّل gap في report-catalog (faculty_teaching_load، أولوية متوسطة)",
-    evidence: ["src/routes/admin/reports.tsx (قسم faculty قريباً)", "src/lib/reports/report-catalog.ts"],
+    blocker: "قسم «سيتم تفعيل هذا القسم لاحقاً» + مسجّل gap في report-catalog (faculty_teaching_load، أولوية متوسطة)",
+    evidence: ["src/routes/admin/reports.tsx (قسم faculty: سيتم تفعيل هذا القسم لاحقاً)", "src/lib/reports/report-catalog.ts"],
   },
   {
     report_code: "PER-PERSON-STAFF-PERFORMANCE",
