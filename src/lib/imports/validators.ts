@@ -612,8 +612,20 @@ export async function validateStudyPlans(
   });
 
   const seen = new Set<string>();
-  // G-12: per-plan prerequisite graph (course -> its prerequisites) for cycle detection.
-  const planPrereqGraphs = new Map<string, Map<string, string[]>>();
+  // MEDIUM-5 (review #193): also track ACTIVE versions seen inside this file —
+  // the DB check above passes two different active versions of one program
+  // arriving together in the same file.
+  const activeVersionInFileByProgram = new Map<string, string>();
+  // G-12 pass 1 collects candidate edges; pass 2 (after the loop) evaluates
+  // cycles using only rows that are otherwise error-free (LOW-6), so a row
+  // that fails for another reason never contributes a false cycle edge.
+  const pendingPrereqEdges: Array<{
+    outIndex: number;
+    planKey: string;
+    courseKey: string;
+    prereqKey: string;
+    rowNumber: number;
+  }> = [];
   const out: ValidatedRow<StudyPlanRow>[] = [];
 
   rows.forEach((raw, idx) => {
@@ -675,6 +687,17 @@ export async function validateStudyPlans(
           column: "plan_status",
           message: `توجد خطة نشطة أخرى لهذا البرنامج (إصدار ${activeVersion}) — عطّلها أولاً أو استورد كمسودة`,
         });
+      // MEDIUM-5: same rule within the file itself.
+      const fileActiveVersion = activeVersionInFileByProgram.get(prog.id);
+      if (fileActiveVersion && normKey(fileActiveVersion) !== normKey(version)) {
+        errors.push({
+          row: rowNumber,
+          column: "plan_status",
+          message: `الملف يحتوي إصداراً نشطاً آخر لنفس البرنامج (${fileActiveVersion}) — إصدار نشط واحد فقط لكل برنامج`,
+        });
+      } else if (!fileActiveVersion) {
+        activeVersionInFileByProgram.set(prog.id, version);
+      }
     }
 
     const preReqCode = str(raw.prerequisite_course_code);
@@ -709,7 +732,8 @@ export async function validateStudyPlans(
       }
     }
 
-    // G-12: prerequisite coherence — no self-reference, no cycles within the plan file.
+    // G-12: prerequisite coherence — self-reference is rejected inline;
+    // cycle detection runs in pass 2 (LOW-6) over otherwise-valid rows only.
     if (course && prereq_id) {
       const courseKey = normKey(courseCode);
       const prereqKey = normKey(preReqCode);
@@ -720,23 +744,13 @@ export async function validateStudyPlans(
           message: "المقرر لا يمكن أن يكون متطلباً سابقاً لنفسه",
         });
       } else {
-        const planKey = `${prog?.id}|${plan_name}|${version}`;
-        let graph = planPrereqGraphs.get(planKey);
-        if (!graph) {
-          graph = new Map<string, string[]>();
-          planPrereqGraphs.set(planKey, graph);
-        }
-        if (prereqPathExists(graph, prereqKey, courseKey)) {
-          errors.push({
-            row: rowNumber,
-            column: "prerequisite_course_code",
-            message: "متطلب سابق يُنشئ دورة داخل الخطة",
-          });
-        } else {
-          const list = graph.get(courseKey) ?? [];
-          list.push(prereqKey);
-          graph.set(courseKey, list);
-        }
+        pendingPrereqEdges.push({
+          outIndex: out.length,
+          planKey: `${prog?.id}|${plan_name}|${version}`,
+          courseKey,
+          prereqKey,
+          rowNumber,
+        });
       }
     }
 
@@ -779,6 +793,31 @@ export async function validateStudyPlans(
           },
     });
   });
+
+  // G-12 pass 2 (LOW-6): only rows that are otherwise error-free contribute
+  // edges; a cycle is reported on the row that closes it.
+  const planPrereqGraphs = new Map<string, Map<string, string[]>>();
+  for (const edge of pendingPrereqEdges) {
+    const entry = out[edge.outIndex]!;
+    if (entry.errors.length > 0) continue;
+    let graph = planPrereqGraphs.get(edge.planKey);
+    if (!graph) {
+      graph = new Map<string, string[]>();
+      planPrereqGraphs.set(edge.planKey, graph);
+    }
+    if (prereqPathExists(graph, edge.prereqKey, edge.courseKey)) {
+      entry.errors.push({
+        row: edge.rowNumber,
+        column: "prerequisite_course_code",
+        message: "متطلب سابق يُنشئ دورة داخل الخطة",
+      });
+      entry.parsed = null;
+    } else {
+      const list = graph.get(edge.courseKey) ?? [];
+      list.push(edge.prereqKey);
+      graph.set(edge.courseKey, list);
+    }
+  }
 
   return summarize(out);
 }
