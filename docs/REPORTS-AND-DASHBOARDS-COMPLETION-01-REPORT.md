@@ -25,16 +25,18 @@
 
 ### 2.1 مكتبة التجميع المشتركة — `src/lib/reports/aggregate.ts`
 - **aggregate-only:** بنية `AggregateReport` مغلقة (reportId/title/beneficiary/minimumCellSize/kpis/tables) + `assertAggregateReportSafe` يمشي على البنية ويرفض أي مفتاح خارج القائمة البيضاء — دفاع بالعمق ضد إعادة إدخال حقول مُعرّفة للأشخاص (نفس عقد graduates-affairs المدموج).
-- **حجب الخلايا بنمط `GREATEST(COALESCE(min,5),3)`:** `resolveMinimumCellSize` (افتراضي 5، أرضية مطلقة 3) + `privacySafeCount/Sum/Average/Ratio` — كل مقياس دون العتبة يُرجع `{total:null, suppressed:true}`.
+- **حجب الخلايا بنمط `GREATEST(COALESCE(min,5),3)`:** `resolveMinimumCellSize` (افتراضي 5، أرضية مطلقة 3) + `privacySafeCount/Sum/Average` — كل مقياس دون العتبة يُرجع `{total:null, suppressed:true}`.
+- **نسب آمنة (CRITICAL-1):** `privacySafeRatio` لا ينشر النسبة إلا إذا استوفى **الطرفان** العتبة: `numerator >= threshold` **و** `(denominator − numerator) >= threshold` — وإلا استُرجع الطرف الصغير من النسبة + الطرف الظاهر. نسب 100%/0% محجوبة دائماً (المكمّل = 0).
+- **كتمان تكميلي (HIGH-2):** `applyComplementarySuppression[ToTable]` — أي تقسيم منشور بجوار إجمالي ظاهر لا يحتوي خلية محجوبة وحيدة إطلاقاً: تُحجب أصغر خلية ظاهرة ثانية (حتمياً: الأولى في ترتيب الصفوف عند التعادل) فيبقى مجهولان على الأقل لأي معادلة استرجاع؛ والبُعد وحيد الصف المحجوب يُجبر الإجمالي المقابل على الحجب (`requiresTotalSuppression`).
 - **fail-closed:** مدخلات غير صالحة (سالب/NaN/∞/فوج صغير) ⇒ حجب.
 - **بلا تسريب عبر الترتيب:** `countByGroup` يرتب بالمفتاح أبجدياً فقط — لا بعدّ الخلايا — حتى لا يكشف الترتيب أحجام الخلايا المحجوبة.
 
 ### 2.2 البناة الثلاثة (صفوف مجهولة الهوية ⇒ تقارير مجمعة)
 | الباني | التقرير | يسد فجوة | ملاحظات العقد |
 |---|---|---|---|
-| `buildRequestsAggregateReport` | `student_requests_overview` | حرجة (عميد/شؤون طلاب/قيادة) | KPIs (إجمالي/معتمد/مرفوض/قيد المعالجة/معاد/نسبة اعتماد %/متوسط أيام) + جداول بالنوع/الحالة/البرنامج/المستوى/أعمار الطلبات قيد المعالجة. حالات خام غير معروفة ⇒ دلو «أخرى» مرئي (لا يُسقَط أي صف). خريطة الحالات `REQUEST_STATUS_GROUP_MAP` قابلة للتوسيع عند التبني. |
-| `buildStaffActivityReport` | `staff_activity_by_role` | عالية (قيادة/عميد) | تجميع على مستوى **الدور الوظيفي لا الفرد** — قرار حوكمة fail-closed؛ الأداء الفردي مُستبعد تصميمياً (فجوة موثقة تحتاج قرار حوكمة). مصفوفة دور×نوع إجراء بحجب مستقل لكل خلية. |
-| `buildFinanceSummaryReport` | `finance_summary` | عالية (مالية/قيادة) | مجاميع لكل فوج مع حجب الفوج الصغير (مجموع فوج صغير يسرب مبلغ فرد). «المتبقي المستحق» لا يظهر إلا إذا استوفت **كل** الأفواج المساهمة العتبة (الطرح من مجموع ظاهر كان سيسرب المحجوب). العملة تُوحَّد من المُستدعي (موثق). |
+| `buildRequestsAggregateReport` | `student_requests_overview` | حرجة (عميد/شؤون طلاب/قيادة) | الجداول تُبنى أولاً عبر الكتمان التكميلي ثم تُشتق KPIs من الخلايا المعدّلة (اتساق بالبناء — خلية محجوبة لا تعود KPI ظاهراً). نسبة الاعتماد لا تُنشر إلا إذا كان الطرفان المنشوران ظاهرين معاً. جدول الأعمار يضم صف «(غير محدد)» فيتطابق مع KPI قيد المعالجة (MEDIUM-4). حالات خام غير معروفة ⇒ دلو «أخرى» مرئي. |
+| `buildStaffActivityReport` | `staff_activity_by_role` | عالية (قيادة/عميد) | تجميع على مستوى **الدور الوظيفي لا الفرد** — قرار حوكمة fail-closed؛ الأداء الفردي مُستبعد تصميمياً. كتمان تكميلي على by_role وكل عمود مصفوفة؛ KPI كل عمود يُحجب إن أجبر بُعده على حجب الإجمالي. |
+| `buildFinanceSummaryReport` | `finance_summary` | عالية (مالية/قيادة) | المبالغ تُمرر **خاماً** إلى `privacySafeSum` — قيد مسموم (NaN) يُحجب فوجه ولا يُرشَّح بصمت فيبقى العدّ متسقاً مع المجموع (MEDIUM-3). «المتبقي المستحق» لا يظهر إلا إذا كانت كل المجاميع الأربعة ظاهرة **ولم** يُجبر أي بُعد فترة على حجب إجمال مساهم. العملة تُوحَّد من المُستدعي (موثق). |
 
 ### 2.3 اللوحات العرضية (بلا شبكة)
 - `src/components/reports/AggregateReportView.tsx` — عارض عام: بطاقات KPI + جداول؛ الخلية المحجوبة تُعرض «محجوب» (بصرية + aria-label)، ولا تُعرض قيمة محجوبة إطلاقاً.
@@ -47,19 +49,33 @@
 
 | الفحص | الأداة | النتيجة |
 |---|---|---|
-| Unit + عقود | bun test `tests/reports/` (3 ملفات) | **50/50 ناجح، 206 expect()** |
-| TypeScript صارم | tsc 7.0.2 (sandbox ES2023، paths `@/*`) على 12 ملفاً | **0 أخطاء** |
+| Unit + عقود | bun test `tests/reports/` (3 ملفات) | **65/65 ناجح، 256 expect()** |
+| TypeScript صارم | tsc 7.0.2 strict على **sandbox مستقل** (ES2023، paths `@/*`) فوق الملفات الـ12 — **ليس** tsconfig المشروع (الذي `noCheck: true`/ES2022 — لم يُعدَّل، خارج النطاق) | **0 أخطاء** |
 | بلا شبكة | عقد ساكن: لا `fetch(`/axios/`@supabase`/`createServerFn`/`XMLHttpRequest` في المكونات الأربعة | ناجح |
-| حجب خلية فرعية داخل تقرير غير محجوب | حالات إثبات في `report-builders.test.ts` (نوع طلب صغير داخل by_type؛ خلية دفعة صغيرة داخل period_amounts؛ خلية دور صغيرة داخل المصفوفة) | ناجح |
-| fail-closed على فروق المجاميع | «المتبقي المستحق» محجوب عند حجب أي فوج مساهم، ويظهر (1125) عند استيفاء الكل | ناجح |
+| CRITICAL-1 | النسبة محجوبة عند حجب أي طرف (70% لا يظهر مع rejected=3) + حالة نجاح (50% مع 5/5) + طرف صغير في `privacySafeRatio` | ناجح |
+| HIGH-2 | كتمان تكميلي: خلية وحيدة محجوبة ⇒ حجب الثانية (by_type/ by_role/مصفوفة الدور)؛ بُعد وحيد الصف ⇒ حجب الإجمالي (طلبات + مالية) | ناجح |
+| MEDIUM-3 | فوج NaN: العدّ=6 ظاهر والمجموع محجوب (لا ترشيح صامت) | ناجح |
+| MEDIUM-4 | جدول الأعمار يضم «(غير محدد)» ويتطابق مع KPI (6 قيد المعالجة بلا عمر ⇒ دلو غير محدد=6) | ناجح |
 | الترتيب لا يسرب أحجاماً | `countByGroup` يرتب أبجدياً («ب» بعدد 1 تسبق «ت» بعدد 2) | ناجح |
 
 ملاحظة: ترتيب الأحرف العربية في الاختبارات تحقق منه فعلياً عبر `localeCompare(..., "ar")` (أ، ب، ت).
 
+## 3.1 جولة المراجعة المستقلة (REVISE) — المعالجات
+
+| # | الملاحظة | المعالجة |
+|---|---|---|
+| CRITICAL-1 | تسريب النسبة: rate=70% ظاهر + approved=7 ظاهر ⇒ rejected=3 مسترجَع | تشديد `privacySafeRatio` (شرط الطرفان) في `aggregate.ts` + اتساق الباني (النسبة محجوبة إذا حُجب أي طرف منشور). تحديث الاختبار المكرِّس + اختبارا حجب/نجاح. |
+| HIGH-2 | غياب الكتمان التكميلي: خلية محجوبة وحيدة + إجمالي ظاهر ⇒ استرجاع تام (مستويان 12/10⇒2؛ رسوم 700−500⇒200) | قاعدة `applyComplementarySuppression[ToTable]` في المكتبة المشتركة، مُطبقة على كل علاقة إجمالي↔تقسيم في البناة الثلاثة (by_type/by_program/by_level/by_status_group/pending_age؛ by_role+مصفوفة الدور؛ by_kind/by_period_count/period_amounts) + حجب الإجمالي للبُعد وحيد الصف + اختبارات differencing. |
+| MEDIUM-3 | NaN يُرشَّح قبل `privacySafeSum` (عدّ=6 ومجموع محسوب على 5) | `amountsOf` يمرر الخام بلا ترشيح؛ `privacySafeSum` يُحجب الفوج كاملاً — العدّ والمجموع متسقان + اختبار. |
+| MEDIUM-4 | جدول الأعمار يُسقط «(غير محدد)» | صف خامس «(غير محدد)» في الجدول + اختبار تطابق مع KPI قيد المعالجة. |
+| LOW-1 | `assertAggregateReportSafe` غير مربوط بمسار انبعاث | **قرار موثق:** يُربط عند تبني server functions (follow-up)؛ حالياً يُمارَس في الاختبارات على مخرجات البناة الثلاثة. |
+| LOW-2 | ادعاء «tsc صارم» على sandbox لا tsconfig المشروع | **صُححت الصياغة** في جدول التحقق أعلاه. |
+| LOW-3 | اختبارا العقود الشكليان (grep localeCompare) | **حُسّنا:** حُذف grep الأسلوب واستُبدل بفحص توصيل فعلي (كل بانٍ يستدعي `applyComplementarySuppressionToTable`)؛ grep الثوابت بقي موثقاً كقفل مصدري مع إثبات سلوكي كامل في aggregate.test.ts. |
+
 ## 4. الملفات (13)
 
 ```
-src/lib/reports/aggregate.ts                      — البنى المشتركة + الحجب + فاحص الأمان
+src/lib/reports/aggregate.ts                      — البنى المشتركة + الحجب + النسب الآمنة + الكتمان التكميلي + فاحص الأمان
 src/lib/reports/request-reports.ts                — باني طلبات الطلاب
 src/lib/reports/staff-activity-reports.ts         — باني نشاط الموظفين (حسب الدور)
 src/lib/reports/finance-reports.ts                — باني الملخص المالي
@@ -68,8 +84,8 @@ src/components/reports/AggregateReportView.tsx    — العارض العام
 src/components/dashboards/RequestsAggregateDashboard.tsx
 src/components/dashboards/FinanceAggregateDashboard.tsx
 src/components/dashboards/StaffActivityDashboard.tsx
-tests/reports/aggregate.test.ts                   — 17 اختباراً
-tests/reports/report-builders.test.ts             — 22 اختباراً
+tests/reports/aggregate.test.ts                   — 27 اختباراً
+tests/reports/report-builders.test.ts             — 27 اختباراً
 tests/reports/report-catalog-and-contracts.test.ts — 11 اختباراً
 docs/REPORTS-AND-DASHBOARDS-COMPLETION-01-REPORT.md — هذا التقرير
 ```
@@ -83,9 +99,10 @@ docs/REPORTS-AND-DASHBOARDS-COMPLETION-01-REPORT.md — هذا التقرير
 5. `documents_services_report` (شؤون طلاب، منخفضة).
 6. `per_person_staff_performance` (قيادة، عالية) — **مُستبعد تصميمياً**؛ يحتاج قرار حوكمة صريحاً.
 7. `reports_pagination` (عميد، منخفضة).
-8. توصيل اللوحات في `/admin/reports` عبر server functions + تجديد routeTree — مهمة لاحقة خارج نطاق «بلا شبكة».
+8. توصيل اللوحات في `/admin/reports` عبر server functions + تجديد routeTree + ربط `assertAggregateReportSafe` بمسار الانبعاث — مهمة لاحقة خارج نطاق «بلا شبكة».
 
 ## 6. الالتزامات
 
 - لم تُنشأ/تُعدَّل migrations، ولا SQL مطبق، ولا routes، ولا دمج. فرع واحد + PR واحد.
 - خرائط التطبيع (حالات الطلبات/أنواع إجراءات الموظفين/أنواع القيود) قابلة للتوسيع عند التبني؛ غير المعروف يُحسب في دلو مرئي ولا يُسقَط.
+- العدّ الصفري (0) يُحجب تحفظياً مثل أي عدّ دون العتبة — قد يستتبع كتمات تكميلية إضافية في الأبعاد الصغيرة (سلوك متحفظ مقصود).

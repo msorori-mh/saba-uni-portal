@@ -5,9 +5,13 @@ import {
   REPORT_BENEFICIARIES,
   REPORT_BENEFICIARY_LABELS,
   REPORT_DEFAULT_MINIMUM_CELL_SIZE,
+  type AggregateMetric,
   type AggregateReport,
+  applyComplementarySuppression,
+  applyComplementarySuppressionToTable,
   assertAggregateReportSafe,
   countByGroup,
+  forceSuppressed,
   groupRowsToCountTable,
   privacySafeAverage,
   privacySafeCount,
@@ -15,6 +19,9 @@ import {
   privacySafeSum,
   resolveMinimumCellSize,
 } from "../../src/lib/reports/aggregate";
+
+const visible = (total: number): AggregateMetric => ({ total, suppressed: false });
+const suppressed = (): AggregateMetric => ({ total: null, suppressed: true });
 
 describe("resolveMinimumCellSize — GREATEST(COALESCE(min,5),3)", () => {
   test("defaults to 5 when omitted, null, or non-finite", () => {
@@ -76,7 +83,7 @@ describe("privacySafeSum / privacySafeAverage", () => {
   });
 });
 
-describe("privacySafeRatio", () => {
+describe("privacySafeRatio — both parties must meet the threshold", () => {
   test("suppresses when the denominator cohort is a small cell or invalid", () => {
     expect(privacySafeRatio(2, 2, 3).suppressed).toBe(true);
     expect(privacySafeRatio(1, 0, 3).suppressed).toBe(true);
@@ -84,10 +91,22 @@ describe("privacySafeRatio", () => {
     expect(privacySafeRatio(Number.NaN, 5, 3).suppressed).toBe(true);
   });
 
-  test("computes the ratio for visible denominators", () => {
-    const ratio = privacySafeRatio(2, 4, 3);
-    expect(ratio.suppressed).toBe(false);
-    expect(ratio.total).toBeCloseTo(0.5);
+  test("suppresses when the numerator is a small cell even with a large denominator", () => {
+    // ratio + visible denominator would recover the numerator
+    expect(privacySafeRatio(2, 6, 3).suppressed).toBe(true);
+  });
+
+  test("suppresses when the complement (denominator − numerator) is a small cell", () => {
+    // ratio + visible numerator would recover the complement
+    expect(privacySafeRatio(5, 6, 3).suppressed).toBe(true);
+    // 100% / 0% rates are always suppressed (complement is 0)
+    expect(privacySafeRatio(6, 6, 3).suppressed).toBe(true);
+    expect(privacySafeRatio(0, 6, 3).suppressed).toBe(true);
+  });
+
+  test("computes the ratio only when both parties meet the threshold", () => {
+    const ratio = privacySafeRatio(3, 6, 3);
+    expect(ratio).toEqual({ total: 0.5, suppressed: false });
   });
 });
 
@@ -130,6 +149,86 @@ describe("groupRowsToCountTable", () => {
     expect(table.rows).toHaveLength(1);
     expect(table.rows[0]?.key).toBe("أ");
     expect(table.rows[0]?.cells).toHaveLength(1);
+  });
+});
+
+describe("applyComplementarySuppression — differencing protection", () => {
+  test("leaves dimensions with zero or two-plus suppressed cells unchanged", () => {
+    const none = applyComplementarySuppression([visible(5), visible(9)]);
+    expect(none.cells).toEqual([visible(5), visible(9)]);
+    expect(none.requiresTotalSuppression).toBe(false);
+
+    const two = applyComplementarySuppression([suppressed(), visible(9), suppressed()]);
+    expect(two.cells).toEqual([suppressed(), visible(9), suppressed()]);
+    expect(two.requiresTotalSuppression).toBe(false);
+  });
+
+  test("hides the smallest visible cell when exactly one cell is suppressed", () => {
+    const result = applyComplementarySuppression([visible(5), suppressed(), visible(9), visible(7)]);
+    expect(result.cells).toEqual([suppressed(), suppressed(), visible(9), visible(7)]);
+    expect(result.requiresTotalSuppression).toBe(false);
+  });
+
+  test("breaks ties deterministically by row order", () => {
+    const result = applyComplementarySuppression([visible(5), suppressed(), visible(5)]);
+    expect(result.cells).toEqual([suppressed(), suppressed(), visible(5)]);
+    expect(result.requiresTotalSuppression).toBe(false);
+  });
+
+  test("requires total suppression when the only cell of a dimension is suppressed", () => {
+    const result = applyComplementarySuppression([suppressed()]);
+    expect(result.cells).toEqual([suppressed()]);
+    expect(result.requiresTotalSuppression).toBe(true);
+  });
+});
+
+describe("applyComplementarySuppressionToTable", () => {
+  test("applies per column independently and reports per-column flags", () => {
+    const table = {
+      id: "m",
+      title: "مصفوفة",
+      columns: [
+        { id: "a", label: "أ" },
+        { id: "b", label: "ب" },
+      ],
+      rows: [
+        { key: "ر1", cells: [visible(10), visible(3)] },
+        { key: "ر2", cells: [suppressed(), visible(4)] },
+      ],
+    };
+    const result = applyComplementarySuppressionToTable(table);
+    // column أ had exactly one suppressed cell → row ر1 cell hidden too
+    expect(result.table.rows[0]?.cells[0]).toEqual(suppressed());
+    expect(result.table.rows[1]?.cells[0]).toEqual(suppressed());
+    // column ب untouched
+    expect(result.table.rows[0]?.cells[1]).toEqual(visible(3));
+    expect(result.table.rows[1]?.cells[1]).toEqual(visible(4));
+    expect(result.requiresTotalSuppression).toEqual([false, false]);
+  });
+
+  test("flags a single-row column whose only cell is suppressed", () => {
+    const table = {
+      id: "t",
+      title: "جدول",
+      columns: [{ id: "count", label: "العدد" }],
+      rows: [{ key: "وحيد", cells: [suppressed()] }],
+    };
+    const result = applyComplementarySuppressionToTable(table);
+    expect(result.requiresTotalSuppression).toEqual([true]);
+    expect(result.table.rows[0]?.cells[0]).toEqual(suppressed());
+  });
+
+  test("handles empty tables", () => {
+    const table = { id: "e", title: "فارغ", columns: [{ id: "count", label: "العدد" }], rows: [] };
+    const result = applyComplementarySuppressionToTable(table);
+    expect(result.requiresTotalSuppression).toEqual([false]);
+    expect(result.table.rows).toEqual([]);
+  });
+});
+
+describe("forceSuppressed", () => {
+  test("always returns a suppressed metric", () => {
+    expect(forceSuppressed()).toEqual({ total: null, suppressed: true });
   });
 });
 

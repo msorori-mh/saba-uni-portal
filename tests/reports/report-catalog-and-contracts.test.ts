@@ -20,6 +20,12 @@ const COMPONENT_SOURCES = [
   "../../src/components/dashboards/StaffActivityDashboard.tsx",
 ] as const;
 
+const BUILDER_SOURCES = [
+  "../../src/lib/reports/request-reports.ts",
+  "../../src/lib/reports/staff-activity-reports.ts",
+  "../../src/lib/reports/finance-reports.ts",
+] as const;
+
 describe("report catalog", () => {
   test("every beneficiary has at least one catalog entry", () => {
     for (const beneficiary of REPORT_BENEFICIARIES) {
@@ -93,15 +99,19 @@ describe("presentational dashboards — static no-network contract", () => {
   });
 });
 
-describe("shared library — threshold pattern contract", () => {
+describe("shared library — privacy contract wiring", () => {
+  // NOTE: the threshold-constant assertion is a source-level pin (a full
+  // behavioral proof lives in aggregate.test.ts); it exists to fail loudly if
+  // someone edits the GREATEST(COALESCE(min,5),3) pattern without review.
   test("aggregate.ts pins the GREATEST(COALESCE(min,5),3) pattern", () => {
     const source = readSource("../../src/lib/reports/aggregate.ts");
     expect(source).toContain("REPORT_DEFAULT_MINIMUM_CELL_SIZE = 5");
     expect(source).toContain("REPORT_ABSOLUTE_MINIMUM_CELL_SIZE = 3");
   });
 
-  test("group ordering never depends on counts (no size leakage)", () => {
-    const source = readSource("../../src/lib/reports/aggregate.ts");
-    expect(source).toContain("localeCompare");
+  test("every builder wires complementary suppression into its tables", () => {
+    for (const path of BUILDER_SOURCES) {
+      expect(readSource(path)).toContain("applyComplementarySuppressionToTable");
+    }
   });
 });

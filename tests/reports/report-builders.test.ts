@@ -40,6 +40,9 @@ function rowCells(report: AggregateReport, tableId: string, key: string): readon
   return row.cells;
 }
 
+const V = (total: number): AggregateMetric => ({ total, suppressed: false });
+const S = (): AggregateMetric => ({ total: null, suppressed: true });
+
 // ─── Requests overview ───────────────────────────────────────────────────────
 
 const requestRows: readonly RequestFactRow[] = [
@@ -74,15 +77,38 @@ describe("buildRequestsAggregateReport", () => {
   });
 
   test("KPIs: visible totals, per-KPI suppression for small cells", () => {
-    expect(kpiOf(report, "total")).toEqual({ total: 14, suppressed: false });
-    expect(kpiOf(report, "approved")).toEqual({ total: 7, suppressed: false });
-    expect(kpiOf(report, "rejected")).toEqual({ total: null, suppressed: true });
-    expect(kpiOf(report, "pending")).toEqual({ total: null, suppressed: true });
-    expect(kpiOf(report, "returned")).toEqual({ total: null, suppressed: true });
+    expect(kpiOf(report, "total")).toEqual(V(14));
+    expect(kpiOf(report, "approved")).toEqual(V(7));
+    expect(kpiOf(report, "rejected")).toEqual(S());
+    expect(kpiOf(report, "pending")).toEqual(S());
+    expect(kpiOf(report, "returned")).toEqual(S());
   });
 
-  test("approval rate is a percentage of decided requests", () => {
-    const rate = kpiOf(report, "approval_rate");
+  test("approval rate is suppressed when either published party is hidden (CRITICAL-1)", () => {
+    // approved=7 visible, rejected=3 hidden ⇒ a visible 70% would recover rejected
+    expect(kpiOf(report, "approval_rate")).toEqual(S());
+  });
+
+  test("approval rate is visible only when both parties meet the threshold", () => {
+    const balanced = buildRequestsAggregateReport({
+      beneficiary: "dean",
+      rows: [
+        ...[2, 3, 4, 5, 6].map((days) => ({ requestType: "أ", status: "approved", resolutionDays: days })),
+        ...[7, 8, 9, 10, 11].map((days) => ({ requestType: "أ", status: "rejected", resolutionDays: days })),
+      ],
+    });
+    expect(kpiOf(balanced, "approved")).toEqual(V(5));
+    expect(kpiOf(balanced, "rejected")).toEqual(V(5));
+    const rate = kpiOf(balanced, "approval_rate");
+    expect(rate.suppressed).toBe(false);
+    expect(rate.total).toBeCloseTo(50);
+  });
+
+  test("approval rate becomes visible at a lower threshold when both parties qualify", () => {
+    const atThree = buildRequestsAggregateReport({ beneficiary: "dean", rows: requestRows, minimumCellSize: 3 });
+    expect(atThree.minimumCellSize).toBe(3);
+    expect(kpiOf(atThree, "rejected")).toEqual(V(3));
+    const rate = kpiOf(atThree, "approval_rate");
     expect(rate.suppressed).toBe(false);
     expect(rate.total).toBeCloseTo(70);
   });
@@ -105,12 +131,44 @@ describe("buildRequestsAggregateReport", () => {
       ],
     });
     expect(kpiOf(small, "avg_resolution_days").suppressed).toBe(true);
-    expect(kpiOf(small, "approved")).toEqual({ total: 5, suppressed: false });
+    expect(kpiOf(small, "approved")).toEqual(V(5));
   });
 
-  test("per-cell suppression inside a non-suppressed table (small request type)", () => {
-    expect(rowCells(report, "by_type", "إجازة دراسية")[0]).toEqual({ total: 12, suppressed: false });
-    expect(rowCells(report, "by_type", "وثيقة تخرج")[0]).toEqual({ total: null, suppressed: true });
+  test("complementary suppression hides the second cell of a breakdown with exactly one small cell (HIGH-2)", () => {
+    // by_type: إجازة دراسية=12 visible, وثيقة تخرج=2 suppressed ⇒ the visible
+    // cell is complementary-suppressed; total stays visible (two unknowns).
+    expect(rowCells(report, "by_type", "إجازة دراسية")[0]).toEqual(S());
+    expect(rowCells(report, "by_type", "وثيقة تخرج")[0]).toEqual(S());
+    expect(kpiOf(report, "total")).toEqual(V(14));
+  });
+
+  test("complementary suppression keeps the largest cells visible", () => {
+    const mixed = buildRequestsAggregateReport({
+      beneficiary: "dean",
+      rows: [
+        ...Array.from({ length: 6 }, () => ({ requestType: "أ", status: "approved" })),
+        ...Array.from({ length: 5 }, () => ({ requestType: "ب", status: "approved" })),
+        ...Array.from({ length: 2 }, () => ({ requestType: "ج", status: "approved" })),
+      ],
+    });
+    expect(rowCells(mixed, "by_type", "أ")[0]).toEqual(V(6));
+    expect(rowCells(mixed, "by_type", "ب")[0]).toEqual(S());
+    expect(rowCells(mixed, "by_type", "ج")[0]).toEqual(S());
+    expect(kpiOf(mixed, "total")).toEqual(V(13));
+  });
+
+  test("a single-row breakdown with a suppressed cell forces the total to be suppressed (HIGH-2)", () => {
+    const single = buildRequestsAggregateReport({
+      beneficiary: "dean",
+      rows: [
+        { requestType: "أ", status: "approved", programId: "CS" },
+        { requestType: "أ", status: "approved", programId: "CS" },
+        { requestType: "أ", status: "rejected", programId: "CS" },
+      ],
+    });
+    expect(rowCells(single, "by_type", "أ")[0]).toEqual(S());
+    expect(rowCells(single, "by_program", "CS")[0]).toEqual(S());
+    expect(kpiOf(single, "total")).toEqual(S());
   });
 
   test("unknown statuses land in a visible other bucket — never dropped", () => {
@@ -120,29 +178,34 @@ describe("buildRequestsAggregateReport", () => {
     expect(normalizeRequestStatus(" APPROVED ")).toBe("approved");
   });
 
-  test("program and level tables suppress small cells", () => {
-    expect(rowCells(report, "by_program", "CS")[0]).toEqual({ total: 11, suppressed: false });
-    expect(rowCells(report, "by_program", "MATH")[0]).toEqual({ total: null, suppressed: true });
-    expect(rowCells(report, "by_level", "ماجستير")[0]).toEqual({ total: null, suppressed: true });
+  test("program and level tables suppress small cells (two-plus suppressed cells stay differencing-safe)", () => {
+    expect(rowCells(report, "by_program", "CS")[0]).toEqual(V(11));
+    expect(rowCells(report, "by_program", "MATH")[0]).toEqual(S());
+    expect(rowCells(report, "by_level", "ماجستير")[0]).toEqual(S());
   });
 
-  test("pending aging table keeps bucket order and suppresses tiny buckets", () => {
+  test("pending aging table includes the unknown bucket and reconciles with the pending KPI (MEDIUM-4)", () => {
     const table = tableOf(report, "pending_age");
     expect(table.rows.map((row) => row.key)).toEqual([
       REQUEST_AGE_BUCKET_LABELS["0-7"],
       REQUEST_AGE_BUCKET_LABELS["8-14"],
       REQUEST_AGE_BUCKET_LABELS["15-30"],
       REQUEST_AGE_BUCKET_LABELS["31+"],
+      "(غير محدد)",
     ]);
     for (const row of table.rows) {
       expect(row.cells[0]?.suppressed).toBe(true);
     }
+
+    const unknownAges = buildRequestsAggregateReport({
+      beneficiary: "dean",
+      rows: Array.from({ length: 6 }, () => ({ requestType: "أ", status: "pending" })),
+    });
+    expect(kpiOf(unknownAges, "pending")).toEqual(V(6));
+    expect(rowCells(unknownAges, "pending_age", "(غير محدد)")[0]).toEqual(V(6));
   });
 
-  test("honors a custom threshold of 3 and floors anything smaller", () => {
-    const atThree = buildRequestsAggregateReport({ beneficiary: "dean", rows: requestRows, minimumCellSize: 3 });
-    expect(atThree.minimumCellSize).toBe(3);
-    expect(kpiOf(atThree, "rejected")).toEqual({ total: 3, suppressed: false });
+  test("floors a custom threshold below 3", () => {
     const floored = buildRequestsAggregateReport({ beneficiary: "dean", rows: requestRows, minimumCellSize: 1 });
     expect(floored.minimumCellSize).toBe(3);
   });
@@ -166,7 +229,8 @@ const staffRows: readonly StaffActivityFactRow[] = [
   ...Array.from({ length: 5 }, () => ({ actorRole: "موظف قبول", eventType: "approved" })),
   ...Array.from({ length: 2 }, () => ({ actorRole: "موظف قبول", eventType: "rejected" })),
   { actorRole: "موظف قبول", eventType: "created" },
-  ...Array.from({ length: 2 }, () => ({ actorRole: "مراقب مالية", eventType: "approved" })),
+  ...Array.from({ length: 5 }, () => ({ actorRole: "مراقب مالية", eventType: "approved" })),
+  ...Array.from({ length: 2 }, () => ({ actorRole: "موظف شؤون", eventType: "approved" })),
 ];
 
 describe("buildStaffActivityReport", () => {
@@ -178,24 +242,33 @@ describe("buildStaffActivityReport", () => {
   });
 
   test("KPIs aggregate by role — never by actor", () => {
-    expect(kpiOf(report, "total_events")).toEqual({ total: 10, suppressed: false });
-    expect(kpiOf(report, "approved")).toEqual({ total: 7, suppressed: false });
-    expect(kpiOf(report, "rejected")).toEqual({ total: null, suppressed: true });
-    expect(kpiOf(report, "distinct_roles")).toEqual({ total: null, suppressed: true });
+    expect(kpiOf(report, "total_events")).toEqual(V(15));
+    expect(kpiOf(report, "approved")).toEqual(V(12));
+    expect(kpiOf(report, "rejected")).toEqual(S());
+    expect(kpiOf(report, "distinct_roles")).toEqual(S());
   });
 
-  test("role × event matrix suppresses each small cell independently", () => {
+  test("by_role applies complementary suppression to the second-smallest role (HIGH-2)", () => {
+    // شؤون=2 is the only suppressed cell ⇒ مالية=5 hidden as complement;
+    // قبول=8 stays visible; total stays visible (two unknowns).
+    expect(rowCells(report, "by_role", "موظف قبول")[0]).toEqual(V(8));
+    expect(rowCells(report, "by_role", "مراقب مالية")[0]).toEqual(S());
+    expect(rowCells(report, "by_role", "موظف شؤون")[0]).toEqual(S());
+  });
+
+  test("role × event matrix suppresses small and complementary cells independently", () => {
     const matrix = tableOf(report, "role_event_matrix");
     expect(matrix.columns.map((column) => column.id)).toEqual(["approved", "rejected", "returned", "created"]);
 
-    const registrar = rowCells(report, "role_event_matrix", "موظف قبول");
-    expect(registrar[0]).toEqual({ total: 5, suppressed: false });
-    expect(registrar[1]).toEqual({ total: null, suppressed: true });
-    expect(registrar[2]).toEqual({ total: null, suppressed: true });
-    expect(registrar[3]).toEqual({ total: null, suppressed: true });
+    // approved column: شؤون=2 suppressed ⇒ first-minimal visible (مالية=5) hidden as complement
+    expect(rowCells(report, "role_event_matrix", "موظف قبول")[0]).toEqual(V(5));
+    expect(rowCells(report, "role_event_matrix", "مراقب مالية")[0]).toEqual(S());
+    expect(rowCells(report, "role_event_matrix", "موظف شؤون")[0]).toEqual(S());
 
-    const controller = rowCells(report, "role_event_matrix", "مراقب مالية");
-    expect(controller[0]).toEqual({ total: null, suppressed: true });
+    const registrar = rowCells(report, "role_event_matrix", "موظف قبول");
+    expect(registrar[1]).toEqual(S());
+    expect(registrar[2]).toEqual(S());
+    expect(registrar[3]).toEqual(S());
   });
 
   test("unknown event types are counted under other and excluded from the matrix", () => {
@@ -205,8 +278,9 @@ describe("buildStaffActivityReport", () => {
       beneficiary: "university_leadership",
       rows: [...staffRows, { actorRole: "موظف قبول", eventType: "teleported" }],
     });
-    expect(kpiOf(withUnknown, "total_events")).toEqual({ total: 11, suppressed: false });
-    expect(rowCells(withUnknown, "by_role", "موظف قبول")[0]).toEqual({ total: 9, suppressed: false });
+    expect(kpiOf(withUnknown, "total_events")).toEqual(V(16));
+    expect(rowCells(withUnknown, "by_role", "موظف قبول")[0]).toEqual(V(9));
+    expect(rowCells(withUnknown, "by_role", "مراقب مالية")[0]).toEqual(S());
   });
 });
 
@@ -233,42 +307,48 @@ describe("buildFinanceSummaryReport", () => {
   });
 
   test("sums visible cohorts and suppresses the small refunds cohort", () => {
-    expect(kpiOf(report, "total_entries")).toEqual({ total: 17, suppressed: false });
-    expect(kpiOf(report, "fees")).toEqual({ total: 1500, suppressed: false });
-    expect(kpiOf(report, "payments")).toEqual({ total: 350, suppressed: false });
-    expect(kpiOf(report, "discounts")).toEqual({ total: 150, suppressed: false });
+    expect(kpiOf(report, "total_entries")).toEqual(V(17));
+    expect(kpiOf(report, "fees")).toEqual(V(1500));
+    expect(kpiOf(report, "payments")).toEqual(V(350));
+    expect(kpiOf(report, "discounts")).toEqual(V(150));
   });
 
   test("outstanding is fail-closed: hidden when any contributing cohort is suppressed", () => {
-    expect(kpiOf(report, "outstanding")).toEqual({ total: null, suppressed: true });
+    expect(kpiOf(report, "outstanding")).toEqual(S());
   });
 
   test("outstanding becomes visible only when all cohorts meet the threshold", () => {
-    const visible = buildFinanceSummaryReport({
+    const visibleReport = buildFinanceSummaryReport({
       beneficiary: "finance",
       rows: [...financeRows, ...[25, 35, 45].map((a) => ref(a))],
     });
     // fees 1500 - payments 350 - discounts 150 + refunds (5+15+25+35+45=125) = 1125
-    expect(kpiOf(visible, "outstanding")).toEqual({ total: 1125, suppressed: false });
+    expect(kpiOf(visibleReport, "outstanding")).toEqual(V(1125));
+    expect(kpiOf(visibleReport, "total_entries")).toEqual(V(20));
   });
 
-  test("period × kind matrix suppresses each small cell independently", () => {
+  test("single-period dimension with a suppressed sum forces that sum KPI to be suppressed (HIGH-2)", () => {
     const rows: readonly FinanceFactRow[] = [
       ...[100, 100, 100, 100, 100].map((a) => fee(a, "2026-02")),
       ...[40, 60].map((a) => pay(a, "2026-02")),
     ];
     const matrixReport = buildFinanceSummaryReport({ beneficiary: "finance", rows });
     const cells = rowCells(matrixReport, "period_amounts", "2026-02");
-    expect(cells[0]).toEqual({ total: 500, suppressed: false });
-    expect(cells[1]).toEqual({ total: null, suppressed: true });
+    expect(cells[0]).toEqual(V(500));
+    expect(cells[1]).toEqual(S());
+    // payment column is a single-cell dimension ⇒ its total is suppressed too
+    expect(kpiOf(matrixReport, "payments")).toEqual(S());
+    expect(kpiOf(matrixReport, "fees")).toEqual(V(500));
   });
 
-  test("a non-finite amount fails the whole cohort closed", () => {
+  test("raw amounts are never silently filtered: a poisoned cohort keeps its count but loses its sum (MEDIUM-3)", () => {
     const poisoned = buildFinanceSummaryReport({
       beneficiary: "finance",
-      rows: [100, 200, 300, 400, Number.NaN].map((a) => fee(a)),
+      rows: [100, 200, 300, 400, 500, Number.NaN].map((a) => fee(a)),
     });
-    expect(kpiOf(poisoned, "fees")).toEqual({ total: null, suppressed: true });
+    // count still 6 (row not dropped) while the sum fails closed
+    expect(kpiOf(poisoned, "total_entries")).toEqual(V(6));
+    expect(kpiOf(poisoned, "fees")).toEqual(S());
   });
 
   test("kind normalization maps known aliases and buckets unknowns as other", () => {
@@ -276,6 +356,6 @@ describe("buildFinanceSummaryReport", () => {
     expect(normalizeFinanceKind("scholarship")).toBe("discount");
     expect(normalizeFinanceKind("donation")).toBe("other");
     const otherRow = tableOf(report, "by_kind").rows.find((row) => row.key === "أخرى");
-    expect(otherRow?.cells[0]).toEqual({ total: null, suppressed: true });
+    expect(otherRow?.cells[0]).toEqual(S());
   });
 });
