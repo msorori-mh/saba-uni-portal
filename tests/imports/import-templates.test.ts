@@ -89,6 +89,7 @@ describe("template workbook structure (HIGH-3)", () => {
       "student_fees",
       "student_discounts",
       "student_eligibility",
+      "student_accounts",
       "documents",
     ] as const;
     for (const type of types) {

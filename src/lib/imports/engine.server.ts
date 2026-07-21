@@ -20,6 +20,10 @@ import type {
   DocumentRow,
   StudentEligibilityRow,
 } from "./validators";
+import {
+  emptyStudentAccountsSummary,
+  type StudentAccountRow,
+} from "./student-accounts";
 
 export type ServerImportContext = {
   userId: string;
@@ -629,6 +633,7 @@ export async function finalizeImportServer(opts: {
     student_fees: "student_fees_imported",
     student_discounts: "student_discounts_imported",
     student_eligibility: "student_eligibility_data_imported",
+    student_accounts: "student_existing_accounts_imported",
     documents: "documents_imported",
   };
 
@@ -1341,6 +1346,128 @@ export async function importStudentEligibility(
   }
 
   report.eligibility_summary = computeEligibilityImportSummary(rows);
+  return report;
+}
+
+/**
+ * STUDENT-EXISTING-ACCOUNTS-IMPORTER-01
+ * Creates Auth logins for existing student_profiles only. Never mutates academic columns.
+ * Passwords are never returned in the report or audit payloads.
+ */
+export async function importStudentAccounts(
+  rows: ValidatedRow<StudentAccountRow>[],
+  dryRun = false,
+  ctx?: ServerImportContext,
+): Promise<ImportReport> {
+  const report = emptyReport();
+  report.rows_total = rows.length;
+  report.rows_created = 0;
+  report.rows_updated = 0;
+  const summary = emptyStudentAccountsSummary();
+
+  for (const r of rows) {
+    if (!r.parsed) {
+      report.rows_failed += 1;
+      summary.failed += 1;
+      r.errors.forEach((e) => report.errors.push(e));
+      continue;
+    }
+
+    const p = r.parsed;
+    if (p.outcome === "ALREADY_LINKED") {
+      report.rows_success += 1;
+      report.rows_updated! += 1;
+      summary.already_linked += 1;
+      summary.skipped += 1;
+      continue;
+    }
+
+    if (p.outcome !== "READY_TO_CREATE") {
+      report.rows_failed += 1;
+      summary.failed += 1;
+      report.errors.push({
+        row: r.rowNumber,
+        message: `حالة غير قابلة للتنفيذ: ${p.outcome}`,
+      });
+      continue;
+    }
+
+    summary.ready_to_create += 1;
+
+    if (dryRun) {
+      report.rows_success += 1;
+      report.rows_created! += 1;
+      continue;
+    }
+
+    if (!ctx?.userSupabase) {
+      report.rows_failed += 1;
+      summary.failed += 1;
+      report.errors.push({
+        row: r.rowNumber,
+        message: "مسار إداري آمن غير متاح — تعذّر إنشاء الحساب",
+      });
+      continue;
+    }
+
+    // Re-read profile: ensure still exists, still unlinked, and we touch only login linkage.
+    const { data: profile, error: profileErr } = await sb
+      .from("student_profiles")
+      .select("id, academic_number, user_id, email")
+      .eq("id", p.student_profile_id)
+      .maybeSingle();
+
+    if (profileErr || !profile) {
+      report.rows_failed += 1;
+      summary.failed += 1;
+      report.errors.push({
+        row: r.rowNumber,
+        column: "academic_number",
+        message: "الطالب غير موجود — يجب استيراد بياناته أولاً",
+      });
+      continue;
+    }
+
+    if ((profile as { user_id: string | null }).user_id) {
+      // Idempotent: another concurrent run linked it.
+      report.rows_success += 1;
+      summary.already_linked += 1;
+      summary.skipped += 1;
+      continue;
+    }
+
+    try {
+      await provisionStudentLoginServer(ctx, {
+        profile_id: p.student_profile_id,
+        academic_number: p.academic_number,
+        university_email: p.university_email,
+        must_change_password: p.must_change_password,
+      });
+
+      await safeAudit("student_existing_account_created", p.student_profile_id, {
+        academic_number: p.academic_number,
+        university_email: p.university_email,
+        must_change_password: p.must_change_password,
+        is_active: p.is_active,
+        notes: p.notes,
+        actor_user_id: ctx.userId,
+        // password intentionally omitted
+      });
+
+      report.rows_success += 1;
+      report.rows_created! += 1;
+      summary.created += 1;
+    } catch (e) {
+      report.rows_failed += 1;
+      summary.failed += 1;
+      report.errors.push({
+        row: r.rowNumber,
+        message: `إنشاء الحساب: ${(e as Error).message}`,
+      });
+    }
+  }
+
+  report.student_accounts_summary = summary;
   return report;
 }
 

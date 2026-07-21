@@ -74,6 +74,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "student_grades", label: "درجات الطلاب" },
   { id: "student_academic_status", label: "الحالة الأكاديمية للطلاب" },
   { id: "student_eligibility", label: "بيانات أهلية الطلبات" },
+  { id: "student_accounts", label: "حسابات الطلاب الموجودين" },
   { id: "student_fees", label: "رسوم الطلاب" },
   { id: "student_discounts", label: "خصومات الطلاب" },
   { id: "documents", label: "الوثائق الرسمية" },
@@ -89,6 +90,12 @@ const IMPORT_TAB_INFO: Partial<Record<ImportType, { description: string; warning
       "تحديث بيانات أهلية الطلبات للطلاب الموجودين من كشف رسمي معتمد. لا ينشئ طلابًا أو حسابات دخول.",
     warning:
       "هذه البيانات تؤثر مستقبلاً في قبول أو رفض طلبات الطلاب. يجب استخدام ملف رسمي معتمد ومراجعة نتيجة التحقق قبل التنفيذ.",
+  },
+  student_accounts: {
+    description:
+      "إنشاء حسابات دخول بالإيميل الجامعي للطلاب الموجودين مسبقاً في النظام. لا ينشئ ملفات طلاب ولا يعدّل القسم/البرنامج/المستوى/السنة/الفصل/الحالة الأكاديمية.",
+    warning:
+      "يتطلب صلاحية مدير النظام. نفّذ معاينة ثم تجريبياً قبل التنفيذ. عند CONFLICT لا يتم أي ربط تلقائي. لا تُعرض كلمات المرور في التقارير.",
   },
   student_academic_status: {
     description:
@@ -1803,6 +1810,31 @@ function ReportBlock({
               label="مراجع مصدر"
               value={report.eligibility_summary.distinct_source_references}
               tone="neutral"
+            />
+          </>
+        )}
+        {type === "student_accounts" && report.student_accounts_summary && (
+          <>
+            <Stat
+              label="READY_TO_CREATE"
+              value={report.student_accounts_summary.ready_to_create}
+              tone="ok"
+            />
+            <Stat
+              label="ALREADY_LINKED"
+              value={report.student_accounts_summary.already_linked}
+              tone="neutral"
+            />
+            <Stat label="CONFLICT" value={report.student_accounts_summary.conflict} tone="bad" />
+            <Stat
+              label="STUDENT_NOT_FOUND"
+              value={report.student_accounts_summary.student_not_found}
+              tone="bad"
+            />
+            <Stat
+              label="INVALID_EMAIL"
+              value={report.student_accounts_summary.invalid_email}
+              tone="bad"
             />
           </>
         )}

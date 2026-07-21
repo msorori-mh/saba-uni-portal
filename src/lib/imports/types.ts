@@ -14,6 +14,7 @@ export type ImportType =
   | "student_fees"
   | "student_discounts"
   | "student_eligibility"
+  | "student_accounts"
   | "documents";
 
 /** Aggregate stats for student_eligibility dry-run / import reports (no PII). */
@@ -23,6 +24,18 @@ export type EligibilityImportSummary = {
   transferred_count: number;
   prior_suspension_count: number;
   distinct_source_references: number;
+};
+
+/** Aggregate stats for student_accounts import (no passwords / no secrets). */
+export type StudentAccountsImportSummary = {
+  ready_to_create: number;
+  already_linked: number;
+  conflict: number;
+  student_not_found: number;
+  invalid_email: number;
+  created: number;
+  skipped: number;
+  failed: number;
 };
 
 export type RowError = { row: number; column?: string; message: string };
@@ -48,6 +61,7 @@ export type ImportReport = {
   rows_created?: number;
   rows_updated?: number;
   eligibility_summary?: EligibilityImportSummary;
+  student_accounts_summary?: StudentAccountsImportSummary;
   errors: RowError[];
 };
 

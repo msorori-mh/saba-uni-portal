@@ -17,6 +17,7 @@ describe("eligibility import read-only policy", () => {
       "student_fees",
       "student_discounts",
       "student_enrollments",
+      "student_accounts",
       "documents",
     ];
     for (const type of otherTypes) {
