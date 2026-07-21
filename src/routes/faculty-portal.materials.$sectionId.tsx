@@ -260,6 +260,10 @@ function MaterialRow({
     e.target.value = "";
     if (!file) return;
     setUploadErr(null);
+    // UX pre-check against the compiled-in conservative baseline only. The
+    // authoritative enforcement is server-side: uploadCourseMaterialFile applies
+    // the effective narrow-only site_settings policy (which can only shrink this
+    // baseline), so the server stays the source of truth if settings narrow it.
     if (!(MATERIALS_ALLOWED_MIME as readonly string[]).includes(file.type)) {
       setUploadErr("نوع الملف غير مسموح به");
       return;

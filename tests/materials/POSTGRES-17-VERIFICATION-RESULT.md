@@ -20,7 +20,7 @@ Pipeline (single run, exit 0):
    supabase-style roles (`anon`/`authenticated`/`service_role`) and an
    `auth.uid()` shim driven by a test GUC.
 2. The draft under test (applied verbatim to the disposable cluster).
-3. `tests/materials/postgres-secure-activation-verifier.sql` — 37 check groups;
+3. `tests/materials/postgres-secure-activation-verifier.sql` — 38 check groups;
    every group raises `CHECK FAILED: <n>` on the first broken invariant; the
    script ends with `ROLLBACK` so nothing persists.
 
@@ -46,7 +46,7 @@ VERIFIER PASS
 | reserve RPC: key reuse, anon, non-owner, mime/size/ext/missing-size, archived, non-current section | 07, 09–16 | PASS |
 | finalize RPC: happy path, replay, cross-phase key reuse, tamper mismatch, non-owner, anon | 17, 18, 18b, 19–21 | PASS |
 | scanner RPC: authenticated ACL denial, invalid state, clean transition + audit, terminal immutability | 22–25 | PASS |
-| download audit: enrolled student, pending file (student + owner), not-enrolled, study-system, draft, target binding, anon | 26–33 | PASS |
+| download audit: enrolled student, pending file (student + owner), not-enrolled, study-system (parallel + NULL), draft, target binding, anon | 26–33, 33b | PASS |
 | security metadata (definer + `search_path=public, pg_temp`) on all four functions | 34 | PASS |
 | execute ACLs: cutover RPCs authenticated-only; scanner service_role-only | 35, 36 | PASS |
 
@@ -59,6 +59,11 @@ VERIFIER PASS
   (definer, pinned search_path, authenticated-only EXECUTE). Their reviewed
   definition SHA-256 hashes must be computed from `pg_get_functiondef` after
   applying to the review clone, and supplied to the cutover procedure out of band.
+- Round 2 (review MEDIUM-1): `record_course_material_download` now coalesces
+  NULL `study_system` to `''` so the audience check is fail-closed (previously
+  `NULL not in (...)` evaluated to NULL and did not deny); covered by check
+  33b (enrolled student with NULL study_system -> AUTHORIZATION_DENIED).
+  Re-executed on PostgreSQL 17.10: all 38 check groups PASS, ends in ROLLBACK.
 - SQL cannot observe storage objects; the object write between reserve and
   finalize remains a service-role runtime concern (same boundary documented by
   the atomic draft). No bucket or storage-policy change is part of this task.

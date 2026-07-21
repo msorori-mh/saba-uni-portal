@@ -145,6 +145,12 @@ function parseTextList(value: unknown): string[] | null {
  * - MIME/extension allow-lists are intersected with the defaults; configured values
  *   outside the defaults are ignored; empty/invalid lists fall back to the defaults.
  */
+function sameStringSet(a: readonly string[], b: readonly string[]): boolean {
+  const setA = new Set(a);
+  const setB = new Set(b);
+  return setA.size === setB.size && [...setA].every((x) => setB.has(x));
+}
+
 export function resolveMaterialsUploadPolicy(
   settings?: MaterialsPolicySettings,
 ): MaterialsUploadPolicy {
@@ -177,8 +183,8 @@ export function resolveMaterialsUploadPolicy(
   }
 
   const narrowedFromDefaults = maxMb !== defaults.maxMb
-    || allowedMimeTypes.length !== defaults.allowedMimeTypes.length
-    || allowedExtensions.length !== defaults.allowedExtensions.length;
+    || !sameStringSet(allowedMimeTypes, defaults.allowedMimeTypes)
+    || !sameStringSet(allowedExtensions, defaults.allowedExtensions);
 
   return {
     maxMb,
