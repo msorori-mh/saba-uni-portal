@@ -90,6 +90,9 @@ do $$ declare t text; begin
   if not exists(select 1 from pg_constraint where conrelid='public.lecture_execution_actor_assignments'::regclass and contype='u' and cardinality(conkey)>1) then
     raise exception 'assignments lack composite (id, department_id) target';
   end if;
+  if (select count(*) from pg_constraint where conrelid='public.lecture_execution_sessions'::regclass and contype='f' and cardinality(conkey)>1) < 1 then
+    raise exception 'sessions lack composite recorded-by assignment FK';
+  end if;
 end $$;
 
 insert into public.lecture_execution_actor_assignments(role,faculty_profile_id,user_id,department_id,course_section_id,assigned_by)
@@ -131,6 +134,20 @@ do $$ begin
   end if;
 end $$;
 
+-- All five foundation tables stay closed to client roles.
+do $$ declare t text; begin
+  foreach t in array array['lecture_execution_settings','lecture_execution_sessions','lecture_execution_actor_assignments','lecture_execution_confirmations','lecture_execution_events'] loop
+    if has_table_privilege('anon','public.'||t,'SELECT')
+       or has_table_privilege('authenticated','public.'||t,'SELECT')
+       or has_table_privilege('anon','public.'||t,'INSERT')
+       or has_table_privilege('authenticated','public.'||t,'INSERT')
+       or has_table_privilege('authenticated','public.'||t,'UPDATE')
+       or has_table_privilege('authenticated','public.'||t,'DELETE') then
+      raise exception '% unexpectedly client-readable/writable', t;
+    end if;
+  end loop;
+end $$;
+
 -- Unassigned caller is denied before any write.
 do $$ declare before_sessions bigint; before_events bigint; begin
   select count(*) into before_sessions from public.lecture_execution_sessions;
@@ -147,6 +164,20 @@ do $$ declare before_sessions bigint; before_events bigint; begin
 end $$;
 
 select set_config('request.jwt.claim.sub', :'faculty_user_id', true);
+
+-- Explicit NULL guards fail with clean messages before any write.
+select pg_temp.expect_le_error(format(
+  'select public.record_lecture_execution(%L,1::smallint,''theory'',null,null,%L)',
+  current_setting('lex.class_schedule_id'), gen_random_uuid()),
+  'execution state is required');
+select pg_temp.expect_le_error(format(
+  'select public.record_lecture_execution(%L,1::smallint,null,''scheduled'',null,%L)',
+  current_setting('lex.class_schedule_id'), gen_random_uuid()),
+  'session kind is required');
+select pg_temp.expect_le_error(format(
+  'select public.confirm_lecture_execution(%L,null,null,%L)',
+  gen_random_uuid(), gen_random_uuid()),
+  'decision must be confirmed or rejected');
 
 -- D-15 pending default: faculty recording is final without the delegate.
 insert into lex_ids values('corr1', gen_random_uuid());
@@ -165,6 +196,22 @@ select pg_temp.expect_le_error(format(
   'select public.record_lecture_execution(%L,2::smallint,''theory'',''executed'',null,%L)',
   current_setting('lex.class_schedule_id'), (select v from lex_ids where k='corr_bad')),
   'invalid execution transition: not_started -> executed');
+
+-- Only published slots on active sections, and only the recorder of that
+-- exact section, can be tracked (fixtures: draft slot, inactive section,
+-- another active section in the same department).
+select pg_temp.expect_le_error(format(
+  'select public.record_lecture_execution(%L,5::smallint,''theory'',''scheduled'',null,%L)',
+  'a0000000-0000-0000-0000-000000000002', gen_random_uuid()),
+  'only published schedule slots can be tracked');
+select pg_temp.expect_le_error(format(
+  'select public.record_lecture_execution(%L,5::smallint,''theory'',''scheduled'',null,%L)',
+  'a0000000-0000-0000-0000-000000000003', gen_random_uuid()),
+  'schedule slot is not on an active section/offering');
+select pg_temp.expect_le_error(format(
+  'select public.record_lecture_execution(%L,5::smallint,''theory'',''scheduled'',null,%L)',
+  'a0000000-0000-0000-0000-000000000004', gen_random_uuid()),
+  'exact direct processing assignment required');
 
 -- Delegate confirmation fails closed while D-15 keeps it disabled.
 select pg_temp.expect_le_error(format(
@@ -233,10 +280,38 @@ insert into lex_ids values('corr6', gen_random_uuid());
 insert into lex_ids select 's3_rejected', public.confirm_lecture_execution((select v from lex_ids where k='s3'),'rejected','لم تحضر الدفعة',(select v from lex_ids where k='corr6'));
 do $$ begin
   if (select confirmation_status from public.lecture_execution_sessions where id=(select v from lex_ids where k='s3')) <> 'rejected' then raise exception 'rejection not applied'; end if;
+  if (select session_version from public.lecture_execution_confirmations where session_id=(select v from lex_ids where k='s3')) <> 1 then raise exception 'confirmation must snapshot the recording version'; end if;
+end $$;
+
+-- MEDIUM-1: a rejected recording is corrected by re-recording (version bump)
+-- which opens a NEW confirmation round; the old decision stays as history.
+select set_config('request.jwt.claim.sub', :'faculty_user_id', true);
+insert into lex_ids values('corr7', gen_random_uuid());
+insert into lex_ids select 's3_resub', public.record_lecture_execution(:'class_schedule_id',3::smallint,'theory','scheduled',null,(select v from lex_ids where k='corr7'));
+do $$ begin
+  if (select v from lex_ids where k='s3_resub') <> (select v from lex_ids where k='s3') then raise exception 'resubmission returned a different session id'; end if;
+  if (select version from public.lecture_execution_sessions where id=(select v from lex_ids where k='s3')) <> 3 then raise exception 'resubmission must bump the version'; end if;
+  if (select confirmation_status from public.lecture_execution_sessions where id=(select v from lex_ids where k='s3')) <> 'awaiting_delegate' then raise exception 'resubmission must open a new confirmation round'; end if;
+  if (select count(*) from public.lecture_execution_events where session_id=(select v from lex_ids where k='s3') and event_type='execution_recorded') <> 2 then raise exception 'resubmission must write its own audit event'; end if;
+end $$;
+select set_config('request.jwt.claim.sub', :'student_user_id', true);
+insert into lex_ids values('corr8', gen_random_uuid());
+insert into lex_ids select 's3_confirmed', public.confirm_lecture_execution((select v from lex_ids where k='s3'),'confirmed',null,(select v from lex_ids where k='corr8'));
+do $$ begin
+  if (select confirmation_status from public.lecture_execution_sessions where id=(select v from lex_ids where k='s3')) <> 'confirmed' then raise exception 'new confirmation round not applied'; end if;
+  if (select count(*) from public.lecture_execution_confirmations where session_id=(select v from lex_ids where k='s3')) <> 2 then raise exception 'rejection history must be preserved alongside the new decision'; end if;
+  if (select count(distinct session_version) from public.lecture_execution_confirmations where session_id=(select v from lex_ids where k='s3')) <> 2 then raise exception 'decisions must span distinct recording versions'; end if;
+  if (select count(*) from public.lecture_execution_confirmations where session_id=(select v from lex_ids where k='s3') and session_version=3 and decision='confirmed') <> 1 then raise exception 'exactly one confirmation per recording version'; end if;
+end $$;
+-- After the new decision, same-state re-record is a natural-idempotency no-op.
+select set_config('request.jwt.claim.sub', :'faculty_user_id', true);
+insert into lex_ids select 's3_noop', public.record_lecture_execution(:'class_schedule_id',3::smallint,'theory','scheduled',null,gen_random_uuid());
+do $$ begin
+  if (select v from lex_ids where k='s3_noop') <> (select v from lex_ids where k='s3') then raise exception 'post-confirmation same-state retry must be a no-op'; end if;
+  if (select version from public.lecture_execution_sessions where id=(select v from lex_ids where k='s3')) <> 4 then raise exception 'no-op retry must not bump the version'; end if;
 end $$;
 
 -- Term-week bound is enforced from configuration (15 weeks).
-select set_config('request.jwt.claim.sub', :'faculty_user_id', true);
 select pg_temp.expect_le_error(format(
   'select public.record_lecture_execution(%L,16::smallint,''theory'',''scheduled'',null,%L)',
   current_setting('lex.class_schedule_id'), gen_random_uuid()),
@@ -249,8 +324,8 @@ select pg_temp.expect_le_error(format(
   'session kind does not match the published schedule slot type');
 
 -- Cross-department composite integrity is executable on child tables.
-select pg_temp.expect_fk($q$insert into public.lecture_execution_confirmations(session_id,department_id,delegate_assignment_id,decision)
- values((select v from lex_ids where k='s1'),'20000000-0000-0000-0000-000000000002',(select v from lex_ids where k='foreign_recorder'),'confirmed')$q$,'confirmation scope');
+select pg_temp.expect_fk($q$insert into public.lecture_execution_confirmations(session_id,department_id,delegate_assignment_id,session_version,decision)
+ values((select v from lex_ids where k='s1'),'20000000-0000-0000-0000-000000000002',(select v from lex_ids where k='foreign_recorder'),1,'confirmed')$q$,'confirmation scope');
 select pg_temp.expect_fk($q$insert into public.lecture_execution_events(department_id,session_id,actor_user_id,actor_assignment_id,event_type,entity_type,entity_id,correlation_id)
  values('20000000-0000-0000-0000-000000000002',(select v from lex_ids where k='s2'),current_setting('lex.faculty_user_id')::uuid,(select v from lex_ids where k='foreign_recorder'),'execution_recorded','lecture_execution_session',(select v from lex_ids where k='s2'),gen_random_uuid())$q$,'event scope');
 do $$ begin
