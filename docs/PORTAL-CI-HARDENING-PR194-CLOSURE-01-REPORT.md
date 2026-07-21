@@ -85,9 +85,18 @@ faculty_user_id=10000000-0000-0000-0000-000000000002
 
 ## G6 — GitHub / الدمج
 
-- يُدفع فرع #194 مع workflow الحقيقي + سلسلة lifecycle.
-- **لا دمج** ما دامت بوابة `bun-tests` تفشل (محلياً مؤكد على Linux container؛ GitHub سيؤكد).
-- لم يُحذف `ci/q20-probe` قبل الدمج (الدمج لم يحدث).
+- دُفع الفرع: رأس `9d1451c` على `ci/add-tests-and-pg-verifiers` (rebase على `df90f1a` + workflow حقيقي).
+- PR #194: base=`main`، **MERGEABLE**، لا تعارضات.
+- تشغيل Actions: https://github.com/msorori-mh/saba-uni-portal/actions/runs/29850698784
+
+| البوابة | النتيجة |
+|---|---|
+| `quality` (Install · Lint · Typecheck · Build) | **PASS** |
+| `bun-tests` | **FAIL** |
+| `pg-verifiers` (8 أرجل بما فيها lifecycle) | **8/8 PASS** |
+
+- **لا دمج** — شرط البوابات غير مكتمل (`bun-tests` failure).
+- لم يُحذف `ci/q20-probe` (يُحذف فقط بعد الدمج الآمن).
 - لم يُحذف `ci/add-tests-and-pg-verifiers`.
 
 ## ما لم يُنفَّذ (التزام)
