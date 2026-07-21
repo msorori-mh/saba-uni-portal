@@ -117,8 +117,10 @@ describe("B3 — SITE_URL is server-only and fail-closed", () => {
 describe("B2 — attachSupabaseAuth stays registered in start.ts", () => {
   const src = read("src/start.ts");
   it("registers attachSupabaseAuth in functionMiddleware", () => {
+    // Canonical module is auth-attacher; production wiring may use the
+    // project-local refresh-aware replacement (auth-attacher.local).
     expect(src).toMatch(
-      /from ["']@\/integrations\/supabase\/auth-attacher["']/,
+      /from ["']@\/integrations\/supabase\/auth-attacher(?:\.local)?["']/,
     );
     expect(src).toMatch(/functionMiddleware:\s*\[[^\]]*attachSupabaseAuth[^\]]*\]/);
   });

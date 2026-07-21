@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeAll, beforeEach, spyOn } from "bun:test";
+import { afterEach, describe, expect, it, mock, beforeAll, beforeEach, spyOn } from "bun:test";
 import type { LookupMaps, ValidatedRow } from "../../src/lib/imports/types";
 import * as importDb from "../../src/lib/imports/import-db";
 import {
@@ -6,6 +6,13 @@ import {
   validateStudentEligibility,
   type StudentEligibilityRow,
 } from "../../src/lib/imports/validators";
+
+let activeGetImportDbSpy: ReturnType<typeof spyOn> | undefined;
+
+afterEach(() => {
+  activeGetImportDbSpy?.mockRestore();
+  activeGetImportDbSpy = undefined;
+});
 
 process.env.SUPABASE_URL = "http://test.local";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
@@ -82,13 +89,15 @@ function validRaw(overrides: Record<string, unknown> = {}) {
 function mockStudentLookup(
   students: { id: string; academic_number: string }[] = [{ id: STUDENT_ID, academic_number: AC }],
 ) {
-  return spyOn(importDb, "getImportDb").mockReturnValue({
+  activeGetImportDbSpy?.mockRestore();
+  activeGetImportDbSpy = spyOn(importDb, "getImportDb").mockReturnValue({
     from: () => ({
       select: () => ({
         in: async () => ({ data: students, error: null }),
       }),
     }),
   } as ReturnType<typeof importDb.getImportDb>);
+  return activeGetImportDbSpy;
 }
 
 function validatedRow(
