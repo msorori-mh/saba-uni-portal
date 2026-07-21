@@ -111,6 +111,13 @@ BEGIN
   EXCEPTION WHEN others THEN
     IF SQLERRM NOT LIKE '%GRADUATE_FOLLOWUP_INVALID_TRANSITION%' THEN RAISE; END IF;
   END;
+  BEGIN
+    DELETE FROM public.graduate_followups
+    WHERE id = 'e1e1e1e1-e1e1-4e1e-8e1e-e1e1e1e1e1e1';
+    RAISE EXCEPTION 'expected follow-up append-only rejection';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATES_AFFAIRS_APPEND_ONLY_RECORD%' THEN RAISE; END IF;
+  END;
 END;
 $$;
 
@@ -243,6 +250,9 @@ BEGIN
   IF public.evaluate_graduate_account_continuity('graduate-account-continuity', 'university_email_reuse', now()) THEN
     RAISE EXCEPTION 'sensitive capability without its flag must be denied';
   END IF;
+  IF public.evaluate_graduate_account_continuity('graduate-account-continuity', 'portal_sign_in', NULL) THEN
+    RAISE EXCEPTION 'null evaluation timestamp must be denied';
+  END IF;
 END;
 $$;
 
@@ -292,8 +302,8 @@ BEGIN
 END;
 $$;
 
--- Aggregate employment report: suppression boundary, metric correctness,
--- default threshold, and no client EXECUTE privilege.
+-- Aggregate employment report: suppression boundary, per-cell suppression,
+-- metric correctness, default threshold, and no client EXECUTE privilege.
 DO $$
 DECLARE
   v_row record;
@@ -333,6 +343,31 @@ INSERT INTO public.graduate_employment_events (
 ) SELECT 'b3b3b3b3-b3b3-4b3b-8b3b-b3b3b3b3b3b3', id, 'self_employed', 'partially_related', 'verified'
 FROM public.graduate_records;
 
+-- Cohort at threshold with sub-cells below it: population is returned while
+-- every smaller cell (employed/related/verified = 2 < 3) is NULL-suppressed.
+DO $$
+DECLARE
+  v_row record;
+BEGIN
+  SELECT * INTO v_row
+  FROM public.graduate_aggregate_employment_report('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 2026, 3);
+  IF v_row.suppressed OR v_row.population <> 3 THEN
+    RAISE EXCEPTION 'cohort at threshold must return its population: %', v_row;
+  END IF;
+  IF v_row.employed IS NOT NULL OR v_row.specialization_related IS NOT NULL
+     OR v_row.verified IS NOT NULL THEN
+    RAISE EXCEPTION 'sub-threshold cells must be suppressed individually: %', v_row;
+  END IF;
+END;
+$$;
+
+-- A fourth current event lifts every cell to the threshold: fully
+-- non-suppressed success case (4/3/3/3).
+INSERT INTO public.graduate_employment_events (
+  id, graduate_record_id, employment_status, specialization_relationship, verification_state
+) SELECT 'b5b5b5b5-b5b5-4b5b-8b5b-b5b5b5b5b5b5', id, 'employed', 'directly_related', 'verified'
+FROM public.graduate_records;
+
 DO $$
 DECLARE
   v_row record;
@@ -340,14 +375,14 @@ BEGIN
   SELECT * INTO v_row
   FROM public.graduate_aggregate_employment_report('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 2026, 3);
   IF v_row.suppressed
-     OR v_row.population <> 3 OR v_row.employed <> 2
-     OR v_row.specialization_related <> 2 OR v_row.verified <> 2 THEN
+     OR v_row.population <> 4 OR v_row.employed <> 3
+     OR v_row.specialization_related <> 3 OR v_row.verified <> 3 THEN
     RAISE EXCEPTION 'aggregate report metrics incorrect: %', v_row;
   END IF;
   SELECT * INTO v_row
   FROM public.graduate_aggregate_employment_report('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 2026);
-  IF NOT v_row.suppressed THEN
-    RAISE EXCEPTION 'default threshold of 5 must suppress a 3-row cohort';
+  IF NOT v_row.suppressed OR v_row.population IS NOT NULL THEN
+    RAISE EXCEPTION 'default threshold of 5 must suppress a 4-row cohort';
   END IF;
 END;
 $$;
@@ -370,8 +405,12 @@ DECLARE
 BEGIN
   SELECT * INTO v_row
   FROM public.graduate_aggregate_employment_report('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 2026, 3);
-  IF v_row.population <> 3 OR v_row.employed <> 1 OR v_row.verified <> 1 THEN
+  IF v_row.suppressed OR v_row.population <> 4 THEN
     RAISE EXCEPTION 'superseded events must not be counted: %', v_row;
+  END IF;
+  IF v_row.employed IS NOT NULL OR v_row.specialization_related IS NOT NULL
+     OR v_row.verified IS NOT NULL THEN
+    RAISE EXCEPTION 'post-supersession sub-threshold cells must be suppressed: %', v_row;
   END IF;
 END;
 $$;
