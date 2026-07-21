@@ -1,5 +1,7 @@
 # B1-FIVE-SERVICES-PRODUCTION-ACTIVATION-PREFLIGHT-02
 
+> **SUPERSEDED AS CURRENT BASELINE (2026-07-21):** `427b7eb4…` is no longer a valid fresh release pin. Current `expected_release_sha` / `SOURCE_SHA` = `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6`. See `docs/B1-PREFLIGHT-FRESH-BASELINE-01.md` and `docs/PORTAL-FRESH-RELEASE-CANDIDATE-01.md`. This file remains historical evidence of the 2026-07-20 cycle (`HOLD_RELEASE_SHA_UNPROVEN`). Proof gate for the fresh baseline = `NOT_RUN`.
+
 Date: 2026-07-20 (Asia/Riyadh)
 
 Repository: `msorori-mh/saba-uni-portal`
