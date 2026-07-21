@@ -142,6 +142,21 @@ describe("D-13 account continuity policy (configurable, fail-closed)", () => {
     ).toEqual({ ok: false, reason: "missing_policy_decision_provenance" });
   });
 
+  test("unrecognized policy state fails closed before window checks", () => {
+    expect(
+      evaluateAccountContinuityAccess(
+        {
+          ...approvedPolicy,
+          state: "pending" as AccountContinuityPolicy["state"],
+          validFrom: null,
+          expiresAt: null,
+        },
+        "portal_sign_in",
+        "2026-10-01T00:00:00Z",
+      ),
+    ).toEqual({ ok: false, reason: "account_continuity_policy_unknown_state" });
+  });
+
   test("policy outside its validity window is not in force", () => {
     expect(
       evaluateAccountContinuityAccess(approvedPolicy, "portal_sign_in", "2026-08-01T00:00:00Z"),
@@ -585,6 +600,7 @@ describe("completion SQL draft safety contract", () => {
       "graduate_account_continuity_policies",
       "graduate_followups_one_active_per_graduate",
       "graduate_followup_state_guard",
+      "graduate_followups_append_only",
       "GRADUATE_FOLLOWUP_INVALID_TRANSITION",
       "graduate_communication_consent_guard",
       "GRADUATE_COMMUNICATION_CONSENT_REQUIRED",
@@ -593,7 +609,9 @@ describe("completion SQL draft safety contract", () => {
       "graduate_account_policy_decided_immutable",
       "GRADUATE_ACCOUNT_POLICY_DECIDED_IMMUTABLE",
       "evaluate_graduate_account_continuity",
+      "IF p_at IS NULL THEN",
       "graduate_aggregate_employment_report",
+      "v_employed < v_threshold THEN NULL",
     ])
       expect(sql).toContain(name);
   });
