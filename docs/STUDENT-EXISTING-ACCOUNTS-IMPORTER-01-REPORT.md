@@ -64,3 +64,20 @@ bun test tests/imports/student-existing-accounts-importer.test.ts
 ## القرار
 
 **`PASS_STUDENT_EXISTING_ACCOUNTS_IMPORTER_SOURCE_READY`**
+
+
+---
+
+## حالة الدمج على main (إضافة لاحقة)
+
+| الحقل | القيمة |
+|---|---|
+| تحديث بواسطة | `PORTAL-PR194-CLOSURE-THEN-PR195-VERIFICATION-01` |
+| تاريخ | 2026-07-21 |
+| PR | [#195](https://github.com/msorori-mh/saba-uni-portal/pull/195) — **MERGED** |
+| `mergeCommit` | `edb26740257e1168164e6fdee43a303c8e23fd61` |
+| `origin/main` | `edb26740257e1168164e6fdee43a303c8e23fd61` |
+| Web CI على merge | [29854602219](https://github.com/msorori-mh/saba-uni-portal/actions/runs/29854602219) — **success** (10/10) |
+| قرار البرنامج | `PASS_PR194_AND_PR195_MERGED_MAIN_GREEN_READY_FOR_ACCOUNT_IMPORT_PREFLIGHT` |
+
+**ملاحظة:** لا استيراد إنتاج ولا deploy ضمن هذا التحديث التوثيقي.
