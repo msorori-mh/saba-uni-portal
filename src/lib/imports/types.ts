@@ -27,7 +27,7 @@ export type EligibilityImportSummary = {
 
 export type RowError = { row: number; column?: string; message: string };
 
-export type ValidatedRow<T> = {
+export type ValidatedRow<T = unknown> = {
   rowNumber: number; // 1-based in source file (excluding header)
   raw: Record<string, unknown>;
   parsed: T | null;
