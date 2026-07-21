@@ -10,6 +10,7 @@ export type ImportType =
   | "course_sections"
   | "student_enrollments"
   | "student_grades"
+  | "student_academic_status"
   | "student_fees"
   | "student_discounts"
   | "student_eligibility"
@@ -52,7 +53,7 @@ export type ImportReport = {
 
 export type LookupMaps = {
   departmentsByName: Map<string, string>;
-  programsByCode: Map<string, { id: string; department_id: string | null }>;
+  programsByCode: Map<string, { id: string; department_id: string | null; years: number | null }>;
   levelsByName: Map<string, string>;
   levelsByNumber: Map<string, string>;
   coursesByCode: Map<string, { id: string; department_id: string | null }>;
@@ -66,4 +67,12 @@ export type LookupMaps = {
    * map fall back to the old global (non year-scoped) resolution.
    */
   semestersByYearKey?: Map<string, string>;
+  /**
+   * level id -> level_number (G-11). Used to bound levels by program years.
+   * Optional so legacy hand-built lookups keep working (check is skipped
+   * when the map is absent).
+   */
+  levelNumberById?: Map<string, number>;
+  /** program id -> duration years (G-11) for validators that only know the program id. */
+  programYearsById?: Map<string, number | null>;
 };

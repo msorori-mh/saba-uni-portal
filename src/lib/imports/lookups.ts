@@ -6,7 +6,7 @@ export async function loadLookups(): Promise<LookupMaps> {
   const sb = getImportDb();
   const [deps, progs, lvls, crs, ays, sems] = await Promise.all([
     sb.from("departments").select("id, name_ar, name_en"),
-    sb.from("programs").select("id, code, department_id"),
+    sb.from("programs").select("id, code, department_id, years"),
     sb.from("academic_levels").select("id, name, level_number"),
     sb.from("courses").select("id, code, department_id"),
     sb.from("academic_years").select("id, name"),
@@ -23,16 +23,32 @@ export async function loadLookups(): Promise<LookupMaps> {
     if (d.name_en) departmentsByName.set(norm(d.name_en), d.id);
   });
 
-  const programsByCode = new Map<string, { id: string; department_id: string | null }>();
-  (progs.data ?? []).forEach((p: { id: string; code: string; department_id: string | null }) => {
-    if (p.code) programsByCode.set(norm(p.code), { id: p.id, department_id: p.department_id });
-  });
+  const programsByCode = new Map<
+    string,
+    { id: string; department_id: string | null; years: number | null }
+  >();
+  const programYearsById = new Map<string, number | null>();
+  (progs.data ?? []).forEach(
+    (p: { id: string; code: string; department_id: string | null; years: number | null }) => {
+      if (p.code)
+        programsByCode.set(norm(p.code), {
+          id: p.id,
+          department_id: p.department_id,
+          years: p.years ?? null,
+        });
+      programYearsById.set(p.id, p.years ?? null);
+    },
+  );
 
   const levelsByName = new Map<string, string>();
   const levelsByNumber = new Map<string, string>();
+  const levelNumberById = new Map<string, number>();
   (lvls.data ?? []).forEach((l: { id: string; name: string; level_number: number }) => {
     if (l.name) levelsByName.set(norm(l.name), l.id);
-    if (l.level_number != null) levelsByNumber.set(String(l.level_number), l.id);
+    if (l.level_number != null) {
+      levelsByNumber.set(String(l.level_number), l.id);
+      levelNumberById.set(l.id, l.level_number);
+    }
   });
 
   const coursesByCode = new Map<string, { id: string; department_id: string | null }>();
@@ -71,6 +87,8 @@ export async function loadLookups(): Promise<LookupMaps> {
     semestersByCode,
     semestersByName,
     semestersByYearKey,
+    levelNumberById,
+    programYearsById,
   };
 }
 

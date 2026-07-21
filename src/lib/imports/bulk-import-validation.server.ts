@@ -14,6 +14,7 @@ import {
   validateCourseSections,
   validateStudentEnrollments,
   validateStudentGrades,
+  validateStudentAcademicStatus,
   validateStudentFees,
   validateStudentDiscounts,
   validateStudentEligibility,
@@ -51,6 +52,8 @@ export async function previewBulkImportValidation(
         return validateStudentEnrollments(rawRows, lookups, updateExisting);
       case "student_grades":
         return validateStudentGrades(rawRows, lookups, updateExisting);
+      case "student_academic_status":
+        return validateStudentAcademicStatus(rawRows, lookups, updateExisting);
       case "student_fees":
         return validateStudentFees(rawRows, lookups, updateExisting);
       case "student_discounts":
