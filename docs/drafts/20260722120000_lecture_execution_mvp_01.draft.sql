@@ -57,36 +57,6 @@ create unique index lecture_execution_settings_global_key
   on lecture_execution_settings ((department_id is null))
   where department_id is null;
 
-create table lecture_execution_sessions (
-  id uuid primary key default gen_random_uuid(),
-  department_id uuid not null references departments(id) on delete restrict,
-  class_schedule_id uuid not null references class_schedule(id) on delete restrict,
-  course_section_id uuid not null references course_sections(id) on delete restrict,
-  course_id uuid not null references courses(id) on delete restrict,
-  level_id uuid not null references academic_levels(id) on delete restrict,
-  academic_year_id uuid not null references academic_years(id) on delete restrict,
-  semester_id uuid not null references semesters(id) on delete restrict,
-  room_id uuid references rooms(id) on delete restrict,
-  faculty_profile_id uuid not null references faculty_profiles(id) on delete restrict,
-  week_no smallint not null check (week_no between 1 and 30),
-  session_kind lecture_execution_session_kind not null,
-  state lecture_execution_state not null default 'not_started',
-  confirmation_status text not null default 'faculty_final'
-    check (confirmation_status in ('faculty_final', 'awaiting_delegate', 'confirmed', 'rejected')),
-  reason text,
-  recorded_by_assignment_id uuid,
-  version bigint not null default 1,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  -- One execution record per published slot per numbered week per kind.
-  unique (class_schedule_id, week_no, session_kind),
-  unique (id, department_id)
-);
-
-create index lecture_execution_sessions_department_idx on lecture_execution_sessions (department_id);
-create index lecture_execution_sessions_level_idx on lecture_execution_sessions (level_id);
-create index lecture_execution_sessions_course_idx on lecture_execution_sessions (course_id);
-
 create table lecture_execution_actor_assignments (
   id uuid primary key default gen_random_uuid(),
   role lecture_execution_actor_role not null,
@@ -122,11 +92,49 @@ create unique index lecture_execution_actor_assignments_active_key
   )
   where active;
 
+create table lecture_execution_sessions (
+  id uuid primary key default gen_random_uuid(),
+  department_id uuid not null references departments(id) on delete restrict,
+  class_schedule_id uuid not null references class_schedule(id) on delete restrict,
+  course_section_id uuid not null references course_sections(id) on delete restrict,
+  course_id uuid not null references courses(id) on delete restrict,
+  level_id uuid not null references academic_levels(id) on delete restrict,
+  academic_year_id uuid not null references academic_years(id) on delete restrict,
+  semester_id uuid not null references semesters(id) on delete restrict,
+  room_id uuid references rooms(id) on delete restrict,
+  faculty_profile_id uuid not null references faculty_profiles(id) on delete restrict,
+  week_no smallint not null check (week_no between 1 and 30),
+  session_kind lecture_execution_session_kind not null,
+  state lecture_execution_state not null default 'not_started',
+  confirmation_status text not null default 'faculty_final'
+    check (confirmation_status in ('faculty_final', 'awaiting_delegate', 'confirmed', 'rejected')),
+  reason text,
+  recorded_by_assignment_id uuid,
+  version bigint not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  -- One execution record per published slot per numbered week per kind.
+  unique (class_schedule_id, week_no, session_kind),
+  unique (id, department_id),
+  -- The recorder assignment is bound to the same department (nullable while
+  -- the very first recording of a slot is being written by the RPC).
+  foreign key (recorded_by_assignment_id, department_id)
+    references lecture_execution_actor_assignments (id, department_id) on delete restrict
+);
+
+create index lecture_execution_sessions_department_idx on lecture_execution_sessions (department_id);
+create index lecture_execution_sessions_level_idx on lecture_execution_sessions (level_id);
+create index lecture_execution_sessions_course_idx on lecture_execution_sessions (course_id);
+
 create table lecture_execution_confirmations (
   id uuid primary key default gen_random_uuid(),
   session_id uuid not null,
   department_id uuid not null,
   delegate_assignment_id uuid not null,
+  -- Snapshot of sessions.version being decided. A rejected recording is
+  -- corrected by re-recording (version bump), which opens a new confirmation
+  -- round — decisions for older versions stay as immutable history.
+  session_version bigint not null,
   decision text not null check (decision in ('confirmed', 'rejected')),
   note text,
   decided_at timestamptz not null default now(),
@@ -134,9 +142,8 @@ create table lecture_execution_confirmations (
     references lecture_execution_sessions (id, department_id) on delete restrict,
   foreign key (delegate_assignment_id, department_id)
     references lecture_execution_actor_assignments (id, department_id) on delete restrict,
-  -- Exactly one confirmation decision per session record; corrections flow
-  -- through a new faculty recording (version bump), not an edit.
-  unique (session_id)
+  -- Exactly one confirmation decision per recording version.
+  unique (session_id, session_version)
 );
 
 create table lecture_execution_events (
@@ -157,7 +164,8 @@ create table lecture_execution_events (
     references lecture_execution_sessions (id, department_id) on delete restrict,
   foreign key (actor_assignment_id, department_id)
     references lecture_execution_actor_assignments (id, department_id) on delete restrict,
-  unique (department_id, correlation_id, event_type)
+  -- Mirrors the actor-scoped idempotency pre-check in the RPCs exactly.
+  unique (department_id, actor_user_id, correlation_id, event_type)
 );
 
 create index lecture_execution_events_session_idx on lecture_execution_events (session_id);
@@ -235,31 +243,6 @@ as $$
   end
 $$;
 
-create or replace function require_lecture_execution_assignment(
-  p_department_id uuid,
-  p_roles lecture_execution_actor_role[]
-) returns uuid
-language plpgsql
-stable
-security definer
-set search_path = public, pg_temp
-as $$
-declare
-  v_id uuid;
-begin
-  select a.id into v_id
-  from lecture_execution_actor_assignments a
-  where a.department_id = p_department_id
-    and a.role = any (p_roles)
-    and a.user_id = auth.uid()
-    and a.active
-  limit 1;
-  if v_id is null then
-    raise exception 'exact direct processing assignment required';
-  end if;
-  return v_id;
-end $$;
-
 -- Faculty records (or advances) the execution state of one published slot
 -- for one numbered week. Fail-closed: only a published slot on an active
 -- section/offering, only the assigned recorder of that exact section.
@@ -290,7 +273,16 @@ begin
   if v_uid is null then
     raise exception 'authentication required';
   end if;
+  if p_state is null then
+    raise exception 'execution state is required';
+  end if;
+  if p_session_kind is null then
+    raise exception 'session kind is required';
+  end if;
 
+  -- Idempotency scope is (actor, event_type, correlation); the journal's
+  -- unique (department_id, actor_user_id, correlation_id, event_type)
+  -- mirrors it. Callers pass a fresh correlation UUID per logical operation.
   select e.entity_id into v_existing_entity
   from lecture_execution_events e
   where e.event_type = 'execution_recorded'
@@ -397,9 +389,12 @@ begin
     returning * into v_session;
   else
     if v_session.state = p_state then
-      return v_session.id; -- natural idempotency: same-state retry is a no-op.
-    end if;
-    if not lecture_execution_transition_allowed(v_session.state, p_state) then
+      if v_session.confirmation_status <> 'rejected' then
+        return v_session.id; -- natural idempotency: same-state retry is a no-op.
+      end if;
+      -- Resubmission: a delegate-rejected recording is explicitly re-recorded
+      -- (same state) to open a new confirmation round at a new version.
+    elsif not lecture_execution_transition_allowed(v_session.state, p_state) then
       raise exception 'invalid execution transition: % -> %', v_session.state, p_state;
     end if;
     update lecture_execution_sessions
@@ -448,7 +443,7 @@ begin
   if v_uid is null then
     raise exception 'authentication required';
   end if;
-  if p_decision not in ('confirmed', 'rejected') then
+  if p_decision is null or p_decision not in ('confirmed', 'rejected') then
     raise exception 'decision must be confirmed or rejected';
   end if;
   if p_decision = 'rejected' and (p_note is null or btrim(p_note) = '') then
@@ -456,6 +451,8 @@ begin
   end if;
 
   v_event := case when p_decision = 'confirmed' then 'execution_confirmed' else 'execution_rejected' end;
+  -- Idempotency scope is (actor, event_type, correlation); mirrors the
+  -- journal's unique (department_id, actor_user_id, correlation_id, event_type).
   select e.entity_id into v_existing_entity
   from lecture_execution_events e
   where e.event_type = v_event
@@ -503,9 +500,9 @@ begin
   end if;
 
   insert into lecture_execution_confirmations (
-    session_id, department_id, delegate_assignment_id, decision, note
+    session_id, department_id, delegate_assignment_id, session_version, decision, note
   ) values (
-    v_session.id, v_session.department_id, v_assignment, p_decision, p_note
+    v_session.id, v_session.department_id, v_assignment, v_session.version, p_decision, p_note
   );
 
   update lecture_execution_sessions
@@ -520,7 +517,7 @@ begin
   ) values (
     v_session.department_id, v_session.id, v_uid, v_assignment,
     v_event, 'lecture_execution_session', v_session.id, p_note, p_correlation_id,
-    jsonb_build_object('decision', p_decision)
+    jsonb_build_object('decision', p_decision, 'session_version', v_session.version)
   );
 
   return v_session.id;
@@ -556,7 +553,6 @@ revoke all on table lecture_execution_confirmations from anon, authenticated;
 revoke all on table lecture_execution_events from anon, authenticated;
 revoke all on lecture_execution_reporting from anon, authenticated;
 
-revoke all on function require_lecture_execution_assignment(uuid, lecture_execution_actor_role[]) from public, anon, authenticated;
 revoke all on function lecture_execution_transition_allowed(lecture_execution_state, lecture_execution_state) from public, anon, authenticated;
 revoke all on function record_lecture_execution(uuid, smallint, lecture_execution_session_kind, lecture_execution_state, text, uuid) from public, anon;
 revoke all on function confirm_lecture_execution(uuid, text, text, uuid) from public, anon;
