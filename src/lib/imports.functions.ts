@@ -18,6 +18,7 @@ import {
   importCourseSections,
   importStudentEnrollments,
   importStudentGrades,
+  importStudentAcademicStatus,
   importStudentFees,
   importStudentDiscounts,
   importStudentEligibility,
@@ -66,6 +67,7 @@ const importTypeSchema = z.enum([
   "course_sections",
   "student_enrollments",
   "student_grades",
+  "student_academic_status",
   "student_fees",
   "student_discounts",
   "student_eligibility",
@@ -80,6 +82,7 @@ const IMPORT_ROLES_BY_TYPE: Record<z.infer<typeof importTypeSchema>, readonly st
   students: ACADEMIC_IMPORT_ROLES,
   student_enrollments: ACADEMIC_IMPORT_ROLES,
   student_grades: ACADEMIC_IMPORT_ROLES,
+  student_academic_status: ACADEMIC_IMPORT_ROLES,
   documents: ACADEMIC_IMPORT_ROLES,
   courses: ACADEMIC_IMPORT_ROLES,
   study_plans: ACADEMIC_IMPORT_ROLES,
@@ -316,6 +319,9 @@ export const runBulkImport = createServerFn({ method: "POST" })
         break;
       case "student_grades":
         report = await importStudentGrades(vrows, data.dryRun, data.updateExisting);
+        break;
+      case "student_academic_status":
+        report = await importStudentAcademicStatus(vrows, data.dryRun, data.updateExisting);
         break;
       case "student_fees":
         report = await importStudentFees(vrows, data.dryRun, data.updateExisting);
