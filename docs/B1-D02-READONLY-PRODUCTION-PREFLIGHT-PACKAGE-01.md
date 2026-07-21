@@ -22,7 +22,7 @@ set local statement_timeout = '30s';
 set local lock_timeout = '5s';
 ```
 
-كل استعلام لاحق يعمل داخل هذه المعاملة للقراءة فقط. عند الانتهاء: `rollback;`
+**تنبيه تنفيذي مهم:** في Supabase SQL Editor كل ضغطة Run جلسة/معاملة مستقلة. لذلك يجب لصق الحارس **والاستعلامات التالية في نفس السكربت/الـRun الواحد** حتى يبقى `begin read only` فعالاً. عند الانتهاء: `rollback;` في نفس السكربت.
 
 ## 2. Q1 — سجل التطبيق الكامل
 
@@ -51,21 +51,33 @@ where name ilike any(array[
 order by version;
 ```
 
-## 4. Q3 — فحوص وجود الكائنات (probes كتالوجية قراءة فقط)
+## 4. فحوص وجود الكائنات (probes كتالوجية قراءة فقط)
+
+**شغّل كل استعلام منفرداً والتقط مخرجاته** (SQL Editor يعرض نتيجة الاستعلام الأخير فقط عند التشغيل الجماعي).
+
+### Q3a — overloads `log_audit` (البوابة B-6)
 
 ```sql
--- overloads log_audit (B-6): يجب أن يظهر التوقيعان قبل migration الترتيب 1
 select p.oid::regprocedure as signature
 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
 where n.nspname='public' and p.proname='log_audit'
 order by 1;
+```
 
--- كائنات متوقع غيابها قبل التطبيق (وجودها = partial/ambiguous)
+المتوقع قبل migration الترتيب 1: توقيعان (6-arg و7-arg). أي عدد ≠ 2 = `D02_HOLD_LOG_AUDIT_SIGNATURE_MISMATCH` (توقف فوري — انظر §7).
+
+### Q3b — كائنات متوقع غيابها قبل التطبيق (وجودها = partial/ambiguous)
+
+```sql
 select
   to_regclass('public.student_request_service_details') as service_details,
   to_regclass('public.student_request_secure_attachments') as secure_attachments,
   to_regclass('public.external_university_payment_confirmations') as ext_payment;
+```
 
+### Q3c — RPCs الحزمة
+
+```sql
 select p.oid::regprocedure as signature
 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
 where n.nspname='public' and p.proname in (
@@ -75,7 +87,7 @@ where n.nspname='public' and p.proname in (
 order by 1;
 ```
 
-قاعدة الحكم على Q3: وجود كائن مع غياب سطر مطابق في Q1 = `partial` (كائن بلا سجل تطبيق) → توقف وسجّل. عدم وجود كائن متوقع غيابه = متسق مع `not_applied`.
+قاعدة الحكم على Q3b/Q3c: وجود كائن مع غياب سطر مطابق في Q1 = `partial` (كائن بلا سجل تطبيق) → توقف وسجّل. عدم وجود كائن متوقع غيابه = متسق مع `not_applied`.
 
 ## 5. مصفوفة المطابقة (تُعبأ من Q1/Q2/Q3)
 
@@ -114,6 +126,7 @@ order by 1;
 ## 7. شروط التوقف
 
 - فشل Q1 بصلاحيات → توقف، النتيجة `SCHEMA_MIGRATIONS_UNREADABLE`.
+- عدد توقيعات `log_audit` ≠ 2 → توقف فوري، النتيجة `D02_HOLD_LOG_AUDIT_SIGNATURE_MISMATCH`.
 - أي `ambiguous` أو `partial` في المصفوفة → توقف، لا متابعة لأي خطوة لاحقة.
 - أي إغراء لكتابة → ممنوع مطلقاً؛ هذه الحزمة SELECT فقط.
 
@@ -129,11 +142,12 @@ order by 1;
 |---|---|
 | partial (كائن بلا سجل) | لا حذف؛ تقرير فوري للقائد العام → خطة forward-correction موثقة جديدة |
 | ambiguous (اسم قريب) | مطابقة SHA يدوية للمحتوى قبل أي حكم |
+| log_audit signatures ≠ 2 | توقف — تحقق كتالوجي أعمق بقرار منفصل، لا إصلاح فوري |
 | provenance مثبت لـSHA غير متوقع | توقف — مقارنة مع سجل الدمج قبل أي migration |
 
 ## 10. سجل التنفيذ (يُعبأ بعد التشغيل)
 
 - التاريخ/المنفذ/القناة: ____
 - مخرجات Q1 الخام: ____
-- مخرجات Q2/Q3/Q4: ____
+- مخرجات Q2/Q3a/Q3b/Q3c/Q4: ____
 - الحكم النهائي: `D02_COMPLETE_CLEAN` / `D02_HOLD_<سبب>`
