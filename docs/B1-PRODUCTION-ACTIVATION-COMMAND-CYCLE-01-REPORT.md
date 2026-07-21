@@ -4,6 +4,8 @@ Date: 2026-07-20 (Asia/Riyadh)
 
 Repository: `msorori-mh/saba-uni-portal`
 
+> **SUPERSEDED AS CURRENT BASELINE (2026-07-21):** do not use `427b7eb4…` as the fresh release pin. Current `expected_release_sha` = `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` (`docs/B1-PREFLIGHT-FRESH-BASELINE-01.md`). Historical cycle below retained.
+
 Pinned source: `origin/main@427b7eb48f8771f31bd08a46fc4590cf883ab7e2`
 
 Latest source-only integration tip after safe merges:

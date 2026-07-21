@@ -1,6 +1,8 @@
 # REMAINING-STUDENT-SERVICES-READINESS-01 — ANALYSIS/DOC REPORT
 
 **التاريخ:** 2026-07-21 · **المرجع:** `origin/main@8f229d09` (`8f229d09d581d8128dc684f47ad989200312d210`)
+
+> **تحديث خط الأساس (2026-07-21):** `8f229d09` لم يعد tip الحالي. Fresh RC = `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` — `docs/PORTAL-FRESH-RELEASE-CANDIDATE-01.md`. هذا التقرير يبقى دراسة عند SHA التأليف.
 **النطاق:** الخدمات الست المؤجلة بقرار إداري (D-11/D-12 في `docs/PORTAL-SWARM-DECISIONS-NEEDED.md`):
 `grade_statement_non_graduate`, `october_exam_entry_form`, `replacement_student_card`, `academic_record`, `grade_statement`, `graduation_certificate`.
 

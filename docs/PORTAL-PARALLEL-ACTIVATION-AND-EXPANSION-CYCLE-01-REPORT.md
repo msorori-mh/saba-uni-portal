@@ -6,6 +6,8 @@ Repository: `msorori-mh/saba-uni-portal`
 
 Requested baseline: `427b7eb48f8771f31bd08a46fc4590cf883ab7e2`
 
+> **Note (2026-07-21):** that requested baseline is **stale**. Fresh release pin is `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` — see `docs/PORTAL-FRESH-RELEASE-CANDIDATE-01.md`.
+
 Current `origin/main` at reconciliation:
 `99f1b48dabe3c475ee5ca04c7d16b3948d46662a`
 

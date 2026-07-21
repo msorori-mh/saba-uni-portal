@@ -1,5 +1,7 @@
 # B1 Release Candidate Manifest 01
 
+> **SUPERSEDED AS CURRENT RC (2026-07-21):** for the fresh tip use `docs/PORTAL-FRESH-RELEASE-CANDIDATE-01.md` with `expected_release_sha` = `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6`. This manifest remains the historical five-services RC contract from the preflight-blockers remediation cycle.
+
 Status: `SOURCE_ONLY — DEPLOY GATE SEPARATE`
 Scope: five services only
 (`enrollment_suspension`, `excused_absence`, `file_withdrawal`,

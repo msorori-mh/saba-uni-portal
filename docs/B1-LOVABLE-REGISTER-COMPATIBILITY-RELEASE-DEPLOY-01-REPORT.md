@@ -1,5 +1,7 @@
 # B1-LOVABLE-REGISTER-COMPATIBILITY-RELEASE-DEPLOY-01 — REPORT
 
+> **HISTORICAL DEPLOY RECORD (2026-07-21):** Authorized SHA `427b7eb4…` is **not** the current fresh release candidate. Current `expected_release_sha` = `0e2d25c9a2d7923ce74cfae079b99691d61eb1b6` (`docs/PORTAL-FRESH-RELEASE-CANDIDATE-01.md`). Do not treat this report as proof that the fresh tip is published.
+
 **Decision:** PASS_B1_REGISTER_COMPATIBILITY_DEPLOYED_READY_FOR_PRODUCTION_PREFLIGHT
 
 ## Scope
