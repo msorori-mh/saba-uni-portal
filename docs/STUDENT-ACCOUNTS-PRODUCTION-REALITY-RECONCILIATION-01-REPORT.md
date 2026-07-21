@@ -28,7 +28,7 @@
 |---|---|
 | `src/lib/imports/student-accounts-preflight.ts` | النواة النقية: رموز التصنيف الـ12، عقد اللقطة، التجزئة (sha256)، التصنيف الصفي، قاعدة الربط، بوابة القرار GO/HOLD. لا تستورد أي عميل Supabase ولا تُجري أي I/O. |
 | `src/lib/imports/student-accounts-preflight.server.ts` | توصيل القراءة فقط عبر الحقن (DI): استعلامات SELECT فقط + مسح Auth `listUsers` (نفس أنماط قراءة المدقق الحالي). بلا أي INSERT/UPDATE/DELETE وبلا RPC. |
-| `tests/student-accounts-guards/student-accounts-preflight.test.ts` | 23 اختباراً (bun) — انظر المصفوفة §5. |
+| `tests/student-accounts-guards/student-accounts-preflight.test.ts` | 25 اختباراً (bun) — انظر المصفوفة §5. |
 | `docs/STUDENT-ACCOUNTS-PRODUCTION-REALITY-RECONCILIATION-01-REPORT.md` | هذا التقرير. |
 
 ### 2.2 حد الحقن (DI boundary)
@@ -63,7 +63,7 @@
 
 ## 4. نتائج التحقق المحلية
 
-- `bun test tests/student-accounts-guards/` على bun 1.3.14: **23 ناجحاً / 0 فاشل** (84 توقعاً).
+- `bun test tests/student-accounts-guards/` على bun 1.3.14: **25 ناجحاً / 0 فاشل** (91 توقعاً).
 - فحص `tsc` صارم محدود النطاق (strict، بلا emit) على الوحدتين الجديدتين مع stubs محلية لـ `node:crypto` وعميل Supabase: **0 أخطاء**.
 - فحص فراغات زائدة/علامات تبويب على كل الملفات الجديدة: نظيف.
 - مجموعة `tests/` الكاملة وبناء المشروع: **مؤجلان إلى CI** (غير منفذين محلياً — الإفصاح في متن PR).
@@ -95,6 +95,8 @@
 | 21 | اشتقاق unlinked = total − linked وتحقق التجزئة | صحيح / كشف العبث | ✅ |
 | 22 | ثبات hash الملف (ترتيب المفاتيح لا يؤثر) | تطابق/اختلاف صحيحان | ✅ |
 | 23 | عقد الرموز الـ12 بالضبط | تطابق تام | ✅ |
+| 24 | قاعدة الربط — الحد الأعلى: READY=2 > unlinked=1 | HOLD + `BINDING_RULE_VIOLATION` | ✅ |
+| 25 | صفوف بلا رقم أكاديمي متكررة البريد | STUDENT_NOT_FOUND لكل صف (لا DUPLICATE_IN_FILE) | ✅ |
 
 ## 6. حدود ومتابعات
 
