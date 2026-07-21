@@ -31,10 +31,34 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 const mockFrom = mock((_table: string) => ({}));
 const mockRpc = mock(async () => ({ data: null, error: null }));
 
+// bun runs test files in ONE process without module isolation: the lazy
+// supabase client in client.server.ts is created once and cached across files,
+// so per-file createClient mocks collide in full-suite runs. All import-test
+// files therefore delegate through a shared globalThis handler that each file
+// installs in beforeEach — last writer wins, per test.
+const FROM_HANDLER_KEY = "__sabaImportTestFromHandler";
+const RPC_HANDLER_KEY = "__sabaImportTestRpcHandler";
+type FromHandler = (table: string) => unknown;
+type RpcHandler = (...args: unknown[]) => unknown;
+function setFromHandler(handler: FromHandler) {
+  (globalThis as Record<string, unknown>)[FROM_HANDLER_KEY] = handler;
+}
+function setRpcHandler(handler: RpcHandler) {
+  (globalThis as Record<string, unknown>)[RPC_HANDLER_KEY] = handler;
+}
+
 mock.module("@supabase/supabase-js", () => ({
   createClient: () => ({
-    from: mockFrom,
-    rpc: mockRpc,
+    from: (table: string) => {
+      const handler = (globalThis as Record<string, FromHandler | undefined>)[FROM_HANDLER_KEY];
+      if (!handler) throw new Error("test from-handler not installed");
+      return handler(table);
+    },
+    rpc: (...args: unknown[]) => {
+      const handler = (globalThis as Record<string, RpcHandler | undefined>)[RPC_HANDLER_KEY];
+      if (!handler) throw new Error("test rpc-handler not installed");
+      return handler(...args);
+    },
   }),
 }));
 
@@ -50,6 +74,8 @@ beforeEach(() => {
   mockFrom.mockReset();
   mockRpc.mockReset();
   mockRpc.mockResolvedValue({ data: null, error: null });
+  setFromHandler((table) => mockFrom(table));
+  setRpcHandler((...args) => mockRpc(...args));
 });
 
 // ---------------------------------------------------------------- fixtures
