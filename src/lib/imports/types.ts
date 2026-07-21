@@ -59,4 +59,11 @@ export type LookupMaps = {
   academicYearsByName: Map<string, string>;
   semestersByCode: Map<string, string>;
   semestersByName: Map<string, string>;
+  /**
+   * Year-scoped semester resolution (ACADEMIC-DATA-QUALITY-01 / G-02).
+   * Key = `${academic_year_id}|${normKey(code | name)}`.
+   * Built by loadLookups(). Optional: legacy hand-built lookups without this
+   * map fall back to the old global (non year-scoped) resolution.
+   */
+  semestersByYearKey?: Map<string, string>;
 };
