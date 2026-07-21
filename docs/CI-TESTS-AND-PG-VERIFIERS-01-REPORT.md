@@ -1,44 +1,22 @@
 # CI — إدراج اختبارات bun وPG verifiers (Q-20)
 
-التاريخ: 2026-07-21 · الفرع: `ci/add-tests-and-pg-verifiers` · الأساس: `main` @ `265df127`
+التاريخ: 2026-07-21 · الفرع: `ci/add-tests-and-pg-verifiers` · الأساس: `main` @ `df90f1a8379da4b15c561a87ebc21e3a31e2550e`
+البرنامج: `PORTAL-CI-HARDENING-PR194-CLOSURE-01`
 
-## حالة التسليم وخطوة التطبيق الدقيقة للمالك (إغلاق 2026-07-21)
+## حالة التسليم (تطبيق Workflow الحقيقي)
 
-- **PR ‎#194 بصيغته الحالية (الملف المسرَّح + هذا التقرير) هو التسليم النهائي**
-  لهذه المهمة — لا دمج؛ بانتظار تطبيق المالك.
-- ملف سير العمل مسرَّح عند
-  `docs/ci/CI-ADD-TESTS-AND-PG-VERIFIERS.proposed.yml` على نفس الفرع
-  (الالتزام `e694a3c2`)، مطابق بايت-بايت للمحتوى المقصود لـ
-  `.github/workflows/ci.yml` (مع ترويسة تعليق من 7 أسطر في الأعلى).
-  سبب التسرِيح: توكن الأتمتة يفتقد صلاحية `workflow` — أي كتابة تحت
-  `.github/workflows/` تُعاد بـ **404** (أُثبت بمسبار مضبوط: كتابة مسار
-  غير workflow على نفس الفرع **نجحت**، وأي كتابة تحت
-  `.github/workflows/` — حتى لملف جديد كلياً — **فشلت بـ 404**).
-- **جُرّبت الكتابة المباشرة بتوكن القائد أيضاً** (`create_or_update_file`
-  على `.github/workflows/ci.yml`) ففشلت بنفس الخطأ **404** — حاجز
-  الصلاحية نفسه، فبقي الحل البديل هو التسليم.
-- خطوة التطبيق للمالك (بحساب يملك صلاحية `workflow` على المستودع):
-
-  ```bash
-  git fetch origin ci/add-tests-and-pg-verifiers
-  git checkout ci/add-tests-and-pg-verifiers
-  git mv docs/ci/CI-ADD-TESTS-AND-PG-VERIFIERS.proposed.yml .github/workflows/ci.yml
-  git commit -m "ci: apply bun tests + PG 17 verifier matrix (Q-20)"
-  git push origin ci/add-tests-and-pg-verifiers
-  ```
-
-  بعد الـ `git mv` تبقى في رأس الملف 7 أسطر تعليق (`#`) خاصة بالتسرِيح —
-  عديمة الأثر تماماً في YAML؛ وللتطابق البايتي التام مع المحتوى المُتحقَّق
-  منه محلياً يمكن استبدال الخطوة بـ
-  `tail -n +8 docs/ci/CI-ADD-TESTS-AND-PG-VERIFIERS.proposed.yml > .github/workflows/ci.yml`.
-- **فرع مسبار متبقٍّ**: `ci/q20-probe` — فارغ (استُخدم لإثبات حاجز صلاحية
-  `workflow` ثم حُذف ملف المسبار منه). أداة الأتمتة لا تملك حذف الفروع؛
-  يُحذف يدوياً من واجهة GitHub أو بـ
-  `git push origin --delete ci/q20-probe`.
+- **PR #194** يطبّق الآن سير العمل الحقيقي في `.github/workflows/ci.yml` (لم يعد
+  مقترحاً تحت `docs/ci/`).
+- أُزيل الملف المسرَّح `docs/ci/CI-ADD-TESTS-AND-PG-VERIFIERS.proposed.yml` بعد النقل.
+- الأساس بعد rebase: `origin/main` @ `df90f1a` (يشمل دمج #191 disposition + #190
+  graduation-projects lifecycle).
+- أُضيفت الرجل الثامنة `graduation-projects-lifecycle` بعد دمج PR #190 على main.
+- العدد المعتمد: **8/8** سلاسل PG verifier.
 
 ## ما تغيّر
 
-ملف `.github/workflows/ci.yml` فقط (بالإضافة إلى هذا التقرير). مهمة `quality`
+ملف `.github/workflows/ci.yml` (استبدال كامل لمحتوى quality السابق مع الإبقاء
+على سلوك quality دون إضعاف) + هذا التقرير. مهمة `quality`
 (Install · Lint · Typecheck · Build) بقيت كما هي حرفياً. أُضيفت مهمتان:
 
 ### 1. `bun-tests` — اختبارات bun لكل أجنحة `tests/` (fail-closed)
@@ -50,23 +28,15 @@
 - حارس الاكتشاف يفشل المهمة إن وُجد صفر ملفات `*.test.ts` تحت `tests/`، فلا
   تتحول المهمة صامتاً إلى no-op عند إعادة تسمية المسارات.
 - لا يحتاج سكربت `test` في package.json؛ النداء مباشر `bun test tests/`.
-- محارِكات الأمان `tests/security/t1..t5-*.test.ts` وحدات مكتبية بلا اختبارات
-  `bun:test` (تُستهلك عبر `security-test-runner` ضد هدف staging)؛ تُحمَّل بأمان
-  تحت `bun test` (0 اختبارات، بلا آثار جانبية عند الاستيراد — تم فحص
-  `assertions.ts`/`roles.ts`/`server-fn.ts`/`config.ts`). مسار staging اليدوي
-  `bun run security:test` يبقى كما هو خارج CI.
 
-### 2. `pg-verifiers` — سلاسل تحقق PostgreSQL 17 (matrix بسبع أرجل)
+### 2. `pg-verifiers` — سلاسل تحقق PostgreSQL 17 (matrix بثماني أرجل)
 
 كل رجل تعمل على خدمة `postgres:17` **خاصة بها** (عنقود مستقل)، وتنفّذ:
-مخطط الحقائق ← مسودة الترحيل (draft، artifact مراجعة source-only) ← المحقِّق،
-مع `psql -v ON_ERROR_STOP=1` على كل ملف (fail-closed حتى في الملفات التي لا
-تضبطه بنفسها). `strategy.fail-fast: false` حتى تعطي كل السلاسل إشارتها دائماً.
+مخطط الحقائق ← مسودة/مسودات الترحيل ← المحقِّق(ون)،
+مع `psql -v ON_ERROR_STOP=1` على كل ملف (fail-closed). `strategy.fail-fast: false`
+حتى تعطي كل السلاسل إشارتها دائماً.
 
-## السلاسل المُدرجة — 7/7 (كل الأجنحة الخمسة المطلوبة)
-
-> ملاحظة: أثناء العمل دُمجت PR ‎#184 (academic-clearance completion 01) في main،
-> فأُدرجت سلسلتها أيضاً بعد التحقق المحلي بنفس الطريقة.
+## السلاسل المُدرجة — 8/8
 
 | الرجل | الملفات بالترتيب | متغيرات `-v` |
 |---|---|---|
@@ -75,39 +45,35 @@
 | academic-clearance-foundation | `academic-clearance.pg-setup.sql` ← `DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-FOUNDATION-01.sql` ← `academic-clearance.pg-verify.sql` | — |
 | academic-clearance-completion | `academic-clearance.pg-setup.sql` ← `...-FOUNDATION-01.sql` ← `docs/drafts/ACADEMIC-CLEARANCE-COMPLETION-01.sql` ← `academic-clearance-completion.pg-verify.sql` | — |
 | graduation-projects-foundation | `postgres-minimal-schema.sql` ← `GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql` ← `postgres-foundation-verifier.sql` | 5: department, student profile/user, faculty profile/user |
+| **graduation-projects-lifecycle** | `postgres-minimal-schema.sql` ← `GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql` ← **`GRADUATION-PROJECTS-LIFECYCLE-COMPLETION-01.sql`** ← `postgres-foundation-verifier.sql` ← `postgres-lifecycle-verifier.sql` | **نفس الـ5** (من `postgres-minimal-schema.sql` + نتيجة #190) |
 | materials-secure-activation | `postgres-minimal-schema.sql` ← `20260721000000_materials_secure_activation.draft.sql` ← `postgres-secure-activation-verifier.sql` | — |
 | lecture-execution-foundation | `postgres-minimal-schema.sql` ← `20260722120000_lecture_execution_mvp_01.draft.sql` ← `postgres-foundation-verifier.sql` | 7: department, level, faculty profile/user, student profile/user, class_schedule |
 
-قيم `-v` كلها حقائق اصطناعية من ملفات `postgres-minimal-schema.sql` نفسها.
+قيم `-v` لمشاريع التخرج (مستخرجة من `postgres-minimal-schema.sql` ونتيجة lifecycle المدموجة):
 
-## التحقق المحلي قبل الرفع
+```
+-v department_id=20000000-0000-0000-0000-000000000001
+-v student_profile_id=30000000-0000-0000-0000-000000000001
+-v student_user_id=10000000-0000-0000-0000-000000000001
+-v faculty_profile_id=40000000-0000-0000-0000-000000000001
+-v faculty_user_id=10000000-0000-0000-0000-000000000002
+```
 
-- الأساس النهائي للفرع: main @ `265df127` (بعد دمج ‎#184).
-- بيئة: PostgreSQL **17.10** (عنقود disposable) + عميل **psql 16** — نفس
-  طوبولوجيا ubuntu-latest (psql 16 من runner ← خدمة postgres:17).
-- كل الملفات الـ19 في السلاسل جُلبت من main وتُحقِّق منها عبر
-  git blob SHA (كاملة، MATCH).
-- محاكاة verbatim: حُلّل ملف ci.yml نفسه ونُفّذت حلقة `Run chain` لكل رجل
-  على عنقود نظيف ⇒ **7/7 PASS**.
-- اكتشاف تصميمي مؤثر: تشغيل السلاسل في عنقود واحد مشترك يفشل لأن إعدادَي
-  graduates-affairs وacademic-clearance ينفّذان `CREATE ROLE anon/authenticated`
-  بلا شرط (الأدوار على مستوى العنقود لا قاعدة البيانات) — لهذا اختيرت مصفوفة
-  بعناقيد مستقلة بدل خدمة واحدة مشتركة.
+## التحقق المحلي (PORTAL-CI-HARDENING-PR194-CLOSURE-01)
+
+- الأساس: `main` @ `df90f1a` بعد rebase نظيف لفرع `ci/add-tests-and-pg-verifiers`.
+- Workflow الحقيقي في `.github/workflows/ci.yml` — لا ملف proposed متبقٍّ.
+- بوابات ملزمة قبل الدمج: `quality` + `bun-tests` + `pg-verifiers` **8/8**.
 
 ## ما استُثني ولماذا
 
-- **سلسلة graduation-projects lifecycle** (PR ‎#190): غير مدمجة في main بعد؛
-  عند دمجها تُضاف رجل ثامنة (minimal-schema ← foundation draft ← lifecycle
-  draft ← lifecycle verifier). موثّق كتعليق داخل المصفوفة.
 - **محارِكات staging الأمنية (t1..t5)**: تبقى يدوية عبر `security:test`؛ ليست
   اختبارات bun وتتطلب هدف staging وأسراراً لا تصلح لـ PR CI.
-- **مهمة quality**: لم تُمسّ (الlint الاستشاري والtypecheck الشرطي كما هما).
+- **مهمة quality**: لم تُضعَف (الlint الاستشاري والtypecheck الشرطي كما هما).
+- **PR #149 / #155**: خارج النطاق — لم تُمسا.
 
 ## مخاطر وتحفظات
 
-- أول تشغيل كامل لمهمة `bun-tests` على الشجرة كلها سيكون على PR هذا التغيير؛
-  إن ظهرت إخفاقات قديمة في main فالسلوك fail-closed مقصود (هذا ما طُلب)،
-  والمتابعة إما بإصلاح الاختبار أو بتحديد نطاق مؤقت موثّق.
-- تظهر الأرجل السبع كـ checks باسم `PG 17 verifier · <chain>`؛ إن احتاجت حماية
-  الفرع اسماً واحداً ثابتاً يمكن تجميعها لاحقاً في مهمة واحدة متسلسلة.
-- المصفوفة تكلّف ~7 خدمات postgres متوازية (كل رجل < ~2 دقيقة غالباً).
+- `bun-tests` fail-closed على كامل `tests/` — إخفاق قديم يسقط البوابة عمداً.
+- المصفوفة تكلّف ~8 خدمات postgres متوازية (كل رجل على عنقود مستقل).
+- فرع المسبار `ci/q20-probe` يُحذف بعد الدمج فقط إن لم يُستخدم في أي PR مفتوح.
