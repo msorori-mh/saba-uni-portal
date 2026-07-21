@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { MATERIALS_BUCKET, type LinkageMode, type StudySystemTag } from "@/lib/course-materials.shared";
+import {
+  MATERIALS_BUCKET,
+  isMaterialFileDownloadable,
+  type LinkageMode,
+  type StudySystemTag,
+} from "@/lib/course-materials.shared";
 import { fetchCanonicalCurrentTerm, type CurrentTermClient } from "@/lib/current-term";
 import {
   canAccessPublishedMaterial,
@@ -113,20 +118,27 @@ export const listStudentMaterialsForCourse = createServerFn({ method: "POST" })
 
     const { data: rows } = await supabaseAdmin
       .from("course_materials")
-      .select("id, title, description, lecture_number, study_system, published_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, uploaded_at)")
+      .select("id, title, description, week_number, lecture_number, study_system, published_at, files:course_material_files(id, original_filename, mime_type, size_bytes, version_number, scan_state, uploaded_at)")
       .eq("course_section_id", data.sectionId)
       .eq("status", "published")
+      .order("week_number", { ascending: true, nullsFirst: false })
       .order("lecture_number", { ascending: true, nullsFirst: false })
       .order("published_at", { ascending: false });
 
-    type R = { id: string; title: string; description: string | null; lecture_number: number | null; study_system: StudySystemTag; published_at: string | null; files: any[] };
-    return ((rows ?? []) as R[]).filter((m) => canAccessPublishedMaterial({
-      eligibleSectionIds: sectionIds,
-      sectionId: data.sectionId,
-      status: "published",
-      materialTag: m.study_system,
-      studentSystem: student.study_system,
-    }));
+    type R = { id: string; title: string; description: string | null; week_number: number | null; lecture_number: number | null; study_system: StudySystemTag; published_at: string | null; files: any[] };
+    return ((rows ?? []) as R[])
+      .filter((m) => canAccessPublishedMaterial({
+        eligibleSectionIds: sectionIds,
+        sectionId: data.sectionId,
+        status: "published",
+        materialTag: m.study_system,
+        studentSystem: student.study_system,
+      }))
+      // Fail-closed: files are hidden from students until the malware scan marks them clean.
+      .map((m) => ({
+        ...m,
+        files: (m.files ?? []).filter((f) => isMaterialFileDownloadable(f?.scan_state)),
+      }));
   });
 
 export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
@@ -136,7 +148,7 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: file, error } = await supabaseAdmin
       .from("course_material_files")
-      .select("id, storage_path, course_material_id, material:course_materials(id, course_section_id, study_system, status, faculty_profile_id)")
+      .select("id, storage_path, scan_state, course_material_id, material:course_materials(id, course_section_id, study_system, status, faculty_profile_id)")
       .eq("id", data.fileId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -165,6 +177,11 @@ export const getCourseMaterialDownloadUrl = createServerFn({ method: "POST" })
         materialTag: material.study_system,
         studentSystem: student.study_system,
       })) throw new Error("لا يمكنك الوصول إلى هذا الملف");
+    }
+
+    // Fail-closed scan gate: no file access before scan_state = 'clean' (applies to everyone).
+    if (!isMaterialFileDownloadable((file as any).scan_state)) {
+      throw new Error("الملف غير متاح بعد (قيد الفحص أو غير آمن)");
     }
 
     const { data: signed, error: sErr } = await (supabaseAdmin as any).storage
