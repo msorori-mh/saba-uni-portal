@@ -74,12 +74,12 @@
 2. **موافقة Storage معلقة:** إنشاء السلة الخاصة + سياسة منع العميل — لم تُنفَّذ ولم تُمس.
 3. **D-16 معلق:** الأنواع/الحدود النهائية. البنية قابلة للتضييق اليوم؛ التوسيع يتطلب حسم D-16 ثم تحديث خط الأساس المدمَّج (runtime + CHECK قيد 25MB في DB).
 4. **إصدار المستدعي (caller release):** تبديل runtime إلى RPCs المغلقة يمر عبر `apply_materials_rpc_only_dml_cutover` مع بصمات تعريف مراجعة (تُحسب من `pg_get_functiondef` بعد التطبيق على نسخة المراجعة) — خطوة لاحقة منفصلة.
-5. **عامل الفحص (scanner):** تكامل فعلي خارجي؛ RPC الانتقال جاهز لمRole `service_role` فقط، والانتقالات نهائية (`pending → clean|infected|failed`)، وإعادة الفحص تتطلب نسخة ملف جديدة.
+5. **عامل الفحص (scanner):** تكامل فعلي خارجي؛ RPC الانتقال جاهز لدور `service_role` فقط، والانتقالات نهائية (`pending → clean|infected|failed`)، وإعادة الفحص تتطلب نسخة ملف جديدة.
 6. **مسار إشعارات النشر** ما يزال يقرأ `materials_linkage_mode` (cohort fallback) كما في العقود المدموجة — خارج نطاق هذه المهمة؛ مسار قراءة الطالب مغلق تمامًا (#154).
 
 ## 6) ملاحظات cutover (توثيق مراجعة الجولة الثانية)
 
-- **الأقفال:** المسودة تستخدم أقفالًا صريحة فقط (`SELECT ... FOR UPDATE` و `LOCK TABLE ... IN SHARE MODE`) بترتيب حتمي موثق داخل كل RPC؛ **لا تستخدم `pg_advisory_lock`** — أي إشارة سابقة إلى «advisory locks» (في وصف PR) كانت خطأً توثيقيًا وقد صُححت.
+- **الأقفال:** المسودة تستخدم أقفالًا صريحة فقط (`SELECT ... FOR UPDATE` و `LOCK TABLE ... IN SHARE MODE`) بترتيب حتمي موثق داخل كل RPC؛ **لا تستخدم `pg_advisory_lock`** — إشارة المراجعة إلى «advisory locks» لا تطابق أي نص فعلي في هذا الـPR (رُوجِع الوصف وجميع الملفات)، وهذا السطر هو التوثيق الصحيح لآلية القفل المستخدمة.
 - **fail-closed لـ `study_system` (MEDIUM-1):** `record_course_material_download` يستخدم الآن `coalesce(v_student.study_system, '') not in ('regular','parallel')` — طالب بـ `study_system IS NULL` يُرفض (`AUTHORIZATION_DENIED`) كما في runtime تمامًا؛ مغطى بفحص المُتحقق 33b (كان `NULL not in (...)` يُقيَّم NULL فلا يرفض).
 - **cast الخام لـ `size_bytes`:** يُحرَّس بـ regex `^[0-9]+$` قبل `::bigint`؛ القيم غير الرقمية ⇒ NULL (في reserve تُرفض بـ `INVALID_FILE_SIZE`، وفي finalize يُتخطّى فحص تطابق الحجم). قيمة رقمية تتجاوز bigint ترفع خطأ PG خامًا (22003) لا رمز حارسًا — على المستدعي إرسال bigint سليم ضمن الحد؛ يُشدَّد عند cutover إن رغبت المراجعة.
 - **فحص الفصل في finalize:** شرط `CURRENT_ACTIVE_SECTION_REQUIRED` يُفرض عند reserve فقط؛ finalize يقفل بالترتيب (faculty → material → file) ويطابق البصمة/الحجم (`UPLOAD_FINALIZE_MISMATCH`) ويرفض الأرشفة، دون إعادة فحص الفصل الحالي — قرار موثق (الحجز قصير العمر والمادة مقفولة)؛ إعادة الفرض عند finalize تُضاف قبل cutover إن طُلب.
