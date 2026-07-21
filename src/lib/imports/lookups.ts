@@ -10,7 +10,9 @@ export async function loadLookups(): Promise<LookupMaps> {
     sb.from("academic_levels").select("id, name, level_number"),
     sb.from("courses").select("id, code, department_id"),
     sb.from("academic_years").select("id, name"),
-    sb.from("semesters").select("id, name, code"),
+    // academic_year_id is required: semesters.code is unique per year, not globally
+    // (UNIQUE (academic_year_id, code) — migration 20260531230139).
+    sb.from("semesters").select("id, name, code, academic_year_id"),
   ]);
 
   const norm = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
@@ -45,15 +47,32 @@ export async function loadLookups(): Promise<LookupMaps> {
 
   const semestersByCode = new Map<string, string>();
   const semestersByName = new Map<string, string>();
-  (sems.data ?? []).forEach((s: { id: string; name: string; code: string }) => {
-    if (s.code) semestersByCode.set(norm(s.code), s.id);
-    if (s.name) semestersByName.set(norm(s.name), s.id);
-  });
+  // G-02: year-scoped map. The global maps above collide across academic years
+  // ('first' exists once per year; Map.set keeps only the last row).
+  const semestersByYearKey = new Map<string, string>();
+  (sems.data ?? []).forEach(
+    (s: { id: string; name: string; code: string; academic_year_id: string | null }) => {
+      if (s.code) semestersByCode.set(norm(s.code), s.id);
+      if (s.name) semestersByName.set(norm(s.name), s.id);
+      if (s.academic_year_id) {
+        if (s.code) semestersByYearKey.set(`${s.academic_year_id}|${norm(s.code)}`, s.id);
+        if (s.name) semestersByYearKey.set(`${s.academic_year_id}|${norm(s.name)}`, s.id);
+      }
+    },
+  );
 
   return {
-    departmentsByName, programsByCode, levelsByName, levelsByNumber,
-    coursesByCode, academicYearsByName, semestersByCode, semestersByName,
+    departmentsByName,
+    programsByCode,
+    levelsByName,
+    levelsByNumber,
+    coursesByCode,
+    academicYearsByName,
+    semestersByCode,
+    semestersByName,
+    semestersByYearKey,
   };
 }
 
-export const normKey = (s: string | null | undefined) => (s ?? "").toString().trim().toLowerCase();
+export const normKey = (s: string | null | undefined) =>
+  (s ?? "").toString().trim().toLowerCase();

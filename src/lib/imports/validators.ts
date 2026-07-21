@@ -10,6 +10,27 @@ const num = (v: unknown) => {
   return Number.isFinite(n) ? n : NaN;
 };
 
+/**
+ * G-02: resolve a semester strictly within its academic year.
+ * semesters.code is UNIQUE per (academic_year_id, code) — not global — so the
+ * legacy global maps collide across years. When a lookups object was built
+ * without the year-scoped map (legacy/tests), fall back to the old behavior.
+ */
+function resolveSemesterId(
+  lookups: LookupMaps,
+  academicYearId: string | null | undefined,
+  semKey: string,
+): string | null {
+  if (!semKey) return null;
+  if (lookups.semestersByYearKey) {
+    if (!academicYearId) return null;
+    return lookups.semestersByYearKey.get(`${academicYearId}|${semKey}`) ?? null;
+  }
+  return lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey) ?? null;
+}
+
+const SEMESTER_YEAR_ERROR_AR = "الفصل غير موجود ضمن السنة الأكاديمية المحددة";
+
 // =========================
 // Students
 // =========================
@@ -112,6 +133,14 @@ export async function validateStudents(
     if (!prog)
       errors.push({ row: rowNumber, column: "program_code", message: "البرنامج غير موجود" });
 
+    // G-06: program must belong to the resolved department.
+    if (dep_id && prog?.department_id && prog.department_id !== dep_id)
+      errors.push({
+        row: rowNumber,
+        column: "program_code",
+        message: "البرنامج لا يتبع القسم المحدد",
+      });
+
     const ay_id = lookups.academicYearsByName.get(normKey(str(raw.academic_year)));
     if (!ay_id)
       errors.push({
@@ -121,8 +150,9 @@ export async function validateStudents(
       });
 
     const semKey = normKey(str(raw.semester));
-    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
-    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+    const sem_id = resolveSemesterId(lookups, ay_id, semKey);
+    if (ay_id && !sem_id)
+      errors.push({ row: rowNumber, column: "semester", message: SEMESTER_YEAR_ERROR_AR });
 
     const studySystemRaw = str(raw.study_system);
     const study_system = studySystemRaw
@@ -296,6 +326,14 @@ export async function validateFaculty(
     const prog = progKey ? (lookups.programsByCode.get(progKey) ?? null) : null;
     if (progKey && !prog)
       errors.push({ row: rowNumber, column: "program_code", message: "البرنامج غير موجود" });
+
+    // G-06: when both are given, program must belong to the resolved department.
+    if (dep_id && prog?.department_id && prog.department_id !== dep_id)
+      errors.push({
+        row: rowNumber,
+        column: "program_code",
+        message: "البرنامج لا يتبع القسم المحدد",
+      });
 
     if (employee_number) seen.add(employee_number);
 
@@ -511,6 +549,24 @@ export type StudyPlanRow = {
   sort_order: number;
 };
 
+// G-07: study_plan_courses.semester_code is stored as-is (no DB CHECK).
+// Restrict to canonical codes with Arabic aliases instead of free text.
+const STUDY_PLAN_SEMESTER_CODES = new Map<string, string>([
+  ["first", "first"],
+  ["second", "second"],
+  ["summer", "summer"],
+  ["الأول", "first"],
+  ["الاول", "first"],
+  ["فصل أول", "first"],
+  ["الثاني", "second"],
+  ["فصل ثاني", "second"],
+  ["الصيفي", "summer"],
+  ["صيفي", "summer"],
+  ["1", "first"],
+  ["2", "second"],
+  ["3", "summer"],
+]);
+
 export async function validateStudyPlans(
   rows: Record<string, unknown>[],
   lookups: LookupMaps,
@@ -589,7 +645,16 @@ export async function validateStudyPlans(
     if (seen.has(dedupKey)) errors.push({ row: rowNumber, message: "مقرر مكرر داخل الخطة" });
     if (course && prog && plan_name) seen.add(dedupKey);
 
-    const semester_code = str(raw.semester) || "first";
+    const semRaw = str(raw.semester);
+    const semester_code = semRaw
+      ? (STUDY_PLAN_SEMESTER_CODES.get(normKey(semRaw)) ?? null)
+      : "first";
+    if (!semester_code)
+      errors.push({
+        row: rowNumber,
+        column: "semester",
+        message: "رمز الفصل غير صحيح (first/second/summer)",
+      });
     const required = str(raw.required).toLowerCase();
     const is_required =
       required === "" ? true : ["true", "1", "yes", "نعم", "required", "إلزامي"].includes(required);
@@ -608,7 +673,7 @@ export async function validateStudyPlans(
             plan_status,
             course_id: course!.id,
             level_id: level_id!,
-            semester_code,
+            semester_code: semester_code ?? "first",
             is_required,
             prerequisite_course_id: prereq_id,
             sort_order,
@@ -906,6 +971,8 @@ export async function validateCourseSections(
   lookups: LookupMaps,
   updateExisting = false,
 ): Promise<ValidationResult<CourseSectionRow>> {
+  // G-01: was bare `sb` (unresolved identifier → runtime ReferenceError).
+  const sb = getImportDb();
   const [{ data: offerings }, { data: sections }, { data: faculty }] = await Promise.all([
     sb
       .from("course_offerings")
@@ -963,8 +1030,9 @@ export async function validateCourseSections(
       });
 
     const semKey = normKey(str(raw.semester));
-    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
-    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+    const sem_id = resolveSemesterId(lookups, ay_id, semKey);
+    if (ay_id && !sem_id)
+      errors.push({ row: rowNumber, column: "semester", message: SEMESTER_YEAR_ERROR_AR });
 
     const prog = lookups.programsByCode.get(normKey(str(raw.program_code)));
     if (!prog)
@@ -1097,12 +1165,14 @@ export async function validateStudentEnrollments(
   lookups: LookupMaps,
   updateExisting = false,
 ): Promise<ValidationResult<StudentEnrollmentRow>> {
+  // G-01: was bare `sb` (unresolved identifier → runtime ReferenceError).
+  const sb = getImportDb();
   const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
   const studentByAc = new Map<string, { id: string; program_id: string | null }>();
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await getImportDb()
+      const { data } = await sb
         .from("student_profiles")
         .select("id, academic_number, program_id")
         .in("academic_number", chunk);
@@ -1218,8 +1288,9 @@ export async function validateStudentEnrollments(
       });
 
     const semKey = normKey(str(raw.semester));
-    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
-    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+    const sem_id = resolveSemesterId(lookups, ay_id, semKey);
+    if (ay_id && !sem_id)
+      errors.push({ row: rowNumber, column: "semester", message: SEMESTER_YEAR_ERROR_AR });
 
     const section_code = str(raw.section_code).toUpperCase();
     if (!section_code)
@@ -1326,12 +1397,14 @@ export async function validateStudentGrades(
   lookups: LookupMaps,
   updateExisting = false,
 ): Promise<ValidationResult<StudentGradeRow>> {
+  // G-01: was bare `sb` (unresolved identifier → runtime ReferenceError).
+  const sb = getImportDb();
   const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
   const studentByAc = new Map<string, { id: string; program_id: string | null }>();
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await getImportDb()
+      const { data } = await sb
         .from("student_profiles")
         .select("id, academic_number, program_id")
         .in("academic_number", chunk);
@@ -1475,8 +1548,9 @@ export async function validateStudentGrades(
       });
 
     const semKey = normKey(str(raw.semester));
-    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
-    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+    const sem_id = resolveSemesterId(lookups, ay_id, semKey);
+    if (ay_id && !sem_id)
+      errors.push({ row: rowNumber, column: "semester", message: SEMESTER_YEAR_ERROR_AR });
 
     const section_code = str(raw.section_code).toUpperCase();
     if (!section_code)
@@ -1640,12 +1714,14 @@ export async function validateStudentFees(
   lookups: LookupMaps,
   updateExisting = false,
 ): Promise<ValidationResult<StudentFeeRow>> {
+  // G-01: was bare `sb` (unresolved identifier → runtime ReferenceError).
+  const sb = getImportDb();
   const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
   const studentByAc = new Map<string, string>();
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await getImportDb()
+      const { data } = await sb
         .from("student_profiles")
         .select("id, academic_number")
         .in("academic_number", chunk);
@@ -1717,8 +1793,9 @@ export async function validateStudentFees(
       });
 
     const semKey = normKey(str(raw.semester));
-    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
-    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+    const sem_id = resolveSemesterId(lookups, ay_id, semKey);
+    if (ay_id && !sem_id)
+      errors.push({ row: rowNumber, column: "semester", message: SEMESTER_YEAR_ERROR_AR });
 
     const amountN = num(raw.amount);
     if (!Number.isFinite(amountN) || amountN < 0)
@@ -1804,12 +1881,14 @@ export async function validateStudentDiscounts(
   lookups: LookupMaps,
   updateExisting = false,
 ): Promise<ValidationResult<StudentDiscountRow>> {
+  // G-01: was bare `sb` (unresolved identifier → runtime ReferenceError).
+  const sb = getImportDb();
   const acNumbers = rows.map((r) => str(r.academic_number)).filter(Boolean);
   const studentByAc = new Map<string, string>();
   if (acNumbers.length) {
     for (let i = 0; i < acNumbers.length; i += 500) {
       const chunk = acNumbers.slice(i, i + 500);
-      const { data } = await getImportDb()
+      const { data } = await sb
         .from("student_profiles")
         .select("id, academic_number")
         .in("academic_number", chunk);
@@ -1884,8 +1963,9 @@ export async function validateStudentDiscounts(
       });
 
     const semKey = normKey(str(raw.semester));
-    const sem_id = lookups.semestersByCode.get(semKey) ?? lookups.semestersByName.get(semKey);
-    if (!sem_id) errors.push({ row: rowNumber, column: "semester", message: "الفصل غير موجود" });
+    const sem_id = resolveSemesterId(lookups, ay_id, semKey);
+    if (ay_id && !sem_id)
+      errors.push({ row: rowNumber, column: "semester", message: SEMESTER_YEAR_ERROR_AR });
 
     const valueN = num(raw.value);
     if (!Number.isFinite(valueN) || valueN < 0)
