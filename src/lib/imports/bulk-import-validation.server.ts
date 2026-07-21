@@ -71,11 +71,15 @@ export async function previewBulkImportValidation(
 export async function revalidateBulkImportRows(
   type: ImportType,
   rows: ValidatedRow[],
+  updateExisting = false,
 ): Promise<ValidatedRow[]> {
+  // HIGH-4 (review #193): forward updateExisting — hardcoding `false` here made
+  // every updateExisting=true batch fail server-side revalidation ("فشل التحقق
+  // على الخادم") because existing rows were flagged as duplicates again.
   const result = await previewBulkImportValidation(
     type,
     rows.map((r) => r.raw),
-    false,
+    updateExisting,
   );
   return result.rows;
 }
