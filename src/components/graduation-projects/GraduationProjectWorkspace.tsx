@@ -14,6 +14,7 @@ import type {
 import {
   EVENT_LABELS,
   availableProjectActions,
+  resolveViewerEvaluation,
   type EvaluationScoreRow,
   type GraduationProjectDetail,
 } from "../../lib/graduation-projects/lifecycle";
@@ -47,22 +48,27 @@ export interface GraduationProjectWorkspaceHandlers {
 export interface GraduationProjectWorkspaceProps {
   detail: GraduationProjectDetail;
   readiness: DiscussionReadiness;
+  /**
+   * auth user id of the current viewer. MEDIUM-1 (review 4982): the own-*
+   * evaluation derivation is scoped to this viewer's assignments only.
+   */
+  viewerUserId: string;
   busy?: boolean;
   handlers: GraduationProjectWorkspaceHandlers;
 }
 
-export function GraduationProjectWorkspace({ detail, readiness, busy = false, handlers }: GraduationProjectWorkspaceProps) {
+export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, busy = false, handlers }: GraduationProjectWorkspaceProps) {
   const { project } = detail;
   const actions = availableProjectActions(detail.viewer_roles, project.state);
   const readinessAssessment = assessDiscussionReadiness(readiness);
   const heldDiscussion = detail.discussions.find((discussion) => discussion.state === "held") ?? null;
   const panelCandidates = detail.assignments.filter(
     (assignment) => assignment.role === "panel_member" && assignment.active);
-  const ownPanelMemberIds = detail.panel_members
-    .filter((member) => panelCandidates.some((candidate) => candidate.id === member.assignment_id))
-    .map((member) => member.id);
-  const ownEvaluation = detail.evaluations.find(
-    (evaluation) => ownPanelMemberIds.includes(evaluation.panel_member_id)) ?? null;
+  // MEDIUM-1 (review 4982): the own-evaluation derivation is scoped to the
+  // viewer's own active panel_member assignments (resolveViewerEvaluation),
+  // so another member's finalized evaluation can never be mistaken for the
+  // viewer's. The full panelCandidates list above stays for DiscussionPanel.
+  const ownEvaluation = resolveViewerEvaluation(detail, viewerUserId);
   return (
     <div dir="rtl" className="space-y-4">
       <Card>
