@@ -189,3 +189,34 @@ describe("usage reporting aggregation", () => {
     { course_material_id: "m1", event: "published", actor_user_id: "u9", created_at: "2026-07-04T10:00:00Z" },
     { course_material_id: "other", event: "downloaded", actor_user_id: "u1", created_at: "2026-07-05T10:00:00Z" },
   ];
+
+  test("summary counts downloads, unique downloaders and scan states", () => {
+    const summary = buildMaterialUsageSummary(material, events);
+    expect(summary.downloads).toBe(3);
+    expect(summary.uniqueDownloaders).toBe(2);
+    expect(summary.lastDownloadAt).toBe("2026-07-03T10:00:00Z");
+    expect(summary.filesTotal).toBe(4);
+    expect(summary.filesClean).toBe(2);
+    expect(summary.filesPending).toBe(1);
+    expect(summary.filesInfected).toBe(1);
+    expect(summary.filesFailed).toBe(0);
+    expect(summary.weekNumber).toBe(3);
+    expect(summary.lectureNumber).toBe(2);
+  });
+
+  test("materials with no downloads produce zeros", () => {
+    const summary = buildMaterialUsageSummary({ ...material, id: "m2", files: [] }, events);
+    expect(summary.downloads).toBe(0);
+    expect(summary.uniqueDownloaders).toBe(0);
+    expect(summary.lastDownloadAt).toBeNull();
+    expect(summary.filesTotal).toBe(0);
+  });
+
+  test("report aggregates totals per section", () => {
+    const report = buildMaterialsUsageReport("s1", [material, { ...material, id: "m2", files: [] }], events, "2026-07-21T00:00:00Z");
+    expect(report.sectionId).toBe("s1");
+    expect(report.materials).toHaveLength(2);
+    expect(report.totalDownloads).toBe(3);
+    expect(report.generatedAt).toBe("2026-07-21T00:00:00Z");
+  });
+});
