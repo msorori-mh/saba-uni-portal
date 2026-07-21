@@ -17,6 +17,7 @@ export const IMPORT_TYPE_LABEL_AR: Record<ImportType, string> = {
   student_fees: "رسوم الطلاب",
   student_discounts: "خصومات الطلاب",
   student_eligibility: "بيانات أهلية الطلبات",
+  student_accounts: "حسابات الطلاب الموجودين",
   documents: "الوثائق الرسمية",
 };
 
@@ -93,6 +94,13 @@ export function getReportStatLabels(type: ImportType, dryRun: boolean): ReportSt
       created: dryRun ? "وثائق ستُصدر" : "وثائق مُصدرة",
       updated: "",
       showUpdated: false,
+    };
+  }
+  if (type === "student_accounts") {
+    return {
+      created: dryRun ? "جاهز للإنشاء" : "حسابات مُنشأة",
+      updated: dryRun ? "مربوط مسبقاً (تخطي)" : "مربوط مسبقاً (تخطي)",
+      showUpdated: true,
     };
   }
   if (type === "student_eligibility") {

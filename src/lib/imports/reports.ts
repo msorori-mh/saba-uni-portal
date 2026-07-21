@@ -101,6 +101,17 @@ export async function downloadImportReport(
     summary.push(["عدد بسجل إيقاف سابق", s.prior_suspension_count]);
     summary.push(["مراجع مصدر مميزة", s.distinct_source_references]);
   }
+  if (type === "student_accounts" && report.student_accounts_summary) {
+    const s = report.student_accounts_summary;
+    summary.push(["READY_TO_CREATE", s.ready_to_create]);
+    summary.push(["ALREADY_LINKED", s.already_linked]);
+    summary.push(["CONFLICT", s.conflict]);
+    summary.push(["STUDENT_NOT_FOUND", s.student_not_found]);
+    summary.push(["INVALID_EMAIL", s.invalid_email]);
+    summary.push(["مُنشأ", s.created]);
+    summary.push(["تخطي", s.skipped]);
+    summary.push(["فشل", s.failed]);
+  }
   if (opts?.durationMs != null) {
     summary.push(["الزمن (مللي ثانية)", opts.durationMs]);
   }

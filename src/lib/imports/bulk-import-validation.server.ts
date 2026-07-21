@@ -20,6 +20,7 @@ import {
   validateStudentEligibility,
   validateDocuments,
 } from "@/lib/imports/validators";
+import { validateStudentAccounts } from "@/lib/imports/student-accounts";
 
 /** Server-side bulk import preview — uses supabaseAdmin via runWithImportDb (no writes). */
 export async function previewBulkImportValidation(
@@ -60,6 +61,8 @@ export async function previewBulkImportValidation(
         return validateStudentDiscounts(rawRows, lookups, updateExisting);
       case "student_eligibility":
         return validateStudentEligibility(rawRows, lookups);
+      case "student_accounts":
+        return validateStudentAccounts(rawRows, lookups);
       case "documents":
         return validateDocuments(rawRows, lookups);
       default:

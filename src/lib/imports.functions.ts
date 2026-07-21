@@ -22,6 +22,7 @@ import {
   importStudentFees,
   importStudentDiscounts,
   importStudentEligibility,
+  importStudentAccounts,
   importDocuments,
   type ServerImportContext,
 } from "@/lib/imports/engine.server";
@@ -71,6 +72,7 @@ const importTypeSchema = z.enum([
   "student_fees",
   "student_discounts",
   "student_eligibility",
+  "student_accounts",
   "documents",
 ]);
 
@@ -93,6 +95,8 @@ const IMPORT_ROLES_BY_TYPE: Record<z.infer<typeof importTypeSchema>, readonly st
   student_fees: FINANCE_IMPORT_ROLES,
   student_discounts: FINANCE_IMPORT_ROLES,
   student_eligibility: ACADEMIC_IMPORT_ROLES,
+  // Existing-accounts login provisioning — system managers only (server-side Auth admin).
+  student_accounts: ["admin", "system_admin"],
   faculty: ["admin", "system_admin", "registrar"],
   staff: ["admin", "system_admin", "registrar"],
 };
@@ -334,6 +338,9 @@ export const runBulkImport = createServerFn({ method: "POST" })
           userId: context.userId,
           fileName: data.fileName,
         });
+        break;
+      case "student_accounts":
+        report = await importStudentAccounts(vrows, data.dryRun, ctx);
         break;
       case "documents":
         report = await importDocuments(vrows, data.dryRun, ctx);

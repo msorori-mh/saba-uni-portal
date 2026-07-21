@@ -48,6 +48,7 @@ export type MasterTemplate = {
     | "student_fees"
     | "student_discounts"
     | "student_eligibility"
+    | "student_accounts"
     | "documents"
     | "class_schedule";
   /** Whether a validator already exists in src/lib/imports/validators.ts */
@@ -1229,6 +1230,58 @@ export const MASTER_TEMPLATES: MasterTemplate[] = [
       ["2026001", "new", false, 0, 0, "SA-2026-TERM1", ""],
       ["2026002", "repeat", true, 2, 1, "REG-TRANSFER-2026", "تحويل معتمد"],
       ["2026003", "مستجد", "لا", 0, 0, "SA-2026-TERM1", ""],
+    ],
+  },
+
+  {
+    id: "student_accounts",
+    fileName: "template_student_accounts.xlsx",
+    title: "حسابات الطلاب الموجودين",
+    description:
+      "إنشاء حسابات دخول بالإيميل الجامعي للطلاب الموجودين مسبقاً — دون إنشاء ملفات طلاب أو تعديل البيانات الأكاديمية.",
+    category: "students",
+    importerKey: "student_accounts",
+    hasValidator: true,
+    columns: [
+      {
+        name: "academic_number",
+        description: "الرقم الأكاديمي للطالب الموجود (يُقبل أيضاً عنوان العمود العربي «الرقم الأكاديمي»)",
+        required: true,
+        type: "text",
+        example: "2026001",
+      },
+      {
+        name: "university_email",
+        description: "البريد الإلكتروني الجامعي لتسجيل الدخول (يُقبل «البريد الإلكتروني الجامعي»)",
+        required: true,
+        type: "email",
+        example: "student@students.usr.edu.ye",
+      },
+      {
+        name: "must_change_password",
+        description: "إجبار تغيير كلمة المرور عند أول دخول (افتراضي true)",
+        required: false,
+        type: "boolean",
+        example: true,
+      },
+      {
+        name: "is_active",
+        description: "إنشاء الحساب فقط عند true (افتراضي true)",
+        required: false,
+        type: "boolean",
+        example: true,
+      },
+      {
+        name: "notes",
+        description: "ملاحظات تدقيق اختيارية — لا تُعرض كلمات مرور",
+        required: false,
+        type: "text",
+        example: "دفعة حسابات 2026",
+      },
+    ],
+    examples: [
+      ["2026001", "s2026001@students.usr.edu.ye", true, true, "دفعة أ"],
+      ["2026002", "s2026002@students.usr.edu.ye", true, true, ""],
     ],
   },
 
