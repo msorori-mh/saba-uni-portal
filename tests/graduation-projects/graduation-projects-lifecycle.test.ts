@@ -15,10 +15,14 @@ import {
   PROJECT_STATE_LABELS,
   ROLE_LABELS,
   validateEvaluationScores,
+  resolveViewerEvaluation,
+  resolveViewerPanelMemberIds,
   visibleEvaluations,
+  type AssignmentRow,
   type CorrectionRow,
   type EvaluationRow,
   type MyProjectRow,
+  type PanelMemberRow,
 } from "../../src/lib/graduation-projects/lifecycle";
 import type { ProjectRole, ProjectState } from "../../src/lib/graduation-projects/domain";
 
@@ -206,5 +210,56 @@ describe("event audit labels cover every event type emitted by the SQL drafts", 
     for (const key of Object.keys(EVENT_LABELS)) {
       expect(SQL_EVENT_TYPES, `orphan event label ${key}`).toContain(key);
     }
+  });
+});
+
+describe("resolveViewerEvaluation — MEDIUM-1 viewer scoping (review 4982)", () => {
+  const asg = (id: string, userId: string, active = true): AssignmentRow =>
+    ({ id, role: "panel_member", active, user_id: userId }) as unknown as AssignmentRow;
+  const pm = (id: string, assignmentId: string): PanelMemberRow =>
+    ({ id, assignment_id: assignmentId }) as unknown as PanelMemberRow;
+  const ev = (id: string, panelMemberId: string, state: string): EvaluationRow =>
+    ({ id, panel_member_id: panelMemberId, state }) as unknown as EvaluationRow;
+
+  test("viewer draft + another member finalized => the viewer's draft is selected (form stays visible)", () => {
+    // Regression: the pre-fix derivation pooled every active panel_member
+    // assignment, so the first matching evaluation below (another member's
+    // finalized one) was mistaken for the viewer's and hid the score form.
+    const detail = {
+      assignments: [asg("a-viewer", "u-viewer"), asg("a-other", "u-other")],
+      panel_members: [pm("pm-viewer", "a-viewer"), pm("pm-other", "a-other")],
+      evaluations: [ev("e-other", "pm-other", "finalized"), ev("e-viewer", "pm-viewer", "draft")],
+    };
+    const own = resolveViewerEvaluation(detail, "u-viewer");
+    expect(own?.id).toBe("e-viewer");
+    expect(own?.state).toBe("draft"); // null/draft keeps the EvaluationPanel form visible
+  });
+
+  test("viewer without evaluation => null even when another member finalized", () => {
+    const detail = {
+      assignments: [asg("a-viewer", "u-viewer"), asg("a-other", "u-other")],
+      panel_members: [pm("pm-viewer", "a-viewer"), pm("pm-other", "a-other")],
+      evaluations: [ev("e-other", "pm-other", "finalized")],
+    };
+    expect(resolveViewerEvaluation(detail, "u-viewer")).toBeNull();
+  });
+
+  test("the viewer's own finalized evaluation is still surfaced (read-only)", () => {
+    const detail = {
+      assignments: [asg("a-viewer", "u-viewer"), asg("a-other", "u-other")],
+      panel_members: [pm("pm-viewer", "a-viewer"), pm("pm-other", "a-other")],
+      evaluations: [ev("e-other", "pm-other", "draft"), ev("e-viewer", "pm-viewer", "finalized")],
+    };
+    const own = resolveViewerEvaluation(detail, "u-viewer");
+    expect(own?.id).toBe("e-viewer");
+    expect(own?.state).toBe("finalized");
+  });
+
+  test("member-id resolution ignores other users and inactive assignments", () => {
+    const detail = {
+      assignments: [asg("a-viewer", "u-viewer"), asg("a-viewer-ended", "u-viewer", false), asg("a-other", "u-other")],
+      panel_members: [pm("pm-viewer", "a-viewer"), pm("pm-ended", "a-viewer-ended"), pm("pm-other", "a-other")],
+    };
+    expect(resolveViewerPanelMemberIds(detail, "u-viewer")).toEqual(["pm-viewer"]);
   });
 });
