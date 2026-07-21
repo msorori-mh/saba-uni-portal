@@ -3,16 +3,24 @@
  * leadership) — the Critical gap from PORTAL-REPORTING-COVERAGE-AUDIT-01.
  *
  * Input rows are anonymized request facts: no request id, no student id, no
- * names. Every KPI and table cell passes small-cell suppression; unknown raw
- * statuses fall into a visible "other" bucket so no request is silently
- * dropped, and the exact production status keys can be mapped at adoption
- * time via REQUEST_STATUS_GROUP_MAP.
+ * names. Every KPI and table cell passes small-cell suppression; every
+ * total↔breakdown relation passes complementary suppression (a breakdown
+ * never shows exactly one suppressed cell beside a visible total); the
+ * approval rate is published only when both published parties are visible
+ * and independently meet the threshold. Unknown raw statuses fall into a
+ * visible "other" bucket so no request is silently dropped, and the exact
+ * production status keys can be mapped at adoption time via
+ * REQUEST_STATUS_GROUP_MAP.
  */
 
 import {
+  AGGREGATE_UNKNOWN_GROUP_KEY,
+  type AggregateMetric,
   type AggregateReport,
   type ReportBeneficiary,
+  applyComplementarySuppressionToTable,
   countByGroup,
+  forceSuppressed,
   groupRowsToCountTable,
   privacySafeAverage,
   privacySafeCount,
@@ -92,7 +100,7 @@ const AGE_BUCKET_ORDER: readonly RequestAgeBucket[] = ["0-7", "8-14", "15-30", "
 /** Buckets the age of a still-pending request; unknown ages share the bucket. */
 export function bucketRequestAge(ageDays: number | null | undefined): string {
   if (ageDays === null || ageDays === undefined || !Number.isFinite(ageDays) || ageDays < 0) {
-    return "(غير محدد)";
+    return AGGREGATE_UNKNOWN_GROUP_KEY;
   }
   const bucket: RequestAgeBucket =
     ageDays <= 7 ? "0-7" : ageDays <= 14 ? "8-14" : ageDays <= 30 ? "15-30" : "31+";
@@ -104,6 +112,10 @@ export interface RequestsAggregateReportInput {
   readonly rows: readonly RequestFactRow[];
   readonly minimumCellSize?: number | null;
   readonly title?: string;
+}
+
+function isVisible(metric: AggregateMetric): boolean {
+  return !metric.suppressed && metric.total !== null;
 }
 
 /** Builds the aggregate-only student requests overview report. */
@@ -133,24 +145,123 @@ export function buildRequestsAggregateReport(
     (row) => normalizeRequestStatus(row.status) === "pending",
   );
 
+  // ── Tables first: complementary suppression decides what may be published,
+  //    and the KPIs are then derived from the adjusted cells so a hidden cell
+  //    can never reappear as a visible KPI (consistency by construction). ──
+  const statusAdjusted = applyComplementarySuppressionToTable({
+    id: "by_status_group",
+    title: "الطلبات حسب الحالة",
+    columns: [{ id: "count", label: "العدد" }],
+    rows: REQUEST_STATUS_GROUPS.map((group) => ({
+      key: REQUEST_STATUS_GROUP_LABELS[group],
+      cells: [privacySafeCount(countOf(group), threshold)],
+    })),
+  });
+  const groupMetric = new Map<RequestStatusGroup, AggregateMetric>(
+    REQUEST_STATUS_GROUPS.map((group, index) => [
+      group,
+      statusAdjusted.table.rows[index]?.cells[0] ?? forceSuppressed(),
+    ]),
+  );
+
+  const typeAdjusted = applyComplementarySuppressionToTable(
+    groupRowsToCountTable(
+      "by_type",
+      "الطلبات حسب النوع",
+      countByGroup(rows, (row) => row.requestType, threshold),
+    ),
+  );
+  const programAdjusted = applyComplementarySuppressionToTable(
+    groupRowsToCountTable(
+      "by_program",
+      "الطلبات حسب البرنامج",
+      countByGroup(rows, (row) => row.programId ?? null, threshold),
+    ),
+  );
+  const levelAdjusted = applyComplementarySuppressionToTable(
+    groupRowsToCountTable(
+      "by_level",
+      "الطلبات حسب المستوى",
+      countByGroup(rows, (row) => row.level ?? null, threshold),
+    ),
+  );
+
+  // Pending aging: the "(غير محدد)" bucket is a first-class row so the bucket
+  // counts always reconcile with the pending KPI (no silent drop).
+  const ageAdjusted = applyComplementarySuppressionToTable({
+    id: "pending_age",
+    title: "أعمار الطلبات قيد المعالجة",
+    columns: [{ id: "count", label: "العدد" }],
+    rows: [
+      ...AGE_BUCKET_ORDER.map((bucket) => ({
+        key: REQUEST_AGE_BUCKET_LABELS[bucket],
+        cells: [
+          privacySafeCount(
+            pendingRows.filter(
+              (row) => bucketRequestAge(row.ageDays ?? null) === REQUEST_AGE_BUCKET_LABELS[bucket],
+            ).length,
+            threshold,
+          ),
+        ],
+      })),
+      {
+        key: AGGREGATE_UNKNOWN_GROUP_KEY,
+        cells: [
+          privacySafeCount(
+            pendingRows.filter(
+              (row) => bucketRequestAge(row.ageDays ?? null) === AGGREGATE_UNKNOWN_GROUP_KEY,
+            ).length,
+            threshold,
+          ),
+        ],
+      },
+    ],
+  });
+
+  const totalSuppressed =
+    (statusAdjusted.requiresTotalSuppression[0] ?? false) ||
+    (typeAdjusted.requiresTotalSuppression[0] ?? false) ||
+    (programAdjusted.requiresTotalSuppression[0] ?? false) ||
+    (levelAdjusted.requiresTotalSuppression[0] ?? false);
+  const totalKpi = totalSuppressed ? forceSuppressed() : privacySafeCount(rows.length, threshold);
+
+  const pendingKpi = (ageAdjusted.requiresTotalSuppression[0] ?? false)
+    ? forceSuppressed()
+    : (groupMetric.get("pending") ?? forceSuppressed());
+
+  const approvedKpi = groupMetric.get("approved") ?? forceSuppressed();
+  const rejectedKpi = groupMetric.get("rejected") ?? forceSuppressed();
+
+  // Approval rate: published only when BOTH published parties are visible —
+  // a visible ratio plus one visible party would reveal a hidden one — and
+  // privacySafeRatio additionally requires each party to meet the threshold.
+  const approvalRate: AggregateMetric =
+    isVisible(approvedKpi) && isVisible(rejectedKpi)
+      ? ((): AggregateMetric => {
+          const ratio = privacySafeRatio(countOf("approved"), decided, threshold);
+          return ratio.total === null ? ratio : { total: ratio.total * 100, suppressed: false };
+        })()
+      : forceSuppressed();
+
   return {
     reportId: REQUESTS_OVERVIEW_REPORT_ID,
     title: input.title ?? "نظرة مجمعة على طلبات الطلاب",
     beneficiary: input.beneficiary,
     minimumCellSize: threshold,
     kpis: [
-      { id: "total", label: "إجمالي الطلبات", metric: privacySafeCount(rows.length, threshold) },
-      { id: "approved", label: "المعتمدة", metric: privacySafeCount(countOf("approved"), threshold) },
-      { id: "rejected", label: "المرفوضة", metric: privacySafeCount(countOf("rejected"), threshold) },
-      { id: "pending", label: "قيد المعالجة", metric: privacySafeCount(countOf("pending"), threshold) },
-      { id: "returned", label: "المعادة للاستكمال", metric: privacySafeCount(countOf("returned"), threshold) },
+      { id: "total", label: "إجمالي الطلبات", metric: totalKpi },
+      { id: "approved", label: "المعتمدة", metric: approvedKpi },
+      { id: "rejected", label: "المرفوضة", metric: rejectedKpi },
+      { id: "pending", label: "قيد المعالجة", metric: pendingKpi },
+      {
+        id: "returned",
+        label: "المعادة للاستكمال",
+        metric: groupMetric.get("returned") ?? forceSuppressed(),
+      },
       {
         id: "approval_rate",
         label: "نسبة الاعتماد %",
-        metric: ((): ReturnType<typeof privacySafeRatio> => {
-          const ratio = privacySafeRatio(countOf("approved"), decided, threshold);
-          return ratio.total === null ? ratio : { total: ratio.total * 100, suppressed: false };
-        })(),
+        metric: approvalRate,
         hint: "من الطلبات المحسومة (معتمد أو مرفوض)",
       },
       {
@@ -161,44 +272,11 @@ export function buildRequestsAggregateReport(
       },
     ],
     tables: [
-      groupRowsToCountTable(
-        "by_type",
-        "الطلبات حسب النوع",
-        countByGroup(rows, (row) => row.requestType, threshold),
-      ),
-      {
-        id: "by_status_group",
-        title: "الطلبات حسب الحالة",
-        columns: [{ id: "count", label: "العدد" }],
-        rows: REQUEST_STATUS_GROUPS.map((group) => ({
-          key: REQUEST_STATUS_GROUP_LABELS[group],
-          cells: [privacySafeCount(countOf(group), threshold)],
-        })),
-      },
-      groupRowsToCountTable(
-        "by_program",
-        "الطلبات حسب البرنامج",
-        countByGroup(rows, (row) => row.programId ?? null, threshold),
-      ),
-      groupRowsToCountTable(
-        "by_level",
-        "الطلبات حسب المستوى",
-        countByGroup(rows, (row) => row.level ?? null, threshold),
-      ),
-      {
-        id: "pending_age",
-        title: "أعمار الطلبات قيد المعالجة",
-        columns: [{ id: "count", label: "العدد" }],
-        rows: AGE_BUCKET_ORDER.map((bucket) => ({
-          key: REQUEST_AGE_BUCKET_LABELS[bucket],
-          cells: [
-            privacySafeCount(
-              pendingRows.filter((row) => bucketRequestAge(row.ageDays ?? null) === REQUEST_AGE_BUCKET_LABELS[bucket]).length,
-              threshold,
-            ),
-          ],
-        })),
-      },
+      typeAdjusted.table,
+      statusAdjusted.table,
+      programAdjusted.table,
+      levelAdjusted.table,
+      ageAdjusted.table,
     ],
   };
 }
