@@ -17,7 +17,7 @@
  *
  * Run: bun test tests/imports/import-validators-linking.test.ts
  */
-import { describe, expect, it, spyOn } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import type { LookupMaps } from "../../src/lib/imports/types";
 import * as importDb from "../../src/lib/imports/import-db";
 import { loadLookups } from "../../src/lib/imports/lookups";
@@ -27,6 +27,14 @@ import {
   validateCourseSections,
   validateStudentFees,
 } from "../../src/lib/imports/validators";
+
+/** Active getImportDb spy — must be restored so later suites see runWithImportDb overrides. */
+let activeGetImportDbSpy: ReturnType<typeof spyOn> | undefined;
+
+afterEach(() => {
+  activeGetImportDbSpy?.mockRestore();
+  activeGetImportDbSpy = undefined;
+});
 
 // ---------------------------------------------------------------- ids
 const DEP_IT = "dep-it-id";
@@ -104,9 +112,11 @@ function mockDb(tables: Record<string, unknown[]>, studentsIn: unknown[] = []) {
       },
     }),
   };
-  return spyOn(importDb, "getImportDb").mockReturnValue(
+  activeGetImportDbSpy?.mockRestore();
+  activeGetImportDbSpy = spyOn(importDb, "getImportDb").mockReturnValue(
     fake as unknown as ReturnType<typeof importDb.getImportDb>,
   );
+  return activeGetImportDbSpy;
 }
 
 function studentRaw(overrides: Record<string, unknown> = {}) {

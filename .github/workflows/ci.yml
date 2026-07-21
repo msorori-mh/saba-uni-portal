@@ -7,6 +7,10 @@ on:
       - "src/**"
       - "public/**"
       - "scripts/**"
+      - "tests/**"
+      - "supabase/**"
+      - "docs/migration-drafts/**"
+      - "docs/drafts/**"
       - "package.json"
       - "bun.lock"
       - "bun.lockb"
@@ -74,3 +78,171 @@ jobs:
             echo "::error::No build script in package.json"
             exit 1
           fi
+
+  bun-tests:
+    name: Bun tests (tests/)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # Fail-closed: any failing test in any tests/ suite fails this job.
+      # The discovery guard also fails the job if the suites ever go missing
+      # (e.g. a path rename), so the job can never silently become a no-op.
+      - name: Run all bun test suites (fail-closed)
+        run: |
+          set -euo pipefail
+          COUNT=$(find tests -name '*.test.ts' -o -name '*.test.tsx' | wc -l)
+          echo "Discovered $COUNT test files under tests/"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::No test files found under tests/ — refusing to pass vacuously"
+            exit 1
+          fi
+          bun test tests/
+
+  # Executes the review-chain PG verifiers shipped under tests/ against a
+  # disposable postgres:17 service. Each matrix leg gets its OWN cluster:
+  # several setup files CREATE ROLE anon/authenticated unconditionally, so
+  # chains cannot share one cluster (verified locally). Every leg applies its
+  # fixture schema, then the migration DRAFT (source-only review artifact),
+  # then the verifier (which rolls back). Fail-closed: ON_ERROR_STOP is forced
+  # for every file; verifiers additionally \quit 1 when -v fixtures are absent.
+  pg-verifiers:
+    name: PG 17 verifier · ${{ matrix.chain.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        chain:
+          # Chain: pg-setup -> GRADUATES-AFFAIRS-MVP-FOUNDATION-01 -> verifier.
+          - name: graduates-affairs-foundation
+            files: >-
+              tests/graduates-affairs/graduates-affairs-foundation-01.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              tests/graduates-affairs/graduates-affairs-foundation-01.pg-verify.sql
+          # Documented completion review chain: pg-setup -> foundation draft ->
+          # GRADUATES-AFFAIRS-MVP-COMPLETION-01 -> completion verifier.
+          - name: graduates-affairs-completion
+            files: >-
+              tests/graduates-affairs/graduates-affairs-foundation-01.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              tests/graduates-affairs/graduates-affairs-completion-01.pg-verify.sql
+          # Chain: pg-setup -> DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-
+          # FOUNDATION-01 -> verifier.
+          - name: academic-clearance-foundation
+            files: >-
+              tests/academic-clearance/academic-clearance.pg-setup.sql
+              docs/migration-drafts/DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-FOUNDATION-01.sql
+              tests/academic-clearance/academic-clearance.pg-verify.sql
+          # Chain: pg-setup -> foundation draft -> ACADEMIC-CLEARANCE-
+          # COMPLETION-01 -> completion verifier (seven-status lifecycle).
+          - name: academic-clearance-completion
+            files: >-
+              tests/academic-clearance/academic-clearance.pg-setup.sql
+              docs/migration-drafts/DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-FOUNDATION-01.sql
+              docs/drafts/ACADEMIC-CLEARANCE-COMPLETION-01.sql
+              tests/academic-clearance/academic-clearance-completion.pg-verify.sql
+          # Chain: minimal schema -> GRADUATION-PROJECTS-MVP-FOUNDATION-01 ->
+          # foundation verifier. Fixture ids from postgres-minimal-schema.sql.
+          - name: graduation-projects-foundation
+            files: >-
+              tests/graduation-projects/postgres-minimal-schema.sql
+              docs/migration-drafts/GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql
+              tests/graduation-projects/postgres-foundation-verifier.sql
+            vars: >-
+              -v department_id=20000000-0000-0000-0000-000000000001
+              -v student_profile_id=30000000-0000-0000-0000-000000000001
+              -v student_user_id=10000000-0000-0000-0000-000000000001
+              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
+              -v faculty_user_id=10000000-0000-0000-0000-000000000002
+          # Chain: minimal schema -> foundation draft -> lifecycle completion
+          # draft (PR #190) -> foundation verifier -> lifecycle verifier.
+          # Same synthetic -v fixtures as the foundation leg.
+          - name: graduation-projects-lifecycle
+            files: >-
+              tests/graduation-projects/postgres-minimal-schema.sql
+              docs/migration-drafts/GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATION-PROJECTS-LIFECYCLE-COMPLETION-01.sql
+              tests/graduation-projects/postgres-foundation-verifier.sql
+              tests/graduation-projects/postgres-lifecycle-verifier.sql
+            vars: >-
+              -v department_id=20000000-0000-0000-0000-000000000001
+              -v student_profile_id=30000000-0000-0000-0000-000000000001
+              -v student_user_id=10000000-0000-0000-0000-000000000001
+              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
+              -v faculty_user_id=10000000-0000-0000-0000-000000000002
+          # Chain: minimal schema -> 20260721000000_materials_secure_activation
+          # draft -> secure activation verifier (38 assertion groups).
+          - name: materials-secure-activation
+            files: >-
+              tests/materials/postgres-minimal-schema.sql
+              docs/drafts/20260721000000_materials_secure_activation.draft.sql
+              tests/materials/postgres-secure-activation-verifier.sql
+          # Chain: minimal schema -> 20260722120000_lecture_execution_mvp_01
+          # draft -> foundation verifier. Fixture ids from the minimal schema.
+          - name: lecture-execution-foundation
+            files: >-
+              tests/lecture-execution/postgres-minimal-schema.sql
+              docs/drafts/20260722120000_lecture_execution_mvp_01.draft.sql
+              tests/lecture-execution/postgres-foundation-verifier.sql
+            vars: >-
+              -v department_id=20000000-0000-0000-0000-000000000001
+              -v level_id=60000000-0000-0000-0000-000000000001
+              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
+              -v faculty_user_id=10000000-0000-0000-0000-000000000001
+              -v student_profile_id=30000000-0000-0000-0000-000000000001
+              -v student_user_id=10000000-0000-0000-0000-000000000002
+              -v class_schedule_id=a0000000-0000-0000-0000-000000000001
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_pg_verifier_password
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci_pg_verifier_password
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure psql client
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+
+      - name: Run chain (fail-closed)
+        env:
+          CHAIN_FILES: ${{ matrix.chain.files }}
+          CHAIN_VARS: ${{ matrix.chain.vars }}
+        run: |
+          set -euo pipefail
+          createdb chain_verify
+          for f in $CHAIN_FILES; do
+            echo "=== psql -f $f"
+            # CHAIN_VARS intentionally word-splits into psql -v pairs.
+            psql -q -v ON_ERROR_STOP=1 -d chain_verify $CHAIN_VARS -f "$f"
+          done
+          echo "chain '${{ matrix.chain.name }}': PASS"
