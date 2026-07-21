@@ -41,6 +41,7 @@ export function FacultyExecutionLogCard({
     isValidExecutionTransition(scope.state, state),
   );
   const settled = TERMINAL_EXECUTION_STATES.has(scope.state);
+  const resubmittable = canRecord && settled && scope.confirmationStatus === "rejected";
 
   return (
     <section aria-labelledby="faculty-execution-log-title" className="rounded-lg border p-4">
@@ -78,6 +79,11 @@ export function FacultyExecutionLogCard({
             <li key={state}>{EXECUTION_STATE_AR[state]}</li>
           ))}
         </ul>
+      ) : resubmittable ? (
+        <p className="mt-3 text-amber-700" role="status">
+          رفض المندوب هذا التسجيل؛ يمكن إعادة تسجيل الحالة نفسها بعد التصحيح
+          لفتح جولة تأكيد جديدة.
+        </p>
       ) : (
         <p className="mt-3 text-amber-700" role="status">
           {settled

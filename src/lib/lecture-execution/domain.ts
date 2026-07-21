@@ -155,6 +155,11 @@ const actionsByRole: Record<ExecutionActorRole, ReadonlySet<ExecutionAction>> = 
  * Fail-closed authorization. No broad title (admin/dean/department_head app
  * role) is accepted here — only an exact, active, direct assignment to the
  * same department (and section/level where the action is scoped) authorizes.
+ *
+ * Terminal states are locked against recording — with one exception: a
+ * delegate-rejected terminal recording may be re-recorded (same state) by
+ * its recorder, which resubmits it at a new version for a new confirmation
+ * round. Mirrors record_lecture_execution in the SQL draft.
  */
 export function authorizeExecutionAction(
   authority: ExecutionAuthority | null,
@@ -169,7 +174,9 @@ export function authorizeExecutionAction(
   if (action === "record") {
     if (authority.role !== "faculty_recorder") return false;
     if (authority.courseSectionId !== scope.courseSectionId) return false;
-    if (TERMINAL_EXECUTION_STATES.has(scope.state)) return false;
+    if (TERMINAL_EXECUTION_STATES.has(scope.state) && scope.confirmationStatus !== "rejected") {
+      return false;
+    }
     return true;
   }
 

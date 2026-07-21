@@ -125,6 +125,23 @@ describe("lecture execution fail-closed authorization", () => {
     expect(authorizeExecutionAction(recorder, scope, "confirm")).toBe(false);
   });
 
+  test("permits resubmission of a delegate-rejected terminal recording only", () => {
+    // Rejected terminal recording → recorder may re-record to open a new round.
+    expect(
+      authorizeExecutionAction(recorder, { ...scope, state: "executed", confirmationStatus: "rejected" }, "record"),
+    ).toBe(true);
+    // Confirmed or still-final terminal recordings stay locked.
+    expect(
+      authorizeExecutionAction(recorder, { ...scope, state: "executed", confirmationStatus: "confirmed" }, "record"),
+    ).toBe(false);
+    expect(
+      authorizeExecutionAction(recorder, { ...scope, state: "cancelled", confirmationStatus: "faculty_final" }, "record"),
+    ).toBe(false);
+    expect(
+      authorizeExecutionAction({ ...recorder, courseSectionId: "section-2" }, { ...scope, state: "executed", confirmationStatus: "rejected" }, "record"),
+    ).toBe(false);
+  });
+
   test("gates delegate confirmation on the D-15 policy flag", () => {
     // Pending D-15 → fail closed even for a perfectly assigned delegate.
     expect(authorizeExecutionAction(delegate, scope, "confirm", DEFAULT_EXECUTION_POLICY)).toBe(false);

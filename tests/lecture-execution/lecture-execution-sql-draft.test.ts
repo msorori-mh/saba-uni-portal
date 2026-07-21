@@ -41,6 +41,28 @@ describe("lecture execution SQL draft", () => {
     expect(sql).not.toMatch(/section_code\s*[~*]/); // never parse section_code
   });
 
+  test("scopes confirmations per recording version so corrections never deadlock", () => {
+    expect(sql).toContain("session_version bigint not null");
+    expect(sql).toContain("unique (session_id, session_version)");
+    expect(sql).not.toContain("unique (session_id)");
+    // Rejected recordings can be re-recorded into a fresh confirmation round.
+    expect(sql).toContain("v_session.confirmation_status <> 'rejected'");
+    expect(sql).toContain("Resubmission");
+    expect(sql).toContain("v_session.version, p_decision, p_note");
+  });
+
+  test("aligns the idempotency journal with the actor-scoped pre-check", () => {
+    expect(sql).toContain("unique (department_id, actor_user_id, correlation_id, event_type)");
+    expect((sql.match(/and e.actor_user_id = v_uid/g) ?? []).length).toBe(2);
+  });
+
+  test("fails closed with explicit NULL guards before any write", () => {
+    expect(sql).toContain("execution state is required");
+    expect(sql).toContain("session kind is required");
+    expect(sql).toContain("decision must be confirmed or rejected");
+    expect(sql).toContain("if p_decision is null or p_decision not in ('confirmed', 'rejected') then");
+  });
+
   test("defaults every surface to deny with RLS and revokes", () => {
     expect((sql.match(/enable row level security/g) ?? []).length).toBe(5);
     expect((sql.match(/revoke all on table lecture_execution_\w+ from anon, authenticated/g) ?? []).length).toBe(5);
@@ -50,8 +72,10 @@ describe("lecture execution SQL draft", () => {
 
   test("binds child rows with composite same-department foreign keys", () => {
     expect((sql.match(/references lecture_execution_sessions \(id, department_id\)/g) ?? []).length).toBe(2);
-    expect((sql.match(/references lecture_execution_actor_assignments \(id, department_id\)/g) ?? []).length).toBe(2);
+    expect((sql.match(/references lecture_execution_actor_assignments \(id, department_id\)/g) ?? []).length).toBe(3);
     expect((sql.match(/unique \(id, department_id\)/g) ?? []).length).toBe(2);
+    // recorded_by assignment carries a composite same-department FK too.
+    expect(sql).toContain("foreign key (recorded_by_assignment_id, department_id)");
   });
 
   test("keeps D-15 delegate confirmation configuration-gated and fail-closed", () => {
@@ -67,11 +91,12 @@ describe("lecture execution SQL draft", () => {
     expect(sql).toContain("lecture-execution assignment identity/department mismatch");
     expect(sql).toContain("lecture_execution_events_append_only");
     expect(sql).toContain("lecture_execution_transition_allowed");
-    expect((sql.match(/security definer/g) ?? []).length).toBe(3);
-    expect((sql.match(/set search_path = public, pg_temp/g) ?? []).length).toBeGreaterThanOrEqual(6);
+    expect((sql.match(/security definer/g) ?? []).length).toBe(2);
+    expect((sql.match(/set search_path = public, pg_temp/g) ?? []).length).toBeGreaterThanOrEqual(5);
     expect(sql).toContain("grant execute on function record_lecture_execution(uuid, smallint, lecture_execution_session_kind, lecture_execution_state, text, uuid) to authenticated");
     expect(sql).toContain("grant execute on function confirm_lecture_execution(uuid, text, text, uuid) to authenticated");
-    expect(sql).toContain("revoke all on function require_lecture_execution_assignment(uuid, lecture_execution_actor_role[]) from public, anon, authenticated");
+    // No dead helper surfaces: only the two locked RPCs exist as functions.
+    expect(sql).not.toContain("require_lecture_execution_assignment");
   });
 
   test("is transaction bounded and refuses ambiguous retries", () => {
@@ -93,6 +118,15 @@ describe("lecture execution SQL draft", () => {
       "invalid execution transition: executed -> scheduled",
       "idempotent retry returned a different id",
       "audit is not exactly once",
+      "only published schedule slots can be tracked",
+      "schedule slot is not on an active section/offering",
+      "execution state is required",
+      "session kind is required",
+      "decision must be confirmed or rejected",
+      "resubmission must open a new confirmation round",
+      "exactly one confirmation per recording version",
+      "rejection history must be preserved alongside the new decision",
+      "unexpectedly client-readable/writable",
       "update public.lecture_execution_events",
       "delete from public.lecture_execution_events",
       "rollback;",
@@ -100,13 +134,14 @@ describe("lecture execution SQL draft", () => {
     expect(verifier).toContain("denial had side effects");
     expect(verifier).not.toContain("exception when others");
     expect((verifier.match(/pg_temp\.expect_fk\(/g) ?? []).length).toBeGreaterThanOrEqual(2);
-    expect((verifier.match(/pg_temp\.expect_le_error\(/g) ?? []).length).toBeGreaterThanOrEqual(10);
+    expect((verifier.match(/pg_temp\.expect_le_error\(/g) ?? []).length).toBeGreaterThanOrEqual(16);
+    expect((verifier.match(/has_table_privilege\(/g) ?? []).length).toBeGreaterThanOrEqual(8);
     expect((verifier.match(/\\quit 1/g) ?? []).length).toBe(7);
     expect(verifier).toContain("has_function_privilege('anon'");
     expect(verifier).toContain("RPC matrices above exercise");
   });
 
-  test("fixture schema provides every table the draft references", () => {
+  test("fixture schema provides every table and denial slot the draft needs", () => {
     for (const table of [
       "departments", "academic_levels", "academic_years", "semesters", "courses",
       "course_offerings", "course_sections", "class_schedule", "rooms", "time_slots",
@@ -114,5 +149,8 @@ describe("lecture execution SQL draft", () => {
     ]) expect(minimalSchema).toContain(`create table public.${table}(`);
     expect(minimalSchema).toContain("'published'");
     expect(minimalSchema).toContain("'lecture'");
+    expect(minimalSchema).toContain("'draft'"); // unpublished slot fixture
+    expect(minimalSchema).toContain("'inactive'"); // inactive section fixture
+    expect(minimalSchema).toContain("a0000000-0000-0000-0000-000000000004"); // other-section slot
   });
 });
