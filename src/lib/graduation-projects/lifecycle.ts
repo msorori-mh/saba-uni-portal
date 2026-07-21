@@ -530,6 +530,42 @@ export interface GraduationProjectDetail {
   events: ProjectEventRow[];
 }
 
+/**
+ * MEDIUM-1 (review 4982): viewer-scoped panel membership. The workspace must
+ * derive "my" panel membership/evaluation from the viewer's OWN active
+ * panel_member assignments only. Deriving it from every active panel_member
+ * assignment lets another member's finalized evaluation be mistaken for the
+ * viewer's, which wrongly hides the score form or shows others' scores as
+ * "mine". The full candidate list stays available for the DiscussionPanel
+ * assign selector via the component.
+ */
+export function resolveViewerPanelMemberIds(
+  detail: Pick<GraduationProjectDetail, "assignments" | "panel_members">,
+  viewerUserId: string,
+): string[] {
+  const viewerAssignmentIds = new Set(
+    detail.assignments
+      .filter((assignment) => assignment.role === "panel_member" && assignment.active && assignment.user_id === viewerUserId)
+      .map((assignment) => assignment.id),
+  );
+  return detail.panel_members
+    .filter((member) => viewerAssignmentIds.has(member.assignment_id))
+    .map((member) => member.id);
+}
+
+/**
+ * The viewer's own evaluation row, or null when they have none. Null (or a
+ * draft) keeps the EvaluationPanel score form visible; another member's
+ * finalized evaluation must never be returned here.
+ */
+export function resolveViewerEvaluation(
+  detail: Pick<GraduationProjectDetail, "assignments" | "panel_members" | "evaluations">,
+  viewerUserId: string,
+): EvaluationRow | null {
+  const memberIds = resolveViewerPanelMemberIds(detail, viewerUserId);
+  return detail.evaluations.find((evaluation) => memberIds.includes(evaluation.panel_member_id)) ?? null;
+}
+
 /* ---------- department report payloads ---------- */
 
 export interface StatesReportProject {
