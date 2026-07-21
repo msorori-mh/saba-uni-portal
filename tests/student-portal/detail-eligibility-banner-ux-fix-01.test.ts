@@ -153,7 +153,15 @@ describe("StudentRequestEligibilityNotice render behavior", () => {
       formSupported: true,
       hasSubject: true,
     });
-    expect(html).toBe("");
+    // Contract: eligible students must not see a blocked/red card. Optional
+    // blue service-information notices (role=note) are allowed UX, not a deny.
+    expect(html).not.toContain("bg-rose-100");
+    expect(html).not.toContain("أسباب المنع");
+    expect(html).not.toContain('role="alert"');
+    if (html.length > 0) {
+      expect(html).toContain("معلومات الخدمة");
+      expect(html).toContain('role="note"');
+    }
   });
 
   it("renders a blocked red card on the creation page for an ineligible student", () => {

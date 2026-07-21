@@ -27,17 +27,25 @@ describe("STUDENT-TO-COHORT-BINDING-AUDIT-01 evidence", () => {
   });
 
   it("records the broad academic-status cohort fallback as a HOLD", () => {
+    // Audit documented the broad student_academic_status sibling fallback as HOLD.
+    // Runtime later closed that path: the setting default string remains, but
+    // audience resolution is exact current enrollment only (no academic-status
+    // sibling inference).
     expect(materials).toContain('?? "cohort_fallback"');
-    expect(materials).toContain('.from("student_academic_status")');
-    expect(materials).toContain('.select("id, sections:course_sections(id)")');
-    expect(materials).toContain("for (const s of o.sections ?? []) result.add(s.id)");
+    expect(materials).toContain("never use either mode to infer sibling");
+    expect(materials).toContain("exactCurrentMaterialSectionIds");
+    expect(materials).toContain("fetchCanonicalCurrentTerm");
+    expect(materials).not.toContain('.from("student_academic_status")');
     expect(report).toContain("PASS_AUDIT_COMPLETE");
     expect(report).toContain("HOLD_INTEGRATED_RUNTIME");
   });
 
   it("proves current-term ambiguity is not rejected by the fallback", () => {
-    expect(materials).toContain("for (const k of keys)");
-    expect(materials).not.toContain("fetchCanonicalCurrentTerm");
+    // Post-remediation contract: missing/ambiguous current term fails closed
+    // (empty section set) instead of expanding via academic-status keys.
+    expect(materials).toContain("if (!currentTerm) return new Set<string>()");
+    expect(materials).toContain("fetchCanonicalCurrentTerm");
+    expect(materials).toContain('.from("student_enrollments")');
     expect(normalizedReport).toContain("zero, one, or many academic-status rows");
   });
 

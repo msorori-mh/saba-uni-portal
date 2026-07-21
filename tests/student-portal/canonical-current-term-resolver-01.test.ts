@@ -124,8 +124,9 @@ describe("canonical current-term resolver", () => {
     const mobileGrades = readFileSync(join(root, "src/routes/mobile.student.grades.tsx"), "utf8");
 
     expect(referenceData).toContain("queryFn: () => fetchCanonicalCurrentTerm(sb)");
-    expect(mobileGrades).toContain(
-      "const currentTerm = await fetchCanonicalCurrentTerm(supabase as unknown as CurrentTermClient)",
+    // Assignment may be `const currentTerm =` or `currentTerm =` after a prior let.
+    expect(mobileGrades).toMatch(
+      /currentTerm\s*=\s*await fetchCanonicalCurrentTerm\(\s*supabase as unknown as CurrentTermClient\s*\)/,
     );
     expect(mobileGrades).toContain("if (!currentTerm) return unavailableCurrentTerm");
     expect(mobileGrades).toContain("return unavailableCurrentTerm");

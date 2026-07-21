@@ -17,13 +17,20 @@
  *
  * Run: bun test tests/imports/student-academic-status-importer.test.ts
  */
-import { describe, expect, it, mock, beforeAll, beforeEach, spyOn } from "bun:test";
+import { afterEach, describe, expect, it, mock, beforeAll, beforeEach, spyOn } from "bun:test";
 import type { LookupMaps, ValidatedRow } from "../../src/lib/imports/types";
 import * as importDb from "../../src/lib/imports/import-db";
 import {
   validateStudentAcademicStatus,
   type StudentAcademicStatusRow,
 } from "../../src/lib/imports/validators";
+
+let activeGetImportDbSpy: ReturnType<typeof spyOn> | undefined;
+
+afterEach(() => {
+  activeGetImportDbSpy?.mockRestore();
+  activeGetImportDbSpy = undefined;
+});
 
 process.env.SUPABASE_URL = "http://test.local";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
@@ -149,9 +156,11 @@ function mockStatusDb(
       },
     }),
   };
-  return spyOn(importDb, "getImportDb").mockReturnValue(
+  activeGetImportDbSpy?.mockRestore();
+  activeGetImportDbSpy = spyOn(importDb, "getImportDb").mockReturnValue(
     fake as unknown as ReturnType<typeof importDb.getImportDb>,
   );
+  return activeGetImportDbSpy;
 }
 
 function parsedStatus(overrides: Partial<StudentAcademicStatusRow> = {}): StudentAcademicStatusRow {

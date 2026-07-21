@@ -12,33 +12,59 @@ const ROOT = join(import.meta.dir, "../..");
 const PORT = 8791;
 const BASE = `http://127.0.0.1:${PORT}`;
 
+async function drain(stream: ReadableStream<Uint8Array> | undefined, into: { text: string }) {
+  if (!stream) return;
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      into.text += decoder.decode(value, { stream: true });
+    }
+  } catch {
+    /* process killed */
+  }
+}
+
 async function waitForReady(proc: Subprocess, timeoutMs: number): Promise<void> {
   const start = Date.now();
-  let buf = "";
-  const reader = proc.stdout?.getReader();
-  const decoder = new TextDecoder();
-  if (!reader) throw new Error("wrangler stdout missing");
+  const logs = { text: "" };
+  void drain(proc.stdout ?? undefined, logs);
+  void drain(proc.stderr ?? undefined, logs);
 
   while (Date.now() - start < timeoutMs) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    if (/Ready on/i.test(buf) || /Listening on/i.test(buf)) {
-      // Detach reader so logs don't block; process keeps running.
-      reader.releaseLock();
+    if (proc.exitCode != null) {
+      throw new Error(
+        `wrangler exited early with code ${proc.exitCode}\n${logs.text.slice(-4000)}`,
+      );
+    }
+    if (/Ready on/i.test(logs.text) || /Listening on/i.test(logs.text)) {
       return;
     }
+    // HTTP readiness: Ready banners sometimes land only on stderr or after bind.
+    try {
+      const res = await fetch(`${BASE}/`, { signal: AbortSignal.timeout(500) });
+      if (res.ok || res.status === 200) return;
+    } catch {
+      /* not up yet */
+    }
+    await Bun.sleep(250);
   }
-  throw new Error(`wrangler did not become ready within ${timeoutMs}ms\n${buf.slice(-2000)}`);
+  throw new Error(`wrangler did not become ready within ${timeoutMs}ms\n${logs.text.slice(-4000)}`);
 }
 
 describe("G4 — Arabic PDF spike on Wrangler Worker runtime", () => {
   let proc: Subprocess | undefined;
 
   beforeAll(async () => {
+    // Prefer `bun x` over bare `bunx` — some CI/agent PATHs lack a bunx shim
+    // (ENOENT), while `bun` itself is always present under oven-sh/setup-bun.
+    const bunBin = Bun.which("bun") ?? "bun";
     proc = spawn({
       cmd: [
-        "bunx",
+        bunBin,
+        "x",
         "wrangler",
         "dev",
         "--local",
