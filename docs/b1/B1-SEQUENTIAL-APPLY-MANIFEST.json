@@ -50,31 +50,19 @@
   "note": "applied migrations/objects the apply-set relies on (already on production; NOT part of this manifest graph)",
   "applied_migrations": [
    {
-    "filename": "20260622100000_request_types.sql",
-    "category": "applied_student_request_foundation"
-   },
-   {
-    "filename": "20260622110000_student_requests.sql",
-    "category": "applied_student_request_foundation"
-   },
-   {
-    "filename": "20260622120000_student_request_details.sql",
-    "category": "applied_student_request_foundation"
-   },
-   {
-    "filename": "20260622130000_student_request_attachments.sql",
-    "category": "applied_student_request_foundation"
-   },
-   {
-    "filename": "20260622140000_student_request_history.sql",
-    "category": "applied_student_request_foundation"
-   },
-   {
-    "filename": "20260622150000_submit_student_request.sql",
-    "category": "applied_student_request_foundation"
-   },
-   {
     "filename": "20260624140000_student_requests_workflow_foundation.sql",
+    "category": "applied_student_request_foundation"
+   },
+   {
+    "filename": "20260710130000_student_request_types_schema.sql",
+    "category": "applied_student_request_foundation"
+   },
+   {
+    "filename": "20260710140000_student_request_types_rpc_rls.sql",
+    "category": "applied_student_request_foundation"
+   },
+   {
+    "filename": "20260710150000_student_request_types_rls_submit_bypass_fix.sql",
     "category": "applied_student_request_foundation"
    },
    {
@@ -86,7 +74,7 @@
     "category": "applied_student_request_foundation"
    },
    {
-    "filename": "20260710180000_student_request_admin_workflow_data.sql",
+    "filename": "20260710180000_student_request_actor_rpc_rls.sql",
     "category": "applied_student_request_foundation"
    },
    {
@@ -94,19 +82,19 @@
     "category": "applied_student_request_foundation"
    },
    {
-    "filename": "20260711120000_student_request_actor_inbox.sql",
+    "filename": "20260711020000_student_requests_p1_foundations.sql",
     "category": "applied_student_request_foundation"
    },
    {
-    "filename": "20260622143000_enrollment_suspension.sql",
-    "category": "applied_legacy_b1_vocabulary"
-   },
-   {
-    "filename": "20260622144000_absence_excuse.sql",
+    "filename": "20260625150000_absence_excuse_approval_effect.sql",
     "category": "applied_legacy_b1_vocabulary"
    },
    {
     "filename": "20260625160000_extra_chance_approval_effect.sql",
+    "category": "applied_legacy_b1_vocabulary"
+   },
+   {
+    "filename": "20260621023929_fbad24ae-1c09-4b10-b881-b5f05477126e.sql",
     "category": "applied_legacy_b1_vocabulary"
    }
   ]
@@ -139,6 +127,10 @@
     "to": "B1-ACTOR-AUTHORIZATION-HARDENING-02"
    },
    {
+    "from": "B1-ATOMIC-SUBMIT-ACTION-04",
+    "to": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05"
+   },
+   {
     "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
     "to": "B1-ATOMIC-SUBMIT-ACTION-04"
    },
@@ -149,14 +141,6 @@
    {
     "from": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
     "to": "B1-ATOMIC-SUBMIT-ACTION-04"
-   },
-   {
-    "from": "B1-ATOMIC-SUBMIT-ACTION-04",
-    "to": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05"
-   },
-   {
-    "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-    "to": "B1-DETAIL-ACL-CUTOVER-18"
    },
    {
     "from": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
@@ -211,7 +195,7 @@
     "to": "B1-EXCUSED-ABSENCE-VOCABULARY-09"
    },
    {
-    "from": "B1-ATOMIC-SUBMIT-ACTION-04",
+    "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
     "to": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06"
    },
    {
@@ -219,7 +203,7 @@
     "to": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06"
    },
    {
-    "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
+    "from": "B1-ATOMIC-SUBMIT-ACTION-04",
     "to": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06"
    },
    {
@@ -267,15 +251,15 @@
     "to": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01"
    },
    {
+    "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
+    "to": "B1-SECURE-ATTACHMENTS-SOURCE-07"
+   },
+   {
     "from": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06",
     "to": "B1-SECURE-ATTACHMENTS-SOURCE-07"
    },
    {
     "from": "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
-    "to": "B1-SECURE-ATTACHMENTS-SOURCE-07"
-   },
-   {
-    "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
     "to": "B1-SECURE-ATTACHMENTS-SOURCE-07"
    },
    {
@@ -348,19 +332,22 @@
    "plan_order": 1,
    "sequence_order": 1,
    "sequence_predecessor": null,
-   "source_sha": "0659fe34e4ed579b2eba2c60b7e2402846a0d620",
+   "source_sha": "0659fe34e4ed7f47ff1f69c041adefe289c2d594",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "3b8e2cfda3c6d68e1a6c1c1757f0a939a42f918f3a4b0af0bf23ff4d2b47708c",
+   "sha256": "3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 3253,
    "dependencies": [],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
-    "20260624140000_student_requests_workflow_foundation (log_audit 6/7-arg overloads, cancel_official_document, audit_logs)"
+    "20260624140000_student_requests_workflow_foundation (log_audit 6-arg+7-arg overloads)",
+    "official_documents",
+    "has_any_role",
+    "audit_logs"
    ],
    "objects_created": [],
    "objects_modified": [
-    "cancel_official_document (forward CREATE OR REPLACE, explicit 7-arg log_audit)"
+    "function cancel_official_document(uuid,text)"
    ],
    "functions": [
     "cancel_official_document(uuid,text)"
@@ -368,8 +355,8 @@
    "rpcs": [],
    "rls_impact": "none",
    "grants_revokes": [
-    "REVOKE ALL cancel_official_document FROM PUBLIC, anon",
-    "GRANT EXECUTE cancel_official_document TO authenticated, service_role"
+    "GRANT EXECUTE cancel_official_document TO authenticated, service_role",
+    "REVOKE cancel_official_document FROM PUBLIC, anon"
    ],
    "storage_impact": "none",
    "protected_record_impact": "none — no historical audit_logs rewrite; only future cancel_official_document calls change",
@@ -414,9 +401,9 @@
    "plan_order": 2,
    "sequence_order": 2,
    "sequence_predecessor": "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
-   "source_sha": "26b63bb9d0a08dd7a32425c6f3a3e93d542cbbf3",
+   "source_sha": "26b63bb93de4506d1b73440250503c0f166db217",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "0627b14209eccca23224d6b2271dd4c0bf98cee4376cc0844819286ae9e31c47",
+   "sha256": "0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 23408,
    "dependencies": [
@@ -424,30 +411,26 @@
    ],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
-    "20260710190000_student_request_workflow_runtime",
-    "20260710160000_student_request_processing_units_schema",
-    "20260710180000_student_request_admin_workflow_data",
-    "20260711120000_student_request_actor_inbox"
+    "20260710180000_student_request_actor_rpc_rls",
+    "20260710170000_student_request_admin_workflow_schema",
+    "20260710160000_student_request_processing_units_schema"
    ],
    "objects_created": [],
-   "objects_modified": [
-    "user_matches_workflow_runtime_step (v2 strict)",
-    "is_current_user_dean_for_student (scope-corrected)",
-    "get_my_request_actor_inbox (strict visibility)",
-    "can_current_user_act_on_step (v2 strict gate)"
-   ],
+   "objects_modified": [],
    "functions": [
-    "user_matches_workflow_runtime_step(uuid)",
-    "is_current_user_dean_for_student(uuid)",
-    "get_my_request_actor_inbox(jsonb,integer,integer)",
-    "current_user_has_exact_processing_binding(uuid,uuid)",
-    "current_user_matches_transfer_department_scope(uuid,text)",
-    "is_valid_b1_runtime_step_contract(text,text,text,text,text)",
-    "can_current_user_act_on_step(uuid,text)"
+    "user_matches_workflow_runtime_step",
+    "is_current_user_dean_for_student",
+    "get_my_request_actor_inbox",
+    "current_user_has_exact_processing_binding",
+    "current_user_matches_transfer_department_scope",
+    "is_valid_b1_runtime_step_contract",
+    "can_current_user_act_on_step"
    ],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": "none",
+   "grants_revokes": [
+    "GRANT EXECUTE new/replaced helpers TO authenticated"
+   ],
    "storage_impact": "none",
    "protected_record_impact": "historical unauthorized executions listed in the impact-audit report are NOT remediated here (documented follow-up); no row touched",
    "preflight": [
@@ -492,7 +475,7 @@
    "plan_order": null,
    "sequence_order": 3,
    "sequence_predecessor": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-   "source_sha": "aedb1d8c9d7e1f2c90e94ff88ec1859e5268849d",
+   "source_sha": "aedb1d8cff31f13d097a8f6dc798604fa85dc6c9",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
    "sha256": "3ef082a214a434471f233fc6b6c1802103ecc2a57004039f9a44359aa10135cb",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content (no B1-plan pin exists for this B1-adjacent entry)",
@@ -502,24 +485,18 @@
    ],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
-    "STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING (v2 can_current_user_act_on_step)",
-    "20260710190000_student_request_workflow_runtime",
-    "20260710170000_student_request_admin_workflow_schema"
+    "STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING"
    ],
    "objects_created": [],
-   "objects_modified": [
-    "can_current_user_act_on_step (v3 predecessor-guarded)"
-   ],
+   "objects_modified": [],
    "functions": [
-    "workflow_action_result_matches(text,text)",
-    "workflow_runtime_predecessors_satisfied(uuid)",
-    "can_current_user_act_on_step(uuid,text)"
+    "can_current_user_act_on_step (v3 predecessor-completion)",
+    "workflow_runtime_predecessors_satisfied",
+    "workflow_action_result_matches"
    ],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": [
-    "REVOKE/GRANT on the 3 functions (authenticated/service_role only)"
-   ],
+   "grants_revokes": "none",
    "storage_impact": "none",
    "protected_record_impact": "none — function logic only",
    "preflight": [
@@ -562,9 +539,9 @@
    "plan_order": 3,
    "sequence_order": 4,
    "sequence_predecessor": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
-   "source_sha": "5278c7acdd2f5e28cd70e0dcdb6194b41e16f44e",
+   "source_sha": "5278c7ace88e993ed214d5c7905a0a31828df910",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "e5b5ee1c7cd8baaf0ad17d1bb3a3348fe6ae5a7ab7562da00860b09cd46e4d5c",
+   "sha256": "e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 6193,
    "dependencies": [
@@ -574,12 +551,11 @@
    "external_dependencies": [
     "20260710160000_student_request_processing_units_schema"
    ],
-   "objects_created": [
-    "request_processing_units rows (library, labs, graduate_affairs, department)",
-    "request_processing_roles rows (library_officer, labs_manager, graduate_affairs_manager, graduate_affairs_specialist, department_head)",
-    "request_processing_assignments rows (4 staff_profile + 3 faculty_profile scoped)"
+   "objects_created": [],
+   "objects_modified": [
+    "request_processing_units (identity rows)",
+    "request_processing_roles (identity rows)"
    ],
-   "objects_modified": [],
    "functions": [],
    "rpcs": [],
    "rls_impact": "none",
@@ -627,9 +603,9 @@
    "plan_order": 4,
    "sequence_order": 5,
    "sequence_predecessor": "B1-PROCESSING-DOMAINS-EXPANSION-03",
-   "source_sha": "43d2ee3cf4ee7438ae7778eb759cd41e2bc7f0ad",
+   "source_sha": "90bad45e4fd93659c3ebf5fdd2d83c0dda2a4a6c",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "0ee7c47e6c9c58d01e8e1ae4e0ae50fa1a00b1d9ee96e68c8a5c26d1e3b48819",
+   "sha256": "a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 26447,
    "dependencies": [
@@ -640,42 +616,31 @@
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
     "STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING",
+    "20260710140000_student_request_types_rpc_rls",
+    "20260710170000_student_request_admin_workflow_schema",
     "20260710190000_student_request_workflow_runtime",
-    "20260710180000_student_request_admin_workflow_data",
-    "20260710160000_student_request_processing_units_schema"
+    "20260710160000_student_request_processing_units_schema",
+    "transfer_request_details"
    ],
-   "objects_created": [
-    "persist_validated_b1_request_details (fail-closed placeholder)",
-    "is_b1_stored_request_type(text)",
-    "guard_b1_request_submit_boundary() trigger fn",
-    "guard_b1_runtime_mutation_boundary() trigger fn",
-    "trg_guard_b1_request_submit_boundary on student_requests",
-    "trg_guard_b1_runtime_mutation_boundary on student_request_workflow_steps",
-    "is_valid_b1_direct_assignment(uuid,uuid,boolean)",
-    "initialize_b1_request_workflow_strict(uuid,text)",
-    "submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
-    "act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)"
+   "objects_created": [],
+   "objects_modified": [
+    "trigger guard_b1_runtime_mutation_boundary on student_requests",
+    "trigger guard_b1_runtime_mutation_boundary on student_request_workflow_steps"
    ],
-   "objects_modified": [],
    "functions": [
-    "persist_validated_b1_request_details(uuid,text,jsonb,uuid[])",
-    "is_b1_stored_request_type(text)",
-    "guard_b1_request_submit_boundary()",
-    "guard_b1_runtime_mutation_boundary()",
-    "is_valid_b1_direct_assignment(uuid,uuid,boolean)",
-    "initialize_b1_request_workflow_strict(uuid,text)",
-    "submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
-    "act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)"
+    "persist_validated_b1_request_details (FAIL-CLOSED STUB)",
+    "is_b1_stored_request_type",
+    "guard_b1_request_submit_boundary",
+    "guard_b1_runtime_mutation_boundary",
+    "is_valid_b1_direct_assignment",
+    "initialize_b1_request_workflow_strict"
    ],
    "rpcs": [
     "submit_b1_student_request_atomic",
     "act_on_b1_student_request_step_atomic"
    ],
    "rls_impact": "none",
-   "grants_revokes": [
-    "REVOKE ALL new functions FROM PUBLIC, anon (+authenticated for internal helpers)",
-    "GRANT EXECUTE submit_/act_on_ atomic RPCs TO authenticated"
-   ],
+   "grants_revokes": "none",
    "storage_impact": "none",
    "protected_record_impact": "none — functions/triggers only; existing requests/steps untouched",
    "preflight": [
@@ -723,9 +688,9 @@
    "plan_order": 5,
    "sequence_order": 6,
    "sequence_predecessor": "B1-ATOMIC-SUBMIT-ACTION-04",
-   "source_sha": "8fa9e01fe4a541aa71d6b17f22bfe97bb5fb2387",
+   "source_sha": "5851bf9e2b04c8232e2001a749a3d1421c5688be",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "893a2979bad443e23d675feecb7a8f05a84e44d6eee94f17b01773f68a09d1c4c0",
+   "sha256": "893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 1009,
    "dependencies": [
@@ -734,11 +699,11 @@
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
     "REQUEST-B1-ATOMIC-SUBMIT-ACTION-04",
-    "deploy gate (approved release SHA evidence)"
+    "deploy gate (published release SHA)"
    ],
    "objects_created": [],
    "objects_modified": [
-    "COMMENT ON FUNCTION submit_b1_student_request_atomic (release evidence stamp)"
+    "obj_description B1_ATOMIC_CALLER_RELEASE_EVIDENCE"
    ],
    "functions": [],
    "rpcs": [],
@@ -786,9 +751,9 @@
    "plan_order": 6,
    "sequence_order": 7,
    "sequence_predecessor": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
-   "source_sha": "16d24b64d26e1c5d1ee1bcc7d93d543aa76ed2d8",
+   "source_sha": "16d24b649310465e2465dda9108206a3a1200061",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "7aa1d5f0d64ba0bf1160e3a0c1baed7e0e2d4ba6d3b2e813ee0d2ca31d511bc1",
+   "sha256": "da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 11002,
    "dependencies": [
@@ -802,26 +767,19 @@
     "REQUEST-B1-ATOMIC-SUBMIT-ACTION-04",
     "20260710170000_student_request_admin_workflow_schema"
    ],
-   "objects_created": [
-    "record_external_university_payment_confirmation(uuid,text,text)"
-   ],
+   "objects_created": [],
    "objects_modified": [
-    "CHECK request_type_workflow_steps.action_type (+confirm_payment,+clear,+apply_decision)",
-    "CHECK request_type_workflow_transitions.action_result (+payment_confirmed,+cleared,+applied)",
-    "CHECK student_request_workflow_steps.decision (+payment_confirmed,+payment_not_confirmed,...)",
-    "CHECK student_request_workflow_events.event_type (+payment_confirmed,+payment_not_confirmed,...)"
+    "CHECK request_type_workflow_steps.action_type (+confirm_external_university_payment)",
+    "CHECK request_type_workflow_transitions.action_result",
+    "CHECK student_request_workflow_steps.decision",
+    "CHECK student_request_workflow_events.event_type"
    ],
-   "functions": [
-    "record_external_university_payment_confirmation(uuid,text,text)"
-   ],
+   "functions": [],
    "rpcs": [
     "record_external_university_payment_confirmation"
    ],
    "rls_impact": "none",
-   "grants_revokes": [
-    "REVOKE ALL ON record_external_university_payment_confirmation FROM PUBLIC, anon",
-    "GRANT EXECUTE TO authenticated"
-   ],
+   "grants_revokes": "none",
    "storage_impact": "none",
    "protected_record_impact": "widening CHECKs is validated against existing rows by Postgres; no data rewrite",
    "preflight": [
@@ -865,9 +823,9 @@
    "plan_order": 7,
    "sequence_order": 8,
    "sequence_predecessor": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06",
-   "source_sha": "90bad45e436ec601b17c6e9b1a7c57f0f6c4c769",
+   "source_sha": "43d2ee3c23ba8e8b30db35cb09fa1e961ba61d9d",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "96606d24b04082a448a1b22a35ad7e76764b1fb0b6f85d2fd2a74bc99c1da619",
+   "sha256": "bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 16018,
    "dependencies": [
@@ -877,20 +835,17 @@
    ],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
-    "20260622110000_student_requests",
-    "20260622130000_student_request_attachments",
-    "20260622150000_submit_student_request",
-    "REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01"
+    "REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
+    "STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING",
+    "20260710140000_student_request_types_rpc_rls",
+    "20260710170000_student_request_admin_workflow_schema",
+    "20260710190000_student_request_workflow_runtime"
    ],
    "objects_created": [
-    "storage bucket student-request-secure-attachments (private)",
     "table student_request_attachment_uploads",
-    "protect_student_request_attachment_identity() + trigger",
-    "storage INSERT policy secure_attachment_insert"
+    "trigger protect_student_request_attachment_identity"
    ],
-   "objects_modified": [
-    "submit_student_request(uuid) EXECUTE revoked from authenticated (mandatory cutover)"
-   ],
+   "objects_modified": [],
    "functions": [
     "create_student_request_attachment_upload_intent",
     "complete_student_request_attachment_upload",
@@ -902,18 +857,15 @@
     "authorize_student_request_attachment_download"
    ],
    "rpcs": [
-    "create_student_request_attachment_upload_intent",
-    "complete_student_request_attachment_upload",
     "submit_student_request_with_secure_attachments",
-    "authorize_student_request_attachment_download"
+    "create_student_request_attachment_upload_intent",
+    "complete_student_request_attachment_upload"
    ],
    "rls_impact": [
-    "student_request_attachment_uploads RLS enabled, no policies (RPC-only access)"
+    "student_request_attachment_uploads policies"
    ],
    "grants_revokes": [
-    "REVOKE ALL table FROM PUBLIC,anon,authenticated",
-    "REVOKE submit_student_request(uuid) FROM authenticated",
-    "GRANT EXECUTE on 8 new RPCs TO authenticated"
+    "REVOKE submit_student_request(uuid) FROM authenticated (legacy cutover)"
    ],
    "storage_impact": "creates private bucket student-request-secure-attachments (5MiB, pdf/jpeg/png) + single INSERT-only storage.objects policy; no SELECT/UPDATE/DELETE storage policy in v1",
    "protected_record_impact": "none — new table/bucket; existing requests untouched",
@@ -959,11 +911,11 @@
    "plan_order": 8,
    "sequence_order": 9,
    "sequence_predecessor": "B1-SECURE-ATTACHMENTS-SOURCE-07",
-   "source_sha": "5851bf9e6c040c2a9a1b3b7a8fe2cd1148d5ab71",
+   "source_sha": "8fa9e01faeeb393633db6f3884afa256e5da4e44",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "8df62c8f7cf79acfe57e7f1b53c622cfdc1b5ec90d0f2b1c09b7d580b97e07a1",
+   "sha256": "529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
-   "byte_size": 2471,
+   "byte_size": 2395,
    "dependencies": [
     "B1-SECURE-ATTACHMENTS-SOURCE-07"
    ],
@@ -977,11 +929,7 @@
     "programs",
     "departments"
    ],
-   "objects_created": [
-    "assert_b1_academic_period_reference(uuid,uuid)",
-    "assert_b1_active_course_enrollment(uuid,uuid)",
-    "assert_b1_target_program_department(uuid,uuid)"
-   ],
+   "objects_created": [],
    "objects_modified": [],
    "functions": [
     "assert_b1_academic_period_reference(uuid,uuid)",
@@ -991,7 +939,7 @@
    "rpcs": [],
    "rls_impact": "none",
    "grants_revokes": [
-    "REVOKE ALL 3 validators FROM PUBLIC, anon, authenticated"
+    "REVOKE ALL FROM PUBLIC, anon, authenticated on all 3 validators (internal-only, no grants)"
    ],
    "storage_impact": "none",
    "protected_record_impact": "none",
@@ -1032,33 +980,26 @@
    "plan_order": 9,
    "sequence_order": 10,
    "sequence_predecessor": "B1-TRUSTED-REFERENCE-VALIDATORS-08",
-   "source_sha": "30af305cea12ad1f9eb7e1487a63a1a7f2f2b9c2",
+   "source_sha": "30af305ce46c8776016c089c243cc878e946f8d4",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "9db2b08be53d1f1b34f1e4032e440c70f28b6b380ded8f05b6699dc002ca2f00",
+   "sha256": "e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
-   "byte_size": 4475,
+   "byte_size": 3943,
    "dependencies": [
     "B1-TRUSTED-REFERENCE-VALIDATORS-08"
    ],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
-    "20260622144000_absence_excuse (absence_excuse_details + aed_reason_chk)"
+    "absence_excuse_details"
    ],
-   "objects_created": [
-    "enforce_canonical_absence_reason_write() trigger fn",
-    "trg_enforce_canonical_absence_reason_write on absence_excuse_details"
-   ],
+   "objects_created": [],
    "objects_modified": [
-    "aed_reason_chk (6-value vocabulary, historical family/emergency preserved)"
+    "absence_excuse_details (vocabulary constraints)"
    ],
-   "functions": [
-    "enforce_canonical_absence_reason_write()"
-   ],
+   "functions": [],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": [
-    "REVOKE ALL enforce_canonical_absence_reason_write FROM PUBLIC, anon, authenticated"
-   ],
+   "grants_revokes": "none",
    "storage_impact": "none",
    "protected_record_impact": "PROTECTED: historical reason_type values family/emergency remain readable; NOT VALID→VALIDATE proves no rewrite; any required rewrite = STOP",
    "preflight": [
@@ -1233,8 +1174,8 @@
    "plan_order": 12,
    "sequence_order": 13,
    "sequence_predecessor": "B1-FILE-WITHDRAWAL-DETAILS-11",
-   "source_sha": "fabe936a7590b786c087c59eee477d7cc3d8737f",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
+   "source_sha": "805d3534a02ba1c63b742cd5626c255708ddfd73",
+   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response). NOTE: the local text-channel staging copy diverges (fabe936a7590b786c087c59eee477d7cc3d8737f, 8426 bytes — 12 non-rendered bytes lost), so git hash-object of the staging copy does NOT match; the API blob SHA is authoritative here",
    "sha256": "d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284",
    "sha256_provenance": "B1-plan pin (d80f691c…). LOCAL TEXT-CHANNEL RE-HASH DIVERGES: fetched text hashed to 06312229611bbefa06c2f77a1b43c1b6e91a40ece60fcab1b4104a847b7e8e53 (8426 bytes vs 8438 remote; 12 non-rendered bytes lost by the text channel; blob SHA cross-verified 805d3534). FOLLOW-UP: re-hash via raw-byte channel before apply.",
    "sha256_local_text_channel": "06312229611bbefa06c2f77a1b43c1b6e91a40ece60fcab1b4104a847b7e8e53",
