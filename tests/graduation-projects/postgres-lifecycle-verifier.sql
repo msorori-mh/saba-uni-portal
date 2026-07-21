@@ -94,6 +94,8 @@ do $$ begin
   perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
   perform pg_temp.expect_gp_error(format('select public.activate_graduation_project(%L,%s,%L)',(select v from gp_ids where k='p1'),(select version+99 from public.graduation_projects where id=(select v from gp_ids where k='p1')),gen_random_uuid()),'project activation precondition failed');
   perform pg_temp.expect_gp_error(format('select public.assign_graduation_project_faculty(%L,%L,%L,%L,%L)',(select v from gp_ids where k='p1'),'dean',current_setting('gp.faculty_profile_id'),current_setting('gp.faculty_user_id'),gen_random_uuid()),'faculty assignment role denied');
+  -- LOW-1: duplicate active (project, role, user) faculty assignment surfaces a guarded P0001, never raw 23505.
+  perform pg_temp.expect_gp_error(format('select public.assign_graduation_project_faculty(%L,%L,%L,%L,%L)',(select v from gp_ids where k='p1'),'supervisor',current_setting('gp.faculty_profile_id'),current_setting('gp.faculty_user_id'),gen_random_uuid()),'faculty assignment already exists');
   perform set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),true);
   perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
 end $$;
@@ -112,6 +114,11 @@ end $$;
 insert into gp_ids values('file1',gen_random_uuid());
 insert into gp_ids select 'f1',public.register_graduation_project_file((select v from gp_ids where k='p1'),(select v from gp_ids where k='s1'),'graduation-projects/'||(select v from gp_ids where k='p1')::text||'/a-final.pdf','final.pdf','application/pdf',1024,repeat('a',64),(select v from gp_ids where k='file1'));
 insert into gp_ids select 'file1_retry',public.register_graduation_project_file((select v from gp_ids where k='p1'),(select v from gp_ids where k='s1'),'graduation-projects/'||(select v from gp_ids where k='p1')::text||'/a-final.pdf','final.pdf','application/pdf',1024,repeat('a',64),(select v from gp_ids where k='file1'));
+-- LOW-1: duplicate object_key surfaces a guarded P0001, never raw 23505.
+do $$ begin
+  perform pg_temp.expect_gp_error(format('select public.register_graduation_project_file(%L,null,%L,%L,%L,1,%L,%L)',
+    (select v from gp_ids where k='p1'),'graduation-projects/'||(select v from gp_ids where k='p1')::text||'/a-final.pdf','final.pdf','application/pdf',repeat('a',64),gen_random_uuid()),'file object key already registered');
+end $$;
 insert into gp_ids values('file2',gen_random_uuid());
 insert into gp_ids select 'f2',public.register_graduation_project_file((select v from gp_ids where k='p1'),(select v from gp_ids where k='s1'),'graduation-projects/'||(select v from gp_ids where k='p1')::text||'/b-annex.pdf','annex.pdf','application/pdf',2048,repeat('b',64),(select v from gp_ids where k='file2'));
 select set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
@@ -121,6 +128,16 @@ end $$;
 insert into gp_ids values('subrev1',gen_random_uuid());
 insert into gp_ids select 'subrev1_result',public.review_graduation_project_submission((select v from gp_ids where k='p1'),(select v from gp_ids where k='s1'),'accept',null,(select v from gp_ids where k='subrev1'));
 insert into gp_ids select 'subrev1_retry',public.review_graduation_project_submission((select v from gp_ids where k='p1'),(select v from gp_ids where k='s1'),'accept',null,(select v from gp_ids where k='subrev1'));
+
+-- Supervisor note add/resolve; LOW-2 replay returns the recorded note id on payload mismatch.
+insert into gp_ids values('note1',gen_random_uuid());
+insert into gp_ids select 'n1',public.add_graduation_project_supervisor_note((select v from gp_ids where k='p1'),null,'Check citations',(select v from gp_ids where k='note1'));
+insert into gp_ids values('note1res',gen_random_uuid());
+insert into gp_ids select 'note1res_result',public.resolve_graduation_project_supervisor_note((select v from gp_ids where k='p1'),(select v from gp_ids where k='n1'),(select v from gp_ids where k='note1res'));
+do $$ begin
+  if public.resolve_graduation_project_supervisor_note((select v from gp_ids where k='p1'),gen_random_uuid(),(select v from gp_ids where k='note1res'))<>(select v from gp_ids where k='n1') then
+    raise exception 'resolve note replay returned passed id instead of recorded'; end if;
+end $$;
 
 -- External scanner marks the final file clean; then the discussion request succeeds.
 update public.graduation_project_files set scan_state='clean' where id=(select v from gp_ids where k='f1');
@@ -139,6 +156,11 @@ end $$;
 insert into gp_ids values('pm1',gen_random_uuid());
 insert into gp_ids select 'panel1',public.assign_graduation_project_panel_member((select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),(select v from gp_ids where k='panelasg1'),true,(select v from gp_ids where k='pm1'));
 insert into gp_ids select 'pm1_retry',public.assign_graduation_project_panel_member((select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),(select v from gp_ids where k='panelasg1'),true,(select v from gp_ids where k='pm1'));
+-- LOW-1: duplicate (discussion_id, assignment_id) panel attach surfaces a guarded P0001, never raw 23505.
+do $$ begin
+  perform pg_temp.expect_gp_error(format('select public.assign_graduation_project_panel_member(%L,%L,%L,false,%L)',
+    (select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),(select v from gp_ids where k='panelasg1'),gen_random_uuid()),'panel member already assigned');
+end $$;
 insert into gp_ids values('out1',gen_random_uuid());
 insert into gp_ids select 'out1_result',public.record_graduation_project_discussion_outcome((select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),'held',(select v from gp_ids where k='out1'));
 insert into gp_ids select 'out1_retry',public.record_graduation_project_discussion_outcome((select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),'held',(select v from gp_ids where k='out1'));
@@ -150,6 +172,9 @@ end $$;
 do $$ begin
   perform pg_temp.expect_gp_error(format('select public.save_graduation_project_evaluation(%L,%L,%L,%L::jsonb,null,false,%L)',
     (select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),'v1','[{"criterion_code":"","criterion_label":"X","maximum_score":10,"awarded_score":5}]',gen_random_uuid()),'evaluation scores invalid');
+  -- LOW-5: maximum_score beyond the numeric(7,2) capacity is rejected by validation, never a raw overflow.
+  perform pg_temp.expect_gp_error(format('select public.save_graduation_project_evaluation(%L,%L,%L,%L::jsonb,null,false,%L)',
+    (select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),'v1','[{"criterion_code":"content","criterion_label":"Content","maximum_score":100000,"awarded_score":5}]',gen_random_uuid()),'evaluation scores invalid');
 end $$;
 insert into gp_ids values('eval1',gen_random_uuid());
 insert into gp_ids select 'e1',public.save_graduation_project_evaluation((select v from gp_ids where k='p1'),(select v from gp_ids where k='d1'),'v1',
@@ -204,6 +229,15 @@ select set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),
 insert into gp_ids values('acc1',gen_random_uuid());
 insert into gp_ids select 'acc1_result',public.accept_graduation_project_correction((select v from gp_ids where k='p1'),(select v from gp_ids where k='c1'),(select v from gp_ids where k='acc1'));
 insert into gp_ids select 'acc1_retry',public.accept_graduation_project_correction((select v from gp_ids where k='p1'),(select v from gp_ids where k='c1'),(select v from gp_ids where k='acc1'));
+-- LOW-2: complete/accept correction replays return recorded ids on payload mismatch.
+do $$ begin
+  perform set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),true);
+  if public.complete_graduation_project_correction((select v from gp_ids where k='p1'),gen_random_uuid(),(select v from gp_ids where k='corr1'))<>(select v from gp_ids where k='c1') then
+    raise exception 'complete correction replay returned passed id instead of recorded'; end if;
+  perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
+  if public.accept_graduation_project_correction((select v from gp_ids where k='p1'),gen_random_uuid(),(select v from gp_ids where k='acc1'))<>(select v from gp_ids where k='c1') then
+    raise exception 'accept correction replay returned passed id instead of recorded'; end if;
+end $$;
 do $$ begin
   if (select state from public.graduation_projects where id=(select v from gp_ids where k='p1'))<>'evaluating' then raise exception 'last accepted correction must return project to evaluating'; end if;
 end $$;
@@ -298,6 +332,16 @@ do $$ begin
     (select v from gp_ids where k='p3'),(select a.id from public.graduation_project_assignments a where a.project_id=(select v from gp_ids where k='p3') and a.role='coordinator' and a.active limit 1),gen_random_uuid()),'cannot end own assignment');
 end $$;
 
+-- LOW-2: end_assignment / reject_discussion_request replays return recorded ids on payload mismatch.
+insert into gp_ids values('end3',gen_random_uuid());
+insert into gp_ids select 'end3_result',public.end_graduation_project_assignment((select v from gp_ids where k='p3'),(select v from gp_ids where k='student3'),(select v from gp_ids where k='end3'));
+do $$ begin
+  if public.end_graduation_project_assignment((select v from gp_ids where k='p3'),gen_random_uuid(),(select v from gp_ids where k='end3'))<>(select v from gp_ids where k='student3') then
+    raise exception 'end assignment replay returned passed id instead of recorded'; end if;
+  if public.reject_graduation_project_discussion_request((select v from gp_ids where k='p3'),(select v from gp_ids where k='r3b'),'other',(select v from gp_ids where k='rej3'))<>(select v from gp_ids where k='r3') then
+    raise exception 'reject request replay returned passed id instead of recorded'; end if;
+end $$;
+
 -- Read surface: lists, detail, and the four department reports.
 do $$ declare v_report jsonb; begin
   perform set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),true);
@@ -305,13 +349,13 @@ do $$ declare v_report jsonb; begin
   perform pg_temp.expect_gp_error(format('select public.get_graduation_project_states_report(%L)',current_setting('gp.department_id')),'department report assignment required');
   perform set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
   if not exists(select 1 from public.list_my_graduation_projects() where project_id=(select v from gp_ids where k='p1')) then raise exception 'faculty list missing own project'; end if;
-  v_report:=public.get_graduation_project_states_report(:'department_id');
+  v_report:=public.get_graduation_project_states_report(current_setting('gp.department_id')::uuid);
   if (v_report->'summary'->>'total')::integer<3 then raise exception 'states report incomplete'; end if;
-  v_report:=public.get_graduation_project_assignments_report(:'department_id');
-  if not exists(select 1 from jsonb_array_elements(v_report->'supervisors') s where (s->>'user_id')::uuid=:'faculty_user_id') then raise exception 'assignments report missing supervisor'; end if;
-  v_report:=public.get_graduation_project_evaluations_report(:'department_id');
+  v_report:=public.get_graduation_project_assignments_report(current_setting('gp.department_id')::uuid);
+  if not exists(select 1 from jsonb_array_elements(v_report->'supervisors') s where (s->>'user_id')::uuid=current_setting('gp.faculty_user_id')::uuid) then raise exception 'assignments report missing supervisor'; end if;
+  v_report:=public.get_graduation_project_evaluations_report(current_setting('gp.department_id')::uuid);
   if jsonb_array_length(v_report->'projects')<1 then raise exception 'evaluations report incomplete'; end if;
-  v_report:=public.get_graduation_project_archive_report(:'department_id');
+  v_report:=public.get_graduation_project_archive_report(current_setting('gp.department_id')::uuid);
   if jsonb_array_length(v_report->'archives')<>1 then raise exception 'archive report incomplete'; end if;
   if has_function_privilege('anon','public.create_graduation_project(uuid,text,text,uuid,uuid,uuid,uuid)','EXECUTE') then
     raise exception 'anon unexpectedly has create RPC execution';
@@ -331,6 +375,7 @@ do $$ declare pair text[]; begin
     ['rev2_result','rev2_retry','rev2','proposal_approved'],
     ['act1_result','act1_retry','act1','project_activated'],
     ['supervisor1','asg1_retry','asg1','faculty_assigned'],
+    ['panelasg1','asg2_retry','asg2','faculty_assigned'],
     ['s1','del1_retry','del1','deliverable_submitted'],
     ['subrev1_result','subrev1_retry','subrev1','submission_accepted'],
     ['f1','file1_retry','file1','file_registered'],
