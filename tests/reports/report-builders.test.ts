@@ -248,17 +248,26 @@ describe("buildStaffActivityReport", () => {
     expect(kpiOf(report, "distinct_roles")).toEqual(S());
   });
 
-  test("by_role applies complementary suppression to the second-smallest role (HIGH-2)", () => {
-    // شؤون=2 is the only suppressed cell ⇒ مالية=5 hidden as complement;
-    // قبول=8 stays visible; total stays visible (two unknowns).
-    expect(rowCells(report, "by_role", "موظف قبول")[0]).toEqual(V(8));
+  test("by_role margins are published only for fully visible rows (HIGH-R2-1)", () => {
+    // No row is fully visible here (every role has a sub-threshold cell in
+    // some event column), so every row margin is force-suppressed — a visible
+    // margin would reveal the exact sum of its row's suppressed cells.
+    expect(rowCells(report, "by_role", "موظف قبول")[0]).toEqual(S());
     expect(rowCells(report, "by_role", "مراقب مالية")[0]).toEqual(S());
     expect(rowCells(report, "by_role", "موظف شؤون")[0]).toEqual(S());
+    // Roles dimension: three suppressed cells (≥2 unknowns) ⇒ total stays visible.
+    expect(kpiOf(report, "total_events")).toEqual(V(15));
   });
 
-  test("role × event matrix suppresses small and complementary cells independently", () => {
+  test("role × event matrix publishes every group (incl. other) with column complementary suppression", () => {
     const matrix = tableOf(report, "role_event_matrix");
-    expect(matrix.columns.map((column) => column.id)).toEqual(["approved", "rejected", "returned", "created"]);
+    expect(matrix.columns.map((column) => column.id)).toEqual([
+      "approved",
+      "rejected",
+      "returned",
+      "created",
+      "other",
+    ]);
 
     // approved column: شؤون=2 suppressed ⇒ first-minimal visible (مالية=5) hidden as complement
     expect(rowCells(report, "role_event_matrix", "موظف قبول")[0]).toEqual(V(5));
@@ -266,12 +275,14 @@ describe("buildStaffActivityReport", () => {
     expect(rowCells(report, "role_event_matrix", "موظف شؤون")[0]).toEqual(S());
 
     const registrar = rowCells(report, "role_event_matrix", "موظف قبول");
+    expect(registrar).toHaveLength(5);
     expect(registrar[1]).toEqual(S());
     expect(registrar[2]).toEqual(S());
     expect(registrar[3]).toEqual(S());
+    expect(registrar[4]).toEqual(S());
   });
 
-  test("unknown event types are counted under other and excluded from the matrix", () => {
+  test("unknown event types are counted under the published other column — never dropped", () => {
     expect(normalizeStaffEventType("teleported")).toBe("other");
     expect(normalizeStaffEventType(" APPROVE ")).toBe("approved");
     const withUnknown = buildStaffActivityReport({
@@ -279,8 +290,99 @@ describe("buildStaffActivityReport", () => {
       rows: [...staffRows, { actorRole: "موظف قبول", eventType: "teleported" }],
     });
     expect(kpiOf(withUnknown, "total_events")).toEqual(V(16));
-    expect(rowCells(withUnknown, "by_role", "موظف قبول")[0]).toEqual(V(9));
+    // The teleported event lands in the (suppressed) other cell of موظف قبول.
+    expect(rowCells(withUnknown, "role_event_matrix", "موظف قبول")[4]).toEqual(S());
+    // Row margins stay hidden: no row is fully visible.
+    expect(rowCells(withUnknown, "by_role", "موظف قبول")[0]).toEqual(S());
     expect(rowCells(withUnknown, "by_role", "مراقب مالية")[0]).toEqual(S());
+  });
+});
+
+describe("HIGH-R2-1 — matrix row margins (review round 2 PoC)", () => {
+  // سيناريو المراجع حرفياً: A=8 اعتماد+1 رفض (9)، B=7 اعتماد+2 رفض (9)،
+  // C=6 اعتماد+5 رفض (11). قبل الإصلاح نُشر: by_role A=9/B=9/C=11، عمود
+  // الاعتماد كاملاً، رفض C=5، وKPI الرفض=8 ⇒ A_rej+B_rej=8−5=3 مع
+  // A_rej≤9−8=1 وB_rej≤9−7=2 ⇒ الحل الوحيد (1,2)=الحقيقة، وأصفار C من 11−6−5=0.
+  const pocRows: readonly StaffActivityFactRow[] = [
+    ...Array.from({ length: 8 }, () => ({ actorRole: "أ", eventType: "approved" })),
+    { actorRole: "أ", eventType: "rejected" },
+    ...Array.from({ length: 7 }, () => ({ actorRole: "ب", eventType: "approved" })),
+    ...Array.from({ length: 2 }, () => ({ actorRole: "ب", eventType: "rejected" })),
+    ...Array.from({ length: 6 }, () => ({ actorRole: "ج", eventType: "approved" })),
+    ...Array.from({ length: 5 }, () => ({ actorRole: "ج", eventType: "rejected" })),
+  ];
+
+  test("PoC: margins hidden ⇒ the two suppressed rejected cells are no longer recoverable", () => {
+    const report = buildStaffActivityReport({ beneficiary: "university_leadership", rows: pocRows });
+    // كل صف يحتوي خلية محجوبة واحدة على الأقل ⇒ كل هوامش الصفوف محجوبة.
+    expect(rowCells(report, "by_role", "أ")[0]).toEqual(S());
+    expect(rowCells(report, "by_role", "ب")[0]).toEqual(S());
+    expect(rowCells(report, "by_role", "ج")[0]).toEqual(S());
+    // سطح النشر المتبقي كما في الهجوم: عمود الاعتماد ظاهر بالكامل،
+    // رفض ج=5 ظاهر، وKPI الرفض=8 ظاهر (عمود الرفض فيه محجوبان فيمر بلا تغيير).
+    expect(rowCells(report, "role_event_matrix", "أ")[0]).toEqual(V(8));
+    expect(rowCells(report, "role_event_matrix", "ب")[0]).toEqual(V(7));
+    expect(rowCells(report, "role_event_matrix", "ج")[0]).toEqual(V(6));
+    expect(rowCells(report, "role_event_matrix", "ج")[1]).toEqual(V(5));
+    expect(kpiOf(report, "rejected")).toEqual(V(8));
+    expect(kpiOf(report, "total_events")).toEqual(V(29));
+    // لكن بلا هوامش صفوف: A_rej+B_rej=3 وحدهما في معادلة واحدة ⇒
+    // الحلول (0,3)/(1,2)/(2,1)/(3,0) كلها ممكنة — لا استرجاع وحيد،
+    // وأصفار ج (ret/cre/oth) غير قابلة للاسترجاع لأن هامش ج محجوب.
+    expect(rowCells(report, "role_event_matrix", "أ")[1]).toEqual(S());
+    expect(rowCells(report, "role_event_matrix", "ب")[1]).toEqual(S());
+  });
+
+  test("boundary: a fully visible row keeps its margin and reconciles exactly", () => {
+    const full = buildStaffActivityReport({
+      beneficiary: "university_leadership",
+      rows: [
+        ...Array.from({ length: 5 }, () => ({ actorRole: "د", eventType: "approved" })),
+        ...Array.from({ length: 5 }, () => ({ actorRole: "د", eventType: "rejected" })),
+        ...Array.from({ length: 5 }, () => ({ actorRole: "د", eventType: "returned" })),
+        ...Array.from({ length: 5 }, () => ({ actorRole: "د", eventType: "created" })),
+        ...Array.from({ length: 5 }, () => ({ actorRole: "د", eventType: "teleported" })),
+      ],
+    });
+    // خمس مجموعات × 5 = 25 — كل خلايا الصف ظاهرة ⇒ الهامش يُنشر.
+    expect(tableOf(full, "role_event_matrix").rows[0]?.cells).toEqual([V(5), V(5), V(5), V(5), V(5)]);
+    expect(rowCells(full, "by_role", "د")[0]).toEqual(V(25));
+    expect(kpiOf(full, "total_events")).toEqual(V(25));
+    expect(kpiOf(full, "approved")).toEqual(V(5));
+  });
+
+  test("boundary: a fully suppressed lone role hides its margin and forces the total KPI off", () => {
+    const tiny = buildStaffActivityReport({
+      beneficiary: "university_leadership",
+      rows: [{ actorRole: "د", eventType: "approved" }],
+    });
+    expect(rowCells(tiny, "by_role", "د")[0]).toEqual(S());
+    // بُعد الأدوار وحيد الصف ومحجوب ⇒ requiresTotalSuppression ⇒ الإجمالي محجوب.
+    expect(kpiOf(tiny, "total_events")).toEqual(S());
+  });
+
+  test("boundary: size ties break deterministically by row order", () => {
+    // أ=2 (محجوب)، ب=ت=25 ظاهران بالكامل — كل عمود مصفوفة [محجوب، 5، 5]:
+    // يُحجب الأول في ترتيب الصفوف (ب) حتمياً، فيفقد ب صفّه الكامل وهامشه،
+    // ويبقى صف ت كامل الظهور بهامش منشور.
+    const tiedRows: readonly StaffActivityFactRow[] = [
+      ...Array.from({ length: 2 }, () => ({ actorRole: "أ", eventType: "approved" })),
+      ...["approved", "rejected", "returned", "created", "teleported"].flatMap((eventType) =>
+        Array.from({ length: 5 }, () => ({ actorRole: "ب", eventType })),
+      ),
+      ...["approved", "rejected", "returned", "created", "teleported"].flatMap((eventType) =>
+        Array.from({ length: 5 }, () => ({ actorRole: "ت", eventType })),
+      ),
+    ];
+    const tied = buildStaffActivityReport({ beneficiary: "university_leadership", rows: tiedRows });
+    expect(rowCells(tied, "role_event_matrix", "أ")[0]).toEqual(S());
+    expect(rowCells(tied, "role_event_matrix", "ب")[0]).toEqual(S());
+    expect(rowCells(tied, "role_event_matrix", "ت")[0]).toEqual(V(5));
+    expect(rowCells(tied, "by_role", "أ")[0]).toEqual(S());
+    expect(rowCells(tied, "by_role", "ب")[0]).toEqual(S());
+    expect(rowCells(tied, "by_role", "ت")[0]).toEqual(V(25));
+    expect(kpiOf(tied, "total_events")).toEqual(V(52));
+    expect(kpiOf(tied, "approved")).toEqual(V(12));
   });
 });
 
