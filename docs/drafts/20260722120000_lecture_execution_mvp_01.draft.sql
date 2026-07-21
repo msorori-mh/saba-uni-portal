@@ -170,8 +170,10 @@ language plpgsql
 set search_path = public, pg_temp
 as $$
 begin
+  -- Null-tolerant: subject-shape checks (23514) run after BEFORE triggers,
+  -- so ownership is validated only when the role's profile column is set.
   if new.role in ('faculty_recorder', 'department_monitor', 'college_monitor') then
-    if not exists (
+    if new.faculty_profile_id is not null and not exists (
       select 1 from faculty_profiles fp
       where fp.id = new.faculty_profile_id
         and fp.user_id = new.user_id
@@ -180,7 +182,7 @@ begin
       raise exception 'lecture-execution assignment identity/department mismatch';
     end if;
   elsif new.role = 'section_delegate' then
-    if not exists (
+    if new.student_profile_id is not null and not exists (
       select 1 from student_profiles sp
       where sp.id = new.student_profile_id
         and sp.user_id = new.user_id
