@@ -514,7 +514,6 @@ export const getStudyPlanImportContextOptions = createServerFn({ method: "POST" 
       programs: programsRes.data ?? [],
       levels: levelsRes.data ?? [],
       academicYears: yearsRes.data ?? [],
-      academicYears: yearsRes.data ?? [],
       semesters: semestersRes.data ?? [],
       studyPlans: plansRes.data ?? [],
     };
