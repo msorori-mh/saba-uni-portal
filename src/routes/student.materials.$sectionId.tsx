@@ -6,7 +6,7 @@ import { PortalShell } from "@/components/portal/PortalShell";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
 import { supabase } from "@/integrations/supabase/client";
 import { listStudentMaterialsForCourse, getCourseMaterialDownloadUrl } from "@/lib/student-materials.functions";
-import { STUDY_SYSTEM_LABELS, type StudySystemTag } from "@/lib/course-materials.shared";
+import { STUDY_SYSTEM_LABELS, formatWeekLectureLabel, type StudySystemTag } from "@/lib/course-materials.shared";
 
 export const Route = createFileRoute("/student/materials/$sectionId")({
   component: StudentMaterialsCourse,
@@ -50,7 +50,7 @@ function StudentMaterialsCourse() {
             {(data as any[]).map((m) => (
               <div key={m.id} className="rounded-lg border bg-card p-3">
                 <div className="text-xs text-muted-foreground">
-                  {m.lecture_number ? `المحاضرة ${m.lecture_number}` : ""}
+                  {formatWeekLectureLabel(m.week_number, m.lecture_number)}
                   {m.study_system !== "both" && <> • {STUDY_SYSTEM_LABELS[m.study_system as StudySystemTag]}</>}
                 </div>
                 <div className="font-bold text-primary">{m.title}</div>
