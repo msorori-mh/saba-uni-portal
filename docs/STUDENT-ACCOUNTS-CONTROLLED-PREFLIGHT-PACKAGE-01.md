@@ -154,7 +154,7 @@ binding_rule           : file_rows=566 vs snapshot_unlinked=3 => 566 != 3 => BIN
 row_matching_status    : NOT_PERFORMED
 deployed_sha_proof     : PENDING (F / PR #205 not merged; mechanism: meta[name="build-sha"] + /version.json)
 snapshot_freshness     : reference figures 846/843/3 are from D-02; fresh snapshot required within 15-min TTL
-stop_reasons           : [BINDING_RULE_VIOLATION(pending matching), DEPLOYED_SHA_UNPROVEN]
+stop_reasons           : [BINDING_RULE_VIOLATION(pending matching), DEPLOY_PROOF_UNPROVEN]
 next_actions           : fresh snapshot; offline row-level matching; dry-run; 10-condition recheck
 ```
 
