@@ -40,6 +40,7 @@ const KNOWN_LEGACY_FLAGGED_FILES = new Set([
   "20260615233203_b6f6d391-b29d-49db-9c36-4d238f5c8dda.sql",
   "20260622004034_478f7cc5-53dd-46c7-bf92-c918d5b59bce.sql",
   "20260628120000_official_transcript_readiness_guard.sql",
+  "20260709213935_a5b6ecfc-a2f1-4a2a-bf3c-004a521097f4.sql", // legacy actor-RPC v1; uncast 5-arg log_audit in admin-skip branch; superseded by 20260710180000_student_request_actor_rpc_rls.sql
   "20260710180000_student_request_actor_rpc_rls.sql",
   "20260713100000_enrollment_certificate_post_zero_fee_execution_contract_remediation_01.sql",
   "20260713210000_enrollment_certificate_document_issuance_and_archive_contract_01.sql",
