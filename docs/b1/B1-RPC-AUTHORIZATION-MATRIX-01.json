@@ -198,15 +198,15 @@
       "desired_contract_outcome": "PASS",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M13",
       "execution": "pg",
-      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
-      "expected_outcome": "DENY",
-      "expected_sqlstate": "42501",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
       "id": "M13",
-      "notes": "ACTUAL: archive not in applied vocabulary (finding 1 class).",
+      "notes": "ACTUAL: archive IS in the true final applied vocabulary (20260714234442, last redefinition at debf9d04), so the exact assignee succeeds. Round-1 staging used a wrong 5-action vocabulary and wrongly tagged this BLOCKER; corrected in fix round 2. Still practically unreachable in a real flow because predecessor registrar_apply (apply_decision) is vocabulary-blocked (finding 1).",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "file_withdrawal",
       "setup": "step archive active",
-      "tag": "BLOCKER"
+      "tag": "CORE"
     },
     {
       "actor": "exact target-department chair (faculty_profile, department-scoped)",
@@ -569,6 +569,51 @@
       "tag": "CORE"
     },
     {
+      "actor": "student owner submits a CANCELLED request",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M38",
+      "execution": "pg",
+      "expected_error_code": "B1_OWNED_SUBMITTABLE_REQUEST_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M38",
+      "notes": "mutation on a cancelled request is denied at the owned-submittable gate (LOW-1 closure).",
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "enrollment_suspension",
+      "setup": "request forced to cancelled (harness)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "admin (user_roles admin, no direct assignment) on an active B1 step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M39",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M39",
+      "notes": "no admin broad bypass: the seq2 strict user_matches_workflow_runtime_step has no admin/dean fast path; 'approve' is in-vocabulary so the exact-assignee gate itself denies (LOW-1 closure).",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "department_transfer",
+      "setup": "step dean_approval active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "dean (exact assignee of dean steps) on registrar_apply step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M40",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M40",
+      "notes": "dean on a registrar step: 'approve' is in-vocabulary, so this exercises the exact-assignee gate directly; registrar_apply is pinned to the registrar_general direct assignee (LOW-1 closure).",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "step registrar_apply active",
+      "tag": "CORE"
+    },
+    {
       "actor": "registrar universal READ",
       "desired_contract_outcome": "REVIEW",
       "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
@@ -918,18 +963,21 @@
     "completed/cancelled request mutation = DENY": [
       "M31",
       "M32",
-      "X-04"
+      "X-04",
+      "M38"
     ],
     "correct unit wrong role = DENY": [
       "M05"
     ],
     "dean on registrar step = DENY": [
-      "M23"
+      "M23",
+      "M40"
     ],
     "dean/admin broad bypass = DENY unless explicit contract": [
       "M06",
       "M25",
-      "X-13"
+      "X-13",
+      "M39"
     ],
     "direct RPC bypass = DENY": [
       "M36",
@@ -942,8 +990,7 @@
       "M01",
       "M03",
       "M10",
-      "M11",
-      "M13"
+      "M11"
     ],
     "exact authorized assignee = PASS": [
       "M02",
@@ -957,7 +1004,8 @@
       "M21",
       "M22",
       "X-09",
-      "X-14"
+      "X-14",
+      "M13"
     ],
     "happy-path submit per service = PASS": [
       "M18",
@@ -1025,13 +1073,12 @@
         "M01",
         "M03",
         "M10",
-        "M11",
-        "M13"
+        "M11"
       ],
       "follow_up": "Remediate the base vocabulary of is_valid_actor_request_action (remediation ownership: Track A/I, recon UNKNOWN U1). This track documents and tags; it does NOT author remediation drafts.",
       "id": "F1-CRITICAL-BLOCKER",
       "severity": "critical",
-      "summary": "can_current_user_act_on_step (v2 seq2 and v3 seq3) gates on is_valid_actor_request_action whose APPLIED base vocabulary is ('approve','reject','return','comment','skip'); no draft widens it. Every B1 step whose action_type is review/clear/apply_decision/archive/confirm_payment can never be acted on through the act RPC: 20 of 24 B1 workflow steps are unreachable (the 4 reachable classes are approve-typed steps, plus the 2 payment steps via the specialized payment RPC which performs its own checks)."
+      "summary": "can_current_user_act_on_step (v2 seq2 and v3 seq3) gates on is_valid_actor_request_action whose TRUE FINAL applied vocabulary at main debf9d04 is ('approve','reject','return','comment','request_attachment','request_payment','sign','archive','issue_document','complete','skip'): created with 10 actions by 20260710180000 (blob 88c85241fc46e88d794afb6c081f48ac8c52cf30), widened +'sign' by 20260713100000 (blob ff2e74076b4c93d4d2f87923313e426da26c4dbc), re-asserted by 20260714234442 (blob cde62b97b5459f54973ea4a9f1efddaed17236a0, the last redefinition at debf9d04); no later migration and none of the 19 B1 drafts widens it. Counting method: classify the 24 B1 steps (3+3+7+6+5) by action_type and test each against the vocabulary: review(5), clear(4) and apply_decision(5) are absent, so 14 steps can never be acted on through the act RPC; confirm_payment(2) is also absent from the act vocabulary but is served by the specialized payment RPC with its own checks (M15/X-14 executed OK), so the act-RPC surface is blocked for 16 of 24 steps; approve(7) is reachable through the act RPC; archive(1) IS in the vocabulary and executes OK for the exact assignee (M13, fix round 2) but is practically unreachable in a real flow because its apply_decision predecessor (registrar_apply) is vocabulary-blocked."
     },
     {
       "evidence": [
@@ -1086,7 +1133,7 @@
     },
     {
       "acl": "authenticated",
-      "authorization": "can_current_user_act_on_step (v3, seq3) + exactly-one-transition + predecessor completion; finding 1 blocks 4 of 5 action vocabularies",
+      "authorization": "can_current_user_act_on_step (v3, seq3) + exactly-one-transition + predecessor completion; finding 1 blocks 4 of 6 B1 action types (review/clear/apply_decision/confirm_payment; archive and approve are in the true vocabulary)",
       "name": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "surface": "staff"
     },
