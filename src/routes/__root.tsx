@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { getErrorRecoveryHomePath, retryRouteError } from "../lib/route-error-recovery";
+import { BUILD_SHA } from "@/lib/build-provenance";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { Toaster } from "@/components/ui/sonner";
@@ -103,6 +104,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
       { name: "description", content: "البوابة الإلكترونية لكلية تكنولوجيا المعلومات وعلوم الحاسوب في جامعة إقليم سبأ — أقسام أكاديمية، أبحاث، وأخبار الكلية." },
+      // Deployed-commit provenance (track F): build-time-injected git SHA or
+      // the "unknown" sentinel. Read via document.querySelector('meta[name="build-sha"]')
+      // or curl + grep. Never secret; never fails the build.
+      { name: "build-sha", content: BUILD_SHA },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
       { name: "twitter:title", content: "كلية تكنولوجيا المعلومات وعلوم الحاسوب — جامعة إقليم سبأ" },
