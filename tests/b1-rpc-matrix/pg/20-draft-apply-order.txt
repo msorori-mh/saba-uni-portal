@@ -1,0 +1,31 @@
+# B1 draft apply order (manifest docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json @ main debf9d04)
+# The harness applies the drafts from docs/migration-drafts/ in EXACTLY this order.
+# Do not reorder; several drafts carry explicit predecessor preflights.
+01 docs/migration-drafts/REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql
+02 docs/migration-drafts/STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql
+03 docs/migration-drafts/B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql
+04 docs/migration-drafts/REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql
+05 docs/migration-drafts/REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql
+06 docs/migration-drafts/REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql
+07 docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql
+08 docs/migration-drafts/STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql
+09 docs/migration-drafts/REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql
+10 docs/migration-drafts/REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql
+11 docs/migration-drafts/REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql
+12 docs/migration-drafts/REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql
+13 docs/migration-drafts/REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql
+14 docs/migration-drafts/FINAL-CHANCE-CANONICAL-WRITE-03.sql
+15 docs/migration-drafts/REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql
+16 docs/migration-drafts/REQUEST-B1-SERVICE-DETAILS-05A.sql
+17 docs/migration-drafts/B1-FREE-SERVICE-WORKFLOWS-08.sql
+18 docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql
+19 docs/migration-drafts/REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql
+#
+# seq06 note: the committed draft fails closed by design while its
+# APPROVED_RELEASE_COMMIT_PLACEHOLDER is unresolved. The harness (a) asserts
+# that failure (EXPECTED-FAIL, error B1_ATOMIC_CALLER_RELEASE_EVIDENCE_NOT_APPROVED),
+# then (b) applies a harness-only substituted variant that replaces ONLY the
+# v_commit assignment with the base commit sha
+# debf9d041f7c05794f6df33877f1dff91253625e so the seq19 cutover release-evidence
+# preflight can be exercised end-to-end. This substitution is documented in the
+# report and is never a production instruction.
