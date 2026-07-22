@@ -4,7 +4,7 @@
 -- manifest order, main @ debf9d04). BLOCKER/DIVERGENCE expectations encode
 -- recon findings 1 and 2. Results accumulate in e_rpcmatrix.results.
 --
--- Case id convention: M01..M37 (core+extended matrix), X-*, H-01 harness gate.
+-- Case id convention: M01..M40 (core+extended matrix), X-*, H-01 harness gate.
 -- status: PASS = actual matched matrix expectation; FAIL = mismatch.
 -- =====================================================================
 
@@ -21,7 +21,8 @@ INSERT INTO public.student_requests(id, request_number, student_profile_id, requ
   ('ce000000-0000-4000-8000-000000000009','T-FC-02','33333333-3333-4333-8333-333333333301','extra_chance','draft'),
   ('ce000000-0000-4000-8000-00000000000a','T-SUSP-03','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft'),
   ('ce000000-0000-4000-8000-00000000000b','T-TRANS-02','33333333-3333-4333-8333-333333333301','transfer','draft'),
-  ('ce000000-0000-4000-8000-00000000000c','T-SUSP-04','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft')
+  ('ce000000-0000-4000-8000-00000000000c','T-SUSP-04','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft'),
+  ('ce000000-0000-4000-8000-00000000000d','T-SUSP-05','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft')
 ON CONFLICT (id) DO NOTHING;
 
 -- non-B1 runtime step for M35 (no B1 boundary applies to this request type)
@@ -321,14 +322,17 @@ SELECT e_rpcmatrix.exec_case('M11','labs-manager-clear','42501',
  'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
 
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-000000000005','archive');
--- M13: archive officer archive - denied at vocabulary gate (archive not in
--- applied vocabulary; finding 1 class, BLOCKER)
-SELECT e_rpcmatrix.exec_case('M13','archive-officer-archive','42501',
+-- M13: archive officer archive - PASSES. The TRUE final applied vocabulary
+-- (20260714234442, last redefinition at debf9d04) INCLUDES 'archive', so the
+-- exact assignee with a valid transition succeeds (fix round 2 correction:
+-- the round-1 staging used a wrong 5-action vocabulary and wrongly expected
+-- a vocabulary-gate denial here). Finding 1 survives for
+-- review/clear/apply_decision/confirm_payment only.
+SELECT e_rpcmatrix.exec_case('M13','archive-officer-archive','OK',
  '22222222-2222-4222-8222-222222222206',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'archive')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000005' AND s.step_key='archive')),
- 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000005' AND s.step_key='archive')));
 
 -- =====================================================================
 -- department_transfer (R_TRANS ce...0003)
@@ -579,6 +583,43 @@ SELECT e_rpcmatrix.exec_case('X-12','legacy-submit-trigger-boundary','42501',
  format($$SELECT public.submit_student_request(%L::uuid)$$,
    'ce000000-0000-4000-8000-00000000000a'),
  'B1_ATOMIC_SUBMIT_BOUNDARY_REQUIRED');
+
+-- =====================================================================
+-- LOW-1 closure cases (fix round 2): cancelled-request mutation, admin
+-- broad-bypass act, dean-on-registrar step - all executed DENY
+-- =====================================================================
+-- M38: mutation (submit) on a CANCELLED owned request -> DENY
+UPDATE public.student_requests SET status='cancelled', updated_at=now()
+ WHERE id='ce000000-0000-4000-8000-00000000000d';
+SELECT e_rpcmatrix.exec_case('M38','submit-on-cancelled-request','42501',
+ '11111111-1111-4111-8111-111111111101',
+ format($$SELECT public.submit_b1_student_request_atomic(%L::uuid,'enrollment_suspension',
+   '{"target_academic_year":"77777777-7777-4777-8777-777777777701","target_semester":"77777777-7777-4777-8777-777777777702","suspension_reason":"cancelled attempt","suspension_duration_type":"one_semester","terms_acknowledgment":true}'::jsonb,
+   %L::timestamptz,'{}'::uuid[])$$,
+   'ce000000-0000-4000-8000-00000000000d',
+   (SELECT updated_at FROM public.student_requests WHERE id='ce000000-0000-4000-8000-00000000000d')),
+ 'B1_OWNED_SUBMITTABLE_REQUEST_REQUIRED');
+
+-- M39: admin (user_roles 'admin', NO direct assignment) tries to act on an
+-- active B1 step -> DENY. 'approve' is in-vocabulary, so this executes the
+-- exact-assignee gate itself: there is no admin broad bypass (seq2 strict
+-- user_matches_workflow_runtime_step has no admin/dean fast path).
+SELECT e_rpcmatrix.exec_case('M39','admin-broad-bypass-act','42501',
+ '22222222-2222-4222-8222-22222222220e',
+ format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'approve')$$,
+   (SELECT s.id FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id='ce000000-0000-4000-8000-00000000000b' AND s.step_key='dean_approval')),
+ 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
+
+-- M40: dean (exact assignee of dean steps) on a REGISTRAR step -> DENY at
+-- the exact-assignee gate ('approve' is in-vocabulary; the registrar_apply
+-- step is pinned to the registrar_general direct assignee).
+SELECT e_rpcmatrix.exec_case('M40','dean-on-registrar-step','42501',
+ '22222222-2222-4222-8222-222222222205',
+ format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'approve')$$,
+   (SELECT s.id FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='registrar_apply')),
+ 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
 
 -- =====================================================================
 -- Static-only matrix cases (documented, not executable in this harness)
