@@ -99,6 +99,7 @@
    }
   ]
  },
+ "grants_revokes_provenance": "all grants_revokes values re-derived by direct grep of GRANT|REVOKE statements (anchored ^\\s*(GRANT|REVOKE) plus unanchored sweep incl. dynamic format()/EXECUTE SQL and comment-level mentions) in the actual draft texts on main @ 45148e09 (byte-verified local copies; API blob SHAs authoritative), after recon INVENTORY.json was proven fallible on this field (PR #203 review) — never from recon",
  "dependency_graph": {
   "nodes": [
    "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
@@ -355,8 +356,8 @@
    "rpcs": [],
    "rls_impact": "none",
    "grants_revokes": [
-    "GRANT EXECUTE cancel_official_document TO authenticated, service_role",
-    "REVOKE cancel_official_document FROM PUBLIC, anon"
+    "REVOKE ALL ON FUNCTION public.cancel_official_document(uuid, text) FROM PUBLIC, anon;",
+    "GRANT EXECUTE ON FUNCTION public.cancel_official_document(uuid, text) TO authenticated, service_role;"
    ],
    "storage_impact": "none",
    "protected_record_impact": "none — no historical audit_logs rewrite; only future cancel_official_document calls change",
@@ -428,9 +429,7 @@
    ],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": [
-    "GRANT EXECUTE new/replaced helpers TO authenticated"
-   ],
+   "grants_revokes": "none",
    "storage_impact": "none",
    "protected_record_impact": "historical unauthorized executions listed in the impact-audit report are NOT remediated here (documented follow-up); no row touched",
    "preflight": [
@@ -496,7 +495,14 @@
    ],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": "none",
+   "grants_revokes": [
+    "REVOKE ALL ON FUNCTION public.workflow_runtime_predecessors_satisfied(uuid) FROM PUBLIC, anon;",
+    "GRANT EXECUTE ON FUNCTION public.workflow_runtime_predecessors_satisfied(uuid) TO authenticated, service_role;",
+    "REVOKE ALL ON FUNCTION public.can_current_user_act_on_step(uuid,text) FROM PUBLIC, anon;",
+    "GRANT EXECUTE ON FUNCTION public.can_current_user_act_on_step(uuid,text) TO authenticated;",
+    "REVOKE ALL ON FUNCTION public.workflow_action_result_matches(text,text) FROM PUBLIC, anon;",
+    "GRANT EXECUTE ON FUNCTION public.workflow_action_result_matches(text,text) TO authenticated, service_role;"
+   ],
    "storage_impact": "none",
    "protected_record_impact": "none — function logic only",
    "preflight": [
@@ -640,7 +646,18 @@
     "act_on_b1_student_request_step_atomic"
    ],
    "rls_impact": "none",
-   "grants_revokes": "none",
+   "grants_revokes": [
+    "REVOKE ALL ON FUNCTION public.persist_validated_b1_request_details(uuid,text,jsonb,uuid[]) FROM PUBLIC, anon, authenticated;",
+    "REVOKE ALL ON FUNCTION public.is_b1_stored_request_type(text) FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.guard_b1_request_submit_boundary() FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.guard_b1_runtime_mutation_boundary() FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.is_valid_b1_direct_assignment(uuid,uuid,boolean) FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.initialize_b1_request_workflow_strict(uuid,text) FROM PUBLIC, anon, authenticated;",
+    "REVOKE ALL ON FUNCTION public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[]) FROM PUBLIC, anon;",
+    "GRANT EXECUTE ON FUNCTION public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[]) TO authenticated;",
+    "REVOKE ALL ON FUNCTION public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb) FROM PUBLIC, anon;",
+    "GRANT EXECUTE ON FUNCTION public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb) TO authenticated;"
+   ],
    "storage_impact": "none",
    "protected_record_impact": "none — functions/triggers only; existing requests/steps untouched",
    "preflight": [
@@ -779,7 +796,10 @@
     "record_external_university_payment_confirmation"
    ],
    "rls_impact": "none",
-   "grants_revokes": "none",
+   "grants_revokes": [
+    "REVOKE ALL ON FUNCTION public.record_external_university_payment_confirmation(uuid, text, text) FROM PUBLIC, anon;",
+    "GRANT EXECUTE ON FUNCTION public.record_external_university_payment_confirmation(uuid, text, text) TO authenticated;"
+   ],
    "storage_impact": "none",
    "protected_record_impact": "widening CHECKs is validated against existing rows by Postgres; no data rewrite",
    "preflight": [
@@ -865,7 +885,24 @@
     "student_request_attachment_uploads policies"
    ],
    "grants_revokes": [
-    "REVOKE submit_student_request(uuid) FROM authenticated (legacy cutover)"
+    "REVOKE ALL ON public.student_request_attachment_uploads FROM PUBLIC, anon, authenticated;",
+    "REVOKE ALL ON FUNCTION public.create_student_request_attachment_upload_intent(uuid,text,text,text,bigint,text) FROM PUBLIC,anon;",
+    "REVOKE ALL ON FUNCTION public.complete_student_request_attachment_upload(uuid) FROM PUBLIC,anon;",
+    "REVOKE ALL ON FUNCTION public.assert_required_student_request_attachments(uuid,uuid[]) FROM PUBLIC,anon;",
+    "REVOKE ALL ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) FROM PUBLIC,anon;",
+    "REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.list_my_student_request_attachments(uuid) FROM PUBLIC,anon;",
+    "REVOKE ALL ON FUNCTION public.get_owned_student_request_attachment_upload(uuid) FROM PUBLIC,anon;",
+    "REVOKE ALL ON FUNCTION public.authorize_student_request_attachment_download(uuid) FROM PUBLIC,anon;",
+    "REVOKE ALL ON FUNCTION public.reject_student_request_attachment(uuid,text) FROM PUBLIC,anon;",
+    "GRANT EXECUTE ON FUNCTION public.create_student_request_attachment_upload_intent(uuid,text,text,text,bigint,text) TO authenticated;",
+    "GRANT EXECUTE ON FUNCTION public.complete_student_request_attachment_upload(uuid) TO authenticated;",
+    "GRANT EXECUTE ON FUNCTION public.assert_required_student_request_attachments(uuid,uuid[]) TO authenticated;",
+    "GRANT EXECUTE ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) TO authenticated;",
+    "GRANT EXECUTE ON FUNCTION public.list_my_student_request_attachments(uuid) TO authenticated;",
+    "GRANT EXECUTE ON FUNCTION public.get_owned_student_request_attachment_upload(uuid) TO authenticated;",
+    "GRANT EXECUTE ON FUNCTION public.authorize_student_request_attachment_download(uuid) TO authenticated;",
+    "GRANT EXECUTE ON FUNCTION public.reject_student_request_attachment(uuid,text) TO authenticated;"
    ],
    "storage_impact": "creates private bucket student-request-secure-attachments (5MiB, pdf/jpeg/png) + single INSERT-only storage.objects policy; no SELECT/UPDATE/DELETE storage policy in v1",
    "protected_record_impact": "none — new table/bucket; existing requests untouched",
@@ -939,7 +976,9 @@
    "rpcs": [],
    "rls_impact": "none",
    "grants_revokes": [
-    "REVOKE ALL FROM PUBLIC, anon, authenticated on all 3 validators (internal-only, no grants)"
+    "REVOKE ALL ON FUNCTION public.assert_b1_academic_period_reference(uuid,uuid) FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.assert_b1_active_course_enrollment(uuid,uuid) FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.assert_b1_target_program_department(uuid,uuid) FROM PUBLIC,anon,authenticated;"
    ],
    "storage_impact": "none",
    "protected_record_impact": "none",
@@ -999,7 +1038,9 @@
    "functions": [],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": "none",
+   "grants_revokes": [
+    "REVOKE ALL ON FUNCTION public.enforce_canonical_absence_reason_write() FROM PUBLIC, anon, authenticated;"
+   ],
    "storage_impact": "none",
    "protected_record_impact": "PROTECTED: historical reason_type values family/emergency remain readable; NOT VALID→VALIDATE proves no rewrite; any required rewrite = STOP",
    "preflight": [
@@ -1062,10 +1103,12 @@
    ],
    "functions": [],
    "rpcs": [],
-   "rls_impact": [
-    "absence_excuse_details owner policy inventory"
+   "rls_impact": "none",
+   "grants_revokes": [
+    "REVOKE ALL ON FUNCTION public.enforce_new_absence_reason_detail() FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON TABLE public.absence_excuse_details FROM PUBLIC,anon,authenticated,service_role;",
+    "GRANT SELECT ON TABLE public.absence_excuse_details TO authenticated,service_role;"
    ],
-   "grants_revokes": "none",
    "storage_impact": "none",
    "protected_record_impact": "PROTECTED: historical rows keep NULL absence_reason_detail; trigger enforces only new/changed rows",
    "preflight": [
@@ -1132,7 +1175,12 @@
    "rls_impact": [
     "file_withdrawal_details policies"
    ],
-   "grants_revokes": "none",
+   "grants_revokes": [
+    "REVOKE ALL ON TABLE public.file_withdrawal_details FROM PUBLIC, anon, authenticated;",
+    "REVOKE ALL ON TABLE public.file_withdrawal_details FROM service_role;",
+    "GRANT SELECT ON TABLE public.file_withdrawal_details TO authenticated;",
+    "GRANT SELECT ON TABLE public.file_withdrawal_details TO service_role;"
+   ],
    "storage_impact": "none",
    "protected_record_impact": "none — new empty table",
    "preflight": [
@@ -1206,8 +1254,11 @@
    "rpcs": [],
    "rls_impact": "none",
    "grants_revokes": [
-    "GRANT EXECUTE create_..._upload_intent TO authenticated",
-    "REVOKE submit_student_request_with_secure_attachments (legacy wrapper)"
+    "REVOKE ALL ON FUNCTION public.b1_expected_secure_attachment_field(text) FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.create_student_request_attachment_upload_intent(uuid,text,text,text,bigint,text) FROM PUBLIC,anon;",
+    "GRANT EXECUTE ON FUNCTION public.create_student_request_attachment_upload_intent(uuid,text,text,text,bigint,text) TO authenticated;",
+    "REVOKE ALL ON FUNCTION public.assert_required_student_request_attachments(uuid,uuid[]) FROM PUBLIC,anon,authenticated;",
+    "REVOKE ALL ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) FROM PUBLIC,anon,authenticated;"
    ],
    "storage_impact": "none — reuses the existing private bucket; extends field_key vocabulary only",
    "protected_record_impact": "existing excuse_documents attachment rows preserved; CHECK widening validated, no rewrite",
@@ -1277,8 +1328,10 @@
    "rpcs": [],
    "rls_impact": "none",
    "grants_revokes": [
-    "REVOKE ALL ON extra_chance_details FROM authenticated",
-    "GRANT SELECT ON extra_chance_details TO authenticated"
+    "REVOKE ALL ON FUNCTION public.assert_final_chance_type_for_new_write(text) FROM PUBLIC, anon, authenticated;",
+    "REVOKE ALL ON FUNCTION public.enforce_final_chance_detail_write() FROM PUBLIC, anon, authenticated;",
+    "REVOKE ALL PRIVILEGES ON public.extra_chance_details FROM authenticated;",
+    "GRANT SELECT ON public.extra_chance_details TO authenticated;"
    ],
    "storage_impact": "none",
    "protected_record_impact": "PROTECTED: historical chance_type aliases preserved via NOT VALID constraints; no backfill/conversion",
@@ -1350,7 +1403,8 @@
     "RPC-only write boundaries: enrollment_suspension_details, transfer_request_details, extra_chance_details"
    ],
    "grants_revokes": [
-    "GRANT SELECT ON 3 detail tables TO authenticated, service_role"
+    "REVOKE ALL ON FUNCTION public.apply_b1_detail_rpc_write_boundaries() FROM PUBLIC, anon, authenticated, service_role;",
+    "dynamic inside apply_b1_detail_rpc_write_boundaries() per-table over (enrollment_suspension_details, transfer_request_details, extra_chance_details): EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC,anon,authenticated,service_role', v_table); EXECUTE format('GRANT SELECT ON TABLE public.%I TO authenticated,service_role', v_table)"
    ],
    "storage_impact": "none",
    "protected_record_impact": "none — function only",
@@ -1427,7 +1481,9 @@
    ],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": "none",
+   "grants_revokes": [
+    "REVOKE ALL ON FUNCTION public.persist_validated_b1_request_details(uuid,text,jsonb,uuid[]) FROM PUBLIC,anon,authenticated,service_role;"
+   ],
    "storage_impact": "none",
    "protected_record_impact": "none — function only",
    "preflight": [
@@ -1636,9 +1692,10 @@
    "functions": [],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": "none",
+   "grants_revokes": "none in draft text (zero static GRANT/REVOKE statements); ACL changes are effected dynamically via SELECT public.apply_b1_detail_rpc_write_boundaries() (function installed by B1-DETAIL-RPC-WRITE-BOUNDARIES-14 — see its entry for the dynamic REVOKE/GRANT)",
    "storage_impact": "none",
    "protected_record_impact": "none — ACL/policy changes only; enrollment_certificate workflow v2 and all active requests/documents/fees explicitly out of scope",
+   "verification_gap_note": "this draft's own post-verify DO block checks ONLY has_table_privilege matrices (anon: no privileges; authenticated/service_role: SELECT-only) — it does NOT assert relrowsecurity nor the pg_policies inventory; RLS enablement + owner_select policy creation happen inside entry B1-DETAIL-RPC-WRITE-BOUNDARIES-14's apply_b1_detail_rpc_write_boundaries() (which carries its own B1_DETAIL_* guards). The RLS/policy end-state items in expected_object_proof are therefore an EXECUTION-TIME verification gap — FOLLOW-UP: add a pg-verifier leg asserting relrowsecurity and pg_policies inventory after the cutover",
    "preflight": [
     "assert ALL prior sequence entries applied with object evidence (atomic caller, dispatcher installed, boundaries primitive, 05A prerequisites, stamp)",
     "assert obj_description on submit_b1_student_request_atomic matches ^B1_ATOMIC_CALLER_RELEASE_EVIDENCE=[0-9a-f]{40}$",
@@ -1919,6 +1976,8 @@
   "STAMP-01: after inserting the approved 40-hex release SHA, re-hash the revised draft and update entry B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05 (current sha256 pins placeholder bytes)",
   "B1-TRANSFER-SECURE-ATTACHMENT-12: re-hash via raw-byte channel (12 non-rendered bytes lost by text fetch; blob SHA verified, plan pin used)",
   "activation gate 19 implementation + runbook (B1-MIGRATION-RUNBOOK-07) alignment",
+  "ACL-CUTOVER-18 execution-time verification gap: its post-verify DO checks only has_table_privilege matrices; add a pg-verifier asserting relrowsecurity + pg_policies owner_select inventory post-cutover",
+  "grants_revokes fields re-derived from actual draft texts (PR #203 review remediation; recon inventory proven fallible on this field)",
   "historical unauthorized-execution data remediation (impact audit) — separate track"
  ]
 }
