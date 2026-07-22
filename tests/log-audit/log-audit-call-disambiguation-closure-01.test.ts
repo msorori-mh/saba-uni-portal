@@ -35,15 +35,15 @@ const KNOWN_LEGACY_FLAGGED_FILES = new Set([
   "20260601034915_43f17a05-77c1-403b-9f1a-eaf8f17fc21f.sql",
   "20260602165703_ec81e9c4-7823-45a5-a415-3c37442c98dc.sql",
   "20260611214143_7a655bbe-00fd-4f8b-9a60-8dd3a9cad97e.sql",
-  "20260615210858_add_exam_schedule_scope.sql",
-  "20260615230455_810c16e2-f5d2-4477-9276-67554d58e39c.sql",
-  "20260615233203_c8b3424b-1d69-4293-b6ef-a35e3a172a41.sql",
-  "20260622004034_14006131-764f-4b40-b8bc-37cb2f4cc8e0.sql",
+  "20260615210858_452ec2a0-9b6a-4a65-85c7-066e8e7014a7.sql",
+  "20260615230455_7ae84651-78ec-49e9-8ad4-9a897b6d1237.sql",
+  "20260615233203_b6f6d391-b29d-49db-9c36-4d238f5c8dda.sql",
+  "20260622004034_478f7cc5-53dd-46c7-bf92-c918d5b59bce.sql",
   "20260628120000_official_transcript_readiness_guard.sql",
-  "20260710180000_security_definer_search_path_hardening.sql",
-  "20260713100000_student_requests_controlled_write_paths.sql",
-  "20260713210000_student_request_workflow_mutation_lockdown.sql",
-  "20260714234724_student_request_actor_version_chain_integrity.sql",
+  "20260710180000_student_request_actor_rpc_rls.sql",
+  "20260713100000_enrollment_certificate_post_zero_fee_execution_contract_remediation_01.sql",
+  "20260713210000_enrollment_certificate_document_issuance_and_archive_contract_01.sql",
+  "20260714234724_a38255eb-b41f-4410-b8dd-740b3f6132dc.sql",
 ]);
 
 const SIX_ARG_DEF_FILES = new Set([
@@ -51,7 +51,7 @@ const SIX_ARG_DEF_FILES = new Set([
 ]);
 const SEVEN_ARG_DEF_FILES = new Set([
   "20260621022558_496f7dcd-6e27-42c0-9bea-c858f9e3c1c0.sql",
-  "20260624140000_harden_security_definer_search_path.sql",
+  "20260624140000_student_requests_workflow_foundation.sql",
 ]);
 
 type SiteKind = "call" | "definition" | "reference";
