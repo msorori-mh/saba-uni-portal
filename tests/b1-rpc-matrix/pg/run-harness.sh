@@ -1,15 +1,31 @@
 #!/bin/sh
 # B1 RPC authorization matrix - local PG harness runner (LOCAL ONLY).
-# NEVER run against production. Requires: PG17 binaries, node + pg client.
+# NEVER run against production. Requires: PG17 binaries, node + pg client, git.
 #
 # Steps (see harness pipeline.sh in the track workspace for the reference run):
+#   0. PIN VERIFICATION (byte-true provenance, fix round 2): verify every
+#      draft blob against the pins in pg/20-draft-apply-order.txt BEFORE
+#      applying anything. From the repo root at main debf9d04:
+#        fail=0
+#        grep -E '^[0-9]{2} docs/migration-drafts/' \
+#          tests/b1-rpc-matrix/pg/20-draft-apply-order.txt | \
+#        while read -r seq path _ blob sha; do
+#          actual=$(git hash-object "$path")
+#          if [ "$actual" != "$sha" ]; then
+#            echo "PIN MISMATCH seq$seq $path: got $actual want $sha"; fail=1
+#          fi
+#        done
+#        [ "$fail" = 0 ] && echo "ALL 19 DRAFT PINS OK" || exit 1
+#      The reference run (pipeline.sh) performs the same check against its
+#      local draft copies and aborts on any mismatch.
 #   1. Start a disposable local PG17 cluster.
 #   2. CREATE DATABASE e_rpcmatrix;
 #   3. Apply pg/10-minimal-schema.sql
-#   4. Apply the 19 drafts from docs/migration-drafts/ in the order given by
-#      pg/20-draft-apply-order.txt. seq06 must fail closed first; then apply a
-#      harness-only variant with the v_commit placeholder replaced by the
-#      approved base commit sha (see the note in 20-draft-apply-order.txt).
+#   4. Apply the 19 pin-verified drafts from docs/migration-drafts/ in the
+#      order given by pg/20-draft-apply-order.txt. seq06 must fail closed
+#      first; then apply a harness-only variant with the v_commit placeholder
+#      replaced by the approved base commit sha (see the note in
+#      20-draft-apply-order.txt).
 #   5. Apply pg/30-pre-activation-assert.sql  (gate H-01 must PASS)
 #   6. Apply pg/35-activate-workflows-local-only.sql  (LOCAL ONLY)
 #   7. Apply pg/40-verifier.sql and pg/45-acl-cases.sql
