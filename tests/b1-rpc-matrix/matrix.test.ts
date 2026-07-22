@@ -100,14 +100,14 @@ describe("matrix JSON: coverage", () => {
     expect(matrix.rpcs.length).toBe(11);
   });
   test("all 22 core cases M01..M22 present + full case universe", () => {
-    for (let i = 1; i <= 37; i++) expect(ids).toContain("M" + String(i).padStart(2, "0"));
+    for (let i = 1; i <= 40; i++) expect(ids).toContain("M" + String(i).padStart(2, "0"));
     for (let i = 1; i <= 17; i++) expect(ids).toContain("X-" + String(i).padStart(2, "0"));
     for (let i = 1; i <= 5; i++) expect(ids).toContain("E-0" + i);
     expect(ids).toContain("H-01");
-    expect(matrix.cases.length).toBe(60);
+    expect(matrix.cases.length).toBe(63);
   });
   test("pg-executed vs static split is recorded", () => {
-    expect(matrix.cases.filter((c) => c.execution === "pg").length).toBe(48);
+    expect(matrix.cases.filter((c) => c.execution === "pg").length).toBe(51);
     expect(matrix.cases.filter((c) => c.execution === "static").length).toBe(12);
   });
   test("findings F1 (BLOCKER) and F2 (DIVERGENCE) are encoded", () => {
