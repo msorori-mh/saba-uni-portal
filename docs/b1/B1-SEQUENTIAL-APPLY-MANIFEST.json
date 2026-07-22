@@ -44,7 +44,7 @@
   "on_stop": "halt the entire sequence; do NOT attempt later migrations; assess per entry.partial_apply_detection; remediate only via entry.rollback_by_forward (forward-only, reviewed)",
   "rollback_policy": "rollback-by-forward only; no down migrations; no historical data rewrite",
   "activation_gate": "workflow/service ACTIVATION (B1 gate 19) is a separate reviewed step AFTER B1-DETAIL-ACL-CUTOVER-18 verifies green; workflow drafts created by sequence entries 17/18 must stay status=draft,is_active=false",
-  "protected_records": "enrollment_certificate workflow v2 (incl. ENROLLMENT-CERTIFICATE-COMPLETION-NOTIFICATION-CORRECTION.sql) is out of B1 scope; historical absence reason values (family/emergency), historical chance_type aliases, audit_logs history, uploaded attachment objects are protected — no rewrite/backfill/delete"
+  "protected_records": "enrollment_certificate workflow v2 (incl. ENROLLMENT-CERTIFICATE-COMPLETION-NOTIFICATION-CORRECTION.sql) is out of B1 scope; historical absence reason values (family/emergency), historical chance_type aliases, audit_logs history, uploaded attachment objects are protected -- no rewrite/backfill/delete"
  },
  "external_prerequisites": {
   "note": "applied migrations/objects the apply-set relies on (already on production; NOT part of this manifest graph)",
@@ -99,7 +99,7 @@
    }
   ]
  },
- "grants_revokes_provenance": "all grants_revokes values re-derived by direct grep of GRANT|REVOKE statements (anchored ^\\s*(GRANT|REVOKE) plus unanchored sweep incl. dynamic format()/EXECUTE SQL and comment-level mentions) in the actual draft texts on main @ 45148e09 (byte-verified local copies; API blob SHAs authoritative), after recon INVENTORY.json was proven fallible on this field (PR #203 review) — never from recon",
+ "grants_revokes_provenance": "all grants_revokes values re-derived by direct grep of GRANT|REVOKE statements (anchored ^\\s*(GRANT|REVOKE) plus unanchored sweep incl. dynamic format()/EXECUTE SQL and comment-level mentions) in the actual draft texts on main @ 45148e09 (byte-verified local copies; API blob SHAs authoritative), after recon INVENTORY.json was proven fallible on this field (PR #203 review) -- never from recon",
  "dependency_graph": {
   "nodes": [
    "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
@@ -360,7 +360,7 @@
     "GRANT EXECUTE ON FUNCTION public.cancel_official_document(uuid, text) TO authenticated, service_role;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none — no historical audit_logs rewrite; only future cancel_official_document calls change",
+   "protected_record_impact": "none -- no historical audit_logs rewrite; only future cancel_official_document calls change",
    "preflight": [
     "confirm NOT_APPLIED via D-02 object evidence: cancel_official_document comment B1_LOG_AUDIT_EXPLICIT_SEVEN_ARG=1 absent (name-matching against migration rows is FORBIDDEN as proof)",
     "assert both log_audit overloads exist: to_regprocedure 6-arg and 7-arg non-null",
@@ -388,9 +388,9 @@
     "any ERROR/WARNING during apply",
     "ambiguous or missing object proof post-apply"
    ],
-   "partial_apply_detection": "transactional draft (BEGIN/COMMIT) — partial apply impossible by construction; detection: exception aborts whole txn; probe: obj_description(cancel_official_document) IS NULL",
+   "partial_apply_detection": "transactional draft (BEGIN/COMMIT) -- partial apply impossible by construction; detection: exception aborts whole txn; probe: obj_description(cancel_official_document) IS NULL",
    "rollback_by_forward": "forward CREATE OR REPLACE of cancel_official_document restoring the baseline definition captured at preflight (keeps explicit 7-arg log_audit call contract); no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — inert remediation; no service activation",
+   "activation_dependency": "none -- inert remediation; no service activation",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -461,8 +461,8 @@
     "baseline capture failed"
    ],
    "partial_apply_detection": "transactional draft (BEGIN/COMMIT); detection probe: count of the 4 replaced functions whose prosrc contains strict-gate markers must be 0 or 4, anything between = partial (only possible if applied outside its txn)",
-   "rollback_by_forward": "forward CREATE OR REPLACE restoring the 4 captured baseline function definitions if a defect is found; note: restoring v1 re-opens the authorization bypass — prefer forward-fix of the strict gate; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — tightens existing gates only; no service activation",
+   "rollback_by_forward": "forward CREATE OR REPLACE restoring the 4 captured baseline function definitions if a defect is found; note: restoring v1 re-opens the authorization bypass -- prefer forward-fix of the strict gate; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
+   "activation_dependency": "none -- tightens existing gates only; no service activation",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -504,7 +504,7 @@
     "GRANT EXECUTE ON FUNCTION public.workflow_action_result_matches(text,text) TO authenticated, service_role;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none — function logic only",
+   "protected_record_impact": "none -- function logic only",
    "preflight": [
     "assert B1-ACTOR-AUTHORIZATION-HARDENING-02 applied (v2 strict can_current_user_act_on_step present in pg_proc.prosrc)",
     "assert request_type_workflow_transitions / request_type_workflow_steps / student_request_workflow_steps present",
@@ -533,7 +533,7 @@
    ],
    "partial_apply_detection": "transactional draft (begin/commit); probe: workflow_runtime_predecessors_satisfied exists AND can_current_user_act_on_step references it; one without the other = partial",
    "rollback_by_forward": "forward CREATE OR REPLACE of can_current_user_act_on_step (and helpers) to corrected definitions; guard logic changes must ship as a new reviewed revision; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — guard tightening only",
+   "activation_dependency": "none -- guard tightening only",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -597,7 +597,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: count of new unit codes present must be 0 or 4; role/assignment counts consistent with idempotent full run",
    "rollback_by_forward": "forward remediation: deactivate (is_active=false) any wrongly-resolved unit/role/assignment rather than DELETE; assignments are identity data referenced by future workflows; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — reference data only; services remain unavailable until workflows (16/17 in sequence) + activation gate",
+   "activation_dependency": "none -- reference data only; services remain unavailable until workflows (16/17 in sequence) + activation gate",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -659,7 +659,7 @@
     "GRANT EXECUTE ON FUNCTION public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb) TO authenticated;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none — functions/triggers only; existing requests/steps untouched",
+   "protected_record_impact": "none -- functions/triggers only; existing requests/steps untouched",
    "preflight": [
     "assert B1-PROCESSING-DOMAINS-EXPANSION-03 and B1-ACTOR-AUTHORIZATION-HARDENING-02 and B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01 applied (object evidence)",
     "assert workflow runtime + processing assignments schema present; is_valid_actor_request_action exists",
@@ -727,7 +727,7 @@
    "rls_impact": "none",
    "grants_revokes": "none",
    "storage_impact": "none",
-   "protected_record_impact": "none — function comment only",
+   "protected_record_impact": "none -- function comment only",
    "preflight": [
     "assert submit_b1_student_request_atomic exists (B1-ATOMIC-SUBMIT-ACTION-04 applied)",
     "MANDATORY: replace APPROVED_RELEASE_COMMIT_PLACEHOLDER with the approved release 40-hex SHA in a NEW reviewed draft revision BEFORE apply; the draft fails closed while the placeholder remains",
@@ -753,9 +753,9 @@
     "deploy evidence absent from apply record",
     "stamp applied to a draft whose sha256 was not re-computed after SHA insertion"
    ],
-   "partial_apply_detection": "single DO statement — atomic by construction; probe: obj_description on the atomic caller either matches evidence regex (applied) or NULL (not applied)",
+   "partial_apply_detection": "single DO statement -- atomic by construction; probe: obj_description on the atomic caller either matches evidence regex (applied) or NULL (not applied)",
    "rollback_by_forward": "forward: re-stamp with corrected evidence SHA via a new stamp revision (obj_description overwrite); never edit the applied comment in place outside a migration; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — evidence marker only",
+   "activation_dependency": "none -- evidence marker only",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof",
    "stamp_note": "sha256 above covers the PLACEHOLDER bytes on main; the draft must not be applied while the placeholder remains; after inserting the approved 40-hex release SHA the revised file MUST be re-hashed and this manifest entry updated before apply"
@@ -806,7 +806,7 @@
     "assert B1-ACTOR-AUTHORIZATION-HARDENING-02 and B1-ATOMIC-SUBMIT-ACTION-04 applied",
     "capture current CHECK definitions for request_type_workflow_steps_action_type_chk, request_type_workflow_transitions_action_result_chk, student_request_workflow_steps_decision_chk, student_request_workflow_events_event_type_chk",
     "assert active payment runtime step convention (awaiting_payment_confirmation) documented",
-    "WARNING: draft body has no explicit BEGIN/COMMIT wrapper — apply inside one operator-controlled transaction (psql -1 / BEGIN..COMMIT) per protocol"
+    "WARNING: draft body has no explicit BEGIN/COMMIT wrapper -- apply inside one operator-controlled transaction (psql -1 / BEGIN..COMMIT) per protocol"
    ],
    "apply_channel": "manual single-migration apply by an authorized operator (Supabase SQL editor or psql with single-transaction enforcement) AFTER explicit per-migration human approval; NEVER via CI auto-apply, NEVER batched, NEVER in parallel",
    "post_verifier": {
@@ -826,10 +826,10 @@
    ],
    "stop_conditions": [
     "any constraint replacement rejected by existing rows",
-    "any ERROR in non-transactional apply (partial state → halt and assess per partial_apply_detection)",
+    "any ERROR in non-transactional apply (partial state -> halt and assess per partial_apply_detection)",
     "has_function_privilege checks fail post-apply"
    ],
-   "partial_apply_detection": "NOT wrapped in BEGIN/COMMIT — per protocol apply in one operator transaction; detection probe per object: 4 CHECK definitions widened AND record_external_university_payment_confirmation present AND its GRANT/REVOKE correct; any subset = partial",
+   "partial_apply_detection": "NOT wrapped in BEGIN/COMMIT -- per protocol apply in one operator transaction; detection probe per object: 4 CHECK definitions widened AND record_external_university_payment_confirmation present AND its GRANT/REVOKE correct; any subset = partial",
    "rollback_by_forward": "forward: restore prior CHECK definitions (captured at preflight) via new ALTER statements and/or CREATE OR REPLACE the RPC to a corrected version; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "RPC inert until payment_confirmation runtime steps exist (B1-EXT-UNI-PAYMENT-WORKFLOWS-17) and are activated (gate 19)",
    "status": "NOT_APPLIED",
@@ -905,7 +905,7 @@
     "GRANT EXECUTE ON FUNCTION public.reject_student_request_attachment(uuid,text) TO authenticated;"
    ],
    "storage_impact": "creates private bucket student-request-secure-attachments (5MiB, pdf/jpeg/png) + single INSERT-only storage.objects policy; no SELECT/UPDATE/DELETE storage policy in v1",
-   "protected_record_impact": "none — new table/bucket; existing requests untouched",
+   "protected_record_impact": "none -- new table/bucket; existing requests untouched",
    "preflight": [
     "confirm NOT_APPLIED via D-02 evidence (bucket student-request-secure-attachments + table student_request_attachment_uploads absent)",
     "assert storage schema available (Supabase storage.buckets/objects) and log_audit 7-arg contract in force (B1-LOG-AUDIT-CALL-DISAMBIGUATION-01)",
@@ -934,8 +934,8 @@
     "submit_student_request(uuid) still executable by authenticated post-apply (cutover failure)",
     "any ERROR"
    ],
-   "partial_apply_detection": "transactional draft; probe: bucket row, uploads table, 8 functions, 1 storage INSERT policy, submit_student_request revoke — all-or-nothing checklist",
-   "rollback_by_forward": "forward: REVOKE the new RPCs and DROP the storage INSERT policy in a new migration to close the surface; uploaded objects in the private bucket are protected records — never mass-delete; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
+   "partial_apply_detection": "transactional draft; probe: bucket row, uploads table, 8 functions, 1 storage INSERT policy, submit_student_request revoke -- all-or-nothing checklist",
+   "rollback_by_forward": "forward: REVOKE the new RPCs and DROP the storage INSERT policy in a new migration to close the surface; uploaded objects in the private bucket are protected records -- never mass-delete; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "attachment runtime usable only through the atomic submit path; no service activation by itself",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
@@ -1042,10 +1042,10 @@
     "REVOKE ALL ON FUNCTION public.enforce_canonical_absence_reason_write() FROM PUBLIC, anon, authenticated;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "PROTECTED: historical reason_type values family/emergency remain readable; NOT VALID→VALIDATE proves no rewrite; any required rewrite = STOP",
+   "protected_record_impact": "PROTECTED: historical reason_type values family/emergency remain readable; NOT VALID->VALIDATE proves no rewrite; any required rewrite = STOP",
    "preflight": [
     "assert absence_excuse_details and constraint aed_reason_chk present; capture raw pg_get_constraintdef(oid,false)",
-    "record historical value inventory: counts of reason_type family/emergency (protected records — no rewrite permitted)",
+    "record historical value inventory: counts of reason_type family/emergency (protected records -- no rewrite permitted)",
     "confirm NOT_APPLIED via D-02 evidence (trigger trg_enforce_canonical_absence_reason_write absent)"
    ],
    "apply_channel": "manual single-migration apply by an authorized operator (Supabase SQL editor or psql with single-transaction enforcement) AFTER explicit per-migration human approval; NEVER via CI auto-apply, NEVER batched, NEVER in parallel",
@@ -1103,7 +1103,9 @@
    ],
    "functions": [],
    "rpcs": [],
-   "rls_impact": "none",
+   "rls_impact": [
+    "absence_excuse_details owner policy inventory"
+   ],
    "grants_revokes": [
     "REVOKE ALL ON FUNCTION public.enforce_new_absence_reason_detail() FROM PUBLIC,anon,authenticated;",
     "REVOKE ALL ON TABLE public.absence_excuse_details FROM PUBLIC,anon,authenticated,service_role;",
@@ -1140,7 +1142,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: absence_reason_detail column + trigger + exactly-1 owner_select policy + SELECT-only grants, else partial",
    "rollback_by_forward": "forward: tighten/relax trigger logic or policy via new migration; existing absence_excuse_details rows (incl. historical null absence_reason_detail) are protected; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — table hardening only",
+   "activation_dependency": "none -- table hardening only",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -1182,7 +1184,7 @@
     "GRANT SELECT ON TABLE public.file_withdrawal_details TO service_role;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none — new empty table",
+   "protected_record_impact": "none -- new empty table",
    "preflight": [
     "assert student_requests present; assert file_withdrawal_details absent or exactly matching expected catalog signature (CREATE TABLE IF NOT EXISTS idempotency contract)",
     "assert B1-ATOMIC-SUBMIT-ACTION-04 applied",
@@ -1210,7 +1212,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: table exists with exact 11-column signature, 4 constraints, RLS enabled, 1 policy, else partial",
    "rollback_by_forward": "forward: ALTER/RLS corrections via new migration; if the table must be retired before any data exists, a reviewed DROP is acceptable only while row count = 0; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — table creation only",
+   "activation_dependency": "none -- table creation only",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -1223,9 +1225,9 @@
    "sequence_order": 13,
    "sequence_predecessor": "B1-FILE-WITHDRAWAL-DETAILS-11",
    "source_sha": "805d3534a02ba1c63b742cd5626c255708ddfd73",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response). NOTE: the local text-channel staging copy diverges (fabe936a7590b786c087c59eee477d7cc3d8737f, 8426 bytes — 12 non-rendered bytes lost), so git hash-object of the staging copy does NOT match; the API blob SHA is authoritative here",
+   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response). NOTE: the local text-channel staging copy diverges (fabe936a7590b786c087c59eee477d7cc3d8737f, 8426 bytes -- 12 non-rendered bytes lost), so git hash-object of the staging copy does NOT match; the API blob SHA is authoritative here",
    "sha256": "d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284",
-   "sha256_provenance": "B1-plan pin (d80f691c…). LOCAL TEXT-CHANNEL RE-HASH DIVERGES: fetched text hashed to 06312229611bbefa06c2f77a1b43c1b6e91a40ece60fcab1b4104a847b7e8e53 (8426 bytes vs 8438 remote; 12 non-rendered bytes lost by the text channel; blob SHA cross-verified 805d3534). FOLLOW-UP: re-hash via raw-byte channel before apply.",
+   "sha256_provenance": "B1-plan pin (d80f691c...). LOCAL TEXT-CHANNEL RE-HASH DIVERGES: fetched text hashed to 06312229611bbefa06c2f77a1b43c1b6e91a40ece60fcab1b4104a847b7e8e53 (8426 bytes vs 8438 remote; 12 non-rendered bytes lost by the text channel; blob SHA cross-verified 805d3534). FOLLOW-UP: re-hash via raw-byte channel before apply.",
    "sha256_local_text_channel": "06312229611bbefa06c2f77a1b43c1b6e91a40ece60fcab1b4104a847b7e8e53",
    "byte_size": 8438,
    "dependencies": [
@@ -1260,7 +1262,7 @@
     "REVOKE ALL ON FUNCTION public.assert_required_student_request_attachments(uuid,uuid[]) FROM PUBLIC,anon,authenticated;",
     "REVOKE ALL ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) FROM PUBLIC,anon,authenticated;"
    ],
-   "storage_impact": "none — reuses the existing private bucket; extends field_key vocabulary only",
+   "storage_impact": "none -- reuses the existing private bucket; extends field_key vocabulary only",
    "protected_record_impact": "existing excuse_documents attachment rows preserved; CHECK widening validated, no rewrite",
    "preflight": [
     "assert B1-SECURE-ATTACHMENTS-SOURCE-07 applied (uploads table + bucket present) and B1-ATOMIC-SUBMIT-ACTION-04 applied",
@@ -1292,7 +1294,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: field_key CHECK widened AND b1_expected_secure_attachment_field present AND wrapper revoked, else partial",
    "rollback_by_forward": "forward: restore prior field_key CHECK or function variants via new migration; existing attachment rows/objects are protected; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — attachment vocabulary extension only",
+   "activation_dependency": "none -- attachment vocabulary extension only",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof",
    "byte_size_local_text_channel": 8426
@@ -1338,7 +1340,7 @@
    "preflight": [
     "assert extra_chance_details and student_extra_chances present",
     "assert stored-alias contract: exactly 1 request_types row code=extra_chance and 0 rows code=final_chance",
-    "record historical chance_type value inventory (protected — NOT VALID constraints only, no rewrite)",
+    "record historical chance_type value inventory (protected -- NOT VALID constraints only, no rewrite)",
     "assert B1-ATOMIC-SUBMIT-ACTION-04 applied"
    ],
    "apply_channel": "manual single-migration apply by an authorized operator (Supabase SQL editor or psql with single-transaction enforcement) AFTER explicit per-migration human approval; NEVER via CI auto-apply, NEVER batched, NEVER in parallel",
@@ -1364,7 +1366,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: 2 functions + 2 triggers + 2 NOT VALID constraints + ecd SELECT-only grant, else partial",
    "rollback_by_forward": "forward: adjust validators/triggers/constraints via new migration; historical chance_type aliases remain read-only (protected); no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "none — write enforcement only",
+   "activation_dependency": "none -- write enforcement only",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -1407,9 +1409,9 @@
     "dynamic inside apply_b1_detail_rpc_write_boundaries() per-table over (enrollment_suspension_details, transfer_request_details, extra_chance_details): EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC,anon,authenticated,service_role', v_table); EXECUTE format('GRANT SELECT ON TABLE public.%I TO authenticated,service_role', v_table)"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none — function only",
+   "protected_record_impact": "none -- function only",
    "preflight": [
-    "assert persist_validated_b1_request_details exists and is STILL fail-closed (prosrc contains B1_SERVICE_PERSISTENCE_NOT_INSTALLED) — i.e. B1-ATOMIC-SUBMIT-ACTION-04 applied and dispatcher not yet installed",
+    "assert persist_validated_b1_request_details exists and is STILL fail-closed (prosrc contains B1_SERVICE_PERSISTENCE_NOT_INSTALLED) -- i.e. B1-ATOMIC-SUBMIT-ACTION-04 applied and dispatcher not yet installed",
     "assert the 3 legacy detail tables (enrollment_suspension_details, transfer_request_details, extra_chance_details) present",
     "capture current policy/ACL inventory on the 3 tables"
    ],
@@ -1433,7 +1435,7 @@
     "boundaries function executable by any non-owner role post-apply",
     "any ERROR"
    ],
-   "partial_apply_detection": "single CREATE OR REPLACE + REVOKE — atomic per statement; probe: apply_b1_detail_rpc_write_boundaries present and non-executable by non-owners, else partial",
+   "partial_apply_detection": "single CREATE OR REPLACE + REVOKE -- atomic per statement; probe: apply_b1_detail_rpc_write_boundaries present and non-executable by non-owners, else partial",
    "rollback_by_forward": "forward: CREATE OR REPLACE the boundaries function to corrected logic; it is inert until invoked by the cutover; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "inert primitive; executed only inside B1-DETAIL-ACL-CUTOVER-18",
    "status": "NOT_APPLIED",
@@ -1485,7 +1487,7 @@
     "REVOKE ALL ON FUNCTION public.persist_validated_b1_request_details(uuid,text,jsonb,uuid[]) FROM PUBLIC,anon,authenticated,service_role;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none — function only",
+   "protected_record_impact": "none -- function only",
    "preflight": [
     "assert B1-ATOMIC-SUBMIT-ACTION-04 applied with fail-closed dispatcher still in place (replaced by this migration)",
     "assert B1-TRUSTED-REFERENCE-VALIDATORS-08, B1-SECURE-ATTACHMENTS-SOURCE-07, B1-TRANSFER-SECURE-ATTACHMENT-12, B1-FILE-WITHDRAWAL-DETAILS-11, B1-EXCUSED-ABSENCE-DETAIL-10 applied (validators/attachment assert/detail tables used by dispatcher)",
@@ -1513,7 +1515,7 @@
     "any ERROR"
    ],
    "partial_apply_detection": "transactional draft; probe: dispatcher prosrc without fail-closed marker AND all 5 service branches present, else partial",
-   "rollback_by_forward": "forward: CREATE OR REPLACE dispatcher back to fail-closed (or corrected branches) in a new migration — this immediately closes all 5 services' write path; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
+   "rollback_by_forward": "forward: CREATE OR REPLACE dispatcher back to fail-closed (or corrected branches) in a new migration -- this immediately closes all 5 services' write path; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "dispatcher installed but direct client table writes remain closed until B1-DETAIL-ACL-CUTOVER-18; service visibility still gated by activation gate 19",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
@@ -1549,7 +1551,7 @@
    "rls_impact": "none",
    "grants_revokes": "none",
    "storage_impact": "none",
-   "protected_record_impact": "none — new draft config rows only",
+   "protected_record_impact": "none -- new draft config rows only",
    "preflight": [
     "assert B1-PROCESSING-DOMAINS-EXPANSION-03 applied (units library/labs present)",
     "assert request_types resolve exactly once per free service (enrollment_suspension; excused_absence|absence_excuse; file_withdrawal)",
@@ -1573,13 +1575,13 @@
    ],
    "stop_conditions": [
     "any FREE_WORKFLOW_* RAISE (resolution/inventory/structure mismatch)",
-    "any created workflow row not (status=draft, is_active=false) — activation is a separate gate",
+    "any created workflow row not (status=draft, is_active=false) -- activation is a separate gate",
     "any step with requires_payment=true or produces_document=true",
     "any ERROR"
    ],
    "partial_apply_detection": "transactional draft (single DO block inside BEGIN/COMMIT); probe: per service workflow+steps+transitions structure equals declared contract, else partial",
    "rollback_by_forward": "forward: since workflows are inactive drafts, remediate by updating/deleting the DRAFT rows in a new migration before any activation; once activated (separate gate) only forward fixes allowed; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "creates INACTIVE drafts only; activation requires the separate reviewed activation gate (B1 gate 19) — never activate in the same session",
+   "activation_dependency": "creates INACTIVE drafts only; activation requires the separate reviewed activation gate (B1 gate 19) -- never activate in the same session",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -1617,7 +1619,7 @@
    "rls_impact": "none",
    "grants_revokes": "none",
    "storage_impact": "none",
-   "protected_record_impact": "none — new draft config rows only",
+   "protected_record_impact": "none -- new draft config rows only",
    "preflight": [
     "assert B1-PROCESSING-DOMAINS-EXPANSION-03 and B1-EXT-UNI-PAYMENT-CONFIRMATION-06 applied (department unit + confirm_payment vocabulary present)",
     "assert request_types resolve exactly once per paid service (department_transfer|transfer; final_chance|extra_chance)",
@@ -1645,8 +1647,8 @@
     "payment_confirmation step contract drift (awaiting_payment_confirmation/payment_confirmed)",
     "any ERROR"
    ],
-   "partial_apply_detection": "single DO statement — atomic by construction; probe: both workflow drafts structurally complete, else not applied",
-   "rollback_by_forward": "forward: same as B1-FREE-SERVICE-WORKFLOWS-16 — draft rows may be corrected pre-activation; post-activation forward-only; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
+   "partial_apply_detection": "single DO statement -- atomic by construction; probe: both workflow drafts structurally complete, else not applied",
+   "rollback_by_forward": "forward: same as B1-FREE-SERVICE-WORKFLOWS-16 -- draft rows may be corrected pre-activation; post-activation forward-only; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "creates INACTIVE drafts only; same activation gate 19",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
@@ -1692,10 +1694,10 @@
    "functions": [],
    "rpcs": [],
    "rls_impact": "none",
-   "grants_revokes": "none in draft text (zero static GRANT/REVOKE statements); ACL changes are effected dynamically via SELECT public.apply_b1_detail_rpc_write_boundaries() (function installed by B1-DETAIL-RPC-WRITE-BOUNDARIES-14 — see its entry for the dynamic REVOKE/GRANT)",
+   "grants_revokes": "none in draft text (zero static GRANT/REVOKE statements); ACL changes are effected dynamically via SELECT public.apply_b1_detail_rpc_write_boundaries() (function installed by B1-DETAIL-RPC-WRITE-BOUNDARIES-14 -- see its entry for the dynamic REVOKE/GRANT)",
    "storage_impact": "none",
-   "protected_record_impact": "none — ACL/policy changes only; enrollment_certificate workflow v2 and all active requests/documents/fees explicitly out of scope",
-   "verification_gap_note": "this draft's own post-verify DO block checks ONLY has_table_privilege matrices (anon: no privileges; authenticated/service_role: SELECT-only) — it does NOT assert relrowsecurity nor the pg_policies inventory; RLS enablement + owner_select policy creation happen inside entry B1-DETAIL-RPC-WRITE-BOUNDARIES-14's apply_b1_detail_rpc_write_boundaries() (which carries its own B1_DETAIL_* guards). The RLS/policy end-state items in expected_object_proof are therefore an EXECUTION-TIME verification gap — FOLLOW-UP: add a pg-verifier leg asserting relrowsecurity and pg_policies inventory after the cutover",
+   "protected_record_impact": "none -- ACL/policy changes only; enrollment_certificate workflow v2 and all active requests/documents/fees explicitly out of scope",
+   "verification_gap_note": "this draft's own post-verify DO block checks ONLY has_table_privilege matrices (anon: no privileges; authenticated/service_role: SELECT-only) -- it does NOT assert relrowsecurity nor the pg_policies inventory; RLS enablement + owner_select policy creation happen inside entry B1-DETAIL-RPC-WRITE-BOUNDARIES-14's apply_b1_detail_rpc_write_boundaries() (which carries its own B1_DETAIL_* guards). The RLS/policy end-state items in expected_object_proof are therefore an EXECUTION-TIME verification gap -- FOLLOW-UP: add a pg-verifier leg asserting relrowsecurity and pg_policies inventory after the cutover",
    "preflight": [
     "assert ALL prior sequence entries applied with object evidence (atomic caller, dispatcher installed, boundaries primitive, 05A prerequisites, stamp)",
     "assert obj_description on submit_b1_student_request_atomic matches ^B1_ATOMIC_CALLER_RELEASE_EVIDENCE=[0-9a-f]{40}$",
@@ -1740,7 +1742,7 @@
     "category": "b1_never_apply",
     "source_sha": "a2d94671019eb50278fd628b9640a02c029b1bd2",
     "sha256": "370015f61987a079ce7f7f3281fb29eae3d9f76b2063f6a28ec03caf98f0a0cf",
-    "reason": "documentary source contract only — contains NO executable DDL; superseded by the concrete ordered drafts (04/05A series); applying it would create nothing verifiable"
+    "reason": "documentary source contract only -- contains NO executable DDL; superseded by the concrete ordered drafts (04/05A series); applying it would create nothing verifiable"
    },
    {
     "filename": "SUSPENSION-ABSENCE-SOURCE-01.sql",
@@ -1815,7 +1817,7 @@
  "existing_ci_pg_verifiers": {
   "count": 8,
   "none_covers_b1": true,
-  "b1_pg_verifier_coverage": "FOLLOW-UP — B1 has zero PG-verifier legs; each entry currently relies on bun source-contract tests + catalog object proofs",
+  "b1_pg_verifier_coverage": "FOLLOW-UP -- B1 has zero PG-verifier legs; each entry currently relies on bun source-contract tests + catalog object proofs",
   "legs": [
    {
     "leg": "graduates-affairs-foundation",
@@ -1972,12 +1974,12 @@
   "tests/student-requests/request-b1-shared-foundation-source-01.test.ts"
  ],
  "follow_ups": [
-  "B1 PG-verifier coverage: add pg-setup/pg-verify legs per B1 migration (or grouped) — currently zero",
+  "B1 PG-verifier coverage: add pg-setup/pg-verify legs per B1 migration (or grouped) -- currently zero",
   "STAMP-01: after inserting the approved 40-hex release SHA, re-hash the revised draft and update entry B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05 (current sha256 pins placeholder bytes)",
   "B1-TRANSFER-SECURE-ATTACHMENT-12: re-hash via raw-byte channel (12 non-rendered bytes lost by text fetch; blob SHA verified, plan pin used)",
   "activation gate 19 implementation + runbook (B1-MIGRATION-RUNBOOK-07) alignment",
   "ACL-CUTOVER-18 execution-time verification gap: its post-verify DO checks only has_table_privilege matrices; add a pg-verifier asserting relrowsecurity + pg_policies owner_select inventory post-cutover",
   "grants_revokes fields re-derived from actual draft texts (PR #203 review remediation; recon inventory proven fallible on this field)",
-  "historical unauthorized-execution data remediation (impact audit) — separate track"
+  "historical unauthorized-execution data remediation (impact audit) -- separate track"
  ]
 }
