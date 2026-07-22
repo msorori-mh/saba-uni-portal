@@ -21,10 +21,26 @@
 --      aed_reason_chk uses the verbatim production signature from recon N3
 --      (seq10 preflight pins the exact deparse).
 --   * Base helper functions: production-faithful semantics per recon section
---     5.3; public.is_valid_actor_request_action is the VERBATIM production
---     base definition (recon N1) - its applied vocabulary
---     ('approve','reject','return','comment','skip') is the CRITICAL BLOCKER
---     surface (finding 1).
+--     5.3; public.is_valid_actor_request_action stages the TRUE FINAL applied
+--     vocabulary at main debf9d04 (byte-true provenance, fix round 2):
+--       - created by 20260710180000_student_request_actor_rpc_rls.sql
+--         (blob 88c85241fc46e88d794afb6c081f48ac8c52cf30) with 10 actions:
+--         approve,reject,return,comment,request_attachment,request_payment,
+--         archive,issue_document,complete,skip;
+--       - 20260712234801 only ALTERs search_path (no body change);
+--       - widened +'sign' by
+--         20260713100000_enrollment_certificate_post_zero_fee_execution_contract_remediation_01.sql
+--         (blob ff2e74076b4c93d4d2f87923313e426da26c4dbc);
+--       - re-asserted unchanged by 20260714234442_f5b05276-e371-4552-8c53-240675ba8863.sql
+--         (blob cde62b97b5459f54973ea4a9f1efddaed17236a0) = LAST redefinition
+--         at debf9d04 (20260716052558 only calls it; none of the 19 B1 drafts
+--         redefines it).
+--     FINAL applied vocabulary (11 actions, staged below):
+--       approve,reject,return,comment,request_attachment,request_payment,
+--       sign,archive,issue_document,complete,skip.
+--     B1 step action_types review/clear/apply_decision/confirm_payment are
+--     ABSENT from it (the CRITICAL BLOCKER surface, finding 1); 'archive' IS
+--     present (executed as case M13 = OK).
 --   * auth.uid() is realized through the GUC pattern used by the repo's
 --     graduation-projects postgres harness: current_setting('e_rpcmatrix.uid')
 --     stands in for request.jwt.claims->>'sub'.
@@ -205,12 +221,18 @@ CREATE TABLE public.official_documents (
 
 -- ---- base helper functions (production-faithful stubs) ------------------
 
--- VERBATIM production base (recon N1). Applied vocabulary is NOT widened by
--- any draft: review/clear/apply_decision/confirm_payment are absent.
--- => CRITICAL BLOCKER (finding 1) surface.
+-- TRUE FINAL applied vocabulary at main debf9d04 (11 actions; byte-true
+-- provenance in the file header). review/clear/apply_decision/confirm_payment
+-- are ABSENT => CRITICAL BLOCKER (finding 1) surface; archive is present.
+-- Production bodies set search_path = public, pg_temp; the harness-standard
+-- search_path TO 'public' is kept (semantics identical for this pure
+-- IMMUTABLE predicate).
 CREATE OR REPLACE FUNCTION public.is_valid_actor_request_action(p_action text)
 RETURNS boolean LANGUAGE sql IMMUTABLE SET search_path TO 'public' AS $function$
-  SELECT p_action IN ('approve','reject','return','comment','skip');
+  SELECT p_action IN (
+    'approve','reject','return','comment','request_attachment',
+    'request_payment','sign','archive','issue_document','complete','skip'
+  );
 $function$;
 
 CREATE OR REPLACE FUNCTION public.is_owner_of_request(p_user_id uuid, p_request_id uuid)
