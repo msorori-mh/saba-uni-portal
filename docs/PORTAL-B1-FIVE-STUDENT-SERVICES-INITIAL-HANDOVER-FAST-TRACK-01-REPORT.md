@@ -6,7 +6,9 @@
 و`department_transfer` و`final_chance`. لا Deploy أو Publish أو Production SQL أو
 Migration apply أو workflow activation أو `student_visible` أو بيانات إنتاجية.
 
-**PASS_B1_FIVE_SERVICES_SOURCE_READY_FOR_PRODUCTION**
+**HOLD_B1_FIVE_SERVICES_SOURCE_BLOCKER** — التغيير نفسه اجتاز البوابات المحلية،
+لكن Web CI أنهى الوظائف العشر بالفشل قبل تنفيذ أي خطوة (`steps=[]`) ودون logs؛
+لا يسمح بالدمج حتى تصبح بوابة GitHub Actions خضراء.
 
 ## الإصلاح الحرج
 
