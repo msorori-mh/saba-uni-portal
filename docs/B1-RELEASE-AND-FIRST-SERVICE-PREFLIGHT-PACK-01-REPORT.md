@@ -81,8 +81,8 @@ activate or implement any of the other four services.
 |   3 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | Exact actor tuples; no bypass                                        |
 |   4 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql`         | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department   |
 |   5 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Atomic fail-closed submit/action foundation                          |
-|   6 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
-|   7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20` | Private bucket/policy approval still required; no public URLs        |
+|   6 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `f9b6ce9a9d22067ceb27bc38f1cbac42eb0a238158b3c050dbf46247557a9e8a` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
+|   7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356` | Private bucket/policy approval still required; no public URLs        |
 |   8 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`            | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references                                       |
 |   9 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`              | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Coupled compile order; no activation/backfill                        |
 |  10 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`                  | `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` | Coupled five-service dispatcher/cutover prerequisite                 |
@@ -98,6 +98,16 @@ activate or implement any of the other four services.
 Hashes are authoritative only for LF-normalized Git blob bytes at the pinned
 source. Before each future promotion, recompute from the reviewed commit and
 reject any mismatch. Documentary/superseded drafts remain forbidden.
+
+**Re-pin addendum (owner decision, 2026-07-23):** rows 6 and 7 were re-pinned
+after the R-3/R-2 in-place closures from
+`docs/PORTAL-B1-CHAIN-REGRESSION-SWEEP-01-REPORT.md`: row 6 retains
+`assess_fee` in the replacement `action_type` constraint (superseded hash
+`da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b`), and row 7
+defers the `submit_student_request(uuid)` authenticated revoke to a separate
+cutover phase (superseded hash
+`bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20`). The
+superseded hashes are historical and must not be promoted.
 
 ## Read-only before queries (future approved target only)
 

@@ -16,6 +16,11 @@ Supabase, and no draft is an approved migration.
 - `FILE-WITHDRAWAL-SOURCE-01.sql`: superseded by the stricter 05A detail draft.
 - `ENROLLMENT-CERTIFICATE-COMPLETION-NOTIFICATION-CORRECTION.sql`: outside B1 and
   protected from historical notification backfill in this sequence.
+- `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql`: **NEVER-PROMOTE** —
+  superseded by `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql` (chain slot
+  M3). Its uniform strict `can_current_user_act_on_step` breaks the live
+  `enrollment_certificate` service; it must never be promoted to
+  `supabase/migrations`.
 
 ## Exact coordinated dependency order
 
@@ -34,11 +39,12 @@ anywhere in this sequence.
 | D | Runtime release containing atomic caller (Deploy gate; not SQL) | release SHA `MISSING RELEASE EVIDENCE` until post-Deploy readback | Publish reviewed RC; five services remain `runtimeAvailable:false` / inactive |
 | 1 | `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql` | `3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab` | First SQL apply; keep both log_audit overloads; explicit 7-arg contract; remediate `cancel_official_document` |
 | 2 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | **First B1 runtime migration**; strict actor helpers |
+| M3 | `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql` | `54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216` | Chain slot M3 (insertion immediately after order 2; no reordering). Supersedes NEVER-PROMOTE `-01`; scopes the strict runtime/config correspondence, predecessor guard and action gate to the B1 branch only and preserves the applied non-B1 path, so `enrollment_certificate` is untouched |
 | 3 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql` | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity and department |
 | 4 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql` | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Installs the fail-closed dispatcher stub only |
 | 5 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql` | stamp `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357` | Replace placeholder with exact 40-char lowercase published SHA after Deploy |
-| 6 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql` | `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b` | External university confirmation; no `fee_type.code`, amount, currency, invoice, gateway transaction, or internal balance |
-| 7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql` | `bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20` | Requires order-1 log_audit remediation + separate Storage approval; no public URLs; typed 7-arg audit calls |
+| 6 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql` | `f9b6ce9a9d22067ceb27bc38f1cbac42eb0a238158b3c050dbf46247557a9e8a` | External university confirmation; no `fee_type.code`, amount, currency, invoice, gateway transaction, or internal balance; replacement action_type constraint is a superset of the applied one (`assess_fee` retained for the live `enrollment_certificate` fee machinery) |
+| 7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql` | `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356` | Requires order-1 log_audit remediation + separate Storage approval; no public URLs; typed 7-arg audit calls; the `submit_student_request(uuid)` authenticated revoke is DEFERRED (see follow-up below) so the live `enrollment_certificate` submit path keeps working |
 | 8 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql` | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact academic reference catalog signatures |
 | 9 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql` | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Preserve historical values without mapping/backfill |
 | 10 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql` | `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` | Exact trigger, ACL, RLS and owner policy inventory |
@@ -124,3 +130,21 @@ the first B1 runtime migration after log_audit remediation.
 `file_withdrawal_details` absence is migration-owned, not a source blocker.
 `student_visible`, Deploy/Publish, Storage, and production writes remain
 independent gates. `B1-PRODUCTION-MIGRATION-SEQUENCE = REQUIRES_USER_APPROVAL`.
+
+## Follow-ups
+
+- **Deferred `submit_student_request(uuid)` revoke cutover**: order 7 no longer
+  revokes `authenticated` EXECUTE on the pre-attachment submit boundary (the
+  live `enrollment_certificate` submit path depends on it). A separate cutover
+  phase must migrate every caller to
+  `submit_student_request_with_secure_attachments`, prove the change with
+  positive/negative authorization tests, and only then ship a new reviewed
+  migration that performs the revoke. Until that phase completes, any draft
+  revoking `submit_student_request(uuid)` from `authenticated` is a chain
+  blocker.
+- **R-1/R-2/R-3 closures**: the three chain regression risks from
+  `docs/PORTAL-B1-CHAIN-REGRESSION-SWEEP-01-REPORT.md` are closed in place with
+  re-pinning: order 6 retains `assess_fee` (R-3), order 7 defers the
+  authenticated submit revoke (R-2), and
+  `B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql` now scopes its
+  strict checks to the B1 branch exactly like M3 (R-1).

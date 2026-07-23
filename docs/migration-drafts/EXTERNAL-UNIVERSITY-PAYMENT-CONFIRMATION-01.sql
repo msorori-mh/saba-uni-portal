@@ -6,11 +6,15 @@
 
 ALTER TABLE public.request_type_workflow_steps
   DROP CONSTRAINT IF EXISTS request_type_workflow_steps_action_type_chk;
+-- Replacement vocabulary is a strict superset of the currently applied
+-- constraint (20260711195110): 'assess_fee' is retained because the live
+-- enrollment_certificate fee machinery requires it; 'clear' and
+-- 'apply_decision' are the only additions.
 ALTER TABLE public.request_type_workflow_steps
   ADD CONSTRAINT request_type_workflow_steps_action_type_chk
   CHECK (action_type IN (
     'review','approve','reject','comment','return_to_student','request_attachment',
-    'request_payment','confirm_payment','archive','issue_document','complete',
+    'request_payment','assess_fee','confirm_payment','archive','issue_document','complete',
     'sign','clear','apply_decision'
   ));
 
