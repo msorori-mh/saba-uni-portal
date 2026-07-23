@@ -1,8 +1,7 @@
 -- =====================================================================
 -- 40-verifier.sql - B1 RPC authorization matrix execution (LOCAL ONLY)
--- Every case asserts ACTUAL behavior of the applied draft stack (19 drafts,
--- manifest order, main @ debf9d04). BLOCKER/DIVERGENCE expectations encode
--- recon findings 1 and 2. Results accumulate in e_rpcmatrix.results.
+-- Every case asserts behavior of the 19-draft manifest plus the forward-only
+-- F1/F2 authorization remediation. Results accumulate in e_rpcmatrix.results.
 --
 -- Case id convention: M01..M40 (core+extended matrix), X-*, H-01 harness gate.
 -- status: PASS = actual matched matrix expectation; FAIL = mismatch.
@@ -137,14 +136,12 @@ SELECT e_rpcmatrix.exec_case('M07','setup-submit-susp4','OK',
 -- =====================================================================
 -- Core act cases - enrollment_suspension (R_SUSP ce...0001)
 -- =====================================================================
--- M01: exact authorized assignee, review on initial_review.
--- ACTUAL: denied at the vocabulary gate (finding 1, BLOCKER).
-SELECT e_rpcmatrix.exec_case('M01','exact-assignee-review','42501',
+-- M01: exact authorized assignee, review on initial_review -> PASS.
+SELECT e_rpcmatrix.exec_case('M01','exact-assignee-review','OK',
  '22222222-2222-4222-8222-222222222201',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'review')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='initial_review')),
- 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='initial_review')));
 
 -- harness state construction to reach step 2 (finding 1 makes step 1 unactable)
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-000000000001','manager_approval');
@@ -156,17 +153,7 @@ SELECT e_rpcmatrix.exec_case('M02','exact-assignee-approve','OK',
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='manager_approval')));
 
--- M03: exact authorized assignee, apply_decision on registrar_apply.
--- ACTUAL: denied at the vocabulary gate (finding 1, BLOCKER).
-SELECT e_rpcmatrix.exec_case('M03','exact-assignee-apply-decision','42501',
- '22222222-2222-4222-8222-222222222203',
- format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'apply_decision')$$,
-   (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='registrar_apply')),
- 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
-
--- M30: wrong action on step (review on registrar_apply) - currently denied at
--- the vocabulary gate; post-remediation the action/transition contract denies.
+-- M30: wrong action on active registrar_apply -> DENY.
 SELECT e_rpcmatrix.exec_case('M30','wrong-action-review-on-apply-step','42501',
  '22222222-2222-4222-8222-222222222203',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'review')$$,
@@ -301,25 +288,23 @@ SELECT e_rpcmatrix.exec_case('M12','unauthenticated-act','28000', NULL,
  'AUTHENTICATION_REQUIRED');
 
 -- =====================================================================
--- file_withdrawal (R_FW ce...0005): clearance + archive steps - BLOCKER
+-- file_withdrawal (R_FW ce...0005): clearance + archive steps
 -- =====================================================================
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-000000000005','library_clearance');
--- M10: library officer clear - denied at vocabulary gate (finding 1, BLOCKER)
-SELECT e_rpcmatrix.exec_case('M10','library-officer-clear','42501',
+-- M10: library officer clear -> PASS
+SELECT e_rpcmatrix.exec_case('M10','library-officer-clear','OK',
  '22222222-2222-4222-8222-222222222207',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'clear')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000005' AND s.step_key='library_clearance')),
- 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000005' AND s.step_key='library_clearance')));
 
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-000000000005','labs_clearance');
--- M11: labs manager clear - denied at vocabulary gate (finding 1, BLOCKER)
-SELECT e_rpcmatrix.exec_case('M11','labs-manager-clear','42501',
+-- M11: labs manager clear -> PASS
+SELECT e_rpcmatrix.exec_case('M11','labs-manager-clear','OK',
  '22222222-2222-4222-8222-222222222208',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'clear')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000005' AND s.step_key='labs_clearance')),
- 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000005' AND s.step_key='labs_clearance')));
 
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-000000000005','archive');
 -- M13: archive officer archive - PASSES. The TRUE final applied vocabulary
@@ -409,18 +394,32 @@ SELECT e_rpcmatrix.exec_case('X-04','payment-step-exhausted','22023',
 -- =====================================================================
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-000000000009','manager_review');
 
--- M08: inactive assignment on approve-typed step.
--- ACTUAL (finding 2, DIVERGENCE): v3 dropped the exact-processing-binding
--- gate, so the act PASSES despite is_active=false. Contract expectation: DENY.
+-- M08: inactive assignment on approve-typed step -> DENY.
 UPDATE public.request_processing_assignments
    SET is_active = false
  WHERE unit_id='aaaaaaaa-0000-4000-8000-000000000001'
    AND role_id='bbbbbbbb-0000-4000-8000-000000000002';
-SELECT e_rpcmatrix.exec_case('M08','inactive-binding-still-acts','OK',
+SELECT e_rpcmatrix.exec_case('M08','inactive-binding-denied','42501',
  '22222222-2222-4222-8222-222222222202',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'approve')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000009' AND s.step_key='manager_review')));
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000009' AND s.step_key='manager_review')),
+ 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
+
+-- M40: dean on the same active registrar step -> DENY exact assignee.
+SELECT e_rpcmatrix.exec_case('M40','dean-on-registrar-step','42501',
+ '22222222-2222-4222-8222-222222222205',
+ format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'apply_decision')$$,
+   (SELECT s.id FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='registrar_apply')),
+ 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
+
+-- M03: exact authorized assignee, apply_decision on registrar_apply -> PASS.
+SELECT e_rpcmatrix.exec_case('M03','exact-assignee-apply-decision','OK',
+ '22222222-2222-4222-8222-222222222203',
+ format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'apply_decision')$$,
+   (SELECT s.id FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='registrar_apply')));
 UPDATE public.request_processing_assignments
    SET is_active = true
  WHERE unit_id='aaaaaaaa-0000-4000-8000-000000000001'
@@ -478,7 +477,7 @@ SELECT e_rpcmatrix.exec_case('X-13','dean-role-without-binding','42501',
  'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
 
 -- =====================================================================
--- Divergence family (finding 2): v3 dropped the exact-processing-binding gate
+-- Processing-binding validity family
 -- =====================================================================
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-00000000000c','manager_approval');
 
@@ -491,34 +490,34 @@ SELECT e_rpcmatrix.exec_case('X-12','legacy-act-trigger-boundary','42501',
      WHERE s.student_request_id='ce000000-0000-4000-8000-00000000000c' AND s.step_key='manager_approval')),
  'B1_ATOMIC_RUNTIME_BOUNDARY_REQUIRED');
 
--- M07: expired assignment (ends_at in past) on approve-typed step.
--- ACTUAL (DIVERGENCE): act PASSES - v3 does not re-check the binding window.
+-- M07: expired assignment (ends_at in past) -> DENY.
 UPDATE public.request_processing_assignments
    SET ends_at = now() - interval '1 day'
  WHERE unit_id='aaaaaaaa-0000-4000-8000-000000000001'
    AND role_id='bbbbbbbb-0000-4000-8000-000000000002';
-SELECT e_rpcmatrix.exec_case('M07','expired-binding-still-acts','OK',
+SELECT e_rpcmatrix.exec_case('M07','expired-binding-denied','42501',
  '22222222-2222-4222-8222-222222222202',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'approve')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-00000000000c' AND s.step_key='manager_approval')));
+     WHERE s.student_request_id='ce000000-0000-4000-8000-00000000000c' AND s.step_key='manager_approval')),
+ 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
 UPDATE public.request_processing_assignments
    SET ends_at = NULL
  WHERE unit_id='aaaaaaaa-0000-4000-8000-000000000001'
    AND role_id='bbbbbbbb-0000-4000-8000-000000000002';
 
--- X-03: future-dated assignment (starts_at in future).
--- ACTUAL (DIVERGENCE): act PASSES under v3. Contract expectation: DENY.
+-- X-03: future-dated assignment (starts_at in future) -> DENY.
 SELECT e_rpcmatrix.advance_to('ce000000-0000-4000-8000-000000000007','manager_review');
 UPDATE public.request_processing_assignments
    SET starts_at = now() + interval '1 day'
  WHERE unit_id='aaaaaaaa-0000-4000-8000-000000000001'
    AND role_id='bbbbbbbb-0000-4000-8000-000000000002';
-SELECT e_rpcmatrix.exec_case('X-03','future-binding-still-acts','OK',
+SELECT e_rpcmatrix.exec_case('X-03','future-binding-denied','42501',
  '22222222-2222-4222-8222-222222222202',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'approve')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000007' AND s.step_key='manager_review')));
+     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000007' AND s.step_key='manager_review')),
+ 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
 UPDATE public.request_processing_assignments
    SET starts_at = NULL
  WHERE unit_id='aaaaaaaa-0000-4000-8000-000000000001'
@@ -609,16 +608,6 @@ SELECT e_rpcmatrix.exec_case('M39','admin-broad-bypass-act','42501',
  format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'approve')$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-00000000000b' AND s.step_key='dean_approval')),
- 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
-
--- M40: dean (exact assignee of dean steps) on a REGISTRAR step -> DENY at
--- the exact-assignee gate ('approve' is in-vocabulary; the registrar_apply
--- step is pinned to the registrar_general direct assignee).
-SELECT e_rpcmatrix.exec_case('M40','dean-on-registrar-step','42501',
- '22222222-2222-4222-8222-222222222205',
- format($$SELECT public.act_on_b1_student_request_step_atomic(%L::uuid,'approve')$$,
-   (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='registrar_apply')),
  'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED');
 
 -- =====================================================================

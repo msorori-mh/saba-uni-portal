@@ -18,15 +18,15 @@
       "desired_contract_outcome": "PASS",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M01",
       "execution": "pg",
-      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
-      "expected_outcome": "DENY",
-      "expected_sqlstate": "42501",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
       "id": "M01",
-      "notes": "ACTUAL: denied at vocabulary gate (finding 1: review not in applied is_valid_actor_request_action vocabulary).",
+      "notes": "Forward-only F1 remediation admits review; exact assignee with exact active unit/role binding succeeds.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "enrollment_suspension",
       "setup": "submitted request; step initial_review active",
-      "tag": "BLOCKER"
+      "tag": "CORE"
     },
     {
       "actor": "exact assignee: student_affairs manager (staff_profile)",
@@ -48,15 +48,15 @@
       "desired_contract_outcome": "PASS",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M03",
       "execution": "pg",
-      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
-      "expected_outcome": "DENY",
-      "expected_sqlstate": "42501",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
       "id": "M03",
-      "notes": "ACTUAL: apply_decision not in applied vocabulary (finding 1).",
+      "notes": "Forward-only F1 remediation admits apply_decision; exact registrar assignee succeeds.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "enrollment_suspension",
       "setup": "step registrar_apply active (completed by M02)",
-      "tag": "BLOCKER"
+      "tag": "CORE"
     },
     {
       "actor": "student (request owner)",
@@ -108,39 +108,39 @@
       "desired_contract_outcome": "DENY",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M07",
       "execution": "pg",
-      "expected_error_code": null,
-      "expected_outcome": "PASS",
-      "expected_sqlstate": null,
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
       "id": "M07",
-      "notes": "ACTUAL (finding 2): v3 dropped current_user_has_exact_processing_binding, so an expired binding still acts. Contract expectation: DENY.",
+      "notes": "Forward-only F2 remediation requires an active, started, unexpired exact processing binding.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "enrollment_suspension",
       "setup": "step manager_approval active; assignment ends_at set to past, restored after case",
-      "tag": "DIVERGENCE"
+      "tag": "CORE"
     },
     {
       "actor": "manager with INACTIVE assignment (is_active=false)",
       "desired_contract_outcome": "DENY",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M08",
       "execution": "pg",
-      "expected_error_code": null,
-      "expected_outcome": "PASS",
-      "expected_sqlstate": null,
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
       "id": "M08",
-      "notes": "ACTUAL (finding 2): inactive binding still acts under v3. Contract expectation: DENY.",
+      "notes": "Forward-only F2 remediation rejects inactive exact processing bindings.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "final_chance",
       "setup": "step manager_review active; assignment deactivated, restored after case",
-      "tag": "DIVERGENCE"
+      "tag": "CORE"
     },
     {
       "actor": "student (request owner) review on own intake step",
       "desired_contract_outcome": "DENY",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M09",
       "execution": "pg",
-      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
-      "expected_outcome": "DENY",
-      "expected_sqlstate": "42501",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
       "id": "M09",
       "notes": "currently denied at vocabulary gate; post-remediation the ownership gate denies with the same sqlstate.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
@@ -153,30 +153,30 @@
       "desired_contract_outcome": "PASS",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M10",
       "execution": "pg",
-      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
-      "expected_outcome": "DENY",
-      "expected_sqlstate": "42501",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
       "id": "M10",
-      "notes": "ACTUAL: clear not in applied vocabulary (finding 1).",
+      "notes": "Forward-only F1 remediation admits clear; exact library assignee succeeds.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "file_withdrawal",
       "setup": "step library_clearance active",
-      "tag": "BLOCKER"
+      "tag": "CORE"
     },
     {
       "actor": "exact assignee: labs manager clear",
       "desired_contract_outcome": "PASS",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M11",
       "execution": "pg",
-      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
-      "expected_outcome": "DENY",
-      "expected_sqlstate": "42501",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
       "id": "M11",
-      "notes": "ACTUAL: clear not in applied vocabulary (finding 1).",
+      "notes": "Forward-only F1 remediation admits clear; exact labs assignee succeeds.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "file_withdrawal",
       "setup": "step labs_clearance active",
-      "tag": "BLOCKER"
+      "tag": "CORE"
     },
     {
       "actor": "unauthenticated (no uid)",
@@ -198,11 +198,11 @@
       "desired_contract_outcome": "PASS",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M13",
       "execution": "pg",
-      "expected_error_code": null,
-      "expected_outcome": "PASS",
-      "expected_sqlstate": null,
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
       "id": "M13",
-      "notes": "ACTUAL: archive IS in the true final applied vocabulary (20260714234442, last redefinition at debf9d04), so the exact assignee succeeds. Round-1 staging used a wrong 5-action vocabulary and wrongly tagged this BLOCKER; corrected in fix round 2. Still practically unreachable in a real flow because predecessor registrar_apply (apply_decision) is vocabulary-blocked (finding 1).",
+      "notes": "Archive remains in the preserved base vocabulary; the F1 remediation also makes its apply_decision predecessor reachable.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "file_withdrawal",
       "setup": "step archive active",
@@ -648,15 +648,15 @@
       "desired_contract_outcome": "DENY",
       "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-03",
       "execution": "pg",
-      "expected_error_code": null,
-      "expected_outcome": "PASS",
-      "expected_sqlstate": null,
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
       "id": "X-03",
-      "notes": "ACTUAL (finding 2): future binding still acts under v3. Contract expectation: DENY.",
+      "notes": "Forward-only F2 remediation rejects future-dated exact processing bindings.",
       "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
       "service": "excused_absence",
       "setup": "step manager_review active; starts_at set to future, restored after case",
-      "tag": "DIVERGENCE"
+      "tag": "EXTENDED"
     },
     {
       "actor": "payment step exhausted: second confirmation on completed step",
@@ -986,12 +986,6 @@
       "X-12",
       "X-15"
     ],
-    "exact assignee but blocked vocabulary = DENY (BLOCKER)": [
-      "M01",
-      "M03",
-      "M10",
-      "M11"
-    ],
     "exact authorized assignee = PASS": [
       "M02",
       "M14",
@@ -1017,7 +1011,7 @@
     "idempotency": [
       "X-08"
     ],
-    "inactive/expired/future assignment = DENY (contract); PASS (actual DIVERGENCE)": [
+    "inactive/expired/future assignment = DENY": [
       "M07",
       "M08",
       "X-03"
@@ -1034,6 +1028,12 @@
     "registrar on dean step = DENY": [
       "M06",
       "M25"
+    ],
+    "remediated review/clear/apply_decision exact assignee = ALLOW": [
+      "M01",
+      "M03",
+      "M10",
+      "M11"
     ],
     "replay protection": [
       "X-07"
@@ -1075,10 +1075,10 @@
         "M10",
         "M11"
       ],
-      "follow_up": "Remediate the base vocabulary of is_valid_actor_request_action (remediation ownership: Track A/I, recon UNKNOWN U1). This track documents and tags; it does NOT author remediation drafts.",
-      "id": "F1-CRITICAL-BLOCKER",
-      "severity": "critical",
-      "summary": "can_current_user_act_on_step (v2 seq2 and v3 seq3) gates on is_valid_actor_request_action whose TRUE FINAL applied vocabulary at main debf9d04 is ('approve','reject','return','comment','request_attachment','request_payment','sign','archive','issue_document','complete','skip'): created with 10 actions by 20260710180000 (blob 88c85241fc46e88d794afb6c081f48ac8c52cf30), widened +'sign' by 20260713100000 (blob ff2e74076b4c93d4d2f87923313e426da26c4dbc), re-asserted by 20260714234442 (blob cde62b97b5459f54973ea4a9f1efddaed17236a0, the last redefinition at debf9d04); no later migration and none of the 19 B1 drafts widens it. Counting method: classify the 24 B1 steps (3+3+7+6+5) by action_type and test each against the vocabulary: review(5), clear(4) and apply_decision(5) are absent, so 14 steps can never be acted on through the act RPC; confirm_payment(2) is also absent from the act vocabulary but is served by the specialized payment RPC with its own checks (M15/X-14 executed OK), so the act-RPC surface is blocked for 16 of 24 steps; approve(7) is reachable through the act RPC; archive(1) IS in the vocabulary and executes OK for the exact assignee (M13, fix round 2) but is practically unreachable in a real flow because its apply_decision predecessor (registrar_apply) is vocabulary-blocked."
+      "follow_up": "Keep the four B1-only actions pinned by the PG17 matrix and production verifier.",
+      "id": "F1-REMEDIATED",
+      "severity": "note",
+      "summary": "The forward-only remediation adds review, clear, apply_decision and confirm_payment while preserving all 11 existing actions; authorized B1 steps are no longer vocabulary-blocked."
     },
     {
       "evidence": [
@@ -1086,10 +1086,10 @@
         "M08",
         "X-03"
       ],
-      "follow_up": "Reconcile v3 with v2's B1-strict gates (or document the intended relaxation) in a remediation track; contract expectation for these cases is DENY.",
-      "id": "F2-HIGH-DIVERGENCE",
-      "severity": "high",
-      "summary": "v3 (seq3) silently drops v2's B1-strict gates: current_user_has_exact_processing_binding, is_valid_b1_runtime_step_contract, num_nonnulls=1 direct-assignee check, can_reject/can_return handling. Expired/inactive/future-dated bindings still pass the act RPC for approve-typed steps."
+      "follow_up": "Keep inactive, expired and future-dated cases as mandatory DENY regression tests.",
+      "id": "F2-REMEDIATED",
+      "severity": "note",
+      "summary": "The final forward-only authorization definition restores current_user_has_exact_processing_binding after the predecessor guard, so stale processing authority fails closed while exact assignee identity remains mandatory."
     },
     {
       "evidence": [
@@ -1193,7 +1193,7 @@
     }
   ],
   "semantics": {
-    "desired_contract_outcome": "authorization-contract expectation; equals expected_outcome except for BLOCKER (contract PASS but actual DENY) and DIVERGENCE (contract DENY but actual PASS) cases",
+    "desired_contract_outcome": "authorization-contract expectation; equals expected_outcome after the F1/F2 remediation",
     "execution": "pg = executed in the local PG17 harness; static = documented only (not executable in this harness)",
     "expected_outcome": "PASS = call succeeds; DENY = call raises; NOTE = documented non-executed behavior (static)",
     "tag": [

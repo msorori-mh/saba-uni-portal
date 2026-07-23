@@ -15,13 +15,14 @@
 #            echo "PIN MISMATCH seq$seq $path: got $actual want $sha"; fail=1
 #          fi
 #        done
-#        [ "$fail" = 0 ] && echo "ALL 19 DRAFT PINS OK" || exit 1
+#        [ "$fail" = 0 ] && echo "ALL 20 DRAFT PINS OK" || exit 1
 #      The reference run (pipeline.sh) performs the same check against its
 #      local draft copies and aborts on any mismatch.
 #   1. Start a disposable local PG17 cluster.
 #   2. CREATE DATABASE e_rpcmatrix;
 #   3. Apply pg/10-minimal-schema.sql
-#   4. Apply the 19 pin-verified drafts from docs/migration-drafts/ in the
+#   4. Apply the 19 manifest drafts, then the pin-verified forward-only F1/F2
+#      remediation (20 entries total), from docs/migration-drafts/ in the
 #      order given by pg/20-draft-apply-order.txt. seq06 must fail closed
 #      first; then apply a harness-only variant with the v_commit placeholder
 #      replaced by the approved base commit sha (see the note in
@@ -32,4 +33,5 @@
 #   8. Read SELECT * FROM e_rpcmatrix.results  (every row must be PASS or STATIC)
 set -e
 echo "This script documents the procedure; run the steps with your local PG client."
+echo "On Windows, run pg/run-harness.ps1 for the executable isolated PG17 harness."
 echo "All matrix expectations live in docs/b1/B1-RPC-AUTHORIZATION-MATRIX-01.json."

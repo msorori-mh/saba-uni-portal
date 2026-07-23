@@ -54,19 +54,11 @@ describe("matrix JSON: case schema + tags", () => {
     const ids = matrix.cases.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
-  test("BLOCKER cases: actual DENY vs desired-contract PASS", () => {
-    for (const c of matrix.cases.filter((x) => x.tag === "BLOCKER")) {
-      expect(c.expected_outcome).toBe("DENY");
-      expect(c.desired_contract_outcome).toBe("PASS");
-      expect(c.expected_sqlstate).toBe("42501");
-      expect(c.expected_error_code).toBe("B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED");
-    }
+  test("F1 has no remaining BLOCKER cases", () => {
+    expect(matrix.cases.filter((x) => x.tag === "BLOCKER")).toEqual([]);
   });
-  test("DIVERGENCE cases: actual PASS vs desired-contract DENY", () => {
-    for (const c of matrix.cases.filter((x) => x.tag === "DIVERGENCE")) {
-      expect(c.expected_outcome).toBe("PASS");
-      expect(c.desired_contract_outcome).toBe("DENY");
-    }
+  test("F2 has no remaining DIVERGENCE cases", () => {
+    expect(matrix.cases.filter((x) => x.tag === "DIVERGENCE")).toEqual([]);
   });
   test("static cases are NOTE-class documentation", () => {
     for (const c of matrix.cases.filter((x) => x.execution === "static")) {
@@ -110,10 +102,11 @@ describe("matrix JSON: coverage", () => {
     expect(matrix.cases.filter((c) => c.execution === "pg").length).toBe(51);
     expect(matrix.cases.filter((c) => c.execution === "static").length).toBe(12);
   });
-  test("findings F1 (BLOCKER) and F2 (DIVERGENCE) are encoded", () => {
+  test("findings F1 and F2 are recorded as remediated notes", () => {
     const f = matrix.findings.map((x) => x.id);
-    expect(f).toContain("F1-CRITICAL-BLOCKER");
-    expect(f).toContain("F2-HIGH-DIVERGENCE");
+    expect(f).toContain("F1-REMEDIATED");
+    expect(f).toContain("F2-REMEDIATED");
+    expect(matrix.findings.filter((x) => ["critical", "high", "medium"].includes(x.severity))).toEqual([]);
   });
 });
 
@@ -123,12 +116,15 @@ describe("cross-check: matrix vs sequential-apply manifest", () => {
     const seq = manifest.migrations.map((m) => m.sequence_order);
     expect(seq).toEqual(Array.from({ length: 19 }, (_, i) => i + 1));
   });
-  test("harness apply order matches the manifest exactly", () => {
+  test("harness applies the manifest exactly, then the F1/F2 remediation", () => {
     const orderLines = orderText.split("\n")
       .filter((l) => /^\d{2} docs\/migration-drafts\//.test(l))
       .map((l) => l.trim().split(/\s+/)[1].split("/").pop());
     const manifestFiles = manifest.migrations.map((m) => m.filename);
-    expect(orderLines).toEqual(manifestFiles);
+    expect(orderLines.slice(0, manifestFiles.length)).toEqual(manifestFiles);
+    expect(orderLines.slice(manifestFiles.length)).toEqual([
+      "B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql",
+    ]);
   });
 });
 
