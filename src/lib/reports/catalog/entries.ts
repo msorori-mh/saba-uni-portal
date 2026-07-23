@@ -7,8 +7,12 @@
  * follow the strict rules documented in
  * docs/PORTAL-REPORTS-CANONICAL-CATALOG-AND-TRACEABILITY-01-REPORT.md:
  * LIVE requires source + permission + route + automated test + real wiring,
- * all proven by file paths. `tests/admin/` contains no report tests, so the
- * wired `/admin/reports` sections are DATA_DEPENDENT, not LIVE.
+ * all proven by file paths. Track
+ * ADMIN-REPORTS-TEST-HARDENING-AND-CATALOG-RECONCILIATION-01 added the
+ * automated test pillar (`tests/admin-reports/**`) for the six wired
+ * `/admin/reports` sections and promoted them DATA_DEPENDENT -> LIVE after
+ * verifying all five proofs; EXEC-CORE-KPIS remains DATA_DEPENDENT
+ * (out of scope, documented follow-up).
  */
 
 import type { ReportEntry } from "./types";
@@ -31,14 +35,14 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     sensitivity: "personal",
     output_types: ["screen", "excel"],
     route: "/admin/reports",
-    tests: [],
+    tests: ["tests/admin-reports/ui-states-and-filters.test.ts", "tests/admin-reports/privacy-and-export-scope.test.ts", "tests/admin-reports/catalog-compat.test.ts"],
     dependencies: ["src/lib/authz.server.ts:assertStudentRead", "src/lib/reports/export.ts"],
-    status: "DATA_DEPENDENT",
-    blocker: "لا اختبار مؤتمت مثبت للتقرير (tests/admin/ بلا اختبارات تقارير)",
+    status: "LIVE",
+    blocker: null,
     evidence: [
       "src/lib/admin-reports.functions.ts (getStudentsReportForAdmin)",
       "src/routes/admin/reports.tsx (قسم students — StudentsReport)",
-      "tests/admin/ (لا اختبارات تقارير)",
+      "tests/admin-reports/ (Track G hardening tests)",
     ],
   },
   {
@@ -46,7 +50,7 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     name_ar: "تقرير مهام الاستيراد وأخطاؤها",
     description: "متابعة مهام استيراد البيانات مع تفصيل أخطاء كل مهمة.",
     beneficiaries: ["operational_units_staff", "vp_academic_affairs", "dean"],
-    required_role: ["admin", "system_admin", "registrar"],
+    required_role: ["admin", "system_admin", "registrar", "student_affairs", "finance_officer"],
     data_scope: "university",
     source:
       "جداول مهام الاستيراد — getImportJobsReportForAdmin / getImportJobErrorsForAdmin في src/lib/admin-reports.functions.ts (IMPORT_REPORT_ROLES)",
@@ -54,10 +58,10 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     sensitivity: "internal",
     output_types: ["screen", "excel"],
     route: "/admin/reports",
-    tests: [],
+    tests: ["tests/admin-reports/guards-and-visibility.test.ts", "tests/admin-reports/catalog-compat.test.ts"],
     dependencies: ["src/lib/imports/ (PR #193/#195)"],
-    status: "DATA_DEPENDENT",
-    blocker: "لا اختبار مؤتمت مثبت للتقرير",
+    status: "LIVE",
+    blocker: null,
     evidence: [
       "src/lib/admin-reports.functions.ts (getImportJobsReportForAdmin/getImportJobErrorsForAdmin)",
       "src/routes/admin/reports.tsx (قسم imports — ImportJobsReport)",
@@ -68,18 +72,18 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     name_ar: "تقرير حسابات الطلاب",
     description: "حالة حسابات الدخول للطلاب (من لديه حساب/بدون).",
     beneficiaries: ["operational_units_staff", "vp_student_affairs", "dean"],
-    required_role: ["system_admin", "admin", "dean", "registrar", "finance_officer", "student_affairs"],
+    required_role: ["system_admin", "admin", "dean", "registrar", "student_affairs"],
     data_scope: "university",
     source:
-      "جدول student_profiles/حسابات — getStudentAccountsReportForAdmin في src/lib/admin-reports.functions.ts (REPORTS_ROLES)",
+      "جدول student_profiles/حسابات — getStudentAccountsReportForAdmin في src/lib/admin-reports.functions.ts (assertStudentRead / STUDENT_READ_ROLES)",
     filters: ["account_status", "department_id"],
     sensitivity: "personal",
     output_types: ["screen", "excel"],
     route: "/admin/reports",
-    tests: [],
-    dependencies: ["src/lib/authz.server.ts:assertReportsAccess"],
-    status: "DATA_DEPENDENT",
-    blocker: "لا اختبار مؤتمت مثبت",
+    tests: ["tests/admin-reports/guards-and-visibility.test.ts", "tests/admin-reports/catalog-compat.test.ts"],
+    dependencies: ["src/lib/authz.server.ts:assertStudentRead"],
+    status: "LIVE",
+    blocker: null,
     evidence: [
       "src/lib/admin-reports.functions.ts (getStudentAccountsReportForAdmin)",
       "src/routes/admin/reports.tsx (قسم accounts — StudentAccountsReport)",
@@ -98,10 +102,10 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     sensitivity: "internal",
     output_types: ["screen", "excel"],
     route: "/admin/reports",
-    tests: [],
+    tests: ["tests/admin-reports/ui-states-and-filters.test.ts", "tests/admin-reports/privacy-and-export-scope.test.ts", "tests/admin-reports/catalog-compat.test.ts"],
     dependencies: ["src/lib/admin-reports.functions.ts:getAcademicReportLookupsForAdmin"],
-    status: "DATA_DEPENDENT",
-    blocker: "لا اختبار مؤتمت مثبت",
+    status: "LIVE",
+    blocker: null,
     evidence: [
       "src/lib/admin-reports.functions.ts (getAcademic*ReportForAdmin ×4)",
       "src/routes/admin/reports.tsx (قسم academic — AcademicReports)",
@@ -121,10 +125,10 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     sensitivity: "internal",
     output_types: ["screen", "excel"],
     route: "/admin/reports",
-    tests: [],
+    tests: ["tests/admin-reports/guards-and-visibility.test.ts", "tests/admin-reports/catalog-compat.test.ts"],
     dependencies: [],
-    status: "DATA_DEPENDENT",
-    blocker: "لا اختبار مؤتمت مثبت",
+    status: "LIVE",
+    blocker: null,
     evidence: [
       "src/lib/admin-reports.functions.ts (SCHEDULE_REPORT_ROLES — تشمل department_head)",
       "src/routes/admin/reports.tsx (قسم schedules — ScheduleReports, 6 تبويبات + مؤشرات تعارض)",
@@ -144,10 +148,10 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     sensitivity: "personal",
     output_types: ["screen", "excel"],
     route: "/admin/reports",
-    tests: [],
+    tests: ["tests/admin-reports/ui-states-and-filters.test.ts", "tests/admin-reports/privacy-and-export-scope.test.ts", "tests/admin-reports/catalog-compat.test.ts"],
     dependencies: ["src/lib/reports/report-audit.functions.ts:logReportEvent", "rpc:log_audit"],
-    status: "DATA_DEPENDENT",
-    blocker: "لا اختبار مؤتمت مثبت",
+    status: "LIVE",
+    blocker: null,
     evidence: [
       "src/lib/admin-reports.functions.ts (getReportsRequests)",
       "src/routes/admin/reports.tsx (قسم requests — RequestsReport نشط)",

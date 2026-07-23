@@ -1,0 +1,1462 @@
+{
+  "actor_contract": {
+    "binding": "every B1 step requires exactly one active window-valid direct assignment (is_valid_b1_direct_assignment); steps pin unit/role/action via is_valid_b1_runtime_step_contract",
+    "department_scope": "transfer chair steps additionally bind the chair to the request's current/requested department",
+    "no_bypass": "no admin/registrar/dean role override exists anywhere in the shipped act/payment gates; dean authority resolves only through the canonical dean/dean unit-role assignment",
+    "payment": "payment_confirmation steps are acted on ONLY by record_external_university_payment_confirmation with edge payment_confirmed; finance/revenue_finance_officer",
+    "resolution_order": [
+      "assigned_user_id",
+      "assigned_staff_profile_id",
+      "assigned_faculty_profile_id",
+      "assigned_position_assignment_id (exactly one; no role-pool fallback when set)",
+      "request_processing_assignments fallback (unit+role, active, window-valid) only when all direct columns are null"
+    ]
+  },
+  "cases": [
+    {
+      "actor": "exact assignee: student_affairs specialist (staff_profile)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M01",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M01",
+      "notes": "Forward-only F1 remediation admits review; exact assignee with exact active unit/role binding succeeds.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "submitted request; step initial_review active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee: student_affairs manager (staff_profile)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M02",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M02",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "harness-advanced to manager_approval (finding 1 makes step 1 unreachable)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee: registrar_general (staff_profile)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M03",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M03",
+      "notes": "Forward-only F1 remediation admits apply_decision; exact registrar assignee succeeds.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "step registrar_apply active (completed by M02)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student (request owner)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M04",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M04",
+      "notes": "ownership gate: request owner can never act on staff steps.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "step manager_review active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "correct unit (student_affairs) wrong role (specialist on manager step)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M05",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M05",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "step manager_review active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "registrar on dean_approval step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M06",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M06",
+      "notes": "registrar on dean step: no broad bypass.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "department_transfer",
+      "setup": "step dean_approval active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "manager with EXPIRED assignment (ends_at in past)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M07",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M07",
+      "notes": "Forward-only F2 remediation requires an active, started, unexpired exact processing binding.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "step manager_approval active; assignment ends_at set to past, restored after case",
+      "tag": "CORE"
+    },
+    {
+      "actor": "manager with INACTIVE assignment (is_active=false)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M08",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M08",
+      "notes": "Forward-only F2 remediation rejects inactive exact processing bindings.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "final_chance",
+      "setup": "step manager_review active; assignment deactivated, restored after case",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student (request owner) review on own intake step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M09",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M09",
+      "notes": "currently denied at vocabulary gate; post-remediation the ownership gate denies with the same sqlstate.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "step student_affairs_intake active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee: library officer clear",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M10",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M10",
+      "notes": "Forward-only F1 remediation admits clear; exact library assignee succeeds.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "file_withdrawal",
+      "setup": "step library_clearance active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee: labs manager clear",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M11",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M11",
+      "notes": "Forward-only F1 remediation admits clear; exact labs assignee succeeds.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "file_withdrawal",
+      "setup": "step labs_clearance active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "unauthenticated (no uid)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M12",
+      "execution": "pg",
+      "expected_error_code": "AUTHENTICATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "28000",
+      "id": "M12",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "step student_affairs_intake active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee: archive officer archive",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M13",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M13",
+      "notes": "Archive remains in the preserved base vocabulary; the F1 remediation also makes its apply_decision predecessor reachable.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "file_withdrawal",
+      "setup": "step archive active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact target-department chair (faculty_profile, department-scoped)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M14",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M14",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "department_transfer",
+      "setup": "step target_department_head_approval active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee: revenue finance officer (user-typed assignment)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M15",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M15",
+      "notes": "payment RPC performs its own authorization checks; unaffected by finding 1.",
+      "rpc": "public.record_external_university_payment_confirmation(uuid,text,text)",
+      "service": "final_chance",
+      "setup": "step payment_confirmation active (dean approval completed by M17)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact dean assignee (staff_profile)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M16",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M16",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "department_transfer",
+      "setup": "step dean_approval active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact dean assignee (staff_profile)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M17",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M17",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "final_chance",
+      "setup": "step dean_decision active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student owner, complete valid form",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M18",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M18",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "enrollment_suspension",
+      "setup": "draft request owned by caller",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student owner, valid form + 1 attached excuse document",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M19",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M19",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "excused_absence",
+      "setup": "draft request; attached attachment fixture",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student owner, valid form + attached secondary certificate",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M20",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M20",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "department_transfer",
+      "setup": "draft request; attached attachment fixture",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student owner, valid form",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M21",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M21",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "final_chance",
+      "setup": "draft request owned by caller",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student owner, valid form",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M22",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "M22",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "file_withdrawal",
+      "setup": "draft request owned by caller",
+      "tag": "CORE"
+    },
+    {
+      "actor": "cross-service actor: student_affairs specialist on department-chair step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M23",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M23",
+      "notes": "wrong service/wrong unit: only the exact department-scoped chair matches.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "department_transfer",
+      "setup": "step source_department_head_approval active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "finance officer calls payment RPC on a free (non-payment) service",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M24",
+      "execution": "pg",
+      "expected_error_code": "REQUEST_TYPE_NOT_EXTERNAL_PAYMENT_SERVICE",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "22023",
+      "id": "M24",
+      "notes": null,
+      "rpc": "public.record_external_university_payment_confirmation(uuid,text,text)",
+      "service": "enrollment_suspension",
+      "setup": "step registrar_apply active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "registrar on dean_decision step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M25",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M25",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "final_chance",
+      "setup": "step dean_decision active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee but wrong action (approve on review-typed step)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M26",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M26",
+      "notes": "action/transition contract: p_action must equal the step config action_type with exactly one matching transition.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "step student_affairs_intake active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "exact assignee but wrong action (approve on confirm_payment-typed step)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M27",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M27",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "final_chance",
+      "setup": "step payment_confirmation active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "payment RPC on a non-payment step (dean_decision)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M28",
+      "execution": "pg",
+      "expected_error_code": "INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "22023",
+      "id": "M28",
+      "notes": null,
+      "rpc": "public.record_external_university_payment_confirmation(uuid,text,text)",
+      "service": "final_chance",
+      "setup": "step dean_decision completed",
+      "tag": "CORE"
+    },
+    {
+      "actor": "apply_decision on review-typed step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M29",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M29",
+      "notes": "currently denied at vocabulary gate; post-remediation the action contract denies with the same sqlstate.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "step student_affairs_intake active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "review on apply_decision-typed step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M30",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M30",
+      "notes": "currently denied at vocabulary gate; post-remediation the action contract denies with the same sqlstate.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "step registrar_apply active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student owner submits a COMPLETED request",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M31",
+      "execution": "pg",
+      "expected_error_code": "B1_OWNED_SUBMITTABLE_REQUEST_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M31",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "enrollment_suspension",
+      "setup": "request forced to completed (harness)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "act on a completed step (terminal mutation)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M32",
+      "execution": "pg",
+      "expected_error_code": "B1_ACTIVE_STEP_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "P0001",
+      "id": "M32",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "manager_approval completed by M02",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student submits ANOTHER student's request id",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M33",
+      "execution": "pg",
+      "expected_error_code": "B1_OWNED_SUBMITTABLE_REQUEST_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M33",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "enrollment_suspension",
+      "setup": "draft owned by student 1; caller is student 2",
+      "tag": "CORE"
+    },
+    {
+      "actor": "staff actor (no student profile) calls student submit RPC",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M34",
+      "execution": "pg",
+      "expected_error_code": "ACTIVE_STUDENT_PROFILE_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M34",
+      "notes": null,
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "enrollment_suspension",
+      "setup": "caller is student_affairs manager",
+      "tag": "CORE"
+    },
+    {
+      "actor": "act RPC on a non-B1 runtime step (enrollment_certificate)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M35",
+      "execution": "pg",
+      "expected_error_code": "B1_REQUEST_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "P0001",
+      "id": "M35",
+      "notes": "the B1 act RPC refuses non-B1 rows before any authorization.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "non_b1",
+      "setup": "synthetic non-B1 runtime step (harness)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "authenticated direct call of legacy submit RPC",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/45-acl-cases.sql#M36",
+      "execution": "pg",
+      "expected_error_code": "permission denied for function submit_student_request",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M36",
+      "notes": "seq8 revoked authenticated EXECUTE at the attachment cutover (direct RPC bypass closed).",
+      "rpc": "public.submit_student_request(uuid)",
+      "service": "enrollment_suspension",
+      "setup": "executed as authenticated role (SET ROLE)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "legacy act RPC on an active B1 step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M37",
+      "execution": "pg",
+      "expected_error_code": "ACT_ON_STEP_NOT_AUTHORIZED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M37",
+      "notes": "legacy act gates on can_current_user_act_on_step; the seq5 runtime trigger is a second barrier (X-12).",
+      "rpc": "public.act_on_student_request_step(uuid,text,text)",
+      "service": "excused_absence",
+      "setup": "step student_affairs_intake active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "student owner submits a CANCELLED request",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M38",
+      "execution": "pg",
+      "expected_error_code": "B1_OWNED_SUBMITTABLE_REQUEST_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M38",
+      "notes": "mutation on a cancelled request is denied at the owned-submittable gate (LOW-1 closure).",
+      "rpc": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "service": "enrollment_suspension",
+      "setup": "request forced to cancelled (harness)",
+      "tag": "CORE"
+    },
+    {
+      "actor": "admin (user_roles admin, no direct assignment) on an active B1 step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M39",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M39",
+      "notes": "no admin broad bypass: the seq2 strict user_matches_workflow_runtime_step has no admin/dean fast path; 'approve' is in-vocabulary so the exact-assignee gate itself denies (LOW-1 closure).",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "department_transfer",
+      "setup": "step dean_approval active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "dean (exact assignee of dean steps) on registrar_apply step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#M40",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "M40",
+      "notes": "dean on a registrar step: 'approve' is in-vocabulary, so this exercises the exact-assignee gate directly; registrar_apply is pinned to the registrar_general direct assignee (LOW-1 closure).",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "enrollment_suspension",
+      "setup": "step registrar_apply active",
+      "tag": "CORE"
+    },
+    {
+      "actor": "registrar universal READ",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "X-01",
+      "notes": "recon: registrar/admin universal READ is not hardened; read-path policy is a follow-up outside this track's mutation matrix.",
+      "rpc": "read RPCs",
+      "service": "all",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "admin broad READ",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "X-02",
+      "notes": "admin oversight read RPC is an explicitly deferred follow-up in draft seq2.",
+      "rpc": "read RPCs",
+      "service": "all",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "manager with FUTURE-DATED assignment (starts_at in future)",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-03",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "X-03",
+      "notes": "Forward-only F2 remediation rejects future-dated exact processing bindings.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "step manager_review active; starts_at set to future, restored after case",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "payment step exhausted: second confirmation on completed step",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-04",
+      "execution": "pg",
+      "expected_error_code": "INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "22023",
+      "id": "X-04",
+      "notes": null,
+      "rpc": "public.record_external_university_payment_confirmation(uuid,text,text)",
+      "service": "final_chance",
+      "setup": "payment_confirmed completed by M15",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "direct DML pre-cutover",
+      "desired_contract_outcome": "DENY",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "X-05",
+      "notes": "pre-cutover ACL state no longer exists after the full 19-draft apply; post-cutover denial is executed as X-11.",
+      "rpc": "detail tables",
+      "service": "all",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "direct DML post-cutover",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/45-acl-cases.sql#X-11",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "X-06",
+      "notes": "executed under X-11 (insert/update/delete on three detail tables as authenticated).",
+      "rpc": "detail tables",
+      "service": "all",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "replay protection: same actor, same step, same action after completion",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-07",
+      "execution": "pg",
+      "expected_error_code": "B1_ACTIVE_STEP_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "P0001",
+      "id": "X-07",
+      "notes": null,
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "manager_review completed by setup",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "idempotency: repeated act leaves exactly one approved event",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-08",
+      "execution": "pg",
+      "expected_error_code": "B1_ACTIVE_STEP_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "P0001",
+      "id": "X-08",
+      "notes": "companion assertion: exactly one 'approved' workflow event exists for the step.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "excused_absence",
+      "setup": "manager_review completed by setup",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "negative verification (payment_not_confirmed)",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-09",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "X-09",
+      "notes": "audited negative verification; never completes or advances the step (transition_applied=false asserted).",
+      "rpc": "public.record_external_university_payment_confirmation(uuid,text,text)",
+      "service": "final_chance",
+      "setup": "step payment_confirmation active",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "admin READ broad",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "X-10",
+      "notes": "same class as X-01/X-02.",
+      "rpc": "read RPCs",
+      "service": "all",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "bypass all RPCs: direct detail DML (authenticated) + direct runtime step mutation",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/45-acl-cases.sql#X-11",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "X-11",
+      "notes": "four executions: INSERT absence_excuse_details, UPDATE extra_chance_details, DELETE file_withdrawal_details (authenticated, ACL) and direct runtime UPDATE (seq5 trigger, B1_ATOMIC_RUNTIME_BOUNDARY_REQUIRED).",
+      "rpc": "direct table/runtime mutation",
+      "service": "all",
+      "setup": "post-cutover state",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "legacy submit/act on B1 requests",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-12",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "X-12",
+      "notes": "three executions: legacy submit as authenticated (ACL), legacy submit as owner (submit-boundary trigger B1_ATOMIC_SUBMIT_BOUNDARY_REQUIRED), legacy act passing the v3 gate then denied by the runtime-boundary trigger (B1_ATOMIC_RUNTIME_BOUNDARY_REQUIRED).",
+      "rpc": "legacy RPCs",
+      "service": "all",
+      "setup": "post-cutover state",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "holds user_roles 'dean' but has NO dean unit/role assignment",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-13",
+      "execution": "pg",
+      "expected_error_code": "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "42501",
+      "id": "X-13",
+      "notes": "app-role alone never substitutes for the exact processing assignment.",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "department_transfer",
+      "setup": "step dean_approval active",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "finance officer with user_id-typed binding",
+      "desired_contract_outcome": "PASS",
+      "evidence": "tests/b1-rpc-matrix/pg/40-verifier.sql#X-14",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "PASS",
+      "expected_sqlstate": null,
+      "id": "X-14",
+      "notes": "covers the user_id identity path of the actor-resolution contract.",
+      "rpc": "public.record_external_university_payment_confirmation(uuid,text,text)",
+      "service": "department_transfer",
+      "setup": "step payment_confirmation active (dean approval completed by M16)",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "guessed storage object read as authenticated",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/45-acl-cases.sql#X-15",
+      "execution": "pg",
+      "expected_error_code": null,
+      "expected_outcome": "DENY",
+      "expected_sqlstate": null,
+      "id": "X-15",
+      "notes": "deny realized as 42501 or zero visible rows (RLS default-deny); only the audited signed-download RPC reads.",
+      "rpc": "storage.objects",
+      "service": "all",
+      "setup": "secure bucket exists; no SELECT privilege/policy",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "attachment sqlstate variance",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "X-16",
+      "notes": "attachment RPCs raise mixed sqlstates (several without explicit ERRCODE, defaulting to P0001); hardening note only.",
+      "rpc": "attachment RPCs",
+      "service": "all",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "reject/return reachability",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "X-17",
+      "notes": "shipped B1 workflows define no reject/return transitions, so reject/return are unreachable by design; B1_SPECIALIZED_ACTION_RPC_REQUIRED is dead under the shipped gate order (confirm_payment is routed to the specialized RPC by workflow config).",
+      "rpc": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "service": "all",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "registrar_apply effect coupling",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "E-01",
+      "notes": "final effect persistence is owned by separately ordered effect drafts; authorization of the apply step is covered by M03.",
+      "rpc": "effect persistence",
+      "service": "enrollment_suspension",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "record_apply effect coupling",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "E-02",
+      "notes": "dispatcher guard B1_ABSENCE_EFFECT_ALREADY_APPLIED exists; effect draft is out of scope.",
+      "rpc": "effect persistence",
+      "service": "excused_absence",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "registrar_apply effect coupling",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "E-03",
+      "notes": "see E-01.",
+      "rpc": "effect persistence",
+      "service": "file_withdrawal",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "registrar_apply effect coupling",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "E-04",
+      "notes": "see E-01.",
+      "rpc": "effect persistence",
+      "service": "department_transfer",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "registrar_apply effect coupling",
+      "desired_contract_outcome": "REVIEW",
+      "evidence": "docs/B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01-REPORT.md#notes",
+      "execution": "static",
+      "expected_error_code": null,
+      "expected_outcome": "NOTE",
+      "expected_sqlstate": null,
+      "id": "E-05",
+      "notes": "dispatcher guard B1_FINAL_CHANCE_EFFECT_ALREADY_APPLIED exists; effect draft is out of scope.",
+      "rpc": "effect persistence",
+      "service": "final_chance",
+      "setup": "n/a",
+      "tag": "EXTENDED"
+    },
+    {
+      "actor": "harness gate: initializer before any activation",
+      "desired_contract_outcome": "DENY",
+      "evidence": "tests/b1-rpc-matrix/pg/30-pre-activation-assert.sql#H-01",
+      "execution": "pg",
+      "expected_error_code": "B1_ACTIVE_WORKFLOW_MUST_RESOLVE_ONCE:0",
+      "expected_outcome": "DENY",
+      "expected_sqlstate": "P0001",
+      "id": "H-01",
+      "notes": "pre-activation fail-closed gate per recon harness design; verified BEFORE the local-only activation step.",
+      "rpc": "public.initialize_b1_request_workflow_strict(uuid,text)",
+      "service": "enrollment_suspension",
+      "setup": "draft workflows exist but none active",
+      "tag": "HARNESS"
+    }
+  ],
+  "coverage_map": {
+    "completed/cancelled request mutation = DENY": [
+      "M31",
+      "M32",
+      "X-04",
+      "M38"
+    ],
+    "correct unit wrong role = DENY": [
+      "M05"
+    ],
+    "dean on registrar step = DENY": [
+      "M23",
+      "M40"
+    ],
+    "dean/admin broad bypass = DENY unless explicit contract": [
+      "M06",
+      "M25",
+      "X-13",
+      "M39"
+    ],
+    "direct RPC bypass = DENY": [
+      "M36",
+      "M37",
+      "X-11",
+      "X-12",
+      "X-15"
+    ],
+    "exact authorized assignee = PASS": [
+      "M02",
+      "M14",
+      "M15",
+      "M16",
+      "M17",
+      "M18",
+      "M19",
+      "M20",
+      "M21",
+      "M22",
+      "X-09",
+      "X-14",
+      "M13"
+    ],
+    "happy-path submit per service = PASS": [
+      "M18",
+      "M19",
+      "M20",
+      "M21",
+      "M22"
+    ],
+    "idempotency": [
+      "X-08"
+    ],
+    "inactive/expired/future assignment = DENY": [
+      "M07",
+      "M08",
+      "X-03"
+    ],
+    "no assignment (role only) = DENY": [
+      "X-13"
+    ],
+    "non-B1 runtime row through B1 RPC = DENY": [
+      "M35"
+    ],
+    "pre-activation fail-closed gate": [
+      "H-01"
+    ],
+    "registrar on dean step = DENY": [
+      "M06",
+      "M25"
+    ],
+    "remediated review/clear/apply_decision exact assignee = ALLOW": [
+      "M01",
+      "M03",
+      "M10",
+      "M11"
+    ],
+    "replay protection": [
+      "X-07"
+    ],
+    "same role wrong unit = DENY": [
+      "M23"
+    ],
+    "staff on student RPC = DENY": [
+      "M34"
+    ],
+    "student on staff RPC = DENY": [
+      "M04",
+      "M09"
+    ],
+    "unauthenticated = DENY": [
+      "M12"
+    ],
+    "wrong owner submit = DENY": [
+      "M33"
+    ],
+    "wrong service = DENY": [
+      "M23",
+      "M24"
+    ],
+    "wrong step/action = DENY": [
+      "M26",
+      "M27",
+      "M28",
+      "M29",
+      "M30"
+    ]
+  },
+  "encoding": "ascii",
+  "findings": [
+    {
+      "evidence": [
+        "M01",
+        "M03",
+        "M10",
+        "M11"
+      ],
+      "follow_up": "Keep the four B1-only actions pinned by the PG17 matrix and production verifier.",
+      "id": "F1-REMEDIATED",
+      "severity": "note",
+      "summary": "The forward-only remediation adds review, clear, apply_decision and confirm_payment while preserving all 11 existing actions; authorized B1 steps are no longer vocabulary-blocked."
+    },
+    {
+      "evidence": [
+        "M07",
+        "M08",
+        "X-03"
+      ],
+      "follow_up": "Keep inactive, expired and future-dated cases as mandatory DENY regression tests.",
+      "id": "F2-REMEDIATED",
+      "severity": "note",
+      "summary": "The final forward-only authorization definition restores current_user_has_exact_processing_binding after the predecessor guard, so stale processing authority fails closed while exact assignee identity remains mandatory."
+    },
+    {
+      "evidence": [
+        "X-17"
+      ],
+      "follow_up": "design decision; if rejection is required, add explicit transitions first.",
+      "id": "N1-REJECT-RETURN-UNREACHABLE",
+      "severity": "note",
+      "summary": "Shipped B1 workflows define no reject/return transitions; reject/return are unreachable by design and B1_SPECIALIZED_ACTION_RPC_REQUIRED is dead under the shipped gate order."
+    },
+    {
+      "evidence": [
+        "X-01",
+        "X-02",
+        "X-10",
+        "X-16"
+      ],
+      "follow_up": "ACL/read-path hardening candidates for a later track.",
+      "id": "N2-HARDENING-HELPERS-PUBLIC",
+      "severity": "note",
+      "summary": "The three new hardening helpers (user_matches_workflow_runtime_step, is_current_user_dean_for_student, current_user_has_exact_processing_binding family) keep default PUBLIC EXECUTE; registrar/admin universal READ is not hardened; attachment RPC sqlstates are inconsistent."
+    },
+    {
+      "evidence": [
+        "H-01"
+      ],
+      "follow_up": "production activation remains owned by the release process.",
+      "id": "N3-ACTIVATION-LOCAL-ONLY",
+      "severity": "note",
+      "summary": "The harness activated the five draft workflows ONLY inside the disposable local cluster (35-activate-workflows-local-only.sql) after asserting the pre-activation fail-closed gate H-01. No production object was touched."
+    }
+  ],
+  "matrix_id": "B1-RPC-AUTHORIZATION-MATRIX-01",
+  "program": "PORTAL-OVERNIGHT-AUTONOMOUS-SOURCE-ACCELERATION-01",
+  "rpcs": [
+    {
+      "acl": "authenticated",
+      "authorization": "owner-only, draft/returned states, optimistic version check, audience guard, strict direct-assignment runtime init",
+      "name": "public.submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])",
+      "surface": "student"
+    },
+    {
+      "acl": "authenticated",
+      "authorization": "can_current_user_act_on_step (v3, seq3) + exactly-one-transition + predecessor completion; finding 1 blocks 4 of 6 B1 action types (review/clear/apply_decision/confirm_payment; archive and approve are in the true vocabulary)",
+      "name": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+      "surface": "staff"
+    },
+    {
+      "acl": "authenticated",
+      "authorization": "self-contained: exact direct assignee + exact finance binding + service/step/transition contract; own checks (unaffected by finding 1)",
+      "name": "public.record_external_university_payment_confirmation(uuid,text,text)",
+      "surface": "staff (finance)"
+    },
+    {
+      "acl": "owner only (no grant)",
+      "authorization": "invoked inside the atomic submit only",
+      "name": "public.initialize_b1_request_workflow_strict(uuid,text)",
+      "surface": "internal"
+    },
+    {
+      "acl": "revoked from all",
+      "authorization": "invoked inside the atomic submit only",
+      "name": "public.persist_validated_b1_request_details(uuid,text,jsonb,uuid[])",
+      "surface": "internal"
+    },
+    {
+      "acl": "revoked from all",
+      "authorization": "invoked by the seq19 cutover only",
+      "name": "public.apply_b1_detail_rpc_write_boundaries()",
+      "surface": "internal"
+    },
+    {
+      "acl": "authenticated REVOKED by seq8",
+      "authorization": "ACL deny + seq5 submit-boundary trigger on B1 types",
+      "name": "public.submit_student_request(uuid)",
+      "surface": "student (legacy)"
+    },
+    {
+      "acl": "public execute (not revoked)",
+      "authorization": "gates on can_current_user_act_on_step; seq5 runtime-boundary trigger is the second barrier on B1 rows",
+      "name": "public.act_on_student_request_step(uuid,text,text)",
+      "surface": "staff (legacy)"
+    },
+    {
+      "acl": "revoked by seq13",
+      "authorization": "cannot satisfy the atomic form/version contract",
+      "name": "public.submit_student_request_with_secure_attachments(uuid,uuid[])",
+      "surface": "student (legacy wrapper)"
+    },
+    {
+      "acl": "authenticated",
+      "authorization": "active-step direct assignee + exact processing binding; audited 300s signed download",
+      "name": "public.authorize_student_request_attachment_download(uuid)",
+      "surface": "staff"
+    },
+    {
+      "acl": "authenticated",
+      "authorization": "owner-only, editable states, service field allowlist, count/size/mime limits",
+      "name": "public.create_student_request_attachment_upload_intent(uuid,text,text,text,bigint,text)",
+      "surface": "student"
+    }
+  ],
+  "semantics": {
+    "desired_contract_outcome": "authorization-contract expectation; equals expected_outcome after the F1/F2 remediation",
+    "execution": "pg = executed in the local PG17 harness; static = documented only (not executable in this harness)",
+    "expected_outcome": "PASS = call succeeds; DENY = call raises; NOTE = documented non-executed behavior (static)",
+    "tag": [
+      "CORE",
+      "EXTENDED",
+      "BLOCKER",
+      "DIVERGENCE",
+      "HARNESS"
+    ]
+  },
+  "services": [
+    {
+      "canonical_code": "enrollment_suspension",
+      "payment_policy": "FREE_NO_PAYMENT",
+      "steps": [
+        {
+          "action_type": "review",
+          "role": "student_affairs_specialist",
+          "step_key": "initial_review",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "approve",
+          "role": "student_affairs_manager",
+          "step_key": "manager_approval",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "apply_decision",
+          "role": "registrar_general",
+          "step_key": "registrar_apply",
+          "unit": "registrar"
+        }
+      ],
+      "stored_alias": null,
+      "stored_codes": [
+        "enrollment_suspension"
+      ],
+      "transitions": [
+        "submit:->initial_review",
+        "reviewed:initial_review->manager_approval",
+        "approved:manager_approval->registrar_apply",
+        "applied:registrar_apply->"
+      ],
+      "workflow_code": "enrollment_suspension_free_workflow"
+    },
+    {
+      "canonical_code": "excused_absence",
+      "payment_policy": "FREE_NO_PAYMENT",
+      "steps": [
+        {
+          "action_type": "review",
+          "role": "student_affairs_specialist",
+          "step_key": "student_affairs_intake",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "approve",
+          "role": "student_affairs_manager",
+          "step_key": "manager_review",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "apply_decision",
+          "role": "student_affairs_specialist",
+          "step_key": "record_apply",
+          "unit": "student_affairs"
+        }
+      ],
+      "stored_alias": "absence_excuse",
+      "stored_codes": [
+        "absence_excuse"
+      ],
+      "transitions": [
+        "submit:->student_affairs_intake",
+        "reviewed:student_affairs_intake->manager_review",
+        "approved:manager_review->record_apply",
+        "applied:record_apply->"
+      ],
+      "workflow_code": "excused_absence_free_workflow"
+    },
+    {
+      "canonical_code": "file_withdrawal",
+      "payment_policy": "FREE_NO_PAYMENT",
+      "steps": [
+        {
+          "action_type": "review",
+          "role": "student_affairs_specialist",
+          "step_key": "student_affairs_intake",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "clear",
+          "role": "library_officer",
+          "step_key": "library_clearance",
+          "unit": "library"
+        },
+        {
+          "action_type": "clear",
+          "role": "labs_manager",
+          "step_key": "labs_clearance",
+          "unit": "labs"
+        },
+        {
+          "action_type": "clear",
+          "role": "student_affairs_manager",
+          "step_key": "activities_clearance",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "clear",
+          "role": "revenue_finance_officer",
+          "step_key": "finance_clearance",
+          "unit": "finance"
+        },
+        {
+          "action_type": "apply_decision",
+          "role": "registrar_general",
+          "step_key": "registrar_apply",
+          "unit": "registrar"
+        },
+        {
+          "action_type": "archive",
+          "role": "archive_officer",
+          "step_key": "archive",
+          "unit": "archive"
+        }
+      ],
+      "stored_alias": null,
+      "stored_codes": [
+        "file_withdrawal"
+      ],
+      "transitions": [
+        "submit:->student_affairs_intake",
+        "reviewed:student_affairs_intake->library_clearance",
+        "cleared:library_clearance->labs_clearance",
+        "cleared:labs_clearance->activities_clearance",
+        "cleared:activities_clearance->finance_clearance",
+        "cleared:finance_clearance->registrar_apply",
+        "applied:registrar_apply->archive",
+        "archived:archive->"
+      ],
+      "workflow_code": "file_withdrawal_free_workflow"
+    },
+    {
+      "canonical_code": "department_transfer",
+      "payment_policy": "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      "steps": [
+        {
+          "action_type": "review",
+          "role": "student_affairs_specialist",
+          "step_key": "student_affairs_intake",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "approve",
+          "role": "department_head",
+          "step_key": "source_department_head_approval",
+          "unit": "department"
+        },
+        {
+          "action_type": "approve",
+          "role": "department_head",
+          "step_key": "target_department_head_approval",
+          "unit": "department"
+        },
+        {
+          "action_type": "approve",
+          "role": "dean",
+          "step_key": "dean_approval",
+          "unit": "dean"
+        },
+        {
+          "action_type": "confirm_payment",
+          "role": "revenue_finance_officer",
+          "step_key": "payment_confirmation",
+          "unit": "finance"
+        },
+        {
+          "action_type": "apply_decision",
+          "role": "registrar_general",
+          "step_key": "registrar_apply",
+          "unit": "registrar"
+        }
+      ],
+      "stored_alias": "transfer",
+      "stored_codes": [
+        "transfer"
+      ],
+      "transitions": [
+        "submit:->student_affairs_intake",
+        "reviewed:student_affairs_intake->source_department_head_approval",
+        "approved:source_department_head_approval->target_department_head_approval",
+        "approved:target_department_head_approval->dean_approval",
+        "approved:dean_approval->payment_confirmation",
+        "payment_confirmed:payment_confirmation->registrar_apply",
+        "applied:registrar_apply->"
+      ],
+      "workflow_code": "department_transfer_external_payment_workflow"
+    },
+    {
+      "canonical_code": "final_chance",
+      "payment_policy": "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
+      "steps": [
+        {
+          "action_type": "review",
+          "role": "student_affairs_specialist",
+          "step_key": "student_affairs_intake",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "approve",
+          "role": "student_affairs_manager",
+          "step_key": "manager_review",
+          "unit": "student_affairs"
+        },
+        {
+          "action_type": "approve",
+          "role": "dean",
+          "step_key": "dean_decision",
+          "unit": "dean"
+        },
+        {
+          "action_type": "confirm_payment",
+          "role": "revenue_finance_officer",
+          "step_key": "payment_confirmation",
+          "unit": "finance"
+        },
+        {
+          "action_type": "apply_decision",
+          "role": "registrar_general",
+          "step_key": "registrar_apply",
+          "unit": "registrar"
+        }
+      ],
+      "stored_alias": "extra_chance",
+      "stored_codes": [
+        "extra_chance"
+      ],
+      "transitions": [
+        "submit:->student_affairs_intake",
+        "reviewed:student_affairs_intake->manager_review",
+        "approved:manager_review->dean_decision",
+        "approved:dean_decision->payment_confirmation",
+        "payment_confirmed:payment_confirmation->registrar_apply",
+        "applied:registrar_apply->"
+      ],
+      "workflow_code": "final_chance_external_payment_workflow"
+    }
+  ],
+  "source_refs": {
+    "base_commit": "debf9d041f7c05794f6df33877f1dff91253625e",
+    "drafts_dir": "docs/migration-drafts/ (19 files; see tests/b1-rpc-matrix/pg/20-draft-apply-order.txt)",
+    "harness_evidence": "tests/b1-rpc-matrix/pg/ (executed on PostgreSQL 17.10, local disposable cluster)",
+    "manifest": "docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json (19 entries, applied in manifest order in the local harness)",
+    "recon_inputs": [
+      "overnight01/e-rpcmatrix/ANALYSIS.md",
+      "overnight01/e-rpcmatrix/MATRIX-DRAFT.json",
+      "overnight01/e-rpcmatrix/EXTRACTION-NOTES.md"
+    ],
+    "repo": "msorori-mh/saba-uni-portal"
+  },
+  "status": "final",
+  "track": "B1-RPC-AUTHORIZATION-MATRIX-SOURCE-CLOSURE-01",
+  "version": "1.0.0"
+}
