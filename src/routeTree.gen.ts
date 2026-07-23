@@ -11,6 +11,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VersionDotjsonRouteImport } from './routes/version[.]json'
 import { Route as VerifyDocumentRouteImport } from './routes/verify-document'
 import { Route as StudentRouteImport } from './routes/student'
 import { Route as StaffRouteImport } from './routes/staff'
@@ -117,6 +118,11 @@ const AdminExecutiveDashboardLazyRouteImport = createFileRoute(
 )()
 const AdminDocumentsLazyRouteImport = createFileRoute('/admin/documents')()
 
+const VersionDotjsonRoute = VersionDotjsonRouteImport.update({
+  id: '/version.json',
+  path: '/version.json',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VerifyDocumentRoute = VerifyDocumentRouteImport.update({
   id: '/verify-document',
   path: '/verify-document',
@@ -663,6 +669,7 @@ export interface FileRoutesByFullPath {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/verify-document': typeof VerifyDocumentRoute
+  '/version.json': typeof VersionDotjsonRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/academic-councils': typeof AdminAcademicCouncilsRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
@@ -761,6 +768,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/verify-document': typeof VerifyDocumentRoute
+  '/version.json': typeof VersionDotjsonRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/academic-councils': typeof AdminAcademicCouncilsRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
@@ -862,6 +870,7 @@ export interface FileRoutesById {
   '/staff': typeof StaffRouteWithChildren
   '/student': typeof StudentRouteWithChildren
   '/verify-document': typeof VerifyDocumentRoute
+  '/version.json': typeof VersionDotjsonRoute
   '/admin/academic-core': typeof AdminAcademicCoreRoute
   '/admin/academic-councils': typeof AdminAcademicCouncilsRoute
   '/admin/academic-operations': typeof AdminAcademicOperationsRoute
@@ -966,6 +975,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/verify-document'
+    | '/version.json'
     | '/admin/academic-core'
     | '/admin/academic-councils'
     | '/admin/academic-operations'
@@ -1064,6 +1074,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/sitemap.xml'
     | '/verify-document'
+    | '/version.json'
     | '/admin/academic-core'
     | '/admin/academic-councils'
     | '/admin/academic-operations'
@@ -1164,6 +1175,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/verify-document'
+    | '/version.json'
     | '/admin/academic-core'
     | '/admin/academic-councils'
     | '/admin/academic-operations'
@@ -1267,6 +1279,7 @@ export interface RootRouteChildren {
   StaffRoute: typeof StaffRouteWithChildren
   StudentRoute: typeof StudentRouteWithChildren
   VerifyDocumentRoute: typeof VerifyDocumentRoute
+  VersionDotjsonRoute: typeof VersionDotjsonRoute
   DocumentViewIdRoute: typeof DocumentViewIdRoute
   MobileStudentRoute: typeof MobileStudentRouteWithChildren
   MobileStudentLoginRoute: typeof MobileStudentLoginRoute
@@ -1274,6 +1287,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/version.json': {
+      id: '/version.json'
+      path: '/version.json'
+      fullPath: '/version.json'
+      preLoaderRoute: typeof VersionDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/verify-document': {
       id: '/verify-document'
       path: '/verify-document'
@@ -2228,6 +2248,7 @@ const rootRouteChildren: RootRouteChildren = {
   StaffRoute: StaffRouteWithChildren,
   StudentRoute: StudentRouteWithChildren,
   VerifyDocumentRoute: VerifyDocumentRoute,
+  VersionDotjsonRoute: VersionDotjsonRoute,
   DocumentViewIdRoute: DocumentViewIdRoute,
   MobileStudentRoute: MobileStudentRouteWithChildren,
   MobileStudentLoginRoute: MobileStudentLoginRoute,
@@ -2235,3 +2256,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
