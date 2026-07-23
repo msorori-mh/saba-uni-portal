@@ -9,7 +9,8 @@ begin
   if to_regprocedure('public.is_valid_actor_request_action(text)') is null
      or to_regprocedure('public.can_current_user_act_on_step(uuid,text)') is null
      or to_regprocedure('public.current_user_has_exact_processing_binding(uuid,uuid)') is null
-     or to_regprocedure('public.workflow_runtime_predecessors_satisfied(uuid)') is null then
+     or to_regprocedure('public.workflow_runtime_predecessors_satisfied(uuid)') is null
+     or to_regprocedure('public.is_b1_stored_request_type(text)') is null then
     raise exception 'B1_FIVE_SERVICES_AUTHORIZATION_PREREQUISITE_MISSING';
   end if;
 end;
@@ -50,13 +51,15 @@ begin
   if not public.user_matches_workflow_runtime_step(p_step_id) then return false; end if;
 
   -- For the five B1 services, a direct runtime assignee proves identity, not
-  -- current authority. Preserve the pre-existing contract for every non-B1
-  -- request type, including enrollment_certificate.
-  if v_request_type in (
-    'enrollment_suspension','absence_excuse','file_withdrawal','transfer','extra_chance'
-  ) and not public.current_user_has_exact_processing_binding(
-    v_step.processing_unit_id,v_step.processing_role_id
-  ) then return false; end if;
+  -- current authority. Scope via the shared stored-code predicate so both the
+  -- legacy aliases (absence_excuse, transfer, extra_chance) and the canonical
+  -- stored codes (excused_absence, department_transfer, final_chance) are
+  -- covered. Preserve the pre-existing contract for every non-B1 request
+  -- type, including enrollment_certificate.
+  if public.is_b1_stored_request_type(v_request_type)
+    and not public.current_user_has_exact_processing_binding(
+      v_step.processing_unit_id,v_step.processing_role_id
+    ) then return false; end if;
 
   if v_step.step_key in ('source_department_head_approval','target_department_head_approval') and not exists (
     select 1 from public.faculty_profiles fp join public.transfer_request_details d
@@ -99,11 +102,7 @@ begin
   select p.prosrc into v_src from pg_proc p
   where p.oid='public.can_current_user_act_on_step(uuid,text)'::regprocedure;
   if position('current_user_has_exact_processing_binding' in coalesce(v_src,''))=0
-     or position('enrollment_suspension' in coalesce(v_src,''))=0
-     or position('absence_excuse' in coalesce(v_src,''))=0
-     or position('file_withdrawal' in coalesce(v_src,''))=0
-     or position('transfer' in coalesce(v_src,''))=0
-     or position('extra_chance' in coalesce(v_src,''))=0
+     or position('is_b1_stored_request_type(v_request_type)' in coalesce(v_src,''))=0
      or position('workflow_runtime_predecessors_satisfied' in coalesce(v_src,''))=0 then
     raise exception 'B1_FIVE_SERVICES_AUTHORIZATION_GUARD_POSTCHECK_FAILED';
   end if;

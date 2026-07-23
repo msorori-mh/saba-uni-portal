@@ -92,6 +92,53 @@ SELECT e_rpcmatrix.exec_case('SCOPE-02','enrollment-certificate-preserves-pre-b1
  format($$SELECT 1 / ((public.can_current_user_act_on_step(%L::uuid,'archive'))::integer)$$,
    'ec300000-0000-4000-8000-000000000001'));
 
+-- SCOPE-03: B1 request stored under a CANONICAL code (excused_absence). The
+-- minimal schema seed pins request_types to legacy aliases, so the verifier
+-- registers the canonical stored code here (fixture only; no enforcement
+-- change). Same draft/inactive scope-workflow pattern as SCOPE-01/02.
+INSERT INTO public.request_types(id,code,name_ar,request_audience,is_active) VALUES
+  ('99999999-0000-4000-8000-000000000010','excused_absence','Excused Absence (canonical)','student',true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.student_requests(id, request_number, student_profile_id, request_type, status) VALUES
+  ('ce000000-0000-4000-8000-000000000010','T-EA-CANON','33333333-3333-4333-8333-333333333301','excused_absence','draft')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO public.request_type_workflows(
+  id,request_type_id,code,name_ar,version,status,is_active)
+VALUES
+  ('ec100000-0000-4000-8000-000000000003','99999999-0000-4000-8000-000000000010','scope-excused-absence','Scope excused absence',1,'draft',false);
+
+INSERT INTO public.request_type_workflow_steps(
+  id,workflow_id,step_key,step_name_ar,step_order,processing_unit_id,
+  processing_role_id,assignment_strategy,action_type,status_on_enter,status_on_complete)
+VALUES
+  ('ec200000-0000-4000-8000-000000000003','ec100000-0000-4000-8000-000000000003','scope_archive','Scope archive',1,
+   'aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-000000000006','specific_user','archive','active','completed');
+
+INSERT INTO public.request_type_workflow_transitions(
+  id,workflow_id,from_step_id,to_step_id,action_result,is_default)
+VALUES
+  ('ec400000-0000-4000-8000-000000000005','ec100000-0000-4000-8000-000000000003',NULL,'ec200000-0000-4000-8000-000000000003','submit',true),
+  ('ec400000-0000-4000-8000-000000000006','ec100000-0000-4000-8000-000000000003','ec200000-0000-4000-8000-000000000003',NULL,'archived',true);
+
+DO $scope3_fixtures$
+BEGIN
+  PERFORM set_config('b1.atomic_init','1',true);
+  INSERT INTO public.student_request_workflow_steps(
+    id,student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,
+    step_order,processing_unit_id,processing_role_id,assigned_user_id,status,entered_at)
+  VALUES
+    ('ec300000-0000-4000-8000-000000000003','ce000000-0000-4000-8000-000000000010','ec100000-0000-4000-8000-000000000003','ec200000-0000-4000-8000-000000000003',
+     'scope_archive','Scope archive',1,'aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-000000000006','22222222-2222-4222-8222-22222222220f','active',now());
+END
+$scope3_fixtures$;
+
+SELECT e_rpcmatrix.exec_case('SCOPE-03','canonical-stored-code-direct-assignee-without-binding-denied','OK',
+ '22222222-2222-4222-8222-22222222220f',
+ format($$SELECT 1 / ((NOT public.can_current_user_act_on_step(%L::uuid,'archive'))::integer)$$,
+   'ec300000-0000-4000-8000-000000000003'));
+
 -- secure-attachment fixtures (attached state, owner = student1 user)
 INSERT INTO public.student_request_attachment_uploads(
   id, student_request_id, student_profile_id, field_key, original_file_name,
