@@ -3,12 +3,13 @@
 // Read-only: asserts manifest integrity, dependency graph, uniqueness and
 // sequential-apply enforcement fields. Never touches the database.
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const manifestPath = join(here, "..", "..", "docs", "b1", "B1-SEQUENTIAL-APPLY-MANIFEST.json");
+const repoRoot = join(here, "..", "..");
+const manifestPath = join(repoRoot, "docs", "b1", "B1-SEQUENTIAL-APPLY-MANIFEST.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
 const entries = manifest.migrations as Array<Record<string, any>>;
@@ -137,6 +138,7 @@ describe("status and gates", () => {
       expect(e.post_verifier.bun_source_contract_tests.length).toBeGreaterThan(0);
       for (const t of e.post_verifier.bun_source_contract_tests) {
         expect(t).toMatch(/^tests\//);
+        expect(existsSync(join(repoRoot, t))).toBe(true);
       }
       expect(e.post_verifier.existing_ci_pg_verifiers_cover_this_migration).toBe(false);
       expect(String(e.post_verifier.pg_verifier_status)).toMatch(/FOLLOW-UP/);
@@ -182,9 +184,10 @@ describe("batch-apply prevention policies", () => {
 });
 
 describe("excluded and verifier mapping", () => {
-  test("never-apply section lists exactly 4 drafts, each with a reason and hashes", () => {
+  test("never-apply section lists exactly 5 drafts, each with a reason and hashes", () => {
     const na = manifest.excluded.never_apply;
-    expect(na.length).toBe(4);
+    expect(na.length).toBe(5);
+    expect(na.some((x: { filename: string }) => x.filename === "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql")).toBe(true);
     for (const x of na) {
       expect(String(x.reason).length).toBeGreaterThan(10);
       expect(x.source_sha).toMatch(/^[0-9a-f]{40}$/);

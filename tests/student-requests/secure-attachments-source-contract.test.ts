@@ -65,8 +65,17 @@ describe("secure attachments HIGH remediation source guards", () => {
     expect(draftSql).toContain("AND a.student_profile_id=v_profile_id FOR UPDATE");
   });
 
-  it("revokes the legacy submit bypass and routes every type through one boundary", () => {
-    expect(draftSql).toContain("REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC,anon,authenticated");
+  it("keeps authenticated submit EXECUTE temporarily and defers revoke to an independent cutover", () => {
+    // R-2 owner decision: do NOT revoke authenticated EXECUTE on
+    // submit_student_request(uuid) in this draft; cutover is separate.
+    expect(draftSql).toContain("DEFERRED CUTOVER");
+    expect(draftSql).toMatch(/authenticated EXECUTE remains exactly as today/i);
+    expect(draftSql).not.toContain(
+      "REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC,anon,authenticated",
+    );
+    // Attachment ACL / wrapper boundary remain fail-closed.
+    expect(draftSql).toContain("REVOKE ALL ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) FROM PUBLIC,anon");
+    expect(draftSql).toContain("GRANT EXECUTE ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) TO authenticated");
     expect(draftSql).toContain("AND sp.user_id=auth.uid()");
     expect(draftSql).toContain("IF v_request.request_type IN ('excused_absence','absence_excuse') THEN");
     expect(draftSql).toContain("ELSIF coalesce(cardinality(p_attachment_ids),0)<>0 THEN");

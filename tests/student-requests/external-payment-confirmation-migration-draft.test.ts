@@ -69,4 +69,25 @@ describe("external payment confirmation migration draft", () => {
     expect(sql).not.toContain("'additional_chance'");
     expect(sql).not.toContain("'additional_exam'");
   });
+
+  it("keeps the replacement action_type constraint a superset of the applied one (assess_fee retained)", () => {
+    const chk = sql.slice(
+      sql.indexOf("ADD CONSTRAINT request_type_workflow_steps_action_type_chk"),
+      sql.indexOf("ALTER TABLE public.request_type_workflow_transitions"),
+    );
+    // Every value in the currently applied constraint
+    // (supabase/migrations/20260711195110_16738687-5ea0-410a-937e-e2e39a70c8d3.sql)
+    // must survive; the live enrollment_certificate fee machinery requires assess_fee.
+    for (const applied of [
+      "review", "approve", "reject", "comment", "return_to_student",
+      "request_attachment", "request_payment", "assess_fee", "confirm_payment",
+      "sign", "archive", "issue_document", "complete",
+    ]) {
+      expect(chk).toContain(`'${applied}'`);
+    }
+    // The only additions are the B1 vocabulary values.
+    for (const added of ["clear", "apply_decision"]) {
+      expect(chk).toContain(`'${added}'`);
+    }
+  });
 });

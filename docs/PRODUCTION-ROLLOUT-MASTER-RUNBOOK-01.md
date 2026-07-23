@@ -162,18 +162,18 @@
 
 ### GATE-08 — B1-SEQUENTIAL-MIGRATIONS (المداخل 2…19 واحدة واحدة)
 
-التسلسل القانوني **19 مدخلاً** من `docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json` (schema v1، `base_ref main@45148e09`) — حسم C2: عبارات «18» في runbook-07 وSWARM-GATES §G2 **بالية**؛ أُدرج `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01` في الموضع 3 فإزاحت EXPANSION→4 … ACL-CUTOVER-18→19. كل المداخل `NOT_APPLIED` (دليل كائنات D-02). الاعتماديات = متطلبات المحتوى ∪ السلف التسلسلي الإلزامي (منع التطبيق الجماعي)؛ المدخل 1 وحده بلا اعتماديات.
+التسلسل القانوني **19 مدخلاً** من `docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json` (schema v1، `base_ref main@45148e09`) — حسم C2: عبارات «18» في runbook-07 وSWARM-GATES §G2 **بالية**؛ أُدرج حارس السوابق في الموضع 3 فأزاح EXPANSION→4 … ACL-CUTOVER-18→19. **تحديث بقرار المالك (2026-07-23):** الموضع 3 أصبح `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02` (تقييد الصرامة بفرع B1 فقط) بديلاً عن `-01` المحظورة نهائياً (NEVER-PROMOTE — انحدار enrollment_certificate). كل المداخل `NOT_APPLIED` (دليل كائنات D-02). الاعتماديات = متطلبات المحتوى ∪ السلف التسلسلي الإلزامي (منع التطبيق الجماعي)؛ المدخل 1 وحده بلا اعتماديات.
 
 | # | canonical_id | المسودة | أبرز شروط الوقف | وضع التفعيل |
 |--:|---|---|---|---|
 | 1 | B1-LOG-AUDIT-CALL-DISAMBIGUATION-01 | REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql | RAISE عند غياب الحملين 6/7؛ فرق عن baseline `cancel_official_document` الملتقط؛ أي ERROR/WARNING؛ غياب إثبات الكائن | معالجة خاملة؛ لا تفعيل |
 | 2 | B1-ACTOR-AUTHORIZATION-HARDENING-02 | STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql | أي ERROR؛ غياب علامات البوابة الصارمة في الدوال الأربع (0-أو-4)؛ رصد طلب B1 جارٍ | تشديد بوابات فقط |
-| 3 | B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01 | B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql | أي ERROR؛ غياب علامات حارس v3؛ عدم تطابق جرد grant/revoke | تشديد الحارس فقط |
+| 3 | B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02 | B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql | أي ERROR؛ غياب علامات حارس v3 أو تقييد v_is_b1؛ عدم تطابق جرد grant/revoke | تشديد الحارس بفرع B1 فقط؛ مسار غير-B1 محفوظ |
 | 4 | B1-PROCESSING-DOMAINS-EXPANSION-03 | REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql | UUID موظف/عضو هيئة مرجعي مفقود/غير نشط؛ عدد تحليل وحدة/دور ≠ 1؛ انحراف عدد عند إعادة التشغيل | بيانات مرجعية فقط؛ الخدمات تبقى غير متاحة |
 | 5 | B1-ATOMIC-SUBMIT-ACTION-04 | REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql | RAISE عقد المشغّل؛ دالة جديدة مفقودة؛ EXECUTE لـ anon/PUBLIC؛ طلب B1 جارٍ | الموزّع يبقى fail-closed |
 | 6 | B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05 | REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql | بقاء placeholder؛ SHA ليس 40-hex صغير؛ غياب دليل النشر؛ عدم إعادة حساب sha256 بعد الإدخال | علامة دليل فقط |
 | 7 | B1-EXT-UNI-PAYMENT-CONFIRMATION-06 | EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql | رفض استبدال CHECK من صفوف موجودة؛ ERROR في تطبيق غير معاملاتي (المسودة بلا BEGIN/COMMIT — يلفّها المشغّل في معاملة واحدة)؛ فشل فحوص الامتيازات | RPC خاملة حتى وجود خطوات الدفع + بوابة التفعيل |
-| 8 | B1-SECURE-ATTACHMENTS-SOURCE-07 | STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql | تعارض bucket لم يحلّه ON CONFLICT؛ أي سياسة تخزين تتجاوز INSERT واحدة؛ بقاء `submit_student_request(uuid)` القديمة قابلة للتنفيذ؛ أي ERROR | المرفقات عبر التقديم الذري فقط؛ موافقة Storage منفصلة |
+| 8 | B1-SECURE-ATTACHMENTS-SOURCE-07 | STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql | تعارض bucket لم يحلّه ON CONFLICT؛ أي سياسة تخزين تتجاوز INSERT واحدة؛ أي REVOKE على `submit_student_request(uuid)` من authenticated (سحب مؤجل لمرحلة cutover منفصلة بقرار المالك — مسار تقديم enrollment_certificate الحي يعتمد عليه)؛ أي ERROR | المرفقات عبر التقديم الذري فقط؛ موافقة Storage منفصلة |
 | 9 | B1-TRUSTED-REFERENCE-VALIDATORS-08 | REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql | جدول/عمود مرجعي مفقود؛ validator قابل للتنفيذ من authenticated/anon؛ أي ERROR | خاملة حتى يناديها الموزّع |
 | 10 | B1-EXCUSED-ABSENCE-VOCABULARY-09 | REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql | RAISE انحراف القيد؛ فشل VALIDATE على صفوف تاريخية (يستلزم إعادة كتابة ممنوعة)؛ تغيّر أعداد family/emergency التاريخية ⇒ وقف (محمي) | الكتابات الجديدة فقط |
 | 11 | B1-EXCUSED-ABSENCE-DETAIL-10 | REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql | RAISE عدم تطابق الأعمدة؛ جرد السياسات ≠ owner_select واحدة بالضبط؛ امتياز لغير المالك/غير service_role | تقوية جدول فقط |
@@ -188,7 +188,7 @@
 
 **متطلبات مشتركة لكل مدخل**: (1) **Preflight**: تأكيد `NOT_APPLIED` بدليل كائنات D-02؛ تأكيد تطبيق السوابق؛ التقاط baselines التراجع الأمامي (pg_get_functiondef / جرد ACL)؛ صفر طلبات B1 جارية حيث يلزم. (2) **قناة التطبيق**: تطبيق يدوي لـ migration واحدة بمشغّل مخوّل (SQL editor أو psql، معاملة واحدة) بعد موافقة بشرية لكل migration — أبداً CI auto-apply أو حزم أو توازي؛ ويثبّت runbook-07 مغلف الأمر الواحد: فحص SHA-256 git-blob قبل/بعد dry-run؛ ممنوع `db push` إن اقترح 0 أو ≥2 migration؛ ممنوع `--include-all`؛ ممنوع `migration repair`؛ ممنوع بديل `psql -f` الخام؛ `Get-FileHash` عبر قناة CRLF غير معتمد. (3) **Verify**: مجسات `expected_object_proof` + اختبارات bun التعاقدية؛ أرجل PG-verifier الخاصة بـ B1 **غير موجودة** (متابعة F1). (4) **فجوة موثقة (F4)**: تحقق المدخل 19 يفحص `has_table_privilege` فقط؛ يلزم PG-verifier يؤكد `relrowsecurity` + جرد `pg_policies` owner_select بعد التحويل.
 
-**مسودات لا تُطبَّق أبداً (4)**: REQUEST-B1-SHARED-FOUNDATION-SOURCE-01 (عقد توثيقي بلا DDL)، SUSPENSION-ABSENCE-SOURCE-01 (مصدرية فقط؛ أجّلها المؤلف)، FILE-WITHDRAWAL-SOURCE-01 (مسودة جزئية ملغاة)، ENROLLMENT-CERTIFICATE-COMPLETION-NOTIFICATION-CORRECTION (خارج نطاق B1، محمية — تمس تدفق enrollment_certificate v2 الحي).
+**مسودات لا تُطبَّق أبداً (5)**: REQUEST-B1-SHARED-FOUNDATION-SOURCE-01 (عقد توثيقي بلا DDL)، SUSPENSION-ABSENCE-SOURCE-01 (مصدرية فقط؛ أجّلها المؤلف)، FILE-WITHDRAWAL-SOURCE-01 (مسودة جزئية ملغاة)، ENROLLMENT-CERTIFICATE-COMPLETION-NOTIFICATION-CORRECTION (خارج نطاق B1، محمية — تمس تدفق enrollment_certificate v2 الحي)، B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01 (**NEVER-PROMOTE** بقرار المالك — صرامة موحدة تكسر enrollment_certificate الحية؛ حلّت محلها -02 في الموضع 3).
 
 ### GATE-09 — PER-MIGRATION-VERIFIER (المحقق بعد كل migration)
 

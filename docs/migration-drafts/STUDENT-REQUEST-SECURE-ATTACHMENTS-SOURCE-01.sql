@@ -204,9 +204,14 @@ REVOKE ALL ON FUNCTION public.create_student_request_attachment_upload_intent(uu
 REVOKE ALL ON FUNCTION public.complete_student_request_attachment_upload(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.assert_required_student_request_attachments(uuid,uuid[]) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) FROM PUBLIC,anon;
--- Mandatory cutover: authenticated callers cannot invoke the pre-attachment
--- boundary. The SECURITY DEFINER wrapper above invokes it as the function owner.
-REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC,anon,authenticated;
+-- DEFERRED CUTOVER (owner decision): the authenticated EXECUTE revoke on the
+-- pre-attachment boundary public.submit_student_request(uuid) is intentionally
+-- NOT applied in this draft. The live enrollment_certificate submit path still
+-- invokes it as authenticated (src/lib/student-request-rpc.ts), so revoking it
+-- now would break the only live service. The revoke is DEFERRED to a separate
+-- cutover phase, after all callers are migrated to
+-- submit_student_request_with_secure_attachments and authorization tests prove
+-- the cutover. authenticated EXECUTE remains exactly as today.
 REVOKE ALL ON FUNCTION public.list_my_student_request_attachments(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.get_owned_student_request_attachment_upload(uuid) FROM PUBLIC,anon;
 REVOKE ALL ON FUNCTION public.authorize_student_request_attachment_download(uuid) FROM PUBLIC,anon;

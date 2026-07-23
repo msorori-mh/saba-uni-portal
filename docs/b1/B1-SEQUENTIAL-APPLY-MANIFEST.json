@@ -104,7 +104,7 @@
   "nodes": [
    "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
    "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-   "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
+   "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
    "B1-PROCESSING-DOMAINS-EXPANSION-03",
    "B1-ATOMIC-SUBMIT-ACTION-04",
    "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
@@ -140,7 +140,7 @@
     "to": "B1-ATOMIC-SUBMIT-ACTION-04"
    },
    {
-    "from": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
+    "from": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
     "to": "B1-ATOMIC-SUBMIT-ACTION-04"
    },
    {
@@ -244,12 +244,12 @@
     "to": "B1-FREE-SERVICE-WORKFLOWS-16"
    },
    {
-    "from": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
+    "from": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
     "to": "B1-PROCESSING-DOMAINS-EXPANSION-03"
    },
    {
     "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-    "to": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01"
+    "to": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02"
    },
    {
     "from": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
@@ -467,18 +467,18 @@
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
   {
-   "canonical_id": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
-   "filename": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql",
+   "canonical_id": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
+   "filename": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql",
    "path": "docs/migration-drafts/",
    "category": "b1_adjacent_runtime_remediation",
    "plan_order": null,
    "sequence_order": 3,
    "sequence_predecessor": "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-   "source_sha": "aedb1d8cff31f13d097a8f6dc798604fa85dc6c9",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "3ef082a214a434471f233fc6b6c1802103ecc2a57004039f9a44359aa10135cb",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content (no B1-plan pin exists for this B1-adjacent entry)",
-   "byte_size": 9896,
+   "source_sha": "3fb5340a431204db12cf30b6a9caef7a55a242f3",
+   "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the owner-approved M3 replacement draft in the working tree; supersedes NEVER-PROMOTE B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
+   "sha256": "54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216",
+   "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified); documented in docs/PORTAL-B1-THIRD-MIGRATION-BLOCKER-ONLY-PREFLIGHT-01-REPORT.md section 8 and runbook-07 row M3",
+   "byte_size": 15835,
    "dependencies": [
     "B1-ACTOR-AUTHORIZATION-HARDENING-02"
    ],
@@ -489,7 +489,7 @@
    "objects_created": [],
    "objects_modified": [],
    "functions": [
-    "can_current_user_act_on_step (v3 predecessor-completion)",
+    "can_current_user_act_on_step (B1-scoped strict: strict runtime/config correspondence, predecessor guard and action gate inside the v_is_b1 branch only; non-B1 path byte-equivalent to the applied 20260723070217 definition)",
     "workflow_runtime_predecessors_satisfied",
     "workflow_action_result_matches"
    ],
@@ -504,17 +504,18 @@
     "GRANT EXECUTE ON FUNCTION public.workflow_action_result_matches(text,text) TO authenticated, service_role;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none -- function logic only",
+   "protected_record_impact": "none -- function logic only; non-B1 path preserved so live enrollment_certificate is untouched",
    "preflight": [
     "assert B1-ACTOR-AUTHORIZATION-HARDENING-02 applied (v2 strict can_current_user_act_on_step present in pg_proc.prosrc)",
     "assert request_type_workflow_transitions / request_type_workflow_steps / student_request_workflow_steps present",
     "capture current can_current_user_act_on_step definition as forward-rollback baseline",
-    "confirm zero in-flight B1 service requests at apply time"
+    "confirm zero in-flight B1 service requests at apply time",
+    "assert draft prosrc scopes strict checks inside the v_is_b1 branch and preserves the non-B1 path (markers: v_is_b1, workflow_runtime_predecessors_satisfied, pending)"
    ],
    "apply_channel": "manual single-migration apply by an authorized operator (Supabase SQL editor or psql with single-transaction enforcement) AFTER explicit per-migration human approval; NEVER via CI auto-apply, NEVER batched, NEVER in parallel",
    "post_verifier": {
     "bun_source_contract_tests": [
-     "tests/student-requests/b1-runtime-predecessor-guard-remediation-01.test.ts"
+     "tests/student-requests/b1-runtime-predecessor-guard-remediation-02.test.ts"
     ],
     "test_note": "source-contract test asserts the draft file content (statements/policies/grants); run via bun test in CI job bun-tests",
     "pg_verifier": null,
@@ -523,19 +524,19 @@
    },
    "expected_object_proof": [
     "workflow_runtime_predecessors_satisfied(uuid) and workflow_action_result_matches(text,text) exist",
-    "prosrc of can_current_user_act_on_step calls workflow_runtime_predecessors_satisfied",
+    "prosrc of can_current_user_act_on_step calls workflow_runtime_predecessors_satisfied only inside the v_is_b1 branch and still contains the pending non-B1 path",
     "EXECUTE on can_current_user_act_on_step(uuid,text) granted to authenticated only (not anon/PUBLIC)"
    ],
    "stop_conditions": [
     "any ERROR during apply",
-    "post-apply can_current_user_act_on_step missing workflow_runtime_predecessors_satisfied call",
+    "post-apply can_current_user_act_on_step missing workflow_runtime_predecessors_satisfied call or missing v_is_b1 scoping",
     "grant/revoke inventory mismatch"
    ],
    "partial_apply_detection": "transactional draft (begin/commit); probe: workflow_runtime_predecessors_satisfied exists AND can_current_user_act_on_step references it; one without the other = partial",
    "rollback_by_forward": "forward CREATE OR REPLACE of can_current_user_act_on_step (and helpers) to corrected definitions; guard logic changes must ship as a new reviewed revision; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "none -- guard tightening only",
    "status": "NOT_APPLIED",
-   "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
+   "status_evidence": "D-02 object evidence (catalog probes show created objects absent); owner approved -02 for chain slot M3 and banned -01 from production permanently (enrollment_certificate regression); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
   {
    "canonical_id": "B1-PROCESSING-DOMAINS-EXPANSION-03",
@@ -544,14 +545,14 @@
    "category": "b1_apply_set",
    "plan_order": 3,
    "sequence_order": 4,
-   "sequence_predecessor": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
+   "sequence_predecessor": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
    "source_sha": "5278c7ace88e993ed214d5c7905a0a31828df910",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
    "sha256": "e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
    "byte_size": 6193,
    "dependencies": [
-    "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01"
+    "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02"
    ],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
@@ -617,7 +618,7 @@
    "dependencies": [
     "B1-PROCESSING-DOMAINS-EXPANSION-03",
     "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-    "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01"
+    "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02"
    ],
    "dependency_semantics": "dependencies = content-level internal prerequisites UNION the mandatory sequential predecessor (batch-apply prevention); external applied-migration prerequisites are listed separately in external_dependencies and are NOT graph edges",
    "external_dependencies": [
@@ -661,7 +662,7 @@
    "storage_impact": "none",
    "protected_record_impact": "none -- functions/triggers only; existing requests/steps untouched",
    "preflight": [
-    "assert B1-PROCESSING-DOMAINS-EXPANSION-03 and B1-ACTOR-AUTHORIZATION-HARDENING-02 and B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01 applied (object evidence)",
+    "assert B1-PROCESSING-DOMAINS-EXPANSION-03 and B1-ACTOR-AUTHORIZATION-HARDENING-02 and B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02 applied (object evidence)",
     "assert workflow runtime + processing assignments schema present; is_valid_actor_request_action exists",
     "assert request_types rows resolvable for the 5 B1 canonical services (incl. stored aliases absence_excuse/transfer/extra_chance)",
     "capture pre-apply trigger inventory on student_requests and student_request_workflow_steps",
@@ -768,11 +769,11 @@
    "plan_order": 6,
    "sequence_order": 7,
    "sequence_predecessor": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
-   "source_sha": "16d24b649310465e2465dda9108206a3a1200061",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
-   "byte_size": 11002,
+   "source_sha": "0a61db10a81f8ee01ff5ada1c0aa5df6a4882204",
+   "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the draft amended for R-3 closure (owner decision): replacement action_type constraint is a superset of the applied one and retains assess_fee",
+   "sha256": "aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993",
+   "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified) after R-3 assess_fee retention; matches runbook-07 order 6 pin",
+   "byte_size": 11257,
    "dependencies": [
     "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
     "B1-ACTOR-AUTHORIZATION-HARDENING-02",
@@ -820,7 +821,7 @@
     "existing_ci_pg_verifiers_cover_this_migration": false
    },
    "expected_object_proof": [
-    "4 widened CHECK constraints present with confirm_payment/clear/apply_decision/payment_confirmed vocabulary",
+    "4 widened CHECK constraints present with confirm_payment/clear/apply_decision/payment_confirmed vocabulary; request_type_workflow_steps_action_type_chk retains assess_fee (superset of the applied constraint)",
     "record_external_university_payment_confirmation(uuid,text,text) present; EXECUTE to authenticated; revoked from PUBLIC,anon",
     "obj_description on the RPC = exact direct-assignee contract comment"
    ],
@@ -843,11 +844,11 @@
    "plan_order": 7,
    "sequence_order": 8,
    "sequence_predecessor": "B1-EXT-UNI-PAYMENT-CONFIRMATION-06",
-   "source_sha": "43d2ee3c23ba8e8b30db35cb09fa1e961ba61d9d",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20",
-   "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
-   "byte_size": 16018,
+   "source_sha": "d21aaaeff26ed11b452e2825932a7a2e5763daed",
+   "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the draft amended for R-2 closure (owner decision): authenticated submit_student_request(uuid) revoke deferred to a separate cutover phase",
+   "sha256": "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
+   "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified) after R-2 revoke deferral; matches runbook-07 order 7 pin",
+   "byte_size": 16361,
    "dependencies": [
     "B1-EXT-UNI-PAYMENT-CONFIRMATION-06",
     "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
@@ -890,7 +891,6 @@
     "REVOKE ALL ON FUNCTION public.complete_student_request_attachment_upload(uuid) FROM PUBLIC,anon;",
     "REVOKE ALL ON FUNCTION public.assert_required_student_request_attachments(uuid,uuid[]) FROM PUBLIC,anon;",
     "REVOKE ALL ON FUNCTION public.submit_student_request_with_secure_attachments(uuid,uuid[]) FROM PUBLIC,anon;",
-    "REVOKE ALL ON FUNCTION public.submit_student_request(uuid) FROM PUBLIC,anon,authenticated;",
     "REVOKE ALL ON FUNCTION public.list_my_student_request_attachments(uuid) FROM PUBLIC,anon;",
     "REVOKE ALL ON FUNCTION public.get_owned_student_request_attachment_upload(uuid) FROM PUBLIC,anon;",
     "REVOKE ALL ON FUNCTION public.authorize_student_request_attachment_download(uuid) FROM PUBLIC,anon;",
@@ -910,7 +910,7 @@
     "confirm NOT_APPLIED via D-02 evidence (bucket student-request-secure-attachments + table student_request_attachment_uploads absent)",
     "assert storage schema available (Supabase storage.buckets/objects) and log_audit 7-arg contract in force (B1-LOG-AUDIT-CALL-DISAMBIGUATION-01)",
     "assert student_requests / student_profiles present",
-    "capture current grant inventory on submit_student_request(uuid) before mandatory cutover REVOKE"
+    "capture current grant inventory on submit_student_request(uuid) as the deferred-cutover baseline (authenticated EXECUTE must remain post-apply)"
    ],
    "apply_channel": "manual single-migration apply by an authorized operator (Supabase SQL editor or psql with single-transaction enforcement) AFTER explicit per-migration human approval; NEVER via CI auto-apply, NEVER batched, NEVER in parallel",
    "post_verifier": {
@@ -926,15 +926,15 @@
     "storage.buckets row student-request-secure-attachments (public=false, 5MiB, 3 mime types)",
     "student_request_attachment_uploads table with RLS enabled and zero table-level SELECT/INSERT/UPDATE/DELETE grants to authenticated",
     "exactly 1 storage.objects policy (secure_attachment_insert) on the bucket",
-    "has_function_privilege('authenticated','public.submit_student_request(uuid)','EXECUTE') = false"
+    "has_function_privilege('authenticated','public.submit_student_request(uuid)','EXECUTE') unchanged (revoke DEFERRED to a separate cutover phase; draft carries the deferral comment)"
    ],
    "stop_conditions": [
     "bucket insert conflict not resolved by ON CONFLICT clause",
     "any storage policy beyond the single INSERT policy post-apply",
-    "submit_student_request(uuid) still executable by authenticated post-apply (cutover failure)",
+    "any REVOKE on submit_student_request(uuid) from authenticated (deferred cutover violation; live enrollment_certificate submit path depends on it)",
     "any ERROR"
    ],
-   "partial_apply_detection": "transactional draft; probe: bucket row, uploads table, 8 functions, 1 storage INSERT policy, submit_student_request revoke -- all-or-nothing checklist",
+   "partial_apply_detection": "transactional draft; probe: bucket row, uploads table, 8 functions, 1 storage INSERT policy -- all-or-nothing checklist (no submit_student_request revoke in this draft; deferred)",
    "rollback_by_forward": "forward: REVOKE the new RPCs and DROP the storage INSERT policy in a new migration to close the surface; uploaded objects in the private bucket are protected records -- never mass-delete; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
    "activation_dependency": "attachment runtime usable only through the atomic submit path; no service activation by itself",
    "status": "NOT_APPLIED",
@@ -1764,6 +1764,13 @@
     "source_sha": "780d5a15952463bafa5064ef7510918129d7df2c",
     "sha256": "b1b157ceceb26e1628261e41ebb825dafafee5d46753af66b02144a7fa37d7c8",
     "reason": "outside B1 scope and PROTECTED: touches the live enrollment_certificate workflow v2 (archive RPC + notifications); B1 must not modify that service; owned by a separate track/decision"
+   },
+   {
+    "filename": "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql",
+    "category": "b1_never_apply",
+    "source_sha": "aedb1d8cff31f13d097a8f6dc798604fa85dc6c9",
+    "sha256": "3ef082a214a434471f233fc6b6c1802103ecc2a57004039f9a44359aa10135cb",
+    "reason": "NEVER-PROMOTE (owner decision): its uniform strict can_current_user_act_on_step for ALL request types breaks the live enrollment_certificate service (p_action = action_type denial on review steps; predecessor guard rejects the assess_fee / payment_required / fee_not_required vocabulary). Superseded in chain slot M3 by B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02; must never be promoted to supabase/migrations"
    }
   ],
   "out_of_scope_non_b1": [
@@ -1980,6 +1987,7 @@
   "activation gate 19 implementation + runbook (B1-MIGRATION-RUNBOOK-07) alignment",
   "ACL-CUTOVER-18 execution-time verification gap: its post-verify DO checks only has_table_privilege matrices; add a pg-verifier asserting relrowsecurity + pg_policies owner_select inventory post-cutover",
   "grants_revokes fields re-derived from actual draft texts (PR #203 review remediation; recon inventory proven fallible on this field)",
-  "historical unauthorized-execution data remediation (impact audit) -- separate track"
+  "historical unauthorized-execution data remediation (impact audit) -- separate track",
+  "DEFERRED submit_student_request(uuid) authenticated-revoke cutover (owner decision, R-2 closure): B1-SECURE-ATTACHMENTS-SOURCE-07 keeps authenticated EXECUTE on the pre-attachment submit boundary because the live enrollment_certificate submit path depends on it; ship the revoke only in a separate cutover phase after all callers are migrated to submit_student_request_with_secure_attachments and positive/negative authorization tests prove the cutover"
  ]
 }

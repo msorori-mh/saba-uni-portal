@@ -67,7 +67,7 @@ repair, delete, clean up, or continue the sequence.
 `enrollment_suspension` is the first service promoted, but its atomic dispatcher,
 workflow actor contract and final ACL cutover are five-service coordinated
 boundaries. There is no approved safe extraction that applies only part of the
-dispatcher/cutover. Therefore orders 1–18 below must pass sequentially while
+dispatcher/cutover. Therefore orders 1–20 below must pass sequentially while
 **all five services stay fail-closed**. Only afterward may the separately gated
 `enrollment_suspension` workflow/RPC/E2E/visibility sequence begin. This does not
 activate or implement any of the other four services.
@@ -79,25 +79,35 @@ activate or implement any of the other four services.
 |   1 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql`     | `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357` | Replace placeholder only with independently proven actual deploy SHA |
 |   2 | `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql`            | `3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab` | Explicit typed audit-call contract before dependent RPCs             |
 |   3 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | Exact actor tuples; no bypass                                        |
-|   4 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql`         | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department   |
-|   5 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Atomic fail-closed submit/action foundation                          |
-|   6 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
-|   7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20` | Private bucket/policy approval still required; no public URLs        |
-|   8 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`            | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references                                       |
-|   9 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`              | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Coupled compile order; no activation/backfill                        |
-|  10 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`                  | `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` | Coupled five-service dispatcher/cutover prerequisite                 |
-|  11 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql`                 | `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9` | Coupled five-service dispatcher/cutover prerequisite                 |
-|  12 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql`              | `d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284` | Coupled five-service dispatcher/cutover prerequisite                 |
-|  13 | `FINAL-CHANCE-CANONICAL-WRITE-03.sql`                        | `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704` | Coupled prerequisite; no historical scan/backfill                    |
-|  14 | `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql`             | `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495` | Install primitive; do not invoke cutover yet                         |
-|  15 | `REQUEST-B1-SERVICE-DETAILS-05A.sql`                         | `d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c` | Exact dispatcher including suspension details                        |
-|  16 | `B1-FREE-SERVICE-WORKFLOWS-08.sql`                           | `1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c` | Three inactive suspension steps; no payment step                     |
-|  17 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql`               | `64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250` | Other paid workflows stay inactive                                   |
-|  18 | `REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql`                       | `55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383` | Requires release stamp; verifies all five boundaries atomically      |
+|   4 | `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql`            | `54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216` | M3-02: B1-scoped predecessor/action guard; `-01` is NEVER-PROMOTE    |
+|   5 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql`         | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department   |
+|   6 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Atomic fail-closed submit/action foundation                          |
+|   7 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
+|   8 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356` | Private bucket/policy approval still required; no public URLs        |
+|   9 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`            | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references                                       |
+|  10 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`              | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Coupled compile order; no activation/backfill                        |
+|  11 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`                  | `1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe` | Coupled five-service dispatcher/cutover prerequisite                 |
+|  12 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql`                 | `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9` | Coupled five-service dispatcher/cutover prerequisite                 |
+|  13 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql`              | `d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284` | Coupled five-service dispatcher/cutover prerequisite                 |
+|  14 | `FINAL-CHANCE-CANONICAL-WRITE-03.sql`                        | `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704` | Coupled prerequisite; no historical scan/backfill                    |
+|  15 | `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql`             | `85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495` | Install primitive; do not invoke cutover yet                         |
+|  16 | `REQUEST-B1-SERVICE-DETAILS-05A.sql`                         | `d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c` | Exact dispatcher including suspension details                        |
+|  17 | `B1-FREE-SERVICE-WORKFLOWS-08.sql`                           | `1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c` | Three inactive suspension steps; no payment step                     |
+|  18 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql`               | `64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250` | Other paid workflows stay inactive                                   |
+|  19 | `REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql`                       | `55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383` | Requires release stamp; verifies all five boundaries atomically      |
+|  20 | `B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql`  | `5cd98b77f8f6cce1229f91e86fdf8d4b029b0bb8fa1c6826c9cd10370101b462` | Final hardening (R-1): B1-scoped exact binding; last entry           |
 
 Hashes are authoritative only for LF-normalized Git blob bytes at the pinned
 source. Before each future promotion, recompute from the reviewed commit and
 reject any mismatch. Documentary/superseded drafts remain forbidden.
+
+**Re-pin addendum (owner decision, 2026-07-23):** the coordinated pack is now
+**20** drafts: M3-02 is row 4, ACL cutover is row 19, and final actor-action
+hardening is row 20. Payment/attachments rows were re-pinned after R-3/R-2
+(`aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993` /
+`6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356`). The
+sequential-apply manifest apply-set remains the first 19 runtime drafts;
+final hardening is the last coordinated entry (harness/order 20).
 
 ## Read-only before queries (future approved target only)
 
@@ -105,7 +115,7 @@ These query intents must be implemented/captured by an approved operator in a
 safe preflight session; they were **not executed here**:
 
 ```sql
--- migration history: prove none of the 18 promoted versions exists
+-- migration history: prove none of the 20 promoted versions exists
 select version, name from supabase_migrations.schema_migrations order by version;
 
 -- capture both audit overload signatures before order 2; calls must bind 7 args

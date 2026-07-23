@@ -29,7 +29,11 @@ describe("B1 five-services F1/F2 forward-only authorization remediation", () => 
     expect(sql).toContain("v_step.processing_unit_id,v_step.processing_role_id");
     expect(sql).toContain("user_matches_workflow_runtime_step(p_step_id)");
     expect(sql).toContain("workflow_runtime_predecessors_satisfied(p_step_id)");
-    expect(sql).toMatch(/if\s+public\.is_b1_stored_request_type\s*\(\s*v_request_type\s*\)\s+and\s+not\s+public\.current_user_has_exact_processing_binding\(/i);
+    // R-1: v_is_b1 is computed once, then exact binding is gated on that flag
+    // (not an inline is_b1_stored_request_type(...) call inside the IF).
+    expect(sql).toMatch(/v_is_b1\s*:=\s*public\.is_b1_stored_request_type\s*\(\s*v_request_type\s*\)\s*;/i);
+    expect(sql).toMatch(/if\s+v_is_b1\s+and\s+not\s+public\.current_user_has_exact_processing_binding\(/i);
+    expect(sql).not.toMatch(/if\s+public\.is_b1_stored_request_type\s*\(\s*v_request_type\s*\)\s+and\s+not\s+public\.current_user_has_exact_processing_binding\(/i);
     // All eight stored B1 codes (legacy aliases + canonical forms) are covered
     // via the shared stored-code predicate.
     expect(predicateBody).not.toBe("");

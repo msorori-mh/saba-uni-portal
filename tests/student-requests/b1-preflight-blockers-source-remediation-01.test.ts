@@ -78,15 +78,23 @@ describe("B1 preflight blockers source remediation 01", () => {
   });
 
   it("orders log_audit before actor hardening and attachments", () => {
-    expect(runbook.indexOf("REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql")).toBeLessThan(
-      runbook.indexOf("STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql"),
+    const tableStart = runbook.indexOf("| Order |");
+    expect(tableStart).toBeGreaterThan(-1);
+    const sequenceTable = runbook.slice(tableStart);
+    const logAudit = sequenceTable.indexOf("| 1 | `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql`");
+    const actor = sequenceTable.indexOf("| 2 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql`");
+    const m302 = sequenceTable.indexOf("| M3 | `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql`");
+    const attachments = sequenceTable.indexOf(
+      "| 7 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`",
     );
-    expect(
-      runbook.indexOf("STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql"),
-    ).toBeLessThan(runbook.indexOf("STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql"));
+    expect(logAudit).toBeGreaterThan(-1);
+    expect(actor).toBeGreaterThan(logAudit);
+    expect(m302).toBeGreaterThan(actor);
+    expect(attachments).toBeGreaterThan(m302);
     expect(inventory).toContain("first B1 runtime migration");
     expect(inventory).toContain("a source blocker");
-    expect(runbook).toContain("bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20");
+    expect(runbook).toContain("6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356");
+    expect(runbook).toContain("54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216");
     expect(runbook).toContain("d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284");
   });
 
