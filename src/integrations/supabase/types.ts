@@ -6216,6 +6216,14 @@ export type Database = {
         Args: { _council: string; _date: string; _user: string }
         Returns: boolean
       }
+      workflow_action_result_matches: {
+        Args: { p_action_type: string; p_result: string }
+        Returns: boolean
+      }
+      workflow_runtime_predecessors_satisfied: {
+        Args: { p_step_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       academic_council_decision_status:
