@@ -21,7 +21,8 @@ INSERT INTO public.student_requests(id, request_number, student_profile_id, requ
   ('ce000000-0000-4000-8000-00000000000a','T-SUSP-03','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft'),
   ('ce000000-0000-4000-8000-00000000000b','T-TRANS-02','33333333-3333-4333-8333-333333333301','transfer','draft'),
   ('ce000000-0000-4000-8000-00000000000c','T-SUSP-04','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft'),
-  ('ce000000-0000-4000-8000-00000000000d','T-SUSP-05','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft')
+  ('ce000000-0000-4000-8000-00000000000d','T-SUSP-05','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft'),
+  ('ce000000-0000-4000-8000-00000000000f','T-SUSP-SCOPE','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft')
 ON CONFLICT (id) DO NOTHING;
 
 -- non-B1 runtime step for M35 (no B1 boundary applies to this request type)
@@ -30,6 +31,66 @@ INSERT INTO public.student_request_workflow_steps(
 VALUES ('be000000-0000-4000-8000-00000000000e','ce000000-0000-4000-8000-000000000008',
         'legacy_review','Legacy review',1,'active')
 ON CONFLICT (id) DO NOTHING;
+
+-- Binding-scope regression fixtures. Both steps have the same direct assignee,
+-- exact config/runtime unit+role, legal submit predecessor, and one legal
+-- outgoing action. The actor intentionally has no processing binding.
+-- The scope workflows stay 'draft'/inactive: the atomic submit RPC enforces
+-- exactly one active workflow per request type
+-- (B1_ACTIVE_WORKFLOW_MUST_RESOLVE_ONCE), and can_current_user_act_on_step
+-- never consults workflow status, so the SCOPE-01/02 contract is unchanged.
+INSERT INTO public.request_type_workflows(
+  id,request_type_id,code,name_ar,version,status,is_active)
+VALUES
+  ('ec100000-0000-4000-8000-000000000001','99999999-0000-4000-8000-000000000009','scope-enrollment-certificate','Scope certificate',1,'draft',false),
+  ('ec100000-0000-4000-8000-000000000002','99999999-0000-4000-8000-000000000001','scope-enrollment-suspension','Scope suspension',1,'draft',false);
+
+INSERT INTO public.request_type_workflow_steps(
+  id,workflow_id,step_key,step_name_ar,step_order,processing_unit_id,
+  processing_role_id,assignment_strategy,action_type,status_on_enter,status_on_complete)
+VALUES
+  ('ec200000-0000-4000-8000-000000000001','ec100000-0000-4000-8000-000000000001','scope_archive','Scope archive',1,
+   'aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-000000000006','specific_user','archive','active','completed'),
+  ('ec200000-0000-4000-8000-000000000002','ec100000-0000-4000-8000-000000000002','scope_archive','Scope archive',1,
+   'aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-000000000006','specific_user','archive','active','completed');
+
+INSERT INTO public.request_type_workflow_transitions(
+  id,workflow_id,from_step_id,to_step_id,action_result,is_default)
+VALUES
+  ('ec400000-0000-4000-8000-000000000001','ec100000-0000-4000-8000-000000000001',NULL,'ec200000-0000-4000-8000-000000000001','submit',true),
+  ('ec400000-0000-4000-8000-000000000002','ec100000-0000-4000-8000-000000000001','ec200000-0000-4000-8000-000000000001',NULL,'archived',true),
+  ('ec400000-0000-4000-8000-000000000003','ec100000-0000-4000-8000-000000000002',NULL,'ec200000-0000-4000-8000-000000000002','submit',true),
+  ('ec400000-0000-4000-8000-000000000004','ec100000-0000-4000-8000-000000000002','ec200000-0000-4000-8000-000000000002',NULL,'archived',true);
+
+-- Harness state construction (NOT an RPC bypass claim), same sanctioned
+-- boundary path as e_rpcmatrix.advance_to: direct DML on a B1 runtime step
+-- (enrollment_suspension request ce000000-...-000f) trips the seq05
+-- trg_guard_b1_runtime_mutation_boundary trigger unless the b1.atomic_init
+-- GUC is set. The DO block keeps the tx-local set_config scoped to this one
+-- statement so the GUC cannot leak into later statements in the file.
+DO $scope_fixtures$
+BEGIN
+  PERFORM set_config('b1.atomic_init','1',true);
+  INSERT INTO public.student_request_workflow_steps(
+    id,student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,
+    step_order,processing_unit_id,processing_role_id,assigned_user_id,status,entered_at)
+  VALUES
+    ('ec300000-0000-4000-8000-000000000001','ce000000-0000-4000-8000-000000000008','ec100000-0000-4000-8000-000000000001','ec200000-0000-4000-8000-000000000001',
+     'scope_archive','Scope archive',1,'aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-000000000006','22222222-2222-4222-8222-22222222220f','active',now()),
+    ('ec300000-0000-4000-8000-000000000002','ce000000-0000-4000-8000-00000000000f','ec100000-0000-4000-8000-000000000002','ec200000-0000-4000-8000-000000000002',
+     'scope_archive','Scope archive',1,'aaaaaaaa-0000-4000-8000-000000000005','bbbbbbbb-0000-4000-8000-000000000006','22222222-2222-4222-8222-22222222220f','active',now());
+END
+$scope_fixtures$;
+
+SELECT e_rpcmatrix.exec_case('SCOPE-01','b1-direct-assignee-without-binding-denied','OK',
+ '22222222-2222-4222-8222-22222222220f',
+ format($$SELECT 1 / ((NOT public.can_current_user_act_on_step(%L::uuid,'archive'))::integer)$$,
+   'ec300000-0000-4000-8000-000000000002'));
+
+SELECT e_rpcmatrix.exec_case('SCOPE-02','enrollment-certificate-preserves-pre-b1-binding-contract','OK',
+ '22222222-2222-4222-8222-22222222220f',
+ format($$SELECT 1 / ((public.can_current_user_act_on_step(%L::uuid,'archive'))::integer)$$,
+   'ec300000-0000-4000-8000-000000000001'));
 
 -- secure-attachment fixtures (attached state, owner = student1 user)
 INSERT INTO public.student_request_attachment_uploads(

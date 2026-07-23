@@ -32,11 +32,15 @@ declare
   v_uid uuid:=auth.uid();
   v_step public.student_request_workflow_steps%rowtype;
   v_config public.request_type_workflow_steps%rowtype;
+  v_request_type text;
   v_transition_count integer;
 begin
   if v_uid is null or p_step_id is null or not public.is_valid_actor_request_action(p_action) then return false; end if;
   select * into v_step from public.student_request_workflow_steps where id=p_step_id;
   if not found or v_step.status<>'active' or public.is_owner_of_request(v_uid,v_step.student_request_id) then return false; end if;
+  select r.request_type into v_request_type from public.student_requests r
+    where r.id=v_step.student_request_id;
+  if not found then return false; end if;
   select * into v_config from public.request_type_workflow_steps
     where id=v_step.workflow_step_id and workflow_id=v_step.workflow_id;
   if not found or v_config.step_key is distinct from v_step.step_key then return false; end if;
@@ -45,10 +49,12 @@ begin
   if not public.workflow_runtime_predecessors_satisfied(p_step_id) then return false; end if;
   if not public.user_matches_workflow_runtime_step(p_step_id) then return false; end if;
 
-  -- A direct runtime assignee proves identity, not current authority. Require the
-  -- same user to retain one active, started, unexpired binding for this exact
-  -- unit/role. This closes inactive/expired/future assignment authorization.
-  if not public.current_user_has_exact_processing_binding(
+  -- For the five B1 services, a direct runtime assignee proves identity, not
+  -- current authority. Preserve the pre-existing contract for every non-B1
+  -- request type, including enrollment_certificate.
+  if v_request_type in (
+    'enrollment_suspension','absence_excuse','file_withdrawal','transfer','extra_chance'
+  ) and not public.current_user_has_exact_processing_binding(
     v_step.processing_unit_id,v_step.processing_role_id
   ) then return false; end if;
 
@@ -93,6 +99,11 @@ begin
   select p.prosrc into v_src from pg_proc p
   where p.oid='public.can_current_user_act_on_step(uuid,text)'::regprocedure;
   if position('current_user_has_exact_processing_binding' in coalesce(v_src,''))=0
+     or position('enrollment_suspension' in coalesce(v_src,''))=0
+     or position('absence_excuse' in coalesce(v_src,''))=0
+     or position('file_withdrawal' in coalesce(v_src,''))=0
+     or position('transfer' in coalesce(v_src,''))=0
+     or position('extra_chance' in coalesce(v_src,''))=0
      or position('workflow_runtime_predecessors_satisfied' in coalesce(v_src,''))=0 then
     raise exception 'B1_FIVE_SERVICES_AUTHORIZATION_GUARD_POSTCHECK_FAILED';
   end if;
