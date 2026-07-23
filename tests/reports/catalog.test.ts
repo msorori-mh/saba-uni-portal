@@ -125,9 +125,19 @@ describe("status rules (six-status invariants)", () => {
     }
   });
 
-  test("exactly one LIVE entry exists (student self-service), per inventory", () => {
+  test("the LIVE set is exactly the six proven admin sections + student self-service", () => {
+    // ADMIN-REPORTS-TEST-HARDENING-AND-CATALOG-RECONCILIATION-01 promoted the
+    // six wired /admin/reports sections after the tests pillar was added.
     const live = REPORT_CATALOG_ENTRIES.filter((entry) => entry.status === "LIVE");
-    expect(live.map((entry) => entry.report_code)).toEqual(["STU-SELF-SERVICE-VIEWS"]);
+    expect(live.map((entry) => entry.report_code)).toEqual([
+      "ADM-STUDENTS-DIRECTORY",
+      "ADM-IMPORT-JOBS",
+      "ADM-STUDENT-ACCOUNTS",
+      "ADM-ACADEMIC-STRUCTURE",
+      "ADM-SCHEDULE-SUITE",
+      "ADM-STUDENT-REQUESTS",
+      "STU-SELF-SERVICE-VIEWS",
+    ]);
   });
 
   test("SOURCE_READY entries never claim a route", () => {
