@@ -8,7 +8,7 @@ ALTER TABLE public.request_type_workflow_steps
   DROP CONSTRAINT IF EXISTS request_type_workflow_steps_action_type_chk;
 -- Replacement vocabulary is a strict superset of the currently applied
 -- constraint (20260711195110): 'assess_fee' is retained because the live
--- enrollment_certificate fee machinery requires it; 'clear' and
+-- fee-assessment workflow requires it; 'clear' and
 -- 'apply_decision' are the only additions.
 ALTER TABLE public.request_type_workflow_steps
   ADD CONSTRAINT request_type_workflow_steps_action_type_chk

@@ -11,6 +11,9 @@ const report = readFileSync(
 const normalized = report.replace(/\s+/g, " ");
 const drafts = join(root, "docs", "migration-drafts");
 
+// Coordinated 20-entry pack as listed in the preflight report table
+// (stamp-first documentation order; M3-02 after actor hardening; final
+// hardening last; ACL cutover remains entry 19).
 const ordered = [
   [
     "REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql",
@@ -25,6 +28,10 @@ const ordered = [
     "0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0",
   ],
   [
+    "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql",
+    "54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216",
+  ],
+  [
     "REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql",
     "e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf",
   ],
@@ -34,11 +41,11 @@ const ordered = [
   ],
   [
     "EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql",
-    "da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b",
+    "aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993",
   ],
   [
     "STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql",
-    "bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20",
+    "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
   ],
   [
     "REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql",
@@ -84,6 +91,10 @@ const ordered = [
     "REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql",
     "55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383",
   ],
+  [
+    "B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql",
+    "5cd98b77f8f6cce1229f91e86fdf8d4b029b0bb8fa1c6826c9cd10370101b462",
+  ],
 ] as const;
 
 describe("B1 release and enrollment-suspension preflight pack", () => {
@@ -95,7 +106,7 @@ describe("B1 release and enrollment-suspension preflight pack", () => {
   });
 
   test("pins exact coordinated order and current LF hashes", () => {
-    expect(ordered).toHaveLength(18);
+    expect(ordered).toHaveLength(20);
     let cursor = -1;
     for (const [file, expected] of ordered) {
       const next = report.indexOf(`\`${file}\``, cursor + 1);
@@ -105,6 +116,9 @@ describe("B1 release and enrollment-suspension preflight pack", () => {
       expect(createHash("sha256").update(bytes, "utf8").digest("hex")).toBe(expected);
       expect(report).toContain(expected);
     }
+    // Final hardening remains the last coordinated entry; ACL cutover precedes it.
+    expect(ordered[18][0]).toBe("REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql");
+    expect(ordered[19][0]).toBe("B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql");
   });
 
   test("proves all five services remain fail closed before migrations", () => {
@@ -132,7 +146,7 @@ describe("B1 release and enrollment-suspension preflight pack", () => {
     ])
       expect(normalized).toContain(token);
     expect(report).toContain("public.log_audit(text,uuid,text,jsonb,jsonb,text,uuid)");
-    expect(report).toContain("none of the 18 promoted versions exists");
+    expect(report).toContain("none of the 20 promoted versions exists");
   });
 
   test("documents but never authorizes or claims execution", () => {

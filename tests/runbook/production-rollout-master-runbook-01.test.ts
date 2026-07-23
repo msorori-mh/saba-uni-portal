@@ -38,7 +38,7 @@ const GATES = [
 const B1_IDS = [
   "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
   "B1-ACTOR-AUTHORIZATION-HARDENING-02",
-  "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01",
+  "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02",
   "B1-PROCESSING-DOMAINS-EXPANSION-03",
   "B1-ATOMIC-SUBMIT-ACTION-04",
   "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
@@ -155,7 +155,7 @@ describe("B1 sequence is exactly 19 entries, canonical order", () => {
     }
   });
   test("PREDECESSOR-GUARD-REMEDIATION is entry 3 and ACL-CUTOVER-18 is entry 19", () => {
-    expect(doc).toContain("| 3 | B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01 |");
+    expect(doc).toContain("| 3 | B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02 |");
     expect(doc).toContain("| 19 | B1-DETAIL-ACL-CUTOVER-18 |");
     expect(doc).toContain("| 1 | B1-LOG-AUDIT-CALL-DISAMBIGUATION-01 |");
   });

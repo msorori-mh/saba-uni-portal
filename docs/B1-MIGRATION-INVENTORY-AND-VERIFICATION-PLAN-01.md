@@ -44,10 +44,10 @@ git cat-file blob <rev>:docs/migration-drafts/<file.sql> | python -c "import sys
      placeholder. Services remain inactive.
 
 6. `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`
-   - Current SHA-256: `da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b`.
+   - Current SHA-256: `aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993`.
 
 7. `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`
-   - Current SHA-256: `bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20`.
+   - Current SHA-256: `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356`.
    - Depends on log_audit remediation, actor hardening, workflow tables, and a
      separately approved private bucket/policy plan. Explicit typed 7-arg
      `log_audit` calls only.

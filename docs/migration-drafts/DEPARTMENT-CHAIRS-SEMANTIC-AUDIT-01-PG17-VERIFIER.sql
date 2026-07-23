@@ -2,7 +2,121 @@
 -- DEPARTMENT-CHAIRS-SEMANTIC-AUDIT-01-PG17-VERIFIER
 -- Local PG 17.10 harness ONLY. Runs the SAME classification body as
 -- DEPARTMENT-CHAIRS-SEMANTIC-AUDIT-READONLY-01.sql (the block between the
--- -- >>SHARED:CLASSIFICATION_BODY>> / -- <<SHARED:CLASSIFICATION_BODY>>
+-- -- >>SHARED:CLASSIFICATION_BODY>>
+chair_scope AS (
+  -- semantic anchor: exact unit code + exact role code, both active
+  SELECT u.id AS unit_id, r.id AS role_id
+  FROM request_processing_units u
+  JOIN request_processing_roles r ON r.unit_id = u.id
+  WHERE u.code = 'department'
+    AND u.is_active
+    AND r.code = 'department_head'
+    AND r.is_active
+),
+chair_assignments AS (
+  SELECT
+    a.id,
+    a.department_id,
+    a.faculty_profile_id,
+    a.is_active,
+    (a.is_active
+       AND (a.starts_at IS NULL OR a.starts_at <= now())
+       AND (a.ends_at   IS NULL OR a.ends_at   >  now())) AS is_current,
+    (a.is_active
+       AND NOT ((a.starts_at IS NULL OR a.starts_at <= now())
+            AND (a.ends_at   IS NULL OR a.ends_at   >  now()))) AS is_window_inactive
+  FROM request_processing_assignments a
+  JOIN chair_scope cs ON cs.unit_id = a.unit_id AND cs.role_id = a.role_id
+  WHERE a.assignment_type = 'faculty_profile'
+),
+per_dept AS (
+  SELECT
+    p.dept_label,
+    p.dept_id,
+    p.expected_employee_number,
+    (SELECT count(*) FROM faculty_profiles fp
+      WHERE fp.employee_number = p.expected_employee_number) AS matched_profile_count,
+    (SELECT count(*) FROM chair_assignments ca
+      WHERE ca.department_id = p.dept_id) AS total_assignment_count,
+    (SELECT count(*) FROM chair_assignments ca
+      WHERE ca.department_id = p.dept_id AND ca.is_current) AS active_assignment_count,
+    (SELECT count(*) FROM chair_assignments ca
+      WHERE ca.department_id = p.dept_id AND NOT ca.is_active) AS inactive_assignment_count,
+    (SELECT count(*) FROM chair_assignments ca
+      WHERE ca.department_id = p.dept_id AND ca.is_window_inactive) AS expired_window_count
+  FROM expected_chairs p
+),
+single_active AS (
+  -- populated only when exactly one active assignment exists (cardinality = 1)
+  SELECT
+    pd.dept_label,
+    ca.faculty_profile_id AS holder_fp_id,
+    fp.employee_number AS holder_employee_number,
+    fp.department_id AS holder_dept_id
+  FROM per_dept pd
+  LEFT JOIN chair_assignments ca
+    ON ca.department_id = pd.dept_id AND ca.is_current
+  LEFT JOIN faculty_profiles fp
+    ON fp.id = ca.faculty_profile_id
+  WHERE pd.active_assignment_count = 1
+),
+resolved AS (
+  SELECT
+    pd.*,
+    sa.holder_fp_id,
+    sa.holder_employee_number,
+    sa.holder_dept_id,
+    (pd.active_assignment_count = 1
+       AND (sa.holder_fp_id IS NULL OR sa.holder_employee_number IS NULL)) AS identity_unresolved,
+    (SELECT count(*) FROM chair_assignments ca
+      JOIN faculty_profiles fp ON fp.id = ca.faculty_profile_id
+      WHERE ca.department_id = pd.dept_id
+        AND ca.is_current
+        AND fp.department_id IS DISTINCT FROM pd.dept_id) AS wrong_unit_count,
+    GREATEST(pd.active_assignment_count - 1, 0) AS duplicate_count,
+    (SELECT count(*) FROM chair_assignments ca
+      WHERE ca.is_current
+        AND ca.department_id NOT IN (SELECT dept_id FROM expected_chairs)) AS out_of_scope_active_head_count
+  FROM per_dept pd
+  LEFT JOIN single_active sa ON sa.dept_label = pd.dept_label
+)
+SELECT
+  dept_label,
+  expected_employee_number AS expected_academic_number,
+  matched_profile_count,
+  active_assignment_count,
+  ('request_processing_assignments(unit=department,role=department_head,type=faculty_profile) -> ' ||
+    CASE
+      WHEN active_assignment_count = 1 AND NOT identity_unresolved
+        THEN 'faculty_profile ' || holder_employee_number ||
+             ' holder_dept=' || COALESCE(holder_dept_id::text, 'NULL')
+      WHEN active_assignment_count = 1
+        THEN 'UNRESOLVED_IDENTITY(null_or_missing_faculty_profile_link)'
+      WHEN active_assignment_count > 1
+        THEN active_assignment_count || '_concurrent_active_assignments'
+      ELSE 'no_currently_effective_assignment'
+    END) AS semantic_position,
+  wrong_unit_count,
+  duplicate_count,
+  inactive_assignment_count,
+  expired_window_count,
+  out_of_scope_active_head_count,
+  CASE
+    WHEN matched_profile_count > 1 THEN 'AMBIGUOUS'
+    WHEN active_assignment_count > 1 THEN 'DUPLICATE'
+    WHEN active_assignment_count = 1 AND identity_unresolved THEN 'AMBIGUOUS'
+    WHEN active_assignment_count = 1
+         AND holder_dept_id IS DISTINCT FROM dept_id THEN 'WRONG_UNIT'
+    WHEN active_assignment_count = 1
+         AND holder_employee_number IS DISTINCT FROM expected_employee_number THEN 'WRONG_IDENTITY'
+    WHEN active_assignment_count = 1 THEN 'MATCHED'
+    WHEN inactive_assignment_count > 0 THEN 'INACTIVE'
+    WHEN expired_window_count > 0 THEN 'EXPIRED'
+    ELSE 'MISSING'
+  END AS final_classification
+FROM resolved
+ORDER BY dept_label
+-- <<SHARED:CLASSIFICATION_BODY>>
 -- markers is byte-identical; a bun static test enforces this) against the
 -- b_chairs fixture schema and asserts, fail-closed:
 --   * all 8 fixture departments classify exactly as designed;

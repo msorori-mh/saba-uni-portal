@@ -182,9 +182,10 @@ describe("batch-apply prevention policies", () => {
 });
 
 describe("excluded and verifier mapping", () => {
-  test("never-apply section lists exactly 4 drafts, each with a reason and hashes", () => {
+  test("never-apply section lists exactly 5 drafts, each with a reason and hashes", () => {
     const na = manifest.excluded.never_apply;
-    expect(na.length).toBe(4);
+    expect(na.length).toBe(5);
+    expect(na.some((x: { filename: string }) => x.filename === "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql")).toBe(true);
     for (const x of na) {
       expect(String(x.reason).length).toBeGreaterThan(10);
       expect(x.source_sha).toMatch(/^[0-9a-f]{40}$/);
