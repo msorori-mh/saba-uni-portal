@@ -773,7 +773,7 @@
    "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the draft amended for R-3 closure (owner decision): replacement action_type constraint is a superset of the applied one and retains assess_fee",
    "sha256": "aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993",
    "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified) after R-3 assess_fee retention; matches runbook-07 order 6 pin",
-   "byte_size": 11270,
+   "byte_size": 11257,
    "dependencies": [
     "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
     "B1-ACTOR-AUTHORIZATION-HARDENING-02",
