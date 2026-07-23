@@ -5858,6 +5858,14 @@ export type Database = {
         }[]
       }
       current_user_app_roles: { Args: never; Returns: string[] }
+      current_user_has_exact_processing_binding: {
+        Args: { p_role_id: string; p_unit_id: string }
+        Returns: boolean
+      }
+      current_user_matches_transfer_department_scope: {
+        Args: { p_step_id: string; p_step_key: string }
+        Returns: boolean
+      }
       current_user_processing_assignments: {
         Args: never
         Returns: {
@@ -6086,6 +6094,16 @@ export type Database = {
       }
       is_valid_actor_request_action: {
         Args: { p_action: string }
+        Returns: boolean
+      }
+      is_valid_b1_runtime_step_contract: {
+        Args: {
+          p_action_type: string
+          p_request_type: string
+          p_role_code: string
+          p_step_key: string
+          p_unit_code: string
+        }
         Returns: boolean
       }
       issue_enrollment_certificate_from_workflow_step: {
