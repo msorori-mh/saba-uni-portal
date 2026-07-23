@@ -1,5 +1,6 @@
 /**
  * ENROLLMENT-CERTIFICATE-COMPLETION-NOTIFICATION-UI-ROUTING-VERIFICATION-01
+ * (+ REMEDIATION-01: strict UUID validation inside the link builder)
  *
  * Client-side routing + guard verification for the
  * `student_request_completed` notification (enrollment-certificate
@@ -10,8 +11,9 @@
  * Complements the existing DB-side creation contract tests
  * (tests/student-requests/student-request-completed-notification*.test.ts)
  * which lock the migration-side INSERT. This file locks the UI routing
- * side: link builder behavior, bell open flow, route guards, and the
- * notifications RLS UPDATE policy that makes mark-as-read user-scoped.
+ * side: link builder behavior (including strict UUID validation of
+ * reference_id), bell open flow, route guards, and the notifications RLS
+ * UPDATE policy that makes mark-as-read user-scoped.
  *
  * All Arabic literals are written as \uXXXX escapes to keep this file
  * pure ASCII.
@@ -52,6 +54,13 @@ describe("1) getNotificationLink routing contract (unit)", () => {
     expect(getNotificationLink(COMPLETED)).toBe(`/student/requests/${VALID_ID}`);
   });
 
+  it("an uppercase canonical UUID is accepted", () => {
+    const upper = VALID_ID.toUpperCase();
+    expect(getNotificationLink({ ...COMPLETED, reference_id: upper })).toBe(
+      `/student/requests/${upper}`,
+    );
+  });
+
   it("an unsupported reference_type yields no link (null)", () => {
     for (const reference_type of ["official_document", "payment_receipt", "student_grade", "student_fee", null]) {
       expect(getNotificationLink({ ...COMPLETED, reference_type })).toBeNull();
@@ -69,29 +78,64 @@ describe("1) getNotificationLink routing contract (unit)", () => {
     }
   });
 
+  it("a partial or malformed UUID yields null", () => {
+    const rejected = [
+      "11111111-2222-3333-4444",
+      "11111111-2222-3333-4444-55555555555",
+      "11111111-2222-3333-4444-5555555555555",
+      "11111111-2222-3333-4444-55555555555g",
+      "11111111222233334444555555555555",
+      "11111111_2222_3333_4444_555555555555",
+    ];
+    for (const reference_id of rejected) {
+      expect(getNotificationLink({ ...COMPLETED, reference_id })).toBeNull();
+    }
+  });
+
+  it("a UUID with extra text or separators yields null", () => {
+    const rejected = [
+      `${VALID_ID}x`,
+      `x${VALID_ID}`,
+      `${VALID_ID} extra`,
+      `${VALID_ID}/admin`,
+      `${VALID_ID}?tab=document`,
+      `${VALID_ID}#fragment`,
+    ];
+    for (const reference_id of rejected) {
+      expect(getNotificationLink({ ...COMPLETED, reference_id })).toBeNull();
+    }
+  });
+
+  it("any non-UUID reference_id yields null (paths, URLs, encoded payloads, ? / # / /)", () => {
+    const rejected = [
+      "../../admin/requests",
+      "%2e%2e%2fadmin",
+      "/admin",
+      "//evil.example",
+      "https://evil.example",
+      "javascript:alert(1)",
+      "a/b",
+      "a?b",
+      "a#b",
+      "https:%2f%2fevil.example",
+      " ",
+    ];
+    for (const reference_id of rejected) {
+      expect(getNotificationLink({ ...COMPLETED, reference_id })).toBeNull();
+    }
+  });
+
+  it("the builder enforces strict UUID validation internally (structural)", () => {
+    const src = read(LINK_SRC);
+    expect(src).toContain("UUID_RE");
+    expect(src).toContain("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+    expect(src).toContain("UUID_RE.test(n.reference_id)");
+  });
+
   it("the builder never consults title/message/pdf_url/verification_code (structural)", () => {
     const src = read(LINK_SRC);
     for (const banned of ["title", "message", "pdf_url", "verification_code"]) {
       expect(src).not.toContain(banned);
-    }
-  });
-
-  it("a hostile reference_id can never escape the app (no open redirect)", () => {
-    const hostiles = [
-      "https://evil.example/phish",
-      "//evil.example/phish",
-      "../../admin/requests",
-      "javascript:alert(1)",
-      "%2e%2e%2fadmin",
-      "https:%2f%2fevil.example",
-    ];
-    for (const reference_id of hostiles) {
-      const out = getNotificationLink({ ...COMPLETED, reference_id });
-      expect(out).not.toBeNull();
-      expect(out!.startsWith("/student/requests/")).toBe(true);
-      expect(out!.startsWith("//")).toBe(false);
-      expect(/^https?:/i.test(out!)).toBe(false);
-      expect(out!.toLowerCase().startsWith("javascript:")).toBe(false);
     }
   });
 });
