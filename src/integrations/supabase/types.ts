@@ -5603,6 +5603,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      act_on_b1_student_request_step_atomic: {
+        Args: {
+          p_action: string
+          p_comment?: string
+          p_payload?: Json
+          p_step_id: string
+        }
+        Returns: Json
+      }
       act_on_student_request_step: {
         Args: {
           p_action: string
@@ -6037,9 +6046,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      initialize_b1_request_workflow_strict: {
+        Args: { p_canonical_code: string; p_request_id: string }
+        Returns: Json
+      }
       initialize_student_request_workflow: {
         Args: { p_request_id: string }
         Returns: Json
+      }
+      is_b1_stored_request_type: {
+        Args: { p_request_type: string }
+        Returns: boolean
       }
       is_council_admin: { Args: { _user: string }; Returns: boolean }
       is_council_member: {
@@ -6094,6 +6111,14 @@ export type Database = {
       }
       is_valid_actor_request_action: {
         Args: { p_action: string }
+        Returns: boolean
+      }
+      is_valid_b1_direct_assignment: {
+        Args: {
+          p_assignment_id: string
+          p_department_id?: string
+          p_require_faculty?: boolean
+        }
         Returns: boolean
       }
       is_valid_b1_runtime_step_contract: {
@@ -6186,6 +6211,16 @@ export type Database = {
       student_request_type_is_eligible: {
         Args: { _profile_status: string; _request_audience: string }
         Returns: boolean
+      }
+      submit_b1_student_request_atomic: {
+        Args: {
+          p_attachment_ids?: string[]
+          p_canonical_code: string
+          p_expected_updated_at: string
+          p_form_data: Json
+          p_request_id: string
+        }
+        Returns: Json
       }
       submit_student_request: {
         Args: { p_request_id: string }
