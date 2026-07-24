@@ -65,7 +65,23 @@ describe("department administrative position separation", () => {
   it("safe-disable preserves history and leaves transfer authorization fail closed", () => {
     expect(safeDisable).not.toMatch(/\bdelete\b/i);
     expect(safeDisable).not.toMatch(/update\s+public\.faculty_profiles/i);
+    expect(safeDisable).not.toMatch(/update\s+public\.request_types/i);
+    expect(safeDisable).not.toMatch(
+      /update\s+public\.request_type_workflows/i,
+    );
     expect(safeDisable).toContain("SELECT false");
-    expect(safeDisable).toContain("DEPARTMENT_TRANSFER_MUST_REMAIN_HIDDEN_INACTIVE");
+    expect(safeDisable).toContain("SAFE_DISABLE_TRANSFER_REQUEST_TYPE_VISIBLE");
+    expect(safeDisable).toContain("SAFE_DISABLE_ACTIVE_TRANSFER_WORKFLOW_EXISTS");
+    expect(safeDisable).toContain("SAFE_DISABLE_EXECUTABLE_TRANSFER_RUNTIME_EXISTS");
+    expect(safeDisable).toContain(
+      "SAFE_DISABLE_AUTHORIZATION_FUNCTION_NOT_FAIL_CLOSED",
+    );
+    expect(safeDisable).toContain(
+      "SAFE_DISABLE_ACTIVE_CHAIR_PROCESSING_ASSIGNMENT_REMAINS",
+    );
+    expect(safeDisable).not.toMatch(/student_visible\s+OR\s+is_active/i);
+    expect(safeDisable).toMatch(
+      /FROM\s+public\.request_types\s+WHERE\s+code\s+IN\s*\('department_transfer','transfer'\)\s+AND\s+student_visible/i,
+    );
   });
 });

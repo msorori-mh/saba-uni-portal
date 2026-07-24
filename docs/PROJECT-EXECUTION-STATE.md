@@ -20,3 +20,6 @@ Updated: 2026-07-19 Asia/Riyadh
 # Current source execution
 
 - `DEPARTMENT-ADMINISTRATIVE-POSITIONS-SEPARATION-01`: source implementation prepared; production impact zero; draft SQL not applied.
+- `PR216-SAFE-DISABLE-PRODUCTION-CONTRACT-CORRECTION-01`: local source and
+  PostgreSQL 17 verification PASS; GitHub Web CI pending; production impact
+  zero; Draft PR #216 remains unmerged.

@@ -10,6 +10,22 @@ ALTER TABLE public.position_assignments
   ADD COLUMN notes text,
   ADD COLUMN updated_at timestamptz DEFAULT now();
 ALTER TABLE public.request_processing_assignments ADD COLUMN updated_at timestamptz DEFAULT now();
+ALTER TABLE public.request_types ADD COLUMN student_visible boolean NOT NULL DEFAULT false;
+
+-- Production-shaped pre-activation fixture:
+-- department_transfer:
+--   is_active=true
+--   student_visible=false
+--   active_workflows=0
+--   executable_runtime_steps=0
+INSERT INTO public.request_types(id,code,name_ar,is_active,student_visible)
+VALUES(
+  '50000000-0000-4000-8000-000000000001',
+  'department_transfer',
+  'تحويل القسم',
+  true,
+  false
+);
 
 INSERT INTO auth.users(id) VALUES
  ('97acbe02-c59c-409c-8d51-7d4ef72e6db7'),

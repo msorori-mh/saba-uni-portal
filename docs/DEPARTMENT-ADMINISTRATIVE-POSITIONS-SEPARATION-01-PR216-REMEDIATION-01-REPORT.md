@@ -46,3 +46,8 @@
 ## Decision
 
 `PASS_PR216_REMEDIATION_READY_FOR_INDEPENDENT_REVIEW`
+
+## Follow-up correction
+
+The production-shaped safe-disable contract is corrected and verified in
+`PR216-SAFE-DISABLE-PRODUCTION-CONTRACT-CORRECTION-01-REPORT.md`.

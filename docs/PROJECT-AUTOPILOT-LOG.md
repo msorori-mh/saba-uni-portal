@@ -28,3 +28,7 @@
 # Autopilot log
 
 - 2026-07-24: separated academic affiliation from administrative department-head positions in source drafts and regression tests. No production action.
+- 2026-07-24: corrected PR #216 safe-disable semantics to allow the real
+  pre-activation state (`is_active=true`, hidden, no workflow/runtime), added
+  fail-closed PostgreSQL 17 cases, and completed local tests/typecheck/build.
+  No production action.
