@@ -25,3 +25,6 @@
 - Reconciled the cycle on latest `origin/main@99f1b48` and recorded independent PASS decisions for all three expansion foundations.
 - Kept B1 activation on an isolated HOLD; no production write or activation was attempted.
 - Isolated a new latest-main release finding: TanStack generation re-adds the legal Register footer during build, so post-build status is dirty despite tests/typecheck/build passing. Recorded it without modifying the generated file.
+# Autopilot log
+
+- 2026-07-24: separated academic affiliation from administrative department-head positions in source drafts and regression tests. No production action.

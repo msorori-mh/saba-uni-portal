@@ -1,3 +1,6 @@
+-- NEVER_APPLY — SEMANTICALLY_INVALID.
+-- Historical artifact only. Never promote, execute, or copy its academic
+-- affiliation update. See DEPARTMENT-ADMINISTRATIVE-POSITIONS-SEPARATION-01.
 -- DEPARTMENT-CHAIRS-CONTROLLED-FIX-PACKAGE-01
 -- FORWARD-ONLY DRAFT. NEVER APPLIED BY THIS PR.
 -- faculty_profiles.employee_number is the canonical schema field for the

@@ -222,7 +222,11 @@ BEGIN
              WHEN s.step_key='target_department_head_approval' THEN
                (SELECT d.requested_department_id FROM public.transfer_request_details d WHERE d.request_id=p_request_id)
              ELSE NULL END,
-             s.step_key IN ('source_department_head_approval','target_department_head_approval'))
+             false)
+        OR (s.step_key IN ('source_department_head_approval','target_department_head_approval')
+          AND (a.assignment_type IS DISTINCT FROM 'position_assignment'
+            OR a.position_assignment_id IS NULL
+            OR a.user_id IS NOT NULL OR a.staff_profile_id IS NOT NULL OR a.faculty_profile_id IS NOT NULL))
       )) THEN RAISE EXCEPTION 'B1_RUNTIME_RESUBMIT_CONTRACT_INVALID'; END IF;
     IF v_runtime_count IS DISTINCT FROM (
       SELECT count(*) FROM public.request_type_workflow_steps c WHERE c.workflow_id=v_workflow.id
@@ -282,7 +286,10 @@ BEGIN
       AND a.is_active=true AND (a.starts_at IS NULL OR a.starts_at<=now())
       AND (a.ends_at IS NULL OR a.ends_at>now())
       AND (v_department_id IS NULL OR a.department_id=v_department_id)
-      AND public.is_valid_b1_direct_assignment(a.id,v_department_id,v_department_id IS NOT NULL);
+      AND public.is_valid_b1_direct_assignment(a.id,v_department_id,false)
+      AND (v_department_id IS NULL OR (
+        a.assignment_type='position_assignment' AND a.position_assignment_id IS NOT NULL
+        AND a.user_id IS NULL AND a.staff_profile_id IS NULL AND a.faculty_profile_id IS NULL));
     IF v_assignment_count <> 1 THEN
       RAISE EXCEPTION 'B1_DIRECT_ASSIGNMENT_MUST_RESOLVE_ONCE:%:%',v_config.step_key,v_assignment_count;
     END IF;
@@ -291,7 +298,10 @@ BEGIN
       AND a.is_active=true AND (a.starts_at IS NULL OR a.starts_at<=now())
       AND (a.ends_at IS NULL OR a.ends_at>now())
       AND (v_department_id IS NULL OR a.department_id=v_department_id)
-      AND public.is_valid_b1_direct_assignment(a.id,v_department_id,v_department_id IS NOT NULL)
+      AND public.is_valid_b1_direct_assignment(a.id,v_department_id,false)
+      AND (v_department_id IS NULL OR (
+        a.assignment_type='position_assignment' AND a.position_assignment_id IS NOT NULL
+        AND a.user_id IS NULL AND a.staff_profile_id IS NULL AND a.faculty_profile_id IS NULL))
     FOR SHARE;
     v_actor_count := num_nonnulls(v_assignment.user_id,v_assignment.staff_profile_id,
       v_assignment.faculty_profile_id,v_assignment.position_assignment_id);

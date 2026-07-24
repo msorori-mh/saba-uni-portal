@@ -138,8 +138,9 @@ describe("B1-EXTENDED-RUNTIME-AUTHORIZATION-MATRIX-01", () => {
       }),
     ).toBe(false);
     expect(actorSql).toContain("current_user_matches_transfer_department_scope(");
-    expect(actorSql).toContain("fp.department_id = d.current_department_id");
-    expect(actorSql).toContain("fp.department_id = d.requested_department_id");
+    expect(actorSql).toContain("rpa.department_id = d.current_department_id");
+    expect(actorSql).toContain("rpa.department_id = d.requested_department_id");
+    expect(actorSql).not.toMatch(/fp\.department_id\s*=\s*d\.(?:current|requested)_department_id/);
   });
 
   it("keeps attachment download direct-active-assignee only", () => {

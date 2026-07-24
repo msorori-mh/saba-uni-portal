@@ -1,4 +1,7 @@
 -- ============================================================================
+-- NEVER_APPLY — SEMANTICALLY_INVALID.
+-- Historical artifact only. Never promote, execute, or copy its academic
+-- affiliation update. See DEPARTMENT-ADMINISTRATIVE-POSITIONS-SEPARATION-01.
 -- DEPARTMENT-CHAIRS-SEMANTIC-FIX-PACKAGE-02  (refreshed D-01, semantic rebuild)
 -- Track B: DEPARTMENT-CHAIRS-SEMANTIC-AUDIT-AND-D01-REFRESH-01
 -- Base: main @ 45148e0939d6e2d8f2baba792df4ca79907df8ac
