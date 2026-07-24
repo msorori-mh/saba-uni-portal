@@ -31,7 +31,10 @@
 - `bun run build`: PASS.
 - `git diff --check`: PASS.
 - GitHub CI before remediation: one failure, `Bun tests (tests/)`, caused by
-  the stale TanStack semantic hash. A new CI run is required after push.
+  the stale TanStack semantic hash.
+- GitHub CI after remediation: PASS, 10/10 jobs in Web CI run
+  `30056439616`, including Bun tests, lint/typecheck/build, and all eight
+  repository PG17 verifier jobs.
 
 ## Scope and production impact
 
