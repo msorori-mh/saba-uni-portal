@@ -6130,30 +6130,18 @@ export type Database = {
         Args: { _profile_id: string; _target_user_id: string }
         Returns: Json
       }
-      log_audit:
-        | {
-            Args: {
-              _action_type: string
-              _entity_id: string
-              _entity_type: string
-              _new?: Json
-              _notes?: string
-              _old?: Json
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              _action_type: string
-              _actor_user_id?: string
-              _entity_id: string
-              _entity_type: string
-              _new?: Json
-              _notes?: string
-              _old?: Json
-            }
-            Returns: undefined
-          }
+      log_audit: {
+        Args: {
+          _action_type: string
+          _actor_user_id?: string
+          _entity_id: string
+          _entity_type: string
+          _new?: Json
+          _notes?: string
+          _old?: Json
+        }
+        Returns: undefined
+      }
       mark_enrollment_certificate_document_generating: {
         Args: { p_attempt_id: string }
         Returns: Json
