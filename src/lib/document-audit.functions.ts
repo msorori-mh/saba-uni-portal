@@ -48,9 +48,7 @@ export const logDocumentAction = createServerFn({ method: "POST" })
         return { ok: false, error: "ليس لديك صلاحية الوصول إلى هذه الوثيقة" };
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sb = context.supabase as any;
-      await sb.rpc("log_audit", {
+      const { error: auditError } = await supabaseAdmin.rpc("log_audit", {
         _entity_type: "document",
         _entity_id: data.documentId,
         _action_type: data.action,
@@ -60,7 +58,9 @@ export const logDocumentAction = createServerFn({ method: "POST" })
           document_type: doc.document_type ?? null,
         },
         _notes: null,
+        _actor_user_id: context.userId,
       });
+      if (auditError) return { ok: false, error: auditError.message };
       return { ok: true };
     } catch (e) {
       return { ok: false, error: (e as Error).message };
