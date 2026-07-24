@@ -40,7 +40,8 @@
 - `bunx tsc --noEmit`: PASS.
 - `bun run build`: PASS.
 - `git diff --check`: PASS.
-- GitHub Web CI: pending for the correction commit.
+- GitHub Web CI: PASS, 10/10 jobs in run `30058499676`, including Bun tests,
+  lint/typecheck/build, and all eight repository PostgreSQL 17 verifier jobs.
 
 ## Assumptions and risk
 
@@ -49,12 +50,12 @@
   safe-disable.
 - Existing aliases are limited to the approved codes `department_transfer`
   and `transfer`.
-- Residual risk is limited to independent review and GitHub Web CI; no
-  production execution was attempted.
+- Residual risk is limited to independent review; no production execution was
+  attempted.
 
 ## Blockers
 
-- None for source completion. Final PASS remains gated on GitHub Web CI.
+- None for source completion.
 
 ## Production impact
 
@@ -66,4 +67,4 @@
 
 ## Decision
 
-Pending GitHub Web CI.
+`PASS_PR216_SAFE_DISABLE_PRODUCTION_CONTRACT_CORRECTED_READY_FOR_FINAL_REVIEW`

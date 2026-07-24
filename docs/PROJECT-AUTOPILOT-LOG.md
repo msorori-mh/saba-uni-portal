@@ -31,4 +31,4 @@
 - 2026-07-24: corrected PR #216 safe-disable semantics to allow the real
   pre-activation state (`is_active=true`, hidden, no workflow/runtime), added
   fail-closed PostgreSQL 17 cases, and completed local tests/typecheck/build.
-  No production action.
+  GitHub Web CI run `30058499676` passed 10/10 jobs. No production action.
