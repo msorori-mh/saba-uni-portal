@@ -17,6 +17,15 @@ const actorSql = readFileSync(
   ),
   "utf8",
 );
+const transferScopeSql = readFileSync(
+  join(
+    process.cwd(),
+    "docs",
+    "migration-drafts",
+    "DEPARTMENT-ADMINISTRATIVE-POSITIONS-SEPARATION-01.sql",
+  ),
+  "utf8",
+);
 const attachmentSql = readFileSync(
   join(
     process.cwd(),
@@ -137,9 +146,10 @@ describe("B1-EXTENDED-RUNTIME-AUTHORIZATION-MATRIX-01", () => {
         requiredDepartmentId: "target",
       }),
     ).toBe(false);
-    expect(actorSql).toContain("current_user_matches_transfer_department_scope(");
-    expect(actorSql).toContain("fp.department_id = d.current_department_id");
-    expect(actorSql).toContain("fp.department_id = d.requested_department_id");
+    expect(transferScopeSql).toContain("current_user_matches_transfer_department_scope(");
+    expect(transferScopeSql).toMatch(/rpa\.department_id\s*=\s*d\.current_department_id/);
+    expect(transferScopeSql).toMatch(/rpa\.department_id\s*=\s*d\.requested_department_id/);
+    expect(transferScopeSql).not.toMatch(/fp\.department_id\s*=\s*d\.(?:current|requested)_department_id/);
   });
 
   it("keeps attachment download direct-active-assignee only", () => {

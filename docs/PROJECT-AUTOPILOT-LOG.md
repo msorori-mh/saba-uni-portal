@@ -25,3 +25,10 @@
 - Reconciled the cycle on latest `origin/main@99f1b48` and recorded independent PASS decisions for all three expansion foundations.
 - Kept B1 activation on an isolated HOLD; no production write or activation was attempted.
 - Isolated a new latest-main release finding: TanStack generation re-adds the legal Register footer during build, so post-build status is dirty despite tests/typecheck/build passing. Recorded it without modifying the generated file.
+# Autopilot log
+
+- 2026-07-24: separated academic affiliation from administrative department-head positions in source drafts and regression tests. No production action.
+- 2026-07-24: corrected PR #216 safe-disable semantics to allow the real
+  pre-activation state (`is_active=true`, hidden, no workflow/runtime), added
+  fail-closed PostgreSQL 17 cases, and completed local tests/typecheck/build.
+  GitHub Web CI run `30058499676` passed 10/10 jobs. No production action.

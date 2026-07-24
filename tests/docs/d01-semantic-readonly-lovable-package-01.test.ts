@@ -6,11 +6,11 @@ const root = process.cwd();
 const doc = readFileSync(
   join(root, "docs", "D01-SEMANTIC-READONLY-LOVABLE-EXECUTION-PACKAGE-01.md"),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 const audit = readFileSync(
   join(root, "docs", "migration-drafts", "DEPARTMENT-CHAIRS-SEMANTIC-AUDIT-READONLY-01.sql"),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 
 const RESULT_CODES = [
   "MATCHED",

@@ -8,7 +8,7 @@ const sql = readFileSync(
     "../../docs/migration-drafts/B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql",
   ),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 
 const actFn =
   sql.match(

@@ -81,7 +81,7 @@ activate or implement any of the other four services.
 |   3 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | Exact actor tuples; no bypass                                        |
 |   4 | `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql`            | `54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216` | M3-02: B1-scoped predecessor/action guard; `-01` is NEVER-PROMOTE    |
 |   5 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql`         | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department   |
-|   6 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a` | Atomic fail-closed submit/action foundation                          |
+|   6 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `473528c5c49c14a486e5ca34afca1cda7a678dc86373555580fadc04e03080fd` | Atomic chair runtime pins position assignments                       |
 |   7 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
 |   8 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356` | Private bucket/policy approval still required; no public URLs        |
 |   9 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`            | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references                                       |
