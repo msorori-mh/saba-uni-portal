@@ -42,3 +42,8 @@ missing, duplicate, expired, mismatched, faculty-profile, or broad-role paths.
 ## Decision
 
 `PASS_DEPARTMENT_ADMINISTRATIVE_POSITIONS_SEPARATION_SOURCE_PR_READY`
+
+PR #216 remediation restored applied Migration 2 immutability, hardened the
+forward/preflight/verifier/safe-disable package, and moved the current
+verification evidence to
+`DEPARTMENT-ADMINISTRATIVE-POSITIONS-SEPARATION-01-PR216-REMEDIATION-01-REPORT.md`.

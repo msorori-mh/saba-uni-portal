@@ -9,7 +9,10 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const PG = join(ROOT, "tests", "b1-rpc-matrix", "pg");
-const matrixText = readFileSync(join(ROOT, "docs", "b1", "B1-RPC-AUTHORIZATION-MATRIX-01.json"), "utf8");
+const matrixText = readFileSync(
+  join(ROOT, "docs", "b1", "B1-RPC-AUTHORIZATION-MATRIX-01.json"),
+  "utf8",
+).replace(/\r\n/g, "\n");
 const matrix = JSON.parse(matrixText);
 const manifest = JSON.parse(readFileSync(join(ROOT, "docs", "b1", "B1-SEQUENTIAL-APPLY-MANIFEST.json"), "utf8"));
 const orderText = readFileSync(join(PG, "20-draft-apply-order.txt"), "utf8");

@@ -78,7 +78,7 @@ activate or implement any of the other four services.
 | --: | ------------------------------------------------------------ | ------------------------------------------------------------------ | -------------------------------------------------------------------- |
 |   1 | `REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql`     | `893a2979bad443b059bf3c0ce2f2b6ad2714dbd9333dd5b332c8c4acc64cf357` | Replace placeholder only with independently proven actual deploy SHA |
 |   2 | `REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql`            | `3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab` | Explicit typed audit-call contract before dependent RPCs             |
-|   3 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `ea108fb0fa54ab795f8d116cc03a528fabdbaf64b051d1428d4d83584e16ce5e` | Exact actor tuples; chair scope uses administrative positions        |
+|   3 | `STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql` | `0627b142b10307e72ba0c9ffd09dc4db5c02059791273f101b71463704e4f6c0` | Exact actor tuples; no bypass                                        |
 |   4 | `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql`            | `54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216` | M3-02: B1-scoped predecessor/action guard; `-01` is NEVER-PROMOTE    |
 |   5 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql`         | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department   |
 |   6 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `473528c5c49c14a486e5ca34afca1cda7a678dc86373555580fadc04e03080fd` | Atomic chair runtime pins position assignments                       |
