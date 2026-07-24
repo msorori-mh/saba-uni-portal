@@ -6150,6 +6150,15 @@ export type Database = {
         Args: { p_attempt_id: string; p_byte_length: number; p_sha256: string }
         Returns: Json
       }
+      persist_validated_b1_request_details: {
+        Args: {
+          p_attachment_ids: string[]
+          p_canonical_code: string
+          p_form_data: Json
+          p_request_id: string
+        }
+        Returns: undefined
+      }
       prepare_enrollment_certificate_document_generation: {
         Args: { p_idempotency_key: string; p_step_id: string }
         Returns: Json
