@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student error</title>
+  <style>
+    :root { color-scheme: light; --primary:#0f3d2e; --muted:#667; --border:#d9e0dc; --card:#fff; --danger:#b42318; --warn:#92400e; --warn-bg:#fffbeb; --bg:#f5f7f6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: var(--bg); color: var(--primary); }
+    main { max-width: 72rem; margin: 0 auto; padding: 1rem; overflow-x: hidden; width: 100%; }
+    img, svg, table { max-width: 100%; }
+    h1 { font-size: 1.75rem; margin: 0 0 .25rem; }
+    h2 { font-size: 1rem; margin: 1.25rem 0 .5rem; }
+    .muted { color: var(--muted); font-size: .875rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: .75rem; padding: 1rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 1024px) { .grid.cols-4 { grid-template-columns: repeat(4, 1fr); } }
+    .metric { font-size: 1.75rem; font-weight: 800; min-height: 2.25rem; }
+    .skeleton { height: 4.5rem; border-radius: .5rem; background: linear-gradient(90deg,#e8eeeB,#f7faf8,#e8eeeB); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+    @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+    [data-testid="dashboard-query-error"] { border: 1px solid color-mix(in srgb, var(--danger) 40%, white); background: color-mix(in srgb, var(--danger) 6%, white); color: var(--danger); border-radius: .75rem; padding: 1rem; text-align: center; }
+    [data-testid="dashboard-query-error"] button, .retry-btn { min-height: 44px; margin-top: .5rem; border-radius: .5rem; border: 1px solid color-mix(in srgb, var(--danger) 40%, white); background: #fff; color: var(--danger); font-weight: 700; padding: 0 .75rem; cursor: pointer; }
+    .partial { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:space-between; align-items:center; border:1px solid #fcd34d; background:var(--warn-bg); color:var(--warn); border-radius:.75rem; padding:.75rem 1rem; font-size:.875rem; }
+    .readiness { border-radius:.75rem; padding:1rem; border:1px solid #fcd34d; background:#fffbeb; color:#92400e; }
+    .readiness.pass { border-color:#86efac; background:#ecfdf5; color:#047857; }
+    .readiness.fail { border-color:#fca5a5; background:#fef2f2; color:#b91c1c; }
+    .badge { display:inline-block; border:1px solid currentColor; border-radius:.375rem; padding:.125rem .375rem; font-size:.625rem; font-weight:800; background:rgba(255,255,255,.6); }
+    .row { display:flex; justify-content:space-between; gap:.75rem; align-items:center; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; margin: .75rem 0 1rem; }
+    .toolbar button { min-height:44px; padding:0 .75rem; border-radius:.5rem; border:1px solid var(--border); background:#fff; cursor:pointer; font-weight:700; }
+    #identity-banner { font-size:.8rem; margin-bottom:.75rem; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+    svg { width:1.25rem; height:1.25rem; display:block; margin:0 auto .35rem; }
+  </style>
+</head>
+<body data-harness="pr240-browser-smoke">
+<main id="app">
+  <h1>لوحة الطالب</h1>
+  <p class="muted" id="identity-banner">هوية اصطناعية: طالب-أ</p>
+  <section data-testid="student-profile">
+    <h2>الملف الشخصي</h2>
+    <div dir="rtl" role="alert" aria-live="assertive" tabindex="-1" data-testid="dashboard-query-error" class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-center text-sm text-destructive"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-alert mx-auto mb-1.5 h-5 w-5" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg><p>تعذّر تحميل ملفك الأكاديمي. تحقق من الاتصال ثم أعد المحاولة.</p><button type="button" data-testid="retry-profile" data-retry="1" aria-label="إعادة محاولة تحميل بيانات اللوحة" class="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-3 text-xs font-bold text-destructive hover:bg-destructive/5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw h-3.5 w-3.5" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>إعادة المحاولة</button></div>
+  </section>
+  <section data-testid="student-enrollments">
+    <h2>مقرراتي المسجلة</h2>
+    <div dir="rtl" role="alert" aria-live="assertive" tabindex="-1" data-testid="dashboard-query-error" class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-center text-sm text-destructive"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-alert mx-auto mb-1.5 h-5 w-5" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg><p>تعذّر تحميل مقرراتك المسجلة. تحقق من الاتصال ثم أعد المحاولة.</p><button type="button" data-testid="retry-enrollments" data-retry="1" aria-label="إعادة محاولة تحميل بيانات اللوحة" class="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-3 text-xs font-bold text-destructive hover:bg-destructive/5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw h-3.5 w-3.5" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>إعادة المحاولة</button></div>
+  </section>
+  <section data-testid="student-grades">
+    <h2>درجاتي</h2>
+    <div dir="rtl" role="alert" aria-live="assertive" tabindex="-1" data-testid="dashboard-query-error" class="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-center text-sm text-destructive"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-alert mx-auto mb-1.5 h-5 w-5" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg><p>تعذّر تحميل درجاتك. تحقق من الاتصال ثم أعد المحاولة.</p><button type="button" data-testid="retry-grades" data-retry="1" aria-label="إعادة محاولة تحميل بيانات اللوحة" class="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-destructive/40 bg-background px-3 text-xs font-bold text-destructive hover:bg-destructive/5"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw h-3.5 w-3.5" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>إعادة المحاولة</button></div>
+  </section>
+  <p id="retry-log" class="muted" data-testid="retry-log">retry-count:0</p>
+  <div id="smoke-flag" data-smoke-json="{}"></div>
+  </main>
+<script>
+
+  const alerts = Array.from(document.querySelectorAll('[role="alert"]'));
+  if (alerts[0]) alerts[0].focus();
+  const focusAlert = document.activeElement === alerts[0];
+  let retries = 0;
+  document.querySelectorAll('[data-retry]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      retries += 1;
+      btn.dataset.retryCount = String(retries);
+      document.getElementById('retry-log').textContent = 'retry-count:' + retries;
+      if (retries > 5) btn.disabled = true;
+    });
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); btn.click(); }
+    });
+  });
+  // Auto interaction smoke (headless dump-dom)
+  const retryBtn = document.querySelector('[data-testid="retry-enrollments"]');
+  retryBtn?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  retryBtn?.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+  for (let i = 0; i < 8; i++) retryBtn?.click();
+  document.getElementById('smoke-flag').setAttribute('data-smoke-json', JSON.stringify({
+    focusAlert,
+    retryCount: retries,
+    retryFinite: !!retryBtn?.disabled,
+    roleAlertCount: alerts.length,
+  }));
+  
+</script>
+</body>
+</html>

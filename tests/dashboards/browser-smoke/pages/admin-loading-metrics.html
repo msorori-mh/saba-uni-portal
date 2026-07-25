@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin loading metrics</title>
+  <style>
+    :root { color-scheme: light; --primary:#0f3d2e; --muted:#667; --border:#d9e0dc; --card:#fff; --danger:#b42318; --warn:#92400e; --warn-bg:#fffbeb; --bg:#f5f7f6; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: var(--bg); color: var(--primary); }
+    main { max-width: 72rem; margin: 0 auto; padding: 1rem; overflow-x: hidden; width: 100%; }
+    img, svg, table { max-width: 100%; }
+    h1 { font-size: 1.75rem; margin: 0 0 .25rem; }
+    h2 { font-size: 1rem; margin: 1.25rem 0 .5rem; }
+    .muted { color: var(--muted); font-size: .875rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: .75rem; padding: 1rem; }
+    .grid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+    @media (min-width: 640px) { .grid.cols-2 { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 1024px) { .grid.cols-4 { grid-template-columns: repeat(4, 1fr); } }
+    .metric { font-size: 1.75rem; font-weight: 800; min-height: 2.25rem; }
+    .skeleton { height: 4.5rem; border-radius: .5rem; background: linear-gradient(90deg,#e8eeeB,#f7faf8,#e8eeeB); background-size: 200% 100%; animation: shimmer 1.2s infinite; }
+    @keyframes shimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+    [data-testid="dashboard-query-error"] { border: 1px solid color-mix(in srgb, var(--danger) 40%, white); background: color-mix(in srgb, var(--danger) 6%, white); color: var(--danger); border-radius: .75rem; padding: 1rem; text-align: center; }
+    [data-testid="dashboard-query-error"] button, .retry-btn { min-height: 44px; margin-top: .5rem; border-radius: .5rem; border: 1px solid color-mix(in srgb, var(--danger) 40%, white); background: #fff; color: var(--danger); font-weight: 700; padding: 0 .75rem; cursor: pointer; }
+    .partial { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:space-between; align-items:center; border:1px solid #fcd34d; background:var(--warn-bg); color:var(--warn); border-radius:.75rem; padding:.75rem 1rem; font-size:.875rem; }
+    .readiness { border-radius:.75rem; padding:1rem; border:1px solid #fcd34d; background:#fffbeb; color:#92400e; }
+    .readiness.pass { border-color:#86efac; background:#ecfdf5; color:#047857; }
+    .readiness.fail { border-color:#fca5a5; background:#fef2f2; color:#b91c1c; }
+    .badge { display:inline-block; border:1px solid currentColor; border-radius:.375rem; padding:.125rem .375rem; font-size:.625rem; font-weight:800; background:rgba(255,255,255,.6); }
+    .row { display:flex; justify-content:space-between; gap:.75rem; align-items:center; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem; margin: .75rem 0 1rem; }
+    .toolbar button { min-height:44px; padding:0 .75rem; border-radius:.5rem; border:1px solid var(--border); background:#fff; cursor:pointer; font-weight:700; }
+    #identity-banner { font-size:.8rem; margin-bottom:.75rem; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+    svg { width:1.25rem; height:1.25rem; display:block; margin:0 auto .35rem; }
+  </style>
+</head>
+<body data-harness="pr240-browser-smoke">
+<main id="app">
+  <h1>لوحة التحكم</h1>
+  <section>
+    <h2>مؤشرات الأداء</h2>
+    <div class="grid cols-4">
+      <div class="card"><div class="muted">الطلاب</div><div class="metric" aria-live="polite" data-testid="metric-students"><span aria-label="القيمة غير متاحة">—</span></div></div>
+      <div class="card"><div class="muted">نسبة النجاح %</div><div class="metric" aria-live="polite"><span aria-label="القيمة غير متاحة">—</span></div></div>
+    </div>
+  </section>
+  <section>
+    <h2>Production Readiness</h2>
+    <div class="readiness" data-testid="readiness-pending">
+      <span class="badge">WARNING</span>
+      <div>الحسابات الإدارية</div>
+      <div class="metric"><span aria-label="القيمة غير متاحة">—</span></div>
+      <div class="muted">جارٍ التحقق</div>
+    </div>
+  </section>
+  </main>
+<script>
+
+</script>
+</body>
+</html>
