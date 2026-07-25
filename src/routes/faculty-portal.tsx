@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, redirect, useNavigate } from "@tanstack/react-
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { FacultyPortalError, FacultyPortalNotFound } from "@/components/portal/FacultyPortalError";
 
 export const Route = createFileRoute("/faculty-portal")({
   ssr: false,
@@ -11,6 +12,8 @@ export const Route = createFileRoute("/faculty-portal")({
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
+  errorComponent: FacultyPortalError,
+  notFoundComponent: FacultyPortalNotFound,
   beforeLoad: async ({ location }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
@@ -41,7 +44,9 @@ function FacultyPortalLayout() {
 
   useEffect(() => {
     setReady(true);
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) navigate({ to: "/portal-login", replace: true });
     });
     return () => subscription.unsubscribe();

@@ -1,10 +1,17 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, ArrowRight, Plus, Upload, Send, Archive, FileText, BarChart3, ScrollText } from "lucide-react";
-import { PortalShell } from "@/components/portal/PortalShell";
-import { NotificationsBell } from "@/components/portal/NotificationsBell";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Loader2,
+  Plus,
+  Upload,
+  Send,
+  Archive,
+  FileText,
+  BarChart3,
+  ScrollText,
+} from "lucide-react";
+import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
 import { readFileAsBase64 } from "@/lib/file-upload";
 import {
   listMyCourseMaterials,
@@ -36,6 +43,24 @@ import {
   type MaterialScanState,
 } from "@/lib/course-materials.shared";
 
+type MaterialFileItem = {
+  id: string;
+  original_filename: string;
+  version_number: number;
+  scan_state: unknown;
+};
+
+type MaterialItem = {
+  id: string;
+  status: string;
+  title: string;
+  description: string | null;
+  week_number: number | null;
+  lecture_number: number | null;
+  study_system: string;
+  files?: MaterialFileItem[];
+};
+
 export const Route = createFileRoute("/faculty-portal/materials/$sectionId")({
   component: FacultyMaterialsSection,
 });
@@ -48,7 +73,6 @@ function formatEventTime(iso: string): string {
 
 function FacultyMaterialsSection() {
   const { sectionId } = Route.useParams();
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [showUsage, setShowUsage] = useState(false);
@@ -60,41 +84,39 @@ function FacultyMaterialsSection() {
 
   const publish = useMutation({
     mutationFn: (materialId: string) => publishCourseMaterial({ data: { materialId } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["faculty", "materials", "list", sectionId] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["faculty", "materials", "list", sectionId] }),
   });
   const archive = useMutation({
     mutationFn: (materialId: string) => archiveCourseMaterial({ data: { materialId } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["faculty", "materials", "list", sectionId] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["faculty", "materials", "list", sectionId] }),
   });
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/portal-login", replace: true });
-  };
-
   return (
-    <PortalShell title="بوابة عضو هيئة التدريس" actions={<NotificationsBell />} onLogout={handleLogout}>
+    <FacultyPortalShell
+      title="بوابة عضو هيئة التدريس"
+      breadcrumbs={[
+        { label: "المواد التعليمية", to: "/faculty-portal/materials" },
+        { label: "مواد المجموعة" },
+      ]}
+    >
       <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-4 flex items-center justify-between gap-2">
-          <Link to="/faculty-portal/materials" className="text-sm text-primary hover:text-gold inline-flex items-center gap-1">
-            <ArrowRight className="h-4 w-4" /> العودة
-          </Link>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowUsage(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-bold hover:bg-muted"
-            >
-              <BarChart3 className="h-4 w-4" /> تقرير الاستخدام
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowCreate(true)}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" /> إضافة محاضرة
-            </button>
-          </div>
+        <div className="mb-4 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setShowUsage(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-bold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <BarChart3 className="h-4 w-4" aria-hidden /> تقرير الاستخدام
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Plus className="h-4 w-4" aria-hidden /> إضافة محاضرة
+          </button>
         </div>
 
         <h1 className="font-display text-xl font-extrabold text-primary mb-4">مواد المجموعة</h1>
@@ -115,31 +137,43 @@ function FacultyMaterialsSection() {
         )}
 
         {isLoading ? (
-          <div className="grid place-items-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          <div className="grid place-items-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
         ) : materials.length === 0 ? (
           <div className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
             لا توجد مواد في هذه المجموعة بعد.
           </div>
         ) : (
           <div className="space-y-3">
-            {(materials as any[]).map((m) => (
+            {(materials as MaterialItem[]).map((m) => (
               <MaterialRow
                 key={m.id}
                 material={m}
                 onPublish={() => publish.mutate(m.id)}
                 onArchive={() => archive.mutate(m.id)}
-                onUploaded={() => qc.invalidateQueries({ queryKey: ["faculty", "materials", "list", sectionId] })}
+                onUploaded={() =>
+                  qc.invalidateQueries({ queryKey: ["faculty", "materials", "list", sectionId] })
+                }
                 busy={publish.isPending || archive.isPending}
               />
             ))}
           </div>
         )}
       </main>
-    </PortalShell>
+    </FacultyPortalShell>
   );
 }
 
-function CreateMaterialDialog({ sectionId, onClose, onCreated }: { sectionId: string; onClose: () => void; onCreated: () => void }) {
+function CreateMaterialDialog({
+  sectionId,
+  onClose,
+  onCreated,
+}: {
+  sectionId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [weekNumber, setWeekNumber] = useState<string>("");
@@ -151,9 +185,15 @@ function CreateMaterialDialog({ sectionId, onClose, onCreated }: { sectionId: st
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!title.trim()) { setError("العنوان مطلوب"); return; }
+    if (!title.trim()) {
+      setError("العنوان مطلوب");
+      return;
+    }
     const parsedWeek = weekNumber ? parseInt(weekNumber, 10) : null;
-    if (parsedWeek !== null && (Number.isNaN(parsedWeek) || parsedWeek < MATERIAL_WEEK_MIN || parsedWeek > MATERIAL_WEEK_MAX)) {
+    if (
+      parsedWeek !== null &&
+      (Number.isNaN(parsedWeek) || parsedWeek < MATERIAL_WEEK_MIN || parsedWeek > MATERIAL_WEEK_MAX)
+    ) {
       setError(`رقم الأسبوع يجب أن يكون بين ${MATERIAL_WEEK_MIN} و ${MATERIAL_WEEK_MAX}`);
       return;
     }
@@ -170,8 +210,8 @@ function CreateMaterialDialog({ sectionId, onClose, onCreated }: { sectionId: st
         },
       });
       onCreated();
-    } catch (err: any) {
-      setError(err.message ?? "تعذّر الإنشاء");
+    } catch {
+      setError("تعذّر إنشاء المحاضرة. يرجى المحاولة مرة أخرى.");
     } finally {
       setBusy(false);
     }
@@ -187,21 +227,44 @@ function CreateMaterialDialog({ sectionId, onClose, onCreated }: { sectionId: st
         <h2 className="font-display text-lg font-extrabold text-primary">إضافة محاضرة</h2>
         <label className="block">
           <span className="text-xs font-bold">العنوان *</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={200}
+            className="mt-1 w-full rounded border px-3 py-2 text-sm"
+          />
         </label>
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
             <span className="text-xs font-bold">الأسبوع (اختياري)</span>
-            <input type="number" min={MATERIAL_WEEK_MIN} max={MATERIAL_WEEK_MAX} value={weekNumber} onChange={(e) => setWeekNumber(e.target.value)} className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+            <input
+              type="number"
+              min={MATERIAL_WEEK_MIN}
+              max={MATERIAL_WEEK_MAX}
+              value={weekNumber}
+              onChange={(e) => setWeekNumber(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+            />
           </label>
           <label className="block">
             <span className="text-xs font-bold">رقم المحاضرة (اختياري)</span>
-            <input type="number" min={1} max={200} value={lectureNumber} onChange={(e) => setLectureNumber(e.target.value)} className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={lectureNumber}
+              onChange={(e) => setLectureNumber(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+            />
           </label>
         </div>
         <label className="block">
           <span className="text-xs font-bold">نظام الدراسة *</span>
-          <select value={studySystem} onChange={(e) => setStudySystem(e.target.value as StudySystemTag)} className="mt-1 w-full rounded border px-3 py-2 text-sm">
+          <select
+            value={studySystem}
+            onChange={(e) => setStudySystem(e.target.value as StudySystemTag)}
+            className="mt-1 w-full rounded border px-3 py-2 text-sm"
+          >
             <option value="both">{STUDY_SYSTEM_LABELS.both}</option>
             <option value="regular">{STUDY_SYSTEM_LABELS.regular}</option>
             <option value="parallel">{STUDY_SYSTEM_LABELS.parallel}</option>
@@ -209,12 +272,24 @@ function CreateMaterialDialog({ sectionId, onClose, onCreated }: { sectionId: st
         </label>
         <label className="block">
           <span className="text-xs font-bold">الوصف (اختياري)</span>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} className="mt-1 w-full rounded border px-3 py-2 text-sm" />
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={2000}
+            rows={3}
+            className="mt-1 w-full rounded border px-3 py-2 text-sm"
+          />
         </label>
         {error && <div className="text-xs text-destructive">{error}</div>}
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="rounded border px-3 py-1.5 text-sm">إلغاء</button>
-          <button type="submit" disabled={busy} className="rounded bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold disabled:opacity-60">
+          <button type="button" onClick={onClose} className="rounded border px-3 py-1.5 text-sm">
+            إلغاء
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded bg-primary text-primary-foreground px-3 py-1.5 text-sm font-bold disabled:opacity-60"
+          >
             {busy ? "جاري الحفظ…" : "حفظ كمسودة"}
           </button>
         </div>
@@ -245,7 +320,7 @@ function MaterialRow({
   onUploaded,
   busy,
 }: {
-  material: any;
+  material: MaterialItem;
   onPublish: () => void;
   onArchive: () => void;
   onUploaded: () => void;
@@ -276,11 +351,16 @@ function MaterialRow({
     try {
       const b64 = await readFileAsBase64(file);
       await uploadCourseMaterialFile({
-        data: { materialId: material.id, fileBase64: b64, filename: file.name, mimeType: file.type },
+        data: {
+          materialId: material.id,
+          fileBase64: b64,
+          filename: file.name,
+          mimeType: file.type,
+        },
       });
       onUploaded();
-    } catch (err: any) {
-      setUploadErr(err.message ?? "فشل الرفع");
+    } catch {
+      setUploadErr("تعذّر رفع الملف. يرجى المحاولة مرة أخرى.");
     } finally {
       setUploading(false);
     }
@@ -294,23 +374,30 @@ function MaterialRow({
         <div className="min-w-0">
           <div className="text-xs text-muted-foreground">
             {weekLecture ? `${weekLecture} • ` : ""}
-            {STUDY_SYSTEM_LABELS[material.study_system as StudySystemTag]} • {STATUS_LABELS[material.status as keyof typeof STATUS_LABELS]}
+            {STUDY_SYSTEM_LABELS[material.study_system as StudySystemTag]} •{" "}
+            {STATUS_LABELS[material.status as keyof typeof STATUS_LABELS]}
           </div>
           <div className="font-bold text-primary truncate">{material.title}</div>
-          {material.description && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{material.description}</div>}
+          {material.description && (
+            <div className="text-xs text-muted-foreground mt-1 line-clamp-2">
+              {material.description}
+            </div>
+          )}
         </div>
       </div>
 
       {material.files?.length > 0 && (
         <ul className="mt-2 space-y-1">
-          {material.files.map((f: any) => (
+          {material.files.map((f) => (
             <FileRow key={f.id} file={f} />
           ))}
         </ul>
       )}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <label className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-bold cursor-pointer ${material.status === "archived" ? "opacity-50 cursor-not-allowed" : "hover:bg-muted"}`}>
+        <label
+          className={`inline-flex items-center gap-1.5 rounded border px-2.5 py-1 text-xs font-bold cursor-pointer ${material.status === "archived" ? "opacity-50 cursor-not-allowed" : "hover:bg-muted"}`}
+        >
           <Upload className="h-3.5 w-3.5" />
           {uploading ? "جاري الرفع…" : "رفع ملف"}
           <input
@@ -362,7 +449,7 @@ function MaterialRow({
   );
 }
 
-function FileRow({ file }: { file: any }) {
+function FileRow({ file }: { file: MaterialFileItem }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const downloadable = isMaterialFileDownloadable(file.scan_state);
@@ -372,8 +459,8 @@ function FileRow({ file }: { file: any }) {
     try {
       const { url } = await getCourseMaterialDownloadUrl({ data: { fileId: file.id } });
       window.open(url, "_blank", "noopener");
-    } catch (e: any) {
-      setError(e?.message ?? "تعذّر التنزيل");
+    } catch {
+      setError("تعذّر تنزيل الملف حالياً.");
     } finally {
       setBusy(false);
     }
@@ -400,7 +487,11 @@ function FileRow({ file }: { file: any }) {
 }
 
 function UsageReportDialog({ sectionId, onClose }: { sectionId: string; onClose: () => void }) {
-  const { data: report, isLoading, error } = useQuery({
+  const {
+    data: report,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["faculty", "materials", "usage", sectionId],
     queryFn: () => getCourseMaterialsUsageReport({ data: { sectionId } }),
   });
@@ -412,17 +503,24 @@ function UsageReportDialog({ sectionId, onClose }: { sectionId: string; onClose:
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-2xl rounded-xl bg-card p-5 shadow-elegant"
       >
-        <h2 className="font-display text-lg font-extrabold text-primary mb-3">تقرير استخدام المواد</h2>
+        <h2 className="font-display text-lg font-extrabold text-primary mb-3">
+          تقرير استخدام المواد
+        </h2>
         {isLoading ? (
-          <div className="grid place-items-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          <div className="grid place-items-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
         ) : error ? (
-          <div className="text-sm text-destructive">{(error as Error).message}</div>
+          <div className="text-sm text-destructive">
+            تعذّر تحميل البيانات. يرجى المحاولة لاحقاً.
+          </div>
         ) : !typedReport || typedReport.materials.length === 0 ? (
           <div className="text-sm text-muted-foreground py-4 text-center">لا توجد مواد بعد.</div>
         ) : (
           <>
             <div className="text-xs text-muted-foreground mb-2">
-              إجمالي التنزيلات: <span className="font-bold text-primary">{typedReport.totalDownloads}</span>
+              إجمالي التنزيلات:{" "}
+              <span className="font-bold text-primary">{typedReport.totalDownloads}</span>
             </div>
             <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
               <table className="w-full text-xs">
@@ -448,12 +546,26 @@ function UsageReportDialog({ sectionId, onClose }: { sectionId: string; onClose:
                       <td className="py-1.5">{STATUS_LABELS[summary.status]}</td>
                       <td className="py-1.5 font-bold">{summary.downloads}</td>
                       <td className="py-1.5">{summary.uniqueDownloaders}</td>
-                      <td className="py-1.5">{summary.lastDownloadAt ? formatEventTime(summary.lastDownloadAt) : "—"}</td>
+                      <td className="py-1.5">
+                        {summary.lastDownloadAt ? formatEventTime(summary.lastDownloadAt) : "—"}
+                      </td>
                       <td className="py-1.5">
                         {summary.filesClean}/{summary.filesTotal}
-                        {summary.filesPending > 0 && <span className="text-amber-700"> (+{summary.filesPending} قيد الفحص)</span>}
-                        {summary.filesInfected > 0 && <span className="text-red-700"> ({summary.filesInfected} مصاب)</span>}
-                        {summary.filesFailed > 0 && <span className="text-muted-foreground"> ({summary.filesFailed} فشل الفحص)</span>}
+                        {summary.filesPending > 0 && (
+                          <span className="text-amber-700">
+                            {" "}
+                            (+{summary.filesPending} قيد الفحص)
+                          </span>
+                        )}
+                        {summary.filesInfected > 0 && (
+                          <span className="text-red-700"> ({summary.filesInfected} مصاب)</span>
+                        )}
+                        {summary.filesFailed > 0 && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            ({summary.filesFailed} فشل الفحص)
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -463,15 +575,29 @@ function UsageReportDialog({ sectionId, onClose }: { sectionId: string; onClose:
           </>
         )}
         <div className="flex justify-end pt-3">
-          <button type="button" onClick={onClose} className="rounded border px-3 py-1.5 text-sm">إغلاق</button>
+          <button type="button" onClick={onClose} className="rounded border px-3 py-1.5 text-sm">
+            إغلاق
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function AccessLogDialog({ materialId, materialTitle, onClose }: { materialId: string; materialTitle: string; onClose: () => void }) {
-  const { data: entries, isLoading, error } = useQuery({
+function AccessLogDialog({
+  materialId,
+  materialTitle,
+  onClose,
+}: {
+  materialId: string;
+  materialTitle: string;
+  onClose: () => void;
+}) {
+  const {
+    data: entries,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["faculty", "materials", "access-log", materialId],
     queryFn: () => listCourseMaterialAccessLogs({ data: { materialId, limit: 50 } }),
   });
@@ -486,15 +612,22 @@ function AccessLogDialog({ materialId, materialTitle, onClose }: { materialId: s
         <h2 className="font-display text-lg font-extrabold text-primary mb-1">سجل الوصول</h2>
         <div className="text-xs text-muted-foreground mb-3 truncate">{materialTitle}</div>
         {isLoading ? (
-          <div className="grid place-items-center py-8"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
+          <div className="grid place-items-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
         ) : error ? (
-          <div className="text-sm text-destructive">{(error as Error).message}</div>
+          <div className="text-sm text-destructive">
+            تعذّر تحميل البيانات. يرجى المحاولة لاحقاً.
+          </div>
         ) : typedEntries.length === 0 ? (
           <div className="text-sm text-muted-foreground py-4 text-center">لا توجد أحداث بعد.</div>
         ) : (
           <ul className="space-y-1.5 max-h-[60vh] overflow-y-auto">
             {typedEntries.map((entry, index) => (
-              <li key={index} className="flex items-center justify-between gap-2 rounded bg-muted/30 px-2 py-1.5 text-xs">
+              <li
+                key={index}
+                className="flex items-center justify-between gap-2 rounded bg-muted/30 px-2 py-1.5 text-xs"
+              >
                 <span className="font-bold text-primary">
                   {MATERIAL_ACCESS_EVENT_LABELS[entry.event as MaterialAccessEvent] ?? entry.event}
                 </span>
@@ -507,7 +640,9 @@ function AccessLogDialog({ materialId, materialTitle, onClose }: { materialId: s
           </ul>
         )}
         <div className="flex justify-end pt-3">
-          <button type="button" onClick={onClose} className="rounded border px-3 py-1.5 text-sm">إغلاق</button>
+          <button type="button" onClick={onClose} className="rounded border px-3 py-1.5 text-sm">
+            إغلاق
+          </button>
         </div>
       </div>
     </div>
