@@ -5,13 +5,14 @@
 | Gate | Decision |
 |---|---|
 | SEQ07→SEQ20 dependency closure | **PASS_B1_SEQ07_20_DEPENDENCY_CLOSURE** |
-| SEQ07 local PG17 + static review | **PASS** (local; not re-run — SEQ07 SHA stable) |
-| SEQ07 Production read-only / preflight | **PASS_B1_SEQ07_PRODUCTION_PREFLIGHT** |
-| SEQ07 apply approval readiness | **READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL** |
+| SEQ07 local PG17 + static review | **PASS** (local; SHA stable) |
+| SEQ07 Production read-only / preflight | **PASS_B1_SEQ07_PRODUCTION_PREFLIGHT** (G4 RO) |
+| SEQ07 Production apply execution | **HOLD_B1_SEQ07_APPLY_TOOL_REJECTS_STORAGE_BUCKETS_INSERT_IN_UNMODIFIED_MIGRATION** |
+| SEQ07 apply approval readiness | **REVOKED** — see apply-exec independent verification |
 
-Prepared apply package for **SEQ07 alone** is documented below. It remains **documentation only** until a **separate explicit human approval** authorizes SEQ07 only.
+Prepared apply package for **SEQ07 alone** remains documentation only. The managed apply channel **rejected** unmodified SEQ07 before execution (`INSERT INTO storage.buckets` inside the atomic migration). Production catalog unchanged. Details: `docs/PORTAL-B1-SEQ07-PRODUCTION-APPLY-EXEC-01-INDEPENDENT-VERIFICATION.md`.
 
-PR **#254** remains Draft evidence for SEQ21 and stays **HOLD** (missing `student_request_attachment_uploads` until SEQ07→20 apply). This report does **not** claim SEQ21 is apply-ready.
+PR **#254** remains Draft evidence for SEQ21 and stays **HOLD**. SEQ08 preflight started separately and is also **HOLD** on missing predecessor SEQ07.
 
 **No migration applied. No Production DDL/DML. No Gate 25. No activation. No `student_visible`. No Deploy/Publish.**
 
@@ -20,7 +21,8 @@ PR **#254** remains Draft evidence for SEQ21 and stays **HOLD** (missing `studen
 | Stage | Decision |
 |---|---|
 | Prior (no SEQ07-specific RO) | `HOLD_B1_SEQ07_PRODUCTION_READONLY_EVIDENCE_INCOMPLETE` |
-| After Lovable `PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01-RESULT` | **`PASS_B1_SEQ07_PRODUCTION_PREFLIGHT`** / **`READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL`** |
+| After Lovable G4-01 RO | `PASS_B1_SEQ07_PRODUCTION_PREFLIGHT` / `READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL` |
+| After Lovable apply-exec + independent verify | **`HOLD_B1_SEQ07_APPLY_TOOL_REJECTS_STORAGE_BUCKETS_INSERT_IN_UNMODIFIED_MIGRATION`** · READY **revoked** |
 
 ---
 
@@ -377,7 +379,8 @@ No down migration. No DELETE of production attachment objects. Remediate only vi
 ```
 PASS_B1_SEQ07_20_DEPENDENCY_CLOSURE
 PASS_B1_SEQ07_PRODUCTION_PREFLIGHT
-READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL
+HOLD_B1_SEQ07_APPLY_TOOL_REJECTS_STORAGE_BUCKETS_INSERT_IN_UNMODIFIED_MIGRATION
+# READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL — REVOKED
 ```
 
-**Still forbidden without a new explicit approval:** applying SEQ07, SEQ08→24, Gate 25, activation, `student_visible`, Deploy/Publish, history repair.
+**Still forbidden without a new explicit approval:** applying SEQ07 (until apply-channel/path unblocked), SEQ08→24, Gate 25, activation, `student_visible`, Deploy/Publish, history repair, in-place edit of pinned SEQ07 bytes.
