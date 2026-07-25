@@ -45,6 +45,7 @@ async function fetchTop(): Promise<Notification[]> {
 export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -63,6 +64,20 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
+
+  // Escape closes the dropdown and returns focus to the trigger button.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
 
   const markRead = async (id: string) => {
     await supabase.from("notifications").update({ is_read: true }).eq("id", id);
@@ -85,12 +100,20 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
 
   return (
     <div ref={ref} className="relative">
+      {/* Screen-reader announcement of the unread count (polite, not on focus). */}
+      <span aria-live="polite" className="sr-only">
+        {unread > 0 ? `لديك ${unread > 9 ? "أكثر من 9" : unread} إشعارات غير مقروءة` : ""}
+      </span>
       <button
+        ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         aria-label="الإشعارات"
-        className="relative inline-flex items-center justify-center h-10 w-10 rounded-md border border-gold/40 text-gold hover:bg-gold/10 transition-colors"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls="notifications-bell-dropdown"
+        className="relative inline-flex items-center justify-center h-10 w-10 rounded-md border border-gold/40 text-gold hover:bg-gold/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-primary-deep"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-5 w-5" aria-hidden />
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 grid place-items-center min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[10px] font-extrabold">
             {unread > 9 ? "9+" : unread}
@@ -99,15 +122,20 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-[min(92vw,360px)] z-50 rounded-lg bg-card border border-border shadow-xl overflow-hidden">
+        <div
+          id="notifications-bell-dropdown"
+          role="dialog"
+          aria-label="قائمة الإشعارات"
+          className="absolute left-0 mt-2 w-[min(92vw,360px)] z-50 rounded-lg bg-card border border-border shadow-xl overflow-hidden"
+        >
           <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-secondary/40">
             <div className="font-display font-bold text-primary text-sm">الإشعارات</div>
             <button
               onClick={markAll}
               disabled={unread === 0}
-              className="text-[11px] text-primary font-bold inline-flex items-center gap-1 disabled:opacity-40"
+              className="text-[11px] text-primary font-bold inline-flex items-center gap-1 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
-              <CheckCheck className="h-3.5 w-3.5" /> تعليم الكل كمقروء
+              <CheckCheck className="h-3.5 w-3.5" aria-hidden /> تعليم الكل كمقروء
             </button>
           </div>
 
@@ -124,17 +152,25 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
                   <li key={n.id}>
                     <button
                       onClick={() => openItem(n)}
-                      className={`w-full text-right p-3 hover:bg-secondary/40 transition-colors ${
+                      className={`w-full text-right p-3 hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring ${
                         n.is_read ? "opacity-70" : "bg-primary/[0.03]"
                       }`}
                     >
                       <div className="flex items-start gap-2">
                         {!n.is_read && (
-                          <span className="mt-1.5 h-2 w-2 rounded-full bg-primary shrink-0" />
+                          <>
+                            <span
+                              className="mt-1.5 h-2 w-2 rounded-full bg-primary shrink-0"
+                              aria-hidden
+                            />
+                            <span className="sr-only">إشعار غير مقروء</span>
+                          </>
                         )}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${TYPE_COLORS[n.notification_type] ?? "bg-muted"}`}>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${TYPE_COLORS[n.notification_type] ?? "bg-muted"}`}
+                            >
                               {TYPE_LABELS[n.notification_type] ?? n.notification_type}
                             </span>
                             <span className="text-[10px] text-muted-foreground">
@@ -142,7 +178,9 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
                             </span>
                           </div>
                           <div className="font-bold text-sm text-foreground">{n.title}</div>
-                          <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.message}</div>
+                          <div className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                            {n.message}
+                          </div>
                         </div>
                       </div>
                     </button>
@@ -155,8 +193,11 @@ export function NotificationsBell({ seeAllHref }: { seeAllHref?: string }) {
           {seeAllHref && (
             <div className="border-t border-border p-2 text-center">
               <button
-                onClick={() => { setOpen(false); navigate({ to: seeAllHref }); }}
-                className="text-xs font-bold text-primary hover:underline"
+                onClick={() => {
+                  setOpen(false);
+                  navigate({ to: seeAllHref });
+                }}
+                className="text-xs font-bold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
               >
                 عرض كل الإشعارات
               </button>
