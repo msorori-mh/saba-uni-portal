@@ -361,7 +361,7 @@ No down migration. No DELETE of production attachment objects. Remediate only vi
 
 ## Production impact
 
-**Zero** from this preparation track. SEQ07 apply remains unauthorized until separate human approval.
+**Zero** from this preparation track. SEQ07 apply remains blocked until an approved apply-channel/path unblocks the `storage.buckets` INSERT (see apply-exec verification).
 
 ## Files touched (this prep)
 
