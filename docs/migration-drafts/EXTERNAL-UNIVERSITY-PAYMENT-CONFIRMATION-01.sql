@@ -229,10 +229,10 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.record_external_university_payment_confirmation(uuid, text, text)
+REVOKE ALL ON FUNCTION public.record_external_university_payment_confirmation(uuid, text)
   FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.record_external_university_payment_confirmation(uuid, text, text)
+GRANT EXECUTE ON FUNCTION public.record_external_university_payment_confirmation(uuid, text)
   TO authenticated;
 
-COMMENT ON FUNCTION public.record_external_university_payment_confirmation(uuid, text, text) IS
-  'Exact direct-assignee external university receipt confirmation. No role-pool/admin/registrar/dean bypass, client payload, or portal financial data.';
+COMMENT ON FUNCTION public.record_external_university_payment_confirmation(uuid, text) IS
+  'Ordinary workflow confirm_payment action for the exact direct finance assignee. Server-side actor and timestamp only, optional note, no rejection path, no role-pool/admin/registrar/dean bypass, and no portal financial data.';
