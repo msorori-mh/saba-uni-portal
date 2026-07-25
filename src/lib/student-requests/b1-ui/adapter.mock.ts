@@ -89,14 +89,6 @@ function allowedActionsForStep(step: B1WorkflowStepView): readonly B1StaffAction
   return [primaryActionForStep(step), "return", "reject"];
 }
 
-const OUTCOME_AR: Readonly<Record<B1StaffAction, string>> = {
-  review: "تمت مراجعة الخطوة",
-  approve: "تم اعتماد الخطوة",
-  return: "تمت إعادة الطلب إلى الطالب لاستكماله",
-  reject: "تم رفض الطلب",
-  confirm_payment: "تم تأكيد استلام الرسوم في النظام الجامعي الرئيسي",
-};
-
 function deriveStatus(request: MockRequest): B1RequestDetails["status"] {
   if (!request.submittedAt) return "draft";
   if (request.steps.some((step) => step.status === "rejected")) return "rejected";
@@ -276,10 +268,10 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
 
     request.updatedAt = actedAt;
     return {
+      accepted: true,
       stepId: stepIdOf(request.requestId, step.key),
       requestId: request.requestId,
-      outcomeAr: OUTCOME_AR[action],
-      actedAt,
+      action,
     };
   }
 

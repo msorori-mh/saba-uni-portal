@@ -29,6 +29,8 @@ import {
   mapBackendRowsToB1Availability,
   resolveB1RuntimeAvailable,
 } from "@/lib/student-requests/b1-ui/availability";
+import { createAuthorizedB1AttachmentDownload } from "@/lib/student-requests/b1-ui/b1-ui.functions";
+import { SECURE_ATTACHMENT_SIGNED_URL_SECONDS } from "@/lib/student-requests/secure-attachments-contract";
 import { B1_CANONICAL_CODES } from "@/lib/student-requests/request-service-adapter";
 
 describe("B1 UI ↔ Backend integration bridge — RPC signatures", () => {
@@ -214,6 +216,132 @@ describe("B1 UI ↔ Backend integration bridge — RPC signatures", () => {
   });
 });
 
+describe("B1 UI secure attachment download boundary", () => {
+  const attachmentId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+  it("authorizes before signing and returns only a short-lived public DTO", async () => {
+    const order: string[] = [];
+    const client = {
+      async rpc(fn: string, args?: Record<string, unknown>) {
+        order.push(`rpc:${fn}`);
+        expect(args).toEqual({ p_attachment_id: attachmentId });
+        return {
+          data: {
+            storage_bucket: "student-request-secure-attachments",
+            storage_object_path: "student-requests/owner/request/attachment/content.pdf",
+          },
+          error: null,
+        };
+      },
+      from() {
+        throw new Error("not used");
+      },
+      storage: {
+        from(bucketName: string) {
+          order.push(`storage:${bucketName}`);
+          return {
+            async createSignedUrl(objectName: string, expiresIn: number) {
+              order.push(`sign:${objectName}:${expiresIn}`);
+              return {
+                data: { signedUrl: "https://signed.example.test/download-token" },
+                error: null,
+              };
+            },
+          };
+        },
+      },
+    };
+
+    const result = await createAuthorizedB1AttachmentDownload(client, attachmentId);
+    expect(order[0]).toBe("rpc:authorize_student_request_attachment_download");
+    expect(order[1]).toBe("storage:student-request-secure-attachments");
+    expect(order[2]).toBe(
+      `sign:student-requests/owner/request/attachment/content.pdf:${SECURE_ATTACHMENT_SIGNED_URL_SECONDS}`,
+    );
+    expect(SECURE_ATTACHMENT_SIGNED_URL_SECONDS).toBeLessThanOrEqual(300);
+    expect(result).toEqual({
+      url: "https://signed.example.test/download-token",
+      expiresInSeconds: SECURE_ATTACHMENT_SIGNED_URL_SECONDS,
+    });
+    expect(Object.keys(result).sort()).toEqual(["expiresInSeconds", "url"]);
+  });
+
+  it("never signs or leaks backend details when authorization is denied", async () => {
+    let signCalled = false;
+    const client = {
+      async rpc() {
+        return {
+          data: null,
+          error: { message: "private SQL and storage details", code: "42501" },
+        };
+      },
+      from() {
+        throw new Error("not used");
+      },
+      storage: {
+        from() {
+          signCalled = true;
+          return {
+            async createSignedUrl() {
+              signCalled = true;
+              return { data: null, error: null };
+            },
+          };
+        },
+      },
+    };
+
+    await expect(createAuthorizedB1AttachmentDownload(client, attachmentId)).rejects.toThrow(
+      "ATTACHMENT_ACCESS_DENIED",
+    );
+    expect(signCalled).toBe(false);
+  });
+
+  it("keeps storage internals out of public DTOs and client wrappers", () => {
+    const publicSources = [
+      readFileSync(
+        join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "adapter.types.ts"),
+        "utf8",
+      ),
+      readFileSync(
+        join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "adapter.live.ts"),
+        "utf8",
+      ),
+    ].join("\n");
+    for (const forbidden of ["storage_bucket", "storage_object_path", "objectPath", "object_key"]) {
+      expect(publicSources).not.toContain(forbidden);
+    }
+    expect(publicSources).not.toContain("getPublicUrl");
+  });
+
+  it("keeps signing server-side with fixed expiry and no public URL API", () => {
+    const serverSource = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "b1-ui.functions.ts"),
+      "utf8",
+    );
+    const downloadBlock = serverSource.slice(
+      serverSource.indexOf("export async function createAuthorizedB1AttachmentDownload"),
+      serverSource.indexOf("export const authorizeB1UiAttachmentDownloadFn"),
+    );
+    expect(downloadBlock.indexOf("rpcAuthorizeStudentRequestAttachmentDownload")).toBeLessThan(
+      downloadBlock.indexOf(".createSignedUrl("),
+    );
+    expect(downloadBlock).toContain("SECURE_ATTACHMENT_SIGNED_URL_SECONDS");
+    expect(downloadBlock).not.toContain("getPublicUrl");
+    expect(downloadBlock).not.toMatch(/console\.|localStorage|expiresIn.*data\./);
+  });
+
+  it("keeps React components free of Supabase Storage imports", () => {
+    const root = join(process.cwd(), "src", "components", "student-requests", "b1");
+    for (const path of walkFiles(root).filter((entry) => /\.(tsx|ts)$/.test(entry))) {
+      const source = readFileSync(path, "utf8");
+      expect(source).not.toMatch(
+        /supabase.*storage|storage.*supabase|createSignedUrl|getPublicUrl/i,
+      );
+    }
+  });
+});
+
 describe("B1 UI ↔ Backend integration bridge — allowlists & availability", () => {
   it("pins per-service form_data allowlists from the freeze", () => {
     expect(B1_FORM_DATA_ALLOWLISTS.enrollment_suspension).toContain("terms_acknowledgment");
@@ -287,19 +415,19 @@ describe("B1 UI ↔ Backend integration bridge — live adapter behavior", () =>
       async actOnB1RequestStep() {
         actCalled = true;
         return {
+          accepted: true,
           stepId: "s",
           requestId: "r",
-          outcomeAr: "x",
-          actedAt: "t",
+          action: "review",
         };
       },
       async confirmB1RevenueReceipt(stepId, optionalNote) {
         confirmArgs = { stepId, note: optionalNote };
         return {
+          accepted: true,
           stepId,
           requestId: "r1",
-          outcomeAr: "تم تأكيد استلام الرسوم في النظام الجامعي الرئيسي",
-          actedAt: "2026-07-25T00:00:00.000Z",
+          action: "confirm_payment",
         };
       },
     });
@@ -336,11 +464,11 @@ describe("B1 UI ↔ Backend integration bridge — live adapter behavior", () =>
       },
       async actOnB1RequestStep(stepId, action, comment) {
         seen.act = { stepId, action, comment };
-        return { stepId, requestId: "r", outcomeAr: "ok", actedAt: "t" };
+        return { accepted: true, stepId, requestId: "r", action };
       },
       async confirmB1RevenueReceipt(stepId, optionalNote) {
         seen.confirm = { stepId, optionalNote };
-        return { stepId, requestId: "r", outcomeAr: "ok", actedAt: "t" };
+        return { accepted: true, stepId, requestId: "r", action: "confirm_payment" };
       },
     });
 
@@ -370,19 +498,29 @@ describe("B1 UI ↔ Backend integration bridge — live adapter behavior", () =>
     });
     expect(JSON.stringify(seen.confirm)).not.toMatch(/amount|currency|invoice|confirmed_by/i);
   });
+
+  it("returns acknowledgments without local timestamps or optimistic workflow state", () => {
+    const functionsSource = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "b1-ui.functions.ts"),
+      "utf8",
+    );
+    const mutationBlock = functionsSource.slice(
+      functionsSource.indexOf("export const actOnB1UiRequestStepFn"),
+      functionsSource.indexOf("const uploadIntentSchema"),
+    );
+    expect(mutationBlock).not.toMatch(/new Date\(|Date\.now\(|toISOString\(/);
+    expect(mutationBlock).not.toMatch(
+      /\b(status|currentStep|completedAt|confirmedAt|confirmed_by|confirmed_at|actorUserId)\s*:/,
+    );
+    expect(mutationBlock).toContain("accepted: true");
+    expect(mutationBlock).toContain('action: "confirm_payment"');
+  });
 });
 
 describe("B1 UI ↔ Backend integration bridge — component & enrollment guards", () => {
-  function walk(dir: string): string[] {
-    return readdirSync(dir).flatMap((entry) => {
-      const path = join(dir, entry);
-      return statSync(path).isDirectory() ? walk(path) : [path];
-    });
-  }
-
   it("B1 React components do not import Supabase", () => {
     const root = join(process.cwd(), "src", "components", "student-requests", "b1");
-    for (const path of walk(root).filter((p) => /\.(tsx|ts)$/.test(p))) {
+    for (const path of walkFiles(root).filter((p) => /\.(tsx|ts)$/.test(p))) {
       const source = readFileSync(path, "utf8");
       expect(source).not.toMatch(/from\s+["']@\/integrations\/supabase/);
       expect(source).not.toMatch(/from\s+["']@supabase\//);
@@ -430,3 +568,10 @@ describe("B1 UI ↔ Backend integration bridge — component & enrollment guards
     expect(confirmBlock).toContain(".strict()");
   });
 });
+
+function walkFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry);
+    return statSync(path).isDirectory() ? walkFiles(path) : [path];
+  });
+}
