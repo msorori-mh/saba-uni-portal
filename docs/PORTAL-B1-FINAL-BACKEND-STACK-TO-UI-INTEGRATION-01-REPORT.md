@@ -13,8 +13,8 @@ No Production/Staging apply, Deploy/Publish, migration apply, activation, or `st
 | Field | Value |
 |---|---|
 | PR | [#238](https://github.com/msorori-mh/saba-uni-portal/pull/238) |
-| Post-#239 merge HEAD | `e656b8259ce43fe320c20b086b7ea45ef403a472` |
-| RC refresh tip | `72700909763256d186d2f13616fd3bf4e47cd449` (docs-only refresh commit) |
+| Post-#239 merge pin | `e656b8259ce43fe320c20b086b7ea45ef403a472` |
+| RC tip | PR #238 `headRefOid` (docs-only refresh commits after the pin above) |
 | Prior integration tip | `a8d6f639f3e89c70253d6fbd85561e5ea8563edd` |
 | Merged prep PR | [#239](https://github.com/msorori-mh/saba-uni-portal/pull/239) → merge commit `e656b825…` |
 | Base | `feat/b1-five-services-ui-kimi-01` (`8c6e092…`) |
@@ -25,14 +25,14 @@ No Production/Staging apply, Deploy/Publish, migration apply, activation, or `st
 
 Delta proof `a8d6f639…` → `e656b825…`: **one docs file only**
 `docs/PORTAL-B1-PRODUCTION-SEQUENTIAL-APPLY-FINAL-PACKAGE-01-REPORT.md` (+375).
-Subsequent RC refresh `e656b825…` → `7270090…` updates this integration report only.
-No `src/`, SQL, migration, or runtime-contract byte changes vs `a8d6f639…`. Prior PG17 Secure Read 25/25, Secure Draft 35/35, and Integrated Runtime 5/5 remain applicable byte-for-byte to code/SQL at this tip.
+Subsequent RC refresh commits after `e656b825…` update this integration report / PR description only.
+No `src/`, SQL, migration, or runtime-contract byte changes vs `a8d6f639…`. Prior PG17 Secure Read 25/25, Secure Draft 35/35, and Integrated Runtime 5/5 remain applicable byte-for-byte to code/SQL at the RC tip.
 
 ## Baseline
 
 | Ref | Value |
 |---|---|
-| Final RC tip (PR #238) | `72700909763256d186d2f13616fd3bf4e47cd449` |
+| Final RC tip (PR #238) | current `headRefOid` on `integration/b1-final-backend-ui-contracts-01` |
 | Post-#239 merge pin | `e656b8259ce43fe320c20b086b7ea45ef403a472` |
 | PR #227 HEAD | `41311950872672a8e326b1712dd1f16475cc4877` |
 | PR #221 tip | `8c6e092c591be3d10bdfa159e86f61bc30ad0d05` (`feat/b1-five-services-ui-kimi-01`) |
@@ -112,4 +112,4 @@ None. SOURCE-ONLY. No Production/Staging migration apply, Deploy/Publish, activa
 
 ## RC refresh decision
 
-**PASS_PR238_POST_PR239_FINAL_RC_REFRESH** (documentation refresh on tip `7270090…` after post-#239 pin `e656b825…`; independent Codex review of PR #238 remains outstanding before merge into #221).
+**PASS_PR238_POST_PR239_FINAL_RC_REFRESH** (documentation refresh after post-#239 pin `e656b825…`; independent Codex review of PR #238 remains outstanding before merge into #221).
