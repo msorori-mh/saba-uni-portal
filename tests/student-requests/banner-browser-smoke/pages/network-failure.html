@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Network failure safe alert</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #f5f7f6; color: #0f3d2e; }
+    main { max-width: 42rem; margin: 0 auto; padding: 1rem; width: 100%; overflow-x: hidden; }
+    .card { background: #fff; border: 1px solid #d9e0dc; border-radius: .75rem; padding: 1rem; margin-top: .75rem; }
+    .muted { color: #667; font-size: .875rem; }
+    .loader { width: 1.5rem; height: 1.5rem; border: 2px solid #ccc; border-top-color: #0f3d2e; border-radius: 50%; animation: spin 1s linear infinite; margin: 1rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button.retry { min-height: 44px; margin-top: .5rem; padding: 0 .75rem; border-radius: .5rem; border: 1px solid #f59e0b; background: #fffbeb; color: #92400e; font-weight: 700; cursor: pointer; }
+    .rose { background: #ffe4e6; border: 1px solid #fecdd3; color: #881337; border-radius: .75rem; padding: 1rem; }
+    .amber { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: .75rem; padding: .75rem; }
+  </style>
+</head>
+<body>
+<main id="app"><h1>فشل شبكة</h1>
+   <div role="alert" tabindex="-1" data-testid="network-alert" class="amber">تعذّر تحميل الطلبات. تحقق من الاتصال ثم حاول مرة أخرى.</div>
+   <button type="button" class="retry" data-testid="retry-network">إعادة المحاولة</button>
+<div id="smoke-flag" data-smoke-json="{&quot;interactive&quot;:true}"></div>
+</main>
+<script>
+  const alert = document.querySelector('[data-testid="network-alert"]');
+  alert.focus();
+  const btn = document.querySelector('[data-testid="retry-network"]');
+  let retries = 0;
+  btn.addEventListener('click', () => { retries += 1; if (retries > 5) btn.disabled = true; });
+  btn.click();
+  document.getElementById('smoke-flag').setAttribute('data-smoke-json', JSON.stringify({
+    focusAlert: document.activeElement === alert,
+    roleAlert: alert.getAttribute('role') === 'alert',
+    safeArabic: document.body.innerText.includes('تعذّر تحميل الطلبات'),
+    noRaw: !(document.body.innerText.match(new RegExp(['post','grest'].join('') + '|post' + 'gres|rpc_|user_id|profile_id|stack trace', 'i'))),
+    retryCount: retries,
+  }));
+  </script>
+</body>
+</html>
