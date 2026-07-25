@@ -23,8 +23,9 @@ truthfulness. Do **not** merge `#246` to `main`.
    - merge commit: `a901057e29c231e0b7da5ecf44399ac2d1f885a0`
 3. Post-merge:
    - PR `#247` = **MERGED**
-   - PR `#246` = **OPEN**
+   - PR `#246` = **OPEN** (Final RC tip published on the same branch after smoke harness)
    - `main` unchanged at `92d51faa9bcdc9fd99e89579f6a498b463264246`
+   - See PR `#246` `headRefOid` for the published Final RC tip
 
 ## Closed defects (from Codex `#247`)
 
