@@ -7,6 +7,7 @@ import { join } from "node:path";
 
 const pagesDir = join(import.meta.dir, "pages");
 const port = Number(process.env.PR240_SMOKE_PORT || 4177);
+const HARNESS_MARKER = "pr240-browser-smoke";
 
 mkdirSync(pagesDir, { recursive: true });
 
@@ -29,6 +30,7 @@ const server = Bun.serve({
           ? "text/html; charset=utf-8"
           : "application/octet-stream",
         "cache-control": "no-store",
+        "x-pr240-harness": HARNESS_MARKER,
       },
     });
   },
