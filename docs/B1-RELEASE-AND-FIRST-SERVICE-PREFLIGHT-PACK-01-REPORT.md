@@ -82,7 +82,7 @@ activate or implement any of the other four services.
 |   4 | `B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql`            | `54c1544296374f83bfda9637cfdbd3d3f5f9a9420cb9395daf30034aa4876216` | M3-02: B1-scoped predecessor/action guard; `-01` is NEVER-PROMOTE    |
 |   5 | `REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql`         | `e5b5ee1cba7a39864ff07b3d95daed31b1f1a513613566b052ca3f62661a8edf` | Fresh read-only verification of every embedded identity/department   |
 |   6 | `REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql`                     | `473528c5c49c14a486e5ca34afca1cda7a678dc86373555580fadc04e03080fd` | Atomic chair runtime pins position assignments                       |
-|   7 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
+|   7 | `EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql`            | `41ab67a1208f926400799d2c6870dd44015e59fbbb9a7d6adaba4faf9d3b7f84` | Coupled vocabulary only; suspension remains FREE_NO_PAYMENT          |
 |   8 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356` | Private bucket/policy approval still required; no public URLs        |
 |   9 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`            | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references                                       |
 |  10 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`              | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Coupled compile order; no activation/backfill                        |
@@ -104,7 +104,7 @@ reject any mismatch. Documentary/superseded drafts remain forbidden.
 **Re-pin addendum (owner decision, 2026-07-23):** the coordinated pack is now
 **20** drafts: M3-02 is row 4, ACL cutover is row 19, and final actor-action
 hardening is row 20. Payment/attachments rows were re-pinned after R-3/R-2
-(`aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993` /
+(`41ab67a1208f926400799d2c6870dd44015e59fbbb9a7d6adaba4faf9d3b7f84` /
 `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356`). The
 sequential-apply manifest apply-set remains the first 19 runtime drafts;
 final hardening is the last coordinated entry (harness/order 20).

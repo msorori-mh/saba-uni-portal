@@ -771,7 +771,7 @@
    "sequence_predecessor": "B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05",
    "source_sha": "0a61db10a81f8ee01ff5ada1c0aa5df6a4882204",
    "source_sha_provenance": "git blob SHA-1 (git hash-object, LF-normalized) of the draft amended for R-3 closure (owner decision): replacement action_type constraint is a superset of the applied one and retains assess_fee",
-   "sha256": "aae12fefe62eebeed98d808aa1f3fa91eedcd94fb18f74e47bd063a0174f8993",
+   "sha256": "41ab67a1208f926400799d2c6870dd44015e59fbbb9a7d6adaba4faf9d3b7f84",
    "sha256_provenance": "locally computed SHA-256 of LF-normalized bytes (zero CR verified) after R-3 assess_fee retention; matches runbook-07 order 6 pin",
    "byte_size": 11257,
    "dependencies": [
