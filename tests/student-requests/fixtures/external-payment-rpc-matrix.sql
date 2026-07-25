@@ -32,25 +32,24 @@ BEGIN
 
   PERFORM set_config('request.jwt.claim.sub', other_actor::text, true);
   BEGIN
-    PERFORM record_external_university_payment_confirmation(payment_step, 'payment_confirmed', NULL);
+    PERFORM record_external_university_payment_confirmation(payment_step, NULL);
     RAISE EXCEPTION 'negative authorization unexpectedly passed';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
 
   PERFORM set_config('request.jwt.claim.sub', actor::text, true);
-  result := record_external_university_payment_confirmation(payment_step, 'payment_not_confirmed', 'not found externally');
-  IF result->>'transition_applied' <> 'false' OR
-     (SELECT status FROM student_request_workflow_steps WHERE id = payment_step) <> 'active' THEN
-    RAISE EXCEPTION 'negative status advanced workflow';
+  -- Inaction keeps the step active: there is no rejection call to make.
+  IF (SELECT status FROM student_request_workflow_steps WHERE id = payment_step) <> 'active' THEN
+    RAISE EXCEPTION 'pending step unexpectedly changed';
   END IF;
 
-  result := record_external_university_payment_confirmation(payment_step, 'payment_confirmed', 'received externally');
+  result := record_external_university_payment_confirmation(payment_step, 'received externally');
   IF result->>'transition_applied' <> 'true' OR
      (SELECT status FROM student_request_workflow_steps WHERE id = payment_step) <> 'completed' OR
      (SELECT completed_by FROM student_request_workflow_steps WHERE id = payment_step) <> actor OR
      (SELECT status FROM student_request_workflow_steps WHERE id = next_step) <> 'active' OR
      (SELECT count(*) FROM student_request_workflow_events
-       WHERE student_request_id = request_id AND event_type IN ('payment_not_confirmed','payment_confirmed')) <> 2 THEN
+       WHERE student_request_id = request_id AND event_type = 'payment_confirmed') <> 1 THEN
     RAISE EXCEPTION 'positive confirmation invariant failed';
   END IF;
 END $$;

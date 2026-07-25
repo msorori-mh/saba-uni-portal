@@ -18,7 +18,7 @@ describe("external payment confirmation migration draft", () => {
     for (const forbidden of ["fee_type_id", "fee_type_code", "amount numeric", "currency text", "invoice", "gateway_transaction", "payment_reference", "internal_balance"]) {
       expect(sql.toLowerCase()).not.toContain(forbidden);
     }
-    for (const required of ["completed_by = v_uid", "completed_at = now()", "p_note text", "payment_confirmed", "payment_not_confirmed"]) {
+    for (const required of ["completed_by = v_uid", "completed_at = now()", "p_note text", "payment_confirmed"]) {
       expect(sql).toContain(required);
     }
   });
@@ -35,10 +35,11 @@ describe("external payment confirmation migration draft", () => {
     expect(sql).not.toContain("p_payload");
   });
 
-  it("does not advance unless payment is confirmed", () => {
-    const notConfirmed = sql.slice(sql.indexOf("IF p_status = 'payment_not_confirmed'"), sql.indexOf("SELECT t.* INTO v_transition"));
-    expect(notConfirmed).toContain("'transition_applied', false");
-    expect(notConfirmed).not.toContain("SET status = 'active'");
+  it("has no rejection path and advances only on confirmation", () => {
+    expect(sql).not.toContain("payment_not_confirmed");
+    expect(sql).not.toContain("p_status");
+    expect(sql).toContain("DROP FUNCTION IF EXISTS public.record_external_university_payment_confirmation(uuid, text, text)");
+    expect(sql).toContain("record_external_university_payment_confirmation(uuid, text)");
     expect(sql).toContain("AND t.action_result = 'payment_confirmed'");
     expect(sql).toContain("NEXT_PAYMENT_WORKFLOW_STEP_NOT_READY");
     expect(sql).toContain("EXACTLY_ONE_PAYMENT_CONFIRMED_TRANSITION_REQUIRED");

@@ -10,7 +10,7 @@ BEGIN
   denied:=false;
   PERFORM set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000002',true);
   BEGIN
-    PERFORM public.record_external_university_payment_confirmation(m.runtime_id,'payment_not_confirmed','synthetic denial');
+    PERFORM public.record_external_university_payment_confirmation(m.runtime_id,'synthetic denial');
   EXCEPTION WHEN insufficient_privilege THEN denied:=true;
   END;
   SELECT to_jsonb(s) INTO after_row FROM public.student_request_workflow_steps s WHERE id=m.runtime_id;
@@ -20,9 +20,9 @@ BEGIN
     format('row_unchanged=%s events_unchanged=%s',before_row=after_row,before_events=after_events));
 
   PERFORM set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',true);
-  result:=public.record_external_university_payment_confirmation(m.runtime_id,'payment_not_confirmed','synthetic local note');
+  result:=public.record_external_university_payment_confirmation(m.runtime_id,'synthetic local note');
   PERFORM pg_temp.record_result(m.service,m.step_key,'finance_rpc_exact_assignee','ALLOW',
-    CASE WHEN result->>'status'='payment_not_confirmed' THEN 'ALLOW' ELSE 'DENY' END);
+    CASE WHEN result->>'status'='payment_confirmed' THEN 'ALLOW' ELSE 'DENY' END);
  END LOOP;
 END $$;
 
