@@ -76,3 +76,9 @@ Harness alignment after reviewed #233 create gate:
 - No merge of PR #232.
 - Workflow activation only inside disposable local harness (`35-activate-workflows-local-only.sql`).
 - `student_visible` unchanged.
+
+## Remote CI
+
+- After push: GitHub reports **no checks** on `test/b1-five-services-integrated-runtime-e2e-01`.
+- Record once: `HOLD_REMOTE_CI_BILLING_NO_JOB_STEPS` (do not thrash reruns). Local stack reverify remains authoritative for this decision.
+- PR mergeability after sync push: `MERGEABLE` / `CLEAN` vs `feat/b1-five-services-secure-draft-mutations-01`.
