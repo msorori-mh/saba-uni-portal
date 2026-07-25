@@ -9,21 +9,38 @@ import {
 import { B1_WORKFLOWS, canActOnB1Step } from "../../src/lib/student-requests/request-service-adapter";
 
 describe("external university payment confirmation", () => {
-  it("records only request and optional note input", () => {
+  it("records only step id and optional note — no financial ledger fields", () => {
     expect(EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION).toBe("EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION");
-    expect(validateExternalPaymentConfirmationInput({ requestId: " request-1 ", note: " received externally " })).toEqual({
+    expect(validateExternalPaymentConfirmationInput({ stepId: " step-1 ", note: " received externally " })).toEqual({
       valid: true,
-      normalized: { requestId: "request-1", note: "received externally" },
+      normalized: { stepId: "step-1", note: "received externally" },
+    });
+    expect(validateExternalPaymentConfirmationInput({ stepId: "   " })).toEqual({
+      valid: false,
+      error: "step_id_required",
     });
     const source = readFileSync(join(process.cwd(), "src", "lib", "student-requests", "external-payment-confirmation-contract.ts"), "utf8");
-    for (const forbidden of ["amount", "currency", "feeTypeCode", "invoice", "gatewayTransaction", "internalBalance", "paymentReference"]) {
+    for (const forbidden of [
+      "feeTypeCode",
+      "gatewayTransaction",
+      "internalBalance",
+      "paymentReference",
+      "payment_not_confirmed",
+      "amount:",
+      "currency:",
+      "invoice:",
+    ]) {
       expect(source).not.toContain(forbidden);
     }
+    // Input contract is step-scoped; requestId remains only on the read record.
+    expect(source.replace(/\r\n/g, "\n")).toMatch(
+      /ExternalPaymentConfirmationInput = \{\n  stepId: string;/,
+    );
+    expect(source).not.toMatch(/ExternalPaymentConfirmationInput = \{[^}]*requestId/s);
   });
 
-  it("advances only after confirmation", () => {
+  it("advances only after confirmation; inaction has no rejection status", () => {
     expect(canAdvanceAfterExternalPaymentConfirmation("awaiting_payment_confirmation")).toBe(false);
-    expect(canAdvanceAfterExternalPaymentConfirmation("payment_not_confirmed")).toBe(false);
     expect(canAdvanceAfterExternalPaymentConfirmation("payment_confirmed")).toBe(true);
   });
 

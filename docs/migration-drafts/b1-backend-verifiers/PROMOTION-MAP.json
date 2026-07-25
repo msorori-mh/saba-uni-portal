@@ -1,0 +1,110 @@
+﻿[
+    {
+        "order":  7,
+        "draft":  "STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql",
+        "migration":  "supabase/migrations/20260725110000_b1_07_secure_attachments_source_01.sql",
+        "draft_sha_lf":  "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
+        "migration_sha_lf":  "46c5d8ec846e1015e2f31083f9d613b72d9eabc71163ce78c358f90071efac77",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql"
+    },
+    {
+        "order":  8,
+        "draft":  "REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql",
+        "migration":  "supabase/migrations/20260725110100_b1_08_trusted_reference_validators_05a.sql",
+        "draft_sha_lf":  "529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c",
+        "migration_sha_lf":  "1c514854dc38526788d353656cb33aed01ddbc9bf0453af2a79baa1086e9dcf0",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/08-B1_08_TRUSTED_REFERENCE_VALIDATORS_05A-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/08-B1_08_TRUSTED_REFERENCE_VALIDATORS_05A-POST-VERIFIER.sql"
+    },
+    {
+        "order":  9,
+        "draft":  "REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql",
+        "migration":  "supabase/migrations/20260725110200_b1_09_excused_absence_vocabulary_05a.sql",
+        "draft_sha_lf":  "e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205",
+        "migration_sha_lf":  "75214058c72757fefae0eae2b12e5351e03401dffbb06a34dff28bb4ba9015a2",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/09-B1_09_EXCUSED_ABSENCE_VOCABULARY_05A-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/09-B1_09_EXCUSED_ABSENCE_VOCABULARY_05A-POST-VERIFIER.sql"
+    },
+    {
+        "order":  10,
+        "draft":  "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql",
+        "migration":  "supabase/migrations/20260725110300_b1_10_excused_absence_detail_05a.sql",
+        "draft_sha_lf":  "1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe",
+        "migration_sha_lf":  "be3b7d8caf41096ee1cac59bab4f432c6979e166062b9f1ca9a8f2bfbd564b9b",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-POST-VERIFIER.sql"
+    },
+    {
+        "order":  11,
+        "draft":  "REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql",
+        "migration":  "supabase/migrations/20260725110400_b1_11_file_withdrawal_details_05a.sql",
+        "draft_sha_lf":  "1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9",
+        "migration_sha_lf":  "e9c5dd797ffa950d57dbb3f17bd4c8fdf4f9119f08050747f311250f1a82458f",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-POST-VERIFIER.sql"
+    },
+    {
+        "order":  12,
+        "draft":  "REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql",
+        "migration":  "supabase/migrations/20260725110500_b1_12_transfer_secure_attachment_05a.sql",
+        "draft_sha_lf":  "d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284",
+        "migration_sha_lf":  "74a1a683c1cf3a9537d3b864bf6b8e39eea035efa0215d99a30eae1a1e757a00",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/12-B1_12_TRANSFER_SECURE_ATTACHMENT_05A-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/12-B1_12_TRANSFER_SECURE_ATTACHMENT_05A-POST-VERIFIER.sql"
+    },
+    {
+        "order":  13,
+        "draft":  "FINAL-CHANCE-CANONICAL-WRITE-03.sql",
+        "migration":  "supabase/migrations/20260725110600_b1_13_final_chance_canonical_write_03.sql",
+        "draft_sha_lf":  "9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704",
+        "migration_sha_lf":  "f25bdfc5a030bf95c660fc2fddfc236bd30219aebbbfa24f95abdf4e01ddceb3",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-POST-VERIFIER.sql"
+    },
+    {
+        "order":  14,
+        "draft":  "REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql",
+        "migration":  "supabase/migrations/20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql",
+        "draft_sha_lf":  "85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495",
+        "migration_sha_lf":  "88ca2835114a1b5ff68bd360c75dd37433c09bcd59a0fe3dd82712c750f82610",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-POST-VERIFIER.sql"
+    },
+    {
+        "order":  15,
+        "draft":  "REQUEST-B1-SERVICE-DETAILS-05A.sql",
+        "migration":  "supabase/migrations/20260725110800_b1_15_service_details_dispatcher_05a.sql",
+        "draft_sha_lf":  "d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c",
+        "migration_sha_lf":  "bf1b97ebc8b409265d8860d532e6079b44f0ab1949fc2f14663b9a819549654f",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/15-B1_15_SERVICE_DETAILS_DISPATCHER_05A-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/15-B1_15_SERVICE_DETAILS_DISPATCHER_05A-POST-VERIFIER.sql"
+    },
+    {
+        "order":  16,
+        "draft":  "B1-FREE-SERVICE-WORKFLOWS-08.sql",
+        "migration":  "supabase/migrations/20260725110900_b1_16_free_service_workflows_08.sql",
+        "draft_sha_lf":  "1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c",
+        "migration_sha_lf":  "e32a3f6bc7e5f882da57c1f74e947375ad26298acbdd6c8699cf9d54ca1b5db4",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-POST-VERIFIER.sql"
+    },
+    {
+        "order":  17,
+        "draft":  "EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql",
+        "migration":  "supabase/migrations/20260725111000_b1_17_external_university_payment_workflows_02.sql",
+        "draft_sha_lf":  "64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250",
+        "migration_sha_lf":  "a870262d014963821a951ab732b8660114409e588ac66363df5b063d14451853",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-POST-VERIFIER.sql"
+    },
+    {
+        "order":  18,
+        "draft":  "REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql",
+        "migration":  "supabase/migrations/20260725111100_b1_18_detail_acl_cutover_06.sql",
+        "draft_sha_lf":  "55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383",
+        "migration_sha_lf":  "c62d3458e90dda3e86136042c8b60f340e8d011f306366e6d3138acd8b214a13",
+        "preflight":  "docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-PREFLIGHT.sql",
+        "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-POST-VERIFIER.sql"
+    }
+]

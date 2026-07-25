@@ -28,7 +28,7 @@
     },
     {
         "file":  "REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql",
-        "sha256_lf":  "a92505d71ba6e02d29b4993d10da8ff8e2f91e5fa62549a6a7efe74c1dc8b58a",
+        "sha256_lf":  "473528c5c49c14a486e5ca34afca1cda7a678dc86373555580fadc04e03080fd",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "SKIP",
@@ -46,7 +46,7 @@
     },
     {
         "file":  "EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql",
-        "sha256_lf":  "da4eadb7de0a4fad8f3d5839a6b4719031a47b1b345652c5eae4ebd6fc872e4b",
+        "sha256_lf":  "41ab67a1208f926400799d2c6870dd44015e59fbbb9a7d6adaba4faf9d3b7f84",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "SKIP",
@@ -55,7 +55,7 @@
     },
     {
         "file":  "STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql",
-        "sha256_lf":  "bf95bb4bf87e5a8feea2dbba90bf76e56eed4c7e51e093acb7217d1fa3114f20",
+        "sha256_lf":  "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "PASS",
