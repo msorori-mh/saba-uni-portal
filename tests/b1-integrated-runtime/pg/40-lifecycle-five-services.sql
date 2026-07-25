@@ -244,6 +244,35 @@ begin
           when 'dean_approval' then 'approve'
           when 'registrar_apply' then 'apply_decision'
         end;
+        if step.step_key = 'source_department_head_approval' then
+          perform b1_e2e.expect_deny(
+            service || '/source_scope_wrong_department',
+            'action',
+            u_chair_it,
+            format(
+              'select public.act_on_b1_student_request_step_atomic(%L::uuid,%L,%L)',
+              step.id,
+              action,
+              'wrong department probe'
+            ),
+            '%B1_%',
+            req
+          );
+        elsif step.step_key = 'target_department_head_approval' then
+          perform b1_e2e.expect_deny(
+            service || '/target_scope_wrong_department',
+            'action',
+            u_chair_cs,
+            format(
+              'select public.act_on_b1_student_request_step_atomic(%L::uuid,%L,%L)',
+              step.id,
+              action,
+              'wrong department probe'
+            ),
+            '%B1_%',
+            req
+          );
+        end if;
         perform b1_e2e.set_uid(actor);
         begin
           perform public.act_on_b1_student_request_step_atomic(step.id, action, 'e2e transfer');
@@ -328,20 +357,65 @@ begin
   req := (v->>'requestId')::uuid;
   expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.bump('draft_creates');
-  -- submit without acknowledgment must fail
+  -- Missing, JSON null, and false acknowledgments must fail without mutation.
   v := public.save_b1_request_draft_for_student(
-    req, jsonb_build_object('withdrawal_reason','moving abroad permanently'), expected_version, null);
+    req,
+    jsonb_build_object('withdrawal_reason','moving abroad permanently'),
+    expected_version,
+    null
+  );
   expected_version := (v->>'updatedAt')::timestamptz;
-  begin
-    perform public.submit_b1_student_request_atomic(
-      req, service,
-      jsonb_build_object('withdrawal_reason','moving abroad permanently'),
-      expected_version, '{}'::uuid[]);
-    perform b1_e2e.note(service || '/submit_without_ack', 'submit', false, 'accepted');
-  exception when others then
-    perform b1_e2e.note(service || '/submit_without_ack', 'submit',
-      sqlerrm like '%B1_WITHDRAWAL_INPUT_INVALID%', sqlerrm);
-  end;
+  perform b1_e2e.expect_deny(
+    service || '/submit_without_ack',
+    'submit',
+    u_student,
+    format(
+      'select public.submit_b1_student_request_atomic(%L::uuid,%L,%L::jsonb,%L::timestamptz,%L::uuid[])',
+      req,
+      service,
+      jsonb_build_object('withdrawal_reason','moving abroad permanently')::text,
+      expected_version,
+      '{}'
+    ),
+    '%B1_WITHDRAWAL_INPUT_INVALID%',
+    req
+  );
+  perform b1_e2e.expect_deny(
+    service || '/submit_null_ack',
+    'submit',
+    u_student,
+    format(
+      'select public.submit_b1_student_request_atomic(%L::uuid,%L,%L::jsonb,%L::timestamptz,%L::uuid[])',
+      req,
+      service,
+      jsonb_build_object(
+        'withdrawal_reason','moving abroad permanently',
+        'impact_acknowledgment', null
+      )::text,
+      expected_version,
+      '{}'
+    ),
+    '%B1_WITHDRAWAL_INPUT_INVALID%',
+    req
+  );
+  perform b1_e2e.expect_deny(
+    service || '/submit_false_ack',
+    'submit',
+    u_student,
+    format(
+      'select public.submit_b1_student_request_atomic(%L::uuid,%L,%L::jsonb,%L::timestamptz,%L::uuid[])',
+      req,
+      service,
+      jsonb_build_object(
+        'withdrawal_reason','moving abroad permanently',
+        'impact_acknowledgment', false
+      )::text,
+      expected_version,
+      '{}'
+    ),
+    '%B1_WITHDRAWAL_INPUT_INVALID%',
+    req
+  );
   -- Ensure student actor after negative submit probe.
   perform b1_e2e.set_uid(u_student);
   select status into err from public.student_requests where id = req;
