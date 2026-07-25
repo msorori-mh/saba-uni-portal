@@ -4,8 +4,8 @@
 **Branch:** `fix/b1-confirm-payment-predecessor-guard-01`  
 **Base:** `origin/main` @ `b63725e02d4199b46dee604be8f8c03f72c5d414` (PR #219 merge)  
 **PR:** https://github.com/msorori-mh/saba-uni-portal/pull/220  
-**Commit:** `caab731`  
-**Decision:** `PASS_B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_SOURCE_READY_FOR_MERGE`
+**HEAD:** _(filled after final push + green CI)_
+**Decision:** `PASS_PR220_MINIMAL_MANIFEST_DIFF_AND_FINAL_EVIDENCE_READY_FOR_MERGE`
 
 ## Root cause
 
@@ -60,6 +60,14 @@ Historical migration `supabase/migrations/20260725002135_13c05466-74a5-4a03-8c7d
 
 Non-assignee → `DIRECT_PAYMENT_ASSIGNEE_REQUIRED`. Wrong binding → `EXACT_FINANCE_PROCESSING_BINDING_REQUIRED`. Incomplete predecessor is never leaked before authorization.
 
+## Numbering namespaces (not the same counter)
+
+| Namespace | Value | Meaning |
+|---|---|---|
+| Promotion-map / verifier file order | **19** | `19-B1_CONFIRM_PAYMENT_…` companions; PROMOTION-MAP `order: 19`; node suffix `-19` |
+| Manifest `sequence_order` | **20** | Apply-set total order after ACL cutover (`sequence_order` 19) |
+| Activation gate | **21** | Separate reviewed step **after** the guard; **not** a manifest migration entry |
+
 ## Artifacts
 
 | Kind | Path |
@@ -70,9 +78,15 @@ Non-assignee → `DIRECT_PAYMENT_ASSIGNEE_REQUIRED`. Wrong binding → `EXACT_FI
 | Post-verifier | `docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql` |
 | PG17 harness | `scripts/b1-confirm-payment-predecessor-guard-pg17/` |
 | Contract freeze | `docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md` (+ `B1_PREDECESSOR_INCOMPLETE`) |
-| Manifest | `docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json` — new seq **20**; activation gate bumped to **20** |
+| Manifest | `docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json` — surgical patch from `origin/main` formatting |
 
 **LF SHAs:** draft `98bcf77c…835` / migration `e4a9f7f3…335` (PROMOTION-MAP order 19).
+
+## Manifest minimal-diff remediation (PR220)
+
+Full `ConvertTo-Json` rewrite was rejected (2257/2052). Restored literal `origin/main` bytes, then applied semantic-only text patches (no serializer).
+
+`git diff --numstat origin/main -- docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json` → **95 additions / 6 deletions**.
 
 ## Zero-mutation evidence (PG17)
 
@@ -96,21 +110,19 @@ ALLOW only when all priors are `completed` or `skipped`. Replay / unauthorized /
 | Preflight / post-verifier | PASS |
 | Behavioral cases (both paid services) | PASS 15/15 |
 | `bun test tests/student-requests` | PASS 598/598 |
-| Manifest structural tests | PASS |
+| Manifest structural + RPC-matrix cross-check | PASS |
 | `bunx tsc --noEmit` | PASS |
-| ESLint (changed student-request tests) | PASS |
+| ESLint (changed guard test) | PASS |
 | `bun run build` | PASS |
 | Migration dangerous-pattern scan | PASS (0 hits) |
-| `git diff --check` | PASS |
+| Manifest numstat vs `origin/main` | **95 / 6** (< 150) |
 
 ## Migration Review / Web CI
 
 | Check | Run | Result |
 |---|---|---|
-| Migration Review | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30140182967 | SUCCESS |
-| Web CI | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30140182976 | SUCCESS |
-
-Head commit at green close: `9eea9b1`.
+| Migration Review | _(filled after final push completes)_ | |
+| Web CI | _(filled after final push completes)_ | |
 
 ## Production / deploy
 
@@ -121,4 +133,4 @@ Head commit at green close: `9eea9b1`.
 
 ## Final decision
 
-`PASS_B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_SOURCE_READY_FOR_MERGE`
+`PASS_PR220_MINIMAL_MANIFEST_DIFF_AND_FINAL_EVIDENCE_READY_FOR_MERGE`

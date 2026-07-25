@@ -115,6 +115,6 @@
         "migration_sha_lf":  "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
         "preflight":  "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
         "post_verifier":  "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
-        "note":  "Manifest sequence_order 20 (activation gate bumped to 20). Does not renumber promoted migrations 7-18."
+        "note":  "Namespaces: promotion-map order 19; manifest sequence_order 20; activation gate 21 (not a migration entry). Does not renumber promoted migrations 7-18."
     }
 ]
