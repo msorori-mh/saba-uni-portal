@@ -5,18 +5,22 @@
 | Gate | Decision |
 |---|---|
 | SEQ07→SEQ20 dependency closure | **PASS_B1_SEQ07_20_DEPENDENCY_CLOSURE** |
-| SEQ07 local PG17 + static review | **PASS** (local) |
-| SEQ07 Production read-only coverage | **HOLD_B1_SEQ07_PRODUCTION_READONLY_EVIDENCE_INCOMPLETE** |
-| SEQ07 apply approval readiness | **not issued** — blocked on SEQ07-specific Production RO |
+| SEQ07 local PG17 + static review | **PASS** (local; not re-run — SEQ07 SHA stable) |
+| SEQ07 Production read-only / preflight | **PASS_B1_SEQ07_PRODUCTION_PREFLIGHT** |
+| SEQ07 apply approval readiness | **READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL** |
 
-Prepared apply package for **SEQ07 alone** is documented below and must **not** be executed until:
+Prepared apply package for **SEQ07 alone** is documented below. It remains **documentation only** until a **separate explicit human approval** authorizes SEQ07 only.
 
-1. Lovable prompt `PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01` returns PASS, and  
-2. Separate explicit human approval authorizes SEQ07 only.
-
-PR **#254** remains Draft evidence for SEQ21 and stays **HOLD** (missing `student_request_attachment_uploads`). This report does **not** claim SEQ21 is apply-ready.
+PR **#254** remains Draft evidence for SEQ21 and stays **HOLD** (missing `student_request_attachment_uploads` until SEQ07→20 apply). This report does **not** claim SEQ21 is apply-ready.
 
 **No migration applied. No Production DDL/DML. No Gate 25. No activation. No `student_visible`. No Deploy/Publish.**
+
+### Decision change log
+
+| Stage | Decision |
+|---|---|
+| Prior (no SEQ07-specific RO) | `HOLD_B1_SEQ07_PRODUCTION_READONLY_EVIDENCE_INCOMPLETE` |
+| After Lovable `PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01-RESULT` | **`PASS_B1_SEQ07_PRODUCTION_PREFLIGHT`** / **`READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL`** |
 
 ---
 
@@ -26,14 +30,16 @@ PR **#254** remains Draft evidence for SEQ21 and stays **HOLD** (missing `studen
 |---|---|
 | Repository | `msorori-mh/saba-uni-portal` |
 | Production project | `wpmicqriltrowwonknox` |
-| `origin/main` (binding tip) | `121e5bfbf0e8e21a2740009d29a477b8dda74ddc` |
+| `origin/main` at G5 resume | `765e1a4367a2b12e9d69ad46d9d8eec6c8c999bf` |
+| Prior binding tip (local harness era) | `121e5bfbf0e8e21a2740009d29a477b8dda74ddc` (ancestor of current tip) |
 | PR #221 merge commit | `c1a6a8e317fcd79ce2a4d19d0e15184ae2dd6ff4` (ancestor of tip) |
 | PR #254 HEAD (Draft; do not merge) | `99143eda920c376b75ef4ef61efb60b4bdf28a5c` |
-| Production history cutoff (accepted) | latest applied **`20260725002136`** |
+| Production history cutoff (accepted) | latest applied **`20260725002136`** (unchanged; total migrations **151**) |
+| SEQ07 LF SHA-256 on `origin/main` | `66ba4c96c23c44bbcca62de28360d806ee6ff5dbd358a20f2e181b9a8fd6bca8` (**unchanged**) |
 | Worktree / branch | `C:\projects\saba-uni-portal-b1-seq07-preflight-01` / `preflight/b1-seq07-20-dependency-closure-01` |
 | Mode | READ-ONLY / PREPARATION-ONLY |
 
-Main moved past the PR #221 merge (docs/types / Lovable G4 merge). Recomputed LF SHA-256 for promoted SEQ07–SEQ20 migrations on tip **`121e5bf`** — all match `PROMOTION-MAP.json` pins.
+`origin/main` advanced (`121e5bf` → `765e1a4`; tip message “Checked SEQ07 read-only G4-01”, `routeTree.gen.ts` only). **SEQ07 migration bytes / PROMOTION-MAP pin unchanged** → local PG17 harness **not re-run**.
 
 ---
 
@@ -159,42 +165,95 @@ Source-contract: `bun test tests/student-requests/secure-attachments-source-cont
 
 ---
 
-## G5 — Production read-only
+## G5 — Production read-only (accepted)
 
-### Existing Lovable evidence (SEQ21 G4) — reused, not sufficient alone
+Source: Lovable `PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01-RESULT` against Production **`wpmicqriltrowwonknox`** (PostgreSQL 17).  
+Prompt: `docs/PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01-LOVABLE-PROMPT.md`.  
+Operator decision line: **`DECISION=PASS_SEQ07_PROD_RO`**.
 
-From `PORTAL-B1-SEQ21-SECURE-READ-PRODUCTION-PREFLIGHT-01` (accepted):
+Independent acceptance checklist (this resume; SELECT-evidence review only):
 
-- History latest `20260725002136`; SEQ21–24 absent  
-- `public.student_request_attachment_uploads` **missing**  
-- Creator identified as SEQ07; band `20260725110000`–`20260725120000` outside applied history  
-- Five B1 services hidden; five-service requests = 0  
-- Protected-record digests captured  
+| Required check | Evidence accepted | Verdict |
+|---|---|---|
+| Production ref = `wpmicqriltrowwonknox` | Report target header | PASS |
+| SEQ07 migration SHA matches pin | LF SHA `66ba4c96…` ✅ exact | PASS |
+| SEQ07 not applied | `seq07_version_rows=0`; `%b1_07_secure_attachments%=0`; latest still `20260725002136`; total **151** | PASS |
+| No partial objects | table/trigger/9 functions/storage policy/bucket all ABSENT; no conflicting same-name relation | PASS |
+| Prior dependencies present | atomic submit, payment confirmation, storage catalog, student_requests/profiles, `log_audit(text,uuid,text,jsonb,jsonb,text,uuid)` | PASS |
+| Five services hidden | all five `student_visible=false`, active workflows 0, workflows 0 | PASS |
+| Five-service requests = 0 | all five request counts 0 | PASS |
+| Protected records stable | digests identical to SEQ21 G4 baseline (G6) | PASS |
+| No Production write | NO DDL/DML/apply/repair/RPC invoke/Deploy/activation/`student_visible` | PASS |
 
-### Gaps for SEQ07-specific preflight
+### A — Migration history
 
-Missing explicit inventory of: SEQ07 version row absence by filename; partial SEQ07 functions/trigger/storage policy; bucket pre-state; conflicting grants; SEQ07 preflight dependency presence attestation under a SEQ07-titled RO run.
+| Check | Evidence | Result |
+|---|---|---|
+| version `20260725110000` | `seq07_version_rows = 0` | ABSENT_EXPECTED |
+| latest applied | `20260725002136` | UNCHANGED |
+| total applied | `151` | UNCHANGED |
+| `%b1_07_secure_attachments%` | `0` | NONE |
 
-**Action taken:** authored prompt  
-`docs/PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01-LOVABLE-PROMPT.md`
+### B — No partial SEQ07 creation
 
-**Decision:** `HOLD_B1_SEQ07_PRODUCTION_READONLY_EVIDENCE_INCOMPLETE` until that prompt returns PASS.
+| Object | State |
+|---|---|
+| `public.student_request_attachment_uploads` | ABSENT |
+| any schema relation same name | ABSENT (0) |
+| trigger `protect_student_request_attachment_identity` | ABSENT |
+| all 9 SEQ07 functions | ABSENT |
+| storage policy `secure_attachment_insert` | ABSENT |
+| bucket `student-request-secure-attachments` | ABSENT |
+
+Zero partial apply. No conflicting table definition.
+
+### C — Prior dependencies
+
+| Dependency | State |
+|---|---|
+| `submit_b1_student_request_atomic(uuid,text,jsonb,timestamptz,uuid[])` | PRESENT |
+| `record_external_university_payment_confirmation(uuid,text)` | PRESENT |
+| `storage.buckets` / `storage.objects` | PRESENT |
+| `public.student_requests` / `public.student_profiles` | PRESENT |
+| `public.log_audit` (7-arg signature) | PRESENT (not invoked) |
+
+SEQ07 creates `student_request_attachment_uploads` — absence of that table is expected and is **not** a SEQ07 blocker (contrast SEQ21).
+
+### D — Grants / policies
+
+No grants on the absent uploads table; no anon EXECUTE on SEQ07 RPCs (absent). Pre-existing public content buckets (`news-images`, `faculty-images`, `department-images`, `events-images`, `research-pdfs`) are unrelated; no secure-attachment public URL surface.
+
+### E — Five services
+
+| Service | student_visible | active workflows | total workflows | student_requests |
+|---|---|---|---|---|
+| department_transfer | false | 0 | 0 | 0 |
+| enrollment_suspension | false | 0 | 0 | 0 |
+| excused_absence | false | 0 | 0 | 0 |
+| file_withdrawal | false | 0 | 0 | 0 |
+| final_chance | false | 0 | 0 | 0 |
+
+### G — Non-write attestation
+
+Accepted: SELECT/catalog only. Official SEQ07 preflight/post-verifier SQL were **not** executed in the Lovable RO gate (both are ROLLBACK-terminated companions for the future apply session).
+
+Non-blocking note from Lovable: operator tree tip `d58b0dbb` ≠ mandated main SHA at their session — superseded for this resume by recomputing SEQ07 SHA on `origin/main` `765e1a4` (**match**).
 
 ---
 
-## G6 — Protected records (read-only baseline; non-sensitive)
+## G6 — Protected records (read-only; non-sensitive)
 
-From accepted SEQ21 Lovable G4 (Production unchanged by this prep):
+From SEQ07 Lovable G4-01 (identical to SEQ21 baseline):
 
-| record | status | updated_at | digest(md5 status+updated_at) |
-|---|---|---|---|
-| SR-20260713-2DE64041 | in_review | 2026-07-13 17:59:19.782271+00 | `c49518ae2ed2c26dda23ac16539cf534` |
-| SR-20260715-FEDCB3E1 | completed | 2026-07-16 03:05:57.517147+00 | `806b9995a8036ae8fc3d00b59598ae11` |
-| SR-20260716-26BAD4C8 | completed | 2026-07-16 04:44:29.338193+00 | `3a3b6136cb2cf50c9594b2cdb981a174` |
-| USR-2026-000001 | archived | 2026-07-16 03:05:57.517147+00 | `ba8ff47b98d29ec9a992ad52325b83e3` |
-| USR-2026-000002 | archived | 2026-07-16 04:44:29.338193+00 | `f337d9efbd6184c155b7b45f6e02293e` |
+| record | status | updated_at | digest(md5 status+updated_at) | vs SEQ21 |
+|---|---|---|---|---|
+| SR-20260713-2DE64041 | in_review | 2026-07-13 17:59:19.782271+00 | `c49518ae2ed2c26dda23ac16539cf534` | identical |
+| SR-20260715-FEDCB3E1 | completed | 2026-07-16 03:05:57.517147+00 | `806b9995a8036ae8fc3d00b59598ae11` | identical |
+| SR-20260716-26BAD4C8 | completed | 2026-07-16 04:44:29.338193+00 | `3a3b6136cb2cf50c9594b2cdb981a174` | identical |
+| USR-2026-000001 | archived | 2026-07-16 03:05:57.517147+00 | `ba8ff47b98d29ec9a992ad52325b83e3` | identical |
+| USR-2026-000002 | archived | 2026-07-16 04:44:29.338193+00 | `f337d9efbd6184c155b7b45f6e02293e` | identical |
 
-Re-check required after any future SEQ07 apply session (not authorized here).
+Exactly one row each. Re-check required after any future SEQ07 apply session (not authorized here).
 
 ---
 
@@ -223,11 +282,11 @@ FORBIDDEN IN THIS PACKAGE:
 
 ### Pre-apply read-only checks
 
-1. Complete `PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01` → PASS  
-2. Run official preflight SQL (ROLLBACK): `docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql`  
-3. Reconfirm SHA pin on the exact operator checkout  
-4. Confirm five services still hidden; five-service request count = 0  
-5. Capture protected-record digests (G6)
+1. ~~Complete `PORTAL-B1-SEQ07-PRODUCTION-READONLY-G4-01`~~ → **PASS** (accepted this resume)  
+2. Immediately before apply: re-run official preflight SQL (ROLLBACK): `docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql`  
+3. Reconfirm LF SHA-256 `66ba4c96…` on the exact operator checkout  
+4. Reconfirm five services still hidden; five-service request count = 0  
+5. Recapture protected-record digests (must match G6)
 
 ### Exact apply command (not executed)
 
@@ -271,34 +330,36 @@ No down migration. No DELETE of production attachment objects. Remediate only vi
 
 ## G8 — Explicit non-actions
 
-- Did **not** apply SEQ07 (or SEQ08→24)  
+- Did **not** apply SEQ07 (or SEQ08→24) — including this G5 resume  
 - Did **not** write Production  
 - Did **not** repair migration history  
 - Did **not** run Gate 25 / activation / `student_visible`  
 - Did **not** Deploy/Publish  
+- Did **not** re-run local PG17 (SEQ07 SHA unchanged on `origin/main`)  
 - Did **not** rewrite PR #254 to claim SEQ21 readiness  
 
 ---
 
 ## Assumptions
 
-- Production latest history row `20260725002136` remains valid; repo contains `20260725002135_…` as the last pre-SEQ07 promoted UUID migration for local baseline fidelity.  
-- SEQ21 Lovable digests remain valid until a new RO run refreshes them.  
-- PROMOTION-MAP order-20 bridge will never be applied as a second physical migration.
+- Production latest history row `20260725002136` / total **151** remains valid until the authorized SEQ07 apply session.  
+- Repo `20260725002135_…` remains an adequate local baseline surrogate for pre-SEQ07 payment-confirmation presence.  
+- PROMOTION-MAP order-20 bridge will never be applied as a second physical migration.  
+- Lovable G4-01 SELECT evidence is truthful and complete for the listed catalog probes.
 
 ## Risks
 
-- Applying SEQ07 before SEQ07-specific Production RO completes could miss a partial/conflicting bucket or function.  
-- Intent SQL returns storage coordinates; browser strips on create path — list SQL still returns full rows.  
+- Time gap between this RO snapshot and a future apply session could admit concurrent catalog drift — re-run official SEQ07 preflight + digest recheck immediately before apply.  
+- Intent SQL returns storage coordinates; browser strips on create path — list SQL still returns full rows (application residual; not a Production RO blocker).  
 - Manifest `sequence_order` ≠ promotion-map `order` for this band (+1) — operators must use filename/SHA, not integer alone.
 
 ## Obstacles
 
-- Agent session has no direct Production SQL access; depends on Lovable SELECT path for G5 closure.
+- Agent session has no direct Production SQL access; G5 closure depends on accepted Lovable SELECT evidence (now available).
 
 ## Production impact
 
-**Zero** from this preparation track.
+**Zero** from this preparation track. SEQ07 apply remains unauthorized until separate human approval.
 
 ## Files touched (this prep)
 
@@ -315,7 +376,8 @@ No down migration. No DELETE of production attachment objects. Remediate only vi
 
 ```
 PASS_B1_SEQ07_20_DEPENDENCY_CLOSURE
-HOLD_B1_SEQ07_PRODUCTION_READONLY_EVIDENCE_INCOMPLETE
-# READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL — NOT ISSUED
-# PASS_B1_SEQ07_PRODUCTION_PREFLIGHT — NOT ISSUED (await Lovable G4-01)
+PASS_B1_SEQ07_PRODUCTION_PREFLIGHT
+READY_FOR_SEPARATE_SEQ07_APPLY_APPROVAL
 ```
+
+**Still forbidden without a new explicit approval:** applying SEQ07, SEQ08→24, Gate 25, activation, `student_visible`, Deploy/Publish, history repair.
