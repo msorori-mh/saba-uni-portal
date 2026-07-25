@@ -14,7 +14,7 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
 const ROUTE_SEMANTIC_SHA256 =
-  "36aed6af5fe53d216a411f193977427fe71ab58663bf74778d835453505e35e5";
+  "61af2046cfc264a92deb4c58c20a2c1e777bd75d56d2f7341613bc339d7d29a6";
 
 function routeSemanticHash(routeTree: string): string {
   const semanticLines = routeTree
