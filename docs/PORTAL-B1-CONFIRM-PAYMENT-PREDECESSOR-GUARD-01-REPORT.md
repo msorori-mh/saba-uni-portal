@@ -105,7 +105,13 @@ ALLOW only when all priors are `completed` or `skipped`. Replay / unauthorized /
 
 ## Migration Review / Web CI
 
-Opened with PR #220. CI run IDs were not available at source-ready close; confirm green on the PR checks before merge.
+| Check | Run | Result |
+|---|---|---|
+| Migration Review (Review SQL migrations) | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30140089969 | SUCCESS |
+| Web CI (initial) | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30140089982 | FAIL — `tests/b1-rpc-matrix` still expected 19 manifest entries |
+| Web CI (follow-up after matrix/order update) | pending on push after `bbe7eac` / matrix fix | confirm green before merge |
+
+Install · Lint · Typecheck · Build and Migration Review were green on the initial PR head; only the RPC-matrix count/order cross-check needed updating for seq 20.
 
 ## Production / deploy
 
