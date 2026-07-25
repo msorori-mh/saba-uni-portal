@@ -24,7 +24,7 @@ function mapThrown(error: unknown): never {
     if (isB1SecureDraftRpcUnavailable({ message: error.message })) {
       throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG, "", true);
     }
-    throw new B1SecureDraftRpcError(error.message);
+    throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG);
   }
   throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG, "", true);
 }
@@ -57,7 +57,7 @@ export const saveB1Draft = createServerFn({ method: "POST" })
       .object({
         requestId: uuid,
         formData: z.record(z.unknown()),
-        expectedUpdatedAt: z.string().datetime({ offset: true }).optional().nullable(),
+        expectedUpdatedAt: z.string().datetime({ offset: true }),
         idempotencyKey: z.string().min(1).max(200).optional().nullable(),
       })
       .strict()

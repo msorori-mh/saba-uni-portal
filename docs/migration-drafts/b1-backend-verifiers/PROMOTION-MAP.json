@@ -115,14 +115,14 @@
         "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
-        "note": "Namespaces: promotion-map order 19; manifest sequence_order 20; activation gate 21 (not a migration entry). Does not renumber promoted migrations 7-18."
+        "note": "Namespaces: promotion-map order 19; manifest sequence_order 20; secure reads/drafts follow at manifest 21/22; activation gate 23 is not a migration entry. Does not renumber promoted migrations 7-18."
     },
     {
         "order": 20,
         "draft": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql",
         "migration": "supabase/migrations/20260725130000_b1_19_secure_read_contracts_01.sql",
-        "draft_sha_lf": "8a50356a14c46de2fd8b26d4c4b88fbf9cfa8560cfb6bb79b937245270c750b2",
-        "migration_sha_lf": "d7779198210733e8a52092f2e4b50ed44d82f0f7fd35a06afc3468d8511c2f82",
+        "draft_sha_lf": "0470e807fe3733658930b7916524c36e0f00b96ea5f48d962ea582144ecdd027",
+        "migration_sha_lf": "2bc0ef24f922acb466115bb206184b1df17cd3271a55cff893ee5eb05e006124",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql",
         "note": "Read-contract track. Does not open create/save draft writes. Sequential-apply manifest promotion is a separate follow-up gate."
@@ -131,10 +131,10 @@
         "order": 21,
         "draft": "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql",
         "migration": "supabase/migrations/20260725140000_b1_21_secure_draft_mutations_01.sql",
-        "draft_sha_lf": "b94580bc9a44670470b841db857f3fe35268991c8fd2011dfc2e276467592a35",
-        "migration_sha_lf": "23143d6550c183aac058f8eadf175452c27771c1cdbd8b91deeff294d1267ecb",
+        "draft_sha_lf": "e8610fbe35c166af1c0552990566fd3eb5e295de582e4e59f0fabf8483110fa6",
+        "migration_sha_lf": "e8a0c38991e5ece5c78ffa9eb2eacca22d361b52743da47b27e424ffc52baa22",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql",
-        "note": "Draft create/save write track. Submit remains submit_b1_student_request_atomic. Activation remains a separate non-migration gate (docs: gate 22 after this sequence_order 21)."
+        "note": "Draft create/save write track. Promotion-map order is 21; canonical manifest sequence_order is 22 after secure reads at 21. Submit remains submit_b1_student_request_atomic. Activation remains a separate non-migration gate 23."
     }
 ]

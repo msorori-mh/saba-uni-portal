@@ -27,8 +27,12 @@ declare
   u_other uuid := 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
   u_staff uuid := 'cccccccc-cccc-cccc-cccc-cccccccccccc';
   u_admin uuid := 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+  u_registrar uuid := 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+  u_dean uuid := 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+  u_inactive uuid := 'abababab-abab-abab-abab-abababababab';
   sp_id uuid := '11111111-1111-1111-1111-111111111111';
   sp_other uuid := '22222222-2222-2222-2222-222222222222';
+  sp_inactive uuid := '33333333-3333-3333-3333-333333333333';
   dept_id uuid := '99999999-9999-9999-9999-999999999999';
   dept_target uuid := 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb';
   prog_id uuid := 'bbbbbbbb-1111-2222-3333-cccccccccccc';
@@ -46,10 +50,14 @@ declare
   n_after integer;
   req uuid;
   req2 uuid;
+  expected_version timestamptz;
+  workflow_id uuid;
+  workflow_step_id uuid;
   code text;
   canon text;
 begin
-  insert into auth.users(id) values (u_student),(u_other),(u_staff),(u_admin);
+  insert into auth.users(id) values
+    (u_student),(u_other),(u_staff),(u_admin),(u_registrar),(u_dean),(u_inactive);
   insert into public.departments(id,name_ar,is_active) values
     (dept_id,'قسم أ',true),(dept_target,'قسم ب',true);
   insert into public.programs(id,code,name_ar,department_id,is_active) values
@@ -70,7 +78,8 @@ begin
 
   insert into public.student_profiles(id,user_id,full_name_ar,academic_number,department_id,program_id,status)
     values (sp_id,u_student,'طالب أ','S001',dept_id,prog_id,'active'),
-           (sp_other,u_other,'طالب ب','S002',dept_id,prog_id,'active');
+           (sp_other,u_other,'طالب ب','S002',dept_id,prog_id,'active'),
+           (sp_inactive,u_inactive,'طالب غير نشط','S003',dept_id,prog_id,'inactive');
   insert into public.student_enrollments(student_profile_id,course_section_id,enrollment_status)
     values (sp_id,section_id,'enrolled');
 
@@ -94,8 +103,51 @@ begin
   end;
   perform b1_draft_v.note('staff_no_profile_deny', denied, err);
 
+  perform b1_draft_v.set_uid(u_inactive);
+  denied := false; err := null;
+  begin
+    perform public.create_b1_request_draft_for_student('enrollment_suspension', null);
+  exception when others then
+    err := sqlerrm; denied := err like '%B1_DRAFT_ACCESS_DENIED%';
+  end;
+  perform b1_draft_v.note('inactive_student_profile_deny', denied, err);
+
+  foreach code in array array['registrar','dean'] loop
+    perform b1_draft_v.set_uid(case when code = 'registrar' then u_registrar else u_dean end);
+    denied := false; err := null;
+    begin
+      perform public.create_b1_request_draft_for_student('enrollment_suspension', null);
+    exception when others then
+      err := sqlerrm; denied := err like '%B1_DRAFT_ACCESS_DENIED%';
+    end;
+    perform b1_draft_v.note(code || '_create_deny', denied, err);
+  end loop;
+
   -- create all five + idempotent retry
   perform b1_draft_v.set_uid(u_student);
+  denied := false; err := null;
+  begin
+    perform public.create_b1_request_draft_for_student('enrollment_suspension', 'hidden-deny');
+  exception when others then
+    err := sqlerrm; denied := err like '%B1_REQUEST_TYPE_INACTIVE%';
+  end;
+  perform b1_draft_v.note('hidden_service_create_deny', denied, err);
+
+  v := public.get_b1_secure_read_runtime_capability();
+  perform b1_draft_v.note(
+    'runtime_capability_fail_closed_before_activation',
+    (v->>'available') = 'false'
+      and not (v ? 'viewer')
+      and jsonb_array_length(v->'writes_available') = 0
+      and (v->'writes_fail_closed') ? 'create_draft'
+      and (v->'writes_fail_closed') ? 'save_draft',
+    v::text
+  );
+
+  update public.request_types set student_visible = true;
+  insert into public.request_type_workflows(request_type_id,status,is_active)
+    select id,'active',true from public.request_types;
+
   foreach canon in array array[
     'enrollment_suspension','excused_absence','department_transfer','final_chance','file_withdrawal'
   ] loop
@@ -136,14 +188,26 @@ begin
   begin
     select id into req from public.student_requests
       where student_profile_id = sp_id and request_type = 'file_withdrawal' and status = 'draft' limit 1;
+    select updated_at into expected_version from public.student_requests where id = req;
     denied := false; err := null;
     v := public.save_b1_request_draft_for_student(
-      req, '{"withdrawal_reason":"reason-one-long-enough"}'::jsonb, null, 'save-key-1'
+      req, '{"withdrawal_reason":"reason-one-long-enough"}'::jsonb,
+      expected_version, 'save-key-1'
+    );
+    v2 := public.save_b1_request_draft_for_student(
+      req, '{"withdrawal_reason":"reason-one-long-enough"}'::jsonb,
+      expected_version, 'save-key-1'
+    );
+    perform b1_draft_v.note(
+      'save_idempotent_retry_same_version',
+      (v->>'requestId') = (v2->>'requestId') and (v->>'updatedAt') = (v2->>'updatedAt'),
+      v2::text
     );
     select form_data into v2 from public.student_requests where id = req;
     begin
       perform public.save_b1_request_draft_for_student(
-        req, '{"withdrawal_reason":"reason-two-different-payload"}'::jsonb, null, 'save-key-1'
+        req, '{"withdrawal_reason":"reason-two-different-payload"}'::jsonb,
+        (select updated_at from public.student_requests where id = req), 'save-key-1'
       );
     exception when others then
       err := sqlerrm; denied := err like '%B1_IDEMPOTENCY_PAYLOAD_MISMATCH%';
@@ -164,7 +228,7 @@ begin
     v := public.save_b1_request_draft_for_student(
       req,
       jsonb_build_object('suspension_reason','سبب أولي'),
-      null,
+      (select updated_at from public.student_requests where id = req),
       null
     );
     perform b1_draft_v.note(
@@ -207,7 +271,8 @@ begin
   denied := false; err := null;
   begin
     perform public.save_b1_request_draft_for_student(
-      req, '{"reason":"سبب","amount":10}'::jsonb, null, null
+      req, '{"reason":"سبب","amount":10}'::jsonb,
+      (select updated_at from public.student_requests where id = req), null
     );
   exception when others then
     err := sqlerrm; denied := err like '%B1_UNEXPECTED_FORM_FIELD%';
@@ -230,7 +295,7 @@ begin
         'target_program_id', prog_id,
         'transfer_reason', 'سبب تحويل'
       ),
-      null,
+      (select updated_at from public.student_requests where id = req),
       null
     );
   exception when others then
@@ -247,7 +312,7 @@ begin
         'target_program_id', prog_target,
         'transfer_reason', 'سبب تحويل مقبول'
       ),
-      null,
+      (select updated_at from public.student_requests where id = req),
       null
     );
     perform b1_draft_v.note(
@@ -272,7 +337,7 @@ begin
         'reason_type', 'medical',
         'absence_reason_detail', 'تفاصيل'
       ),
-      null,
+      (select updated_at from public.student_requests where id = req),
       null
     );
     perform b1_draft_v.note(
@@ -283,6 +348,23 @@ begin
   exception when others then
     perform b1_draft_v.note('absence_valid_save', false, sqlerrm);
   end;
+
+  denied := false; err := null;
+  begin
+    perform public.save_b1_request_draft_for_student(
+      req,
+      jsonb_build_object(
+        'course_section_id', section_id,
+        'absence_date', (current_date + 1)::text,
+        'reason_type', 'medical'
+      ),
+      (select updated_at from public.student_requests where id = req),
+      null
+    );
+  exception when others then
+    err := sqlerrm; denied := err like '%B1_ABSENCE_INPUT_INVALID%';
+  end;
+  perform b1_draft_v.note('absence_future_date_deny', denied, err);
 
   -- final_chance no money + save
   select id into req from public.student_requests
@@ -296,7 +378,7 @@ begin
         'reason', 'سبب أكاديمي',
         'chance_type', 'final_chance'
       ),
-      null,
+      (select updated_at from public.student_requests where id = req),
       null
     );
     perform b1_draft_v.note(
@@ -308,6 +390,33 @@ begin
     perform b1_draft_v.note('final_chance_valid_save', false, sqlerrm);
   end;
 
+  -- Even an exact active assignee is not a student draft owner.
+  select id into req from public.student_requests
+    where student_profile_id = sp_id and request_type = 'enrollment_suspension' and status = 'draft' limit 1;
+  select w.id into workflow_id
+  from public.request_type_workflows w
+  join public.request_types rt on rt.id = w.request_type_id
+  where rt.code = 'enrollment_suspension';
+  insert into public.request_type_workflow_steps(workflow_id,action_type)
+    values (workflow_id,'review') returning id into workflow_step_id;
+  insert into public.student_request_workflow_steps(
+    student_request_id,workflow_id,workflow_step_id,step_key,step_name_ar,
+    step_order,assigned_user_id,status
+  ) values (
+    req,workflow_id,workflow_step_id,'review','مراجعة',1,u_staff,'pending'
+  );
+  perform b1_draft_v.set_uid(u_staff);
+  denied := false; err := null;
+  begin
+    perform public.save_b1_request_draft_for_student(
+      req, jsonb_build_object('suspension_reason','x'),
+      (select updated_at from public.student_requests where id = req), null
+    );
+  exception when others then
+    err := sqlerrm; denied := err like '%B1_DRAFT_ACCESS_DENIED%';
+  end;
+  perform b1_draft_v.note('exact_assigned_employee_save_deny', denied, err);
+
   -- other student deny opaque + zero mutation
   select id into req from public.student_requests
     where student_profile_id = sp_id and request_type = 'enrollment_suspension' and status = 'draft' limit 1;
@@ -315,7 +424,10 @@ begin
   perform b1_draft_v.set_uid(u_other);
   denied := false; err := null;
   begin
-    perform public.save_b1_request_draft_for_student(req, '{"suspension_reason":"x"}'::jsonb, null, null);
+    perform public.save_b1_request_draft_for_student(
+      req, '{"suspension_reason":"x"}'::jsonb,
+      (select updated_at from public.student_requests where id = req), null
+    );
   exception when others then
     err := sqlerrm; denied := err like '%B1_DRAFT_ACCESS_DENIED%';
   end;
@@ -329,7 +441,10 @@ begin
   perform b1_draft_v.set_uid(u_admin);
   denied := false; err := null;
   begin
-    perform public.save_b1_request_draft_for_student(req, '{"suspension_reason":"x"}'::jsonb, null, null);
+    perform public.save_b1_request_draft_for_student(
+      req, '{"suspension_reason":"x"}'::jsonb,
+      (select updated_at from public.student_requests where id = req), null
+    );
   exception when others then
     err := sqlerrm; denied := err like '%B1_DRAFT_ACCESS_DENIED%';
   end;
@@ -343,12 +458,32 @@ begin
   denied := false; err := null;
   begin
     perform public.save_b1_request_draft_for_student(
-      req, '{"withdrawal_reason":"سبب سحب طويل بما يكفي","impact_acknowledgment":true}'::jsonb, null, null
+      req, '{"withdrawal_reason":"سبب سحب طويل بما يكفي","impact_acknowledgment":true}'::jsonb,
+      (select updated_at from public.student_requests where id = req), null
     );
   exception when others then
     err := sqlerrm; denied := err like '%B1_DRAFT_ACCESS_DENIED%';
   end;
   perform b1_draft_v.note('submitted_save_deny', denied, err);
+
+  foreach code in array array['completed','cancelled'] loop
+    update public.student_requests set status = code where id = req;
+    denied := false; err := null;
+    begin
+      perform public.save_b1_request_draft_for_student(
+        req,
+        jsonb_build_object(
+          'withdrawal_reason','سبب سحب طويل بما يكفي',
+          'impact_acknowledgment',true
+        ),
+        (select updated_at from public.student_requests where id = req),
+        null
+      );
+    exception when others then
+      err := sqlerrm; denied := err like '%B1_DRAFT_ACCESS_DENIED%';
+    end;
+    perform b1_draft_v.note(code || '_save_deny', denied, err);
+  end loop;
 
   -- stale version deny
   select id into req from public.student_requests
@@ -365,6 +500,17 @@ begin
     err := sqlerrm; denied := err like '%B1_STALE_REQUEST_VERSION%';
   end;
   perform b1_draft_v.note('stale_version_deny', denied, err);
+
+  -- optimistic concurrency token is mandatory; null cannot bypass the guard
+  denied := false; err := null;
+  begin
+    perform public.save_b1_request_draft_for_student(
+      req, jsonb_build_object('reason_type','medical'), null, 'null-version-deny'
+    );
+  exception when others then
+    err := sqlerrm; denied := err like '%B1_STALE_REQUEST_VERSION%';
+  end;
+  perform b1_draft_v.note('null_version_deny', denied, err);
 
   -- outside five deny
   denied := false; err := null;
@@ -401,9 +547,12 @@ begin
 
   -- no workflow steps created by draft mutations
   perform b1_draft_v.note(
-    'no_workflow_runtime_from_drafts',
-    not exists (select 1 from public.student_request_workflow_steps),
-    'workflow steps count'
+    'no_additional_runtime_or_side_effects_from_drafts',
+    (select count(*) from public.student_request_workflow_steps) = 1
+      and not exists (select 1 from public.student_request_events)
+      and not exists (select 1 from public.notifications)
+      and not exists (select 1 from public.student_request_attachment_uploads),
+    'fixture workflow count=1; event/notification/attachment counts=0'
   );
 end $$;
 

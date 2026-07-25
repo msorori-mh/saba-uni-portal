@@ -76,11 +76,24 @@ describe("B1 secure draft mutations — source surface", () => {
     expect(sql).not.toMatch(/jsonb_build_object\([^)]*storage_bucket/);
   });
 
-  test("does not require student_visible for create; does not call submit", () => {
+  test("create remains fail-closed until backend visibility/workflow readiness; does not call submit", () => {
     const sql = read(DRAFT);
-    expect(sql).toContain("student_visible / production activation NOT required");
+    expect(sql).toContain("v_type.student_visible is distinct from true");
+    expect(sql).toContain("from public.request_type_workflows w");
+    expect(sql).toContain("v_ready_count = 5");
+    expect(sql).not.toContain("'available', true");
+    expect(sql).not.toContain("'viewer'");
     expect(sql).not.toMatch(/submit_b1_student_request_atomic\s*\(/);
     expect(sql).toContain("'submit_rpc', 'submit_b1_student_request_atomic'");
+  });
+
+  test("save requires authoritative optimistic-concurrency timestamp before mutation", () => {
+    const sql = read(DRAFT);
+    expect(sql).toContain("if p_expected_updated_at is null then");
+    expect(sql).toContain("v_r.updated_at is distinct from p_expected_updated_at");
+    expect(sql.indexOf("return public.b1_build_student_draft_dto(p_request_id)")).toBeLessThan(
+      sql.indexOf("v_r.updated_at is distinct from p_expected_updated_at"),
+    );
   });
 });
 
@@ -99,6 +112,14 @@ describe("B1 secure draft mutations — adapter mapping", () => {
     expect(fns).toContain("createB1Draft");
     expect(fns).toContain("saveB1Draft");
     expect(fns).not.toMatch(/actorUserId|actor_user_id|p_actor|student_id|user_id/);
+    expect(fns).toContain("expectedUpdatedAt: z.string().datetime({ offset: true })");
+  });
+
+  test("wrappers never expose raw backend errors", () => {
+    const rpc = read("src/lib/student-requests/b1-secure-draft/rpc.ts");
+    const fns = read("src/lib/student-requests/b1-secure-draft/functions.ts");
+    expect(rpc).not.toContain('msg.split("\\n")[0]');
+    expect(fns).not.toContain("new B1SecureDraftRpcError(error.message)");
   });
 });
 

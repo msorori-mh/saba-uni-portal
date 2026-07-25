@@ -40,6 +40,7 @@ create table public.student_requests (
 );
 
 create table public.request_types (
+  id uuid not null unique default gen_random_uuid(),
   code text primary key,
   name_ar text not null
 );
@@ -57,7 +58,10 @@ create table public.request_processing_roles (
 );
 
 create table public.request_type_workflows (
-  id uuid primary key default gen_random_uuid()
+  id uuid primary key default gen_random_uuid(),
+  request_type_id uuid references public.request_types(id),
+  status text not null default 'active',
+  is_active boolean not null default true
 );
 
 create table public.request_type_workflow_steps (
@@ -103,6 +107,14 @@ create table public.student_request_attachment_uploads (
   upload_status text not null default 'attached',
   created_by uuid,
   created_at timestamptz not null default now()
+);
+
+create table public.student_request_events (
+  id uuid primary key default gen_random_uuid()
+);
+
+create table public.notifications (
+  id uuid primary key default gen_random_uuid()
 );
 
 create table public.academic_years (

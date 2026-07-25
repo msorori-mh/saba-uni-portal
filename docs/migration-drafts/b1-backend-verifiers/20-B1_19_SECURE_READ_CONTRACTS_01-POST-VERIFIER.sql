@@ -32,11 +32,40 @@ begin
     if not has_function_privilege('authenticated', r::regprocedure, 'execute') then
       raise exception 'POST_FAIL: authenticated missing execute on %', r;
     end if;
+    if not exists (
+      select 1
+      from pg_proc p
+      where p.oid = r::regprocedure
+        and p.prosecdef
+        and p.provolatile = 's'
+        and p.proconfig @> array['search_path=public, pg_temp']
+    ) then
+      raise exception 'POST_FAIL: SECURITY DEFINER/stable/search_path drift on %', r;
+    end if;
   end loop;
 
-  -- Internal helpers must not be granted to authenticated.
-  if has_function_privilege('authenticated', 'public.b1_deny_read()'::regprocedure, 'execute') then
-    raise exception 'POST_FAIL: b1_deny_read granted to authenticated';
+  -- Internal helpers must not be granted to any client role.
+  foreach r in array array[
+    'public.b1_require_auth_uid()',
+    'public.b1_deny_read()',
+    'public.b1_list_attachment_metas_for_request(uuid)'
+  ] loop
+    if has_function_privilege('authenticated', r::regprocedure, 'execute')
+      or has_function_privilege('anon', r::regprocedure, 'execute')
+      or has_function_privilege('public', r::regprocedure, 'execute') then
+      raise exception 'POST_FAIL: internal helper client-executable: %', r;
+    end if;
+  end loop;
+
+  if position('''available'', true' in pg_get_functiondef(
+    'public.get_b1_secure_read_runtime_capability()'::regprocedure
+  )) > 0 then
+    raise exception 'POST_FAIL: runtime capability is hard-coded true';
+  end if;
+  if position('''viewer''' in pg_get_functiondef(
+    'public.get_b1_secure_read_runtime_capability()'::regprocedure
+  )) > 0 then
+    raise exception 'POST_FAIL: runtime capability exposes viewer identity';
   end if;
 end $$;
 
