@@ -1,5 +1,34 @@
 # PORTAL-B1-FIVE-SERVICES-STUDENT-AND-STAFF-UI-01
 
+## معالجة PR #221 بعد دمج PR #220
+
+- أُعيد تأسيس الفرع بنجاح على `origin/main` عند merge commit
+  `19a4d9dcd7c9fbf5437597f47b6a18196f96a422`، من دون تعارضات.
+- فشل GitHub Web CI run `30141176267` في اختبار واحد فقط من full Bun suite:
+  `tests/student-requests/tanstack-register-stable-augmentation-01.test.ts`.
+- السبب: كانت بصمة TanStack route semantics المثبتة قديمة بعد إضافة مساري
+  `/student/requests/b1/$service` و`/staff/b1-requests`. لم يكن الفشل متعلقًا
+  بـLinux/Windows أو بتسرب global state، وكانت جميع اختبارات B1 UI ناجحة.
+- تم تحديث بصمة الاختبار إلى ناتج المسارات المولدة آليًا، من دون تعديل
+  `src/routeTree.gen.ts` يدويًا أو تخفيف fail-closed assertions.
+- بقي إصلاح `confirm_payment` predecessor guard المدمج من PR #220 في Backend
+  فقط؛ الواجهة لا تحاول تطبيقه أو اعتباره حماية عميل.
+- لم يحدث Production أو Staging write، ولم تُطبّق Migration، ولم يحدث Deploy
+  أو Publish أو workflow activation أو تغيير في `student_visible`.
+
+### نتائج إعادة التحقق
+
+- `bun install --frozen-lockfile`: PASS.
+- `bun test tests/student-requests/b1-ui`: PASS — 81 اختبارًا.
+- `bun test tests/student-requests`: PASS — 679 اختبارًا.
+- `bun test tests`: PASS — 1616 اختبارًا، 0 FAIL، عبر 147 ملفًا.
+- `bunx tsc --noEmit`: PASS.
+- ESLint المحدد لملفات UI والمسارات والاختبارات التابعة للمهمة: PASS.
+- `bun run build`: PASS — client وSSR وTanStack Register validation.
+- `src/routeTree.gen.ts` تولد بواسطة build فقط، وبقي blob hash قبل وبعد البناء
+  مطابقًا: `9be7e1cb8e7576d9fb665e73ee6c994f5ff6db3d`.
+- `git diff --check`: PASS.
+
 ## القرار
 
 `PASS_B1_FIVE_SERVICES_UI_READY_FOR_BACKEND_INTEGRATION`
