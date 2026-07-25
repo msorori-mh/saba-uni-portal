@@ -61,11 +61,19 @@ begin
     limit 1;
   if req is not null then
     v := public.save_b1_request_draft_for_student(
-      req, '{"suspension_reason":"one"}'::jsonb, null, 'save-idem-e2e');
+      req,
+      '{"suspension_reason":"one"}'::jsonb,
+      (v->>'updatedAt')::timestamptz,
+      'save-idem-e2e'
+    );
     denied := false; err := null;
     begin
       perform public.save_b1_request_draft_for_student(
-        req, '{"suspension_reason":"two"}'::jsonb, null, 'save-idem-e2e');
+        req,
+        '{"suspension_reason":"two"}'::jsonb,
+        (v->>'updatedAt')::timestamptz,
+        'save-idem-e2e'
+      );
     exception when others then
       err := sqlerrm; denied := err like '%B1_IDEMPOTENCY_PAYLOAD_MISMATCH%';
     end;
@@ -98,7 +106,7 @@ begin
           'target_program_id', '66666666-6666-4666-8666-666666666601',
           'transfer_reason', 'same dept'
         ),
-        null, null
+        (v->>'updatedAt')::timestamptz, null
       );
     exception when others then
       err := sqlerrm; denied := err like '%B1_TRANSFER_INPUT_INVALID%';

@@ -14,16 +14,23 @@ const matrixText = readFileSync(
   "utf8",
 ).replace(/\r\n/g, "\n");
 const matrix = JSON.parse(matrixText);
-const manifest = JSON.parse(readFileSync(join(ROOT, "docs", "b1", "B1-SEQUENTIAL-APPLY-MANIFEST.json"), "utf8"));
+const manifest = JSON.parse(
+  readFileSync(join(ROOT, "docs", "b1", "B1-SEQUENTIAL-APPLY-MANIFEST.json"), "utf8"),
+);
 const orderText = readFileSync(join(PG, "20-draft-apply-order.txt"), "utf8");
 
 function sortKeys(v) {
   if (Array.isArray(v)) return v.map(sortKeys);
   if (v && typeof v === "object") {
-    return Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])]));
+    return Object.fromEntries(
+      Object.keys(v)
+        .sort()
+        .map((k) => [k, sortKeys(v[k])]),
+    );
   }
   return v;
 }
+// eslint-disable-next-line no-control-regex -- explicitly rejects non-text matrix bytes
 const isAscii = (s) => !/[^\x00-\x7F]/.test(s);
 
 describe("matrix JSON: determinism + encoding", () => {
@@ -41,9 +48,21 @@ describe("matrix JSON: determinism + encoding", () => {
 });
 
 describe("matrix JSON: case schema + tags", () => {
-  const REQUIRED = ["id", "service", "rpc", "actor", "setup", "expected_outcome",
-    "expected_sqlstate", "expected_error_code", "desired_contract_outcome",
-    "tag", "execution", "evidence", "notes"];
+  const REQUIRED = [
+    "id",
+    "service",
+    "rpc",
+    "actor",
+    "setup",
+    "expected_outcome",
+    "expected_sqlstate",
+    "expected_error_code",
+    "desired_contract_outcome",
+    "tag",
+    "execution",
+    "evidence",
+    "notes",
+  ];
   const TAGS = new Set(["CORE", "EXTENDED", "BLOCKER", "DIVERGENCE", "HARNESS"]);
   test("every case carries the full schema", () => {
     for (const c of matrix.cases) {
@@ -76,7 +95,14 @@ describe("matrix JSON: coverage", () => {
     expect(matrix.services.length).toBe(5);
     const byCode = Object.fromEntries(matrix.services.map((s) => [s.canonical_code, s]));
     expect(Object.keys(byCode).sort()).toEqual(
-      ["department_transfer", "enrollment_suspension", "excused_absence", "file_withdrawal", "final_chance"].sort());
+      [
+        "department_transfer",
+        "enrollment_suspension",
+        "excused_absence",
+        "file_withdrawal",
+        "final_chance",
+      ].sort(),
+    );
     expect(byCode.enrollment_suspension.steps.length).toBe(3);
     expect(byCode.excused_absence.steps.length).toBe(3);
     expect(byCode.file_withdrawal.steps.length).toBe(7);
@@ -109,18 +135,21 @@ describe("matrix JSON: coverage", () => {
     const f = matrix.findings.map((x) => x.id);
     expect(f).toContain("F1-REMEDIATED");
     expect(f).toContain("F2-REMEDIATED");
-    expect(matrix.findings.filter((x) => ["critical", "high", "medium"].includes(x.severity))).toEqual([]);
+    expect(
+      matrix.findings.filter((x) => ["critical", "high", "medium"].includes(x.severity)),
+    ).toEqual([]);
   });
 });
 
 describe("cross-check: matrix vs sequential-apply manifest", () => {
-  test("manifest has exactly 21 entries in sequence 1..21", () => {
-    expect(manifest.migrations.length).toBe(21);
+  test("manifest has exactly 22 entries in sequence 1..22", () => {
+    expect(manifest.migrations.length).toBe(22);
     const seq = manifest.migrations.map((m) => m.sequence_order);
-    expect(seq).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
+    expect(seq).toEqual(Array.from({ length: 22 }, (_, i) => i + 1));
   });
   test("harness applies the manifest exactly, then the F1/F2 remediation", () => {
-    const orderLines = orderText.split("\n")
+    const orderLines = orderText
+      .split("\n")
       .filter((l) => /^\d{2} docs\/migration-drafts\//.test(l))
       .map((l) => l.trim().split(/\s+/)[1].split("/").pop());
     const manifestFiles = manifest.migrations.map((m) => m.filename);
@@ -134,9 +163,15 @@ describe("cross-check: matrix vs sequential-apply manifest", () => {
 });
 
 describe("PG harness files: presence, ordering, markers", () => {
-  const FILES = ["10-minimal-schema.sql", "20-draft-apply-order.txt",
-    "30-pre-activation-assert.sql", "35-activate-workflows-local-only.sql",
-    "40-verifier.sql", "45-acl-cases.sql", "run-harness.sh"];
+  const FILES = [
+    "10-minimal-schema.sql",
+    "20-draft-apply-order.txt",
+    "30-pre-activation-assert.sql",
+    "35-activate-workflows-local-only.sql",
+    "40-verifier.sql",
+    "45-acl-cases.sql",
+    "run-harness.sh",
+  ];
   test("all harness files present", () => {
     for (const f of FILES) expect(existsSync(join(PG, f))).toBe(true);
   });
@@ -165,10 +200,17 @@ describe("PG harness files: presence, ordering, markers", () => {
 
 describe("forbidden patterns", () => {
   test("no cloud/production connection material anywhere in deliverables", () => {
-    const targets = [matrixText, orderText,
-      ...["10-minimal-schema.sql", "30-pre-activation-assert.sql",
-          "35-activate-workflows-local-only.sql", "40-verifier.sql", "45-acl-cases.sql"]
-        .map((f) => readFileSync(join(PG, f), "utf8"))];
+    const targets = [
+      matrixText,
+      orderText,
+      ...[
+        "10-minimal-schema.sql",
+        "30-pre-activation-assert.sql",
+        "35-activate-workflows-local-only.sql",
+        "40-verifier.sql",
+        "45-acl-cases.sql",
+      ].map((f) => readFileSync(join(PG, f), "utf8")),
+    ];
     for (const t of targets) {
       expect(t).not.toMatch(/supabase\.co/i);
       expect(t).not.toMatch(/service_role_key/i);
@@ -176,9 +218,15 @@ describe("forbidden patterns", () => {
     }
   });
   test("harness files are pure ASCII", () => {
-    for (const f of ["10-minimal-schema.sql", "20-draft-apply-order.txt",
-      "30-pre-activation-assert.sql", "35-activate-workflows-local-only.sql",
-      "40-verifier.sql", "45-acl-cases.sql", "run-harness.sh"]) {
+    for (const f of [
+      "10-minimal-schema.sql",
+      "20-draft-apply-order.txt",
+      "30-pre-activation-assert.sql",
+      "35-activate-workflows-local-only.sql",
+      "40-verifier.sql",
+      "45-acl-cases.sql",
+      "run-harness.sh",
+    ]) {
       expect(isAscii(readFileSync(join(PG, f), "utf8"))).toBe(true);
     }
   });

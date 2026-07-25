@@ -1,10 +1,23 @@
 -- 35-activate-workflows-local-only.sql
 -- LOCAL HARNESS ONLY. Activates the five B1 workflow drafts inside the
 -- disposable cluster so runtime cases can execute. NEVER run on production.
+ALTER TABLE public.request_types
+  ADD COLUMN IF NOT EXISTS student_visible boolean NOT NULL DEFAULT false;
+
 DO $$
 DECLARE
   v_updated integer;
 BEGIN
+  UPDATE public.request_types
+     SET student_visible = true
+   WHERE code IN (
+     'enrollment_suspension',
+     'absence_excuse',
+     'transfer',
+     'extra_chance',
+     'file_withdrawal'
+   );
+
   UPDATE public.request_type_workflows w
      SET status = 'active', is_active = true
    WHERE w.code IN (

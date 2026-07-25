@@ -46,7 +46,11 @@ begin
   perform b1_e2e.note(service || '/create_no_runtime', 'draft', n_steps = 0, 'steps=' || n_steps);
 
   v := public.save_b1_request_draft_for_student(
-    req, jsonb_build_object('suspension_reason','partial reason'), null, null);
+    req,
+    jsonb_build_object('suspension_reason','partial reason'),
+    (v->>'updatedAt')::timestamptz,
+    null
+  );
   perform b1_e2e.bump('draft_saves');
   v2 := public.get_b1_request_draft_for_student(req);
   perform b1_e2e.bump('read_allows');
@@ -129,6 +133,7 @@ begin
   end;
   perform b1_e2e.bump('attachment_assertions');
 
+  v2 := public.get_b1_request_draft_for_student(req);
   v := public.save_b1_request_draft_for_student(
     req,
     jsonb_build_object(
@@ -138,7 +143,7 @@ begin
       'absence_reason_detail', 'hospital visit note',
       'excuse_documents', jsonb_build_array(att)
     ),
-    null, null
+    (v2->>'updatedAt')::timestamptz, null
   );
   perform b1_e2e.bump('draft_saves');
   v := public.submit_b1_student_request_atomic(
@@ -189,6 +194,7 @@ begin
     update public.student_request_attachment_uploads set upload_status='attached' where id=att;
   end;
   perform b1_e2e.bump('attachment_assertions');
+  v2 := public.get_b1_request_draft_for_student(req);
   v := public.save_b1_request_draft_for_student(
     req,
     jsonb_build_object(
@@ -196,7 +202,7 @@ begin
       'target_program_id', prog_it,
       'transfer_reason', 'career change to IT',
       'secondary_certificate_file', jsonb_build_array(att)
-    ), null, null);
+    ), (v2->>'updatedAt')::timestamptz, null);
   perform b1_e2e.bump('draft_saves');
   begin
     v := public.submit_b1_student_request_atomic(
@@ -239,6 +245,35 @@ begin
           when 'dean_approval' then 'approve'
           when 'registrar_apply' then 'apply_decision'
         end;
+        if step.step_key = 'source_department_head_approval' then
+          perform b1_e2e.expect_deny(
+            service || '/source_scope_wrong_department',
+            'action',
+            u_chair_it,
+            format(
+              'select public.act_on_b1_student_request_step_atomic(%L::uuid,%L,%L)',
+              step.id,
+              action,
+              'wrong department probe'
+            ),
+            '%B1_%',
+            req
+          );
+        elsif step.step_key = 'target_department_head_approval' then
+          perform b1_e2e.expect_deny(
+            service || '/target_scope_wrong_department',
+            'action',
+            u_chair_cs,
+            format(
+              'select public.act_on_b1_student_request_step_atomic(%L::uuid,%L,%L)',
+              step.id,
+              action,
+              'wrong department probe'
+            ),
+            '%B1_%',
+            req
+          );
+        end if;
         perform b1_e2e.set_uid(actor);
         begin
           perform public.act_on_b1_student_request_step_atomic(step.id, action, 'e2e transfer');
@@ -267,7 +302,7 @@ begin
   -- reject financial fields
   begin
     perform public.save_b1_request_draft_for_student(
-      req, '{"reason":"x","amount":10}'::jsonb, null, null);
+      req, '{"reason":"x","amount":10}'::jsonb, (v->>'updatedAt')::timestamptz, null);
     perform b1_e2e.note(service || '/no_money_fields', 'draft', false, 'accepted amount');
   exception when others then
     perform b1_e2e.note(service || '/no_money_fields', 'draft',
@@ -278,7 +313,7 @@ begin
     jsonb_build_object(
       'target_academic_year', year_id, 'target_semester', sem_id,
       'reason', 'illness during finals', 'chance_type', 'final_chance'
-    ), null, null);
+    ), (v->>'updatedAt')::timestamptz, null);
   perform b1_e2e.bump('draft_saves');
   v := public.submit_b1_student_request_atomic(
     req, service, v->'formData', (v->>'updatedAt')::timestamptz, '{}'::uuid[]);
@@ -321,19 +356,64 @@ begin
   v := public.create_b1_request_draft_for_student(service, 'e2e-create-' || service);
   req := (v->>'requestId')::uuid;
   perform b1_e2e.bump('draft_creates');
-  -- submit without acknowledgment must fail
+  -- Missing, JSON null, and false acknowledgments must fail without mutation.
   v := public.save_b1_request_draft_for_student(
-    req, jsonb_build_object('withdrawal_reason','moving abroad permanently'), null, null);
-  begin
-    perform public.submit_b1_student_request_atomic(
-      req, service,
-      jsonb_build_object('withdrawal_reason','moving abroad permanently'),
-      (v->>'updatedAt')::timestamptz, '{}'::uuid[]);
-    perform b1_e2e.note(service || '/submit_without_ack', 'submit', false, 'accepted');
-  exception when others then
-    perform b1_e2e.note(service || '/submit_without_ack', 'submit',
-      sqlerrm like '%B1_WITHDRAWAL_INPUT_INVALID%', sqlerrm);
-  end;
+    req,
+    jsonb_build_object('withdrawal_reason','moving abroad permanently'),
+    (v->>'updatedAt')::timestamptz,
+    null
+  );
+  perform b1_e2e.expect_deny(
+    service || '/submit_without_ack',
+    'submit',
+    u_student,
+    format(
+      'select public.submit_b1_student_request_atomic(%L::uuid,%L,%L::jsonb,%L::timestamptz,%L::uuid[])',
+      req,
+      service,
+      jsonb_build_object('withdrawal_reason','moving abroad permanently')::text,
+      v->>'updatedAt',
+      '{}'
+    ),
+    '%B1_WITHDRAWAL_INPUT_INVALID%',
+    req
+  );
+  perform b1_e2e.expect_deny(
+    service || '/submit_null_ack',
+    'submit',
+    u_student,
+    format(
+      'select public.submit_b1_student_request_atomic(%L::uuid,%L,%L::jsonb,%L::timestamptz,%L::uuid[])',
+      req,
+      service,
+      jsonb_build_object(
+        'withdrawal_reason','moving abroad permanently',
+        'impact_acknowledgment', null
+      )::text,
+      v->>'updatedAt',
+      '{}'
+    ),
+    '%B1_WITHDRAWAL_INPUT_INVALID%',
+    req
+  );
+  perform b1_e2e.expect_deny(
+    service || '/submit_false_ack',
+    'submit',
+    u_student,
+    format(
+      'select public.submit_b1_student_request_atomic(%L::uuid,%L,%L::jsonb,%L::timestamptz,%L::uuid[])',
+      req,
+      service,
+      jsonb_build_object(
+        'withdrawal_reason','moving abroad permanently',
+        'impact_acknowledgment', false
+      )::text,
+      v->>'updatedAt',
+      '{}'
+    ),
+    '%B1_WITHDRAWAL_INPUT_INVALID%',
+    req
+  );
   -- Ensure student actor after negative submit probe.
   perform b1_e2e.set_uid(u_student);
   select status into err from public.student_requests where id = req;
@@ -345,7 +425,7 @@ begin
     jsonb_build_object(
       'withdrawal_reason', 'moving abroad permanently',
       'impact_acknowledgment', true
-    ), null, null);
+    ), (v->>'updatedAt')::timestamptz, null);
   perform b1_e2e.bump('draft_saves');
   v := public.submit_b1_student_request_atomic(
     req, service, v->'formData', (v->>'updatedAt')::timestamptz, '{}'::uuid[]);

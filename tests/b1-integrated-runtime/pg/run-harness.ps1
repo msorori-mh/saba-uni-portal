@@ -51,12 +51,8 @@ try {
     $expectedBlob = $parts[4]
     $path = Join-Path $repo ($relative -replace '/', '\')
 
-    # PROMOTION-MAP order 20 (secure-read) is not in sequential manifest;
-    # insert it immediately before secure-draft (harness seq 21 / manifest seq 21).
     if ($relative -match 'SECURE-DRAFT-MUTATIONS' -and -not $secureReadApplied) {
-      $readPath = Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql"
-      Invoke-PsqlFile $readPath
-      $secureReadApplied = $true
+      throw "secure-read contracts must precede secure-draft in the pinned apply order"
     }
 
     $actualBlob = (git -C $repo hash-object $path).Trim()
@@ -76,6 +72,9 @@ try {
       if ($LASTEXITCODE -ne 0) { throw "seq06 harness-only release evidence failed" }
     } else {
       Invoke-PsqlFile $path
+    }
+    if ($relative -match 'SECURE-READ-CONTRACTS') {
+      $secureReadApplied = $true
     }
   }
   if (-not $secureReadApplied) { throw "secure-read contracts were not applied before secure-draft" }

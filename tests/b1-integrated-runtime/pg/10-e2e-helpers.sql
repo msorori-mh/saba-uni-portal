@@ -104,7 +104,32 @@ returns jsonb language sql stable as $$
       select jsonb_agg(jsonb_build_object('key',s.step_key,'status',s.status,'order',s.step_order) order by s.step_order)
       from public.student_request_workflow_steps s where s.student_request_id = r.id
     ), '[]'::jsonb),
-    'events', (select count(*) from public.student_request_workflow_events e where e.student_request_id = r.id)
+    'events', (
+      select count(*) from public.student_request_workflow_events e
+      where e.student_request_id = r.id
+    ),
+    'attachments', (
+      select count(*) from public.student_request_attachment_uploads a
+      where a.student_request_id = r.id
+    ),
+    'processing_assignments_total', (
+      select count(*) from public.request_processing_assignments
+    ),
+    'suspension_detail', (
+      select to_jsonb(d) from public.enrollment_suspension_details d where d.request_id = r.id
+    ),
+    'absence_detail', (
+      select to_jsonb(d) from public.absence_excuse_details d where d.request_id = r.id
+    ),
+    'transfer_detail', (
+      select to_jsonb(d) from public.transfer_request_details d where d.request_id = r.id
+    ),
+    'final_chance_detail', (
+      select to_jsonb(d) from public.extra_chance_details d where d.request_id = r.id
+    ),
+    'withdrawal_detail', (
+      select to_jsonb(d) from public.file_withdrawal_details d where d.request_id = r.id
+    )
   )
   from public.student_requests r where r.id = p_request_id;
 $$;

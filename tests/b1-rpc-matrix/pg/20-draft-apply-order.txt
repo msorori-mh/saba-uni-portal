@@ -31,10 +31,12 @@
 18 docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql # blob 8ba94dde082d0f6e4b7727fa5a42c81fdce37a19
 19 docs/migration-drafts/REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql # blob 74bf895c1c65a2f88564c5716da585ca528b8d63
 20 docs/migration-drafts/B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql # blob 00e51372e9cded9643b57e5a323d31d17b7449bd
-21 docs/migration-drafts/B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql # blob 324044df1f26f6d66c04421a525efc697deeed46
-22 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
-23 docs/migration-drafts/B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql # blob c80e74efe9761e9efe352dce4f208b6e73c579f4
-24 docs/migration-drafts/B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql # blob b1cc3d0fd48ac2b92e485136c5e1600f763592e6
+21 docs/migration-drafts/B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql # blob 50a862770dd0ea55cc316720f25f8dff2843942a
+22 docs/migration-drafts/B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql # blob c4e6ad0f85e0ebd8a7fa5e7ca4620386a39527ae
+23 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
+24 docs/migration-drafts/B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql # blob c80e74efe9761e9efe352dce4f208b6e73c579f4
+25 docs/migration-drafts/B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql # blob b1cc3d0fd48ac2b92e485136c5e1600f763592e6
+#
 # seq06 note: the committed draft fails closed by design while its
 # APPROVED_RELEASE_COMMIT_PLACEHOLDER is unresolved. The harness (a) asserts
 # that failure (EXPECTED-FAIL, error B1_ATOMIC_CALLER_RELEASE_EVIDENCE_NOT_APPROVED),
@@ -44,8 +46,9 @@
 # preflight can be exercised end-to-end. This substitution is documented in the
 # report and is never a production instruction.
 # seq20 is the forward-only payment confirmation predecessor guard (after ACL,
-# before activation). seq21 is secure draft mutations. seq22 remains the post-manifest F1/F2 actor/action remediation.
-# seq23 aligns transfer department scope with position_assignment assignees
+# before activation). seq21 is secure reads, seq22 is secure draft mutations,
+# and seq23 remains the post-manifest F1/F2 actor/action remediation.
+# seq24 aligns transfer department scope with position_assignment assignees
 # (submit already requires position_assignment for source/target chairs).
-
-# seq24 null-guards file_withdrawal impact_acknowledgment (and suspension terms) with IS DISTINCT FROM.
+# seq25 null-guards file_withdrawal impact_acknowledgment (and suspension terms)
+# with IS DISTINCT FROM.

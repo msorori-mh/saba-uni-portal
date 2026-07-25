@@ -31,7 +31,7 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
 
   test("runner applies secure-read before secure-draft and activates locally only", () => {
     const runner = readFileSync(join(harnessDir, "run-harness.ps1"), "utf8");
-    expect(runner).toContain("B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql");
+    expect(runner).toContain("SECURE-READ-CONTRACTS");
     expect(runner).toContain("SECURE-DRAFT-MUTATIONS");
     expect(runner).toContain("35-activate-workflows-local-only.sql");
     expect(runner).toContain("TEST_ONLY_B1_FIVE_SERVICES_INTEGRATED_RUNTIME");
@@ -40,7 +40,7 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
     expect(runner).not.toMatch(/supabase\s+db\s+push|production|staging/i);
   });
 
-  test("promotion map order 20/21 and activation gate 22 remain distinct", () => {
+  test("promotion map order 20/21 and manifest gate 23 remain distinct", () => {
     const map = JSON.parse(readFileSync(mapPath, "utf8")) as Array<{
       order: number;
       draft: string;
@@ -51,11 +51,14 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
       global_policies: { activation_gate: string };
       migrations: Array<{ sequence_order: number; filename: string }>;
     };
-    expect(manifest.global_policies.activation_gate).toMatch(/gate 22/);
+    expect(manifest.global_policies.activation_gate).toMatch(/gate 23/);
     expect(manifest.migrations.find((m) => m.sequence_order === 20)?.filename).toContain(
       "CONFIRM-PAYMENT-PREDECESSOR",
     );
     expect(manifest.migrations.find((m) => m.sequence_order === 21)?.filename).toContain(
+      "SECURE-READ-CONTRACTS",
+    );
+    expect(manifest.migrations.find((m) => m.sequence_order === 22)?.filename).toContain(
       "SECURE-DRAFT-MUTATIONS",
     );
   });
@@ -92,7 +95,7 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
       "utf8",
     );
     expect(applyOrder).toContain("B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql");
-    expect(applyOrder).toMatch(/23 docs\/migration-drafts\/B1-TRANSFER-DEPARTMENT-SCOPE/);
+    expect(applyOrder).toMatch(/24 docs\/migration-drafts\/B1-TRANSFER-DEPARTMENT-SCOPE/);
   });
 
   test("file_withdrawal impact ack null-guard uses IS DISTINCT FROM", () => {
@@ -107,7 +110,7 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
       join(root, "tests/b1-rpc-matrix/pg/20-draft-apply-order.txt"),
       "utf8",
     );
-    expect(applyOrder).toMatch(/24 docs\/migration-drafts\/B1-FILE-WITHDRAWAL-IMPACT-ACK/);
+    expect(applyOrder).toMatch(/25 docs\/migration-drafts\/B1-FILE-WITHDRAWAL-IMPACT-ACK/);
   });
 
   test("report path reserved for PASS artifact", () => {
