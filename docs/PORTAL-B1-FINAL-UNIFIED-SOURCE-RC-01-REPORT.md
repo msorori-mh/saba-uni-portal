@@ -6,8 +6,8 @@
 
 PR #238 was merge-committed into PR #221. Source + local PG17 verification on the unified tip are green. Remote GitHub Actions on tip `71d0e61d499da34b11245c35989400ac661cf04e` completed successfully (11/11 checks). Five services remain hidden. No Production/Staging apply, Deploy/Publish, migration apply, activation, or `student_visible` change. **PR #221 was not merged to main in this mission.**
 
-The previous remote-CI hold  
-`HOLD_PR221_MAIN_MERGE_GITHUB_ACTIONS_BILLING_NO_JOB_STEPS`  
+The previous remote-CI hold
+`HOLD_PR221_MAIN_MERGE_GITHUB_ACTIONS_BILLING_NO_JOB_STEPS`
 is **cleared** — jobs executed real steps and concluded SUCCESS.
 
 ## Provenance
