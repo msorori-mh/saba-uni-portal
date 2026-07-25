@@ -34,7 +34,7 @@ ALTER TABLE public.student_request_workflow_steps
   ADD CONSTRAINT student_request_workflow_steps_decision_chk
   CHECK (decision IS NULL OR decision IN (
     'approved','rejected','returned','skipped','completed','signed','issued',
-    'archived','reviewed','cleared','applied','payment_confirmed','payment_not_confirmed'
+    'archived','reviewed','cleared','applied','payment_confirmed'
   ));
 
 ALTER TABLE public.student_request_workflow_events
@@ -44,13 +44,18 @@ ALTER TABLE public.student_request_workflow_events
   CHECK (event_type IN (
     'created','submitted','step_entered','assigned','commented','approved','rejected',
     'returned','attachment_requested','payment_requested','payment_confirmed',
-    'payment_not_confirmed','reviewed','cleared','applied','signed','archived',
+    'reviewed','cleared','applied','signed','archived',
     'document_issued','completed','cancelled'
   ));
 
+-- Simplified revenue contract: confirmation is an ordinary workflow action.
+-- There is no rejection-for-non-payment path; inaction leaves the step active.
+-- The legacy three-argument status form is removed so no overload can carry a
+-- client-supplied status.
+DROP FUNCTION IF EXISTS public.record_external_university_payment_confirmation(uuid, text, text);
+
 CREATE OR REPLACE FUNCTION public.record_external_university_payment_confirmation(
   p_step_id uuid,
-  p_status text,
   p_note text DEFAULT NULL
 )
 RETURNS jsonb
@@ -75,12 +80,10 @@ BEGIN
     RAISE EXCEPTION 'AUTH_REQUIRED' USING ERRCODE = '28000';
   END IF;
   PERFORM set_config('b1.specialized_action', '1', true);
-  IF p_status NOT IN ('payment_confirmed', 'payment_not_confirmed') THEN
-    RAISE EXCEPTION 'INVALID_EXTERNAL_PAYMENT_CONFIRMATION_STATUS' USING ERRCODE = '22023';
-  END IF;
   IF p_note IS NOT NULL AND char_length(btrim(p_note)) > 2000 THEN
     RAISE EXCEPTION 'PAYMENT_CONFIRMATION_NOTE_TOO_LONG' USING ERRCODE = '22023';
   END IF;
+
 
   -- Lock before authorization: the assignee and active state cannot change
   -- between authorization and mutation.
