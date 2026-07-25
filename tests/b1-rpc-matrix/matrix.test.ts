@@ -114,10 +114,10 @@ describe("matrix JSON: coverage", () => {
 });
 
 describe("cross-check: matrix vs sequential-apply manifest", () => {
-  test("manifest has exactly 20 entries in sequence 1..20", () => {
-    expect(manifest.migrations.length).toBe(20);
+  test("manifest has exactly 21 entries in sequence 1..21", () => {
+    expect(manifest.migrations.length).toBe(21);
     const seq = manifest.migrations.map((m) => m.sequence_order);
-    expect(seq).toEqual(Array.from({ length: 20 }, (_, i) => i + 1));
+    expect(seq).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
   });
   test("harness applies the manifest exactly, then the F1/F2 remediation", () => {
     const orderLines = orderText.split("\n")

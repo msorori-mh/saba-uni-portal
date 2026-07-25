@@ -27,8 +27,9 @@ export const B1_READ_ACCESS_DENIED = "B1_READ_ACCESS_DENIED" as const;
 export const B1_SECURE_READ_UPDATING_MSG =
   "عقود قراءة الخدمات الطلابية قيد التحديث حالياً. حاول لاحقاً.";
 
-/** Write seams intentionally not opened by this track. */
-export const B1_SECURE_READ_WRITES_FAIL_CLOSED = ["create_draft", "save_draft"] as const;
+/** Write seams opened by B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01 (stacked). */
+export const B1_SECURE_READ_WRITES_FAIL_CLOSED = [] as const;
+export const B1_SECURE_DRAFT_WRITES_AVAILABLE = ["create_draft", "save_draft"] as const;
 
 export type B1ReferenceOption = { value: string; labelAr: string };
 
@@ -152,8 +153,8 @@ export const B1_ADAPTER_READ_RPC_MAP = {
   getAssignedRequestDetails: "get_b1_assigned_request_details_for_actor",
   refreshAfterAct: "get_b1_assigned_request_details_for_actor",
   refreshAfterConfirmPayment: "get_b1_assigned_request_details_for_actor",
-  createDraft: null, // FAIL_CLOSED — write track
-  saveDraft: null, // FAIL_CLOSED — write track
+  createDraft: "create_b1_request_draft_for_student",
+  saveDraft: "save_b1_request_draft_for_student",
 } as const;
 
 export function isB1CanonicalCode(value: string): value is B1CanonicalCode {

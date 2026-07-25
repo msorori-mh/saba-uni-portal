@@ -126,5 +126,15 @@
         "preflight": "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql",
         "note": "Read-contract track. Does not open create/save draft writes. Sequential-apply manifest promotion is a separate follow-up gate."
+    },
+    {
+        "order": 21,
+        "draft": "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql",
+        "migration": "supabase/migrations/20260725140000_b1_21_secure_draft_mutations_01.sql",
+        "draft_sha_lf": "b94580bc9a44670470b841db857f3fe35268991c8fd2011dfc2e276467592a35",
+        "migration_sha_lf": "23143d6550c183aac058f8eadf175452c27771c1cdbd8b91deeff294d1267ecb",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql",
+        "note": "Draft create/save write track. Submit remains submit_b1_student_request_atomic. Activation remains a separate non-migration gate (docs: gate 22 after this sequence_order 21)."
     }
 ]

@@ -2,9 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { B1_CANONICAL_CODES } from "../request-service-adapter";
-import { B1_SECURE_READ_WRITES_FAIL_CLOSED } from "./contracts";
 import { B1SecureReadRpcClient, B1SecureReadRpcError, isB1SecureReadRpcUnavailable } from "./rpc";
 import { B1_SECURE_READ_UPDATING_MSG } from "./contracts";
+import { createB1Draft, saveB1Draft } from "../b1-secure-draft/functions";
 
 const uuid = z.string().uuid();
 const canonical = z.enum(B1_CANONICAL_CODES);
@@ -146,31 +146,6 @@ export const listB1SecureAttachmentsForViewer = createServerFn({ method: "POST" 
     }
   });
 
-/** Explicit fail-closed stubs for write seams not opened by this track. */
-export const createB1SecureDraftFailClosed = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ serviceCode: canonical }).strict().parse(input))
-  .handler(async () => {
-    throw new B1SecureReadRpcError(
-      `عملية ${B1_SECURE_READ_WRITES_FAIL_CLOSED[0]} غير متاحة في عقد القراءة.`,
-      "B1_WRITE_CONTRACT_PENDING",
-    );
-  });
-
-export const saveB1SecureDraftFailClosed = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
-      .object({
-        requestId: uuid,
-        formData: z.record(z.unknown()),
-      })
-      .strict()
-      .parse(input),
-  )
-  .handler(async () => {
-    throw new B1SecureReadRpcError(
-      `عملية ${B1_SECURE_READ_WRITES_FAIL_CLOSED[1]} غير متاحة في عقد القراءة.`,
-      "B1_WRITE_CONTRACT_PENDING",
-    );
-  });
+/** Stacked write wrappers — delegate to secure-draft mutation contracts. */
+export const createB1SecureDraftFailClosed = createB1Draft;
+export const saveB1SecureDraftFailClosed = saveB1Draft;
