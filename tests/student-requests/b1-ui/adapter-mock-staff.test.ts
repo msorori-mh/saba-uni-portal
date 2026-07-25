@@ -79,7 +79,7 @@ describe("mock B1 UI adapter — staff inbox", () => {
 
     const result = await adapter.actOnB1RequestStep(suspension.stepId, "review", "مراجعة تجريبية");
     expect(result.requestId).toBe(suspension.requestId);
-    expect(result.outcomeAr).toContain("مراجعة");
+    expect(result).toMatchObject({ accepted: true, action: "review" });
 
     const details = await adapter.getAssignedB1RequestDetails(suspension.requestId);
     expect(details.steps[0]!.status).toBe("completed");
@@ -122,7 +122,7 @@ describe("mock B1 UI adapter — staff inbox", () => {
       transfer.stepId,
       "تم التحقق من السداد خارجيًا",
     );
-    expect(result.outcomeAr).toContain("تأكيد");
+    expect(result).toMatchObject({ accepted: true, action: "confirm_payment" });
 
     const details = await adapter.getAssignedB1RequestDetails(transfer.requestId);
     const paymentStep = details.steps.find((step) => step.key === "payment_confirmation");

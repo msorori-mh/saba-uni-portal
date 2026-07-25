@@ -42,16 +42,16 @@ describe("B1 UI adapter selection", () => {
     }
   });
 
-  it("live adapter functions reject with BACKEND_CONTRACT_PENDING (when mock is off)", async () => {
+  it("live adapter keeps unwired read/draft methods fail-closed (when mock is off)", async () => {
     if (isB1UiMockEnabled()) return; // mock explicitly enabled in this env — nothing to assert
     const adapter = getB1UiAdapter();
     try {
-      await adapter.getAvailableB1RequestTypes();
-      throw new Error("expected the live adapter to reject");
+      await adapter.getB1RequestFormOptions("enrollment_suspension");
+      throw new Error("expected the live adapter to reject unwired methods");
     } catch (error) {
       expect(error).toBeInstanceOf(B1AdapterError);
       expect((error as B1AdapterError).code).toBe("BACKEND_CONTRACT_PENDING");
-      expect((error as B1AdapterError).message).toContain("getAvailableB1RequestTypes");
+      expect((error as B1AdapterError).message).toContain("getB1RequestFormOptions");
     }
   });
 });
