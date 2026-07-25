@@ -36,7 +36,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     getEmptyFormValues(definition),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saveState, setSaveState] = useState<B1DraftSaveState>("idle");
+  const [saveState, setSaveState] = useState<B1DraftSaveState>("draft");
   const [fatalError, setFatalError] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -71,7 +71,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       delete next[name];
       return next;
     });
-    setSaveState("idle");
+    setSaveState("draft");
   };
 
   const save = async () => {
@@ -82,7 +82,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       setDraft(saved);
       setSaveState("saved");
     } catch {
-      setSaveState("error");
+      setSaveState("save_failed");
     }
   };
 
@@ -131,8 +131,18 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       .filter((field) => field.type !== "info" && field.type !== "file")
       .map((field) => ({
         labelAr: field.labelAr,
-        valueAr: formatValue(field, values[field.name]),
+        valueAr: formatValue(
+          field,
+          displayValue(field, values, options),
+          resolveOptions(field, values, options),
+        ),
       })),
+  );
+
+  const acknowledgmentsAr = definition.sections.flatMap((section) =>
+    section.fields
+      .filter((field) => field.type === "checkbox" && values[field.name] === true)
+      .map((field) => field.labelAr),
   );
 
   return (
@@ -145,8 +155,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       <B1ServiceHeader
         titleAr={config.titleAr}
         descriptionAr={config.descriptionAr}
-        requirementsAr={definition.warnings}
-        feePolicyAr={config.feePolicyLabelAr}
+        requirementsAlertAr={definition.warnings?.join(" ")}
+        feePolicyNoteAr={config.feePolicyLabelAr}
       />
       <B1DraftStatus state={saveState} updatedAt={draft.updatedAt} />
       {fatalError ? (
@@ -162,27 +172,33 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
           }}
         >
           {definition.sections.map((section, index) => (
-            <fieldset key={section.titleAr ?? index} className="grid gap-4 sm:grid-cols-2">
+            <fieldset key={section.titleAr ?? index} className="min-w-0">
               {section.titleAr ? (
-                <legend className="col-span-full font-bold text-primary">{section.titleAr}</legend>
+                <legend className="mb-3 font-bold text-primary">{section.titleAr}</legend>
               ) : null}
-              {section.fields
-                .filter((field) => field.type !== "file")
-                .map((field) => (
-                  <B1Field
-                    key={field.name}
-                    field={field}
-                    value={values[field.name]}
-                    error={errors[field.name]}
-                    options={resolveOptions(field, values, options)}
-                    onChange={(value) => changeField(field.name, value)}
-                  />
-                ))}
+              <div className="grid gap-4 sm:grid-cols-2">
+                {section.fields
+                  .filter((field) => field.type !== "file")
+                  .map((field) => (
+                    <B1Field
+                      key={field.name}
+                      field={field}
+                      value={displayValue(field, values, options)}
+                      error={errors[field.name]}
+                      options={resolveOptions(field, values, options)}
+                      onChange={(value) => changeField(field.name, value)}
+                    />
+                  ))}
+              </div>
             </fieldset>
           ))}
 
           {definition.requiredAttachments?.map((attachment) => (
             <div key={attachment.key} className="space-y-1">
+              <span className="block text-sm font-bold text-primary">
+                {attachment.labelAr}
+                {attachment.required ? " *" : ""}
+              </span>
               <B1AttachmentUploader
                 attachments={draft.attachments.filter(
                   (item) => item.attachmentType === attachment.key,
@@ -244,7 +260,12 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         </form>
       ) : (
         <div className="space-y-4">
-          <B1RequestSummary items={summaryItems} attachments={draft.attachments} />
+          <B1RequestSummary
+            serviceTitleAr={config.titleAr}
+            items={summaryItems}
+            attachments={draft.attachments}
+            acknowledgmentsAr={acknowledgmentsAr}
+          />
           <div className="flex flex-col-reverse gap-2 sm:flex-row">
             <button
               type="button"
@@ -289,39 +310,72 @@ function B1Field({
   options?: readonly RequestFormFieldOption[];
   onChange: (value: unknown) => void;
 }) {
+  const fieldId = `b1-field-${field.name}`;
+  const errorId = `${fieldId}-error`;
   if (field.type === "info" || field.type === "readonly") {
     return (
       <div className="rounded-lg bg-muted/40 p-3 text-sm">
         <strong>{field.labelAr}: </strong>
-        {String(field.defaultValue ?? value ?? "—")}
+        {String(value ?? field.defaultValue ?? "—")}
       </div>
     );
   }
   const common = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
+  const ariaProps = {
+    "aria-invalid": error ? true : undefined,
+    "aria-describedby": error ? errorId : undefined,
+    "aria-required": field.required || undefined,
+  };
+  const errorMessage = error ? (
+    <span id={errorId} role="alert" className="block text-xs font-bold text-destructive">
+      {b1ValidationMessageAr(error)}
+    </span>
+  ) : null;
+
+  if (field.type === "checkbox") {
+    return (
+      <div className="space-y-1 sm:col-span-2">
+        <label className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 text-sm font-bold text-primary">
+          <input
+            id={fieldId}
+            type="checkbox"
+            checked={value === true}
+            onChange={(event) => onChange(event.target.checked)}
+            className="h-5 w-5 shrink-0 accent-primary"
+            {...ariaProps}
+          />
+          <span>
+            {field.labelAr}
+            {field.required ? " *" : ""}
+          </span>
+        </label>
+        {errorMessage}
+      </div>
+    );
+  }
+
   return (
     <label className={field.type === "textarea" ? "space-y-1 sm:col-span-2" : "space-y-1"}>
       <span className="block text-sm font-bold text-primary">
         {field.labelAr}
         {field.required ? " *" : ""}
       </span>
-      {field.type === "checkbox" ? (
-        <input
-          type="checkbox"
-          checked={value === true}
-          onChange={(event) => onChange(event.target.checked)}
-        />
-      ) : field.type === "textarea" ? (
+      {field.type === "textarea" ? (
         <textarea
+          id={fieldId}
           rows={4}
           className={`${common} py-2`}
           value={String(value ?? "")}
           onChange={(event) => onChange(event.target.value)}
+          {...ariaProps}
         />
       ) : field.type === "select" ? (
         <select
+          id={fieldId}
           className={common}
           value={String(value ?? "")}
           onChange={(event) => onChange(event.target.value)}
+          {...ariaProps}
         >
           <option value="">اختر…</option>
           {options?.map((option) => (
@@ -332,18 +386,16 @@ function B1Field({
         </select>
       ) : (
         <input
+          id={fieldId}
           type={field.type === "date" ? "date" : "text"}
           dir={field.type === "date" ? "ltr" : "rtl"}
           className={common}
           value={String(value ?? "")}
           onChange={(event) => onChange(event.target.value)}
+          {...ariaProps}
         />
       )}
-      {error ? (
-        <span role="alert" className="block text-xs font-bold text-destructive">
-          {b1ValidationMessageAr(error)}
-        </span>
-      ) : null}
+      {errorMessage}
     </label>
   );
 }
@@ -365,7 +417,26 @@ function resolveOptions(
   return field.options;
 }
 
-function formatValue(field: RequestFormFieldDefinition, value: unknown) {
+function formatValue(
+  field: RequestFormFieldDefinition,
+  value: unknown,
+  options?: readonly RequestFormFieldOption[],
+) {
   if (field.type === "checkbox") return value === true ? "نعم" : "لا";
-  return field.options?.find((option) => option.value === value)?.labelAr ?? String(value ?? "—");
+  const resolved = options ?? field.options;
+  return resolved?.find((option) => option.value === value)?.labelAr ?? String(value ?? "—");
+}
+
+/** Resolves the shown value for readonly reference fields (e.g. current department/program). */
+function displayValue(
+  field: RequestFormFieldDefinition,
+  values: Record<string, unknown>,
+  options: B1FormOptions,
+) {
+  const value = values[field.name];
+  if (value !== undefined && value !== null && String(value) !== "") return value;
+  if (field.name === "current_department")
+    return options.currentDepartmentLabelAr ?? field.defaultValue;
+  if (field.name === "current_program") return options.currentProgramLabelAr ?? field.defaultValue;
+  return value ?? field.defaultValue;
 }
