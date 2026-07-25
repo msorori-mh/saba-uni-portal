@@ -703,7 +703,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: all of {persist dispatcher (fail-closed), is_b1_stored_request_type, 2 guard functions, is_valid_b1_direct_assignment, initialize_..., submit_..., act_on_...} and both guard triggers present, else partial",
    "rollback_by_forward": "forward: DISABLE the two guard triggers and/or CREATE OR REPLACE functions to corrected versions in a new migration; keep dispatcher fail-closed until a fixed dispatcher lands; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "dispatcher stays fail-closed after this step; no service callable until B1-SERVICE-DETAILS-DISPATCHER-15 + ACL cutover + activation gate 19",
+   "activation_dependency": "dispatcher stays fail-closed after this step; no service callable until B1-SERVICE-DETAILS-DISPATCHER-15 + ACL cutover + sequence_order 20-24 remediations + activation gate 25",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -841,7 +841,7 @@
    ],
    "partial_apply_detection": "NOT wrapped in BEGIN/COMMIT -- per protocol apply in one operator transaction; detection probe per object: 4 CHECK definitions widened AND record_external_university_payment_confirmation present AND its GRANT/REVOKE correct; any subset = partial",
    "rollback_by_forward": "forward: restore prior CHECK definitions (captured at preflight) via new ALTER statements and/or CREATE OR REPLACE the RPC to a corrected version; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "RPC inert until payment_confirmation runtime steps exist (B1-EXT-UNI-PAYMENT-WORKFLOWS-17); incomplete-predecessor bypass closed by B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 before activation gate 21",
+   "activation_dependency": "RPC inert until payment_confirmation runtime steps exist (B1-EXT-UNI-PAYMENT-WORKFLOWS-17); incomplete-predecessor bypass closed by B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19; secure-read/draft/transfer/withdrawal remediations (sequence_order 21-24) and separate activation gate 25 remain mandatory before student_visible / production activation",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -1565,7 +1565,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: dispatcher prosrc without fail-closed marker AND all 5 service branches present, else partial",
    "rollback_by_forward": "forward: CREATE OR REPLACE dispatcher back to fail-closed (or corrected branches) in a new migration -- this immediately closes all 5 services' write path; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "dispatcher installed but direct client table writes remain closed until B1-DETAIL-ACL-CUTOVER-18; service visibility still gated by activation gate 19",
+   "activation_dependency": "dispatcher installed but direct client table writes remain closed until B1-DETAIL-ACL-CUTOVER-18; service visibility still gated by activation gate 25 after sequence_order 20-24",
    "status": "NOT_APPLIED",
    "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
    "source_promotion": {
@@ -1635,7 +1635,7 @@
    ],
    "partial_apply_detection": "transactional draft (single DO block inside BEGIN/COMMIT); probe: per service workflow+steps+transitions structure equals declared contract, else partial",
    "rollback_by_forward": "forward: since workflows are inactive drafts, remediate by updating/deleting the DRAFT rows in a new migration before any activation; once activated (separate gate) only forward fixes allowed; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "creates INACTIVE drafts only; activation requires the separate reviewed activation gate (B1 gate 19) -- never activate in the same session",
+   "activation_dependency": "creates INACTIVE drafts only; activation requires the separate reviewed activation gate 25 after sequence_order 20-24 -- never activate in the same session",
    "status": "NOT_APPLIED",
    "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
    "source_promotion": {
@@ -1708,7 +1708,7 @@
    ],
    "partial_apply_detection": "single DO statement -- atomic by construction; probe: both workflow drafts structurally complete, else not applied",
    "rollback_by_forward": "forward: same as B1-FREE-SERVICE-WORKFLOWS-16 -- draft rows may be corrected pre-activation; post-activation forward-only; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "creates INACTIVE drafts only; same activation gate 19",
+   "activation_dependency": "creates INACTIVE drafts only; same activation gate 25 after sequence_order 20-24",
    "status": "NOT_APPLIED",
    "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
    "source_promotion": {
@@ -1794,7 +1794,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: post-verify DO passes on all 5 tables; if cutover function executed on subset (impossible inside txn), treat any privilege-matrix drift as partial",
    "rollback_by_forward": "forward: re-open write path corrections by restoring prior table ACLs/policies (captured at preflight) via new migration; never re-grant direct INSERT/UPDATE/DELETE to authenticated as a 'fix' without review; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "final DB cutover; B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 (sequence_order 20) must apply next; user-facing service activation remains a SEPARATE reviewed step (activation gate 21) after the predecessor guard verifies green",
+   "activation_dependency": "final DB cutover; B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 (sequence_order 20) must apply next, then secure-read/draft/transfer/withdrawal (21-24); user-facing service activation remains a SEPARATE reviewed step (activation gate 25) after those remediations verify green",
    "status": "NOT_APPLIED",
    "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
    "source_promotion": {

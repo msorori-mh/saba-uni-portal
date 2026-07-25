@@ -55,6 +55,14 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
       migrations: Array<{ sequence_order: number; filename: string }>;
     };
     expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
+    const depText = JSON.stringify(
+      manifest.migrations.map(
+        (m: { activation_dependency?: string }) => m.activation_dependency ?? "",
+      ),
+    );
+    expect(depText).not.toMatch(/activation gate 2[0-4]\b/);
+    expect(depText).not.toMatch(/activation gate 1[89]\b/);
+    expect(depText).not.toMatch(/B1 gate 1[89]\b/);
     expect(manifest.migrations.find((m) => m.sequence_order === 21)?.filename).toContain(
       "SECURE-READ-CONTRACTS",
     );
