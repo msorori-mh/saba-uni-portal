@@ -170,7 +170,7 @@ function AdminGraduationProjectsIndexPage() {
     "";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       {createCtx.data?.canCreate && createCtx.data.departmentId ? (
         <CreateProjectForm
           departmentId={createCtx.data.departmentId}

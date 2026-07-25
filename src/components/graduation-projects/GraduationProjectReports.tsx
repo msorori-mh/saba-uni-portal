@@ -1,8 +1,16 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatGpDateTimeAr, formatGpFileSizeAr } from "./gp-datetime";
 import { PROJECT_STATE_LABELS } from "../../lib/graduation-projects/lifecycle";
 import type {
   GraduationProjectArchiveReport,
@@ -23,15 +31,26 @@ export interface GraduationProjectReportsProps {
   onLoad(kind: GraduationProjectReportKind): void;
 }
 
-export function GraduationProjectReports({ departmentId, statesReport, assignmentsReport, evaluationsReport, archiveReport, busy = false, onLoad }: GraduationProjectReportsProps) {
+export function GraduationProjectReports({
+  departmentId,
+  statesReport,
+  assignmentsReport,
+  evaluationsReport,
+  archiveReport,
+  busy = false,
+  onLoad,
+}: GraduationProjectReportsProps) {
   return (
     <Card dir="rtl">
       <CardHeader>
         <CardTitle>تقارير القسم</CardTitle>
-        <CardDescription>القسم: {departmentId} — تتطلب التقارير تعييناً إدارياً نشطاً.</CardDescription>
+        <CardDescription>تتطلب التقارير تعييناً إدارياً نشطاً في القسم.</CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="states" onValueChange={(value: string) => onLoad(value as GraduationProjectReportKind)}>
+        <Tabs
+          defaultValue="states"
+          onValueChange={(value: string) => onLoad(value as GraduationProjectReportKind)}
+        >
           <TabsList>
             <TabsTrigger value="states">الحالات</TabsTrigger>
             <TabsTrigger value="assignments">التعيينات</TabsTrigger>
@@ -44,14 +63,21 @@ export function GraduationProjectReports({ departmentId, statesReport, assignmen
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">الإجمالي: {statesReport.summary.total}</Badge>
                   <Badge variant="destructive">متعثر: {statesReport.summary.at_risk}</Badge>
-                  <Badge variant="secondary">بمراحل متأخرة: {statesReport.summary.with_overdue}</Badge>
-                  <Badge variant="secondary">جاهز للمناقشة: {statesReport.summary.discussion_ready}</Badge>
+                  <Badge variant="secondary">
+                    بمراحل متأخرة: {statesReport.summary.with_overdue}
+                  </Badge>
+                  <Badge variant="secondary">
+                    جاهز للمناقشة: {statesReport.summary.discussion_ready}
+                  </Badge>
                 </div>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>العنوان</TableHead><TableHead>الحالة</TableHead><TableHead>التقدم</TableHead>
-                      <TableHead>مراحل متأخرة</TableHead><TableHead>جاهزية المناقشة</TableHead>
+                      <TableHead>العنوان</TableHead>
+                      <TableHead>الحالة</TableHead>
+                      <TableHead>التقدم</TableHead>
+                      <TableHead>مراحل متأخرة</TableHead>
+                      <TableHead>جاهزية المناقشة</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -68,7 +94,14 @@ export function GraduationProjectReports({ departmentId, statesReport, assignmen
                 </Table>
               </div>
             ) : (
-              <Button type="button" variant="outline" disabled={busy} onClick={() => onLoad("states")}>تحميل تقرير الحالات</Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onLoad("states")}
+              >
+                تحميل تقرير الحالات
+              </Button>
             )}
           </TabsContent>
           <TabsContent value="assignments">
@@ -77,14 +110,16 @@ export function GraduationProjectReports({ departmentId, statesReport, assignmen
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>المشرف</TableHead><TableHead>مشاريع نشطة</TableHead>
-                      <TableHead>متعثرة</TableHead><TableHead>متوسط التقدم</TableHead>
+                      <TableHead>المشرف</TableHead>
+                      <TableHead>مشاريع نشطة</TableHead>
+                      <TableHead>متعثرة</TableHead>
+                      <TableHead>متوسط التقدم</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {assignmentsReport.supervisors.map((supervisor) => (
+                    {assignmentsReport.supervisors.map((supervisor, index) => (
                       <TableRow key={supervisor.assignment_id}>
-                        <TableCell dir="ltr">{supervisor.user_id}</TableCell>
+                        <TableCell>مشرف {index + 1}</TableCell>
                         <TableCell>{supervisor.active_projects}</TableCell>
                         <TableCell>{supervisor.at_risk_projects}</TableCell>
                         <TableCell>{supervisor.avg_progress}%</TableCell>
@@ -97,7 +132,14 @@ export function GraduationProjectReports({ departmentId, statesReport, assignmen
                 </p>
               </div>
             ) : (
-              <Button type="button" variant="outline" disabled={busy} onClick={() => onLoad("assignments")}>تحميل تقرير التعيينات</Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onLoad("assignments")}
+              >
+                تحميل تقرير التعيينات
+              </Button>
             )}
           </TabsContent>
           <TabsContent value="evaluations">
@@ -105,8 +147,12 @@ export function GraduationProjectReports({ departmentId, statesReport, assignmen
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>العنوان</TableHead><TableHead>تقييمات معتمدة</TableHead><TableHead>المتوسط</TableHead>
-                    <TableHead>أدنى</TableHead><TableHead>أعلى</TableHead><TableHead>تصحيحات معلقة</TableHead>
+                    <TableHead>العنوان</TableHead>
+                    <TableHead>تقييمات معتمدة</TableHead>
+                    <TableHead>المتوسط</TableHead>
+                    <TableHead>أدنى</TableHead>
+                    <TableHead>أعلى</TableHead>
+                    <TableHead>تصحيحات معلقة</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -123,7 +169,14 @@ export function GraduationProjectReports({ departmentId, statesReport, assignmen
                 </TableBody>
               </Table>
             ) : (
-              <Button type="button" variant="outline" disabled={busy} onClick={() => onLoad("evaluations")}>تحميل تقرير التقييمات</Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onLoad("evaluations")}
+              >
+                تحميل تقرير التقييمات
+              </Button>
             )}
           </TabsContent>
           <TabsContent value="archive">
@@ -131,24 +184,36 @@ export function GraduationProjectReports({ departmentId, statesReport, assignmen
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>العنوان</TableHead><TableHead>تاريخ الأرشفة</TableHead>
-                    <TableHead>الملف النهائي</TableHead><TableHead>الحجم</TableHead><TableHead>الفحص</TableHead>
+                    <TableHead>العنوان</TableHead>
+                    <TableHead>تاريخ الأرشفة</TableHead>
+                    <TableHead>الملف النهائي</TableHead>
+                    <TableHead>الحجم</TableHead>
+                    <TableHead>الفحص</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {archiveReport.archives.map((row) => (
                     <TableRow key={row.project_id}>
                       <TableCell>{row.title}</TableCell>
-                      <TableCell>{row.archived_at}</TableCell>
+                      <TableCell>{formatGpDateTimeAr(row.archived_at)}</TableCell>
                       <TableCell>{row.final_file.original_name}</TableCell>
-                      <TableCell>{row.final_file.byte_size}</TableCell>
-                      <TableCell>{row.final_file.scan_state === "clean" ? "سليم" : "محجوب"}</TableCell>
+                      <TableCell>{formatGpFileSizeAr(row.final_file.byte_size)}</TableCell>
+                      <TableCell>
+                        {row.final_file.scan_state === "clean" ? "سليم" : "محجوب"}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             ) : (
-              <Button type="button" variant="outline" disabled={busy} onClick={() => onLoad("archive")}>تحميل تقرير الأرشيف</Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onLoad("archive")}
+              >
+                تحميل تقرير الأرشيف
+              </Button>
             )}
           </TabsContent>
         </Tabs>
