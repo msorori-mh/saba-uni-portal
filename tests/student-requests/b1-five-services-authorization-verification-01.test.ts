@@ -6,6 +6,11 @@ const root = process.cwd();
 const dir = join(root, "tests", "b1-five-services-authorization");
 const matrix = JSON.parse(readFileSync(join(dir, "authorization-matrix.json"), "utf8"));
 const harness = readFileSync(join(dir, "rpc-authorization-harness.sql"), "utf8");
+const fixtures = readFileSync(
+  join(root, "scripts", "b1-safe-rpc-matrix-harness-01", "01-runtime-matrix.sql"),
+  "utf8",
+);
+const runner = readFileSync(join(dir, "run-full-matrix.ps1"), "utf8");
 const payment = readFileSync(
   join(root, "supabase", "migrations", "20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql"),
   "utf8",
@@ -20,7 +25,7 @@ describe("PORTAL-B1-FIVE-SERVICES-AUTHORIZATION-AND-VERIFICATION-01", () => {
     expect(matrix.services.flatMap((x: { steps: unknown[] }) => x.steps)).toHaveLength(24);
     for (const service of matrix.services) {
       for (const [step, unit, role, action] of service.steps) {
-        expect(harness).toContain(
+        expect(fixtures).toContain(
           `('${service.code}','${step}','${unit}','${role}','${action}')`,
         );
       }
@@ -30,7 +35,7 @@ describe("PORTAL-B1-FIVE-SERVICES-AUTHORIZATION-AND-VERIFICATION-01", () => {
   it("pins the complete negative authorization universe", () => {
     expect(matrix.negative_cases).toHaveLength(22);
     for (const scenario of matrix.negative_cases) {
-      expect(harness).toContain(`('${scenario}')`);
+      expect(harness).toContain(`'${scenario}'`);
     }
     expect(matrix.negative_cases).toContain("unassigned_admin");
     expect(matrix.negative_cases).toContain("registrar_outside_step");
@@ -38,16 +43,28 @@ describe("PORTAL-B1-FIVE-SERVICES-AUTHORIZATION-AND-VERIFICATION-01", () => {
   });
 
   it("uses an authenticated transaction with JWT claims and unconditional rollback", () => {
-    expect(harness).toMatch(/^\\set ON_ERROR_STOP on[\s\S]*\bBEGIN;/);
+    expect(runner).toContain('$combined = "BEGIN;');
     expect(harness).toContain("SET LOCAL ROLE authenticated;");
     expect(harness).toContain("'request.jwt.claims'");
     expect(harness.trimEnd().endsWith("ROLLBACK;")).toBe(true);
-    expect(harness).toContain("B1_AUTHORIZATION_HARNESS_LOCAL_ONLY");
+    expect(harness).toContain("B1_LOCAL_RPC_HARNESS_PREREQUISITE_MISSING");
   });
 
   it("requires zero mutation across every protected surface", () => {
-    for (const relation of matrix.zero_mutation_relations) expect(harness).toContain(relation);
-    expect(harness).toContain("v_after IS DISTINCT FROM v_before");
+    for (const relation of matrix.zero_mutation_relations) {
+      const aliases: Record<string, string> = {
+        student_requests: "student_requests",
+        student_request_workflow_steps: "student_request_workflow_steps",
+        student_request_workflow_events: "student_request_workflow_events",
+        service_details: "'details'",
+        student_request_attachment_uploads: "student_request_attachment_uploads",
+        revenue_confirmation: "'revenue'",
+        audit_logs: "audit_logs",
+        notifications: "notifications",
+      };
+      expect(harness).toContain(aliases[relation]);
+    }
+    expect(harness).toContain("after_j IS DISTINCT FROM before_j");
     for (const id of matrix.protected_records) expect(harness).toContain(id);
   });
 

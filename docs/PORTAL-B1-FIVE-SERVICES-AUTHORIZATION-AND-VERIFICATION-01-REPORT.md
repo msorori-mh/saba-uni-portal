@@ -6,9 +6,61 @@
 
 ## القرار
 
-`PASS_AUTHORIZATION_MATRIX_TEST_HARNESS_READY`
+`HOLD_B1_FIVE_SERVICES_AUTHORIZATION_CONFIRM_PAYMENT_PREDECESSOR_BYPASS`
 
-القرار يعني أن مصفوفة التفويض وعقد harness جاهزان في المصدر. تشغيل مصفوفة PostgreSQL التنفيذية الكاملة ينتظر دمج Backend من PR #219 وتركيب fixtures محلية معزولة؛ ولا يعني القرار أن PR #219 طُبّق أو أن الخدمات فُعّلت.
+## Post-PR219 execution — 2026-07-25
+
+- Main merge commit: `b63725e02d4199b46dee604be8f8c03f72c5d414`.
+- Test branch was rebased successfully without conflicts.
+- PostgreSQL: disposable `postgres:17-alpine`; no host PostgreSQL, cloud endpoint, Production, or Staging connection.
+- PR #219 promoted migrations orders 7–18 compiled successfully in the local PG17 compile harness.
+- Full real-RPC matrix stopped at the first security failure, as required.
+
+### Security failure
+
+`final_chance / payment_confirmation / incomplete_predecessor` unexpectedly
+returned success through the real
+`record_external_university_payment_confirmation(uuid,text)` RPC while the
+synthetic predecessor runtime step was `pending`.
+
+Exact harness failure:
+
+```text
+B1_NEGATIVE_ALLOWED:final_chance:payment_confirmation:incomplete_predecessor
+```
+
+The specialized payment RPC verifies active payment step, exact direct
+assignee, finance binding, action type, and payment transition, but does not
+invoke `workflow_runtime_predecessors_satisfied(p_step_id)` or an equivalent
+locked predecessor assertion before mutation. A malformed or directly-created
+active payment runtime step can therefore advance despite an incomplete
+predecessor.
+
+Zero-mutation assertions passed for preceding denied cells. The failing cell
+was an authorization allow, so execution stopped before counting a complete
+matrix or running subsequent attachment/enrollment-certificate/full repository
+gates.
+
+### Required Cursor forward patch
+
+Do not edit the applied migration. Add a reviewed forward migration that
+updates `record_external_university_payment_confirmation(uuid,text)` to:
+
+1. lock/read the target runtime step;
+2. call `workflow_runtime_predecessors_satisfied(p_step_id)` (or the exact
+   canonical equivalent) before any UPDATE/INSERT;
+3. raise a stable error such as `PAYMENT_CONFIRMATION_PREDECESSOR_INCOMPLETE`;
+4. preserve the two-argument contract and all existing exact-assignee and
+   finance-binding checks;
+5. preserve server-derived actor/time and the no-financial-payload contract;
+6. add direct RPC regression cases for both `department_transfer` and
+   `final_chance`, including complete predecessor ALLOW and incomplete
+   predecessor DENY with full zero mutation.
+
+After that patch merges, rerun
+`tests/b1-five-services-authorization/run-full-matrix.ps1`.
+
+PR #219 مدمج في المصدر، لكن تفعيل الخدمات والإنتاج ما زالا محظورين. القرار الحالي يمنع الانتقال إلى E2E أو activation حتى إصلاح predecessor guard وإعادة المصفوفة كاملة.
 
 ## الملفات التي تمت مراجعتها
 
