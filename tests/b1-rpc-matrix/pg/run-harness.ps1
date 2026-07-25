@@ -62,6 +62,9 @@ try {
 
   Invoke-PsqlFile (Join-Path $PSScriptRoot "30-pre-activation-assert.sql")
   Invoke-PsqlFile (Join-Path $PSScriptRoot "35-activate-workflows-local-only.sql")
+  # Sequence 23 requires exact active position_assignment department-chair
+  # scope. Reuse the integrated harness fixture before constructing requests.
+  Invoke-PsqlFile (Join-Path $repo "tests\b1-integrated-runtime\pg\20-position-assignment-fixtures.sql")
   Invoke-PsqlFile (Join-Path $PSScriptRoot "40-verifier.sql")
   Invoke-PsqlFile (Join-Path $PSScriptRoot "45-acl-cases.sql")
 
