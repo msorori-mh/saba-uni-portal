@@ -103,7 +103,8 @@ describe("staff journey — legal actions only (cases 5-9)", () => {
     const seed = makeAssigned({ allowedAction: "approve" });
     const { adapter } = createScenarioAdapter({ assigned: [seed] });
     const result = await adapter.actOnB1RequestStep(seed.stepId, "approve");
-    expect(result.outcomeAr).toBeTruthy();
+    expect(result.accepted).toBe(true);
+    expect(result.action).toBe("approve");
     expect(B1_STAFF_ACTIONS_REQUIRING_COMMENT).toEqual(["return", "reject"]);
     expect(panelSource).toContain("التعليق إلزامي لتنفيذ هذا الإجراء.");
   });

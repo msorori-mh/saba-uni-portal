@@ -140,6 +140,18 @@ export function createScenarioAdapter(options: ScenarioOptions = {}) {
   });
 
   const adapter: B1UiAdapter = {
+    async getB1RuntimeCapability() {
+      track("getB1RuntimeCapability");
+      return {
+        available: true,
+        services: B1_UI_SERVICES.map((s) => s.code),
+        reads: ["form_options", "draft", "student_list"],
+        writesAvailable: ["create_draft", "save_draft"],
+        writesFailClosed: [],
+        draftMutationsContract: "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01",
+      };
+    },
+
     async getAvailableB1RequestTypes() {
       track("getAvailableB1RequestTypes");
       return availability;
@@ -175,7 +187,7 @@ export function createScenarioAdapter(options: ScenarioOptions = {}) {
       return publicDraft;
     },
 
-    async saveB1RequestDraft(requestId, formData) {
+    async saveB1RequestDraft(requestId, formData, expectedUpdatedAt) {
       track("saveB1RequestDraft");
       const draft = drafts.get(requestId);
       if (!draft) throw new B1AdapterError("NOT_FOUND", `Unknown draft: ${requestId}`);
@@ -183,6 +195,9 @@ export function createScenarioAdapter(options: ScenarioOptions = {}) {
         throw new B1AdapterError("VALIDATION_ERROR", "Request is no longer a draft", {
           status: "not_draft",
         });
+      }
+      if (!expectedUpdatedAt || draft.updatedAt !== expectedUpdatedAt) {
+        throw new B1AdapterError("STALE_VERSION", "B1_STALE_REQUEST_VERSION");
       }
       draft.formData = { ...formData };
       draft.updatedAt = nowIso();
@@ -213,6 +228,30 @@ export function createScenarioAdapter(options: ScenarioOptions = {}) {
       const draft = drafts.get(requestId);
       if (!draft) throw new B1AdapterError("NOT_FOUND", `Unknown draft: ${requestId}`);
       draft.attachments = draft.attachments.filter((item) => item.attachmentId !== attachmentId);
+    },
+
+    async downloadB1RequestAttachment(attachmentId) {
+      track("downloadB1RequestAttachment");
+      return {
+        url: `https://scenario.example.test/download/${attachmentId}`,
+        expiresInSeconds: 120,
+      };
+    },
+
+    async listB1StudentRequests() {
+      track("listB1StudentRequests");
+      return [...drafts.values()].map((draft) => {
+        const service = B1_UI_SERVICES.find((item) => item.code === draft.serviceCode);
+        return {
+          requestId: draft.requestId,
+          requestNumber: draft.requestNumber,
+          serviceCode: draft.serviceCode,
+          serviceTitleAr: service?.titleAr ?? draft.serviceCode,
+          status: draft.submitted ? "in_review" : "draft",
+          submittedAt: draft.submitted ? draft.updatedAt : null,
+          updatedAt: draft.updatedAt,
+        };
+      });
     },
 
     async submitB1Request(requestId, expectedUpdatedAt) {
@@ -285,15 +324,15 @@ export function createScenarioAdapter(options: ScenarioOptions = {}) {
         throw new B1AdapterError("PERMISSION_DENIED", `Action ${action} is not legal here`);
       }
       const result: B1StepActionResult = {
+        accepted: true,
         stepId,
         requestId: found.requestId,
-        outcomeAr: "تم تنفيذ الإجراء.",
-        actedAt: nowIso(),
+        action,
       };
       return result;
     },
 
-    async confirmB1RevenueReceipt(stepId, optionalNote) {
+    async confirmB1RevenueReceipt(stepId, _optionalNote) {
       track("confirmB1RevenueReceipt");
       const found = assigned.find((item) => item.stepId === stepId);
       if (!found) throw new B1AdapterError("NOT_FOUND", `Unknown step: ${stepId}`);
@@ -301,10 +340,10 @@ export function createScenarioAdapter(options: ScenarioOptions = {}) {
         throw new B1AdapterError("PERMISSION_DENIED", "Not a payment confirmation step");
       }
       const result: B1StepActionResult = {
+        accepted: true,
         stepId,
         requestId: found.requestId,
-        outcomeAr: "تم تأكيد استلام الرسوم.",
-        actedAt: nowIso(),
+        action: "confirm_payment",
       };
       return result;
     },
