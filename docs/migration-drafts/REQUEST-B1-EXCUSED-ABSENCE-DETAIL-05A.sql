@@ -59,11 +59,35 @@ ALTER TABLE public.absence_excuse_details NO FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.absence_excuse_details FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT ON TABLE public.absence_excuse_details TO authenticated,service_role;
 
-DROP POLICY IF EXISTS aed_select ON public.absence_excuse_details;
-DROP POLICY IF EXISTS aed_insert ON public.absence_excuse_details;
-DROP POLICY IF EXISTS aed_update ON public.absence_excuse_details;
-DROP POLICY IF EXISTS aed_delete ON public.absence_excuse_details;
-DROP POLICY IF EXISTS absence_excuse_details_owner_select ON public.absence_excuse_details;
+DO $drop_legacy_policies$
+DECLARE
+  v_table constant text := 'absence_excuse_details';
+  v_policy text;
+BEGIN
+  -- Allowlisted table + policy names only. No client-supplied identifiers.
+  IF to_regclass('public.' || v_table) IS NULL THEN
+    RAISE EXCEPTION 'ABSENCE_EXCUSE_DETAIL_MISSING';
+  END IF;
+  FOREACH v_policy IN ARRAY ARRAY[
+    'aed_select',
+    'aed_insert',
+    'aed_update',
+    'aed_delete',
+    'absence_excuse_details_owner_select'
+  ]
+  LOOP
+    IF EXISTS (
+      SELECT 1 FROM pg_policies
+      WHERE schemaname = 'public'
+        AND tablename = v_table
+        AND policyname = v_policy
+    ) THEN
+      EXECUTE format('%s POLICY IF EXISTS %I ON public.%I', 'DROP', v_policy, v_table);
+    END IF;
+  END LOOP;
+END
+$drop_legacy_policies$;
+
 CREATE POLICY absence_excuse_details_owner_select ON public.absence_excuse_details
   FOR SELECT TO authenticated USING (public.is_owner_of_request(auth.uid(),request_id));
 

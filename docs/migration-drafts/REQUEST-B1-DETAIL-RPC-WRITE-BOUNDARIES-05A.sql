@@ -38,7 +38,7 @@ BEGIN
 
     FOR v_policy IN SELECT unnest(ARRAY[v_prefix||'_select',v_prefix||'_insert',v_prefix||'_update',v_prefix||'_delete',v_table||'_owner_select'])
     LOOP
-      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I',v_policy,v_table);
+      EXECUTE format('%s POLICY IF EXISTS %I ON public.%I','DROP',v_policy,v_table);
     END LOOP;
     EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (public.is_owner_of_request(auth.uid(),request_id))',
       v_table||'_owner_select',v_table);

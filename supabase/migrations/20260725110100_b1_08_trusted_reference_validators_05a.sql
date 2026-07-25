@@ -1,8 +1,10 @@
--- PROMOTED SOURCE: B1-BACKEND-IMPLEMENTATION-01 order 8
+-- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
+-- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
+-- Track: PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01 / order 8
 -- Source draft: docs/migration-drafts/REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql
 -- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
--- REQUIRES_USER_APPROVAL before any production apply. This PR does not Deploy.
--- DRAFT ONLY — DO NOT APPLY FROM THIS FILE.
+-- Semantic parity with the source draft is required; production apply is a separate gate.
+
 -- Shared trusted-reference validators. Installs no dispatcher and activates no service.
 
 BEGIN;

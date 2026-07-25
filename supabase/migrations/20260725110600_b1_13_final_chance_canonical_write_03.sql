@@ -1,8 +1,10 @@
--- PROMOTED SOURCE: B1-BACKEND-IMPLEMENTATION-01 order 13
+-- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
+-- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
+-- Track: PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01 / order 13
 -- Source draft: docs/migration-drafts/FINAL-CHANCE-CANONICAL-WRITE-03.sql
 -- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
--- REQUIRES_USER_APPROVAL before any production apply. This PR does not Deploy.
--- DRAFT ONLY — DO NOT APPLY FROM THIS FILE.
+-- Semantic parity with the source draft is required; production apply is a separate gate.
+
 -- Migration 3/3 for EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION.
 -- The stored request-type alias remains extra_chance. This migration constrains
 -- new academic chance values only; it performs no historical rewrite or backfill.

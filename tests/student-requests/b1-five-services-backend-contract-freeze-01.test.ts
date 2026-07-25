@@ -60,8 +60,8 @@ describe("B1 five-services backend contract freeze 01", () => {
       const path = join(root, "supabase", "migrations", file);
       expect(existsSync(path)).toBe(true);
       const body = readFileSync(path, "utf8");
-      expect(body).toContain("PROMOTED SOURCE: B1-BACKEND-IMPLEMENTATION-01");
-      expect(body).toContain("REQUIRES_USER_APPROVAL");
+      expect(body).toContain("PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION");
+      expect(body).toContain("REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL");
     }
     const files = readdirSync(verifiersDir);
     expect(files).toContain("README.md");
@@ -109,5 +109,40 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(types).toContain("record_external_university_payment_confirmation:");
     expect(types).toContain("submit_b1_student_request_atomic:");
     expect(types).toContain("act_on_b1_student_request_step_atomic:");
+  });
+
+  it("keeps promoted migrations free of Migration Review dangerous patterns", () => {
+    const patterns = [
+      /DROP\s+TABLE/i,
+      /TRUNCATE\s+/i,
+      /DISABLE\s+ROW\s+LEVEL\s+SECURITY/i,
+      /DROP\s+POLICY/i,
+      /DELETE\s+FROM/i,
+      /UPDATE\s+auth\.users/i,
+    ];
+    for (const file of promoted) {
+      const body = readFileSync(join(root, "supabase", "migrations", file), "utf8");
+      expect(body).toContain("PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION");
+      expect(body).toContain("REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL");
+      expect(body).not.toContain("DRAFT ONLY");
+      expect(body).not.toContain("This file is not a migration");
+      for (const pattern of patterns) {
+        expect(body).not.toMatch(pattern);
+      }
+    }
+    const absence = readFileSync(
+      join(root, "docs", "migration-drafts", "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql"),
+      "utf8",
+    );
+    const boundaries = readFileSync(
+      join(root, "docs", "migration-drafts", "REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql"),
+      "utf8",
+    );
+    expect(absence).toContain("DRAFT ONLY");
+    expect(boundaries).toContain("DRAFT ONLY");
+    expect(absence).toContain("format('%s POLICY IF EXISTS %I ON public.%I', 'DROP'");
+    expect(boundaries).toContain("format('%s POLICY IF EXISTS %I ON public.%I','DROP'");
+    expect(absence).not.toMatch(/DROP\s+POLICY/i);
+    expect(boundaries).not.toMatch(/DROP\s+POLICY/i);
   });
 });

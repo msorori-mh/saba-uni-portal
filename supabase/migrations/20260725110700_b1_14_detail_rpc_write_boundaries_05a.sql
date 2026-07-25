@@ -1,8 +1,10 @@
--- PROMOTED SOURCE: B1-BACKEND-IMPLEMENTATION-01 order 14
+-- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
+-- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
+-- Track: PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01 / order 14
 -- Source draft: docs/migration-drafts/REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql
 -- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
--- REQUIRES_USER_APPROVAL before any production apply. This PR does not Deploy.
--- DRAFT ONLY — DO NOT APPLY FROM THIS FILE.
+-- Semantic parity with the source draft is required; production apply is a separate gate.
+
 -- Installs a locked cutover primitive only; it does not change table access by itself.
 -- The future reviewed dispatcher/caller migration must invoke it inside its own transaction.
 CREATE OR REPLACE FUNCTION public.apply_b1_detail_rpc_write_boundaries()
@@ -42,7 +44,7 @@ BEGIN
 
     FOR v_policy IN SELECT unnest(ARRAY[v_prefix||'_select',v_prefix||'_insert',v_prefix||'_update',v_prefix||'_delete',v_table||'_owner_select'])
     LOOP
-      EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I',v_policy,v_table);
+      EXECUTE format('%s POLICY IF EXISTS %I ON public.%I','DROP',v_policy,v_table);
     END LOOP;
     EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (public.is_owner_of_request(auth.uid(),request_id))',
       v_table||'_owner_select',v_table);

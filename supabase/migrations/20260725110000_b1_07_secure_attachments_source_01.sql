@@ -1,9 +1,10 @@
--- PROMOTED SOURCE: B1-BACKEND-IMPLEMENTATION-01 order 7
+-- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
+-- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
+-- Track: PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01 / order 7
 -- Source draft: docs/migration-drafts/STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql
 -- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
--- REQUIRES_USER_APPROVAL before any production apply. This PR does not Deploy.
--- DRAFT ONLY — NOT APPLIED — DO NOT EXECUTE WITHOUT EXPLICIT APPROVAL
--- Source design for an independent secure attachment runtime. This file is not a migration.
+-- Semantic parity with the source draft is required; production apply is a separate gate.
+
 BEGIN;
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)

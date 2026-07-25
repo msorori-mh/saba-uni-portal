@@ -82,7 +82,7 @@
     },
     {
         "file":  "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql",
-        "sha256_lf":  "1bdbc6f747dda43c4a2d8d91648ac99d2c5984f7fb00213412754096f754cdbe",
+        "sha256_lf":  "6697c2f953dba3e25ce1a7f3f46c143c13be1d442a47d9285d318d474f992169",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "PASS",
@@ -118,7 +118,7 @@
     },
     {
         "file":  "REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql",
-        "sha256_lf":  "85fdd4f4e34bba7859e61e52009c385cd74747f14bcaa74bc6d3f6db41892495",
+        "sha256_lf":  "f881a82650983d71f14efee8106866810efd9739976da227081260e64825a8d5",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "PASS",

@@ -1,8 +1,10 @@
--- PROMOTED SOURCE: B1-BACKEND-IMPLEMENTATION-01 order 16
+-- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
+-- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
+-- Track: PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01 / order 16
 -- Source draft: docs/migration-drafts/B1-FREE-SERVICE-WORKFLOWS-08.sql
 -- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
--- REQUIRES_USER_APPROVAL before any production apply. This PR does not Deploy.
--- DRAFT ONLY — DO NOT APPLY FROM THIS FILE.
+-- Semantic parity with the source draft is required; production apply is a separate gate.
+
 -- Creates inactive workflow drafts for exactly the three FREE_NO_PAYMENT services.
 -- No activation, student visibility, payment, financial ledger, document, or data backfill.
 BEGIN;

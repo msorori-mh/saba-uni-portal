@@ -1,8 +1,10 @@
--- PROMOTED SOURCE: B1-BACKEND-IMPLEMENTATION-01 order 15
+-- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
+-- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
+-- Track: PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01 / order 15
 -- Source draft: docs/migration-drafts/REQUEST-B1-SERVICE-DETAILS-05A.sql
 -- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
--- REQUIRES_USER_APPROVAL before any production apply. This PR does not Deploy.
--- DRAFT ONLY — DO NOT APPLY FROM THIS FILE.
+-- Semantic parity with the source draft is required; production apply is a separate gate.
+
 -- Five-service detail dispatcher installation. Caller/ACL cutover remains separate and fail-closed.
 
 BEGIN;
