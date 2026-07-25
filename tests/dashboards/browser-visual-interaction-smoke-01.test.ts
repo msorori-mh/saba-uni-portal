@@ -14,6 +14,7 @@ const smokeDir = join(import.meta.dir, "browser-smoke");
 const pagesDir = join(smokeDir, "pages");
 const artifactDir = join(root, ".tmp/pr240-browser-smoke");
 const PORT = 4177;
+const HARNESS_MARKER = "pr240-browser-smoke";
 
 const readPage = (name: string) =>
   readFileSync(join(pagesDir, name), "utf8").replace(/\r\n/g, "\n");
@@ -103,6 +104,19 @@ describe("PR240 browser visual interaction smoke — fixture contracts", () => {
     }
   });
 
+  test("harness is loopback-only and Chrome failures cannot produce a false PASS", () => {
+    const runner = readFileSync(join(smokeDir, "run-smoke.ts"), "utf8");
+    const server = readFileSync(join(smokeDir, "server.ts"), "utf8");
+    expect(runner).toContain("http://127.0.0.1:");
+    expect(runner).toContain("timeout: CHROME_TIMEOUT_MS");
+    expect(runner).toContain("result.status !== 0");
+    expect(runner).toContain('data-harness="${HARNESS_MARKER}"');
+    expect(runner).toContain("Expected 26 independent named scenarios");
+    expect(runner).toContain("--disable-background-networking");
+    expect(runner).toContain("MAP * ~NOTFOUND, EXCLUDE 127.0.0.1");
+    expect(server).toContain('"x-pr240-harness": HARNESS_MARKER');
+  });
+
   test("360px contract page has overflow-safe layout styles", () => {
     const html = readPage("mobile-rtl.html");
     expect(html).toContain("overflow-x: hidden");
@@ -124,14 +138,18 @@ describe("PR240 browser visual interaction smoke — live Chrome headless", () =
     });
 
     // Reuse an already-running smoke server when present.
+    let existing: Response | null = null;
     try {
-      const existing = await fetch(`http://127.0.0.1:${PORT}/index.html`);
-      if (existing.ok) {
+      existing = await fetch(`http://127.0.0.1:${PORT}/index.html`);
+    } catch {
+      // Port is free; start below.
+    }
+    if (existing) {
+      if (existing.ok && existing.headers.get("x-pr240-harness") === HARNESS_MARKER) {
         startedServer = false;
         return;
       }
-    } catch {
-      // start below
+      throw new Error(`Port ${PORT} is occupied by a non-PR240 server`);
     }
 
     serverProc = spawn({
@@ -147,7 +165,7 @@ describe("PR240 browser visual interaction smoke — live Chrome headless", () =
     for (let i = 0; i < 40; i++) {
       try {
         const res = await fetch(`http://127.0.0.1:${PORT}/index.html`);
-        if (res.ok) {
+        if (res.ok && res.headers.get("x-pr240-harness") === HARNESS_MARKER) {
           ready = true;
           break;
         }
@@ -159,8 +177,16 @@ describe("PR240 browser visual interaction smoke — live Chrome headless", () =
     expect(ready).toBe(true);
   }, 60_000);
 
-  afterAll(() => {
-    if (startedServer) serverProc?.kill();
+  afterAll(async () => {
+    if (startedServer && serverProc) {
+      serverProc.kill();
+      await Promise.race([
+        serverProc.exited,
+        Bun.sleep(5_000).then(() => {
+          throw new Error("PR240 smoke server did not exit within 5 seconds");
+        }),
+      ]);
+    }
   });
 
   test("chrome headless smoke suite passes and writes screenshots", () => {
@@ -189,7 +215,8 @@ describe("PR240 browser visual interaction smoke — live Chrome headless", () =
     };
     expect(results.harness).toContain("chrome-headless");
     expect(results.failed).toEqual([]);
-    expect(results.passed).toBeGreaterThanOrEqual(20);
+    expect(results.total).toBe(26);
+    expect(results.passed).toBe(26);
 
     const shots = [
       "student-loading.png",

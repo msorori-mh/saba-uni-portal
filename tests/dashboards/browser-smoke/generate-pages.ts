@@ -56,7 +56,7 @@ const shell = (title: string, body: string, extraScript = "") => `<!doctype html
     svg { width:1.25rem; height:1.25rem; display:block; margin:0 auto .35rem; }
   </style>
 </head>
-<body>
+<body data-harness="pr240-browser-smoke">
 <main id="app">${body}</main>
 <script>
 ${extraScript}

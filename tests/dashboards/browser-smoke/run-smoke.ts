@@ -9,6 +9,8 @@ import { spawnSync } from "node:child_process";
 const PORT = Number(process.env.PR240_SMOKE_PORT || 4177);
 const BASE = `http://127.0.0.1:${PORT}`;
 const artifactDir = join(import.meta.dir, "../../../.tmp/pr240-browser-smoke");
+const CHROME_TIMEOUT_MS = 20_000;
+const HARNESS_MARKER = "pr240-browser-smoke";
 mkdirSync(artifactDir, { recursive: true });
 
 const CHROME_CANDIDATES = [
@@ -32,42 +34,65 @@ const record = (name: string, ok: boolean, detail?: string) => {
 };
 
 const PRIVACY_FORBIDDEN =
-  /user_id|profile_id|postgrest|permission denied|stack trace|supabase\.co|postgres|relation "|column "|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+  /user_id|profile_id|postgrest|permission denied|\b(?:sql|rpc)\b|raw error|error\.message|stack trace|supabase\.co|postgres|relation "|column "|[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+
+const CHROME_SAFETY_FLAGS = [
+  "--headless=new",
+  "--disable-gpu",
+  "--disable-background-networking",
+  "--no-first-run",
+  "--no-default-browser-check",
+  "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1",
+];
+
+function assertChromeResult(operation: string, result: ReturnType<typeof spawnSync>): void {
+  if (result.error) {
+    const reason =
+      "code" in result.error && result.error.code === "ETIMEDOUT"
+        ? `timed out after ${CHROME_TIMEOUT_MS}ms`
+        : result.error.message;
+    throw new Error(`${operation} failed: ${reason}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(
+      `${operation} exited ${String(result.status)}: ${String(result.stderr || result.stdout)}`,
+    );
+  }
+}
 
 function dumpDom(url: string, width = 1366, height = 768): string {
   const r = spawnSync(
     chrome,
     [
-      "--headless=new",
-      "--disable-gpu",
-      "--no-first-run",
+      ...CHROME_SAFETY_FLAGS,
       `--window-size=${width},${height}`,
       "--virtual-time-budget=3000",
       "--dump-dom",
       url,
     ],
-    { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 },
+    {
+      encoding: "utf8",
+      maxBuffer: 20 * 1024 * 1024,
+      timeout: CHROME_TIMEOUT_MS,
+      windowsHide: true,
+    },
   );
-  if (r.status !== 0 && !r.stdout) {
-    throw new Error(`dump-dom failed for ${url}: ${r.stderr}`);
+  assertChromeResult(`dump-dom for ${url}`, r);
+  const html = String(r.stdout || "");
+  if (!html.includes(`data-harness="${HARNESS_MARKER}"`)) {
+    throw new Error(`dump-dom for ${url} did not load the PR240 harness page`);
   }
-  return r.stdout || "";
+  return html;
 }
 
 function screenshot(url: string, name: string, width: number, height: number) {
   const path = join(artifactDir, `${name}.png`);
   const r = spawnSync(
     chrome,
-    [
-      "--headless=new",
-      "--disable-gpu",
-      "--no-first-run",
-      `--window-size=${width},${height}`,
-      `--screenshot=${path}`,
-      url,
-    ],
-    { encoding: "utf8" },
+    [...CHROME_SAFETY_FLAGS, `--window-size=${width},${height}`, `--screenshot=${path}`, url],
+    { encoding: "utf8", timeout: CHROME_TIMEOUT_MS, windowsHide: true },
   );
+  assertChromeResult(`screenshot for ${name}`, r);
   // Chrome prints "bytes written" to stderr; status may still be 0.
   if (!existsSync(path) || readFileSync(path).byteLength < 1000) {
     throw new Error(`screenshot missing for ${name}: ${r.stderr || r.stdout}`);
@@ -191,6 +216,12 @@ function main() {
   }
 
   const failed = checks.filter((c) => !c.ok);
+  const uniqueNames = new Set(checks.map((check) => check.name));
+  if (checks.length !== 26 || uniqueNames.size !== 26) {
+    throw new Error(
+      `Expected 26 independent named scenarios; got ${checks.length} checks / ${uniqueNames.size} unique names`,
+    );
+  }
   const report = {
     harness: "chrome-headless-dump-dom",
     chrome,
