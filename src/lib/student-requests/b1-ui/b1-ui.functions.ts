@@ -158,18 +158,20 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
 
     if (result.success !== true) throw new Error("B1_SUBMIT_FAILED");
 
-    const { data: after } = await supabaseAdmin
+    const { data: after, error: afterError } = await supabaseAdmin
       .from("student_requests")
       .select("request_number, updated_at, submitted_at")
       .eq("id", data.requestId)
       .maybeSingle();
 
-    const submittedAt = after?.submitted_at ?? new Date().toISOString();
+    if (afterError || !after?.request_number || !after.submitted_at || !after.updated_at) {
+      throw new Error("B1_SUBMIT_AUTHORITATIVE_REFRESH_REQUIRED");
+    }
     return {
       requestId: data.requestId,
-      requestNumber: String(after?.request_number ?? req.request_number ?? data.requestId),
-      submittedAt,
-      updatedAt: String(after?.updated_at ?? submittedAt),
+      requestNumber: String(after.request_number),
+      submittedAt: String(after.submitted_at),
+      updatedAt: String(after.updated_at),
     };
   });
 

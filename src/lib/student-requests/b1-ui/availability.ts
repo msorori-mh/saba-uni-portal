@@ -24,12 +24,8 @@ export function resolveB1RuntimeAvailable(
 ): boolean {
   if (!capability || capability.available !== true) return false;
   if (!capability.services.includes(code)) return false;
-  if (
-    capability.writesAvailable.length > 0 &&
-    !capability.writesAvailable.includes("create_draft")
-  ) {
-    return false;
-  }
+  if (!capability.writesAvailable.includes("create_draft")) return false;
+  if (capability.writesFailClosed.includes("create_draft")) return false;
   return true;
 }
 

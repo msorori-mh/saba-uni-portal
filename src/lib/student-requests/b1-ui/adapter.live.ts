@@ -303,13 +303,10 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
       try {
         const [capability, availability] = await Promise.all([
           deps.getCapability(),
-          getAvailableB1RequestTypesFn().catch(() => [] as B1ServiceAvailability[]),
+          deps.getAvailableRows().catch(() => []),
         ]);
         // Re-map with capability so runtimeAvailable is never hardcoded true.
-        return mapBackendRowsToB1Availability(
-          availability.filter((row) => row.studentVisible).map((row) => ({ code: row.code })),
-          capability,
-        );
+        return mapBackendRowsToB1Availability(availability, capability);
       } catch (error) {
         mapLiveError(error);
       }
