@@ -127,6 +127,8 @@ describe("cross-check: matrix vs sequential-apply manifest", () => {
     expect(orderLines.slice(0, manifestFiles.length)).toEqual(manifestFiles);
     expect(orderLines.slice(manifestFiles.length)).toEqual([
       "B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql",
+      "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
+      "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
     ]);
   });
 });
