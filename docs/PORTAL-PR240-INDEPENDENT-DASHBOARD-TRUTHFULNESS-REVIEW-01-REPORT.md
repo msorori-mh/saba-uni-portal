@@ -161,6 +161,17 @@ Prettier/ESLint; the semantic changes are limited to the findings above.
 - Production impact: none. No Production or Staging access, migration apply,
   deploy, publish, Backend/SQL change, or data mutation occurred.
 
+## Publication
+
+- Stacked PR: `#245`
+- Base: `review/dashboards-ui-truthfulness-qa-01`
+- Head: `review/pr240-dashboard-truthfulness-codex-01`
+- Review commit: `fbe73a97e081fecd4e42e7b270f3b010620be714`
+- GitHub state: OPEN, DRAFT, MERGEABLE, CLEAN.
+- Comments, reviews, and unresolved review threads: none at inspection time.
+- Remote checks: `NO_REMOTE_CI_REPORTED`; there was no remote job to inspect
+  or retry. Mandatory local verification is complete.
+
 ## Decision
 
 `PASS_PR240_INDEPENDENT_DASHBOARD_TRUTHFULNESS_REVIEW`
