@@ -40,7 +40,7 @@ describe("B1 student pages contract", () => {
     expect(studentForm).toContain("saveB1RequestDraft");
     expect(studentForm).toContain("saved.updatedAt");
     expect(studentForm).toContain("submitLock.current");
-    expect(studentForm).toContain('setSaveState("error")');
+    expect(studentForm).toContain('setSaveState("save_failed")');
   });
 
   it("keeps the enrollment certificate route untouched by B1 routing", () => {
