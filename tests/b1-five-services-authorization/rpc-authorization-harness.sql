@@ -227,6 +227,128 @@ BEGIN
 END
 $negative$;
 
+CREATE TEMP TABLE specialized_results(name text PRIMARY KEY,passed boolean,detail text)
+ON COMMIT DROP;
+
+-- Secure attachments: real owner upload intent, server path, MIME/size denial,
+-- forged id denial, exact-assignee download, and non-assignee zero mutation.
+DO $attachments$
+DECLARE m matrix%ROWTYPE; intent jsonb; aid uuid; path text; snap_before jsonb;
+ snap_after jsonb; denied boolean; download_result jsonb;
+BEGIN
+ SELECT * INTO m FROM matrix
+ WHERE service='excused_absence' AND step_key='student_affairs_intake';
+ PERFORM set_config('e_rpcmatrix.uid','89000000-0000-4000-8000-000000000009',true);
+ UPDATE public.student_requests SET status='draft' WHERE id=m.request_id;
+ intent:=public.create_student_request_attachment_upload_intent(
+   m.request_id,'excuse_documents','safe.pdf','application/pdf',128,NULL);
+ aid:=(intent->>'attachment_id')::uuid;
+ SELECT storage_object_path INTO path
+ FROM public.student_request_attachment_uploads WHERE id=aid;
+ IF path IS NULL OR path LIKE '%..%' OR path NOT LIKE 'student-requests/%' THEN
+   RAISE EXCEPTION 'ATTACHMENT_SERVER_PATH_INVALID:%',path;
+ END IF;
+ INSERT INTO storage.objects(bucket_id,name,owner,metadata)
+ VALUES('student-request-secure-attachments',path,
+  '89000000-0000-4000-8000-000000000009',
+  jsonb_build_object('size',128,'mimetype','application/pdf'));
+ PERFORM public.complete_student_request_attachment_upload(aid);
+ INSERT INTO specialized_results VALUES('attachment_owner_upload_server_path',true,path);
+
+ snap_before:=pg_temp.b1_snapshot(m.request_id); denied:=false;
+ BEGIN
+  PERFORM public.create_student_request_attachment_upload_intent(
+    m.request_id,'excuse_documents','../traversal.pdf','application/pdf',128,NULL);
+ EXCEPTION WHEN OTHERS THEN denied:=true; END;
+ snap_after:=pg_temp.b1_snapshot(m.request_id);
+ IF NOT denied OR snap_after IS DISTINCT FROM snap_before THEN
+  RAISE EXCEPTION 'ATTACHMENT_TRAVERSAL_DENIAL_OR_ZERO_MUTATION_FAILED';
+ END IF;
+ INSERT INTO specialized_results VALUES('attachment_traversal_zero_mutation',true,NULL);
+
+ denied:=false;
+ BEGIN
+  PERFORM public.create_student_request_attachment_upload_intent(
+    m.request_id,'excuse_documents','bad.exe','application/octet-stream',128,NULL);
+ EXCEPTION WHEN OTHERS THEN denied:=true; END;
+ snap_after:=pg_temp.b1_snapshot(m.request_id);
+ IF NOT denied OR snap_after IS DISTINCT FROM snap_before THEN
+  RAISE EXCEPTION 'ATTACHMENT_MIME_DENIAL_OR_ZERO_MUTATION_FAILED';
+ END IF;
+ INSERT INTO specialized_results VALUES('attachment_mime_zero_mutation',true,NULL);
+
+ denied:=false;
+ BEGIN
+  PERFORM public.create_student_request_attachment_upload_intent(
+    m.request_id,'excuse_documents','large.pdf','application/pdf',5242881,NULL);
+ EXCEPTION WHEN OTHERS THEN denied:=true; END;
+ IF NOT denied OR pg_temp.b1_snapshot(m.request_id) IS DISTINCT FROM snap_before THEN
+  RAISE EXCEPTION 'ATTACHMENT_SIZE_DENIAL_OR_ZERO_MUTATION_FAILED';
+ END IF;
+ INSERT INTO specialized_results VALUES('attachment_size_zero_mutation',true,NULL);
+
+ UPDATE public.student_requests SET status='under_review' WHERE id=m.request_id;
+ PERFORM set_config('e_rpcmatrix.uid','10000000-0000-0000-0000-000000000001',true);
+ download_result:=public.authorize_student_request_attachment_download(aid);
+ IF download_result->>'storage_object_path' IS DISTINCT FROM path THEN
+  RAISE EXCEPTION 'ATTACHMENT_ASSIGNEE_DOWNLOAD_FAILED';
+ END IF;
+ INSERT INTO specialized_results VALUES('attachment_exact_assignee_download',true,NULL);
+
+ snap_before:=pg_temp.b1_snapshot(m.request_id);
+ PERFORM set_config('e_rpcmatrix.uid','20000000-0000-0000-0000-000000000002',true);
+ denied:=false;
+ BEGIN PERFORM public.authorize_student_request_attachment_download(aid);
+ EXCEPTION WHEN OTHERS THEN denied:=true; END;
+ snap_after:=pg_temp.b1_snapshot(m.request_id);
+ IF NOT denied OR snap_after IS DISTINCT FROM snap_before THEN
+  RAISE EXCEPTION 'ATTACHMENT_NON_ASSIGNEE_ZERO_MUTATION_FAILED';
+ END IF;
+ INSERT INTO specialized_results VALUES('attachment_non_assignee_zero_mutation',true,NULL);
+
+ denied:=false;
+ BEGIN
+  PERFORM public.authorize_student_request_attachment_download(
+   'ffffffff-ffff-4fff-8fff-fffffffffff1');
+ EXCEPTION WHEN OTHERS THEN denied:=true; END;
+ IF NOT denied OR pg_temp.b1_snapshot(m.request_id) IS DISTINCT FROM snap_before THEN
+  RAISE EXCEPTION 'ATTACHMENT_FORGED_ID_ZERO_MUTATION_FAILED';
+ END IF;
+ INSERT INTO specialized_results VALUES('attachment_forged_id_zero_mutation',true,NULL);
+
+ IF (SELECT public FROM storage.buckets WHERE id='student-request-secure-attachments')
+    IS DISTINCT FROM false THEN RAISE EXCEPTION 'ATTACHMENT_BUCKET_NOT_PRIVATE'; END IF;
+ INSERT INTO specialized_results VALUES('attachment_private_bucket_no_public_url',true,NULL);
+END
+$attachments$;
+
+-- Enrollment certificate compatibility: invoke the real legacy submit RPC
+-- under its owner identity and intentionally roll the success back.
+DO $enrollment$
+DECLARE rid uuid:=gen_random_uuid(); passed boolean:=false;
+BEGIN
+ INSERT INTO public.student_requests(
+  id,request_number,student_profile_id,request_type,status,form_data
+ ) VALUES(
+  rid,'LOCAL-EC-REGRESSION',
+  '89000000-0000-4000-8000-000000000009',
+  'enrollment_certificate','draft','{}'::jsonb);
+ PERFORM set_config('e_rpcmatrix.uid','89000000-0000-4000-8000-000000000009',true);
+ BEGIN
+  PERFORM public.submit_student_request(rid);
+  IF (SELECT status FROM public.student_requests WHERE id=rid)='submitted'
+  THEN RAISE EXCEPTION 'B1_TEST_ROLLBACK_PASS'; END IF;
+  RAISE EXCEPTION 'ENROLLMENT_CERTIFICATE_SUBMIT_STATUS_INVALID';
+ EXCEPTION WHEN raise_exception THEN
+  IF SQLERRM='B1_TEST_ROLLBACK_PASS' THEN passed:=true; ELSE RAISE; END IF;
+ END;
+ IF NOT passed THEN RAISE EXCEPTION 'ENROLLMENT_CERTIFICATE_SUBMIT_REGRESSION'; END IF;
+ INSERT INTO specialized_results VALUES(
+  'enrollment_certificate_legacy_submit_rpc',true,
+  'real submit succeeded; subtransaction intentionally rolled back');
+END
+$enrollment$;
+
 -- Protected identities are absent from fixtures, and enrollment_certificate
 -- remains outside the strict B1 branch.
 DO $protected$
@@ -252,7 +374,9 @@ SELECT json_build_object(
  'positive_cells',count(*) FILTER(WHERE scenario='exact_active_direct_assignee'),
  'negative_cells',count(*) FILTER(WHERE scenario<>'exact_active_direct_assignee'),
  'zero_mutation_assertions',count(*) FILTER(WHERE scenario<>'exact_active_direct_assignee' AND zero_mutation),
- 'failures',count(*) FILTER(WHERE expected<>actual OR NOT zero_mutation)
+ 'failures',count(*) FILTER(WHERE expected<>actual OR NOT zero_mutation),
+ 'specialized_passes',(SELECT count(*) FROM specialized_results WHERE passed),
+ 'specialized_failures',(SELECT count(*) FROM specialized_results WHERE NOT passed)
 ) AS full_matrix_summary FROM full_rpc_results;
 
 ROLLBACK;

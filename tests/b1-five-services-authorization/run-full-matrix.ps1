@@ -33,7 +33,8 @@ $promoted = @(
   "supabase/migrations/20260725110900_b1_16_free_service_workflows_08.sql",
   "supabase/migrations/20260725111000_b1_17_external_university_payment_workflows_02.sql",
   "supabase/migrations/20260725111100_b1_18_detail_acl_cutover_06.sql",
-  "docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql"
+  "docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql",
+  "supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql"
 )
 
 try {

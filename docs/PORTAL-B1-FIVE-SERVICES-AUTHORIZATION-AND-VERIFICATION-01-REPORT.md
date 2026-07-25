@@ -257,3 +257,103 @@ PR #219 مدمج في المصدر، لكن تفعيل الخدمات والإن
 - المخاطر: تغيير PR قبل الدمج قد يتطلب تحديث matrix/harness.
 - العائق المتبقي للتنفيذ الكامل: PR #219 وfixture executor المحلي.
 - أثر الإنتاج: صفر؛ لم يحدث اتصال أو كتابة أو Migration apply أو Deploy/Publish.
+
+---
+
+## نتيجة التنفيذ الكاملة بعد PR #220 — 2026-07-25
+
+هذا القسم هو النتيجة النهائية المعتمدة، ويلغي حالات الانتظار التاريخية أعلاه.
+
+### خط الأساس والبيئة
+
+- الفرع: `test/b1-five-services-security-matrix-02`.
+- `origin/main`: `19a4d9dcd7c9fbf5437597f47b6a18196f96a422`.
+- PostgreSQL: `17.10` داخل حاوية `postgres:17-alpine` عشوائية وقابلة للتخلص منها.
+- قاعدة البيانات والحسابات والتعيينات: fixtures صناعية محلية فقط.
+- لم يُستخدم Production أو Staging أو endpoint أو مفتاح سحابي.
+- كل مصفوفة RPC نُفذت داخل transaction واحدة انتهت بـ`ROLLBACK`.
+- أُوقفت الحاوية وأزيلت بعد التشغيل.
+- بقي `runtimeAvailable=false`، ولم يحدث activation أو تغيير `student_visible`.
+
+### migrations المطبقة محليًا
+
+طبق runner المستقل 15 ملف schema/migration مدمجًا لازمًا للعقد المحلي فقط، بما فيها سلسلة B1 ذات الصلة و:
+
+- `supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql`
+
+لم تُعدّل migrations ولم تُطبق على قاعدة سحابية.
+
+### نتائج مصفوفة RPC
+
+| التغطية | العدد | النتيجة |
+|---|---:|---|
+| Positive RPC cells | 24 | PASS |
+| Negative RPC cells | 528 (22 لكل خطوة) | PASS |
+| Zero-mutation assertions | 528 | PASS |
+| Specialized checks | 9 | PASS |
+| Security failures | 0 | PASS |
+
+غطت النتائج كل خطوات الخدمات الخمس، مع exact active direct assignee، وتطابق processing unit/role/action، واكتمال predecessor، وعزل source/target department heads، ومنع أي broad bypass لـadmin أو registrar أو dean.
+
+كل رفض قارن before/after لـ`student_requests`، والخطوة الحالية، وجميع runtime steps، وجداول تفاصيل الخدمات، والمرفقات، وتأكيد الإيراد، وworkflow events، وaudit logs، وnotifications. لم يحدث أي mutation في حالات الرفض.
+
+### confirm_payment
+
+- PASS للخدمتين المدفوعتين: `department_transfer` و`final_chance`.
+- يقبل RPC معرف الخطوة وoptional note فقط، ويستمد actor من `auth.uid()` والوقت من قاعدة البيانات.
+- exact direct revenue assignee وfinance/revenue binding مطلوبان.
+- predecessor guard من PR #220 يرفض الخطوة غير المكتملة دون mutation.
+- replay وnon-assignee وpayload/action غير القانوني مرفوضة.
+- لا amount أو currency أو invoice أو gateway أو payment reference أو balance أو client status/actor/time.
+- عدم التأكيد يبقي الطلب والخطوة active بلا mutation أو رفض تلقائي.
+
+### المرفقات الآمنة
+
+PASS فعلي مباشر لـRPC في: owner-only upload intent، object path الخادمي، رفض traversal وMIME والحجم غير القانوني، exact-assignee download، رفض non-assignee، رفض forged attachment id، وprivate bucket دون public URL. كل رفض متخصص شمل zero-mutation.
+
+### حماية enrollment_certificate
+
+نجح submit الفعلي للعقد القديم `submit_student_request` داخل rollback، وبقي workflow v2 وfee machinery ومسار ACL الحي دون تعديل. لم تُستخدم السجلات المحمية كfixtures ولم تتغير:
+
+- `SR-20260713-2DE64041`
+- `SR-20260715-FEDCB3E1`
+- `SR-20260716-26BAD4C8`
+- `USR-2026-000001`
+- `USR-2026-000002`
+
+### أوامر التحقق
+
+| الأمر | النتيجة |
+|---|---|
+| `run-full-matrix.ps1` على PostgreSQL 17 disposable | PASS — 24 positive، 528 negative، 528 zero mutation، 0 failures |
+| `bun test tests/student-requests/b1-five-services-authorization-verification-01.test.ts` | PASS — 7/7 |
+| `bun test tests/b1-rpc-matrix` | PASS — 22/22 |
+| `bun test tests/student-requests` | PASS — 605/605 |
+| `bun test tests` | PASS — 1542/1542 |
+| `bunx tsc --noEmit` | PASS |
+| `bun run build` | PASS |
+| `bun run lint` | BASELINE FAILURE — أخطاء Prettier/CRLF واسعة في ملفات غير معدلة، منها `capacitor.config.ts` و`eslint.config.js` و`public/sw.js`؛ لا finding أمني ولا تعديل تلقائي خارج النطاق |
+| `git diff --check` | PASS |
+
+### Findings
+
+- CRITICAL: لا يوجد.
+- HIGH: لا يوجد.
+- MEDIUM: lint العام غير أخضر بسبب تنسيق CRLF سابق خارج ملفات هذه المهمة؛ لم يُوسّع نطاق التغيير لإعادة تنسيق المستودع.
+
+### الملفات المعدلة في تنفيذ ما بعد PR #220
+
+- `tests/b1-five-services-authorization/rpc-authorization-harness.sql`
+- `tests/b1-five-services-authorization/run-full-matrix.ps1`
+- هذا التقرير.
+
+### الافتراضات والمخاطر والعوائق وأثر الإنتاج
+
+- الافتراض: merge commit المحدد أعلاه وmigration الخاصة بـPR #220 هما العقد المدمج المطلوب اختباره.
+- المخاطر المتبقية: لا finding أمني؛ إعادة تشغيل runner مطلوبة إذا تغير Backend بعد هذا commit.
+- العوائق: لا عائق لمصفوفة التفويض. فشل lint العام baseline وغير متعلق بالمصفوفة.
+- أثر الإنتاج: صفر؛ لا اتصال أو كتابة أو migration سحابية أو activation أو Deploy/Publish.
+
+## القرار النهائي
+
+`PASS_B1_FIVE_SERVICES_FULL_RPC_AUTHORIZATION_MATRIX`
