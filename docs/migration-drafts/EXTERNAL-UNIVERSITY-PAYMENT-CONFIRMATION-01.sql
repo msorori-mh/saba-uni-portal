@@ -154,28 +154,10 @@ BEGIN
     RAISE EXCEPTION 'EXACT_FINANCE_PROCESSING_BINDING_REQUIRED' USING ERRCODE = '42501';
   END IF;
 
-  -- A negative verification is audited but never completes or advances the step.
-  IF p_status = 'payment_not_confirmed' THEN
-    UPDATE public.student_request_workflow_steps
-    SET decision = 'payment_not_confirmed', comment = NULLIF(btrim(p_note), ''),
-        updated_at = now()
-    WHERE id = v_step.id;
+  -- No non-payment rejection path exists. If the officer takes no action the
+  -- step simply stays active and the request remains pending indefinitely.
 
-    INSERT INTO public.student_request_workflow_events (
-      student_request_id, workflow_step_runtime_id, event_type, actor_user_id,
-      actor_unit_id, actor_role_id, message_ar, payload, visible_to_student
-    ) VALUES (
-      v_step.student_request_id, v_step.id, 'payment_not_confirmed', v_uid,
-      v_step.processing_unit_id, v_step.processing_role_id, NULLIF(btrim(p_note), ''),
-      jsonb_build_object('action','confirm_payment','action_result','payment_not_confirmed'), true
-    );
 
-    RETURN jsonb_build_object(
-      'success', true, 'status', 'payment_not_confirmed',
-      'request_id', v_step.student_request_id, 'step_id', v_step.id,
-      'transition_applied', false
-    );
-  END IF;
 
   SELECT count(*) INTO v_transition_count
   FROM public.request_type_workflow_transitions t
