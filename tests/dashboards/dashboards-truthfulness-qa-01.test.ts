@@ -21,7 +21,8 @@ import {
 } from "../../src/components/portal/DashboardStates";
 
 const root = join(import.meta.dir, "../..");
-const read = (rel: string) => readFileSync(join(root, rel), "utf8");
+/** Normalize CRLF so newline-sensitive contracts stay green under Windows autocrlf. */
+const read = (rel: string) => readFileSync(join(root, rel), "utf8").replace(/\r\n/g, "\n");
 
 const studentDashboard = read("src/routes/student.index.tsx");
 const facultyDashboard = read("src/routes/faculty-portal.index.tsx");
