@@ -80,7 +80,7 @@ function AboutPage() {
       />
 
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="border-b border-border bg-surface">
+      <nav aria-label="مسار التنقل" className="border-b border-border bg-surface">
         <div className="container mx-auto px-4 py-3">
           <ol className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
             <li><Link to="/" className="hover:text-primary transition-colors">الرئيسية</Link></li>

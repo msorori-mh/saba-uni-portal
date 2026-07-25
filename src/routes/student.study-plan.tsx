@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Loader2, ArrowRight } from "lucide-react";
@@ -66,6 +66,7 @@ export const Route = createFileRoute("/student/study-plan")({
 });
 
 function StudyPlanPage() {
+  const navigate = useNavigate();
   const { data: programId, isLoading: loadingProg } = useQuery({
     queryKey: ["student", "program-id"],
     queryFn: fetchMyProgramId,
@@ -117,8 +118,13 @@ function StudyPlanPage() {
     [filtered],
   );
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/portal-login", replace: true });
+  };
+
   return (
-    <PortalShell>
+    <PortalShell title="بوابة الطالب" onLogout={handleLogout}>
       <main className="mx-auto max-w-5xl px-4 py-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">

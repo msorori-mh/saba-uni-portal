@@ -1,6 +1,10 @@
-/** Home target for error fallbacks: stay in admin when the failure was under /admin. */
-export function getErrorRecoveryHomePath(pathname: string): "/admin" | "/" {
-  return pathname.startsWith("/admin") ? "/admin" : "/";
+/** Home target for error fallbacks: stay inside the portal area where the failure happened. */
+export function getErrorRecoveryHomePath(pathname: string): "/admin" | "/student" | "/" {
+  if (pathname.startsWith("/admin")) return "/admin";
+  // Keep signed-in students inside their portal instead of dumping them to the
+  // public home page (which would then bounce them through login again).
+  if (pathname.startsWith("/student") || pathname.startsWith("/mobile/student")) return "/student";
+  return "/";
 }
 
 export function isChunkLoadError(error: unknown): boolean {
