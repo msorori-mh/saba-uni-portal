@@ -100,6 +100,8 @@ describe("PORTAL-STUDENT-PORTAL-NAVIGATION-RTL-A11Y-CONSISTENCY-QA-01", () => {
     expect(bell).toContain('e.key === "Escape"');
     expect(bell).toContain("buttonRef.current?.focus()");
     expect(bell).toContain("aria-expanded={open}");
+    expect(bell).toContain('aria-controls="notifications-panel"');
+    expect(bell).toContain('id="notifications-panel"');
     expect(bell).toContain('aria-haspopup="true"');
     expect(bell).toContain("غير مقروءة");
     expect(bell).toContain('className="absolute -top-1 -right-1 grid place-items-center');

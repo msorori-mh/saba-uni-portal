@@ -1,4 +1,11 @@
-import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  redirect,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { Home, CalendarClock, ClipboardList, FileText, Award, LogOut, Loader2 } from "lucide-react";
@@ -64,7 +71,9 @@ function MobileStudentLayout() {
 
   useEffect(() => {
     registerStudentMobileSW();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) navigate({ to: "/mobile/student-login", replace: true });
     });
     return () => subscription.unsubscribe();
@@ -83,7 +92,7 @@ function MobileStudentLayout() {
     navigate({ to: "/mobile/student-login", replace: true });
   };
 
-  const displayName = (profile?.full_name_ar?.trim().split(" ").slice(0, 2).join(" ")) || "الطالب";
+  const displayName = profile?.full_name_ar?.trim().split(" ").slice(0, 2).join(" ") || "الطالب";
 
   return (
     <div
@@ -107,7 +116,10 @@ function MobileStudentLayout() {
                 {displayName}
               </div>
               {profile?.academic_number && (
-                <div dir="ltr" className="text-[10px] text-primary-foreground/70 font-mono truncate text-right">
+                <div
+                  dir="ltr"
+                  className="text-[10px] text-primary-foreground/70 font-mono truncate text-right"
+                >
                   {profile.academic_number}
                 </div>
               )}
@@ -167,9 +179,11 @@ function MobileBottomNav() {
       <ul className="max-w-screen-sm mx-auto grid grid-cols-5">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const active = item.to !== null && (item.to === "/mobile/student"
-            ? current === item.to || current === item.to + "/"
-            : current === item.to || current.startsWith(item.to + "/"));
+          const active =
+            item.to !== null &&
+            (item.to === "/mobile/student"
+              ? current === item.to || current === item.to + "/"
+              : current === item.to || current.startsWith(item.to + "/"));
           const disabled = item.to === null;
 
           const inner = (
