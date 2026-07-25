@@ -13,6 +13,7 @@ import {
 import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
 import { getStudentRequestTypeDisplayName } from "@/lib/student-requests/request-type-registry";
 import { portalFeatures } from "@/lib/portal-features";
+import { B1StudentServiceList } from "@/components/student-requests/b1";
 
 export const Route = createFileRoute("/student/requests/")({
   component: StudentRequestsIndexPage,
@@ -200,6 +201,8 @@ function StudentRequestsIndexPage() {
           </div>
         )}
       </section>
+
+      <B1StudentServiceList />
 
       {/* —— طلباتي —— */}
       <section className="space-y-3">

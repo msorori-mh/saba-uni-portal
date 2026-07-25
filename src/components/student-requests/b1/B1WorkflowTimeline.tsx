@@ -8,36 +8,34 @@ type Props = {
 
 type StepStatus = B1WorkflowStepView["status"];
 
-const STATUS_CONFIG: Record<
-  StepStatus,
-  { labelAr: string; rowClass: string; iconClass: string }
-> = {
-  completed: {
-    labelAr: "مكتملة",
-    rowClass: "border-emerald-200 bg-emerald-50/60",
-    iconClass: "text-emerald-600",
-  },
-  active: {
-    labelAr: "المرحلة الحالية",
-    rowClass: "border-primary/40 bg-primary/5 ring-1 ring-primary/20",
-    iconClass: "text-primary",
-  },
-  pending: {
-    labelAr: "معلقة",
-    rowClass: "border-border bg-muted/30",
-    iconClass: "text-muted-foreground",
-  },
-  returned: {
-    labelAr: "معادة",
-    rowClass: "border-amber-300 bg-amber-50",
-    iconClass: "text-amber-600",
-  },
-  rejected: {
-    labelAr: "مرفوضة",
-    rowClass: "border-destructive/30 bg-destructive/5",
-    iconClass: "text-destructive",
-  },
-};
+const STATUS_CONFIG: Record<StepStatus, { labelAr: string; rowClass: string; iconClass: string }> =
+  {
+    completed: {
+      labelAr: "مكتملة",
+      rowClass: "border-emerald-200 bg-emerald-50/60",
+      iconClass: "text-emerald-600",
+    },
+    active: {
+      labelAr: "المرحلة الحالية",
+      rowClass: "border-primary/40 bg-primary/5 ring-1 ring-primary/20",
+      iconClass: "text-primary",
+    },
+    pending: {
+      labelAr: "معلقة",
+      rowClass: "border-border bg-muted/30",
+      iconClass: "text-muted-foreground",
+    },
+    returned: {
+      labelAr: "معادة",
+      rowClass: "border-amber-300 bg-amber-50",
+      iconClass: "text-amber-600",
+    },
+    rejected: {
+      labelAr: "مرفوضة",
+      rowClass: "border-destructive/30 bg-destructive/5",
+      iconClass: "text-destructive",
+    },
+  };
 
 function StatusIcon({ status }: { status: StepStatus }) {
   const cls = `h-5 w-5 shrink-0 ${STATUS_CONFIG[status].iconClass}`;

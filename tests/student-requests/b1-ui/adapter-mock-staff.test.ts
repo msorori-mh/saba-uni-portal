@@ -1,11 +1,11 @@
 import { describe, expect, it } from "bun:test";
 import { createMockB1UiAdapter } from "@/lib/student-requests/b1-ui/adapter.mock";
-import {
-  B1AdapterError,
-  type B1AssignedRequest,
-} from "@/lib/student-requests/b1-ui/adapter.types";
+import { B1AdapterError, type B1AssignedRequest } from "@/lib/student-requests/b1-ui/adapter.types";
 
-async function expectAdapterError(promise: Promise<unknown>, code: string): Promise<B1AdapterError> {
+async function expectAdapterError(
+  promise: Promise<unknown>,
+  code: string,
+): Promise<B1AdapterError> {
   try {
     await promise;
   } catch (error) {
@@ -118,7 +118,10 @@ describe("mock B1 UI adapter — staff inbox", () => {
     );
 
     // Active payment step → succeeds, no amount/currency involved.
-    const result = await adapter.confirmB1RevenueReceipt(transfer.stepId, "تم التحقق من السداد خارجيًا");
+    const result = await adapter.confirmB1RevenueReceipt(
+      transfer.stepId,
+      "تم التحقق من السداد خارجيًا",
+    );
     expect(result.outcomeAr).toContain("تأكيد");
 
     const details = await adapter.getAssignedB1RequestDetails(transfer.requestId);
@@ -127,9 +130,6 @@ describe("mock B1 UI adapter — staff inbox", () => {
     expect(details.steps.find((step) => step.key === "registrar_apply")!.status).toBe("active");
 
     // Already completed → no longer confirmable.
-    await expectAdapterError(
-      adapter.confirmB1RevenueReceipt(transfer.stepId),
-      "PERMISSION_DENIED",
-    );
+    await expectAdapterError(adapter.confirmB1RevenueReceipt(transfer.stepId), "PERMISSION_DENIED");
   });
 });

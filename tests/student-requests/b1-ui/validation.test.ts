@@ -138,7 +138,12 @@ describe("validateDepartmentTransferTarget", () => {
 
 describe("excuse reason vocabulary", () => {
   it("matches the backend validator vocabulary", () => {
-    expect([...B1_EXCUSE_REASON_TYPES]).toEqual(["medical", "family_emergency", "official", "other"]);
+    expect([...B1_EXCUSE_REASON_TYPES]).toEqual([
+      "medical",
+      "family_emergency",
+      "official",
+      "other",
+    ]);
   });
 
   it("rejects reason types outside the vocabulary", () => {

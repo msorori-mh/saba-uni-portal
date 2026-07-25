@@ -68,11 +68,11 @@ export function validateDepartmentTransferTarget(
   targetDepartmentId: unknown,
 ): { valid: true } | { valid: false; error: "same_department" } {
   if (
-    typeof currentDepartmentId === "string"
-    && currentDepartmentId.trim() !== ""
-    && typeof targetDepartmentId === "string"
-    && targetDepartmentId.trim() !== ""
-    && currentDepartmentId === targetDepartmentId
+    typeof currentDepartmentId === "string" &&
+    currentDepartmentId.trim() !== "" &&
+    typeof targetDepartmentId === "string" &&
+    targetDepartmentId.trim() !== "" &&
+    currentDepartmentId === targetDepartmentId
   ) {
     return { valid: false, error: "same_department" };
   }
@@ -107,9 +107,9 @@ export function validateB1FormValues(
     // Explicit vocabulary guard for reason_type (backend validator also covers it).
     const reasonType = values.reason_type;
     if (
-      typeof reasonType === "string"
-      && reasonType.trim() !== ""
-      && !(B1_EXCUSE_REASON_TYPES as readonly string[]).includes(reasonType)
+      typeof reasonType === "string" &&
+      reasonType.trim() !== "" &&
+      !(B1_EXCUSE_REASON_TYPES as readonly string[]).includes(reasonType)
     ) {
       errors.reason_type = "unknown_reason_type";
     }

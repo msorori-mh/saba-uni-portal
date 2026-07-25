@@ -8,10 +8,7 @@ type Props = {
   updatedAt?: string;
 };
 
-const STATE_CONFIG: Record<
-  B1DraftSaveState,
-  { labelAr: string; chipClass: string }
-> = {
+const STATE_CONFIG: Record<B1DraftSaveState, { labelAr: string; chipClass: string }> = {
   draft: {
     labelAr: "مسودة",
     chipClass: "border-border bg-muted text-muted-foreground",

@@ -12,12 +12,7 @@ type Props = {
  * Pre-submission summary card: entered data, attachment names (never links)
  * and the acknowledgments the student agreed to.
  */
-export function B1RequestSummary({
-  serviceTitleAr,
-  items,
-  attachments,
-  acknowledgmentsAr,
-}: Props) {
+export function B1RequestSummary({ serviceTitleAr, items, attachments, acknowledgmentsAr }: Props) {
   return (
     <section
       dir="rtl"
@@ -40,9 +35,7 @@ export function B1RequestSummary({
       )}
 
       <div className="space-y-1.5">
-        <h3 className="text-xs font-bold text-muted-foreground">
-          المرفقات ({attachments.length})
-        </h3>
+        <h3 className="text-xs font-bold text-muted-foreground">المرفقات ({attachments.length})</h3>
         {attachments.length === 0 ? (
           <p className="text-xs text-muted-foreground">لا توجد مرفقات.</p>
         ) : (

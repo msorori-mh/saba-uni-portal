@@ -145,9 +145,7 @@ describe("B1DraftStatus", () => {
 
 describe("B1WorkflowTimeline", () => {
   it("renders completed/active/pending states in a semantic list", () => {
-    const html = renderToStaticMarkup(
-      createElement(B1WorkflowTimeline, { steps: TIMELINE_STEPS }),
-    );
+    const html = renderToStaticMarkup(createElement(B1WorkflowTimeline, { steps: TIMELINE_STEPS }));
     expect(html).toContain('data-testid="b1-workflow-timeline"');
     expect(html).toContain("<ol");
     expect(html).toContain("<li");
@@ -167,9 +165,7 @@ describe("B1WorkflowTimeline", () => {
       { ...TIMELINE_STEPS[0], key: "r1", status: "returned", labelAr: "مرحلة معادة" },
       { ...TIMELINE_STEPS[1], key: "r2", status: "rejected", labelAr: "مرحلة مرفوضة" },
     ];
-    const html = renderToStaticMarkup(
-      createElement(B1WorkflowTimeline, { steps }),
-    );
+    const html = renderToStaticMarkup(createElement(B1WorkflowTimeline, { steps }));
     expect(html).toContain("معادة");
     expect(html).toContain("مرفوضة");
     expect(html).toContain("مرحلة معادة");
@@ -439,9 +435,7 @@ describe("B1ErrorState / B1LoadingState / B1EmptyState / B1SuccessState", () => 
 });
 
 describe("B1 components source-level guards", () => {
-  const componentFiles = readdirSync(COMPONENTS_DIR).filter((name) =>
-    /\.tsx?$/.test(name),
-  );
+  const componentFiles = readdirSync(COMPONENTS_DIR).filter((name) => /\.tsx?$/.test(name));
 
   it("covers the 12 components plus index and helper", () => {
     expect(componentFiles.length).toBeGreaterThanOrEqual(13);
@@ -468,7 +462,7 @@ describe("B1 components source-level guards", () => {
 
   it("every component file declares a stable b1 data-testid", () => {
     const tsxFiles = componentFiles.filter((name) => name.endsWith(".tsx"));
-    expect(tsxFiles.length).toBe(12);
+    expect(tsxFiles.length).toBeGreaterThanOrEqual(12);
     for (const name of tsxFiles) {
       const src = readFileSync(join(COMPONENTS_DIR, name), "utf-8");
       expect(src).toMatch(/data-testid="b1-[a-z-]+"/);

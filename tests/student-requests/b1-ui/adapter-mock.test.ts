@@ -21,7 +21,10 @@ function smallPdf(): File {
   return new File([new Uint8Array(1024)], "mock-excuse.pdf", { type: "application/pdf" });
 }
 
-async function expectAdapterError(promise: Promise<unknown>, code: string): Promise<B1AdapterError> {
+async function expectAdapterError(
+  promise: Promise<unknown>,
+  code: string,
+): Promise<B1AdapterError> {
   try {
     await promise;
   } catch (error) {
@@ -91,7 +94,9 @@ describe("mock B1 UI adapter — student lifecycle", () => {
   it("rejects submit with missing fields (VALIDATION_ERROR + fieldErrors)", async () => {
     const adapter = createMockB1UiAdapter();
     const draft = await adapter.createB1RequestDraft("enrollment_suspension");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, { suspension_reason: "فقط السبب" });
+    const saved = await adapter.saveB1RequestDraft(draft.requestId, {
+      suspension_reason: "فقط السبب",
+    });
 
     const error = await expectAdapterError(
       adapter.submitB1Request(draft.requestId, saved.updatedAt),

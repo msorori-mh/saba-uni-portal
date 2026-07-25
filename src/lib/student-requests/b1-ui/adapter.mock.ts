@@ -139,12 +139,8 @@ const MOCK_PROGRAMS_BY_DEPARTMENT: Readonly<Record<string, readonly B1ReferenceO
     { value: "mock-prog-cs-bsc", labelAr: "بكالوريوس علوم الحاسب (تجريبي)" },
     { value: "mock-prog-cs-se", labelAr: "بكالوريوس هندسة البرمجيات (تجريبي)" },
   ],
-  "mock-dept-is": [
-    { value: "mock-prog-is-bsc", labelAr: "بكالوريوس نظم المعلومات (تجريبي)" },
-  ],
-  "mock-dept-ba": [
-    { value: "mock-prog-ba-bsc", labelAr: "بكالوريوس إدارة الأعمال (تجريبي)" },
-  ],
+  "mock-dept-is": [{ value: "mock-prog-is-bsc", labelAr: "بكالوريوس نظم المعلومات (تجريبي)" }],
+  "mock-dept-ba": [{ value: "mock-prog-ba-bsc", labelAr: "بكالوريوس إدارة الأعمال (تجريبي)" }],
 };
 
 const MOCK_EXCUSE_REASON_TYPES: readonly B1ReferenceOption[] = [
@@ -205,9 +201,15 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
     return request;
   }
 
-  function findStep(stepId: string): { request: MockRequest; step: B1WorkflowStepView; index: number } {
+  function findStep(stepId: string): {
+    request: MockRequest;
+    step: B1WorkflowStepView;
+    index: number;
+  } {
     for (const request of requests.values()) {
-      const index = request.steps.findIndex((step) => stepIdOf(request.requestId, step.key) === stepId);
+      const index = request.steps.findIndex(
+        (step) => stepIdOf(request.requestId, step.key) === stepId,
+      );
       if (index >= 0) return { request, step: request.steps[index]!, index };
     }
     throw new B1AdapterError("NOT_FOUND", `Workflow step not found: ${stepId}`);
@@ -273,7 +275,12 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
     }
 
     request.updatedAt = actedAt;
-    return { stepId: stepIdOf(request.requestId, step.key), requestId: request.requestId, outcomeAr: OUTCOME_AR[action], actedAt };
+    return {
+      stepId: stepIdOf(request.requestId, step.key),
+      requestId: request.requestId,
+      outcomeAr: OUTCOME_AR[action],
+      actedAt,
+    };
   }
 
   function seedStaffFixtures(): void {
@@ -297,7 +304,11 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       submittedAt: nowIso(),
       steps: buildSteps("enrollment_suspension"),
       studentVisibleMessages: [
-        { at: nowIso(), fromLabelAr: "النظام (تجريبي)", bodyAr: "تم استلام طلب وقف القيد (بيانات تجريبية)." },
+        {
+          at: nowIso(),
+          fromLabelAr: "النظام (تجريبي)",
+          bodyAr: "تم استلام طلب وقف القيد (بيانات تجريبية).",
+        },
       ],
       updatedAt: nowIso(),
     });
@@ -336,7 +347,11 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       submittedAt: nowIso(),
       steps: transferSteps,
       studentVisibleMessages: [
-        { at: nowIso(), fromLabelAr: "النظام (تجريبي)", bodyAr: "طلبك بانتظار تأكيد استلام الرسوم من موظف الإيرادات." },
+        {
+          at: nowIso(),
+          fromLabelAr: "النظام (تجريبي)",
+          bodyAr: "طلبك بانتظار تأكيد استلام الرسوم من موظف الإيرادات.",
+        },
       ],
       updatedAt: nowIso(),
     });
@@ -406,7 +421,10 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       };
     },
 
-    async saveB1RequestDraft(requestId: string, formData: Record<string, unknown>): Promise<B1Draft> {
+    async saveB1RequestDraft(
+      requestId: string,
+      formData: Record<string, unknown>,
+    ): Promise<B1Draft> {
       await sleep();
       const request = requireRequest(requestId);
       if (request.submittedAt) {
@@ -444,9 +462,13 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         });
       }
       if (!(B1_MOCK_ALLOWED_MIME_TYPES as readonly string[]).includes(file.type)) {
-        throw new B1AdapterError("VALIDATION_ERROR", "Unsupported attachment type (pdf/png/jpeg only).", {
-          [attachmentType]: "unsupported_attachment_type",
-        });
+        throw new B1AdapterError(
+          "VALIDATION_ERROR",
+          "Unsupported attachment type (pdf/png/jpeg only).",
+          {
+            [attachmentType]: "unsupported_attachment_type",
+          },
+        );
       }
       const meta: B1AttachmentMeta = {
         attachmentId: crypto.randomUUID(),
@@ -466,9 +488,13 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       await sleep();
       const request = requireRequest(requestId);
       if (request.submittedAt) {
-        throw new B1AdapterError("VALIDATION_ERROR", "Cannot remove attachments after submission.", {
-          attachment: "not_draft",
-        });
+        throw new B1AdapterError(
+          "VALIDATION_ERROR",
+          "Cannot remove attachments after submission.",
+          {
+            attachment: "not_draft",
+          },
+        );
       }
       const index = request.attachments.findIndex((item) => item.attachmentId === attachmentId);
       if (index < 0) {
@@ -489,7 +515,10 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         });
       }
       if (request.updatedAt !== expectedUpdatedAt) {
-        throw new B1AdapterError("STALE_VERSION", "Draft changed since it was loaded. Reload before submitting.");
+        throw new B1AdapterError(
+          "STALE_VERSION",
+          "Draft changed since it was loaded. Reload before submitting.",
+        );
       }
       // Map uploaded attachments onto their form field so backend-contract
       // attachment validators (e.g. excuse_documents) see a real reference.
@@ -599,7 +628,10 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       return applyProgression(request, step, index, action, comment);
     },
 
-    async confirmB1RevenueReceipt(stepId: string, optionalNote?: string): Promise<B1StepActionResult> {
+    async confirmB1RevenueReceipt(
+      stepId: string,
+      optionalNote?: string,
+    ): Promise<B1StepActionResult> {
       await sleep();
       const { request, step, index } = findStep(stepId);
       // Simplified receipt: no amount/currency/invoice is ever recorded here.

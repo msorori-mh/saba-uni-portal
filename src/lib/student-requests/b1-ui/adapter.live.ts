@@ -45,7 +45,10 @@ export function createLiveB1UiAdapter(): B1UiAdapter {
     async getB1RequestDraft(_requestId: string): Promise<B1Draft | null> {
       pending("getB1RequestDraft");
     },
-    async saveB1RequestDraft(_requestId: string, _formData: Record<string, unknown>): Promise<B1Draft> {
+    async saveB1RequestDraft(
+      _requestId: string,
+      _formData: Record<string, unknown>,
+    ): Promise<B1Draft> {
       pending("saveB1RequestDraft");
     },
     async uploadB1RequestAttachment(
@@ -77,7 +80,10 @@ export function createLiveB1UiAdapter(): B1UiAdapter {
     ): Promise<B1StepActionResult> {
       pending("actOnB1RequestStep");
     },
-    async confirmB1RevenueReceipt(_stepId: string, _optionalNote?: string): Promise<B1StepActionResult> {
+    async confirmB1RevenueReceipt(
+      _stepId: string,
+      _optionalNote?: string,
+    ): Promise<B1StepActionResult> {
       pending("confirmB1RevenueReceipt");
     },
   };

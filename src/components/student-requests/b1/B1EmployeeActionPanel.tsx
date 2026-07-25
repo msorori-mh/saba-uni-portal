@@ -20,10 +20,7 @@ type Props = {
 
 type ExecutableAction = Exclude<B1StaffAction, "confirm_payment">;
 
-const ACTION_META: Record<
-  ExecutableAction,
-  { labelAr: string; buttonClass: string }
-> = {
+const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: string }> = {
   approve: {
     labelAr: "اعتماد",
     buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
@@ -81,8 +78,8 @@ export function B1EmployeeActionPanel({
         <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            إجراء تأكيد استلام الإيراد لهذه المرحلة يُنفَّذ من بطاقة الإيرادات المخصصة،
-            وليس من لوحة الإجراءات هذه.
+            إجراء تأكيد استلام الإيراد لهذه المرحلة يُنفَّذ من بطاقة الإيرادات المخصصة، وليس من لوحة
+            الإجراءات هذه.
           </span>
         </div>
       </section>
