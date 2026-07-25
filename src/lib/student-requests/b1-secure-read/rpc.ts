@@ -95,7 +95,10 @@ export class B1SecureReadRpcClient {
       contract: "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01",
       services: asArray(data.services).map(String).filter(isB1CanonicalCode) as B1CanonicalCode[],
       reads: asArray(data.reads).map(String),
+      writes_available: asArray(data.writes_available).map(String),
       writes_fail_closed: asArray(data.writes_fail_closed).map(String),
+      draft_mutations_contract:
+        data.draft_mutations_contract == null ? null : String(data.draft_mutations_contract),
     };
   }
 

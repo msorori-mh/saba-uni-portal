@@ -134,7 +134,9 @@ export type B1SecureReadCapability = {
   contract: typeof B1_SECURE_READ_CONTRACT_ID;
   services: readonly B1CanonicalCode[];
   reads: readonly string[];
+  writes_available: readonly string[];
   writes_fail_closed: readonly string[];
+  draft_mutations_contract: string | null;
 };
 
 export type B1SecureStepActions = {

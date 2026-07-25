@@ -80,7 +80,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     if (!draft) return;
     setSaveState("saving");
     try {
-      const saved = await adapter.saveB1RequestDraft(draft.requestId, values);
+      const saved = await adapter.saveB1RequestDraft(draft.requestId, values, draft.updatedAt);
       setDraft(saved);
       setSaveState("saved");
     } catch {
@@ -118,7 +118,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     submitLock.current = true;
     setSubmitting(true);
     try {
-      const saved = await adapter.saveB1RequestDraft(draft.requestId, values);
+      const saved = await adapter.saveB1RequestDraft(draft.requestId, values, draft.updatedAt);
       const result = await adapter.submitB1Request(saved.requestId, saved.updatedAt);
       setConfirming(false);
       await navigate({ to: "/student/requests/$id", params: { id: result.requestId } });

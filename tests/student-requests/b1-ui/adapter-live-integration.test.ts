@@ -358,7 +358,17 @@ describe("B1 UI ↔ Backend integration bridge — allowlists & availability", (
 
   it("never hardcodes runtimeAvailable true and derives studentVisible from backend rows only", () => {
     for (const code of B1_CANONICAL_CODES) {
-      expect(resolveB1RuntimeAvailable(code)).toBe(false);
+      expect(resolveB1RuntimeAvailable(code, null)).toBe(false);
+      expect(
+        resolveB1RuntimeAvailable(code, {
+          available: false,
+          services: [],
+          reads: [],
+          writesAvailable: [],
+          writesFailClosed: [],
+          draftMutationsContract: null,
+        }),
+      ).toBe(false);
     }
     const hidden = mapBackendRowsToB1Availability([]);
     expect(hidden.every((row) => row.studentVisible === false)).toBe(true);
@@ -377,35 +387,97 @@ describe("B1 UI ↔ Backend integration bridge — allowlists & availability", (
 });
 
 describe("B1 UI ↔ Backend integration bridge — live adapter behavior", () => {
-  it("fail-closes unsupported methods with BACKEND_CONTRACT_PENDING", async () => {
-    const adapter = createLiveB1UiAdapter();
-    for (const method of LIVE_B1_UI_UNSUPPORTED_METHODS) {
-      const fn = adapter[method as keyof typeof adapter] as (...args: never[]) => Promise<unknown>;
-      try {
-        if (method === "getB1RequestFormOptions") {
-          await adapter.getB1RequestFormOptions("file_withdrawal");
-        } else if (method === "createB1RequestDraft") {
-          await adapter.createB1RequestDraft("file_withdrawal");
-        } else if (method === "getB1RequestDraft") {
-          await adapter.getB1RequestDraft("11111111-1111-4111-8111-111111111111");
-        } else if (method === "saveB1RequestDraft") {
-          await adapter.saveB1RequestDraft("11111111-1111-4111-8111-111111111111", {});
-        } else if (method === "getB1RequestDetails") {
-          await adapter.getB1RequestDetails("11111111-1111-4111-8111-111111111111");
-        } else if (method === "getAssignedB1Requests") {
-          await adapter.getAssignedB1Requests();
-        } else if (method === "getAssignedB1RequestDetails") {
-          await adapter.getAssignedB1RequestDetails("11111111-1111-4111-8111-111111111111");
-        } else {
-          await fn();
-        }
-        throw new Error(`expected ${method} to fail closed`);
-      } catch (error) {
-        expect(error).toBeInstanceOf(B1AdapterError);
-        expect((error as B1AdapterError).code).toBe("BACKEND_CONTRACT_PENDING");
-        expect((error as B1AdapterError).message).toContain(method);
-      }
-    }
+  it("has no remaining unsupported live adapter methods after final contract wiring", async () => {
+    expect(LIVE_B1_UI_UNSUPPORTED_METHODS).toEqual([]);
+    const adapter = createLiveB1UiAdapter({
+      async getCapability() {
+        return {
+          available: false,
+          services: [],
+          reads: [],
+          writesAvailable: [],
+          writesFailClosed: ["create_draft", "save_draft"],
+          draftMutationsContract: null,
+        };
+      },
+      async getFormOptions() {
+        return {
+          serviceCode: "enrollment_suspension",
+          academicYears: [],
+          semestersByYear: {},
+          currentEnrollments: [],
+          availableDepartments: [],
+          programsByDepartment: {},
+          excuseReasonTypes: [],
+        };
+      },
+      async createDraft() {
+        return {
+          requestId: "11111111-1111-4111-8111-111111111111",
+          serviceCode: "enrollment_suspension",
+          formData: {},
+          attachments: [],
+          status: "draft",
+          updatedAt: "2026-07-25T00:00:00.000Z",
+        };
+      },
+      async getDraft() {
+        return null;
+      },
+      async saveDraft(_id, formData, expectedUpdatedAt) {
+        expect(expectedUpdatedAt).toBeTruthy();
+        return {
+          requestId: "11111111-1111-4111-8111-111111111111",
+          serviceCode: "enrollment_suspension",
+          formData,
+          attachments: [],
+          status: "draft",
+          updatedAt: "2026-07-25T00:00:01.000Z",
+        };
+      },
+      async listStudentRequests() {
+        return [];
+      },
+      async getStudentDetails() {
+        throw new Error("unused");
+      },
+      async getAssignedInbox() {
+        return [];
+      },
+      async getAssignedDetails() {
+        throw new Error("unused");
+      },
+      async getAvailableRows() {
+        return [];
+      },
+      async submitB1Request() {
+        throw new Error("unused");
+      },
+      async actOnB1RequestStep() {
+        throw new Error("unused");
+      },
+      async confirmB1RevenueReceipt() {
+        throw new Error("unused");
+      },
+      async uploadB1RequestAttachment() {
+        throw new Error("unused");
+      },
+      async removeB1RequestAttachment() {
+        throw new Error("unused");
+      },
+      async downloadAttachment() {
+        return { url: "https://example.test/x", expiresInSeconds: 60 };
+      },
+    });
+    const draft = await adapter.createB1RequestDraft("enrollment_suspension");
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      { suspension_reason: "x" },
+      draft.updatedAt,
+    );
+    expect(saved.updatedAt).toBe("2026-07-25T00:00:01.000Z");
+    const options = await adapter.getB1RequestFormOptions("enrollment_suspension");
+    expect(options.serviceCode).toBe("enrollment_suspension");
   });
 
   it("routes confirm_payment away from actOn to specialized revenue RPC", async () => {

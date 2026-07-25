@@ -352,6 +352,27 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
   seedStaffFixtures();
 
   return {
+    async getB1RuntimeCapability() {
+      await sleep();
+      return {
+        available: true,
+        services: B1_UI_SERVICES.map((s) => s.code),
+        reads: [
+          "form_options",
+          "draft",
+          "student_details",
+          "student_list",
+          "assigned_inbox",
+          "assigned_details",
+          "step_actions",
+          "attachments",
+        ],
+        writesAvailable: ["create_draft", "save_draft"],
+        writesFailClosed: [],
+        draftMutationsContract: "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01",
+      };
+    },
+
     async getAvailableB1RequestTypes(): Promise<readonly B1ServiceAvailability[]> {
       await sleep();
       return B1_UI_SERVICES.map((service) => ({
@@ -416,6 +437,7 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
     async saveB1RequestDraft(
       requestId: string,
       formData: Record<string, unknown>,
+      expectedUpdatedAt: string,
     ): Promise<B1Draft> {
       await sleep();
       const request = requireRequest(requestId);
@@ -423,6 +445,9 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         throw new B1AdapterError("VALIDATION_ERROR", "Request is no longer a draft.", {
           requestId: "not_draft",
         });
+      }
+      if (!expectedUpdatedAt || request.updatedAt !== expectedUpdatedAt) {
+        throw new B1AdapterError("STALE_VERSION", "B1_STALE_REQUEST_VERSION");
       }
       request.formData = { ...formData };
       request.updatedAt = nowIso();
@@ -541,6 +566,38 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         submittedAt,
         updatedAt: request.updatedAt,
       };
+    },
+
+    async downloadB1RequestAttachment(attachmentId: string) {
+      await sleep();
+      for (const request of requests.values()) {
+        const hit = request.attachments.find((a) => a.attachmentId === attachmentId);
+        if (hit) {
+          return {
+            url: `https://mock.example.test/download/${attachmentId}`,
+            expiresInSeconds: 120,
+            filename: hit.fileName,
+            mimeType: hit.mimeType,
+          };
+        }
+      }
+      throw new B1AdapterError("PERMISSION_DENIED", "ATTACHMENT_ACCESS_DENIED");
+    },
+
+    async listB1StudentRequests() {
+      await sleep();
+      return [...requests.values()].map((request) => {
+        const config = getB1ServiceConfig(request.serviceCode);
+        return {
+          requestId: request.requestId,
+          requestNumber: request.requestNumber,
+          serviceCode: request.serviceCode,
+          serviceTitleAr: config?.titleAr ?? request.serviceCode,
+          status: deriveStatus(request),
+          submittedAt: request.submittedAt,
+          updatedAt: request.updatedAt,
+        };
+      });
     },
 
     async getB1RequestDetails(requestId: string): Promise<B1RequestDetails> {

@@ -74,46 +74,46 @@ describe("PR232 independent runtime E2E security review", () => {
     expect(lifecycle).toContain("'impact_acknowledgment', true");
   });
 
-  test("production sequence 21-24 and gate 25 are unique, contiguous, and hash-correct", () => {
-    const applyOrder = read("tests/b1-rpc-matrix/pg/20-draft-apply-order.txt");
-    const entries = [...applyOrder.matchAll(/^(\d{2})\s+(\S+)\s+# blob\s+([0-9a-f]{40})$/gm)].map(
-      ([, sequence, path, pin]) => ({ sequence: Number(sequence), path, pin }),
-    );
-    const sequences = entries.map(({ sequence }) => sequence);
+  test(
+    "production sequence 21-24 and gate 25 are unique, contiguous, and hash-correct",
+    () => {
+      const applyOrder = read("tests/b1-rpc-matrix/pg/20-draft-apply-order.txt");
+      const entries = [...applyOrder.matchAll(/^(\d{2})\s+(\S+)\s+# blob\s+([0-9a-f]{40})$/gm)].map(
+        ([, sequence, path, pin]) => ({ sequence: Number(sequence), path, pin }),
+      );
+      const sequences = entries.map(({ sequence }) => sequence);
 
-    expect(new Set(sequences).size).toBe(entries.length);
-    expect(sequences).toEqual([...Array.from({ length: 24 }, (_, index) => index + 1), 90]);
-    expect(entries[20]?.path).toContain("SECURE-READ-CONTRACTS");
-    expect(entries[21]?.path).toContain("SECURE-DRAFT-MUTATIONS");
-    expect(entries[22]?.path).toContain("POSITION-ASSIGNMENT");
-    expect(entries[23]?.path).toContain("IMPACT-ACK-NULL-GUARD");
-    expect(entries[24]?.path).toContain("ACTOR-ACTION-ASSIGNMENT-HARDENING");
+      expect(new Set(sequences).size).toBe(entries.length);
+      expect(sequences).toEqual([...Array.from({ length: 24 }, (_, index) => index + 1), 90]);
+      expect(entries[20]?.path).toContain("SECURE-READ-CONTRACTS");
+      expect(entries[21]?.path).toContain("SECURE-DRAFT-MUTATIONS");
+      expect(entries[22]?.path).toContain("POSITION-ASSIGNMENT");
+      expect(entries[23]?.path).toContain("IMPACT-ACK-NULL-GUARD");
+      expect(entries[24]?.path).toContain("ACTOR-ACTION-ASSIGNMENT-HARDENING");
 
-    const actualPins = execFileSync(
-      "git",
-      ["hash-object", "--", ...entries.map(({ path }) => join(root, path))],
-      {
-        encoding: "utf8",
-        timeout: 15_000,
-      },
-    )
-      .trim()
-      .split(/\r?\n/);
-    expect(actualPins).toEqual(entries.map(({ pin }) => pin));
+      const actualPins = entries.map(({ path }) =>
+        execFileSync("git", ["hash-object", "--", join(root, path)], {
+          encoding: "utf8",
+          timeout: 15_000,
+        }).trim(),
+      );
+      expect(actualPins).toEqual(entries.map(({ pin }) => pin));
 
-    const runner = read("tests/b1-integrated-runtime/pg/run-harness.ps1");
-    expect(runner).not.toContain("Invoke-PsqlFile $readPath");
-    expect(runner).toContain("secure-draft applied before secure-read in apply-order");
+      const runner = read("tests/b1-integrated-runtime/pg/run-harness.ps1");
+      expect(runner).not.toContain("Invoke-PsqlFile $readPath");
+      expect(runner).toContain("secure-draft applied before secure-read in apply-order");
 
-    const manifest = JSON.parse(read("docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json")) as {
-      global_policies: { activation_gate: string };
-      migrations: Array<{ sequence_order: number }>;
-    };
-    expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
-    expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
-      Array.from({ length: 24 }, (_, index) => index + 1),
-    );
-  });
+      const manifest = JSON.parse(read("docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json")) as {
+        global_policies: { activation_gate: string };
+        migrations: Array<{ sequence_order: number }>;
+      };
+      expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
+      expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
+        Array.from({ length: 24 }, (_, index) => index + 1),
+      );
+    },
+    { timeout: 30_000 },
+  );
 
   test("five-service completion and enrollment-certificate regression remain hard gates", () => {
     const runner = read("tests/b1-integrated-runtime/pg/run-harness.ps1");
