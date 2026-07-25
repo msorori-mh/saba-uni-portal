@@ -2,9 +2,11 @@
 
 ## Decision
 
-`PASS_PR221_FINAL_SOURCE_RELEASE_CANDIDATE_READY_FOR_MERGE`
+`HOLD_PR221_FINAL_SOURCE_RC_GITHUB_ACTIONS_BILLING_BLOCKED`
 
-No CRITICAL, HIGH, or MEDIUM source-release finding remains.
+No CRITICAL, HIGH, or MEDIUM source finding remains. Merge readiness is held only
+because required GitHub Actions jobs cannot start under the repository account's
+billing/spending state.
 
 ## Revision record
 
@@ -120,14 +122,32 @@ then passed with zero errors.
 
 ## CI and PR #221 status
 
-Remote CI, final head SHA, mergeability, comments, and review-thread state are
-recorded after the source-release-candidate head is pushed.
+- Source-release-candidate commit pushed to PR #221:
+  `9cc36cecd13df711b4a403636036d7b180bd7387`
+- PR state: `OPEN`; draft: `false`
+- GitHub mergeability computation: `MERGEABLE`
+- Merge state: `BLOCKED` because required checks are failing
+- Web CI run: `30146050591`
+- All ten jobs completed in 1–2 seconds with no steps and no job logs.
+- GitHub check annotation:
+  `The job was not started because recent account payments have failed or your spending limit needs to be increased.`
+- This affects the install/lint/typecheck/build job, Bun tests, and all eight PG 17
+  verifier jobs identically.
+- Issue comments: 0
+- Reviews: 0
+- Review threads: 0
+
+This is an external GitHub Actions account/billing blocker, not a source or test
+failure. Repository code cannot safely remediate it. CI must be rerun after the
+account owner resolves Actions billing or spending limits.
 
 ## Assumptions, remaining risks, blockers, and production impact
 
 - Assumption: merged PRs #222, #223, #224, and #225 are the authoritative release inputs.
 - Remaining risk: intentionally unsupported live read/draft/inbox surfaces remain
   fail-closed until reviewed backend read contracts exist.
-- Blockers: none in source, tests, type checking, lint, build, or security review.
+- Source blockers: none in source, tests, type checking, lint, build, or security review.
+- External blocker: GitHub Actions billing/spending state prevents all Web CI jobs
+  from starting, so required remote checks cannot become green in this task.
 - Production impact: none. No Production or Staging access, migration application,
   deploy/publish, workflow activation, or `student_visible` change was performed.
