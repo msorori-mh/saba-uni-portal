@@ -7,6 +7,21 @@
 -- status: PASS = actual matched matrix expectation; FAIL = mismatch.
 -- =====================================================================
 
+-- Secure Draft sequence 22 correctly installs a one-open-draft invariant.
+-- This older authorization matrix intentionally needs several simultaneous
+-- same-service drafts for independent lifecycle cases. Prove the production
+-- guard was installed, then remove it only inside this disposable harness;
+-- the dedicated Secure Draft harness separately proves the invariant and its
+-- concurrent-create behavior against the unmodified schema.
+DO $open_draft_guard$
+BEGIN
+  IF to_regclass('public.uq_b1_one_open_draft_per_student_type') IS NULL THEN
+    RAISE EXCEPTION 'B1_OPEN_DRAFT_GUARD_MISSING';
+  END IF;
+END
+$open_draft_guard$;
+DROP INDEX public.uq_b1_one_open_draft_per_student_type;
+
 -- ---------- fixtures: requests -------------------------------------------
 INSERT INTO public.student_requests(id, request_number, student_profile_id, request_type, status) VALUES
   ('ce000000-0000-4000-8000-000000000001','T-SUSP-01','33333333-3333-4333-8333-333333333301','enrollment_suspension','draft'),

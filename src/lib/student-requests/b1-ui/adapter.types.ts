@@ -11,15 +11,18 @@
  * - getB1RequestFormOptions(serviceCode)
  * - createB1RequestDraft(serviceCode)
  * - getB1RequestDraft(requestId)
- * - saveB1RequestDraft(requestId, formData)
+ * - saveB1RequestDraft(requestId, formData, expectedUpdatedAt)
  * - uploadB1RequestAttachment(requestId, attachmentType, file)
  * - removeB1RequestAttachment(requestId, attachmentId)
+ * - downloadB1RequestAttachment(attachmentId)
  * - submitB1Request(requestId, expectedUpdatedAt)
+ * - listB1StudentRequests()
  * - getB1RequestDetails(requestId)
  * - getAssignedB1Requests()
  * - getAssignedB1RequestDetails(requestId)
  * - actOnB1RequestStep(stepId, action, comment?)
  * - confirmB1RevenueReceipt(stepId, optionalNote?)
+ * - getB1RuntimeCapability()
  */
 
 import type {
@@ -189,6 +192,25 @@ export type B1StaffAction = "approve" | "review" | "return" | "reject" | "confir
 
 export const B1_STAFF_ACTIONS_REQUIRING_COMMENT: readonly B1StaffAction[] = ["return", "reject"];
 
+export type B1StudentListItem = {
+  requestId: string;
+  requestNumber: string;
+  serviceCode: B1CanonicalCode;
+  serviceTitleAr: string;
+  status: string;
+  submittedAt: string | null;
+  updatedAt: string;
+};
+
+export type B1RuntimeCapability = {
+  available: boolean;
+  services: readonly B1CanonicalCode[];
+  reads: readonly string[];
+  writesAvailable: readonly string[];
+  writesFailClosed: readonly string[];
+  draftMutationsContract: string | null;
+};
+
 export type B1AssignedRequest = {
   requestId: string;
   stepId: string;
@@ -199,7 +221,8 @@ export type B1AssignedRequest = {
   studentNumber: string;
   stepKey: string;
   stepLabelAr: string;
-  allowedAction: B1StaffAction;
+  /** Null when assigned but authoritative action guard denies every primary action. */
+  allowedAction: B1StaffAction | null;
   submittedAt: string;
 };
 
@@ -222,18 +245,26 @@ export type B1StepActionResult = {
 // ---------------------------------------------------------------------------
 
 export type B1UiAdapter = {
+  getB1RuntimeCapability(): Promise<B1RuntimeCapability>;
   getAvailableB1RequestTypes(): Promise<readonly B1ServiceAvailability[]>;
   getB1RequestFormOptions(serviceCode: B1CanonicalCode): Promise<B1FormOptions>;
   createB1RequestDraft(serviceCode: B1CanonicalCode): Promise<B1Draft>;
   getB1RequestDraft(requestId: string): Promise<B1Draft | null>;
-  saveB1RequestDraft(requestId: string, formData: Record<string, unknown>): Promise<B1Draft>;
+  saveB1RequestDraft(
+    requestId: string,
+    formData: Record<string, unknown>,
+    expectedUpdatedAt: string,
+  ): Promise<B1Draft>;
   uploadB1RequestAttachment(
     requestId: string,
     attachmentType: string,
     file: File,
   ): Promise<B1AttachmentMeta>;
   removeB1RequestAttachment(requestId: string, attachmentId: string): Promise<void>;
+  /** Browser sends attachmentId only; server authorizes then signs. */
+  downloadB1RequestAttachment(attachmentId: string): Promise<B1AttachmentDownload>;
   submitB1Request(requestId: string, expectedUpdatedAt: string): Promise<B1SubmitResult>;
+  listB1StudentRequests(): Promise<readonly B1StudentListItem[]>;
   getB1RequestDetails(requestId: string): Promise<B1RequestDetails>;
   getAssignedB1Requests(): Promise<readonly B1AssignedRequest[]>;
   getAssignedB1RequestDetails(requestId: string): Promise<B1AssignedRequestDetails>;

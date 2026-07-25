@@ -157,9 +157,13 @@ describe("student journey — draft save and edit cycle (cases 8-10)", () => {
   it("saves a draft successfully and refreshes updatedAt (case 8)", async () => {
     const { adapter } = createScenarioAdapter();
     const draft = await adapter.createB1RequestDraft("enrollment_suspension");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, {
-      suspension_reason: "ظرف صحي",
-    });
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      {
+        suspension_reason: "ظرف صحي",
+      },
+      draft.updatedAt,
+    );
     expect(saved.formData.suspension_reason).toBe("ظرف صحي");
     expect(Date.parse(saved.updatedAt)).toBeGreaterThanOrEqual(Date.parse(draft.updatedAt));
   });
@@ -169,7 +173,10 @@ describe("student journey — draft save and edit cycle (cases 8-10)", () => {
       failOn: { saveB1RequestDraft: "NETWORK_ERROR" },
     });
     const draft = await adapter.createB1RequestDraft("excused_absence");
-    await expectRejects(adapter.saveB1RequestDraft(draft.requestId, {}), "NETWORK_ERROR");
+    await expectRejects(
+      adapter.saveB1RequestDraft(draft.requestId, {}, draft.updatedAt),
+      "NETWORK_ERROR",
+    );
     // The UI maps this to the save_failed badge vocabulary.
     expect(formSource).toContain('setSaveState("save_failed")');
     expect(b1AdapterErrorMessageAr(new B1AdapterError("NETWORK_ERROR", "boom"))).toContain(
@@ -180,10 +187,16 @@ describe("student journey — draft save and edit cycle (cases 8-10)", () => {
   it("allows going back and editing the draft before submit (case 10)", async () => {
     const { adapter } = createScenarioAdapter();
     const draft = await adapter.createB1RequestDraft("department_transfer");
-    await adapter.saveB1RequestDraft(draft.requestId, { transfer_reason: "سبب أول" });
-    const edited = await adapter.saveB1RequestDraft(draft.requestId, {
-      transfer_reason: "سبب معدل",
-    });
+    const first = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      { transfer_reason: "سبب أول" },
+      draft.updatedAt,
+    );
+    const edited = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      { transfer_reason: "سبب معدل" },
+      first.updatedAt,
+    );
     expect(edited.formData.transfer_reason).toBe("سبب معدل");
     // The review step has an explicit edit-back button.
     expect(formSource).toContain("تعديل البيانات");
@@ -229,11 +242,15 @@ describe("student journey — review summary, double-submit, submitting, acknowl
   it("rejects a second submit of an already-submitted request (case 12)", async () => {
     const { adapter, calls } = createScenarioAdapter();
     const draft = await adapter.createB1RequestDraft("final_chance");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, { reason: "سبب" });
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      { reason: "سبب" },
+      draft.updatedAt,
+    );
     const result = await adapter.submitB1Request(saved.requestId, saved.updatedAt);
     expect(result.requestNumber).toBeTruthy();
     await expectRejects(
-      adapter.submitB1Request(saved.requestId, saved.updatedAt),
+      adapter.submitB1Request(saved.requestId, result.updatedAt),
       "VALIDATION_ERROR",
     );
     expect(calls.submitB1Request).toBe(2);
@@ -265,7 +282,7 @@ describe("student journey — submit failure modes (cases 15-18)", () => {
   ] as const)("maps %s to a safe Arabic message", async (code, fragment) => {
     const { adapter } = createScenarioAdapter({ failOn: { submitB1Request: code } });
     const draft = await adapter.createB1RequestDraft("enrollment_suspension");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, {});
+    const saved = await adapter.saveB1RequestDraft(draft.requestId, {}, draft.updatedAt);
     await expectRejects(adapter.submitB1Request(saved.requestId, saved.updatedAt), code);
     const message = b1AdapterErrorMessageAr(new B1AdapterError(code, "raw detail"));
     expect(message).toContain(fragment);
@@ -281,16 +298,19 @@ describe("student journey — pre-existing and in-processing requests (cases 19-
     expect(B1_ADAPTER_ERROR_CODES).not.toContain("DUPLICATE_REQUEST");
     const { adapter } = createScenarioAdapter();
     const draft = await adapter.createB1RequestDraft("excused_absence");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, {});
+    const saved = await adapter.saveB1RequestDraft(draft.requestId, {}, draft.updatedAt);
     await adapter.submitB1Request(saved.requestId, saved.updatedAt);
-    await expectRejects(adapter.saveB1RequestDraft(saved.requestId, {}), "VALIDATION_ERROR");
+    await expectRejects(
+      adapter.saveB1RequestDraft(saved.requestId, {}, saved.updatedAt),
+      "VALIDATION_ERROR",
+    );
     expect(formSource).toContain('navigate({ to: "/student/requests/$id"');
   });
 
   it("shows an in-processing status with the current step after submit (case 20)", async () => {
     const { adapter } = createScenarioAdapter();
     const draft = await adapter.createB1RequestDraft("enrollment_suspension");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, {});
+    const saved = await adapter.saveB1RequestDraft(draft.requestId, {}, draft.updatedAt);
     await adapter.submitB1Request(saved.requestId, saved.updatedAt);
     const details = await adapter.getB1RequestDetails(saved.requestId);
     expect(details.status).toBe("in_review");

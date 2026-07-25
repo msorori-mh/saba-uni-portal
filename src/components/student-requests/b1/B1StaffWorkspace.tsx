@@ -176,13 +176,17 @@ export function B1StaffWorkspace() {
                   acting={acting}
                   onConfirm={confirmRevenue}
                 />
-              ) : (
+              ) : details.allowedAction ? (
                 <B1EmployeeActionPanel
                   allowedAction={details.allowedAction}
                   stepLabelAr={details.stepLabelAr}
                   acting={acting}
                   onAct={act}
                 />
+              ) : (
+                <p className="text-sm text-muted-foreground" role="status">
+                  لا يوجد إجراء مسموح لك على هذه المرحلة حالياً.
+                </p>
               )}
             </>
           )}
