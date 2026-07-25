@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { formatGpDateTimeAr } from "./gp-datetime";
 import type { CorrectionInput, ResultOutcome } from "../../lib/graduation-projects/rpc";
 import {
   CORRECTION_STATUS_LABELS,
@@ -26,7 +27,16 @@ export interface ResultCorrectionsArchivePanelProps {
   onAcceptCorrection(correctionId: string): void;
 }
 
-export function ResultCorrectionsArchivePanel({ project, actions, corrections, archive, busy = false, onConclude, onCompleteCorrection, onAcceptCorrection }: ResultCorrectionsArchivePanelProps) {
+export function ResultCorrectionsArchivePanel({
+  project,
+  actions,
+  corrections,
+  archive,
+  busy = false,
+  onConclude,
+  onCompleteCorrection,
+  onAcceptCorrection,
+}: ResultCorrectionsArchivePanelProps) {
   const [correctionText, setCorrectionText] = useState("");
   const [correctionDue, setCorrectionDue] = useState("");
   const canConclude = actions.includes("conclude_result");
@@ -42,19 +52,42 @@ export function ResultCorrectionsArchivePanel({ project, actions, corrections, a
             <CardDescription>يتطلب اعتماد جميع التقييمات أولاً.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Textarea value={correctionText} onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setCorrectionText(event.target.value)} rows={2}
-              placeholder="وصف التصحيح المطلوب (عند اختيار تصحيحات)" />
-            <Input value={correctionDue} onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setCorrectionDue(event.target.value)}
-              placeholder="موعد استحقاق التصحيح (اختياري)" dir="ltr" />
+            <Textarea
+              value={correctionText}
+              onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                setCorrectionText(event.target.value)
+              }
+              rows={2}
+              placeholder="وصف التصحيح المطلوب (عند اختيار تصحيحات)"
+              aria-label="وصف التصحيح المطلوب"
+            />
+            <Input
+              type="date"
+              value={correctionDue}
+              onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                setCorrectionDue(event.target.value)
+              }
+              placeholder="موعد استحقاق التصحيح (اختياري)"
+              dir="ltr"
+              aria-label="موعد استحقاق التصحيح"
+            />
             <div className="flex flex-wrap gap-2">
               <Button type="button" disabled={busy} onClick={() => onConclude("completed", [])}>
                 اعتماد النتيجة (مكتمل)
               </Button>
-              <Button type="button" variant="secondary" disabled={busy || correctionText.trim() === ""}
-                onClick={() => onConclude("corrections_required", [{
-                  description: correctionText.trim(),
-                  due_at: correctionDue.trim() === "" ? null : correctionDue.trim(),
-                }])}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy || correctionText.trim() === ""}
+                onClick={() =>
+                  onConclude("corrections_required", [
+                    {
+                      description: correctionText.trim(),
+                      due_at: correctionDue.trim() === "" ? null : correctionDue.trim(),
+                    },
+                  ])
+                }
+              >
                 طلب تصحيحات
               </Button>
             </div>
@@ -62,7 +95,9 @@ export function ResultCorrectionsArchivePanel({ project, actions, corrections, a
         </Card>
       ) : null}
       <Card>
-        <CardHeader><CardTitle>التصحيحات</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>التصحيحات</CardTitle>
+        </CardHeader>
         <CardContent>
           <ul className="space-y-2">
             {corrections.map((correction) => {
@@ -70,15 +105,30 @@ export function ResultCorrectionsArchivePanel({ project, actions, corrections, a
               return (
                 <li key={correction.id} className="flex flex-wrap items-center gap-2 border-b pb-2">
                   <span className="text-sm">{correction.description}</span>
-                  <Badge variant={status === "pending" ? "destructive" : "secondary"}>{CORRECTION_STATUS_LABELS[status]}</Badge>
-                  {isCorrectionOverdue(correction) ? <Badge variant="destructive">متأخر</Badge> : null}
+                  <Badge variant={status === "pending" ? "destructive" : "secondary"}>
+                    {CORRECTION_STATUS_LABELS[status]}
+                  </Badge>
+                  {isCorrectionOverdue(correction) ? (
+                    <Badge variant="destructive">متأخر</Badge>
+                  ) : null}
                   {status === "pending" && canComplete ? (
-                    <Button type="button" size="sm" disabled={busy} onClick={() => onCompleteCorrection(correction.id)}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => onCompleteCorrection(correction.id)}
+                    >
                       إتمام التصحيح
                     </Button>
                   ) : null}
                   {status === "completed" && canAccept ? (
-                    <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => onAcceptCorrection(correction.id)}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => onAcceptCorrection(correction.id)}
+                    >
                       قبول التصحيح
                     </Button>
                   ) : null}
@@ -97,9 +147,8 @@ export function ResultCorrectionsArchivePanel({ project, actions, corrections, a
         <CardContent className="space-y-2">
           {archive ? (
             <div className="space-y-1 text-sm">
-              <p>أُرشف بتاريخ {archive.archived_at}</p>
+              <p>أُرشف بتاريخ {formatGpDateTimeAr(archive.archived_at)}</p>
               <p>الملف النهائي: {archive.final_file_name}</p>
-              <p>{archive.final_file_object_key ? `المفتاح: ${archive.final_file_object_key}` : "مفتاح الملف النهائي محجوب حتى الفحص."}</p>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
