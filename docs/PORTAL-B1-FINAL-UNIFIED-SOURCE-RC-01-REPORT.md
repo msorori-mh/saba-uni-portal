@@ -19,6 +19,7 @@ is **cleared** — jobs executed real steps and concluded SUCCESS.
 | PR #238 final HEAD | `6f015bf005d7b0dd729d4960fe6218908bab4746` |
 | PR #238 → #221 merge commit | `314b8684a637efaa7b8917ff649830898e946633` |
 | PR #221 tip before this docs update | `71d0e61d499da34b11245c35989400ac661cf04e` |
+| PR #221 tip after remote-CI-green docs | `fdbc768a56cef420ff6f00b5c2146642fcb4ef91` |
 | PR #242 (Codex HIGH fixes) | MERGED into #238 @ `6f015bf…` |
 | PR #241 (backend Codex guards) | in ancestry via #227 tip `1c085a9…` |
 | PR #239 (apply package seq 21–25) | in ancestry (`e656b825…`) |
@@ -105,7 +106,26 @@ Annotations: Node.js 20 deprecation warnings on `actions/checkout@v4` (forced on
 
 ## PORTAL-PR221-REMOTE-CI-GREEN-FINAL-MERGE-PREP-01
 
-This docs update clears the billing HOLD and records readiness for a **separate human approval** to merge #221 → `main`. After this commit moves HEAD, remote CI must be re-confirmed green on the new tip before any merge approval.
+This docs update clears the billing HOLD and records readiness for a **separate human approval** to merge #221 → `main`.
+
+### Re-confirmed on docs tip `fdbc768a56cef420ff6f00b5c2146642fcb4ef91`
+
+| Run | Workflow | Conclusion |
+|---|---|---|
+| `30175719531` | Migration Review | **SUCCESS** |
+| `30175719528` | Web CI | **SUCCESS** |
+
+| Aggregate | Result |
+|---|---|
+| Successful checks | **11/11** |
+| Pending / failing / cancelled | **0** |
+| PR | OPEN / MERGEABLE / NOT DRAFT |
+| `main` | still `92d51faa9bcdc9fd99e89579f6a498b463264246` |
+| Five services | still hidden |
+| Seq 21–24 / gate 25 | not applied / not activated |
+| Merge / Deploy / activation | **none in this mission** |
+
+**PASS_PR221_REMOTE_CI_GREEN_FINAL_MERGE_PREP**
 
 ## Explicit non-approvals
 
