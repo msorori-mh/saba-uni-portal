@@ -53,4 +53,7 @@
 
 ## القرار
 
-**PASS_B1_GENERATED_TYPES_REGRESSION_REMEDIATION_PR_READY** — بانتظار تأكيد CI النهائي على الـPR.
+**PASS_B1_GENERATED_TYPES_REGRESSION_REMEDIATION_PR_READY**
+
+- CI على PR #257 (run 30179800657): **كل الفحوص خضراء** — `Bun tests (tests/)` pass (freeze test أخضر في CI)، `Install · Lint · Typecheck · Build` pass، وكل وظائف PG 17 verifier العشر pass.
+- الفشل الوحيد الذي ظهر (`academic-clearance-completion`) كان flake بنيوياً صرفاً (`docker pull postgres:17` — timeouts إلى registry-1.docker.io) ونجح بعد rerun واحد.
