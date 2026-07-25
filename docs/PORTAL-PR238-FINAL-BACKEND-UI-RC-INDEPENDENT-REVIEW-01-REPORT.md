@@ -165,15 +165,26 @@ normalization is unchanged.
 
 ## Assumptions, risks, blockers, and production impact
 
-- Assumption: PR #238 remains pinned to live head `945da82` through
-  publication of the stacked review PR; it is checked again immediately before
-  push.
+- PR #238 was checked immediately before publication and remained pinned to
+  live head `945da82ec0be44c98649e1bc152bad4249354f77`.
 - Remaining risk: remote GitHub Actions may be unavailable because of the
   repository billing condition. Local PostgreSQL and source gates are complete.
 - Blockers: none in source or local verification.
 - Production impact: none. No Production or Staging access, migration apply,
   deploy, publish, workflow activation, `student_visible` change, or real-data
   mutation occurred.
+
+## Publication
+
+- Stacked review PR: `#242`
+- Base: `integration/b1-final-backend-ui-contracts-01`
+- Head: `review/pr238-final-backend-ui-rc-codex-01`
+- Initial review commit: `99bcfa04ef8ec095912dfa3c62bfbd8f7ec1aa4a`
+- GitHub status: OPEN, DRAFT, MERGEABLE, CLEAN.
+- Comments/reviews/unresolved threads: none at inspection time.
+- Remote checks: `NO_REMOTE_CI_REPORTED`; no job was available to inspect or
+  retry. This is not treated as a source failure because all mandatory local
+  gates completed successfully.
 
 ## Decision
 
