@@ -1,0 +1,97 @@
+{
+  "decision": "PASS_AUTHORIZATION_MATRIX_TEST_HARNESS_READY",
+  "matrix_id": "PORTAL-B1-FIVE-SERVICES-AUTHORIZATION-AND-VERIFICATION-01",
+  "negative_cases": [
+    "anon",
+    "request_owner_student",
+    "other_student",
+    "user_without_profile",
+    "unassigned_employee",
+    "same_role_other_unit",
+    "other_department_head",
+    "previous_step_actor",
+    "next_step_actor",
+    "unassigned_admin",
+    "registrar_outside_step",
+    "dean_outside_step",
+    "inactive_assignment",
+    "expired_assignment",
+    "duplicate_assignment",
+    "wrong_position_assignment",
+    "forged_step_id",
+    "other_service_request",
+    "illegal_action",
+    "incomplete_predecessor",
+    "completed_step_replay",
+    "direct_rpc_bypass"
+  ],
+  "positive_rule": "Only the exact active direct assignee with the exact active processing unit and role may perform the configured legal action.",
+  "protected_records": [
+    "SR-20260713-2DE64041",
+    "SR-20260715-FEDCB3E1",
+    "SR-20260716-26BAD4C8",
+    "USR-2026-000001",
+    "USR-2026-000002"
+  ],
+  "services": [
+    {
+      "code": "enrollment_suspension",
+      "steps": [
+        ["initial_review", "student_affairs", "student_affairs_specialist", "review"],
+        ["manager_approval", "student_affairs", "student_affairs_manager", "approve"],
+        ["registrar_apply", "registrar", "registrar_general", "apply_decision"]
+      ]
+    },
+    {
+      "code": "excused_absence",
+      "steps": [
+        ["student_affairs_intake", "student_affairs", "student_affairs_specialist", "review"],
+        ["manager_review", "student_affairs", "student_affairs_manager", "approve"],
+        ["record_apply", "student_affairs", "student_affairs_specialist", "apply_decision"]
+      ]
+    },
+    {
+      "code": "department_transfer",
+      "steps": [
+        ["student_affairs_intake", "student_affairs", "student_affairs_specialist", "review"],
+        ["source_department_head_approval", "department", "department_head", "approve"],
+        ["target_department_head_approval", "department", "department_head", "approve"],
+        ["dean_approval", "dean", "dean", "approve"],
+        ["payment_confirmation", "finance", "revenue_finance_officer", "confirm_payment"],
+        ["registrar_apply", "registrar", "registrar_general", "apply_decision"]
+      ]
+    },
+    {
+      "code": "final_chance",
+      "steps": [
+        ["student_affairs_intake", "student_affairs", "student_affairs_specialist", "review"],
+        ["manager_review", "student_affairs", "student_affairs_manager", "approve"],
+        ["dean_decision", "dean", "dean", "approve"],
+        ["payment_confirmation", "finance", "revenue_finance_officer", "confirm_payment"],
+        ["registrar_apply", "registrar", "registrar_general", "apply_decision"]
+      ]
+    },
+    {
+      "code": "file_withdrawal",
+      "steps": [
+        ["student_affairs_intake", "student_affairs", "student_affairs_specialist", "review"],
+        ["library_clearance", "library", "library_officer", "clear"],
+        ["labs_clearance", "labs", "labs_manager", "clear"],
+        ["activities_clearance", "student_affairs", "student_affairs_manager", "clear"],
+        ["finance_clearance", "finance", "revenue_finance_officer", "clear"],
+        ["registrar_apply", "registrar", "registrar_general", "apply_decision"],
+        ["archive", "archive", "archive_officer", "archive"]
+      ]
+    }
+  ],
+  "zero_mutation_relations": [
+    "student_requests",
+    "student_request_workflow_steps",
+    "student_request_workflow_events",
+    "service_details",
+    "student_request_attachment_uploads",
+    "revenue_confirmation",
+    "audit_logs",
+    "notifications"
+  ]
+}
