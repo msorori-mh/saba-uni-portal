@@ -21,7 +21,8 @@ export function B1StudentServiceList() {
 
   useEffect(load, []);
 
-  if (error) return <B1ErrorState onRetry={load} />;
+  if (error)
+    return <B1ErrorState messageAr="تعذر تحميل قائمة الخدمات. أعد المحاولة." onRetry={load} />;
   if (!services) return <B1LoadingState labelAr="جارٍ تحميل خدمات الطلبات…" />;
   if (services.length === 0) {
     return (

@@ -159,7 +159,7 @@ export function B1EmployeeActionPanel({
           type="button"
           disabled={controlsDisabled}
           onClick={() => void handleAct()}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 ${meta.buttonClass}`}
+          className={`inline-flex min-h-11 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50 ${meta.buttonClass}`}
         >
           {busy || acting ? (
             <Loader2 className="h-4 w-4 animate-spin" />

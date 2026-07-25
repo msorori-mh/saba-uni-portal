@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { FileText, Loader2, Trash2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 import type { B1AttachmentMeta } from "@/lib/student-requests/b1-ui/adapter.types";
@@ -54,7 +54,7 @@ export function B1AttachmentUploader({
   const [localError, setLocalError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const inputId = "b1-attachment-file-input";
+  const inputId = useId();
   const controlsDisabled = disabled || uploading;
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,12 +112,12 @@ export function B1AttachmentUploader({
           accept={accept}
           disabled={controlsDisabled}
           onChange={handleFileChange}
-          className="sr-only"
+          className="peer sr-only"
           aria-label="اختيار ملف للرفع"
         />
         <label
           htmlFor={inputId}
-          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground ${
+          className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2 ${
             controlsDisabled ? "pointer-events-none opacity-50" : "hover:opacity-90"
           }`}
         >

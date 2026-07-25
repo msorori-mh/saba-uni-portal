@@ -113,7 +113,7 @@ export function B1StaffWorkspace() {
                 type="button"
                 key={request.stepId}
                 onClick={() => void loadDetails(request.requestId)}
-                className={`w-full rounded-xl border p-4 text-right shadow-sm ${selectedId === request.requestId ? "border-primary bg-primary/5" : "border-border bg-card"}`}
+                className={`w-full rounded-xl border p-4 text-start shadow-sm ${selectedId === request.requestId ? "border-primary bg-primary/5" : "border-border bg-card"}`}
               >
                 <span dir="ltr" className="block font-mono text-xs text-muted-foreground">
                   {request.requestNumber}
@@ -164,7 +164,11 @@ export function B1StaffWorkspace() {
                   </p>
                 </div>
               </div>
-              <B1RequestSummary items={details.formDataSummary} attachments={details.attachments} />
+              <B1RequestSummary
+                serviceTitleAr={details.serviceTitleAr}
+                items={details.formDataSummary}
+                attachments={details.attachments}
+              />
               <B1WorkflowTimeline steps={details.steps} />
               {details.allowedAction === "confirm_payment" ? (
                 <B1RevenueReceiptCard

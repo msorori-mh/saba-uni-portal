@@ -69,12 +69,12 @@ export function B1WorkflowTimeline({ steps }: Props) {
               </span>
             </div>
             {step.actedAt && (
-              <div className="mt-1.5 pr-8 text-[11px] text-muted-foreground">
+              <div className="mt-1.5 ps-8 text-[11px] text-muted-foreground">
                 بتاريخ: {formatB1DateTimeAr(step.actedAt)}
               </div>
             )}
             {step.commentAr && (
-              <div className="mt-1.5 mr-8 rounded-lg border border-current/10 bg-white/50 p-2 text-xs leading-relaxed">
+              <div className="mt-1.5 ms-8 rounded-lg border border-current/10 bg-white/50 p-2 text-xs leading-relaxed">
                 {step.commentAr}
               </div>
             )}
