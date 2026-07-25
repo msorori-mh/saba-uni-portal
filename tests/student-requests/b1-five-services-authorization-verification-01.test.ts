@@ -1,0 +1,98 @@
+import { describe, expect, it } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const root = process.cwd();
+const dir = join(root, "tests", "b1-five-services-authorization");
+const matrix = JSON.parse(readFileSync(join(dir, "authorization-matrix.json"), "utf8"));
+const harness = readFileSync(join(dir, "rpc-authorization-harness.sql"), "utf8");
+const payment = readFileSync(
+  join(root, "supabase", "migrations", "20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql"),
+  "utf8",
+).replace(/\r\n/g, "\n");
+
+describe("PORTAL-B1-FIVE-SERVICES-AUTHORIZATION-AND-VERIFICATION-01", () => {
+  it("pins all five services and all 24 staff steps", () => {
+    expect(matrix.services.map((x: { code: string }) => x.code).sort()).toEqual([
+      "department_transfer", "enrollment_suspension", "excused_absence",
+      "file_withdrawal", "final_chance",
+    ]);
+    expect(matrix.services.flatMap((x: { steps: unknown[] }) => x.steps)).toHaveLength(24);
+    for (const service of matrix.services) {
+      for (const [step, unit, role, action] of service.steps) {
+        expect(harness).toContain(
+          `('${service.code}','${step}','${unit}','${role}','${action}')`,
+        );
+      }
+    }
+  });
+
+  it("pins the complete negative authorization universe", () => {
+    expect(matrix.negative_cases).toHaveLength(22);
+    for (const scenario of matrix.negative_cases) {
+      expect(harness).toContain(`('${scenario}')`);
+    }
+    expect(matrix.negative_cases).toContain("unassigned_admin");
+    expect(matrix.negative_cases).toContain("registrar_outside_step");
+    expect(matrix.negative_cases).toContain("dean_outside_step");
+  });
+
+  it("uses an authenticated transaction with JWT claims and unconditional rollback", () => {
+    expect(harness).toMatch(/^\\set ON_ERROR_STOP on[\s\S]*\bBEGIN;/);
+    expect(harness).toContain("SET LOCAL ROLE authenticated;");
+    expect(harness).toContain("'request.jwt.claims'");
+    expect(harness.trimEnd().endsWith("ROLLBACK;")).toBe(true);
+    expect(harness).toContain("B1_AUTHORIZATION_HARNESS_LOCAL_ONLY");
+  });
+
+  it("requires zero mutation across every protected surface", () => {
+    for (const relation of matrix.zero_mutation_relations) expect(harness).toContain(relation);
+    expect(harness).toContain("v_after IS DISTINCT FROM v_before");
+    for (const id of matrix.protected_records) expect(harness).toContain(id);
+  });
+
+  it("freezes simplified confirm_payment to step id and optional note", () => {
+    expect(payment).toContain(
+      "record_external_university_payment_confirmation(\n  p_step_id uuid,\n  p_note text DEFAULT NULL",
+    );
+    expect(payment).toContain("v_uid uuid := auth.uid()");
+    expect(payment).toContain("completed_at = now()");
+    expect(payment).not.toMatch(
+      /\m(amount|currency|invoice|gateway_transaction|payment_reference|internal_balance)\M/i,
+    );
+    expect(payment).not.toContain("payment_not_confirmed");
+    expect(payment).toContain("DIRECT_PAYMENT_ASSIGNEE_REQUIRED");
+    expect(payment).toContain("EXACT_FINANCE_PROCESSING_BINDING_REQUIRED");
+  });
+
+  it("is merge-ready for PR #219 without claiming its absent source exists", () => {
+    const freeze = join(root, "docs", "B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md");
+    const promoted = join(
+      root, "supabase", "migrations", "20260725111100_b1_18_detail_acl_cutover_06.sql",
+    );
+    if (existsSync(freeze) || existsSync(promoted)) {
+      expect(existsSync(freeze)).toBe(true);
+      expect(existsSync(promoted)).toBe(true);
+      const contract = readFileSync(freeze, "utf8");
+      expect(contract).toContain("record_external_university_payment_confirmation(uuid, text");
+      expect(contract).toContain("No amount/currency/invoice/gateway");
+    } else {
+      expect(harness).toContain("B1_PR219_RPC_CONTRACT_NOT_INSTALLED");
+    }
+  });
+
+  it("pins private attachment authorization and server-side validation contracts", () => {
+    const source = readFileSync(
+      join(root, "docs", "migration-drafts", "STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql"),
+      "utf8",
+    );
+    expect(source).toContain("public=false");
+    expect(source).not.toMatch(/getPublicUrl|publicUrl|public_url/i);
+    expect(source).toContain("ATTACHMENT_DIRECT_ASSIGNMENT_REQUIRED");
+    expect(source).toContain("ATTACHMENT_REQUEST_NOT_OWNED");
+    expect(source).toContain("ATTACHMENT_MIME_NOT_ALLOWED");
+    expect(source).toContain("ATTACHMENT_SIZE_EXCEEDED");
+    expect(source).toContain("ATTACHMENT_OBJECT_MISMATCH");
+    expect(source).toMatch(/storage_object_path[\s\S]*auth\.uid\(\)/);
+  });
+});
