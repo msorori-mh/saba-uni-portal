@@ -15,7 +15,8 @@ PR #238 was merge-committed into PR #221. Source + local PG17 verification on th
 | PR #221 HEAD before merge | `8c6e092c591be3d10bdfa159e86f61bc30ad0d05` |
 | PR #238 final HEAD | `6f015bf005d7b0dd729d4960fe6218908bab4746` |
 | PR #238 → #221 merge commit | `314b8684a637efaa7b8917ff649830898e946633` |
-| PR #221 final unified HEAD (pre-docs commit) | `314b8684a637efaa7b8917ff649830898e946633` |
+| PR #221 merge tip | `314b8684a637efaa7b8917ff649830898e946633` |
+| PR #221 final tip (docs RC report) | `ed6898d0371fbabc95f26ecbcef25f5749001803` (docs-only after merge) |
 | PR #242 (Codex HIGH fixes) | MERGED into #238 @ `6f015bf…` |
 | PR #241 (backend Codex guards) | in ancestry via #227 tip `1c085a9…` |
 | PR #239 (apply package seq 21–25) | in ancestry (`e656b825…`) |
@@ -76,11 +77,20 @@ Absent by design: service activation, five-service `student_visible=true`, broad
 
 ## GitHub Actions
 
-Inspected once via `gh pr checks 221`. If jobs do not start due to billing/spending limit, record:
+Inspected **once** via `gh pr checks 221` after the docs tip push:
+
+| Observation | Evidence |
+|---|---|
+| `Review SQL migrations (read-only)` | `fail` in ~2s; job `steps: []`; `gh run view --log-failed` → `log not found` |
+| Broader CI suite | `status: queued` / checks still `pending` (0 duration) |
+
+This matches the account billing / spending-limit pattern (job concluded without executable steps), **not** a proven source regression.
+
+Recorded:
 
 `HOLD_REMOTE_CI_BILLING_NO_JOB_STEPS`
 
-That is **not** a source failure and must **not** trigger merge to `main`.
+That is **not** a local source failure and must **not** trigger merge to `main`. No further CI re-runs were attempted in this cycle.
 
 ## Next exact step
 
