@@ -3,6 +3,8 @@
 **Track:** `PORTAL-B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01`  
 **Branch:** `fix/b1-confirm-payment-predecessor-guard-01`  
 **Base:** `origin/main` @ `b63725e02d4199b46dee604be8f8c03f72c5d414` (PR #219 merge)  
+**PR:** https://github.com/msorori-mh/saba-uni-portal/pull/220  
+**Commit:** `caab731`  
 **Decision:** `PASS_B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_SOURCE_READY_FOR_MERGE`
 
 ## Root cause
@@ -101,12 +103,16 @@ ALLOW only when all priors are `completed` or `skipped`. Replay / unauthorized /
 | Migration dangerous-pattern scan | PASS (0 hits) |
 | `git diff --check` | PASS |
 
+## Migration Review / Web CI
+
+Opened with PR #220. CI run IDs were not available at source-ready close; confirm green on the PR checks before merge.
+
 ## Production / deploy
 
 - No Production or Staging write  
 - No migration apply  
 - No Deploy / Publish  
-- PR opened for review; **not** merged by this agent  
+- PR https://github.com/msorori-mh/saba-uni-portal/pull/220 opened for review; **not** merged by this agent  
 
 ## Final decision
 
