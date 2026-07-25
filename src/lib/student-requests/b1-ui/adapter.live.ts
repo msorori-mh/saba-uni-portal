@@ -20,6 +20,7 @@ import {
   type B1AssignedRequest,
   type B1AssignedRequestDetails,
   type B1AttachmentMeta,
+  type B1AttachmentDownload,
   type B1CanonicalCode,
   type B1Draft,
   type B1FormOptions,
@@ -71,10 +72,7 @@ export type LiveB1UiAdapterDeps = {
   ) => Promise<B1AttachmentMeta>;
   removeB1RequestAttachment: (requestId: string, attachmentId: string) => Promise<void>;
   listAttachments?: (requestId: string) => Promise<unknown[]>;
-  authorizeDownload?: (attachmentId: string) => Promise<{
-    storage_bucket: string;
-    storage_object_path: string;
-  }>;
+  authorizeDownload?: (attachmentId: string) => Promise<B1AttachmentDownload>;
 };
 
 function pending(functionName: string): never {

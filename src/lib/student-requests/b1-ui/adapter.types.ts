@@ -137,6 +137,14 @@ export type B1AttachmentMeta = {
   storageRef: string;
 };
 
+/** Short-lived authorized download. Storage coordinates never cross the server boundary. */
+export type B1AttachmentDownload = {
+  url: string;
+  expiresInSeconds: number;
+  filename?: string;
+  mimeType?: string;
+};
+
 export type B1WorkflowStepView = B1WorkflowStep & {
   labelAr: string;
   status: "completed" | "active" | "pending" | "returned" | "rejected";
@@ -203,10 +211,10 @@ export type B1AssignedRequestDetails = B1AssignedRequest & {
 };
 
 export type B1StepActionResult = {
+  accepted: true;
   stepId: string;
-  requestId: string;
-  outcomeAr: string;
-  actedAt: string;
+  requestId?: string;
+  action: B1StaffAction;
 };
 
 // ---------------------------------------------------------------------------

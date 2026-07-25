@@ -14,6 +14,7 @@ import { getRequestServiceAdapter } from "@/lib/student-requests/request-service
 import {
   SECURE_ATTACHMENT_FIELD_KEYS,
   SECURE_ATTACHMENT_MAX_BYTES,
+  SECURE_ATTACHMENT_SIGNED_URL_SECONDS,
   SECURE_ATTACHMENTS_RUNTIME_AVAILABLE,
   SECURE_ATTACHMENT_ERRORS,
 } from "@/lib/student-requests/secure-attachments-contract";
@@ -32,19 +33,12 @@ import {
   rpcSubmitB1StudentRequestAtomic,
 } from "./b1-rpc";
 import { isB1ServiceCode } from "./service-config";
-import type { B1AttachmentMeta, B1StepActionResult, B1SubmitResult } from "./adapter.types";
-
-const OUTCOME_AR: Readonly<Record<string, string>> = {
-  review: "تمت مراجعة الخطوة",
-  approve: "تم اعتماد الخطوة",
-  clear: "تم إخلاء الطرف",
-  apply_decision: "تم تطبيق القرار",
-  archive: "تمت الأرشفة",
-  return: "تمت إعادة الطلب إلى الطالب لاستكماله",
-  reject: "تم رفض الطلب",
-  confirm_payment: "تم تأكيد استلام الرسوم في النظام الجامعي الرئيسي",
-  payment_confirmed: "تم تأكيد استلام الرسوم في النظام الجامعي الرئيسي",
-};
+import type {
+  B1AttachmentDownload,
+  B1AttachmentMeta,
+  B1StepActionResult,
+  B1SubmitResult,
+} from "./adapter.types";
 
 type SessionRpc = {
   rpc: (
@@ -202,18 +196,10 @@ export const actOnB1UiRequestStepFn = createServerFn({ method: "POST" })
     });
     if (result.success !== true) throw new Error("B1_ACTION_FAILED");
 
-    const { data: stepRow } = await supabaseAdmin
-      .from("student_request_workflow_steps")
-      .select("student_request_id")
-      .eq("id", data.stepId)
-      .maybeSingle();
-
-    const actedAt = new Date().toISOString();
     return {
+      accepted: true,
       stepId: String(result.step_id ?? data.stepId),
-      requestId: String(stepRow?.student_request_id ?? ""),
-      outcomeAr: OUTCOME_AR[String(result.action_result ?? rpcAction)] ?? "تم تنفيذ الإجراء",
-      actedAt,
+      action: data.action,
     };
   });
 
@@ -234,10 +220,10 @@ export const confirmB1UiRevenueReceiptFn = createServerFn({ method: "POST" })
     );
     if (result.success !== true) throw new Error("PAYMENT_CONFIRMATION_FAILED");
     return {
+      accepted: true,
       stepId: String(result.step_id ?? data.stepId),
-      requestId: String(result.request_id ?? ""),
-      outcomeAr: OUTCOME_AR.payment_confirmed!,
-      actedAt: new Date().toISOString(),
+      ...(result.request_id ? { requestId: String(result.request_id) } : {}),
+      action: "confirm_payment",
     };
   });
 
@@ -344,13 +330,50 @@ export const listB1UiRequestAttachmentsFn = createServerFn({ method: "POST" })
 
 const downloadAuthSchema = z.object({ attachmentId: z.string().uuid() }).strict();
 
+type AuthorizedDownloadClient = SessionRpc & {
+  storage: {
+    from: (bucketName: string) => {
+      createSignedUrl: (
+        objectName: string,
+        expiresIn: number,
+      ) => Promise<{
+        data: { signedUrl?: string } | null;
+        error: { message?: string } | null;
+      }>;
+    };
+  };
+};
+
+export async function createAuthorizedB1AttachmentDownload(
+  client: AuthorizedDownloadClient,
+  attachmentId: string,
+): Promise<B1AttachmentDownload> {
+  let authorization: { storage_bucket: string; storage_object_path: string };
+  try {
+    authorization = await rpcAuthorizeStudentRequestAttachmentDownload(client, attachmentId);
+  } catch {
+    throw new Error(SECURE_ATTACHMENT_ERRORS.ATTACHMENT_ACCESS_DENIED);
+  }
+
+  const signed = await client.storage
+    .from(authorization.storage_bucket)
+    .createSignedUrl(authorization.storage_object_path, SECURE_ATTACHMENT_SIGNED_URL_SECONDS);
+  if (signed.error || !signed.data?.signedUrl) {
+    throw new Error(SECURE_ATTACHMENT_ERRORS.ATTACHMENT_ACCESS_DENIED);
+  }
+  return {
+    url: signed.data.signedUrl,
+    expiresInSeconds: SECURE_ATTACHMENT_SIGNED_URL_SECONDS,
+  };
+}
+
 export const authorizeB1UiAttachmentDownloadFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => downloadAuthSchema.parse(input))
   .handler(async ({ data, context }) => {
     ensureSecureAttachmentsRuntime();
-    return rpcAuthorizeStudentRequestAttachmentDownload(
-      asSessionRpc(context.supabase),
+    return createAuthorizedB1AttachmentDownload(
+      context.supabase as unknown as AuthorizedDownloadClient,
       data.attachmentId,
     );
   });
