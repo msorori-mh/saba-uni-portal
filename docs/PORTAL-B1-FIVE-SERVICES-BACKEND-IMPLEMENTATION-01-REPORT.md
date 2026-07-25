@@ -97,8 +97,9 @@ No matches for: `DROP TABLE`, `TRUNCATE`, `DISABLE ROW LEVEL SECURITY`,
 | `bun test tests/student-requests` | **588 PASS / 0 FAIL** |
 | `bun run build` | PASS |
 | `git diff --check` | PASS |
-| Web CI run ID | `30137969628` (SUCCESS) |
-| Migration Review run ID | `30137969621` (SUCCESS; job Review SQL migrations pass) |
+| Web CI run ID (HEAD) | `30138054756` (SUCCESS) |
+| Migration Review run ID (HEAD) | `30138054709` (SUCCESS; Review SQL migrations pass) |
+| Remediation commit CI | Web `30137969628` / Migration Review `30137969621` (SUCCESS) |
 | Prior failed Migration Review | `30137085557` (superseded) |
 | Production write / Deploy / Publish | **NOT RUN** |
 
