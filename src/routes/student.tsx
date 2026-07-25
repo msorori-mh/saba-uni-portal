@@ -51,8 +51,12 @@ function StudentLayout() {
 
   if (!ready) {
     return (
-      <div className="min-h-screen grid place-items-center bg-surface">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div
+        className="min-h-screen grid place-items-center bg-surface"
+        role="status"
+        aria-label="جارٍ التحميل"
+      >
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
       </div>
     );
   }

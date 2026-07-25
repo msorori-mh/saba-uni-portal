@@ -14,7 +14,7 @@ export function StudentRequestsNav({
   currentLabel = "طلبات شؤون الطلاب",
 }: StudentRequestsNavProps) {
   return (
-    <nav dir="rtl" aria-label="تنقل طلبات شؤون الطلاب" className="mb-4 space-y-2">
+    <div dir="rtl" className="mb-4 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Link
           to="/student"
@@ -38,13 +38,21 @@ export function StudentRequestsNav({
           رجوع
         </button>
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        <Link to="/student" className="font-semibold text-primary hover:underline">
-          بوابة الطالب
-        </Link>
-        <span className="mx-1.5 opacity-50">/</span>
-        <span className="font-semibold text-foreground/80">{currentLabel}</span>
-      </p>
-    </nav>
+      <nav aria-label="مسار التنقل" className="text-[11px] text-muted-foreground">
+        <ol className="flex items-center">
+          <li>
+            <Link to="/student" className="font-semibold text-primary hover:underline">
+              بوابة الطالب
+            </Link>
+          </li>
+          <li aria-hidden="true" className="mx-1.5 opacity-50">
+            /
+          </li>
+          <li aria-current="page" className="font-semibold text-foreground/80">
+            {currentLabel}
+          </li>
+        </ol>
+      </nav>
+    </div>
   );
 }
