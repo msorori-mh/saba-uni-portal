@@ -1,7 +1,14 @@
-import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  redirect,
+  useLocation,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Home, CalendarClock, ClipboardList, FileText, User, LogOut, Loader2 } from "lucide-react";
+import { Home, CalendarClock, ClipboardList, FileText, Award, LogOut, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import collegeLogo from "@/assets/college-logo.jpg";
 import { registerStudentMobileSW } from "@/lib/pwa/register-student-sw";
@@ -64,7 +71,9 @@ function MobileStudentLayout() {
 
   useEffect(() => {
     registerStudentMobileSW();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
       if (!session) navigate({ to: "/mobile/student-login", replace: true });
     });
     return () => subscription.unsubscribe();
@@ -83,7 +92,7 @@ function MobileStudentLayout() {
     navigate({ to: "/mobile/student-login", replace: true });
   };
 
-  const displayName = (profile?.full_name_ar?.trim().split(" ").slice(0, 2).join(" ")) || "الطالب";
+  const displayName = profile?.full_name_ar?.trim().split(" ").slice(0, 2).join(" ") || "الطالب";
 
   return (
     <div
@@ -107,7 +116,10 @@ function MobileStudentLayout() {
                 {displayName}
               </div>
               {profile?.academic_number && (
-                <div dir="ltr" className="text-[10px] text-primary-foreground/70 font-mono truncate text-right">
+                <div
+                  dir="ltr"
+                  className="text-[10px] text-primary-foreground/70 font-mono truncate text-right"
+                >
                   {profile.academic_number}
                 </div>
               )}
@@ -149,7 +161,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "الجدول", icon: CalendarClock, to: "/mobile/student/schedule" },
   { label: "الطلبات", icon: ClipboardList, to: "/mobile/student/requests" },
   { label: "الوثائق", icon: FileText, to: "/mobile/student/documents" },
-  { label: "الحساب", icon: User, to: null },
+  { label: "الدرجات", icon: Award, to: "/mobile/student/grades" },
 ];
 
 function MobileBottomNav() {
@@ -167,13 +179,17 @@ function MobileBottomNav() {
       <ul className="max-w-screen-sm mx-auto grid grid-cols-5">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const active = item.to !== null && (current === item.to || current === item.to + "/");
+          const active =
+            item.to !== null &&
+            (item.to === "/mobile/student"
+              ? current === item.to || current === item.to + "/"
+              : current === item.to || current.startsWith(item.to + "/"));
           const disabled = item.to === null;
 
           const inner = (
             <div
               className={[
-                "flex flex-col items-center justify-center gap-0.5 py-2 min-h-[3.25rem] text-[10px] font-bold transition-colors",
+                "relative flex flex-col items-center justify-center gap-0.5 py-2 min-h-[3.25rem] text-[10px] font-bold transition-colors",
                 active
                   ? "text-primary"
                   : disabled
@@ -181,6 +197,13 @@ function MobileBottomNav() {
                     : "text-muted-foreground hover:text-primary",
               ].join(" ")}
             >
+              {/* Non-color active cue: gold bar on top, in addition to aria-current */}
+              {active && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-0 h-0.5 w-10 rounded-full bg-gold-gradient"
+                />
+              )}
               <Icon className={`h-5 w-5 ${active ? "text-gold" : ""}`} />
               <span className="leading-none">{item.label}</span>
               {disabled && (
@@ -216,8 +239,8 @@ function MobileBottomNav() {
 // Re-export the loading state for nested suspense scenarios
 export function MobileStudentLoading() {
   return (
-    <div className="min-h-[60vh] grid place-items-center">
-      <Loader2 className="h-7 w-7 animate-spin text-primary" />
+    <div className="min-h-[60vh] grid place-items-center" role="status" aria-label="جارٍ التحميل">
+      <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden="true" />
     </div>
   );
 }

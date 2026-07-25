@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Menu, X, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
 import collegeLogo from "@/assets/college-logo.jpg";
 import universityLogo from "@/assets/university-logo.jpeg.asset.json";
@@ -44,7 +44,20 @@ function useIsAuthenticated() {
 export function Header() {
   const [open, setOpen] = useState(false);
   const isAuthed = useIsAuthenticated();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Escape closes the mobile menu and returns focus to its trigger.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/95 backdrop-blur-lg">
@@ -109,9 +122,12 @@ export function Header() {
 
         {/* Mobile toggle */}
         <button
+          ref={menuButtonRef}
           className="lg:hidden p-2 text-primary"
           onClick={() => setOpen(!open)}
-          aria-label="القائمة"
+          aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}
+          aria-expanded={open}
+          aria-controls="site-mobile-menu"
         >
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
@@ -136,7 +152,7 @@ export function Header() {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="lg:hidden border-t border-border bg-background">
+        <div id="site-mobile-menu" className="lg:hidden border-t border-border bg-background">
           <nav className="container mx-auto flex flex-col px-4 py-3">
             {!isAuthed && (
               <div className="grid grid-cols-1 gap-2 pb-3 border-b border-border">

@@ -1,11 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Loader2, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 type PlanCourseRow = {
@@ -48,7 +52,9 @@ async function fetchMyStudyPlan(programId: string): Promise<PlanCourseRow[]> {
   if (!plan) return [];
   const { data, error } = await supabase
     .from("study_plan_courses")
-    .select("id, semester_code, is_required, sort_order, level:academic_levels(name, level_number), course:courses!study_plan_courses_course_id_fkey(code, name_ar, credit_hours), prerequisite:courses!study_plan_courses_prerequisite_course_id_fkey(code)")
+    .select(
+      "id, semester_code, is_required, sort_order, level:academic_levels(name, level_number), course:courses!study_plan_courses_course_id_fkey(code, name_ar, credit_hours), prerequisite:courses!study_plan_courses_prerequisite_course_id_fkey(code)",
+    )
     .eq("study_plan_id", plan.id)
     .order("sort_order");
   if (error) throw error;
@@ -60,18 +66,30 @@ export const Route = createFileRoute("/student/study-plan")({
   head: () => ({
     meta: [
       { title: "الخطة الدراسية — بوابة الطالب" },
-      { name: "description", content: "عرض الخطة الدراسية للبرنامج مع تصفية حسب المستوى والفصل الدراسي." },
+      {
+        name: "description",
+        content: "عرض الخطة الدراسية للبرنامج مع تصفية حسب المستوى والفصل الدراسي.",
+      },
     ],
   }),
 });
 
 function StudyPlanPage() {
-  const { data: programId, isLoading: loadingProg } = useQuery({
+  const navigate = useNavigate();
+  const {
+    data: programId,
+    isLoading: loadingProg,
+    error: programError,
+  } = useQuery({
     queryKey: ["student", "program-id"],
     queryFn: fetchMyProgramId,
     staleTime: 5 * 60 * 1000,
   });
-  const { data: rows = [], isLoading } = useQuery({
+  const {
+    data: rows = [],
+    isLoading,
+    error: planError,
+  } = useQuery({
     queryKey: ["student", "study-plan", programId],
     queryFn: () => fetchMyStudyPlan(programId!),
     enabled: !!programId,
@@ -100,12 +118,21 @@ function StudyPlanPage() {
     });
   }, [rows, levelFilter, semesterFilter]);
 
-  type Group = { levelName: string; levelNumber: number; semesters: Record<string, PlanCourseRow[]> };
+  type Group = {
+    levelName: string;
+    levelNumber: number;
+    semesters: Record<string, PlanCourseRow[]>;
+  };
   const grouped = useMemo(() => {
     const map = new Map<number, Group>();
     for (const r of filtered) {
       const ln = r.level?.level_number ?? 0;
-      if (!map.has(ln)) map.set(ln, { levelName: r.level?.name ?? `المستوى ${ln}`, levelNumber: ln, semesters: {} });
+      if (!map.has(ln))
+        map.set(ln, {
+          levelName: r.level?.name ?? `المستوى ${ln}`,
+          levelNumber: ln,
+          semesters: {},
+        });
       const g = map.get(ln)!;
       (g.semesters[r.semester_code] ||= []).push(r);
     }
@@ -117,8 +144,13 @@ function StudyPlanPage() {
     [filtered],
   );
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate({ to: "/portal-login", replace: true });
+  };
+
   return (
-    <PortalShell>
+    <PortalShell title="بوابة الطالب" onLogout={handleLogout}>
       <main className="mx-auto max-w-5xl px-4 py-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -127,10 +159,15 @@ function StudyPlanPage() {
             </div>
             <div>
               <h1 className="font-display text-lg font-extrabold text-primary">الخطة الدراسية</h1>
-              <p className="text-xs text-muted-foreground">تصفح خطتك الدراسية حسب المستوى والفصل الدراسي.</p>
+              <p className="text-xs text-muted-foreground">
+                تصفح خطتك الدراسية حسب المستوى والفصل الدراسي.
+              </p>
             </div>
           </div>
-          <Link to="/student" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
+          <Link
+            to="/student"
+            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+          >
             <ArrowRight className="h-3.5 w-3.5" /> العودة للرئيسية
           </Link>
         </div>
@@ -138,21 +175,31 @@ function StudyPlanPage() {
         <div className="rounded-xl border border-border bg-card p-4 mb-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-[11px] font-bold text-muted-foreground mb-1 block">المستوى</label>
+              <label className="text-[11px] font-bold text-muted-foreground mb-1 block">
+                المستوى
+              </label>
               <Select value={levelFilter} onValueChange={setLevelFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">كل المستويات</SelectItem>
                   {availableLevels.map((l) => (
-                    <SelectItem key={l.num} value={String(l.num)}>{l.name}</SelectItem>
+                    <SelectItem key={l.num} value={String(l.num)}>
+                      {l.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <label className="text-[11px] font-bold text-muted-foreground mb-1 block">الفصل الدراسي</label>
+              <label className="text-[11px] font-bold text-muted-foreground mb-1 block">
+                الفصل الدراسي
+              </label>
               <Select value={semesterFilter} onValueChange={setSemesterFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">كل الفصول</SelectItem>
                   <SelectItem value="first">الفصل الأول</SelectItem>
@@ -170,18 +217,27 @@ function StudyPlanPage() {
         </div>
 
         {(loadingProg || isLoading) && (
-          <div className="grid place-items-center py-10">
+          <div className="grid place-items-center py-10" role="status" aria-label="جارٍ التحميل">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
 
-        {!isLoading && !loadingProg && rows.length === 0 && (
+        {(programError || planError) && (
+          <div
+            role="alert"
+            className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          >
+            تعذّر تحميل الخطة الدراسية. تحقق من الاتصال ثم حاول مرة أخرى.
+          </div>
+        )}
+
+        {!programError && !planError && !isLoading && !loadingProg && rows.length === 0 && (
           <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
             لا توجد خطة دراسية مفعّلة لبرنامجك حالياً.
           </div>
         )}
 
-        {!isLoading && rows.length > 0 && filtered.length === 0 && (
+        {!programError && !planError && !isLoading && rows.length > 0 && filtered.length === 0 && (
           <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
             لا توجد مقررات مطابقة للتصفية.
           </div>
@@ -189,8 +245,13 @@ function StudyPlanPage() {
 
         <div className="space-y-3">
           {grouped.map((lvl) => (
-            <div key={lvl.levelNumber} className="rounded-lg border border-border bg-card overflow-hidden">
-              <div className="px-3 py-2 bg-muted/40 text-sm font-bold text-primary border-b">{lvl.levelName}</div>
+            <div
+              key={lvl.levelNumber}
+              className="rounded-lg border border-border bg-card overflow-hidden"
+            >
+              <div className="px-3 py-2 bg-muted/40 text-sm font-bold text-primary border-b">
+                {lvl.levelName}
+              </div>
               <div className="grid sm:grid-cols-2 gap-px bg-border">
                 {Object.entries(lvl.semesters).map(([sem, items]) => (
                   <div key={sem} className="bg-card p-3">
@@ -202,12 +263,18 @@ function StudyPlanPage() {
                         <li key={it.id} className="rounded border p-2 text-xs">
                           <div className="flex items-baseline justify-between gap-2">
                             <span className="font-mono font-bold">{it.course?.code}</span>
-                            <span className="text-[10px] text-muted-foreground">{it.course?.credit_hours} س.م</span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {it.course?.credit_hours} س.م
+                            </span>
                           </div>
                           <div className="mt-0.5 font-semibold">{it.course?.name_ar}</div>
                           <div className="mt-1 flex items-center gap-2 text-[10px] text-muted-foreground">
                             <span>{it.is_required ? "إجباري" : "اختياري"}</span>
-                            {it.prerequisite && <span>• متطلب: <span className="font-mono">{it.prerequisite.code}</span></span>}
+                            {it.prerequisite && (
+                              <span>
+                                • متطلب: <span className="font-mono">{it.prerequisite.code}</span>
+                              </span>
+                            )}
                           </div>
                         </li>
                       ))}
