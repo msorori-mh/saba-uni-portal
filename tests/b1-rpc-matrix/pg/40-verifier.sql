@@ -280,7 +280,7 @@ SELECT e_rpcmatrix.exec_case('M32','act-on-completed-step','P0001',
 -- M24: payment RPC on a non-payment service (enrollment_suspension)
 SELECT e_rpcmatrix.exec_case('M24','payment-rpc-on-free-service','22023',
  '22222222-2222-4222-8222-222222222204',
- format($$SELECT public.record_external_university_payment_confirmation(%L::uuid,'payment_confirmed')$$,
+ format($$SELECT public.record_external_university_payment_confirmation(%L::uuid)$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-000000000001' AND s.step_key='registrar_apply')),
  'REQUEST_TYPE_NOT_EXTERNAL_PAYMENT_SERVICE');
@@ -457,7 +457,7 @@ SELECT e_rpcmatrix.exec_case('M16','dean-approve-transfer','OK',
 -- X-14: finance officer with user_id-typed binding confirms payment -> PASS
 SELECT e_rpcmatrix.exec_case('X-14','user-typed-binding-payment-confirm','OK',
  '22222222-2222-4222-8222-222222222204',
- format($$SELECT public.record_external_university_payment_confirmation(%L::uuid,'payment_confirmed')$$,
+ format($$SELECT public.record_external_university_payment_confirmation(%L::uuid)$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-000000000003' AND s.step_key='payment_confirmation')));
 
@@ -484,14 +484,14 @@ SELECT e_rpcmatrix.exec_case('M17','dean-approve-final-chance','OK',
 -- (payment RPC performs its own checks; unaffected by finding 1)
 SELECT e_rpcmatrix.exec_case('M15','finance-confirm-payment','OK',
  '22222222-2222-4222-8222-222222222204',
- format($$SELECT public.record_external_university_payment_confirmation(%L::uuid,'payment_confirmed')$$,
+ format($$SELECT public.record_external_university_payment_confirmation(%L::uuid)$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-000000000004' AND s.step_key='payment_confirmation')));
 
 -- X-04: payment step exhausted - second confirmation -> DENY 22023
 SELECT e_rpcmatrix.exec_case('X-04','payment-step-exhausted','22023',
  '22222222-2222-4222-8222-222222222204',
- format($$SELECT public.record_external_university_payment_confirmation(%L::uuid,'payment_confirmed')$$,
+ format($$SELECT public.record_external_university_payment_confirmation(%L::uuid)$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-000000000004' AND s.step_key='payment_confirmation')),
  'INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP');
@@ -540,12 +540,7 @@ SELECT e_rpcmatrix.exec_case('X-09','setup-dean-approve-fc2','OK',
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-000000000009' AND s.step_key='dean_decision')));
 
--- X-09: negative payment confirmation - audited, never completes/advances
-SELECT e_rpcmatrix.exec_case('X-09','payment-not-confirmed','OK',
- '22222222-2222-4222-8222-222222222204',
- format($$SELECT public.record_external_university_payment_confirmation(%L::uuid,'payment_not_confirmed','receipt not found at university')$$,
-   (SELECT s.id FROM public.student_request_workflow_steps s
-     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000009' AND s.step_key='payment_confirmation')));
+-- X-09: revenue inaction - the step simply stays active (no rejection path)
 SELECT e_rpcmatrix.log_result('X-09','step-remains-active',
   CASE WHEN (SELECT s.status FROM public.student_request_workflow_steps s
              WHERE s.student_request_id='ce000000-0000-4000-8000-000000000009'
@@ -554,7 +549,7 @@ SELECT e_rpcmatrix.log_result('X-09','step-remains-active',
   'active',
   (SELECT s.status FROM public.student_request_workflow_steps s
     WHERE s.student_request_id='ce000000-0000-4000-8000-000000000009' AND s.step_key='payment_confirmation'),
-  'negative verification never completes or advances the step');
+  'no action by the revenue officer leaves the step pending');
 
 -- M27: approve on confirm_payment-typed step -> DENY (action contract)
 SELECT e_rpcmatrix.exec_case('M27','approve-on-payment-step','42501',
@@ -567,7 +562,7 @@ SELECT e_rpcmatrix.exec_case('M27','approve-on-payment-step','42501',
 -- M28: payment RPC on a non-payment step -> DENY 22023
 SELECT e_rpcmatrix.exec_case('M28','payment-rpc-on-nonpayment-step','22023',
  '22222222-2222-4222-8222-222222222205',
- format($$SELECT public.record_external_university_payment_confirmation(%L::uuid,'payment_confirmed')$$,
+ format($$SELECT public.record_external_university_payment_confirmation(%L::uuid)$$,
    (SELECT s.id FROM public.student_request_workflow_steps s
      WHERE s.student_request_id='ce000000-0000-4000-8000-000000000009' AND s.step_key='dean_decision')),
  'INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP');

@@ -1,15 +1,5 @@
--- EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01
--- DRAFT ONLY — DO NOT APPLY FROM THIS FILE.
--- Migration 1/3. Constraint vocabulary + specialized exact-assignee RPC only.
--- The active payment_confirmation runtime step is awaiting_payment_confirmation.
--- Existing runtime step/event columns record actor, time, optional note and audit.
-
 ALTER TABLE public.request_type_workflow_steps
   DROP CONSTRAINT IF EXISTS request_type_workflow_steps_action_type_chk;
--- Replacement vocabulary is a strict superset of the currently applied
--- constraint (20260711195110): 'assess_fee' is retained because the live
--- fee-assessment workflow requires it; 'clear' and
--- 'apply_decision' are the only additions.
 ALTER TABLE public.request_type_workflow_steps
   ADD CONSTRAINT request_type_workflow_steps_action_type_chk
   CHECK (action_type IN (
@@ -50,8 +40,6 @@ ALTER TABLE public.student_request_workflow_events
 
 -- Simplified revenue contract: confirmation is an ordinary workflow action.
 -- There is no rejection-for-non-payment path; inaction leaves the step active.
--- The legacy three-argument status form is removed so no overload can carry a
--- client-supplied status.
 DROP FUNCTION IF EXISTS public.record_external_university_payment_confirmation(uuid, text, text);
 
 CREATE OR REPLACE FUNCTION public.record_external_university_payment_confirmation(
@@ -84,9 +72,6 @@ BEGIN
     RAISE EXCEPTION 'PAYMENT_CONFIRMATION_NOTE_TOO_LONG' USING ERRCODE = '22023';
   END IF;
 
-
-  -- Lock before authorization: the assignee and active state cannot change
-  -- between authorization and mutation.
   SELECT s.* INTO v_step
   FROM public.student_request_workflow_steps s
   WHERE s.id = p_step_id
@@ -105,8 +90,6 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
-  -- transfer and extra_chance are historical stored-code aliases for the two
-  -- approved canonical services; they do not broaden the service policy.
   IF v_request_type NOT IN ('department_transfer','transfer','final_chance','extra_chance') THEN
     RAISE EXCEPTION 'REQUEST_TYPE_NOT_EXTERNAL_PAYMENT_SERVICE' USING ERRCODE = '22023';
   END IF;
@@ -124,7 +107,6 @@ BEGIN
     RAISE EXCEPTION 'PAYMENT_CONFIRMATION_ACTION_MISMATCH' USING ERRCODE = '22023';
   END IF;
 
-  -- Direct assignment is mandatory and exclusive. No role-pool helper is called.
   v_direct_count := num_nonnulls(
     v_step.assigned_user_id,
     v_step.assigned_staff_profile_id,
@@ -153,11 +135,6 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'EXACT_FINANCE_PROCESSING_BINDING_REQUIRED' USING ERRCODE = '42501';
   END IF;
-
-  -- No non-payment rejection path exists. If the officer takes no action the
-  -- step simply stays active and the request remains pending indefinitely.
-
-
 
   SELECT count(*) INTO v_transition_count
   FROM public.request_type_workflow_transitions t
@@ -198,9 +175,6 @@ BEGIN
   UPDATE public.student_request_workflow_steps
   SET status = 'active', entered_at = now(), updated_at = now()
   WHERE id = v_next_step_id AND status = 'pending';
-
-  -- This is a non-terminal transition. The request remains under_review;
-  -- only the active runtime step changes, matching act_on_student_request_step.
 
   INSERT INTO public.student_request_workflow_events (
     student_request_id, workflow_step_runtime_id, event_type, actor_user_id,
