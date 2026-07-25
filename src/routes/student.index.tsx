@@ -24,6 +24,7 @@ import { StudentRequestsPortalSummary } from "@/components/portal/StudentRequest
 import { StudentFinanceSection } from "@/components/portal/StudentFinanceSection";
 import { StudentDocumentsSection } from "@/components/portal/StudentDocumentsSection";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
+import { DashboardQueryError } from "@/components/portal/DashboardStates";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
@@ -271,7 +272,7 @@ function StudentDashboard() {
     }
   }, [navigate]);
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, isError: profileError, refetch: refetchProfile } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
     staleTime: STALE_LONG,
@@ -306,7 +307,11 @@ function StudentDashboard() {
     staleTime: STALE_MED,
     refetchOnWindowFocus: false,
   });
-  const { data: myEnrollments = [] } = useQuery({
+  const {
+    data: myEnrollments = [],
+    isError: enrollmentsError,
+    refetch: refetchEnrollments,
+  } = useQuery({
     queryKey: ["student", "my-enrollments", profile?.id],
     queryFn: () => fetchMyEnrollments(profile!.id),
     enabled: !!profile?.id && portalFeatures.studentRegisteredCourses,
@@ -335,7 +340,12 @@ function StudentDashboard() {
       onLogout={handleLogout}
     >
       <main className="container mx-auto px-4 py-8 max-w-5xl" dir="rtl">
-        {isLoading || !profile ? (
+        {profileError ? (
+          <DashboardQueryError
+            messageAr="تعذّر تحميل ملفك الأكاديمي. تحقق من الاتصال ثم أعد المحاولة."
+            onRetry={() => void refetchProfile()}
+          />
+        ) : isLoading || !profile ? (
           <>
             <Skeleton className="h-20 w-full rounded-xl" />
             <div className="mt-5 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
@@ -461,7 +471,11 @@ function StudentDashboard() {
                   </div>
                 }
               >
-                <MyEnrollmentsSection rows={myEnrollments} />
+                <MyEnrollmentsSection
+                  rows={myEnrollments}
+                  isError={enrollmentsError}
+                  onRetry={() => void refetchEnrollments()}
+                />
               </LazyMount>
             )}
 
@@ -637,7 +651,15 @@ function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
   );
 }
 
-function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
+function MyEnrollmentsSection({
+  rows,
+  isError = false,
+  onRetry,
+}: {
+  rows: MyEnrollmentRow[];
+  isError?: boolean;
+  onRetry?: () => void;
+}) {
   const statusLabel: Record<string, { text: string; cls: string }> = {
     enrolled: { text: "مُسجَّل", cls: "bg-emerald-100 text-emerald-800" },
     dropped: { text: "محذوف", cls: "bg-rose-100 text-rose-800" },
@@ -648,7 +670,12 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
       <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
         <ClipboardCheck className="h-4 w-4 text-gold" /> مقرراتي المسجلة
       </h2>
-      {rows.length === 0 ? (
+      {isError ? (
+        <DashboardQueryError
+          messageAr="تعذّر تحميل مقرراتك المسجلة. تحقق من الاتصال ثم أعد المحاولة."
+          onRetry={onRetry}
+        />
+      ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
           لم يتم تسجيلك في أي مجموعة دراسية بعد. تواصل مع شؤون الطلاب.
         </div>
@@ -708,7 +735,7 @@ function MyEnrollmentsSection({ rows }: { rows: MyEnrollmentRow[] }) {
 }
 
 function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["student", "grades", studentProfileId],
     queryFn: async () => {
       const { data: enr, error: e1 } = await supabase
@@ -728,7 +755,7 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
       };
       const enrollments = (enr ?? []) as unknown as EnRaw[];
       if (enrollments.length === 0) return [];
-      const { data: gs, error: e2 } = await sb
+      const { data: gs, error: e2 } = await supabase
         .from("student_grades")
         .select("id, student_enrollment_id, grade_component_id, score, status")
         .in(
@@ -747,7 +774,7 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
       const grades = (gs ?? []) as GR[];
       if (grades.length === 0) return [];
       const sectionIds = Array.from(new Set(enrollments.map((e) => e.course_section_id)));
-      const { data: cs, error: e3 } = await sb
+      const { data: cs, error: e3 } = await supabase
         .from("grade_components")
         .select("id, course_section_id, name, max_score, sort_order")
         .in("course_section_id", sectionIds)
@@ -801,6 +828,11 @@ function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
         <div className="rounded-lg border bg-card p-4 text-center">
           <Loader2 className="inline h-4 w-4 animate-spin" />
         </div>
+      ) : isError ? (
+        <DashboardQueryError
+          messageAr="تعذّر تحميل درجاتك. تحقق من الاتصال ثم أعد المحاولة."
+          onRetry={() => void refetch()}
+        />
       ) : rows.length === 0 ? (
         <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
           لا توجد درجات معتمدة حالياً.

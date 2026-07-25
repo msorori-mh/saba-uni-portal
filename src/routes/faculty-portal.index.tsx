@@ -7,6 +7,7 @@ import { User, IdCard, Building2, GraduationCap, BookOpen, BadgeCheck, Award, Lo
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyGradesManager } from "@/components/portal/FacultyGradesManager";
 import { NotificationsBell } from "@/components/portal/NotificationsBell";
+import { DashboardQueryError } from "@/components/portal/DashboardStates";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
 import { hasActiveProcessingAssignment } from "@/lib/faculty-portal/processing-access.functions";
@@ -81,14 +82,14 @@ const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "ع�
 function FacultyDashboard() {
   usePagePerf("/faculty-portal");
   const navigate = useNavigate();
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, isError: profileError, refetch: refetchProfile } = useQuery({
     queryKey: ["faculty", "me"],
     queryFn: fetchMyFacultyProfile,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
-  const { data: teaching = [] } = useQuery({
+  const { data: teaching = [], isError: teachingError, refetch: refetchTeaching } = useQuery({
     queryKey: ["faculty", "teaching", profile?.id],
     queryFn: () => fetchMyTeaching(profile!.id),
     enabled: !!profile?.id,
@@ -120,8 +121,13 @@ function FacultyDashboard() {
       actions={<NotificationsBell />}
       onLogout={handleLogout}
     >
-      <main className="container mx-auto px-4 py-10 max-w-4xl">
-        {isLoading || !profile ? (
+      <main className="container mx-auto px-4 py-10 max-w-4xl" dir="rtl">
+        {profileError ? (
+          <DashboardQueryError
+            messageAr="تعذّر تحميل ملفك الوظيفي. تحقق من الاتصال ثم أعد المحاولة."
+            onRetry={() => void refetchProfile()}
+          />
+        ) : isLoading || !profile ? (
           <div className="space-y-5">
             <div className="h-20 rounded-xl bg-muted animate-pulse" />
             <div className="grid gap-3 sm:grid-cols-2">
@@ -238,7 +244,12 @@ function FacultyDashboard() {
               <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
                 <CalendarClock className="h-4 w-4 text-gold" /> جدولي التدريسي
               </h2>
-              {teaching.length === 0 ? (
+              {teachingError ? (
+                <DashboardQueryError
+                  messageAr="تعذّر تحميل جدولك التدريسي. تحقق من الاتصال ثم أعد المحاولة."
+                  onRetry={() => void refetchTeaching()}
+                />
+              ) : teaching.length === 0 ? (
                 <div className="rounded-lg border border-dashed bg-card p-4 text-xs text-muted-foreground text-center">
                   لا توجد مجموعات مرتبطة بك حالياً.
                 </div>
@@ -286,7 +297,7 @@ function SectionCard({
   sectionId: string; sectionCode: string; courseCode: string; courseName: string; schedule: ScheduleSlot[];
 }) {
   const [open, setOpen] = useState(false);
-  const { data: students = [], isLoading } = useQuery({
+  const { data: students = [], isLoading, isError } = useQuery({
     queryKey: ["faculty", "section-students", sectionId],
     enabled: open,
     queryFn: async () => {
@@ -340,6 +351,10 @@ function SectionCard({
         <div className="mt-2 rounded border bg-muted/20 p-2">
           {isLoading ? (
             <div className="text-center py-2"><Loader2 className="inline h-4 w-4 animate-spin" /></div>
+          ) : isError ? (
+            <div className="text-[11px] text-destructive text-center py-2" role="alert">
+              تعذّر تحميل قائمة الطلاب. أعد فتح القسم للمحاولة مجدداً.
+            </div>
           ) : students.length === 0 ? (
             <div className="text-[11px] text-muted-foreground text-center py-2">لا يوجد طلاب مسجلون</div>
           ) : (
