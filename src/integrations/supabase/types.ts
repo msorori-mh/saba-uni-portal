@@ -6192,6 +6192,10 @@ export type Database = {
         Args: { _fee_id: string }
         Returns: undefined
       }
+      record_external_university_payment_confirmation: {
+        Args: { p_note?: string; p_step_id: string }
+        Returns: Json
+      }
       replace_class_schedule_for_context: {
         Args: { _rows: Json; _section_ids: string[] }
         Returns: Json
