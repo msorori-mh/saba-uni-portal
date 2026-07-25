@@ -14,7 +14,7 @@ export function StudentRequestsNav({
   currentLabel = "طلبات شؤون الطلاب",
 }: StudentRequestsNavProps) {
   return (
-    <nav dir="rtl" aria-label="تنقل طلبات شؤون الطلاب" className="mb-4 space-y-2">
+    <div dir="rtl" className="mb-4 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Link
           to="/student"
@@ -53,6 +53,6 @@ export function StudentRequestsNav({
           </li>
         </ol>
       </nav>
-    </nav>
+    </div>
   );
 }

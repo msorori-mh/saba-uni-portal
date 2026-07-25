@@ -67,12 +67,12 @@ export const Route = createFileRoute("/student/study-plan")({
 
 function StudyPlanPage() {
   const navigate = useNavigate();
-  const { data: programId, isLoading: loadingProg } = useQuery({
+  const { data: programId, isLoading: loadingProg, error: programError } = useQuery({
     queryKey: ["student", "program-id"],
     queryFn: fetchMyProgramId,
     staleTime: 5 * 60 * 1000,
   });
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, error: planError } = useQuery({
     queryKey: ["student", "study-plan", programId],
     queryFn: () => fetchMyStudyPlan(programId!),
     enabled: !!programId,
@@ -176,18 +176,24 @@ function StudyPlanPage() {
         </div>
 
         {(loadingProg || isLoading) && (
-          <div className="grid place-items-center py-10">
+          <div className="grid place-items-center py-10" role="status" aria-label="جارٍ التحميل">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
 
-        {!isLoading && !loadingProg && rows.length === 0 && (
+        {(programError || planError) && (
+          <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            تعذّر تحميل الخطة الدراسية. تحقق من الاتصال ثم حاول مرة أخرى.
+          </div>
+        )}
+
+        {!programError && !planError && !isLoading && !loadingProg && rows.length === 0 && (
           <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
             لا توجد خطة دراسية مفعّلة لبرنامجك حالياً.
           </div>
         )}
 
-        {!isLoading && rows.length > 0 && filtered.length === 0 && (
+        {!programError && !planError && !isLoading && rows.length > 0 && filtered.length === 0 && (
           <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
             لا توجد مقررات مطابقة للتصفية.
           </div>
