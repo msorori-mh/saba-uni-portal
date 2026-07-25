@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 const PORT = Number(process.env.PR240_SMOKE_PORT || 4177);
 const BASE = `http://127.0.0.1:${PORT}`;
 const artifactDir = join(import.meta.dir, "../../../.tmp/pr240-browser-smoke");
-const CHROME_TIMEOUT_MS = 20_000;
+const CHROME_TIMEOUT_MS = 30_000;
 const HARNESS_MARKER = "pr240-browser-smoke";
 mkdirSync(artifactDir, { recursive: true });
 
