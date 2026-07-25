@@ -4,7 +4,6 @@ import {
   isB1UiMockEnabled,
   isB1UiMockEnabledForFlags,
 } from "@/lib/student-requests/b1-ui/index";
-import { B1AdapterError } from "@/lib/student-requests/b1-ui/adapter.types";
 
 describe("B1 UI adapter selection", () => {
   it("enables the mock only for dev sessions with VITE_B1_UI_MOCK=1", () => {
@@ -37,21 +36,22 @@ describe("B1 UI adapter selection", () => {
       "getAssignedB1RequestDetails",
       "actOnB1RequestStep",
       "confirmB1RevenueReceipt",
+      "getB1RuntimeCapability",
+      "listB1StudentRequests",
+      "downloadB1RequestAttachment",
     ] as const) {
       expect(typeof first[fn]).toBe("function");
     }
   });
 
-  it("live adapter keeps unwired read/draft methods fail-closed (when mock is off)", async () => {
-    if (isB1UiMockEnabled()) return; // mock explicitly enabled in this env — nothing to assert
+  it("live adapter exposes final secure-read/draft methods (when mock is off)", async () => {
+    if (isB1UiMockEnabled()) return;
     const adapter = getB1UiAdapter();
-    try {
-      await adapter.getB1RequestFormOptions("enrollment_suspension");
-      throw new Error("expected the live adapter to reject unwired methods");
-    } catch (error) {
-      expect(error).toBeInstanceOf(B1AdapterError);
-      expect((error as B1AdapterError).code).toBe("BACKEND_CONTRACT_PENDING");
-      expect((error as B1AdapterError).message).toContain("getB1RequestFormOptions");
-    }
+    expect(typeof adapter.getB1RequestFormOptions).toBe("function");
+    expect(typeof adapter.createB1RequestDraft).toBe("function");
+    expect(typeof adapter.saveB1RequestDraft).toBe("function");
+    expect(typeof adapter.getB1RuntimeCapability).toBe("function");
+    expect(typeof adapter.listB1StudentRequests).toBe("function");
+    expect(typeof adapter.downloadB1RequestAttachment).toBe("function");
   });
 });

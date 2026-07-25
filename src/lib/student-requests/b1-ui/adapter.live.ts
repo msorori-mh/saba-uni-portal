@@ -1,33 +1,25 @@
 /**
- * Live B1 UI adapter — wires frozen Backend RPC contracts via server functions.
- *
- * Wired (real contracts):
- * - getAvailableB1RequestTypes → get_available_request_types_for_current_student
- * - submitB1Request → submit_b1_student_request_atomic
- * - actOnB1RequestStep → act_on_b1_student_request_step_atomic
- * - confirmB1RevenueReceipt → record_external_university_payment_confirmation
- * - upload/remove attachments → secure attachment RPCs
- *
- * Fail-closed (no safe matching B1 UI read/draft contract yet):
- * - getB1RequestFormOptions, create/get/save draft, getB1RequestDetails,
- *   getAssignedB1Requests, getAssignedB1RequestDetails
+ * Live B1 UI adapter — wires final Secure Read + Secure Draft contracts.
  *
  * React components must not import Supabase; this adapter calls server fns only.
+ * runtimeAvailable is never hardcoded true — derived from capability readiness.
  */
 
 import {
   B1AdapterError,
   type B1AssignedRequest,
   type B1AssignedRequestDetails,
-  type B1AttachmentMeta,
   type B1AttachmentDownload,
+  type B1AttachmentMeta,
   type B1CanonicalCode,
   type B1Draft,
   type B1FormOptions,
   type B1RequestDetails,
+  type B1RuntimeCapability,
   type B1ServiceAvailability,
   type B1StaffAction,
   type B1StepActionResult,
+  type B1StudentListItem,
   type B1SubmitResult,
   type B1UiAdapter,
 } from "./adapter.types";
@@ -36,28 +28,43 @@ import {
   authorizeB1UiAttachmentDownloadFn,
   confirmB1UiRevenueReceiptFn,
   getAvailableB1RequestTypesFn,
-  listB1UiRequestAttachmentsFn,
   removeB1UiRequestAttachmentFn,
   submitB1UiRequestFn,
   uploadB1UiRequestAttachmentFn,
 } from "./b1-ui.functions";
+import { mapBackendRowsToB1Availability } from "./availability";
 import {
   SECURE_ATTACHMENT_FIELD_KEYS,
   type SecureAttachmentFieldKey,
 } from "@/lib/student-requests/secure-attachments-contract";
-
-const UNSUPPORTED = [
-  "getB1RequestFormOptions",
-  "createB1RequestDraft",
-  "getB1RequestDraft",
-  "saveB1RequestDraft",
-  "getB1RequestDetails",
-  "getAssignedB1Requests",
-  "getAssignedB1RequestDetails",
-] as const;
+import {
+  getB1SecureAssignedInbox,
+  getB1SecureAssignedRequestDetails,
+  getB1SecureDraft,
+  getB1SecureFormOptions,
+  getB1SecureStudentRequestDetails,
+  listB1SecureStudentRequests,
+  probeB1SecureReadCapability,
+} from "@/lib/student-requests/b1-secure-read/functions";
+import { createB1Draft, saveB1Draft } from "@/lib/student-requests/b1-secure-draft/functions";
+import { B1SecureReadRpcError } from "@/lib/student-requests/b1-secure-read/rpc";
+import { B1SecureDraftRpcError } from "@/lib/student-requests/b1-secure-draft/rpc";
 
 export type LiveB1UiAdapterDeps = {
-  getAvailableB1RequestTypes: () => Promise<readonly B1ServiceAvailability[]>;
+  getCapability: () => Promise<B1RuntimeCapability>;
+  getAvailableRows: () => Promise<readonly { code: string }[]>;
+  getFormOptions: (serviceCode: B1CanonicalCode) => Promise<B1FormOptions>;
+  createDraft: (serviceCode: B1CanonicalCode) => Promise<B1Draft>;
+  getDraft: (requestId: string) => Promise<B1Draft | null>;
+  saveDraft: (
+    requestId: string,
+    formData: Record<string, unknown>,
+    expectedUpdatedAt: string,
+  ) => Promise<B1Draft>;
+  listStudentRequests: () => Promise<readonly B1StudentListItem[]>;
+  getStudentDetails: (requestId: string) => Promise<B1RequestDetails>;
+  getAssignedInbox: () => Promise<readonly B1AssignedRequest[]>;
+  getAssignedDetails: (requestId: string) => Promise<B1AssignedRequestDetails>;
   submitB1Request: (requestId: string, expectedUpdatedAt: string) => Promise<B1SubmitResult>;
   actOnB1RequestStep: (
     stepId: string,
@@ -71,35 +78,46 @@ export type LiveB1UiAdapterDeps = {
     file: File,
   ) => Promise<B1AttachmentMeta>;
   removeB1RequestAttachment: (requestId: string, attachmentId: string) => Promise<void>;
-  listAttachments?: (requestId: string) => Promise<unknown[]>;
-  authorizeDownload?: (attachmentId: string) => Promise<B1AttachmentDownload>;
+  downloadAttachment: (attachmentId: string) => Promise<B1AttachmentDownload>;
 };
-
-function pending(functionName: string): never {
-  throw new B1AdapterError(
-    "BACKEND_CONTRACT_PENDING",
-    `Live B1 adapter: "${functionName}" has no safe matching Backend UI contract yet.`,
-  );
-}
 
 function mapLiveError(
   error: unknown,
   fallbackCode: B1AdapterError["code"] = "NETWORK_ERROR",
 ): never {
   if (error instanceof B1AdapterError) throw error;
+  if (error instanceof B1SecureReadRpcError || error instanceof B1SecureDraftRpcError) {
+    if (error.unavailable) {
+      throw new B1AdapterError("ACTIVATION_BLOCKED", error.message);
+    }
+    const message = error.message;
+    if (/B1_STALE_REQUEST_VERSION/i.test(message) || error.code === "40001") {
+      throw new B1AdapterError("STALE_VERSION", message);
+    }
+    if (/B1_READ_ACCESS_DENIED|B1_DRAFT_ACCESS_DENIED|42501|PERMISSION/i.test(message)) {
+      throw new B1AdapterError("PERMISSION_DENIED", message);
+    }
+    if (/NOT_FOUND|P0002/i.test(message)) {
+      throw new B1AdapterError("NOT_FOUND", message);
+    }
+    if (/INVALID|VALIDATION|UNEXPECTED_FORM|INPUT_INVALID|IDEMPOTENCY/i.test(message)) {
+      throw new B1AdapterError("VALIDATION_ERROR", message);
+    }
+    throw new B1AdapterError(fallbackCode, message);
+  }
   const message = error instanceof Error ? error.message : String(error ?? "unknown");
   if (/B1_STALE_REQUEST_VERSION/i.test(message)) {
     throw new B1AdapterError("STALE_VERSION", message);
   }
   if (
-    /SERVICE_ACTIVATION_BLOCKED|SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE|BLOCKED_PENDING/i.test(
+    /SERVICE_ACTIVATION_BLOCKED|SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE|BLOCKED_PENDING|قيد التحديث/i.test(
       message,
     )
   ) {
     throw new B1AdapterError("ACTIVATION_BLOCKED", message);
   }
   if (
-    /PERMISSION|AUTH|ASSIGNEE|ACCESS_DENIED|42501|B1_DIRECT_ASSIGNEE|B1_OWNED|B1_SPECIALIZED/i.test(
+    /PERMISSION|AUTH|ASSIGNEE|ACCESS_DENIED|42501|B1_DIRECT_ASSIGNEE|B1_OWNED|B1_SPECIALIZED|B1_DRAFT_ACCESS/i.test(
       message,
     )
   ) {
@@ -110,9 +128,6 @@ function mapLiveError(
   }
   if (/INVALID|VALIDATION|COMMENT_REQUIRED|ATTACHMENT_|B1_.*INPUT|UNEXPECTED_FORM/i.test(message)) {
     throw new B1AdapterError("VALIDATION_ERROR", message);
-  }
-  if (/BACKEND_CONTRACT_PENDING/i.test(message)) {
-    throw new B1AdapterError("BACKEND_CONTRACT_PENDING", message);
   }
   throw new B1AdapterError(fallbackCode, message);
 }
@@ -146,10 +161,97 @@ function asSecureFieldKey(attachmentType: string): SecureAttachmentFieldKey {
   });
 }
 
+function mapCapability(raw: {
+  available: boolean;
+  services: readonly B1CanonicalCode[];
+  reads: readonly string[];
+  writes_available?: readonly string[];
+  writes_fail_closed: readonly string[];
+  draft_mutations_contract?: string | null;
+}): B1RuntimeCapability {
+  return {
+    available: raw.available === true,
+    services: raw.services,
+    reads: raw.reads,
+    writesAvailable: [...(raw.writes_available ?? [])],
+    writesFailClosed: [...raw.writes_fail_closed],
+    draftMutationsContract: raw.draft_mutations_contract ?? null,
+  };
+}
+
 function defaultDeps(): LiveB1UiAdapterDeps {
   return {
-    async getAvailableB1RequestTypes() {
-      return getAvailableB1RequestTypesFn();
+    async getCapability() {
+      try {
+        const cap = await probeB1SecureReadCapability({ data: {} });
+        return mapCapability(cap);
+      } catch (error) {
+        if (error instanceof B1SecureReadRpcError && error.unavailable) {
+          return {
+            available: false,
+            services: [],
+            reads: [],
+            writesAvailable: [],
+            writesFailClosed: ["create_draft", "save_draft"],
+            draftMutationsContract: null,
+          };
+        }
+        mapLiveError(error, "ACTIVATION_BLOCKED");
+      }
+    },
+    async getAvailableRows() {
+      // Session-scoped via existing server fn path used by live availability.
+      return getAvailableB1RequestTypesFn().then((items) =>
+        items.filter((i) => i.studentVisible).map((i) => ({ code: i.code })),
+      );
+    },
+    async getFormOptions(serviceCode) {
+      return (await getB1SecureFormOptions({
+        data: { serviceCode },
+      })) as B1FormOptions;
+    },
+    async createDraft(serviceCode) {
+      return (await createB1Draft({
+        data: { serviceCode, idempotencyKey: null },
+      })) as B1Draft;
+    },
+    async getDraft(requestId) {
+      try {
+        return (await getB1SecureDraft({ data: { requestId } })) as B1Draft;
+      } catch (error) {
+        if (error instanceof B1SecureReadRpcError && /NOT_FOUND|لا تملك/i.test(error.message)) {
+          return null;
+        }
+        throw error;
+      }
+    },
+    async saveDraft(requestId, formData, expectedUpdatedAt) {
+      if (!expectedUpdatedAt) {
+        throw new B1AdapterError("STALE_VERSION", "B1_STALE_REQUEST_VERSION");
+      }
+      return (await saveB1Draft({
+        data: { requestId, formData, expectedUpdatedAt, idempotencyKey: null },
+      })) as B1Draft;
+    },
+    async listStudentRequests() {
+      return (await listB1SecureStudentRequests({
+        data: { limit: 50, offset: 0 },
+      })) as B1StudentListItem[];
+    },
+    async getStudentDetails(requestId) {
+      return (await getB1SecureStudentRequestDetails({
+        data: { requestId },
+      })) as B1RequestDetails;
+    },
+    async getAssignedInbox() {
+      return (await getB1SecureAssignedInbox({
+        data: { limit: 50, offset: 0 },
+      })) as B1AssignedRequest[];
+    },
+    async getAssignedDetails(requestId) {
+      return (await getB1SecureAssignedRequestDetails({
+        data: { requestId },
+      })) as B1AssignedRequestDetails;
     },
     async submitB1Request(requestId, expectedUpdatedAt) {
       return submitB1UiRequestFn({ data: { requestId, expectedUpdatedAt } });
@@ -179,10 +281,7 @@ function defaultDeps(): LiveB1UiAdapterDeps {
     async removeB1RequestAttachment(_requestId, attachmentId) {
       await removeB1UiRequestAttachmentFn({ data: { attachmentId } });
     },
-    async listAttachments(requestId) {
-      return listB1UiRequestAttachmentsFn({ data: { studentRequestId: requestId } });
-    },
-    async authorizeDownload(attachmentId) {
+    async downloadAttachment(attachmentId) {
       return authorizeB1UiAttachmentDownloadFn({ data: { attachmentId } });
     },
   };
@@ -192,31 +291,64 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
   const deps: LiveB1UiAdapterDeps = { ...defaultDeps(), ...overrides };
 
   return {
+    async getB1RuntimeCapability(): Promise<B1RuntimeCapability> {
+      try {
+        return await deps.getCapability();
+      } catch (error) {
+        mapLiveError(error, "ACTIVATION_BLOCKED");
+      }
+    },
+
     async getAvailableB1RequestTypes(): Promise<readonly B1ServiceAvailability[]> {
       try {
-        return await deps.getAvailableB1RequestTypes();
+        const [capability, availability] = await Promise.all([
+          deps.getCapability(),
+          getAvailableB1RequestTypesFn().catch(() => [] as B1ServiceAvailability[]),
+        ]);
+        // Re-map with capability so runtimeAvailable is never hardcoded true.
+        return mapBackendRowsToB1Availability(
+          availability.filter((row) => row.studentVisible).map((row) => ({ code: row.code })),
+          capability,
+        );
       } catch (error) {
         mapLiveError(error);
       }
     },
 
-    async getB1RequestFormOptions(_serviceCode: B1CanonicalCode): Promise<B1FormOptions> {
-      pending("getB1RequestFormOptions");
+    async getB1RequestFormOptions(serviceCode: B1CanonicalCode): Promise<B1FormOptions> {
+      try {
+        return await deps.getFormOptions(serviceCode);
+      } catch (error) {
+        mapLiveError(error);
+      }
     },
 
-    async createB1RequestDraft(_serviceCode: B1CanonicalCode): Promise<B1Draft> {
-      pending("createB1RequestDraft");
+    async createB1RequestDraft(serviceCode: B1CanonicalCode): Promise<B1Draft> {
+      try {
+        return await deps.createDraft(serviceCode);
+      } catch (error) {
+        mapLiveError(error);
+      }
     },
 
-    async getB1RequestDraft(_requestId: string): Promise<B1Draft | null> {
-      pending("getB1RequestDraft");
+    async getB1RequestDraft(requestId: string): Promise<B1Draft | null> {
+      try {
+        return await deps.getDraft(requestId);
+      } catch (error) {
+        mapLiveError(error);
+      }
     },
 
     async saveB1RequestDraft(
-      _requestId: string,
-      _formData: Record<string, unknown>,
+      requestId: string,
+      formData: Record<string, unknown>,
+      expectedUpdatedAt: string,
     ): Promise<B1Draft> {
-      pending("saveB1RequestDraft");
+      try {
+        return await deps.saveDraft(requestId, formData, expectedUpdatedAt);
+      } catch (error) {
+        mapLiveError(error);
+      }
     },
 
     async uploadB1RequestAttachment(
@@ -239,6 +371,14 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
       }
     },
 
+    async downloadB1RequestAttachment(attachmentId: string): Promise<B1AttachmentDownload> {
+      try {
+        return await deps.downloadAttachment(attachmentId);
+      } catch (error) {
+        mapLiveError(error, "PERMISSION_DENIED");
+      }
+    },
+
     async submitB1Request(requestId: string, expectedUpdatedAt: string): Promise<B1SubmitResult> {
       try {
         return await deps.submitB1Request(requestId, expectedUpdatedAt);
@@ -247,16 +387,36 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
       }
     },
 
-    async getB1RequestDetails(_requestId: string): Promise<B1RequestDetails> {
-      pending("getB1RequestDetails");
+    async listB1StudentRequests(): Promise<readonly B1StudentListItem[]> {
+      try {
+        return await deps.listStudentRequests();
+      } catch (error) {
+        mapLiveError(error);
+      }
+    },
+
+    async getB1RequestDetails(requestId: string): Promise<B1RequestDetails> {
+      try {
+        return await deps.getStudentDetails(requestId);
+      } catch (error) {
+        mapLiveError(error);
+      }
     },
 
     async getAssignedB1Requests(): Promise<readonly B1AssignedRequest[]> {
-      pending("getAssignedB1Requests");
+      try {
+        return await deps.getAssignedInbox();
+      } catch (error) {
+        mapLiveError(error);
+      }
     },
 
-    async getAssignedB1RequestDetails(_requestId: string): Promise<B1AssignedRequestDetails> {
-      pending("getAssignedB1RequestDetails");
+    async getAssignedB1RequestDetails(requestId: string): Promise<B1AssignedRequestDetails> {
+      try {
+        return await deps.getAssignedDetails(requestId);
+      } catch (error) {
+        mapLiveError(error);
+      }
     },
 
     async actOnB1RequestStep(
@@ -290,5 +450,5 @@ export function createLiveB1UiAdapter(overrides?: Partial<LiveB1UiAdapterDeps>):
   };
 }
 
-/** Methods that remain intentionally fail-closed in this bridge. */
-export const LIVE_B1_UI_UNSUPPORTED_METHODS: readonly string[] = UNSUPPORTED;
+/** No remaining intentional fail-closed adapter methods after final contract wiring. */
+export const LIVE_B1_UI_UNSUPPORTED_METHODS: readonly string[] = [];

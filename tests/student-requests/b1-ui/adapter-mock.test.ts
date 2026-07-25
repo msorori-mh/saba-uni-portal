@@ -43,7 +43,11 @@ describe("mock B1 UI adapter — student lifecycle", () => {
     expect(draft.status).toBe("draft");
     expect(Date.parse(draft.updatedAt)).not.toBeNaN();
 
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, VALID_SUSPENSION_FORM);
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      VALID_SUSPENSION_FORM,
+      draft.updatedAt,
+    );
     expect(saved.formData.suspension_duration_type).toBe("one_semester");
 
     const attachment = await adapter.uploadB1RequestAttachment(
@@ -71,7 +75,11 @@ describe("mock B1 UI adapter — student lifecycle", () => {
   it("submits excused_absence when an excuse attachment is uploaded", async () => {
     const adapter = createMockB1UiAdapter();
     const draft = await adapter.createB1RequestDraft("excused_absence");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, VALID_ABSENCE_FORM);
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      VALID_ABSENCE_FORM,
+      draft.updatedAt,
+    );
     await adapter.uploadB1RequestAttachment(draft.requestId, "excuse_documents", smallPdf());
 
     const refreshed = await adapter.getB1RequestDraft(draft.requestId);
@@ -83,7 +91,7 @@ describe("mock B1 UI adapter — student lifecycle", () => {
   it("rejects submit with a stale expectedUpdatedAt (STALE_VERSION)", async () => {
     const adapter = createMockB1UiAdapter();
     const draft = await adapter.createB1RequestDraft("enrollment_suspension");
-    await adapter.saveB1RequestDraft(draft.requestId, VALID_SUSPENSION_FORM);
+    await adapter.saveB1RequestDraft(draft.requestId, VALID_SUSPENSION_FORM, draft.updatedAt);
 
     await expectAdapterError(
       adapter.submitB1Request(draft.requestId, draft.updatedAt),
@@ -94,9 +102,13 @@ describe("mock B1 UI adapter — student lifecycle", () => {
   it("rejects submit with missing fields (VALIDATION_ERROR + fieldErrors)", async () => {
     const adapter = createMockB1UiAdapter();
     const draft = await adapter.createB1RequestDraft("enrollment_suspension");
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, {
-      suspension_reason: "فقط السبب",
-    });
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      {
+        suspension_reason: "فقط السبب",
+      },
+      draft.updatedAt,
+    );
 
     const error = await expectAdapterError(
       adapter.submitB1Request(draft.requestId, saved.updatedAt),
@@ -147,7 +159,12 @@ describe("mock B1 UI adapter — student lifecycle", () => {
       "supporting_document",
       smallPdf(),
     );
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, VALID_SUSPENSION_FORM);
+    const current = await adapter.getB1RequestDraft(draft.requestId);
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      VALID_SUSPENSION_FORM,
+      current!.updatedAt,
+    );
     await adapter.submitB1Request(draft.requestId, saved.updatedAt);
 
     await expectAdapterError(
@@ -167,7 +184,12 @@ describe("mock B1 UI adapter — student lifecycle", () => {
     expect(attachment.storageRef.startsWith("http")).toBe(false);
     expect(attachment.storageRef.startsWith("mock://")).toBe(true);
 
-    const saved = await adapter.saveB1RequestDraft(draft.requestId, VALID_ABSENCE_FORM);
+    const current = await adapter.getB1RequestDraft(draft.requestId);
+    const saved = await adapter.saveB1RequestDraft(
+      draft.requestId,
+      VALID_ABSENCE_FORM,
+      current!.updatedAt,
+    );
     await adapter.submitB1Request(draft.requestId, saved.updatedAt);
     const details = await adapter.getB1RequestDetails(draft.requestId);
     for (const item of details.attachments) {
