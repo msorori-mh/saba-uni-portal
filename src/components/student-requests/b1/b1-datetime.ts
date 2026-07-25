@@ -7,3 +7,10 @@ export function formatB1DateTimeAr(iso: string): string {
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleString("ar-EG");
 }
+
+/** Date-only variant (YYYY-MM-DD from date inputs), Arabic (Egypt) locale. */
+export function formatB1DateAr(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return isoDate;
+  return date.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" });
+}

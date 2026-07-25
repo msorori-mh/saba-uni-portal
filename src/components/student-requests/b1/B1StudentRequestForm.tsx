@@ -8,6 +8,7 @@ import {
 } from "@/lib/student-requests/request-form-registry";
 import {
   B1AdapterError,
+  B1_KNOWN_VALUE_LABELS_AR,
   b1AdapterErrorMessageAr,
   b1ValidationMessageAr,
   getB1ServiceConfig,
@@ -18,6 +19,7 @@ import {
   type B1FormOptions,
 } from "@/lib/student-requests/b1-ui";
 import { B1AttachmentUploader } from "./B1AttachmentUploader";
+import { formatB1DateAr } from "./b1-datetime";
 import { B1DraftStatus, type B1DraftSaveState } from "./B1DraftStatus";
 import { B1ErrorState } from "./B1ErrorState";
 import { B1LoadingState } from "./B1LoadingState";
@@ -102,7 +104,13 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       }
     }
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length === 0) setReviewing(true);
+    const errorNames = Object.keys(nextErrors);
+    if (errorNames.length === 0) {
+      setReviewing(true);
+      return;
+    }
+    // Move keyboard/screen-reader users to the first invalid field.
+    document.getElementById(`b1-field-${errorNames[0]}`)?.focus();
   };
 
   const submit = async () => {
@@ -145,6 +153,16 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       .map((field) => field.labelAr),
   );
 
+  const requiredAcknowledgment = definition.sections
+    .flatMap((section) => section.fields)
+    .find((field) => field.type === "checkbox" && field.required);
+
+  const errorLabelAr = (name: string) =>
+    definition.sections.flatMap((section) => section.fields).find((field) => field.name === name)
+      ?.labelAr ??
+    definition.requiredAttachments?.find((attachment) => attachment.key === name)?.labelAr ??
+    name;
+
   return (
     <div
       dir="rtl"
@@ -171,6 +189,22 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
             review();
           }}
         >
+          {Object.keys(errors).length > 0 ? (
+            <div
+              role="alert"
+              data-testid="b1-form-error-summary"
+              className="space-y-1 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              <p className="font-extrabold">راجع الحقول التالية قبل المتابعة:</p>
+              <ul className="list-disc space-y-0.5 ps-5">
+                {Object.entries(errors).map(([name, key]) => (
+                  <li key={name}>
+                    {errorLabelAr(name)}: {b1ValidationMessageAr(key)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {definition.sections.map((section, index) => (
             <fieldset key={section.titleAr ?? index} className="min-w-0">
               {section.titleAr ? (
@@ -290,6 +324,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         onOpenChange={setConfirming}
         titleAr="تأكيد إرسال الطلب"
         bodyAr="راجع البيانات والمرفقات قبل الإرسال. لن تتمكن من تعديل المسودة بعد الإرسال."
+        requireAcknowledgment={Boolean(requiredAcknowledgment)}
+        acknowledgmentLabelAr={requiredAcknowledgment?.labelAr}
         submitting={submitting}
         onConfirm={() => void submit()}
       />
@@ -316,19 +352,27 @@ function B1Field({
     return (
       <div className="rounded-lg bg-muted/40 p-3 text-sm">
         <strong>{field.labelAr}: </strong>
-        {String(value ?? field.defaultValue ?? "—")}
+        {knownValueLabelAr(value ?? field.defaultValue)}
       </div>
     );
   }
   const common = "min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm";
+  const helperId = field.helperTextAr ? `${fieldId}-helper` : undefined;
+  const describedBy =
+    [error ? errorId : undefined, helperId].filter(Boolean).join(" ") || undefined;
   const ariaProps = {
     "aria-invalid": error ? true : undefined,
-    "aria-describedby": error ? errorId : undefined,
+    "aria-describedby": describedBy,
     "aria-required": field.required || undefined,
   };
   const errorMessage = error ? (
     <span id={errorId} role="alert" className="block text-xs font-bold text-destructive">
       {b1ValidationMessageAr(error)}
+    </span>
+  ) : null;
+  const helperMessage = field.helperTextAr ? (
+    <span id={helperId} className="block text-[11px] text-muted-foreground">
+      {field.helperTextAr}
     </span>
   ) : null;
 
@@ -349,6 +393,7 @@ function B1Field({
             {field.required ? " *" : ""}
           </span>
         </label>
+        {helperMessage}
         {errorMessage}
       </div>
     );
@@ -366,6 +411,7 @@ function B1Field({
           rows={4}
           className={`${common} py-2`}
           value={String(value ?? "")}
+          placeholder={field.placeholderAr}
           onChange={(event) => onChange(event.target.value)}
           {...ariaProps}
         />
@@ -391,10 +437,12 @@ function B1Field({
           dir={field.type === "date" ? "ltr" : "rtl"}
           className={common}
           value={String(value ?? "")}
+          placeholder={field.placeholderAr}
           onChange={(event) => onChange(event.target.value)}
           {...ariaProps}
         />
       )}
+      {helperMessage}
       {errorMessage}
     </label>
   );
@@ -417,6 +465,12 @@ function resolveOptions(
   return field.options;
 }
 
+/** Maps a known readonly contract slug to its Arabic label; passes everything else through. */
+function knownValueLabelAr(value: unknown): string {
+  const raw = String(value ?? "—");
+  return B1_KNOWN_VALUE_LABELS_AR[raw] ?? raw;
+}
+
 function formatValue(
   field: RequestFormFieldDefinition,
   value: unknown,
@@ -424,7 +478,10 @@ function formatValue(
 ) {
   if (field.type === "checkbox") return value === true ? "نعم" : "لا";
   const resolved = options ?? field.options;
-  return resolved?.find((option) => option.value === value)?.labelAr ?? String(value ?? "—");
+  const label = resolved?.find((option) => option.value === value)?.labelAr;
+  if (label) return label;
+  if (field.type === "date" && typeof value === "string" && value) return formatB1DateAr(value);
+  return knownValueLabelAr(value);
 }
 
 /** Resolves the shown value for readonly reference fields (e.g. current department/program). */

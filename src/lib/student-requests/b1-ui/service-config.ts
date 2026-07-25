@@ -51,6 +51,15 @@ export const B1_FEE_POLICY_LABELS_AR: Readonly<Record<B1FeePolicy, string>> = {
     "السداد يتم في النظام الجامعي الرئيسي ويؤكده موظف الإيرادات — لا تسجّل البوابة مبلغًا أو عملة",
 };
 
+/**
+ * Arabic display labels for known readonly contract slugs that appear in form
+ * definitions (e.g. final_chance.chance_type). Presentation-only mapping of
+ * values that already exist in the backend contract — nothing is invented.
+ */
+export const B1_KNOWN_VALUE_LABELS_AR: Readonly<Record<string, string>> = {
+  final_chance: "فرصة نهائية",
+};
+
 // ---------------------------------------------------------------------------
 // Config shape
 // ---------------------------------------------------------------------------
