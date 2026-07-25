@@ -65,7 +65,7 @@ describe("PR227 independent secure-read remediation", () => {
     expect(contracts).not.toMatch(/actorId|actorUserId|assignedUserId|completedBy/i);
   });
 
-  test("manifest has a unique secure-read slot before secure drafts and activation gate 23", () => {
+  test("manifest has a unique secure-read slot before secure drafts and activation gate 25", () => {
     const entries = manifest.migrations as Array<{
       canonical_id: string;
       sequence_order: number;
@@ -77,7 +77,7 @@ describe("PR227 independent secure-read remediation", () => {
     expect(secureRead?.sequence_order).toBe(21);
     expect(secureRead?.dependencies).toContain("B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19");
     expect(new Set(entries.map((entry) => entry.sequence_order)).size).toBe(entries.length);
-    expect(manifest.global_policies.activation_gate).toContain("gate 23");
+    expect(manifest.global_policies.activation_gate).toContain("gate 25");
   });
 
   test("PG17 matrix asserts opaque denials and zero read mutations", () => {

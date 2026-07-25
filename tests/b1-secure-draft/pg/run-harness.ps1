@@ -25,9 +25,9 @@ try {
 
   Invoke-PsqlFile (Join-Path $PSScriptRoot "10-minimal-schema.sql")
   Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql")
-  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\21-B1_21_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql")
+  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\22-B1_22_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql")
   Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql")
-  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\21-B1_21_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql")
+  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\22-B1_22_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql")
   Invoke-PsqlFile (Join-Path $PSScriptRoot "40-verifier.sql")
   Invoke-PsqlFile (Join-Path $PSScriptRoot "50-concurrency-setup.sql")
 

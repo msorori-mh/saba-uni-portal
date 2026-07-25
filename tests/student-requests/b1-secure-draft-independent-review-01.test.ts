@@ -11,7 +11,7 @@ const capabilityBody = sql.slice(
 );
 
 describe("PR229 independent secure-draft review remediation", () => {
-  test("sequence is contiguous: secure read 21, secure draft 22, activation gate 23", () => {
+  test("sequence is contiguous: secure read 21, secure draft 22, remediations 23-24, activation gate 25", () => {
     const manifest = JSON.parse(read("docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json"));
     const entries = manifest.migrations as Array<{
       canonical_id: string;
@@ -19,7 +19,7 @@ describe("PR229 independent secure-draft review remediation", () => {
       sequence_predecessor: string;
     }>;
     expect(entries.map((entry) => entry.sequence_order)).toEqual(
-      Array.from({ length: 22 }, (_, index) => index + 1),
+      Array.from({ length: 24 }, (_, index) => index + 1),
     );
     expect(new Set(entries.map((entry) => entry.sequence_order)).size).toBe(entries.length);
     const secureRead = entries.find(
@@ -33,7 +33,13 @@ describe("PR229 independent secure-draft review remediation", () => {
       sequence_order: 22,
       sequence_predecessor: "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20",
     });
-    expect(manifest.global_policies.activation_gate).toContain("gate 23");
+    expect(entries.find((e) => e.sequence_order === 23)?.filename).toContain(
+      "TRANSFER-DEPARTMENT-SCOPE",
+    );
+    expect(entries.find((e) => e.sequence_order === 24)?.filename).toContain(
+      "FILE-WITHDRAWAL-IMPACT-ACK",
+    );
+    expect(manifest.global_policies.activation_gate).toContain("gate 25");
   });
 
   test("create uses auth identity, active student profile, and backend activation state", () => {
