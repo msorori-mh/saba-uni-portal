@@ -4,7 +4,7 @@
 **Branch:** `fix/b1-confirm-payment-predecessor-guard-01`
 **Base:** `origin/main` @ `b63725e02d4199b46dee604be8f8c03f72c5d414` (PR #219 merge)
 **PR:** https://github.com/msorori-mh/saba-uni-portal/pull/220
-**HEAD:** `c03781d510ecf93f5f86f580333ac349d51ac751`
+**HEAD:** `f14bc9308a05c69396353afcd56c3957078d1ad1`
 **Decision:** `PASS_PR220_MINIMAL_MANIFEST_DIFF_AND_FINAL_EVIDENCE_READY_FOR_MERGE`
 
 ## Root cause
@@ -119,14 +119,14 @@ ALLOW only when all priors are `completed` or `skipped`. Replay / unauthorized /
 
 ## Migration Review / Web CI
 
-Evidence for branch HEAD `c03781d510ecf93f5f86f580333ac349d51ac751` (includes minimal-manifest fix `94d8c20`):
+Evidence for branch HEAD `f14bc9308a05c69396353afcd56c3957078d1ad1`:
 
 | Check | Run ID | URL | Result |
 |---|---|---|---|
-| Migration Review | `30141101289` | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30141101289 | SUCCESS |
-| Web CI | `30141101306` | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30141101306 | SUCCESS |
+| Migration Review | `30141166290` | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30141166290 | SUCCESS |
+| Web CI | `30141166291` | https://github.com/msorori-mh/saba-uni-portal/actions/runs/30141166291 | SUCCESS |
 
-Minimal-manifest commit `94d8c20` also green: Migration Review `30141022282`, Web CI `30141022309`.
+Minimal-manifest fix commit `94d8c20` also green: Migration Review `30141022282`, Web CI `30141022309`.
 
 ## Production / deploy
 
