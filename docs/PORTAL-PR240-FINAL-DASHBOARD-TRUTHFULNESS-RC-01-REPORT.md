@@ -28,6 +28,7 @@ No HEAD drift. Merge proceeded.
 
 Worktree: `C:/projects/saba-uni-portal-pr240-dashboard-final-rc-01`
 Branch: `review/dashboards-ui-truthfulness-qa-01`
+Final RC commit: `f351a52ca49dce504b95bf293917d5fde6611b4f`
 
 ## Final RC hardening (post-merge)
 
