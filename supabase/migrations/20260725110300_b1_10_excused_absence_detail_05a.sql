@@ -1,4 +1,10 @@
--- DRAFT ONLY — DO NOT APPLY FROM THIS FILE.
+-- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
+-- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
+-- Track: PORTAL-B1-FIVE-SERVICES-BACKEND-IMPLEMENTATION-01 / order 10
+-- Source draft: docs/migration-drafts/REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql
+-- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
+-- Semantic parity with the source draft is required; production apply is a separate gate.
+
 -- Adds the canonical reason detail without rewriting historical rows.
 
 BEGIN;

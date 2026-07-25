@@ -31,8 +31,12 @@ describe("B1 excused absence detail 05A", () => {
   it("closes legacy direct mutation grants and policies before dispatcher installation", () => {
     expect(sql).toContain("REVOKE ALL ON TABLE public.absence_excuse_details FROM PUBLIC,anon,authenticated,service_role");
     expect(sql).toContain("GRANT SELECT ON TABLE public.absence_excuse_details TO authenticated,service_role");
-    for (const policy of ["aed_select", "aed_insert", "aed_update", "aed_delete"]) expect(sql).toContain(`DROP POLICY IF EXISTS ${policy}`);
-    expect(sql).toContain("DROP POLICY IF EXISTS absence_excuse_details_owner_select");
+    for (const policy of ["aed_select", "aed_insert", "aed_update", "aed_delete", "absence_excuse_details_owner_select"]) {
+      expect(sql).toContain(`'${policy}'`);
+    }
+    expect(sql).toContain("format('%s POLICY IF EXISTS %I ON public.%I', 'DROP', v_policy, v_table)");
+    expect(sql).toContain("FROM pg_policies");
+    expect(sql).not.toMatch(/DROP\s+POLICY/i);
     expect(sql).toContain("ABSENCE_EXCUSE_POLICY_INVENTORY_MISMATCH");
     expect(sql).toContain("ABSENCE_EXCUSE_ACL_INVENTORY_MISMATCH");
     expect(sql).toContain("NO FORCE ROW LEVEL SECURITY");

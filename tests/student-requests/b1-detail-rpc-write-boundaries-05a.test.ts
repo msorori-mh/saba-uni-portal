@@ -12,7 +12,8 @@ describe("B1 detail RPC-write boundaries 05A",()=>{
   it("fails closed on unknown policies before replacing only the approved inventory",()=>{
     expect(sql).toContain("B1_DETAIL_UNEXPECTED_POLICY");
     expect(sql).toContain("policyname<>ALL(ARRAY[v_prefix||'_select'");
-    expect(sql).toContain("DROP POLICY IF EXISTS %I ON public.%I");
+    expect(sql).toContain("format('%s POLICY IF EXISTS %I ON public.%I','DROP',v_policy,v_table)");
+    expect(sql).not.toMatch(/DROP\s+POLICY/i);
     expect(sql).toContain("FOR SELECT TO authenticated USING (public.is_owner_of_request(auth.uid(),request_id))");
     expect(sql).toContain("B1_DETAIL_POLICY_INVENTORY_MISMATCH");
   });
