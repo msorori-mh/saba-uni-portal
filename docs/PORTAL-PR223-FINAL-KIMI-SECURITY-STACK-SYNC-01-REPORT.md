@@ -129,8 +129,20 @@ changed-file lint then passed with zero errors. Unrelated files were not formatt
 
 ## PR #223 remote verification
 
-The final remote head, mergeability, checks, comments, and review-thread state are
-recorded in the post-push verification commit after the synchronized head is pushed.
+- State: `OPEN`
+- Draft: `false`
+- Head after the first final-sync push: `e0556ba08205b531c039fe93fa3cb54a282fc9e4`
+- Base: `ce4afaa13355c2659317c81fc5b3ffca22d764a5`
+- Mergeability: `MERGEABLE`
+- Merge state: `CLEAN`
+- Checks: none reported for the stacked feature branch;
+  `NO_REMOTE_CI_FOR_STACKED_BASE`
+- Issue comments: 0
+- Reviews: 0
+- Review threads: 0
+
+The PR description was updated with the final stack SHAs, test counts, security
+posture, and final decision. PR #223 remains open and was not merged.
 
 ## Assumptions, risks, blockers, and production impact
 
