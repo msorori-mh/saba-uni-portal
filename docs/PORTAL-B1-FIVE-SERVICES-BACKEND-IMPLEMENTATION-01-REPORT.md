@@ -12,8 +12,6 @@ Policy: SOURCE-ONLY. No production apply. No Deploy/Publish. No `student_visible
 PASS_PR219_BACKEND_SOURCE_AND_MIGRATION_REVIEW_READY_FOR_MERGE
 ```
 
-(CI run IDs filled after GitHub SUCCESS below.)
-
 Contract Freeze remains locked. Runbook orders 7–18 stay promoted with paired
 preflight/post-verifier companions. Revenue confirmation remains an ordinary
 `confirm_payment` step with actor/time/optional note only.
@@ -94,13 +92,14 @@ No matches for: `DROP TABLE`, `TRUNCATE`, `DISABLE ROW LEVEL SECURITY`,
 | Gate | Result |
 |---|---|
 | Local migration-review pattern scan | PASS (`DROP POLICY` hits = 0) |
-| Local PG17 compile | *(re-run after remediation)* |
-| `bunx tsc --noEmit` | *(re-run)* |
-| `bun test tests/student-requests` | *(re-run)* |
-| `bun run build` | *(re-run)* |
-| `git diff --check` | *(re-run)* |
-| Web CI run ID | *(pending push)* |
-| Migration Review run ID | *(pending push)* |
+| Local PG17 compile | `PASS_LOCAL_PG17_COMPILE` (18/18) |
+| `bunx tsc --noEmit` | PASS |
+| `bun test tests/student-requests` | **588 PASS / 0 FAIL** |
+| `bun run build` | PASS |
+| `git diff --check` | PASS |
+| Web CI run ID | `30137969628` (SUCCESS) |
+| Migration Review run ID | `30137969621` (SUCCESS; job Review SQL migrations pass) |
+| Prior failed Migration Review | `30137085557` (superseded) |
 | Production write / Deploy / Publish | **NOT RUN** |
 
 ## Production impact
