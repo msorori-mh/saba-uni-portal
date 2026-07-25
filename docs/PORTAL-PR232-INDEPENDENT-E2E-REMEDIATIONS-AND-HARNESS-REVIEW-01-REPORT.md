@@ -161,3 +161,14 @@ changed by the independent remediation.
 - No migration was applied to a shared environment.
 - No Deploy, Publish, workflow activation, PR merge, or external
   `student_visible` change occurred.
+
+## Publication status
+
+- Stacked review PR: `#236`, base
+  `test/b1-five-services-integrated-runtime-e2e-01`.
+- State: OPEN, non-draft, MERGEABLE/CLEAN.
+- Comments: none.
+- Reviews: none.
+- Review threads: none.
+- GitHub checks: `NO_REMOTE_CI_FOR_STACKED_BASE` (no checks reported).
+- PR #232 and PR #236 were not merged.
