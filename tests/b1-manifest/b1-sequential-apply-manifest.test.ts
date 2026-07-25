@@ -46,7 +46,7 @@ describe("manifest shape", () => {
   test("manifest loads from its repo path and has required top-level sections", () => {
     expect(manifest.manifest_id).toBe("B1-SEQUENTIAL-APPLY-MANIFEST-01");
     expect(Array.isArray(entries)).toBe(true);
-    expect(entries.length).toBe(19); // 18 plan drafts + 1 B1-adjacent predecessor-guard remediation
+    expect(entries.length).toBe(20); // 18 plan drafts + M3 predecessor-guard + payment confirmation predecessor guard
     expect(manifest.global_policies).toBeTruthy();
     expect(manifest.dependency_graph).toBeTruthy();
     expect(manifest.excluded).toBeTruthy();

@@ -55,8 +55,10 @@ Simplified revenue step. **No amount/currency/invoice/gateway.**
 | **Legacy** | 3-arg `(uuid,text,text)` overload **dropped** — no client status |
 | **Success** | `{ success:true, status:'payment_confirmed', request_id, step_id, next_step_id, transition_applied:true }` |
 | **Services** | `department_transfer`/`transfer`, `final_chance`/`extra_chance` |
-| **Runtime gate** | active `payment_confirmation` + `finance`/`revenue_finance_officer` + `confirm_payment` + exactly one direct assignee + exact processing binding |
-| **Errors** | `AUTH_REQUIRED`, `PAYMENT_CONFIRMATION_NOTE_TOO_LONG`, `PAYMENT_CONFIRMATION_STEP_NOT_FOUND`, `PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND`, `REQUEST_TYPE_NOT_EXTERNAL_PAYMENT_SERVICE`, `INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP`, `PAYMENT_CONFIRMATION_ACTION_MISMATCH`, `EXACTLY_ONE_DIRECT_PAYMENT_ASSIGNEE_REQUIRED`, `DIRECT_PAYMENT_ASSIGNEE_REQUIRED`, `EXACT_FINANCE_PROCESSING_BINDING_REQUIRED`, `EXACTLY_ONE_PAYMENT_CONFIRMED_TRANSITION_REQUIRED`, `PAYMENT_CONFIRMED_TRANSITION_REQUIRED`, `NEXT_PAYMENT_WORKFLOW_STEP_NOT_READY` |
+| **Runtime gate** | active `payment_confirmation` + `finance`/`revenue_finance_officer` + `confirm_payment` + exactly one direct assignee + exact processing binding + all prior runtime steps `completed` or `skipped` |
+| **Errors** | `AUTH_REQUIRED`, `PAYMENT_CONFIRMATION_NOTE_TOO_LONG`, `PAYMENT_CONFIRMATION_STEP_NOT_FOUND`, `PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND`, `REQUEST_TYPE_NOT_EXTERNAL_PAYMENT_SERVICE`, `INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP`, `PAYMENT_CONFIRMATION_ACTION_MISMATCH`, `EXACTLY_ONE_DIRECT_PAYMENT_ASSIGNEE_REQUIRED`, `DIRECT_PAYMENT_ASSIGNEE_REQUIRED`, `EXACT_FINANCE_PROCESSING_BINDING_REQUIRED`, `B1_PREDECESSOR_INCOMPLETE`, `EXACTLY_ONE_PAYMENT_CONFIRMED_TRANSITION_REQUIRED`, `PAYMENT_CONFIRMED_TRANSITION_REQUIRED`, `NEXT_PAYMENT_WORKFLOW_STEP_NOT_READY` |
+| **Auth order** | assignee + exact finance binding first; then predecessor guard (`B1_PREDECESSOR_INCOMPLETE`); then transition resolution / mutations. Non-assignees and wrong-binding actors must not learn predecessor state. |
+| **Forward-only fix** | `B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01` / `supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql` — `CREATE OR REPLACE` only; does **not** change signature, success shape, grants, or simplified revenue contract; does **not** edit historical `20260725002135_*`. |
 | **Non-path** | No `payment_not_confirmed`; inaction leaves the step active |
 | **Grants** | `authenticated` EXECUTE; revoke PUBLIC/anon |
 
