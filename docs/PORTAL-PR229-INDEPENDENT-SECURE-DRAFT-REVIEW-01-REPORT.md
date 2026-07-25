@@ -246,9 +246,11 @@ containers were not touched.
   one active workflow exist for each service.
 - Submit remains the separate authoritative
   `submit_b1_student_request_atomic` contract.
-- Remote CI and review-thread status are verified after publication of the
-  stacked remediation PR; the repository's known billing restriction may
-  prevent jobs from starting.
+- Stacked PR #233 is open and non-draft at head
+  `75331216911d0d8a89a00288b5a63b15d4e6383b`, with the intended PR #229
+  branch as base. GitHub reports `MERGEABLE` / `CLEAN`, no comments, reviews,
+  or review threads, and no registered remote checks:
+  `NO_REMOTE_CI_FOR_STACKED_BASE`. No billing-failed job existed to rerun.
 
 ## Production impact
 
