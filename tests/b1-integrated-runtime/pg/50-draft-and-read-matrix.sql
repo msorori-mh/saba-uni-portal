@@ -10,6 +10,7 @@ declare
   n integer;
   err text;
   denied boolean;
+  expected_version timestamptz;
 begin
   perform b1_e2e.set_uid(u_student);
 
@@ -60,12 +61,16 @@ begin
       and request_type='enrollment_suspension' and status='draft'
     limit 1;
   if req is not null then
+    select updated_at into expected_version from public.student_requests where id = req;
     v := public.save_b1_request_draft_for_student(
-      req, '{"suspension_reason":"one"}'::jsonb, null, 'save-idem-e2e');
+      req, '{"suspension_reason":"one"}'::jsonb, expected_version, 'save-idem-e2e');
     denied := false; err := null;
     begin
+      -- mismatch uses current row version (idempotency key collision on different payload)
       perform public.save_b1_request_draft_for_student(
-        req, '{"suspension_reason":"two"}'::jsonb, null, 'save-idem-e2e');
+        req, '{"suspension_reason":"two"}'::jsonb,
+        (select updated_at from public.student_requests where id = req),
+        'save-idem-e2e');
     exception when others then
       err := sqlerrm; denied := err like '%B1_IDEMPOTENCY_PAYLOAD_MISMATCH%';
     end;
@@ -89,6 +94,7 @@ begin
   begin
     v := public.create_b1_request_draft_for_student('department_transfer', 'e2e-transfer-neg');
     req := (v->>'requestId')::uuid;
+    expected_version := (v->>'updatedAt')::timestamptz;
     denied := false; err := null;
     begin
       perform public.save_b1_request_draft_for_student(
@@ -98,7 +104,7 @@ begin
           'target_program_id', '66666666-6666-4666-8666-666666666601',
           'transfer_reason', 'same dept'
         ),
-        null, null
+        expected_version, null
       );
     exception when others then
       err := sqlerrm; denied := err like '%B1_TRANSFER_INPUT_INVALID%';

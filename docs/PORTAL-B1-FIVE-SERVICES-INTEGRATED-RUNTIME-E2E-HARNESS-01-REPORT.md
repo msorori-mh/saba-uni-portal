@@ -47,17 +47,26 @@ Post-manifest F1/F2 actor/action hardening remains apply-order `90` (not the act
 
 | Counter | Required | Result |
 |---|---|---|
-| services_completed | 5/5 | *(filled after harness)* |
-| fail_rows | 0 | *(filled after harness)* |
-| Secure Read regression | PASS | *(filled after harness)* |
-| Secure Draft PG regression | 35/35 | *(filled after harness)* |
-| transfer position_assignment | PASS | *(filled after harness)* |
-| withdrawal NULL guard | PASS | *(filled after harness)* |
-| read/action negative authz | PASS | *(filled after harness)* |
-| zero mutation on denials | PASS | *(filled after harness)* |
-| idempotency/concurrency | PASS | *(filled after harness)* |
-| enrollment_certificate regression | PASS | *(filled after harness)* |
-| container removed | yes | *(filled after harness)* |
+| services_completed | 5/5 | **5/5** |
+| fail_rows | 0 | **0** |
+| Secure Read regression | PASS | **PASS** (`B1_SECURE_READ_PG17_PASS`) |
+| Secure Draft PG regression | 35/35 | **PASS** (`B1_SECURE_DRAFT_PG17_PASS`, 35 rows) |
+| transfer position_assignment | PASS | **PASS** (`department_transfer/submit` + lifecycle final) |
+| withdrawal NULL guard | PASS | **PASS** (`file_withdrawal/submit_without_ack` → `B1_WITHDRAWAL_INPUT_INVALID`) |
+| read/action negative authz | PASS | **PASS** (read_denials=4, action_denials=7) |
+| zero mutation on denials | PASS | **PASS** (`zero_mutation=13`) |
+| idempotency/concurrency | PASS | **PASS** (idempotency=3, concurrency=1) |
+| enrollment_certificate regression | PASS | **PASS** (all `ec/*` cases) |
+| container removed | yes | **yes** (`docker run --rm` + `docker stop` in harness `finally`) |
+
+Integrated summary line:
+
+`services_completed=5 action_allows=24 action_denials=7 attachment_assertions=4 concurrency=1 draft_creates=5 draft_saves=6 idempotency=3 read_allows=18 read_denials=4 zero_mutation=13 fail_rows=0`
+
+Harness alignment after reviewed #233 create gate:
+
+- `request_types.student_visible` stubbed read-only in e2e helpers (no production write).
+- All draft saves pass required `p_expected_updated_at` from create/save DTO.
 
 ## Production / Deploy / activation confirmation
 

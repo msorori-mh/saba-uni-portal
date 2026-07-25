@@ -1,3 +1,4 @@
+-- READ ONLY
 -- Preflight for B1 order 24 (FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01)
 BEGIN;
 DO $$

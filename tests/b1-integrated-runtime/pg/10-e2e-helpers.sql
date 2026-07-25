@@ -6,6 +6,15 @@ alter table public.student_requests add column if not exists title text;
 alter table public.student_requests add column if not exists description text;
 alter table public.student_requests add column if not exists student_notes text;
 
+-- Reviewed secure-draft create gate reads request_types.student_visible (no write).
+alter table public.request_types add column if not exists student_visible boolean not null default false;
+update public.request_types
+   set student_visible = true
+ where code in (
+   'enrollment_suspension','excused_absence','absence_excuse',
+   'department_transfer','transfer','final_chance','extra_chance','file_withdrawal'
+ );
+
 -- Align academic stubs with secure-read form-options projections.
 alter table public.academic_years add column if not exists name text;
 alter table public.academic_years add column if not exists is_current boolean not null default false;
