@@ -40,6 +40,7 @@ import { Route as StudentProgressRouteImport } from './routes/student.progress'
 import { Route as StudentNotificationsRouteImport } from './routes/student.notifications'
 import { Route as StudentChangePasswordRouteImport } from './routes/student.change-password'
 import { Route as StaffChangePasswordRouteImport } from './routes/staff.change-password'
+import { Route as StaffB1RequestsRouteImport } from './routes/staff.b1-requests'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as MobileStudentLoginRouteImport } from './routes/mobile.student-login'
 import { Route as MobileStudentRouteImport } from './routes/mobile.student'
@@ -102,6 +103,7 @@ import { Route as MobileStudentDocumentsRouteImport } from './routes/mobile.stud
 import { Route as MobileStudentAcademicRecordRouteImport } from './routes/mobile.student.academic-record'
 import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './routes/faculty-portal.student-progress.$studentId'
 import { Route as FacultyPortalMaterialsSectionIdRouteImport } from './routes/faculty-portal.materials.$sectionId'
+import { Route as StudentRequestsB1ServiceRouteImport } from './routes/student.requests.b1.$service'
 import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types_.$id.workflow'
 
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
@@ -320,6 +322,11 @@ const StudentChangePasswordRoute = StudentChangePasswordRouteImport.update({
 const StaffChangePasswordRoute = StaffChangePasswordRouteImport.update({
   id: '/change-password',
   path: '/change-password',
+  getParentRoute: () => StaffRoute,
+} as any)
+const StaffB1RequestsRoute = StaffB1RequestsRouteImport.update({
+  id: '/b1-requests',
+  path: '/b1-requests',
   getParentRoute: () => StaffRoute,
 } as any)
 const NewsSlugRoute = NewsSlugRouteImport.update({
@@ -643,6 +650,12 @@ const FacultyPortalMaterialsSectionIdRoute =
     path: '/materials/$sectionId',
     getParentRoute: () => FacultyPortalRoute,
   } as any)
+const StudentRequestsB1ServiceRoute =
+  StudentRequestsB1ServiceRouteImport.update({
+    id: '/b1/$service',
+    path: '/b1/$service',
+    getParentRoute: () => StudentRequestsRoute,
+  } as any)
 const AdminRequestTypesIdWorkflowRoute =
   AdminRequestTypesIdWorkflowRouteImport.update({
     id: '/request-types_/$id/workflow',
@@ -717,6 +730,7 @@ export interface FileRoutesByFullPath {
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
@@ -752,6 +766,7 @@ export interface FileRoutesByFullPath {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -815,6 +830,7 @@ export interface FileRoutesByTo {
   '/faculty-portal/schedule': typeof FacultyPortalScheduleRoute
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
@@ -849,6 +865,7 @@ export interface FileRoutesByTo {
   '/student/materials': typeof StudentMaterialsIndexRoute
   '/student/requests': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -918,6 +935,7 @@ export interface FileRoutesById {
   '/mobile/student': typeof MobileStudentRouteWithChildren
   '/mobile/student-login': typeof MobileStudentLoginRoute
   '/news/$slug': typeof NewsSlugRoute
+  '/staff/b1-requests': typeof StaffB1RequestsRoute
   '/staff/change-password': typeof StaffChangePasswordRoute
   '/student/change-password': typeof StudentChangePasswordRoute
   '/student/notifications': typeof StudentNotificationsRoute
@@ -953,6 +971,7 @@ export interface FileRoutesById {
   '/student/materials/': typeof StudentMaterialsIndexRoute
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types_/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
+  '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1023,6 +1042,7 @@ export interface FileRouteTypes {
     | '/mobile/student'
     | '/mobile/student-login'
     | '/news/$slug'
+    | '/staff/b1-requests'
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
@@ -1058,6 +1078,7 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types/$id/workflow'
+    | '/student/requests/b1/$service'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1121,6 +1142,7 @@ export interface FileRouteTypes {
     | '/faculty-portal/schedule'
     | '/mobile/student-login'
     | '/news/$slug'
+    | '/staff/b1-requests'
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
@@ -1155,6 +1177,7 @@ export interface FileRouteTypes {
     | '/student/materials'
     | '/student/requests'
     | '/admin/request-types/$id/workflow'
+    | '/student/requests/b1/$service'
   id:
     | '__root__'
     | '/'
@@ -1223,6 +1246,7 @@ export interface FileRouteTypes {
     | '/mobile/student'
     | '/mobile/student-login'
     | '/news/$slug'
+    | '/staff/b1-requests'
     | '/staff/change-password'
     | '/student/change-password'
     | '/student/notifications'
@@ -1258,6 +1282,7 @@ export interface FileRouteTypes {
     | '/student/materials/'
     | '/student/requests/'
     | '/admin/request-types_/$id/workflow'
+    | '/student/requests/b1/$service'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1551,6 +1576,13 @@ declare module '@tanstack/react-router' {
       path: '/change-password'
       fullPath: '/staff/change-password'
       preLoaderRoute: typeof StaffChangePasswordRouteImport
+      parentRoute: typeof StaffRoute
+    }
+    '/staff/b1-requests': {
+      id: '/staff/b1-requests'
+      path: '/b1-requests'
+      fullPath: '/staff/b1-requests'
+      preLoaderRoute: typeof StaffB1RequestsRouteImport
       parentRoute: typeof StaffRoute
     }
     '/news/$slug': {
@@ -1987,6 +2019,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FacultyPortalMaterialsSectionIdRouteImport
       parentRoute: typeof FacultyPortalRoute
     }
+    '/student/requests/b1/$service': {
+      id: '/student/requests/b1/$service'
+      path: '/b1/$service'
+      fullPath: '/student/requests/b1/$service'
+      preLoaderRoute: typeof StudentRequestsB1ServiceRouteImport
+      parentRoute: typeof StudentRequestsRoute
+    }
     '/admin/request-types_/$id/workflow': {
       id: '/admin/request-types_/$id/workflow'
       path: '/request-types/$id/workflow'
@@ -2151,11 +2190,13 @@ const NewsRouteChildren: NewsRouteChildren = {
 const NewsRouteWithChildren = NewsRoute._addFileChildren(NewsRouteChildren)
 
 interface StaffRouteChildren {
+  StaffB1RequestsRoute: typeof StaffB1RequestsRoute
   StaffChangePasswordRoute: typeof StaffChangePasswordRoute
   StaffIndexRoute: typeof StaffIndexRoute
 }
 
 const StaffRouteChildren: StaffRouteChildren = {
+  StaffB1RequestsRoute: StaffB1RequestsRoute,
   StaffChangePasswordRoute: StaffChangePasswordRoute,
   StaffIndexRoute: StaffIndexRoute,
 }
@@ -2166,12 +2207,14 @@ interface StudentRequestsRouteChildren {
   StudentRequestsIdRoute: typeof StudentRequestsIdRoute
   StudentRequestsNewRoute: typeof StudentRequestsNewRoute
   StudentRequestsIndexRoute: typeof StudentRequestsIndexRoute
+  StudentRequestsB1ServiceRoute: typeof StudentRequestsB1ServiceRoute
 }
 
 const StudentRequestsRouteChildren: StudentRequestsRouteChildren = {
   StudentRequestsIdRoute: StudentRequestsIdRoute,
   StudentRequestsNewRoute: StudentRequestsNewRoute,
   StudentRequestsIndexRoute: StudentRequestsIndexRoute,
+  StudentRequestsB1ServiceRoute: StudentRequestsB1ServiceRoute,
 }
 
 const StudentRequestsRouteWithChildren = StudentRequestsRoute._addFileChildren(
@@ -2256,3 +2299,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
