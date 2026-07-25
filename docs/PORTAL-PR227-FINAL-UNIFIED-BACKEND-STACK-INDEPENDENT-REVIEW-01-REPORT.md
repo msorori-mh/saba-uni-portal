@@ -219,6 +219,11 @@ It is not classified as a source failure. The remote run was not retried.
 Complete local Bun, TypeScript, build, and PostgreSQL 17 evidence is recorded
 above.
 
+The independent review was published as stacked PR #241 against
+`feat/b1-five-services-secure-read-contracts-01`. At publication it was
+`OPEN`, `MERGEABLE`, and `CLEAN`, with no comments, reviews, unresolved review
+threads, or remote checks reported. It was not merged.
+
 ## Assumptions, residual risks, and blockers
 
 - Review conclusions apply only to the pinned source HEAD and base.
