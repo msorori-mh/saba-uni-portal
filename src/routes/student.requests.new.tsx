@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+﻿import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -345,6 +345,10 @@ function NewStudentRequestPage() {
           <div className="grid place-items-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
+        ) : typesError ? (
+          <p role="status" className="text-sm text-amber-900">
+            تعذّر تحميل أنواع الطلبات. أعد المحاولة أو حدّث الصفحة.
+          </p>
         ) : typedTypes.length === 0 ? (
           <p className="text-sm text-muted-foreground">لا توجد أنواع طلبات متاحة حالياً.</p>
         ) : (

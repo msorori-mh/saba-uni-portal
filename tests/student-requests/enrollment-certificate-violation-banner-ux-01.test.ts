@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PORTAL-ENROLLMENT-CERTIFICATE-VIOLATION-BANNER-TRUTHFULNESS-UX-01
  *
  * Regression guards for violation-banner truthfulness in the enrollment
@@ -89,8 +89,17 @@ describe("violation banner truthfulness — visual classification", () => {
     expect(html).toContain('role="alert"');
   });
 
-  it("hides creation eligibility entirely for submitted/processing/archived requests", () => {
-    for (const status of ["submitted", "in_review", "processing", "completed", "archived"]) {
+  it("hides creation eligibility entirely for every post-draft lifecycle state", () => {
+    for (const status of [
+      "submitted",
+      "in_review",
+      "processing",
+      "completed",
+      "archived",
+      "cancelled",
+      "rejected",
+      "returned_for_completion",
+    ]) {
       const html = renderNotice({
         requestTypeCode: "enrollment_certificate",
         typePickerState: eligiblePicker,
@@ -128,6 +137,14 @@ describe("no raw backend errors in student request routes", () => {
     expect(detailRoute).toContain('role="alert"');
     expect(indexRoute).toContain('role="alert"');
     expect(newRoute).toContain('role="alert"');
+  });
+
+  it("does not turn a request-type permission failure into an empty state", () => {
+    expect(newRoute).toContain("typesError ? (");
+    expect(newRoute).toContain("تعذّر تحميل أنواع الطلبات. أعد المحاولة أو حدّث الصفحة.");
+    expect(newRoute.indexOf("typesError ? (")).toBeLessThan(
+      newRoute.indexOf("typedTypes.length === 0 ? ("),
+    );
   });
 
   it("touches nothing protected (student_visible / workflow / B1 services)", () => {
