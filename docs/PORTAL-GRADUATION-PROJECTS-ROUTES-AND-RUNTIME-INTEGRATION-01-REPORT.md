@@ -6,6 +6,19 @@
 
 تكامل مسارات البوابة وworkspaces الأدوار جاهز كمصدر فقط. لا Migration apply، لا Deploy/Publish، لا تفعيل إنتاجي، ولا كتابة على Production/Staging.
 
+## CI remote (PR #226)
+
+| البند | النتيجة |
+|---|---|
+| Web CI run | `30144837523` |
+| إعادة `--failed` | نُفِّذت مرة واحدة |
+| سبب الفشل (الأصل والإعادة) | GitHub Actions billing/spending limit — الوظائف لم تبدأ (`The job was not started because recent account payments have failed or your spending limit needs to be increased`) |
+| `--log-failed` | `log not found` — لا خطوات تشغيل |
+| فشل كود تطبيقي؟ | لا — عائق بنية تحتية عن بُعد |
+| قرار CI | **HOLD_PR226_REMOTE_CI_INFRASTRUCTURE_NO_JOB_STEPS** |
+| التحقق المحلي | `bun test tests/graduation-projects` + `bun test tests` + `tsc` + `build` — PASS قبل الدفع |
+| دمج PR | لم يُنفَّذ |
+
 ## 1) حالة المصدر عند البداية
 
 - الفرع: `feat/graduation-projects-portal-integration-01` (أُنشئ من `origin/main` @ `92d51fa`).
