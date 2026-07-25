@@ -105,9 +105,7 @@ describe("PR232 independent runtime E2E security review", () => {
     expect(runner).not.toContain("Invoke-PsqlFile $readPath");
     expect(runner).toContain("secure-draft applied before secure-read in apply-order");
 
-    const manifest = JSON.parse(
-      read("docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json"),
-    ) as {
+    const manifest = JSON.parse(read("docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json")) as {
       global_policies: { activation_gate: string };
       migrations: Array<{ sequence_order: number }>;
     };

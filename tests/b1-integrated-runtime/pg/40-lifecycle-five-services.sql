@@ -133,7 +133,6 @@ begin
   end;
   perform b1_e2e.bump('attachment_assertions');
 
-  v2 := public.get_b1_request_draft_for_student(req);
   v := public.save_b1_request_draft_for_student(
     req,
     jsonb_build_object(
@@ -195,7 +194,6 @@ begin
     update public.student_request_attachment_uploads set upload_status='attached' where id=att;
   end;
   perform b1_e2e.bump('attachment_assertions');
-  v2 := public.get_b1_request_draft_for_student(req);
   v := public.save_b1_request_draft_for_student(
     req,
     jsonb_build_object(

@@ -70,6 +70,7 @@ try {
     } else {
       Invoke-PsqlFile $path
     }
+
     if ($relative -match 'SECURE-READ-CONTRACTS') { $sawSecureRead = $true }
     if ($relative -match 'SECURE-DRAFT-MUTATIONS') {
       if (-not $sawSecureRead) { throw "secure-draft applied before secure-read in apply-order" }
