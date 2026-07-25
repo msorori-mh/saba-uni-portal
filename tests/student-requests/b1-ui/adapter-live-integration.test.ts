@@ -374,6 +374,27 @@ describe("B1 UI ↔ Backend integration bridge — allowlists & availability", (
     expect(hidden.every((row) => row.studentVisible === false)).toBe(true);
     expect(hidden.every((row) => row.runtimeAvailable === false)).toBe(true);
 
+    expect(
+      resolveB1RuntimeAvailable("enrollment_suspension", {
+        available: true,
+        services: ["enrollment_suspension"],
+        reads: ["draft"],
+        writesAvailable: [],
+        writesFailClosed: ["create_draft", "save_draft"],
+        draftMutationsContract: null,
+      }),
+    ).toBe(false);
+    expect(
+      resolveB1RuntimeAvailable("enrollment_suspension", {
+        available: true,
+        services: ["enrollment_suspension"],
+        reads: ["draft"],
+        writesAvailable: ["create_draft", "save_draft"],
+        writesFailClosed: [],
+        draftMutationsContract: "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01",
+      }),
+    ).toBe(true);
+
     const visible = mapBackendRowsToB1Availability([
       { code: "enrollment_suspension", name_ar: "وقف قيد" },
       { code: "absence_excuse", name_ar: "عذر غياب" },
@@ -522,6 +543,34 @@ describe("B1 UI ↔ Backend integration bridge — live adapter behavior", () =>
     });
   });
 
+  it("uses only injected backend visibility rows and keeps missing draft capability hidden", async () => {
+    let visibilityReads = 0;
+    const adapter = createLiveB1UiAdapter({
+      async getCapability() {
+        return {
+          available: true,
+          services: ["enrollment_suspension"],
+          reads: ["form_options", "draft"],
+          writesAvailable: [],
+          writesFailClosed: ["create_draft", "save_draft"],
+          draftMutationsContract: null,
+        };
+      },
+      async getAvailableRows() {
+        visibilityReads += 1;
+        return [{ code: "enrollment_suspension" }];
+      },
+    });
+
+    const availability = await adapter.getAvailableB1RequestTypes();
+    const suspension = availability.find((row) => row.code === "enrollment_suspension");
+    expect(visibilityReads).toBe(1);
+    expect(suspension).toMatchObject({
+      studentVisible: true,
+      runtimeAvailable: false,
+    });
+  });
+
   it("submit / act / confirm deps receive only allowlisted payloads", async () => {
     const seen: Record<string, unknown> = {};
     const adapter = createLiveB1UiAdapter({
@@ -586,6 +635,22 @@ describe("B1 UI ↔ Backend integration bridge — live adapter behavior", () =>
     );
     expect(mutationBlock).toContain("accepted: true");
     expect(mutationBlock).toContain('action: "confirm_payment"');
+  });
+
+  it("requires an authoritative post-submit reread and never fabricates submit timestamps", () => {
+    const functionsSource = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "b1-ui.functions.ts"),
+      "utf8",
+    );
+    const submitBlock = functionsSource.slice(
+      functionsSource.indexOf("export const submitB1UiRequestFn"),
+      functionsSource.indexOf("const actSchema"),
+    );
+    expect(submitBlock).toContain("B1_SUBMIT_AUTHORITATIVE_REFRESH_REQUIRED");
+    expect(submitBlock).not.toMatch(/new Date\(|Date\.now\(|toISOString\(/);
+    expect(submitBlock).not.toMatch(
+      /submittedAt:\s*data\.|updatedAt:\s*data\.|submittedAt:\s*expected|updatedAt:\s*expected/,
+    );
   });
 });
 
