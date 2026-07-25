@@ -170,12 +170,11 @@ or unrelated source was changed.
 | `bun run build` | PASS |
 | `git diff --check` | PASS |
 
-Remote CI is expected to be subject to the repository's GitHub Actions billing
-block. If all jobs terminate before executing steps for that reason, its status
-is recorded as `HOLD_REMOTE_CI_BILLING_NO_JOB_STEPS`, not as a source defect.
-The stacked PR's actual mergeability, review threads, and remote checks are
-verified after publication and recorded in its PR description and final
-handoff.
+Stacked PR #230 was published with head
+`fe42bae7a0df74c18a1e5f20cacaac44431a30b4`. GitHub reports it open,
+non-draft, `MERGEABLE` / `CLEAN`, with no comments, reviews, or review threads.
+No remote checks were registered for the stacked-base branch:
+`NO_REMOTE_CI_FOR_STACKED_BASE`. No billing-failed job was present to rerun.
 
 ## Residual risks
 
