@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { usePagePerf } from "@/lib/perf-probe";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   User,
   IdCard,
@@ -248,12 +248,14 @@ const SERVICE_LINKS = [
     Icon: FileText,
   },
   ...(portalFeatures.studentCourseMaterials
-    ? ([{
-        to: "/student/materials" as const,
-        title: "المواد التعليمية",
-        desc: "محاضرات وملفات المقررات.",
-        Icon: BookOpen,
-      }] as const)
+    ? ([
+        {
+          to: "/student/materials" as const,
+          title: "المواد التعليمية",
+          desc: "محاضرات وملفات المقررات.",
+          Icon: BookOpen,
+        },
+      ] as const)
     : []),
 ] as const;
 
@@ -264,6 +266,7 @@ export const Route = createFileRoute("/student/")({
 function StudentDashboard() {
   usePagePerf("/student");
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
@@ -272,21 +275,36 @@ function StudentDashboard() {
     }
   }, [navigate]);
 
-  const { data: profile, isLoading, isError: profileError, refetch: refetchProfile } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    isFetched: profileFetched,
+    isError: profileError,
+    refetch: refetchProfile,
+  } = useQuery({
     queryKey: ["student", "me"],
     queryFn: fetchMyProfile,
     staleTime: STALE_LONG,
     gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
-  const { data: acad } = useQuery({
+  const {
+    data: acad,
+    isError: academicStatusError,
+    refetch: refetchAcademicStatus,
+  } = useQuery({
     queryKey: ["student", "academic-status", profile?.id],
     queryFn: () => fetchMyAcademicStatus(profile!.id),
     enabled: !!profile?.id,
     staleTime: STALE_LONG,
     refetchOnWindowFocus: false,
   });
-  const { data: schedule = [] } = useQuery({
+  const {
+    data: schedule = [],
+    isLoading: scheduleLoading,
+    isError: scheduleError,
+    refetch: refetchSchedule,
+  } = useQuery({
     queryKey: [
       "student",
       "schedule",
@@ -309,6 +327,7 @@ function StudentDashboard() {
   });
   const {
     data: myEnrollments = [],
+    isLoading: enrollmentsLoading,
     isError: enrollmentsError,
     refetch: refetchEnrollments,
   } = useQuery({
@@ -321,6 +340,7 @@ function StudentDashboard() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+    queryClient.clear();
     navigate({ to: "/portal-login", replace: true });
   };
 
@@ -340,7 +360,7 @@ function StudentDashboard() {
       onLogout={handleLogout}
     >
       <main className="container mx-auto px-4 py-8 max-w-5xl" dir="rtl">
-        {profileError ? (
+        {profileError || (profileFetched && !profile) ? (
           <DashboardQueryError
             messageAr="تعذّر تحميل ملفك الأكاديمي. تحقق من الاتصال ثم أعد المحاولة."
             onRetry={() => void refetchProfile()}
@@ -473,6 +493,7 @@ function StudentDashboard() {
               >
                 <MyEnrollmentsSection
                   rows={myEnrollments}
+                  isLoading={enrollmentsLoading}
                   isError={enrollmentsError}
                   onRetry={() => void refetchEnrollments()}
                 />
@@ -557,7 +578,15 @@ function StudentDashboard() {
                 </div>
               }
             >
-              <ScheduleSection rows={schedule} />
+              <ScheduleSection
+                rows={schedule}
+                isLoading={scheduleLoading}
+                isError={academicStatusError || scheduleError}
+                onRetry={() => {
+                  if (academicStatusError) void refetchAcademicStatus();
+                  else void refetchSchedule();
+                }}
+              />
             </LazyMount>
           </>
         )}
@@ -578,8 +607,41 @@ const DAY_LABELS: Record<string, string> = {
 const TYPE_LABELS: Record<string, string> = { lecture: "محاضرة", lab: "عملي", tutorial: "تمارين" };
 const DAY_ORDER = ["saturday", "sunday", "monday", "tuesday", "wednesday", "thursday", "friday"];
 
-function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
-  if (!rows || rows.length === 0) return null;
+function ScheduleSection({
+  rows,
+  isLoading,
+  isError,
+  onRetry,
+}: {
+  rows: ScheduleRow[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}) {
+  if (isLoading) {
+    return (
+      <div className="mt-6" aria-busy="true">
+        <SectionSkeleton h={160} />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <div className="mt-6">
+        <DashboardQueryError
+          messageAr="تعذّر تحميل جدولك الدراسي. تحقق من الاتصال ثم أعد المحاولة."
+          onRetry={onRetry}
+        />
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="mt-6 rounded-lg border border-dashed bg-card p-4 text-center text-xs text-muted-foreground">
+        لا توجد محاضرات مجدولة حاليًا.
+      </div>
+    );
+  }
   type Flat = {
     day: string;
     start: string;
@@ -653,10 +715,12 @@ function ScheduleSection({ rows }: { rows: ScheduleRow[] }) {
 
 function MyEnrollmentsSection({
   rows,
+  isLoading = false,
   isError = false,
   onRetry,
 }: {
   rows: MyEnrollmentRow[];
+  isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
 }) {
@@ -670,7 +734,11 @@ function MyEnrollmentsSection({
       <h2 className="font-display text-base font-bold text-primary mb-3 flex items-center gap-2">
         <ClipboardCheck className="h-4 w-4 text-gold" /> مقرراتي المسجلة
       </h2>
-      {isError ? (
+      {isLoading ? (
+        <div className="rounded-lg border bg-card p-4" aria-busy="true">
+          <SectionSkeleton h={72} />
+        </div>
+      ) : isError ? (
         <DashboardQueryError
           messageAr="تعذّر تحميل مقرراتك المسجلة. تحقق من الاتصال ثم أعد المحاولة."
           onRetry={onRetry}
@@ -735,7 +803,12 @@ function MyEnrollmentsSection({
 }
 
 function MyGradesSection({ studentProfileId }: { studentProfileId: string }) {
-  const { data: rows = [], isLoading, isError, refetch } = useQuery({
+  const {
+    data: rows = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["student", "grades", studentProfileId],
     queryFn: async () => {
       const { data: enr, error: e1 } = await supabase
