@@ -71,8 +71,8 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(files).toContain("PROMOTION-MAP.json");
     const preflights = files.filter((f) => f.endsWith("-PREFLIGHT.sql"));
     const posts = files.filter((f) => f.endsWith("-POST-VERIFIER.sql"));
-    expect(preflights).toHaveLength(13);
-    expect(posts).toHaveLength(13);
+    expect(preflights).toHaveLength(14);
+    expect(posts).toHaveLength(14);
     for (const f of [...preflights, ...posts]) {
       const sql = readFileSync(join(verifiersDir, f), "utf8");
       expect(sql).toContain("READ ONLY");
