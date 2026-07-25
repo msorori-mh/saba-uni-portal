@@ -1,0 +1,6 @@
+﻿{
+  "name": "pr240-dashboard-browser-smoke",
+  "private": true,
+  "type": "module",
+  "description": "Local Chrome-headless smoke harness for PR #240 dashboard truthfulness (no production network)."
+}
