@@ -50,6 +50,10 @@ begin
   insert into public.request_types(code,name_ar) values
     ('enrollment_suspension','إيقاف قيد'),
     ('absence_excuse','عذر غياب');
+  insert into public.request_types(code,name_ar) values
+    ('transfer','department transfer'),
+    ('extra_chance','final chance'),
+    ('file_withdrawal','file withdrawal');
   insert into public.student_profiles(id,user_id,full_name_ar,academic_number,department_id,status)
     values (sp_id,u_student,'طالب أ','S001',dept_id,'active'),
            (sp_other,u_other,'طالب ب','S002',dept_id,'active');
@@ -84,14 +88,45 @@ begin
   end;
   perform b1_secure_read_v.note('anon_capability', denied, err);
 
-  -- student capability allow
+  -- RPC existence alone must not advertise runtime readiness or viewer identity.
   perform b1_secure_read_v.set_uid(u_student);
   begin
     v := public.get_b1_secure_read_runtime_capability();
-    perform b1_secure_read_v.note('student_capability', (v->>'available')='true', v::text);
+    perform b1_secure_read_v.note(
+      'capability_fail_closed_before_activation',
+      (v->>'available')='false' and not (v ? 'viewer') and jsonb_array_length(v->'services') = 0,
+      v::text
+    );
   exception when others then
-    perform b1_secure_read_v.note('student_capability', false, sqlerrm);
+    perform b1_secure_read_v.note('capability_fail_closed_before_activation', false, sqlerrm);
   end;
+
+  update public.request_types set is_active = true, student_visible = true;
+  insert into public.request_type_workflows(request_type_id,status,is_active)
+    select id, 'active', true from public.request_types;
+  v := public.get_b1_secure_read_runtime_capability();
+  perform b1_secure_read_v.note(
+    'capability_exact_activation_allow',
+    (v->>'available')='true' and jsonb_array_length(v->'services') = 5 and not (v ? 'viewer'),
+    v::text
+  );
+  insert into public.request_type_workflows(request_type_id,status,is_active)
+    select id, 'active', true from public.request_types where code = 'enrollment_suspension';
+  v := public.get_b1_secure_read_runtime_capability();
+  perform b1_secure_read_v.note(
+    'capability_ambiguous_workflow_deny',
+    (v->>'available')='false' and jsonb_array_length(v->'services') = 4,
+    v::text
+  );
+  delete from public.request_type_workflows w
+  where w.request_type_id = (
+    select id from public.request_types where code = 'enrollment_suspension'
+  )
+  and w.ctid not in (
+    select min(x.ctid) from public.request_type_workflows x
+    where x.request_type_id = w.request_type_id
+  );
+  update public.request_types set is_active = false, student_visible = false;
 
   -- student details own allow
   begin
@@ -119,6 +154,27 @@ begin
   end;
   perform b1_secure_read_v.note('student_other_details_deny', denied, err);
 
+  update public.student_profiles set status = 'inactive' where id = sp_id;
+  denied := false;
+  err := null;
+  begin
+    perform public.get_b1_request_details_for_student(req_id);
+  exception when others then
+    err := sqlerrm;
+    denied := err like '%B1_READ_ACCESS_DENIED%';
+  end;
+  perform b1_secure_read_v.note('inactive_student_details_deny', denied, err);
+  denied := false;
+  err := null;
+  begin
+    perform public.list_b1_request_attachments_for_viewer(req_id);
+  exception when others then
+    err := sqlerrm;
+    denied := err like '%B1_READ_ACCESS_DENIED%';
+  end;
+  perform b1_secure_read_v.note('inactive_student_attachments_deny', denied, err);
+  update public.student_profiles set status = 'active' where id = sp_id;
+
   -- staff assigned inbox allow
   perform b1_secure_read_v.set_uid(u_staff);
   begin
@@ -145,6 +201,35 @@ begin
   exception when others then
     perform b1_secure_read_v.note('staff_assigned_details', false, sqlerrm);
   end;
+
+  perform set_config('b1.test.deny_action', 'review', true);
+  v := public.get_b1_step_allowed_actions(step_id);
+  perform b1_secure_read_v.note(
+    'guard_denied_primary_not_advertised',
+    (v->>'allowedAction') is null and not ((v->'allowedActions') ? 'review'),
+    v::text
+  );
+  v := public.get_b1_assigned_request_details_for_actor(req_id);
+  perform b1_secure_read_v.note(
+    'guard_denied_details_primary_not_advertised',
+    (v->>'allowedAction') is null and not ((v->'allowedActions') ? 'review'),
+    v::text
+  );
+  perform set_config('b1.test.deny_action', 'return', true);
+  v := public.get_b1_step_allowed_actions(step_id);
+  perform b1_secure_read_v.note(
+    'guard_denied_return_not_advertised',
+    not ((v->'allowedActions') ? 'return'),
+    v::text
+  );
+  perform set_config('b1.test.deny_action', 'reject', true);
+  v := public.get_b1_step_allowed_actions(step_id);
+  perform b1_secure_read_v.note(
+    'guard_denied_reject_not_advertised',
+    not ((v->'allowedActions') ? 'reject'),
+    v::text
+  );
+  perform set_config('b1.test.deny_action', '', true);
 
   -- admin unassigned deny
   perform b1_secure_read_v.set_uid(u_admin);
@@ -234,6 +319,20 @@ begin
     has_function_privilege('authenticated','public.get_b1_secure_read_runtime_capability()'::regprocedure,'execute')
       and not has_function_privilege('anon','public.get_b1_secure_read_runtime_capability()'::regprocedure,'execute'),
     'grant matrix'
+  );
+
+  perform b1_secure_read_v.note(
+    'zero_mutation_assertions',
+    (select count(*) from public.student_requests) = 2
+      and (select count(*) from public.student_request_workflow_steps) = 2
+      and (select count(*) from public.student_request_attachment_uploads) = 1
+      and (select count(*) from public.workflow_events) = 0
+      and (select count(*) from public.notifications) = 0
+      and not exists (
+        select 1 from public.student_requests
+        where updated_at > submitted_at
+      ),
+    'requests=2 steps=2 attachments=1 events=0 notifications=0'
   );
 end $$;
 

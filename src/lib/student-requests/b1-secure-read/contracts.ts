@@ -115,7 +115,8 @@ export type B1SecureAssignedRequest = {
   studentNumber: string;
   stepKey: string;
   stepLabelAr: string;
-  allowedAction: B1SecureStaffAction;
+  /** Null when assignment exists but the authoritative action guard denies every primary action. */
+  allowedAction: B1SecureStaffAction | null;
   allowedActions?: readonly B1SecureStaffAction[];
   submittedAt: string | null;
 };
