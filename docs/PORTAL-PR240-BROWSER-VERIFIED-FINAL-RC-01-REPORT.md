@@ -25,7 +25,8 @@ to `main`.
    - merge commit: `822382359febbddb83fbbe9d04c32dcfd61408e7`
 3. Post-merge:
    - PR `#248` = **MERGED** (`mergedAt=2026-07-25T19:02:57Z`)
-   - PR `#240` = **OPEN** at `822382359febbddb83fbbe9d04c32dcfd61408e7`
+   - PR `#240` = **OPEN** at merge tip `822382359febbddb83fbbe9d04c32dcfd61408e7`
+   - Final browser-verified tip (docs RC commit): `98189143a236bfa5a395322356fdb5d0cef3aa46`
    - `main` unchanged at `92d51faa9bcdc9fd99e89579f6a498b463264246`
 
 ## Browser harness (why Chrome, not Playwright)
