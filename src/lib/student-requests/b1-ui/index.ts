@@ -38,3 +38,9 @@ export function getB1UiAdapter(): B1UiAdapter {
 export * from "./adapter.types";
 export * from "./service-config";
 export * from "./validation";
+export { LIVE_B1_UI_UNSUPPORTED_METHODS } from "./adapter.live";
+export {
+  B1_FORM_DATA_ALLOWLISTS,
+  RECORD_EXTERNAL_PAYMENT_ARG_KEYS,
+  SUBMIT_B1_ATOMIC_ARG_KEYS,
+} from "./b1-rpc";

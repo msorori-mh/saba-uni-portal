@@ -1,0 +1,432 @@
+import { describe, expect, it } from "bun:test";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import {
+  ACT_ON_B1_ATOMIC_ARG_KEYS,
+  B1_FORM_DATA_ALLOWLISTS,
+  B1_SPECIALIZED_ACTIONS_FORBIDDEN_ON_ACT_ON,
+  CREATE_ATTACHMENT_INTENT_ARG_KEYS,
+  RECORD_EXTERNAL_PAYMENT_ARG_KEYS,
+  RECORD_EXTERNAL_PAYMENT_FORBIDDEN_CLIENT_KEYS,
+  SUBMIT_B1_ATOMIC_ARG_KEYS,
+  buildRecordExternalPaymentRpcArgs,
+  rpcActOnB1StudentRequestStepAtomic,
+  rpcAuthorizeStudentRequestAttachmentDownload,
+  rpcCompleteStudentRequestAttachmentUpload,
+  rpcCreateStudentRequestAttachmentUploadIntent,
+  rpcListMyStudentRequestAttachments,
+  rpcRecordExternalUniversityPaymentConfirmation,
+  rpcRejectStudentRequestAttachment,
+  rpcSubmitB1StudentRequestAtomic,
+  type B1RpcClient,
+} from "@/lib/student-requests/b1-ui/b1-rpc";
+import {
+  LIVE_B1_UI_UNSUPPORTED_METHODS,
+  createLiveB1UiAdapter,
+} from "@/lib/student-requests/b1-ui/adapter.live";
+import { B1AdapterError } from "@/lib/student-requests/b1-ui/adapter.types";
+import {
+  mapBackendRowsToB1Availability,
+  resolveB1RuntimeAvailable,
+} from "@/lib/student-requests/b1-ui/availability";
+import { B1_CANONICAL_CODES } from "@/lib/student-requests/request-service-adapter";
+
+describe("B1 UI ↔ Backend integration bridge — RPC signatures", () => {
+  it("submit_b1_student_request_atomic uses exact freeze arg keys", async () => {
+    const local: { name?: string; args?: Record<string, unknown> } = {};
+    const c: B1RpcClient = {
+      async rpc(fn, args) {
+        local.name = fn;
+        local.args = args;
+        return { data: { success: true, request_id: "r1", workflow: {} }, error: null };
+      },
+    };
+    await rpcSubmitB1StudentRequestAtomic(c, {
+      requestId: "11111111-1111-4111-8111-111111111111",
+      canonicalCode: "enrollment_suspension",
+      formData: { target_academic_year: "y1" },
+      expectedUpdatedAt: "2026-07-25T00:00:00.000Z",
+      attachmentIds: [],
+    });
+    expect(local.name).toBe("submit_b1_student_request_atomic");
+    expect(Object.keys(local.args ?? {}).sort()).toEqual([...SUBMIT_B1_ATOMIC_ARG_KEYS].sort());
+    expect(local.args).toEqual({
+      p_request_id: "11111111-1111-4111-8111-111111111111",
+      p_canonical_code: "enrollment_suspension",
+      p_form_data: { target_academic_year: "y1" },
+      p_expected_updated_at: "2026-07-25T00:00:00.000Z",
+      p_attachment_ids: [],
+    });
+  });
+
+  it("act_on_b1_student_request_step_atomic sends empty payload only", async () => {
+    const local: { name?: string; args?: Record<string, unknown> } = {};
+    const c: B1RpcClient = {
+      async rpc(fn, args) {
+        local.name = fn;
+        local.args = args;
+        return {
+          data: {
+            success: true,
+            step_id: "s1",
+            action_result: "approved",
+            next_step_id: null,
+            transition_applied: true,
+          },
+          error: null,
+        };
+      },
+    };
+    await rpcActOnB1StudentRequestStepAtomic(c, {
+      stepId: "22222222-2222-4222-8222-222222222222",
+      action: "approve",
+      comment: "ok",
+    });
+    expect(local.name).toBe("act_on_b1_student_request_step_atomic");
+    expect(Object.keys(local.args ?? {}).sort()).toEqual([...ACT_ON_B1_ATOMIC_ARG_KEYS].sort());
+    expect(local.args?.p_payload).toEqual({});
+    expect(local.args).toEqual({
+      p_step_id: "22222222-2222-4222-8222-222222222222",
+      p_action: "approve",
+      p_comment: "ok",
+      p_payload: {},
+    });
+  });
+
+  it("rejects specialized actions on act_on wrapper before RPC", async () => {
+    const c: B1RpcClient = {
+      async rpc() {
+        throw new Error("RPC must not be called");
+      },
+    };
+    for (const action of B1_SPECIALIZED_ACTIONS_FORBIDDEN_ON_ACT_ON) {
+      await expect(
+        rpcActOnB1StudentRequestStepAtomic(c, {
+          stepId: "22222222-2222-4222-8222-222222222222",
+          action: action as never,
+        }),
+      ).rejects.toThrow("B1_SPECIALIZED_ACTION_RPC_REQUIRED");
+    }
+  });
+
+  it("confirm_payment payload allowlist is stepId + optional note only", () => {
+    const args = buildRecordExternalPaymentRpcArgs({
+      stepId: "33333333-3333-4333-8333-333333333333",
+      note: "received externally",
+    });
+    expect(Object.keys(args).sort()).toEqual([...RECORD_EXTERNAL_PAYMENT_ARG_KEYS].sort());
+    expect(args).toEqual({
+      p_step_id: "33333333-3333-4333-8333-333333333333",
+      p_note: "received externally",
+    });
+    for (const forbidden of RECORD_EXTERNAL_PAYMENT_FORBIDDEN_CLIENT_KEYS) {
+      expect(Object.prototype.hasOwnProperty.call(args, forbidden)).toBe(false);
+    }
+  });
+
+  it("record_external_university_payment_confirmation RPC uses binary signature", async () => {
+    const local: { name?: string; args?: Record<string, unknown> } = {};
+    const c: B1RpcClient = {
+      async rpc(fn, args) {
+        local.name = fn;
+        local.args = args;
+        return {
+          data: {
+            success: true,
+            status: "payment_confirmed",
+            request_id: "r1",
+            step_id: "s1",
+            next_step_id: "n1",
+            transition_applied: true,
+          },
+          error: null,
+        };
+      },
+    };
+    await rpcRecordExternalUniversityPaymentConfirmation(c, {
+      stepId: "33333333-3333-4333-8333-333333333333",
+      note: null,
+    });
+    expect(local.name).toBe("record_external_university_payment_confirmation");
+    expect(local.args).toEqual({
+      p_step_id: "33333333-3333-4333-8333-333333333333",
+      p_note: null,
+    });
+    expect(JSON.stringify(local.args)).not.toMatch(
+      /amount|currency|invoice|confirmed_by|confirmed_at|"status"/i,
+    );
+  });
+
+  it("attachment intent/complete/list/reject/download use freeze arg keys", async () => {
+    const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+    const c: B1RpcClient = {
+      async rpc(fn, args) {
+        calls.push({ name: fn, args: args ?? {} });
+        if (fn === "create_student_request_attachment_upload_intent") {
+          return { data: { attachment_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }, error: null };
+        }
+        if (fn === "authorize_student_request_attachment_download") {
+          return {
+            data: {
+              storage_bucket: "student-request-secure-attachments",
+              storage_object_path: "student-requests/x/y/z/content.pdf",
+            },
+            error: null,
+          };
+        }
+        if (fn === "list_my_student_request_attachments") {
+          return { data: [], error: null };
+        }
+        if (fn === "reject_student_request_attachment") {
+          return { data: true, error: null };
+        }
+        return { data: { status: "attached" }, error: null };
+      },
+    };
+
+    await rpcCreateStudentRequestAttachmentUploadIntent(c, {
+      studentRequestId: "11111111-1111-4111-8111-111111111111",
+      fieldKey: "excuse_documents",
+      originalFileName: "excuse.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+    });
+    await rpcCompleteStudentRequestAttachmentUpload(c, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    await rpcListMyStudentRequestAttachments(c, "11111111-1111-4111-8111-111111111111");
+    await rpcRejectStudentRequestAttachment(
+      c,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "REMOVED_BY_STUDENT",
+    );
+    await rpcAuthorizeStudentRequestAttachmentDownload(c, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+
+    const intent = calls.find((x) => x.name === "create_student_request_attachment_upload_intent");
+    expect(Object.keys(intent?.args ?? {}).sort()).toEqual(
+      [...CREATE_ATTACHMENT_INTENT_ARG_KEYS].sort(),
+    );
+    expect(calls.map((x) => x.name)).toEqual([
+      "create_student_request_attachment_upload_intent",
+      "complete_student_request_attachment_upload",
+      "list_my_student_request_attachments",
+      "reject_student_request_attachment",
+      "authorize_student_request_attachment_download",
+    ]);
+  });
+});
+
+describe("B1 UI ↔ Backend integration bridge — allowlists & availability", () => {
+  it("pins per-service form_data allowlists from the freeze", () => {
+    expect(B1_FORM_DATA_ALLOWLISTS.enrollment_suspension).toContain("terms_acknowledgment");
+    expect(B1_FORM_DATA_ALLOWLISTS.excused_absence).toContain("excuse_documents");
+    expect(B1_FORM_DATA_ALLOWLISTS.department_transfer).toContain("secondary_certificate_file");
+    expect(B1_FORM_DATA_ALLOWLISTS.final_chance).toEqual([
+      "target_academic_year",
+      "target_semester",
+      "reason",
+      "chance_type",
+    ]);
+    expect(B1_FORM_DATA_ALLOWLISTS.file_withdrawal).toContain("impact_acknowledgment");
+  });
+
+  it("never hardcodes runtimeAvailable true and derives studentVisible from backend rows only", () => {
+    for (const code of B1_CANONICAL_CODES) {
+      expect(resolveB1RuntimeAvailable(code)).toBe(false);
+    }
+    const hidden = mapBackendRowsToB1Availability([]);
+    expect(hidden.every((row) => row.studentVisible === false)).toBe(true);
+    expect(hidden.every((row) => row.runtimeAvailable === false)).toBe(true);
+
+    const visible = mapBackendRowsToB1Availability([
+      { code: "enrollment_suspension", name_ar: "وقف قيد" },
+      { code: "absence_excuse", name_ar: "عذر غياب" },
+    ]);
+    const byCode = Object.fromEntries(visible.map((row) => [row.code, row]));
+    expect(byCode.enrollment_suspension?.studentVisible).toBe(true);
+    expect(byCode.excused_absence?.studentVisible).toBe(true);
+    expect(byCode.department_transfer?.studentVisible).toBe(false);
+    expect(visible.every((row) => row.runtimeAvailable === false)).toBe(true);
+  });
+});
+
+describe("B1 UI ↔ Backend integration bridge — live adapter behavior", () => {
+  it("fail-closes unsupported methods with BACKEND_CONTRACT_PENDING", async () => {
+    const adapter = createLiveB1UiAdapter();
+    for (const method of LIVE_B1_UI_UNSUPPORTED_METHODS) {
+      const fn = adapter[method as keyof typeof adapter] as (...args: never[]) => Promise<unknown>;
+      try {
+        if (method === "getB1RequestFormOptions") {
+          await adapter.getB1RequestFormOptions("file_withdrawal");
+        } else if (method === "createB1RequestDraft") {
+          await adapter.createB1RequestDraft("file_withdrawal");
+        } else if (method === "getB1RequestDraft") {
+          await adapter.getB1RequestDraft("11111111-1111-4111-8111-111111111111");
+        } else if (method === "saveB1RequestDraft") {
+          await adapter.saveB1RequestDraft("11111111-1111-4111-8111-111111111111", {});
+        } else if (method === "getB1RequestDetails") {
+          await adapter.getB1RequestDetails("11111111-1111-4111-8111-111111111111");
+        } else if (method === "getAssignedB1Requests") {
+          await adapter.getAssignedB1Requests();
+        } else if (method === "getAssignedB1RequestDetails") {
+          await adapter.getAssignedB1RequestDetails("11111111-1111-4111-8111-111111111111");
+        } else {
+          await fn();
+        }
+        throw new Error(`expected ${method} to fail closed`);
+      } catch (error) {
+        expect(error).toBeInstanceOf(B1AdapterError);
+        expect((error as B1AdapterError).code).toBe("BACKEND_CONTRACT_PENDING");
+        expect((error as B1AdapterError).message).toContain(method);
+      }
+    }
+  });
+
+  it("routes confirm_payment away from actOn to specialized revenue RPC", async () => {
+    let actCalled = false;
+    let confirmArgs: { stepId: string; note?: string } | null = null;
+    const adapter = createLiveB1UiAdapter({
+      async actOnB1RequestStep() {
+        actCalled = true;
+        return {
+          stepId: "s",
+          requestId: "r",
+          outcomeAr: "x",
+          actedAt: "t",
+        };
+      },
+      async confirmB1RevenueReceipt(stepId, optionalNote) {
+        confirmArgs = { stepId, note: optionalNote };
+        return {
+          stepId,
+          requestId: "r1",
+          outcomeAr: "تم تأكيد استلام الرسوم في النظام الجامعي الرئيسي",
+          actedAt: "2026-07-25T00:00:00.000Z",
+        };
+      },
+    });
+
+    await expect(
+      adapter.actOnB1RequestStep("33333333-3333-4333-8333-333333333333", "confirm_payment", "nope"),
+    ).rejects.toMatchObject({
+      code: "PERMISSION_DENIED",
+      message: expect.stringContaining("confirmB1RevenueReceipt"),
+    });
+    expect(actCalled).toBe(false);
+
+    await adapter.confirmB1RevenueReceipt(
+      "33333333-3333-4333-8333-333333333333",
+      "received externally",
+    );
+    expect(confirmArgs).toEqual({
+      stepId: "33333333-3333-4333-8333-333333333333",
+      note: "received externally",
+    });
+  });
+
+  it("submit / act / confirm deps receive only allowlisted payloads", async () => {
+    const seen: Record<string, unknown> = {};
+    const adapter = createLiveB1UiAdapter({
+      async submitB1Request(requestId, expectedUpdatedAt) {
+        seen.submit = { requestId, expectedUpdatedAt };
+        return {
+          requestId,
+          requestNumber: "B1-1",
+          submittedAt: expectedUpdatedAt,
+          updatedAt: expectedUpdatedAt,
+        };
+      },
+      async actOnB1RequestStep(stepId, action, comment) {
+        seen.act = { stepId, action, comment };
+        return { stepId, requestId: "r", outcomeAr: "ok", actedAt: "t" };
+      },
+      async confirmB1RevenueReceipt(stepId, optionalNote) {
+        seen.confirm = { stepId, optionalNote };
+        return { stepId, requestId: "r", outcomeAr: "ok", actedAt: "t" };
+      },
+    });
+
+    await adapter.submitB1Request(
+      "11111111-1111-4111-8111-111111111111",
+      "2026-07-25T00:00:00.000Z",
+    );
+    await adapter.actOnB1RequestStep(
+      "22222222-2222-4222-8222-222222222222",
+      "review",
+      "looks good",
+    );
+    await adapter.confirmB1RevenueReceipt("33333333-3333-4333-8333-333333333333");
+
+    expect(seen.submit).toEqual({
+      requestId: "11111111-1111-4111-8111-111111111111",
+      expectedUpdatedAt: "2026-07-25T00:00:00.000Z",
+    });
+    expect(seen.act).toEqual({
+      stepId: "22222222-2222-4222-8222-222222222222",
+      action: "review",
+      comment: "looks good",
+    });
+    expect(seen.confirm).toEqual({
+      stepId: "33333333-3333-4333-8333-333333333333",
+      optionalNote: undefined,
+    });
+    expect(JSON.stringify(seen.confirm)).not.toMatch(/amount|currency|invoice|confirmed_by/i);
+  });
+});
+
+describe("B1 UI ↔ Backend integration bridge — component & enrollment guards", () => {
+  function walk(dir: string): string[] {
+    return readdirSync(dir).flatMap((entry) => {
+      const path = join(dir, entry);
+      return statSync(path).isDirectory() ? walk(path) : [path];
+    });
+  }
+
+  it("B1 React components do not import Supabase", () => {
+    const root = join(process.cwd(), "src", "components", "student-requests", "b1");
+    for (const path of walk(root).filter((p) => /\.(tsx|ts)$/.test(p))) {
+      const source = readFileSync(path, "utf8");
+      expect(source).not.toMatch(/from\s+["']@\/integrations\/supabase/);
+      expect(source).not.toMatch(/from\s+["']@supabase\//);
+      expect(source).not.toMatch(/createClient\(/);
+      expect(source).not.toMatch(/\.from\(["']student_requests["']\)/);
+    }
+  });
+
+  it("does not mutate enrollment_certificate paths in this bridge", () => {
+    const live = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "adapter.live.ts"),
+      "utf8",
+    );
+    const rpc = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "b1-rpc.ts"),
+      "utf8",
+    );
+    const fns = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "b1-ui.functions.ts"),
+      "utf8",
+    );
+    for (const source of [live, rpc, fns]) {
+      expect(source).not.toMatch(/enrollment_certificate/);
+      expect(source).not.toMatch(/student_visible\s*[:=]/);
+    }
+  });
+
+  it("server functions call freeze RPC names with documented payloads", () => {
+    const fns = readFileSync(
+      join(process.cwd(), "src", "lib", "student-requests", "b1-ui", "b1-ui.functions.ts"),
+      "utf8",
+    );
+    expect(fns).toContain("rpcSubmitB1StudentRequestAtomic");
+    expect(fns).toContain("rpcActOnB1StudentRequestStepAtomic");
+    expect(fns).toContain("rpcRecordExternalUniversityPaymentConfirmation");
+    expect(fns).toContain("rpcCreateStudentRequestAttachmentUploadIntent");
+    expect(fns).toContain("const confirmSchema = z");
+    expect(fns).toContain("stepId: z.string().uuid()");
+    expect(fns).toContain("note: z.string().trim().max(2000).optional().nullable()");
+    const confirmBlock = fns.slice(
+      fns.indexOf("const confirmSchema"),
+      fns.indexOf("export const confirmB1UiRevenueReceiptFn"),
+    );
+    expect(confirmBlock).not.toMatch(/amount|currency|invoice|confirmed_by|confirmed_at|p_status/);
+    expect(confirmBlock).toContain(".strict()");
+  });
+});
