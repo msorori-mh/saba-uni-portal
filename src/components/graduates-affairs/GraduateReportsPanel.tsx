@@ -4,7 +4,11 @@ import type { SurveyAggregateReport } from "@/lib/graduates-affairs/surveys";
 
 function MetricCell({ metric }: { metric: PrivacySafeMetric }) {
   return metric.suppressed ? (
-    <td className="text-amber-700" title="عينة أصغر من الحد الأدنى">محجوب</td>
+    <td className="text-amber-700">
+      <span title="عينة أصغر من الحد الأدنى" aria-label="خلية محجوبة لحماية الخصوصية">
+        محجوب
+      </span>
+    </td>
   ) : (
     <td>{metric.total}</td>
   );
@@ -22,7 +26,9 @@ export function GraduateReportsPanel(props: {
 }) {
   return (
     <section dir="rtl" aria-labelledby="graduate-reports-title" className="rounded-lg border p-4">
-      <h3 id="graduate-reports-title" className="font-semibold">التقارير المجمعة</h3>
+      <h3 id="graduate-reports-title" className="font-semibold">
+        التقارير المجمعة
+      </h3>
       <p className="mt-1 text-sm text-muted-foreground">
         تقارير مجمعة على مستوى الأفواج فقط — تُحجب كل خلية أصغر من الحد الأدنى، ولا تُعرض بيانات
         فردية.
@@ -32,12 +38,12 @@ export function GraduateReportsPanel(props: {
         <table className="w-full text-sm" aria-label="تقرير التوظيف حسب الفوج">
           <thead>
             <tr>
-              <th>البرنامج</th>
-              <th>سنة التخرج</th>
-              <th>عدد الخريجين</th>
-              <th>الموظفون</th>
-              <th>مرتبط بالتخصص</th>
-              <th>موثق</th>
+              <th scope="col">الفوج</th>
+              <th scope="col">سنة التخرج</th>
+              <th scope="col">عدد الخريجين</th>
+              <th scope="col">الموظفون</th>
+              <th scope="col">مرتبط بالتخصص</th>
+              <th scope="col">موثق</th>
             </tr>
           </thead>
           <tbody>
@@ -46,9 +52,9 @@ export function GraduateReportsPanel(props: {
                 <td colSpan={6}>لا توجد بيانات بعد.</td>
               </tr>
             )}
-            {props.cohortReports.map((cohort) => (
+            {props.cohortReports.map((cohort, index) => (
               <tr key={`${cohort.programId}:${cohort.graduationYear}`}>
-                <td>{cohort.programId}</td>
+                <td>الفوج {index + 1}</td>
                 <td>{cohort.graduationYear}</td>
                 <MetricCell metric={cohort.summary.population} />
                 <MetricCell metric={cohort.summary.employed} />
@@ -70,24 +76,24 @@ export function GraduateReportsPanel(props: {
           <table className="mt-1 w-full text-sm" aria-label={`نتائج مجمعة — ${title}`}>
             <thead>
               <tr>
-                <th>السؤال</th>
-                <th>الخيار</th>
-                <th>العدد</th>
+                <th scope="col">السؤال</th>
+                <th scope="col">الخيار</th>
+                <th scope="col">العدد</th>
               </tr>
             </thead>
             <tbody>
-              {report.questions.map((question) =>
+              {report.questions.map((question, questionIndex) =>
                 question.kind === "single_choice" ? (
                   question.distribution.map((entry) => (
                     <tr key={`${question.key}:${entry.option}`}>
-                      <td>{question.key}</td>
+                      <td>سؤال {questionIndex + 1}</td>
                       <td>{entry.option}</td>
                       <MetricCell metric={entry.metric} />
                     </tr>
                   ))
                 ) : (
                   <tr key={question.key}>
-                    <td>{question.key}</td>
+                    <td>سؤال {questionIndex + 1}</td>
                     <td>إجابات نصية (تُحسب ولا تُعرض)</td>
                     <MetricCell metric={question.responded} />
                   </tr>
