@@ -37,6 +37,7 @@ describe("PORTAL-STUDENT-PORTAL-NAVIGATION-RTL-A11Y-CONSISTENCY-QA-01", () => {
   it("3 — mobile bottom nav: active state is not color-only and keeps aria-current", () => {
     const layout = readSrc("src/routes/mobile.student.tsx");
     expect(layout).toContain('aria-current={active ? "page" : undefined}');
+    expect(layout).toContain('current.startsWith(item.to + "/")');
     // Visible non-color cue (gold bar) in addition to text color
     expect(layout).toContain("Non-color active cue");
     expect(layout).toContain('className="absolute top-0 h-0.5 w-10 rounded-full bg-gold-gradient"');
@@ -108,6 +109,7 @@ describe("PORTAL-STUDENT-PORTAL-NAVIGATION-RTL-A11Y-CONSISTENCY-QA-01", () => {
     const nav = readSrc("src/components/portal/StudentRequestsNav.tsx");
     expect(nav).toContain('aria-label="مسار التنقل"');
     expect(nav).toContain("<ol");
+    expect(nav.match(/<nav\b/g)).toHaveLength(1);
     expect(nav).toContain('aria-current="page"');
     // Existing contract preserved: hard link back to the student portal
     expect(nav).toContain('to="/student"');
@@ -127,7 +129,16 @@ describe("PORTAL-STUDENT-PORTAL-NAVIGATION-RTL-A11Y-CONSISTENCY-QA-01", () => {
     expect(mobileLayout).toContain('aria-label="التنقل السفلي"');
   });
 
-  it("13 — shell stays Arabic RTL; no English aria labels on reviewed nav surfaces", () => {
+  it("13 — study-plan failures stay explicit and never become an empty state or raw backend text", () => {
+    const page = readSrc("src/routes/student.study-plan.tsx");
+    expect(page).toContain("programError || planError");
+    expect(page).toContain("تعذّر تحميل الخطة الدراسية");
+    expect(page).toContain('role="alert"');
+    expect(page).not.toMatch(/error\.message|\.message\s*}/);
+    expect(page).toContain("!programError && !planError && !isLoading");
+  });
+
+  it("14 — shell stays Arabic RTL; no English aria labels on reviewed nav surfaces", () => {
     const root = readSrc("src/routes/__root.tsx");
     expect(root).toContain('lang="ar" dir="rtl"');
     const about = readSrc("src/routes/about.tsx");

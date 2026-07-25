@@ -167,7 +167,9 @@ function MobileBottomNav() {
       <ul className="max-w-screen-sm mx-auto grid grid-cols-5">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const active = item.to !== null && (current === item.to || current === item.to + "/");
+          const active = item.to !== null && (item.to === "/mobile/student"
+            ? current === item.to || current === item.to + "/"
+            : current === item.to || current.startsWith(item.to + "/"));
           const disabled = item.to === null;
 
           const inner = (
