@@ -1,6 +1,6 @@
 # B1 Backend Implementation 01 — Preflight / Post-Verifier Index
 
-SOURCE-ONLY companions for promoted migrations orders 7–18.
+SOURCE-ONLY companions for promoted migrations orders 7–19.
 Each verifier is READ-ONLY and ends with ROLLBACK. Never apply as a migration.
 
 | Order | Migration | Preflight | Post-verifier |
@@ -17,3 +17,4 @@ Each verifier is READ-ONLY and ends with ROLLBACK. Never apply as a migration.
 | 16 | `supabase/migrations/20260725110900_b1_16_free_service_workflows_08.sql` | `docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-PREFLIGHT.sql` | `docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-POST-VERIFIER.sql` |
 | 17 | `supabase/migrations/20260725111000_b1_17_external_university_payment_workflows_02.sql` | `docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-PREFLIGHT.sql` | `docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-POST-VERIFIER.sql` |
 | 18 | `supabase/migrations/20260725111100_b1_18_detail_acl_cutover_06.sql` | `docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-PREFLIGHT.sql` | `docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-POST-VERIFIER.sql` |
+| 19 | `supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql` | `docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql` | `docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql` |

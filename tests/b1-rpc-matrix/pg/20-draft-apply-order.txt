@@ -1,4 +1,4 @@
-# B1 draft apply order (19-item manifest + reviewed forward-only F1/F2 remediation)
+# B1 draft apply order (20-item manifest + reviewed forward-only F1/F2 remediation)
 # The harness applies the drafts from docs/migration-drafts/ in EXACTLY this order.
 # Do not reorder; several drafts carry explicit predecessor preflights.
 #
@@ -30,7 +30,8 @@
 17 docs/migration-drafts/B1-FREE-SERVICE-WORKFLOWS-08.sql # blob b12d510154fc2d6e5022d7fdd9b86d9a52565054
 18 docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql # blob 8ba94dde082d0f6e4b7727fa5a42c81fdce37a19
 19 docs/migration-drafts/REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql # blob 74bf895c1c65a2f88564c5716da585ca528b8d63
-20 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
+20 docs/migration-drafts/B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql # blob 00e51372e9cded9643b57e5a323d31d17b7449bd
+21 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
 #
 # seq06 note: the committed draft fails closed by design while its
 # APPROVED_RELEASE_COMMIT_PLACEHOLDER is unresolved. The harness (a) asserts
@@ -40,3 +41,5 @@
 # debf9d041f7c05794f6df33877f1dff91253625e so the seq19 cutover release-evidence
 # preflight can be exercised end-to-end. This substitution is documented in the
 # report and is never a production instruction.
+# seq20 is the forward-only payment confirmation predecessor guard (after ACL,
+# before activation). seq21 remains the post-manifest F1/F2 actor/action remediation.

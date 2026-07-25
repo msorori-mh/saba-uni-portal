@@ -25,6 +25,7 @@ const promoted = [
   "20260725110900_b1_16_free_service_workflows_08.sql",
   "20260725111000_b1_17_external_university_payment_workflows_02.sql",
   "20260725111100_b1_18_detail_acl_cutover_06.sql",
+  "20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
 ] as const;
 
 describe("B1 five-services backend contract freeze 01", () => {
@@ -51,11 +52,13 @@ describe("B1 five-services backend contract freeze 01", () => {
     }
     expect(freeze).toContain("No amount/currency/invoice/gateway");
     expect(freeze).toContain("payment_not_confirmed");
+    expect(freeze).toContain("B1_PREDECESSOR_INCOMPLETE");
+    expect(freeze).toContain("20260725120000_b1_confirm_payment_predecessor_guard_01.sql");
     expect(freeze).toContain("`status='draft'`");
     expect(freeze).toContain("`is_active=false`");
   });
 
-  it("promotes runbook orders 7–18 with paired preflight/post-verifier companions", () => {
+  it("promotes runbook orders 7–19 with paired preflight/post-verifier companions", () => {
     for (const file of promoted) {
       const path = join(root, "supabase", "migrations", file);
       expect(existsSync(path)).toBe(true);
@@ -68,8 +71,8 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(files).toContain("PROMOTION-MAP.json");
     const preflights = files.filter((f) => f.endsWith("-PREFLIGHT.sql"));
     const posts = files.filter((f) => f.endsWith("-POST-VERIFIER.sql"));
-    expect(preflights).toHaveLength(12);
-    expect(posts).toHaveLength(12);
+    expect(preflights).toHaveLength(13);
+    expect(posts).toHaveLength(13);
     for (const f of [...preflights, ...posts]) {
       const sql = readFileSync(join(verifiersDir, f), "utf8");
       expect(sql).toContain("READ ONLY");
