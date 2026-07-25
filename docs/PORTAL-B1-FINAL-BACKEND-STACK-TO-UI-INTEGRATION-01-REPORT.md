@@ -3,38 +3,55 @@
 ## Decision
 
 **PASS_B1_FINAL_BACKEND_UI_CONTRACT_INTEGRATION_READY**
+**PASS_PR238_FINAL_BACKEND_REVIEW_GUARDS_SYNCED**
 
-UI stack (PR #221 tip `8c6e092`) merged with final Backend stack (PR #227 HEAD `4131195`) on branch `integration/b1-final-backend-ui-contracts-01`. Live B1 UI adapter now calls Secure Read + Secure Draft contracts. Five services remain hidden (`studentVisible` / `runtimeAvailable` fail-closed without activation).
+UI stack (PR #221 tip `8c6e092`) merged with final Backend stack on branch `integration/b1-final-backend-ui-contracts-01`. Live B1 UI adapter now calls Secure Read + Secure Draft contracts. Five services remain hidden (`studentVisible` / `runtimeAvailable` fail-closed without activation).
 
 No Production/Staging apply, Deploy/Publish, migration apply, activation, or `student_visible` mutation.
+
+## Final backend review guards sync (post PR #241 → #227)
+
+| Field | Value |
+|---|---|
+| PR | [#238](https://github.com/msorori-mh/saba-uni-portal/pull/238) |
+| PR #227 final HEAD | `1c085a97b6a1ad6f6da99f2ad09120bafaef4468` |
+| PR #241 | MERGED into #227 (`1c085a9…`) — independent Codex review of unified backend |
+| Codex decision | `PASS_PR227_FINAL_UNIFIED_BACKEND_STACK_REVIEW` |
+| Sync merge commit | `4d15edf74fe9fa45e425e633c2ef8d0803d2bedb` (`merge(b1): sync final PR227 Codex review guards into UI RC`) |
+| Prior #238 tip before sync | `2254fe88febeca902c12c44a63810da462f1f1f0` |
+| Base | `feat/b1-five-services-ui-kimi-01` (`8c6e092…`) |
+| Apply package | seq **21–25** READ-ONLY / PREPARATION-ONLY (PR #239) |
+| Five services | Still hidden (fail-closed) |
+| Next gate | PR #238 still requires an **independent Codex review of Backend/UI integration** before any merge into PR #221 |
+
+### Sync scope proof (`2254fe8…` → sync merge)
+
+Files brought from PR #241 / #227 tip only:
+
+- `docs/PORTAL-PR227-FINAL-UNIFIED-BACKEND-STACK-INDEPENDENT-REVIEW-01-REPORT.md`
+- `tests/student-requests/b1-final-unified-backend-stack-independent-review-01.test.ts` (seq 21–25 / pin guards)
+- `tests/b1-rpc-matrix/pg/40-verifier.sql` (harness open-draft compatibility)
+- `tests/b1-rpc-matrix/pg/run-harness.ps1` (position_assignment fixtures for seq 23)
+
+**Unchanged:** `src/` UI contracts, `adapter.live` behavior, SQL runtime functions / migrations, service visibility, activation, `enrollment_certificate` behavior.
 
 ## Final RC refresh (post PR #239)
 
 | Field | Value |
 |---|---|
-| PR | [#238](https://github.com/msorori-mh/saba-uni-portal/pull/238) |
 | Post-#239 merge pin | `e656b8259ce43fe320c20b086b7ea45ef403a472` |
-| RC tip | PR #238 `headRefOid` (docs-only refresh commits after the pin above) |
-| Prior integration tip | `a8d6f639f3e89c70253d6fbd85561e5ea8563edd` |
-| Merged prep PR | [#239](https://github.com/msorori-mh/saba-uni-portal/pull/239) → merge commit `e656b825…` |
-| Base | `feat/b1-five-services-ui-kimi-01` (`8c6e092…`) |
 | Apply package | `docs/PORTAL-B1-PRODUCTION-SEQUENTIAL-APPLY-FINAL-PACKAGE-01-REPORT.md` (seq **21–25**) |
-| Package mode | **READ-ONLY / PREPARATION-ONLY** — no Production/Staging write, no migration apply, no Deploy/Publish, no activation, no `student_visible` |
-| Five services | Still hidden (fail-closed) |
-| Next gate | PR #238 still requires an **independent Codex review** before any merge into PR #221 |
+| Package mode | **READ-ONLY / PREPARATION-ONLY** |
 
-Delta proof `a8d6f639…` → `e656b825…`: **one docs file only**
-`docs/PORTAL-B1-PRODUCTION-SEQUENTIAL-APPLY-FINAL-PACKAGE-01-REPORT.md` (+375).
-Subsequent RC refresh commits after `e656b825…` update this integration report / PR description only.
-No `src/`, SQL, migration, or runtime-contract byte changes vs `a8d6f639…`. Prior PG17 Secure Read 25/25, Secure Draft 35/35, and Integrated Runtime 5/5 remain applicable byte-for-byte to code/SQL at the RC tip.
+Delta proof `a8d6f639…` → `e656b825…`: **one docs file only** (apply-package report).
 
 ## Baseline
 
 | Ref | Value |
 |---|---|
 | Final RC tip (PR #238) | current `headRefOid` on `integration/b1-final-backend-ui-contracts-01` |
+| PR #227 final HEAD | `1c085a97b6a1ad6f6da99f2ad09120bafaef4468` |
 | Post-#239 merge pin | `e656b8259ce43fe320c20b086b7ea45ef403a472` |
-| PR #227 HEAD | `41311950872672a8e326b1712dd1f16475cc4877` |
 | PR #221 tip | `8c6e092c591be3d10bdfa159e86f61bc30ad0d05` (`feat/b1-five-services-ui-kimi-01`) |
 | Integration branch | `integration/b1-final-backend-ui-contracts-01` |
 | Stacked PR base | `feat/b1-five-services-ui-kimi-01` |
@@ -71,23 +88,26 @@ No `src/`, SQL, migration, or runtime-contract byte changes vs `a8d6f639…`. Pr
 - No direct Supabase imports in React B1 components.
 - Mock only when `DEV && VITE_B1_UI_MOCK=1`.
 
-## Verification
+## Verification (re-run after #241 sync)
 
 | Check | Result |
 |---|---|
-| Secure Read PG17 | **PASS** (25 rows) — code/SQL unchanged since `a8d6f639…`; still applicable at RC |
-| Secure Draft PG17 | **PASS** (35 rows) — same |
-| Integrated Runtime E2E | **PASS** 5/5, `fail_rows=0` — same |
-| `bun test tests/b1-manifest` (RC refresh) | **20 pass** |
-| `bun test tests/student-requests/b1-ui` (RC refresh) | **159 pass** |
-| `bun test tests/student-requests` (RC refresh) | **816 pass** |
-| `bun test tests/b1-rpc-matrix` (RC refresh) | **22 pass** |
-| `bun test tests` (RC refresh) | **1753 pass** |
-| `bunx tsc --noEmit` (RC refresh) | PASS |
-| eslint (owned files) (RC refresh) | PASS |
-| `bun run build` (RC refresh) | PASS |
-| `git diff --check` (RC refresh) | PASS |
-| Containers | removed (`--rm`) in integration cycle; not recreated for docs-only RC refresh |
+| Secure Read PG17 | **PASS** 25/25 (`B1_SECURE_READ_PG17_PASS`) |
+| Secure Draft PG17 | **PASS** 35/35 + concurrency (`B1_SECURE_DRAFT_PG17_PASS`, `B1_CONCURRENT_CREATE_ONE_DRAFT_PASS`) |
+| RPC matrix PG17 | **PASS** `RESULTS=65\|12\|0` (zero FAIL) |
+| Integrated Runtime E2E | **PASS** 5/5, `fail_rows=0` (`B1_INTEGRATED_RUNTIME_E2E_PASS`) |
+| `bun test tests/b1-manifest` | **20 pass** |
+| `bun test tests/student-requests/b1-ui` | **159 pass** |
+| `bun test tests/student-requests` | **821 pass** |
+| `bun test tests/b1-rpc-matrix` | **22 pass** |
+| `bun test tests` | **1758 pass** |
+| `bunx tsc --noEmit` | PASS |
+| eslint (owned files) | PASS (LF normalize on synced review test) |
+| `bun run build` | PASS |
+| `git diff --check` | PASS |
+| Containers | disposable `--rm` after each PG17 harness |
+
+Spot checks green: `expectedUpdatedAt`, no optimistic state, secure attachment download boundary, exact role/scope auth, transfer position assignment, withdrawal NULL guard, zero mutation, enrollment_certificate regression, five services remain hidden.
 
 ## Files (primary)
 
@@ -110,6 +130,8 @@ No `src/`, SQL, migration, or runtime-contract byte changes vs `a8d6f639…`. Pr
 
 None. SOURCE-ONLY. No Production/Staging migration apply, Deploy/Publish, activation, or `student_visible` change. No merge of PR #238 into PR #221 or main in this cycle.
 
-## RC refresh decision
+## RC decisions
 
-**PASS_PR238_POST_PR239_FINAL_RC_REFRESH** (documentation refresh after post-#239 pin `e656b825…`; independent Codex review of PR #238 remains outstanding before merge into #221).
+- **PASS_PR238_POST_PR239_FINAL_RC_REFRESH** — docs refresh after post-#239 pin `e656b825…`
+- **PASS_PR238_FINAL_BACKEND_REVIEW_GUARDS_SYNCED** — #238 synced to #227 tip `1c085a9…` after #241; Codex `PASS_PR227_FINAL_UNIFIED_BACKEND_STACK_REVIEW`
+- Independent Codex review of **Backend/UI integration on PR #238** remains outstanding before any merge into #221
