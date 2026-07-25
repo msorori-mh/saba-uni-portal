@@ -115,16 +115,56 @@
         "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
-        "note": "Namespaces: promotion-map order 19; manifest sequence_order 20; activation gate 21 (not a migration entry). Does not renumber promoted migrations 7-18."
+        "note": "Namespaces: promotion-map order 19; manifest sequence_order 20; secure read/draft/transfer/withdrawal follow at 21-24; activation gate 25 is not a migration entry. Does not renumber promoted migrations 7-18."
     },
     {
         "order": 20,
+        "draft": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql",
+        "migration": "supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
+        "draft_sha_lf": "98bcf77cbda492135d19801b9997eced6a4699a6f555bdfda4d739998389b035",
+        "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
+        "note": "Namespace bridge only: manifest sequence_order 20 remains the payment predecessor guard (promotion-map order 19). Formal stack continues at promotion-map/sequence 21 (secure read). This order-20 bridge prevents a missing promotion-map integer without inventing a new draft."
+    },
+    {
+        "order": 21,
         "draft": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql",
-        "migration": "supabase/migrations/20260725130000_b1_19_secure_read_contracts_01.sql",
+        "migration": "supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql",
         "draft_sha_lf": "0470e807fe3733658930b7916524c36e0f00b96ea5f48d962ea582144ecdd027",
-        "migration_sha_lf": "2bc0ef24f922acb466115bb206184b1df17cd3271a55cff893ee5eb05e006124",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql",
-        "note": "Read-contract track. Does not open create/save draft writes. Sequential-apply manifest promotion is a separate follow-up gate."
+        "migration_sha_lf": "cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql",
+        "note": "Read-contract track at promotion-map/sequence 21. Does not open create/save draft writes. Activation gate is 25."
+    },
+    {
+        "order": 22,
+        "draft": "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql",
+        "migration": "supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql",
+        "draft_sha_lf": "e8610fbe35c166af1c0552990566fd3eb5e295de582e4e59f0fabf8483110fa6",
+        "migration_sha_lf": "da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql",
+        "note": "Draft create/save write track at promotion-map/sequence 22. Submit remains submit_b1_student_request_atomic. Activation remains non-migration gate 25."
+    },
+    {
+        "order": 23,
+        "draft": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
+        "migration": "supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql",
+        "draft_sha_lf": "85d6a256127584f4e8793d2db7ed0a5925e7787dea36d0d255a76e11a45271d2",
+        "migration_sha_lf": "4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/23-B1_23_TRANSFER_DEPARTMENT_SCOPE_POSITION_ASSIGNMENT_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/23-B1_23_TRANSFER_DEPARTMENT_SCOPE_POSITION_ASSIGNMENT_01-POST-VERIFIER.sql",
+        "note": "Aligns transfer department scope with position_assignment assignees required by submit/init. Activation gate remains 25."
+    },
+    {
+        "order": 24,
+        "draft": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
+        "migration": "supabase/migrations/20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql",
+        "draft_sha_lf": "684aac3bc3801e7e50bb9c65ff041489afb3d9bf91083b28b97b63faa0434425",
+        "migration_sha_lf": "67257aa9201538b1a4691ec4602e1ae4dcbd7a2f2b511dcac1da8a714ae9d70b",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-POST-VERIFIER.sql",
+        "note": "Null-safe impact_acknowledgment / terms_acknowledgment guards. Activation gate remains 25."
     }
 ]

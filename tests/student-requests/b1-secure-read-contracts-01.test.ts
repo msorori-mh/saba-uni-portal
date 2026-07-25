@@ -22,11 +22,11 @@ const shaLf = (rel: string) =>
   createHash("sha256").update(read(rel).replace(/\r\n/g, "\n").replace(/\r/g, "\n")).digest("hex");
 
 const DRAFT = "docs/migration-drafts/B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql";
-const MIGRATION = "supabase/migrations/20260725130000_b1_19_secure_read_contracts_01.sql";
+const MIGRATION = "supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql";
 const PRE =
-  "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql";
+  "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql";
 const POST =
-  "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql";
+  "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql";
 const MAP = "docs/migration-drafts/b1-backend-verifiers/PROMOTION-MAP.json";
 
 describe("B1 secure read contracts — source surface", () => {
@@ -43,9 +43,9 @@ describe("B1 secure read contracts — source surface", () => {
     expect(read(POST)).toContain("ROLLBACK;");
   });
 
-  test("promotion map order 20 pins LF SHAs", () => {
+  test("promotion map order 21 pins LF SHAs", () => {
     const map = JSON.parse(read(MAP)) as Array<Record<string, string | number>>;
-    const entry = map.find((x) => x.order === 20);
+    const entry = map.find((x) => x.order === 21);
     expect(entry).toBeTruthy();
     expect(entry!.draft).toBe("B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql");
     expect(entry!.migration).toBe(MIGRATION);
@@ -89,7 +89,7 @@ describe("B1 secure read contracts — source surface", () => {
 });
 
 describe("B1 secure read contracts — adapter mapping", () => {
-  test("adapter read methods map to RPCs; draft writes stay fail-closed", () => {
+  test("adapter read methods map to RPCs; draft writes open via stacked mutation track", () => {
     expect(B1_ADAPTER_READ_RPC_MAP.getFormOptions).toBe("get_b1_request_form_options");
     expect(B1_ADAPTER_READ_RPC_MAP.getDraft).toBe("get_b1_request_draft_for_student");
     expect(B1_ADAPTER_READ_RPC_MAP.getStudentRequestDetails).toBe(
@@ -106,10 +106,9 @@ describe("B1 secure read contracts — adapter mapping", () => {
     expect(B1_ADAPTER_READ_RPC_MAP.refreshAfterConfirmPayment).toBe(
       "get_b1_assigned_request_details_for_actor",
     );
-    expect(B1_ADAPTER_READ_RPC_MAP.createDraft).toBeNull();
-    expect(B1_ADAPTER_READ_RPC_MAP.saveDraft).toBeNull();
-    expect(B1_SECURE_READ_WRITES_FAIL_CLOSED).toContain("create_draft");
-    expect(B1_SECURE_READ_WRITES_FAIL_CLOSED).toContain("save_draft");
+    expect(B1_ADAPTER_READ_RPC_MAP.createDraft).toBe("create_b1_request_draft_for_student");
+    expect(B1_ADAPTER_READ_RPC_MAP.saveDraft).toBe("save_b1_request_draft_for_student");
+    expect(B1_SECURE_READ_WRITES_FAIL_CLOSED).toHaveLength(0);
   });
 
   test("server wrappers never accept actor ids and never touch graduation-project tables", () => {
@@ -117,8 +116,8 @@ describe("B1 secure read contracts — adapter mapping", () => {
     expect(fns).toContain("requireSupabaseAuth");
     expect(fns).not.toMatch(/actorUserId|actor_user_id|p_actor/);
     expect(fns).not.toMatch(/\.from\(\s*["']graduation_project/);
-    expect(fns).toContain("createB1SecureDraftFailClosed");
-    expect(fns).toContain("saveB1SecureDraftFailClosed");
+    expect(fns).toContain("createB1Draft");
+    expect(fns).toContain("saveB1Draft");
   });
 
   test("five canonical services recognized", () => {

@@ -1,39 +1,43 @@
-# B1 draft apply order (20-item manifest + reviewed forward-only F1/F2 remediation)
+# B1 draft apply order (24-item manifest + reviewed forward-only F1/F2 remediation)
 # The harness applies the drafts from docs/migration-drafts/ in EXACTLY this order.
 # Do not reorder; several drafts carry explicit predecessor preflights.
 #
-# BYTE-TRUE PROVENANCE (fix round 2): every draft below was re-fetched from
-# main @ debf9d041f7c05794f6df33877f1dff91253625e and verified with
-# `git hash-object` against the blob SHA recorded at that commit (per-line pin
-# after the path). A previous staging round had 4 drafts (seq 05/16/17/18)
-# that were NOT byte-identical to main (seq16 ON CONFLICT column drift; seq17
-# transition graph 7-vs-8 and different action labels) and a stale seq13 note;
-# all 19 are now byte-true pins. Verify before running:
+# BYTE-TRUE PINS: each line records `git hash-object` of the draft path.
+# Final reviewed stack sequence (manifest sequence_order / apply-order):
+#   21 Secure Read Contracts
+#   22 Secure Draft Mutations
+#   23 Transfer Department Scope Position Assignment
+#   24 File Withdrawal Impact Acknowledgment NULL Guard
+#   25 Activation Gate (non-migration; local harness only via 35-activate-*)
+# Post-manifest F1/F2 actor/action hardening remains a harness remediation after 24.
+# Verify before running:
 #   for f in docs/migration-drafts/<name>; do git hash-object "$f"; done
-# and compare against the pins below (run-harness.sh step 0 automates this).
 01 docs/migration-drafts/REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql # blob 0659fe34e4ed7f47ff1f69c041adefe289c2d594
 02 docs/migration-drafts/STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql # blob 26b63bb93de4506d1b73440250503c0f166db217
 03 docs/migration-drafts/B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql # blob 3fb5340a431204db12cf30b6a9caef7a55a242f3
 04 docs/migration-drafts/REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql # blob 5278c7ace88e993ed214d5c7905a0a31828df910
-05 docs/migration-drafts/REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql # blob 90bad45e4fd93659c3ebf5fdd2d83c0dda2a4a6c
+05 docs/migration-drafts/REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql # blob 9010fbc181565e476748d70dc15c6898f6eb6a79
 06 docs/migration-drafts/REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql # blob 5851bf9e2b04c8232e2001a749a3d1421c5688be
-07 docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql # blob 0a61db10a81f8ee01ff5ada1c0aa5df6a4882204
+07 docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-CONFIRMATION-01.sql # blob 1116d94fe534a3919577b7d0ec3f1cce8b963a86
 08 docs/migration-drafts/STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql # blob d21aaaeff26ed11b452e2825932a7a2e5763daed
 09 docs/migration-drafts/REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql # blob 8fa9e01faeeb393633db6f3884afa256e5da4e44
 10 docs/migration-drafts/REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql # blob 30af305ce46c8776016c089c243cc878e946f8d4
-11 docs/migration-drafts/REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql # blob 27072dcb85054e4ec2da5f6946f1df102c0b7bb5
+11 docs/migration-drafts/REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql # blob 833c9a1a2c7a693b62d850ab4e6f582e6f916e5e
 12 docs/migration-drafts/REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql # blob d083e953d336a20be1b4f87e0dc3a602a4d66e11
 13 docs/migration-drafts/REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql # blob 805d3534a02ba1c63b742cd5626c255708ddfd73
 14 docs/migration-drafts/FINAL-CHANCE-CANONICAL-WRITE-03.sql # blob 074e7414099cbf9eb0915519f2cf325b19b26aec
-15 docs/migration-drafts/REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql # blob 1bac90f373b02c0f40482fc783c3c60fc115e50e
+15 docs/migration-drafts/REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql # blob b0043af23d9a549cdf3b791718231bf97d15227b
 16 docs/migration-drafts/REQUEST-B1-SERVICE-DETAILS-05A.sql # blob 82341aadd502307c1c50bcb1542dae20fe7f4959
 17 docs/migration-drafts/B1-FREE-SERVICE-WORKFLOWS-08.sql # blob b12d510154fc2d6e5022d7fdd9b86d9a52565054
 18 docs/migration-drafts/EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql # blob 8ba94dde082d0f6e4b7727fa5a42c81fdce37a19
 19 docs/migration-drafts/REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql # blob 74bf895c1c65a2f88564c5716da585ca528b8d63
 20 docs/migration-drafts/B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql # blob 00e51372e9cded9643b57e5a323d31d17b7449bd
 21 docs/migration-drafts/B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql # blob 50a862770dd0ea55cc316720f25f8dff2843942a
-22 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
-#
+22 docs/migration-drafts/B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql # blob c4e6ad0f85e0ebd8a7fa5e7ca4620386a39527ae
+23 docs/migration-drafts/B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql # blob c80e74efe9761e9efe352dce4f208b6e73c579f4
+24 docs/migration-drafts/B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql # blob b1cc3d0fd48ac2b92e485136c5e1600f763592e6
+# Post-manifest F1/F2 actor/action hardening (NOT activation gate 25):
+90 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
 # seq06 note: the committed draft fails closed by design while its
 # APPROVED_RELEASE_COMMIT_PLACEHOLDER is unresolved. The harness (a) asserts
 # that failure (EXPECTED-FAIL, error B1_ATOMIC_CALLER_RELEASE_EVIDENCE_NOT_APPROVED),
@@ -42,5 +46,6 @@
 # debf9d041f7c05794f6df33877f1dff91253625e so the seq19 cutover release-evidence
 # preflight can be exercised end-to-end. This substitution is documented in the
 # report and is never a production instruction.
-# seq20 is the forward-only payment confirmation predecessor guard (after ACL,
-# before activation). seq21 remains the post-manifest F1/F2 actor/action remediation.
+# seq20 payment predecessor guard. seq21 secure reads. seq22 secure draft mutations.
+# seq23 transfer department scope (position_assignment). seq24 withdrawal ack null-guard.
+# Activation remains non-migration gate 25 via 30-pre-activation + 35-activate-local-only.
