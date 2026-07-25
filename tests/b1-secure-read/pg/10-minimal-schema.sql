@@ -40,8 +40,11 @@ create table public.student_requests (
 );
 
 create table public.request_types (
+  id uuid unique not null default gen_random_uuid(),
   code text primary key,
-  name_ar text not null
+  name_ar text not null,
+  is_active boolean not null default false,
+  student_visible boolean not null default false
 );
 
 create table public.request_processing_units (
@@ -57,7 +60,10 @@ create table public.request_processing_roles (
 );
 
 create table public.request_type_workflows (
-  id uuid primary key default gen_random_uuid()
+  id uuid primary key default gen_random_uuid(),
+  request_type_id uuid references public.request_types(id),
+  status text not null default 'draft',
+  is_active boolean not null default false
 );
 
 create table public.request_type_workflow_steps (
@@ -102,6 +108,17 @@ create table public.student_request_attachment_uploads (
   storage_object_path text not null default 'x',
   upload_status text not null default 'attached',
   created_by uuid,
+  created_at timestamptz not null default now()
+);
+
+create table public.workflow_events (
+  id uuid primary key default gen_random_uuid(),
+  student_request_id uuid,
+  created_at timestamptz not null default now()
+);
+
+create table public.notifications (
+  id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now()
 );
 
@@ -195,7 +212,8 @@ $$;
 
 create or replace function public.can_current_user_act_on_step(p_step_id uuid, p_action text)
 returns boolean language sql stable security definer set search_path=public,pg_temp as $$
-  select public.user_matches_workflow_runtime_step(p_step_id);
+  select public.user_matches_workflow_runtime_step(p_step_id)
+    and coalesce(current_setting('b1.test.deny_action', true), '') <> p_action;
 $$;
 
 revoke all on function public.user_matches_workflow_runtime_step(uuid) from public, anon;

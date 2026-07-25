@@ -1,6 +1,6 @@
 -- PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION
 -- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
--- Track: PORTAL-B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01 / order 20
+-- Track: PORTAL-B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01 / order 21
 -- Source draft: docs/migration-drafts/B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql
 -- Companion preflight/post-verifier: docs/migration-drafts/b1-backend-verifiers/
 -- B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01
@@ -200,21 +200,41 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare v_uid uuid;
+declare v_ready_services jsonb;
+declare v_ready_count integer;
 begin
   v_uid := public.b1_require_auth_uid();
+  select
+    coalesce(jsonb_agg(x.canonical_code order by x.canonical_code), '[]'::jsonb),
+    count(*)
+  into v_ready_services, v_ready_count
+  from (
+    select public.b1_stored_to_canonical(rt.code) as canonical_code
+    from public.request_types rt
+    where public.b1_is_five_service_type(rt.code)
+      and rt.is_active is true
+      and rt.student_visible is true
+      and (
+        select count(*)
+        from public.request_type_workflows w
+        where w.request_type_id = rt.id
+          and w.status = 'active'
+          and w.is_active is true
+      ) = 1
+    group by public.b1_stored_to_canonical(rt.code)
+  ) x;
   return jsonb_build_object(
-    'available', true,
+    -- RPC existence is not activation. All five services must be explicitly
+    -- visible/active with exactly one active workflow before runtime is ready.
+    'available', v_ready_count = 5,
     'contract', 'B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01',
-    'services', jsonb_build_array(
-      'enrollment_suspension','excused_absence','department_transfer','final_chance','file_withdrawal'
-    ),
+    'services', v_ready_services,
     'reads', jsonb_build_array(
       'form_options','draft','student_details','student_list',
       'assigned_inbox','assigned_details','step_actions','attachments'
     ),
     -- Draft create/save remain write-side; not opened by this read track.
-    'writes_fail_closed', jsonb_build_array('create_draft','save_draft'),
-    'viewer', v_uid
+    'writes_fail_closed', jsonb_build_array('create_draft','save_draft')
   );
 end;
 $$;
@@ -358,7 +378,9 @@ begin
   select r.* into v_r
   from public.student_requests r
   join public.student_profiles sp on sp.id = r.student_profile_id
-  where r.id = p_request_id and sp.user_id = v_uid;
+  where r.id = p_request_id
+    and sp.user_id = v_uid
+    and sp.status = 'active';
   if v_r.id is null then
     perform public.b1_deny_read();
   end if;
@@ -400,7 +422,9 @@ begin
   select r.* into v_r
   from public.student_requests r
   join public.student_profiles sp on sp.id = r.student_profile_id
-  where r.id = p_request_id and sp.user_id = v_uid;
+  where r.id = p_request_id
+    and sp.user_id = v_uid
+    and sp.status = 'active';
   if v_r.id is null then
     perform public.b1_deny_read();
   end if;
@@ -546,7 +570,14 @@ begin
       sp.academic_number as "studentNumber",
       s.step_key as "stepKey",
       s.step_name_ar as "stepLabelAr",
-      public.b1_map_ui_staff_action(coalesce(cfg.action_type, 'review')) as "allowedAction",
+      case
+        when public.can_current_user_act_on_step(
+          s.id,
+          coalesce(cfg.action_type, 'review')
+        )
+        then public.b1_map_ui_staff_action(coalesce(cfg.action_type, 'review'))
+        else null
+      end as "allowedAction",
       sr.submitted_at as "submittedAt",
       (
         select coalesce(jsonb_agg(act), '[]'::jsonb)
@@ -567,13 +598,11 @@ begin
           union all
           select 'return'
           where coalesce(cfg.can_return_to_student, false)
-            and public.user_matches_workflow_runtime_step(s.id)
-            and s.status = 'active'
+            and public.can_current_user_act_on_step(s.id, 'return')
           union all
           select 'reject'
           where coalesce(cfg.can_reject, false)
-            and public.user_matches_workflow_runtime_step(s.id)
-            and s.status = 'active'
+            and public.can_current_user_act_on_step(s.id, 'reject')
         ) aa
         where aa.act is not null
       ) as "allowedActions"
@@ -639,7 +668,14 @@ begin
   v_canon := public.b1_stored_to_canonical(v_r.request_type);
   select rt.name_ar into v_title from public.request_types rt where rt.code = v_r.request_type;
   select * into v_cfg from public.request_type_workflow_steps where id = v_step.workflow_step_id;
-  v_action := public.b1_map_ui_staff_action(coalesce(v_cfg.action_type, 'review'));
+  if public.can_current_user_act_on_step(
+    v_step.id,
+    coalesce(v_cfg.action_type, 'review')
+  ) then
+    v_action := public.b1_map_ui_staff_action(coalesce(v_cfg.action_type, 'review'));
+  else
+    v_action := null;
+  end if;
 
   select coalesce(jsonb_agg(jsonb_build_object('labelAr', e.key, 'valueAr', e.value) order by e.key), '[]'::jsonb)
     into v_summary
@@ -667,9 +703,13 @@ begin
   from (
     select v_action as act where v_action is not null
     union all
-    select 'return' where coalesce(v_cfg.can_return_to_student, false)
+    select 'return'
+    where coalesce(v_cfg.can_return_to_student, false)
+      and public.can_current_user_act_on_step(v_step.id, 'return')
     union all
-    select 'reject' where coalesce(v_cfg.can_reject, false)
+    select 'reject'
+    where coalesce(v_cfg.can_reject, false)
+      and public.can_current_user_act_on_step(v_step.id, 'reject')
   ) x;
 
   return jsonb_build_object(
@@ -738,16 +778,23 @@ begin
   end if;
 
   if coalesce(v_cfg.can_return_to_student, false) then
-    v_actions := v_actions || jsonb_build_array('return');
+    if public.can_current_user_act_on_step(p_step_id, 'return') then
+      v_actions := v_actions || jsonb_build_array('return');
+    end if;
   end if;
   if coalesce(v_cfg.can_reject, false) then
-    v_actions := v_actions || jsonb_build_array('reject');
+    if public.can_current_user_act_on_step(p_step_id, 'reject') then
+      v_actions := v_actions || jsonb_build_array('reject');
+    end if;
   end if;
 
   return jsonb_build_object(
     'stepId', p_step_id,
     'requestId', v_step.student_request_id,
-    'allowedAction', v_primary,
+    'allowedAction', case
+      when v_actions ? coalesce(v_primary, '') then v_primary
+      else null
+    end,
     'allowedActions', v_actions
   );
 end;
@@ -778,7 +825,9 @@ begin
 
   select exists (
     select 1 from public.student_profiles sp
-    where sp.id = v_r.student_profile_id and sp.user_id = v_uid
+    where sp.id = v_r.student_profile_id
+      and sp.user_id = v_uid
+      and sp.status = 'active'
   ) into v_owner;
 
   select exists (

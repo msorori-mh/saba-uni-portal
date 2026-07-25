@@ -29,9 +29,10 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
     }
   });
 
-  test("runner applies secure-read before secure-draft and activates locally only", () => {
+  test("runner applies pinned apply-order through seq24 and activates locally only", () => {
     const runner = readFileSync(join(harnessDir, "run-harness.ps1"), "utf8");
-    expect(runner).toContain("B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql");
+    expect(runner).toContain("20-draft-apply-order.txt");
+    expect(runner).toContain("SECURE-READ-CONTRACTS");
     expect(runner).toContain("SECURE-DRAFT-MUTATIONS");
     expect(runner).toContain("35-activate-workflows-local-only.sql");
     expect(runner).toContain("TEST_ONLY_B1_FIVE_SERVICES_INTEGRATED_RUNTIME");
@@ -40,23 +41,31 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
     expect(runner).not.toMatch(/supabase\s+db\s+push|production|staging/i);
   });
 
-  test("promotion map order 20/21 and activation gate 22 remain distinct", () => {
+  test("final stack sequence 21-25 is pinned across promotion-map and manifest", () => {
     const map = JSON.parse(readFileSync(mapPath, "utf8")) as Array<{
       order: number;
       draft: string;
     }>;
-    expect(map.find((x) => x.order === 20)?.draft).toContain("SECURE-READ");
-    expect(map.find((x) => x.order === 21)?.draft).toContain("SECURE-DRAFT");
+    expect(map.find((x) => x.order === 21)?.draft).toContain("SECURE-READ");
+    expect(map.find((x) => x.order === 22)?.draft).toContain("SECURE-DRAFT");
+    expect(map.find((x) => x.order === 23)?.draft).toContain("TRANSFER-DEPARTMENT-SCOPE");
+    expect(map.find((x) => x.order === 24)?.draft).toContain("FILE-WITHDRAWAL-IMPACT-ACK");
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
       global_policies: { activation_gate: string };
       migrations: Array<{ sequence_order: number; filename: string }>;
     };
-    expect(manifest.global_policies.activation_gate).toMatch(/gate 22/);
-    expect(manifest.migrations.find((m) => m.sequence_order === 20)?.filename).toContain(
-      "CONFIRM-PAYMENT-PREDECESSOR",
-    );
+    expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
     expect(manifest.migrations.find((m) => m.sequence_order === 21)?.filename).toContain(
+      "SECURE-READ-CONTRACTS",
+    );
+    expect(manifest.migrations.find((m) => m.sequence_order === 22)?.filename).toContain(
       "SECURE-DRAFT-MUTATIONS",
+    );
+    expect(manifest.migrations.find((m) => m.sequence_order === 23)?.filename).toContain(
+      "TRANSFER-DEPARTMENT-SCOPE",
+    );
+    expect(manifest.migrations.find((m) => m.sequence_order === 24)?.filename).toContain(
+      "FILE-WITHDRAWAL-IMPACT-ACK",
     );
   });
 

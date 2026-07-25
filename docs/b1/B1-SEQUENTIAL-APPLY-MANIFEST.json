@@ -17,7 +17,7 @@
    "PARTIAL",
    "BLOCKED"
   ],
-  "current": "seq 1-7 partially present as Lovable UUID migrations on main@b63725e (PR #219 merged); seq 8-19 SOURCE_PROMOTED via PR #219; seq 20 (B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19) SOURCE_PROMOTED on fix/b1-confirm-payment-predecessor-guard-01 but NOT_APPLIED to production catalog; seq 21 B1-SECURE-DRAFT-MUTATIONS SOURCE_PROMOTED NOT_APPLIED",
+  "current": "seq 1-7 partially present as Lovable UUID migrations on main@b63725e (PR #219 merged); seq 8-19 SOURCE_PROMOTED via PR #219; seq 20 (B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19) SOURCE_PROMOTED on fix/b1-confirm-payment-predecessor-guard-01 but NOT_APPLIED to production catalog",
   "proof_policy": "application state is proven ONLY by object-level catalog evidence; name-matching draft filenames against Lovable UUID-named rows in supabase_migrations.schema_migrations is FORBIDDEN as proof"
  },
  "global_policies": {
@@ -43,7 +43,7 @@
   ],
   "on_stop": "halt the entire sequence; do NOT attempt later migrations; assess per entry.partial_apply_detection; remediate only via entry.rollback_by_forward (forward-only, reviewed)",
   "rollback_policy": "rollback-by-forward only; no down migrations; no historical data rewrite",
-  "activation_gate": "workflow/service ACTIVATION (B1 gate 22) is a separate reviewed step AFTER B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 (manifest sequence_order 20 / promotion-map order 19) verifies green (and after B1-DETAIL-ACL-CUTOVER-18); workflow drafts created by sequence entries 17/18 must stay status=draft,is_active=false | sequence_order 21 is B1-SECURE-DRAFT-MUTATIONS-01 (non-activation).",
+  "activation_gate": "workflow/service ACTIVATION (B1 gate 25) is a separate reviewed step AFTER B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD (manifest sequence_order 24 / promotion-map order 24) verifies green; sequence_order 21=secure reads / promotion-map order 21, 22=secure drafts / promotion-map order 22, 23=transfer department scope / promotion-map order 23; payment predecessor remains sequence_order 20 / promotion-map order 19; workflow drafts created by sequence entries 17/18 must stay status=draft,is_active=false",
   "protected_records": "enrollment_certificate workflow v2 (incl. ENROLLMENT-CERTIFICATE-COMPLETION-NOTIFICATION-CORRECTION.sql) is out of B1 scope; historical absence reason values (family/emergency), historical chance_type aliases, audit_logs history, uploaded attachment objects are protected -- no rewrite/backfill/delete"
  },
  "external_prerequisites": {
@@ -121,8 +121,7 @@
    "B1-FREE-SERVICE-WORKFLOWS-16",
    "B1-EXT-UNI-PAYMENT-WORKFLOWS-17",
    "B1-DETAIL-ACL-CUTOVER-18",
-   "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19",
-   "B1-SECURE-DRAFT-MUTATIONS-21"
+   "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19"
   ],
   "edges": [
    {
@@ -320,10 +319,6 @@
    {
     "from": "B1-DETAIL-ACL-CUTOVER-18",
     "to": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19"
-   },
-   {
-    "from": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19",
-    "to": "B1-SECURE-DRAFT-MUTATIONS-21"
    }
   ],
   "first_migration": "B1-LOG-AUDIT-CALL-DISAMBIGUATION-01",
@@ -846,7 +841,7 @@
    ],
    "partial_apply_detection": "NOT wrapped in BEGIN/COMMIT -- per protocol apply in one operator transaction; detection probe per object: 4 CHECK definitions widened AND record_external_university_payment_confirmation present AND its GRANT/REVOKE correct; any subset = partial",
    "rollback_by_forward": "forward: restore prior CHECK definitions (captured at preflight) via new ALTER statements and/or CREATE OR REPLACE the RPC to a corrected version; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "RPC inert until payment_confirmation runtime steps exist (B1-EXT-UNI-PAYMENT-WORKFLOWS-17); incomplete-predecessor bypass closed by B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 before activation gate 22",
+   "activation_dependency": "RPC inert until payment_confirmation runtime steps exist (B1-EXT-UNI-PAYMENT-WORKFLOWS-17); incomplete-predecessor bypass closed by B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 before activation gate 21",
    "status": "NOT_APPLIED",
    "status_evidence": "D-02 object evidence on main @ 45148e09 (catalog probes show created objects absent); name-matching against Lovable UUID migration rows is FORBIDDEN as proof"
   },
@@ -1799,7 +1794,7 @@
    ],
    "partial_apply_detection": "transactional draft; probe: post-verify DO passes on all 5 tables; if cutover function executed on subset (impossible inside txn), treat any privilege-matrix drift as partial",
    "rollback_by_forward": "forward: re-open write path corrections by restoring prior table ACLs/policies (captured at preflight) via new migration; never re-grant direct INSERT/UPDATE/DELETE to authenticated as a 'fix' without review; no down-migration and no DELETE of production data; remediate by a NEW reviewed forward migration only; historical rows are never rewritten",
-   "activation_dependency": "final DB cutover; B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 (sequence_order 20) must apply next; user-facing service activation remains a SEPARATE reviewed step (activation gate 22) after the predecessor guard verifies green",
+   "activation_dependency": "final DB cutover; B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19 (sequence_order 20) must apply next; user-facing service activation remains a SEPARATE reviewed step (activation gate 21) after the predecessor guard verifies green",
    "status": "NOT_APPLIED",
    "status_evidence": "SOURCE_PROMOTED on feat/b1-five-services-backend-01 (timestamped file under supabase/migrations); production catalog apply still REQUIRES_USER_APPROVAL; object-level proof remains the only APPLIED evidence",
    "source_promotion": {
@@ -1876,7 +1871,7 @@
    ],
    "partial_apply_detection": "single CREATE OR REPLACE FUNCTION — atomic by construction; probe: prosrc contains B1_PREDECESSOR_INCOMPLETE XOR not (never partial body)",
    "rollback_by_forward": "forward: REPLACE function again via a new reviewed migration if guard needs tightening; no down-migration; historical migration 20260725002135_* must not be edited; no DELETE of production data",
-   "activation_dependency": "mandatory before activation gate 22 / student_visible=true / Hidden E2E / Production activation; closes HOLD_B1_FIVE_SERVICES_AUTHORIZATION_CONFIRM_PAYMENT_PREDECESSOR_BYPASS",
+   "activation_dependency": "mandatory before secure-read sequence_order 21, secure-draft sequence_order 22, transfer/withdrawal 23-24, and activation gate 25 / student_visible=true / Hidden E2E / Production activation; closes HOLD_B1_FIVE_SERVICES_AUTHORIZATION_CONFIRM_PAYMENT_PREDECESSOR_BYPASS",
    "status": "NOT_APPLIED",
    "status_evidence": "SOURCE_PROMOTED on fix/b1-confirm-payment-predecessor-guard-01 as supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql; production catalog apply still REQUIRES_USER_APPROVAL",
    "source_promotion": {
@@ -1888,22 +1883,119 @@
    }
   },
   {
-   "canonical_id": "B1-SECURE-DRAFT-MUTATIONS-21",
-   "filename": "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql",
+   "canonical_id": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20",
+   "filename": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql",
    "path": "docs/migration-drafts/",
    "category": "b1_apply_set",
    "plan_order": null,
    "sequence_order": 21,
    "sequence_predecessor": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19",
-   "source_sha": "324044df1f26f6d66c04421a525efc697deeed46",
-   "source_sha_provenance": "git blob SHA-1 (git hash-object) of LF-normalized draft on feat/b1-five-services-secure-draft-mutations-01",
-   "sha256": "b94580bc9a44670470b841db857f3fe35268991c8fd2011dfc2e276467592a35",
+   "source_sha": "50a862770dd0ea55cc316720f25f8dff2843942a",
+   "source_sha_provenance": "git blob SHA-1 of the reviewed LF-normalized secure-read draft",
+   "sha256": "0470e807fe3733658930b7916524c36e0f00b96ea5f48d962ea582144ecdd027",
    "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 21 draft_sha_lf",
-   "byte_size": 33361,
+   "byte_size": 31648,
    "dependencies": [
     "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19"
    ],
-   "dependency_semantics": "requires prior B1 apply set through payment predecessor guard; secure-read helpers from PROMOTION-MAP order 20 must be present in catalog before apply",
+   "dependency_semantics": "secure reads follow every B1 write/ACL/predecessor prerequisite; the sequential predecessor prevents partial or parallel application",
+   "external_dependencies": [
+    "REQUEST-B1-DETAIL-ACL-CUTOVER-06",
+    "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01"
+   ],
+   "objects_created": [
+    "nine authenticated B1 secure-read RPCs",
+    "nine internal B1 read helpers"
+   ],
+   "objects_modified": [],
+   "functions": [
+    "get_b1_secure_read_runtime_capability",
+    "get_b1_request_form_options",
+    "get_b1_request_draft_for_student",
+    "get_b1_request_details_for_student",
+    "list_b1_requests_for_student",
+    "get_b1_assigned_inbox_for_actor",
+    "get_b1_assigned_request_details_for_actor",
+    "get_b1_step_allowed_actions",
+    "list_b1_request_attachments_for_viewer"
+   ],
+   "rpcs": [
+    "get_b1_secure_read_runtime_capability",
+    "get_b1_request_form_options",
+    "get_b1_request_draft_for_student",
+    "get_b1_request_details_for_student",
+    "list_b1_requests_for_student",
+    "get_b1_assigned_inbox_for_actor",
+    "get_b1_assigned_request_details_for_actor",
+    "get_b1_step_allowed_actions",
+    "list_b1_request_attachments_for_viewer"
+   ],
+   "rls_impact": "none; SECURITY DEFINER boundaries apply explicit owner/exact-assignee checks",
+   "grants_revokes": [
+    "REVOKE ALL from PUBLIC and anon on all nine RPCs",
+    "GRANT EXECUTE to authenticated only on all nine RPCs",
+    "no direct client table grants"
+   ],
+   "storage_impact": "read metadata only; no bucket/path/object key or signed URL is returned",
+   "protected_record_impact": "none; enrollment_certificate, historical documents, student_visible values, and workflow activation are unchanged",
+   "preflight": [
+    "run docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql",
+    "assert assignment/action helpers and required relations/columns exist",
+    "assert all nine secure-read RPCs are absent before first apply"
+   ],
+   "apply_channel": "manual single-migration apply by an authorized operator after explicit approval; never CI auto-apply, never batched, never parallel",
+   "post_verifier": {
+    "bun_source_contract_tests": [
+     "tests/student-requests/b1-secure-read-contracts-01.test.ts"
+    ],
+    "test_note": "source contracts plus isolated PostgreSQL 17 owner/assignee/action/readiness/zero-mutation matrix",
+    "pg_verifier": "tests/b1-secure-read/pg/40-verifier.sql",
+    "pg_verifier_status": "FOLLOW-UP CI leg; local disposable PG17 harness is required and currently green",
+    "existing_ci_pg_verifiers_cover_this_migration": false
+   },
+   "expected_object_proof": [
+    "all nine signatures exist as stable SECURITY DEFINER functions with fixed search_path",
+    "authenticated-only EXECUTE ACL; PUBLIC/anon denied; helpers remain private",
+    "runtime readiness fails closed until all five visible/active services each have exactly one active workflow",
+    "student reads require active owner profile; staff reads/actions require exact active assignment and authoritative action guard",
+    "attachment DTOs omit storage coordinates and every read produces zero mutations"
+   ],
+   "stop_conditions": [
+    "any signature, ACL, search_path, owner, assignment, action, readiness, or privacy assertion fails",
+    "any duplicate/ambiguous active workflow",
+    "any mutation, event, notification, attachment creation, or updated_at drift",
+    "any ERROR"
+   ],
+   "partial_apply_detection": "transactional migration; post-verifier requires the complete nine-RPC signature and ACL set",
+   "rollback_by_forward": "replace or revoke affected functions through a new reviewed forward migration; never edit an applied migration or mutate production data",
+   "activation_dependency": "mandatory before secure-draft sequence_order 22, transfer/withdrawal 23-24, and separate activation gate 25; migration itself never changes student_visible or workflow activation",
+   "status": "NOT_APPLIED",
+   "status_evidence": "SOURCE_PROMOTED in PR #227; no Production/Staging apply or catalog evidence",
+   "source_promotion": {
+    "track": "PORTAL-B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01",
+    "promoted_migration": "supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql",
+    "migration_sha_lf": "cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca",
+    "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
+    "contract_freeze": "docs/B1-FIVE-SERVICES-BACKEND-CONTRACT-FREEZE-01.md"
+   }
+  },
+  {
+   "canonical_id": "B1-SECURE-DRAFT-MUTATIONS-21",
+   "filename": "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql",
+   "path": "docs/migration-drafts/",
+   "category": "b1_apply_set",
+   "plan_order": null,
+   "sequence_order": 22,
+   "sequence_predecessor": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20",
+   "source_sha": "c4e6ad0f85e0ebd8a7fa5e7ca4620386a39527ae",
+   "source_sha_provenance": "git blob SHA-1 (git hash-object) of LF-normalized draft on feat/b1-five-services-secure-draft-mutations-01",
+   "sha256": "e8610fbe35c166af1c0552990566fd3eb5e295de582e4e59f0fabf8483110fa6",
+   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 22 draft_sha_lf",
+   "byte_size": 34976,
+   "dependencies": [
+    "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20"
+   ],
+   "dependency_semantics": "requires the secure-read contract at sequence_order 21 and all of its predecessors; the sequential predecessor prevents partial or parallel application",
    "external_dependencies": [],
    "objects_created": [
     "public.b1_draft_mutation_idempotency",
@@ -1925,44 +2017,179 @@
     "GRANT EXECUTE ON FUNCTION public.save_b1_request_draft_for_student(uuid, jsonb, timestamptz, text) TO authenticated;"
    ],
    "storage_impact": "none",
-   "protected_record_impact": "none — no enrollment_certificate; no student_visible; no activation",
+   "protected_record_impact": "none; no enrollment_certificate, student_visible, storage policy, document ACL, or activation change",
    "preflight": [
     "assert secure-read helpers exist",
     "assert trusted reference validators exist",
     "assert draft mutation RPCs not yet installed",
-    "run docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql"
+    "run docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql"
    ],
    "apply_channel": "manual single-migration apply by an authorized operator AFTER explicit per-migration human approval; NEVER via CI auto-apply",
    "post_verifier": {
     "bun_source_contract_tests": [
      "tests/student-requests/b1-secure-draft-mutations-01.test.ts"
     ],
-    "test_note": "source-contract + local PG17 harness tests/b1-secure-draft/pg/run-harness.ps1",
+    "test_note": "source-contract plus local PG17 harness tests/b1-secure-draft/pg/run-harness.ps1",
     "pg_verifier": "tests/b1-secure-draft/pg/40-verifier.sql",
-    "pg_verifier_status": "B1 PG-verifier coverage is a FOLLOW-UP for CI legs; local PG17 harness proves create/save matrix",
+    "pg_verifier_status": "FOLLOW-UP CI leg; local PG17 harness proves create/save authorization, idempotency, concurrency, and zero-mutation denial",
     "existing_ci_pg_verifiers_cover_this_migration": false
    },
    "expected_object_proof": [
     "create/save draft RPCs exist with authenticated EXECUTE only",
-    "idempotency table without authenticated DML",
+    "idempotency table has no authenticated DML grant",
     "unique open-draft index exists",
-    "capability writes_available includes create_draft/save_draft"
+    "capability writes_available includes create_draft/save_draft only after secure-read readiness"
+   ],
+   "stop_conditions": [
+    "any preflight CHECK failure",
+    "PG17 harness FAIL",
+    "any duplicate sequence_order or broken sequence predecessor",
+    "any ERROR"
+   ],
+   "partial_apply_detection": "single transaction DDL/REPLACE; probe RPC presence XOR absence",
+   "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
+   "activation_dependency": "draft create/save only; transfer/withdrawal remediations at sequence_order 23-24 and activation gate 25 follow; student_visible remains untouched",
+   "status": "NOT_APPLIED",
+   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "source_promotion": {
+    "track": "PORTAL-B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01",
+    "promoted_migration": "supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql",
+    "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
+    "promotion_map_order": 22,
+    "migration_sha_lf": "da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242"
+   }
+  },
+  {
+   "canonical_id": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
+   "filename": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
+   "path": "docs/migration-drafts/",
+   "category": "b1_apply_set",
+   "plan_order": null,
+   "sequence_order": 23,
+   "sequence_predecessor": "B1-SECURE-DRAFT-MUTATIONS-21",
+   "source_sha": "c80e74efe9761e9efe352dce4f208b6e73c579f4",
+   "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
+   "sha256": "85d6a256127584f4e8793d2db7ed0a5925e7787dea36d0d255a76e11a45271d2",
+   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 23 draft_sha_lf",
+   "byte_size": 3247,
+   "dependencies": [
+    "B1-SECURE-DRAFT-MUTATIONS-21"
+   ],
+   "dependency_semantics": "sequential predecessor prevents partial or parallel application",
+   "external_dependencies": [],
+   "objects_created": [],
+   "objects_modified": [
+    "public.current_user_matches_transfer_department_scope(uuid,text)"
+   ],
+   "functions": [
+    "current_user_matches_transfer_department_scope"
+   ],
+   "rpcs": [
+    "current_user_matches_transfer_department_scope"
+   ],
+   "rls_impact": "none",
+   "grants_revokes": [],
+   "storage_impact": "none",
+   "protected_record_impact": "none; enrollment_certificate and student_visible untouched",
+   "preflight": [
+    "run docs/migration-drafts/b1-backend-verifiers/23-B1_23_TRANSFER_DEPARTMENT_SCOPE_POSITION_ASSIGNMENT_01-PREFLIGHT.sql"
+   ],
+   "apply_channel": "manual single-migration apply by an authorized operator AFTER explicit per-migration human approval; NEVER via CI auto-apply",
+   "post_verifier": {
+    "bun_source_contract_tests": [
+     "tests/student-requests/b1-integrated-runtime-e2e-01.test.ts"
+    ],
+    "test_note": "source-contract plus integrated runtime PG17 harness",
+    "pg_verifier": "tests/b1-integrated-runtime/pg/run-harness.ps1",
+    "pg_verifier_status": "FOLLOW-UP CI leg; local disposable PG17 harness required",
+    "existing_ci_pg_verifiers_cover_this_migration": false
+   },
+   "expected_object_proof": [
+    "function body matches assigned_position_assignment_id path",
+    "anon EXECUTE denied"
    ],
    "stop_conditions": [
     "any preflight CHECK failure",
     "PG17 harness FAIL",
     "any ERROR"
    ],
-   "partial_apply_detection": "single transaction DDL/REPLACE; probe RPC presence XOR absence",
+   "partial_apply_detection": "single transaction CREATE OR REPLACE; probe function body marker",
    "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
-   "activation_dependency": "none — draft create/save only; activation remains separate gate 22; student_visible untouched",
+   "activation_dependency": "mandatory before activation gate 25; sequence_order 23",
    "status": "NOT_APPLIED",
-   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260725140000_b1_21_secure_draft_mutations_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
    "source_promotion": {
-    "track": "PORTAL-B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01",
-    "promoted_migration": "supabase/migrations/20260725140000_b1_21_secure_draft_mutations_01.sql",
+    "track": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
+    "promoted_migration": "supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql",
+    "migration_sha_lf": "4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
-    "promotion_map_order": 21
+    "promotion_map_order": 23
+   }
+  },
+  {
+   "canonical_id": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24",
+   "filename": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
+   "path": "docs/migration-drafts/",
+   "category": "b1_apply_set",
+   "plan_order": null,
+   "sequence_order": 24,
+   "sequence_predecessor": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23",
+   "source_sha": "b1cc3d0fd48ac2b92e485136c5e1600f763592e6",
+   "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
+   "sha256": "684aac3bc3801e7e50bb9c65ff041489afb3d9bf91083b28b97b63faa0434425",
+   "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 24 draft_sha_lf",
+   "byte_size": 9906,
+   "dependencies": [
+    "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-23"
+   ],
+   "dependency_semantics": "sequential predecessor prevents partial or parallel application",
+   "external_dependencies": [],
+   "objects_created": [],
+   "objects_modified": [
+    "public.persist_validated_b1_request_details(uuid,text,jsonb,uuid[])"
+   ],
+   "functions": [
+    "persist_validated_b1_request_details"
+   ],
+   "rpcs": [
+    "persist_validated_b1_request_details"
+   ],
+   "rls_impact": "none",
+   "grants_revokes": [],
+   "storage_impact": "none",
+   "protected_record_impact": "none; enrollment_certificate and student_visible untouched",
+   "preflight": [
+    "run docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-PREFLIGHT.sql"
+   ],
+   "apply_channel": "manual single-migration apply by an authorized operator AFTER explicit per-migration human approval; NEVER via CI auto-apply",
+   "post_verifier": {
+    "bun_source_contract_tests": [
+     "tests/student-requests/b1-integrated-runtime-e2e-01.test.ts"
+    ],
+    "test_note": "source-contract plus integrated runtime PG17 harness",
+    "pg_verifier": "tests/b1-integrated-runtime/pg/run-harness.ps1",
+    "pg_verifier_status": "FOLLOW-UP CI leg; local disposable PG17 harness required",
+    "existing_ci_pg_verifiers_cover_this_migration": false
+   },
+   "expected_object_proof": [
+    "impact_acknowledgment compared with IS DISTINCT FROM true"
+   ],
+   "stop_conditions": [
+    "any preflight CHECK failure",
+    "PG17 harness FAIL",
+    "any ERROR"
+   ],
+   "partial_apply_detection": "single transaction CREATE OR REPLACE; probe function body marker",
+   "rollback_by_forward": "forward-only via a new reviewed migration; no down-migration",
+   "activation_dependency": "mandatory before activation gate 25; sequence_order 24",
+   "status": "NOT_APPLIED",
+   "status_evidence": "SOURCE_PROMOTED as supabase/migrations/20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql; production catalog apply REQUIRES_USER_APPROVAL",
+   "source_promotion": {
+    "track": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-24",
+    "promoted_migration": "supabase/migrations/20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql",
+    "migration_sha_lf": "67257aa9201538b1a4691ec4602e1ae4dcbd7a2f2b511dcac1da8a714ae9d70b",
+    "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
+    "promotion_map_order": 24
    }
   }
  ],
@@ -2215,8 +2442,10 @@
   "B1 PG-verifier coverage: add pg-setup/pg-verify legs per B1 migration (or grouped) -- currently zero",
   "STAMP-01: after inserting the approved 40-hex release SHA, re-hash the revised draft and update entry B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-05 (current sha256 pins placeholder bytes)",
   "B1-TRANSFER-SECURE-ATTACHMENT-12: re-hash via raw-byte channel (12 non-rendered bytes lost by text fetch; blob SHA verified, plan pin used)",
-  "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19: apply after ACL cutover (sequence_order 20) and before activation gate 22; local PG17 harness must stay green for both paid services",
-  "activation gate 22 implementation + runbook (B1-MIGRATION-RUNBOOK-07) alignment",
+  "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-19: apply after ACL cutover (sequence_order 20) and before secure reads; local PG17 harness must stay green for both paid services",
+  "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-20: apply at sequence_order 21 before secure draft mutations",
+  "B1-SECURE-DRAFT-MUTATIONS-21: apply at sequence_order 22 before activation",
+  "activation gate 25 implementation + runbook (B1-MIGRATION-RUNBOOK-07) alignment",
   "ACL-CUTOVER-18 execution-time verification gap: its post-verify DO checks only has_table_privilege matrices; add a pg-verifier asserting relrowsecurity + pg_policies owner_select inventory post-cutover",
   "grants_revokes fields re-derived from actual draft texts (PR #203 review remediation; recon inventory proven fallible on this field)",
   "historical unauthorized-execution data remediation (impact audit) -- separate track",

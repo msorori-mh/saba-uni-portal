@@ -18,11 +18,11 @@ const shaLf = (rel: string) =>
   createHash("sha256").update(read(rel).replace(/\r\n/g, "\n").replace(/\r/g, "\n")).digest("hex");
 
 const DRAFT = "docs/migration-drafts/B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql";
-const MIGRATION = "supabase/migrations/20260725140000_b1_21_secure_draft_mutations_01.sql";
+const MIGRATION = "supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql";
 const PRE =
-  "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql";
+  "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql";
 const POST =
-  "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql";
+  "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql";
 const MAP = "docs/migration-drafts/b1-backend-verifiers/PROMOTION-MAP.json";
 
 describe("B1 secure draft mutations — source surface", () => {
@@ -36,9 +36,9 @@ describe("B1 secure draft mutations — source surface", () => {
     expect(read(POST)).toContain("READ ONLY");
   });
 
-  test("promotion map order 21 pins LF SHAs", () => {
+  test("promotion map order 22 pins LF SHAs", () => {
     const map = JSON.parse(read(MAP)) as Array<Record<string, string | number>>;
-    const entry = map.find((x) => x.order === 21);
+    const entry = map.find((x) => x.order === 22);
     expect(entry).toBeTruthy();
     expect(entry!.draft).toBe("B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql");
     expect(entry!.migration).toBe(MIGRATION);
@@ -76,11 +76,24 @@ describe("B1 secure draft mutations — source surface", () => {
     expect(sql).not.toMatch(/jsonb_build_object\([^)]*storage_bucket/);
   });
 
-  test("does not require student_visible for create; does not call submit", () => {
+  test("create remains fail-closed until backend visibility/workflow readiness; does not call submit", () => {
     const sql = read(DRAFT);
-    expect(sql).toContain("student_visible / production activation NOT required");
+    expect(sql).toContain("v_type.student_visible is distinct from true");
+    expect(sql).toContain("from public.request_type_workflows w");
+    expect(sql).toContain("v_ready_count = 5");
+    expect(sql).not.toContain("'available', true");
+    expect(sql).not.toContain("'viewer'");
     expect(sql).not.toMatch(/submit_b1_student_request_atomic\s*\(/);
     expect(sql).toContain("'submit_rpc', 'submit_b1_student_request_atomic'");
+  });
+
+  test("save requires authoritative optimistic-concurrency timestamp before mutation", () => {
+    const sql = read(DRAFT);
+    expect(sql).toContain("if p_expected_updated_at is null then");
+    expect(sql).toContain("v_r.updated_at is distinct from p_expected_updated_at");
+    expect(sql.indexOf("return public.b1_build_student_draft_dto(p_request_id)")).toBeLessThan(
+      sql.indexOf("v_r.updated_at is distinct from p_expected_updated_at"),
+    );
   });
 });
 
@@ -99,6 +112,14 @@ describe("B1 secure draft mutations — adapter mapping", () => {
     expect(fns).toContain("createB1Draft");
     expect(fns).toContain("saveB1Draft");
     expect(fns).not.toMatch(/actorUserId|actor_user_id|p_actor|student_id|user_id/);
+    expect(fns).toContain("expectedUpdatedAt: z.string().datetime({ offset: true })");
+  });
+
+  test("wrappers never expose raw backend errors", () => {
+    const rpc = read("src/lib/student-requests/b1-secure-draft/rpc.ts");
+    const fns = read("src/lib/student-requests/b1-secure-draft/functions.ts");
+    expect(rpc).not.toContain('msg.split("\\n")[0]');
+    expect(fns).not.toContain("new B1SecureDraftRpcError(error.message)");
   });
 });
 

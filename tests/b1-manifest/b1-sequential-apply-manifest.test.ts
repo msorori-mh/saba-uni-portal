@@ -12,6 +12,7 @@ const repoRoot = join(here, "..", "..");
 const manifestPath = join(repoRoot, "docs", "b1", "B1-SEQUENTIAL-APPLY-MANIFEST.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- heterogeneous manifest schema
 const entries = manifest.migrations as Array<Record<string, any>>;
 const ids = entries.map((e) => e.canonical_id as string);
 const idSet = new Set(ids);
@@ -46,7 +47,7 @@ describe("manifest shape", () => {
   test("manifest loads from its repo path and has required top-level sections", () => {
     expect(manifest.manifest_id).toBe("B1-SEQUENTIAL-APPLY-MANIFEST-01");
     expect(Array.isArray(entries)).toBe(true);
-    expect(entries.length).toBe(21); // prior 20 + B1 secure draft mutations (sequence_order 21)
+    expect(entries.length).toBe(24); // prior 20 + secure read/draft + transfer scope + withdrawal ack guard
     expect(manifest.global_policies).toBeTruthy();
     expect(manifest.dependency_graph).toBeTruthy();
     expect(manifest.excluded).toBeTruthy();
@@ -96,12 +97,15 @@ describe("dependency graph", () => {
   });
   test("graph is acyclic (topological sort covers all nodes)", () => {
     const indeg = new Map<string, number>(ids.map((i) => [i, 0]));
-    for (const e of entries) for (const d of e.dependencies) indeg.set(e.canonical_id, (indeg.get(e.canonical_id) ?? 0) + 1);
+    for (const e of entries)
+      for (const d of e.dependencies)
+        indeg.set(e.canonical_id, (indeg.get(e.canonical_id) ?? 0) + 1);
     const queue = ids.filter((i) => (indeg.get(i) ?? 0) === 0);
     let seen = 0;
     const depsOf = new Map(entries.map((e) => [e.canonical_id, e.dependencies as string[]]));
     const dependents = new Map<string, string[]>(ids.map((i) => [i, []]));
-    for (const e of entries) for (const d of e.dependencies) dependents.get(d)!.push(e.canonical_id);
+    for (const e of entries)
+      for (const d of e.dependencies) dependents.get(d)!.push(e.canonical_id);
     const work = [...queue];
     while (work.length) {
       const n = work.pop()!;
@@ -187,7 +191,12 @@ describe("excluded and verifier mapping", () => {
   test("never-apply section lists exactly 5 drafts, each with a reason and hashes", () => {
     const na = manifest.excluded.never_apply;
     expect(na.length).toBe(5);
-    expect(na.some((x: { filename: string }) => x.filename === "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql")).toBe(true);
+    expect(
+      na.some(
+        (x: { filename: string }) =>
+          x.filename === "B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-01.sql",
+      ),
+    ).toBe(true);
     for (const x of na) {
       expect(String(x.reason).length).toBeGreaterThan(10);
       expect(x.source_sha).toMatch(/^[0-9a-f]{40}$/);
@@ -197,7 +206,8 @@ describe("excluded and verifier mapping", () => {
   test("no never-apply or out-of-scope filename appears in the apply set", () => {
     const applyFns = new Set(entries.map((e) => e.filename));
     for (const x of manifest.excluded.never_apply) expect(applyFns.has(x.filename)).toBe(false);
-    for (const x of manifest.excluded.out_of_scope_non_b1) expect(applyFns.has(x.filename)).toBe(false);
+    for (const x of manifest.excluded.out_of_scope_non_b1)
+      expect(applyFns.has(x.filename)).toBe(false);
   });
   test("all 8 existing CI pg-verifier legs are mapped and explicitly marked NOT B1", () => {
     const v = manifest.existing_ci_pg_verifiers;

@@ -25,8 +25,28 @@ try {
 
   Invoke-PsqlFile (Join-Path $PSScriptRoot "10-minimal-schema.sql")
   Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql")
+  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\22-B1_22_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql")
   Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql")
+  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\22-B1_22_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql")
   Invoke-PsqlFile (Join-Path $PSScriptRoot "40-verifier.sql")
+  Invoke-PsqlFile (Join-Path $PSScriptRoot "50-concurrency-setup.sql")
+
+  $sql = "select set_config('request.jwt.claim.sub','90909090-9090-9090-9090-909090909090',false); select public.create_b1_request_draft_for_student('enrollment_suspension',null);"
+  $jobs = 1..2 | ForEach-Object {
+    Start-Job -ScriptBlock {
+      param($container, $statement)
+      docker exec $container psql -v ON_ERROR_STOP=1 -U postgres -d postgres -c $statement
+      if ($LASTEXITCODE -ne 0) { throw "concurrent psql failed" }
+    } -ArgumentList $name, $sql
+  }
+  $jobs | Wait-Job | Out-Null
+  $jobOutput = $jobs | Receive-Job
+  $failedJobs = @($jobs | Where-Object { $_.State -ne "Completed" })
+  $jobs | Remove-Job -Force
+  if ($failedJobs.Count -ne 0) { throw "Concurrent create worker failed" }
+  $jobOutput | Write-Output
+
+  Invoke-PsqlFile (Join-Path $PSScriptRoot "60-concurrency-verifier.sql")
 
   Write-Output "PG_VERSION=$serverVersion"
   Write-Output "B1_SECURE_DRAFT_PG17_PASS"

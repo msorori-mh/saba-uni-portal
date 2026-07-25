@@ -55,10 +55,7 @@ function mapRpcError(error: { message: string; code?: string }): never {
   if (msg.includes("B1_UNEXPECTED_FORM_FIELD")) {
     throw new B1SecureDraftRpcError("B1_UNEXPECTED_FORM_FIELD", "B1_UNEXPECTED_FORM_FIELD");
   }
-  throw new B1SecureDraftRpcError(
-    msg.split("\n")[0] ?? B1_SECURE_DRAFT_UPDATING_MSG,
-    error.code ?? "",
-  );
+  throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG, error.code ?? "");
 }
 
 export class B1SecureDraftRpcClient {
@@ -80,13 +77,13 @@ export class B1SecureDraftRpcClient {
   async saveDraft(input: {
     requestId: string;
     formData: Record<string, unknown>;
-    expectedUpdatedAt?: string | null;
+    expectedUpdatedAt: string;
     idempotencyKey?: string | null;
   }): Promise<B1SecureDraft> {
     const { data, error } = await this.supabase.rpc("save_b1_request_draft_for_student", {
       p_request_id: input.requestId,
       p_form_data: input.formData,
-      p_expected_updated_at: input.expectedUpdatedAt ?? null,
+      p_expected_updated_at: input.expectedUpdatedAt,
       p_idempotency_key: input.idempotencyKey ?? null,
     });
     if (error) mapRpcError(error);

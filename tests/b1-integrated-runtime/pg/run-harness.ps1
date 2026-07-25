@@ -43,21 +43,14 @@ try {
 
   $entries = Get-Content (Join-Path $rpcMatrix "20-draft-apply-order.txt") |
     Where-Object { $_ -match '^\d{2} docs/migration-drafts/' }
-  $secureReadApplied = $false
+  $sawSecureRead = $false
+  $sawSecureDraft = $false
   foreach ($entry in $entries) {
     $parts = $entry -split '\s+'
     $sequence = $parts[0]
     $relative = $parts[1]
     $expectedBlob = $parts[4]
     $path = Join-Path $repo ($relative -replace '/', '\')
-
-    # PROMOTION-MAP order 20 (secure-read) is not in sequential manifest;
-    # insert it immediately before secure-draft (harness seq 21 / manifest seq 21).
-    if ($relative -match 'SECURE-DRAFT-MUTATIONS' -and -not $secureReadApplied) {
-      $readPath = Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql"
-      Invoke-PsqlFile $readPath
-      $secureReadApplied = $true
-    }
 
     $actualBlob = (git -C $repo hash-object $path).Trim()
     if ($actualBlob -ne $expectedBlob) { throw "PIN MISMATCH seq$sequence $relative expected=$expectedBlob actual=$actualBlob" }
@@ -77,8 +70,16 @@ try {
     } else {
       Invoke-PsqlFile $path
     }
+
+    if ($relative -match 'SECURE-READ-CONTRACTS') { $sawSecureRead = $true }
+    if ($relative -match 'SECURE-DRAFT-MUTATIONS') {
+      if (-not $sawSecureRead) { throw "secure-draft applied before secure-read in apply-order" }
+      $sawSecureDraft = $true
+    }
   }
-  if (-not $secureReadApplied) { throw "secure-read contracts were not applied before secure-draft" }
+  if (-not $sawSecureRead -or -not $sawSecureDraft) {
+    throw "final stack requires apply-order seq21 secure-read and seq22 secure-draft"
+  }
 
   Invoke-PsqlFile (Join-Path $rpcMatrix "30-pre-activation-assert.sql")
   Invoke-PsqlFile (Join-Path $rpcMatrix "35-activate-workflows-local-only.sql")
