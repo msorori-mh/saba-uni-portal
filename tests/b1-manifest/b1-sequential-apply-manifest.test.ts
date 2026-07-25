@@ -47,7 +47,7 @@ describe("manifest shape", () => {
   test("manifest loads from its repo path and has required top-level sections", () => {
     expect(manifest.manifest_id).toBe("B1-SEQUENTIAL-APPLY-MANIFEST-01");
     expect(Array.isArray(entries)).toBe(true);
-    expect(entries.length).toBe(22); // prior 20 + secure reads + secure draft mutations
+    expect(entries.length).toBe(24); // prior 20 + secure read/draft + transfer scope + withdrawal ack guard
     expect(manifest.global_policies).toBeTruthy();
     expect(manifest.dependency_graph).toBeTruthy();
     expect(manifest.excluded).toBeTruthy();

@@ -1,16 +1,17 @@
-# B1 draft apply order (20-item manifest + reviewed forward-only F1/F2 remediation)
+# B1 draft apply order (24-item manifest + reviewed forward-only F1/F2 remediation)
 # The harness applies the drafts from docs/migration-drafts/ in EXACTLY this order.
 # Do not reorder; several drafts carry explicit predecessor preflights.
 #
-# BYTE-TRUE PINS: each line records `git hash-object` of the draft path at the
-# tip of the stacked B1 branches (secure-read + secure-draft + forward-only
-# position_assignment / payment / absence detail remediations). Seq 05/07/11/15
-# pins were refreshed when those drafts diverged from the older main snapshot.
+# BYTE-TRUE PINS: each line records `git hash-object` of the draft path.
+# Final reviewed stack sequence (manifest sequence_order / apply-order):
+#   21 Secure Read Contracts
+#   22 Secure Draft Mutations
+#   23 Transfer Department Scope Position Assignment
+#   24 File Withdrawal Impact Acknowledgment NULL Guard
+#   25 Activation Gate (non-migration; local harness only via 35-activate-*)
+# Post-manifest F1/F2 actor/action hardening remains a harness remediation after 24.
 # Verify before running:
 #   for f in docs/migration-drafts/<name>; do git hash-object "$f"; done
-# and compare against the pins below (run-harness automates this).
-# NOTE: PROMOTION-MAP order 20 (SECURE-READ-CONTRACTS) is not a sequential
-# manifest item; integrated harness inserts it immediately before seq 21.
 01 docs/migration-drafts/REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql # blob 0659fe34e4ed7f47ff1f69c041adefe289c2d594
 02 docs/migration-drafts/STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql # blob 26b63bb93de4506d1b73440250503c0f166db217
 03 docs/migration-drafts/B1-RUNTIME-PREDECESSOR-GUARD-REMEDIATION-02.sql # blob 3fb5340a431204db12cf30b6a9caef7a55a242f3
@@ -33,10 +34,10 @@
 20 docs/migration-drafts/B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql # blob 00e51372e9cded9643b57e5a323d31d17b7449bd
 21 docs/migration-drafts/B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql # blob 50a862770dd0ea55cc316720f25f8dff2843942a
 22 docs/migration-drafts/B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql # blob c4e6ad0f85e0ebd8a7fa5e7ca4620386a39527ae
-23 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
-24 docs/migration-drafts/B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql # blob c80e74efe9761e9efe352dce4f208b6e73c579f4
-25 docs/migration-drafts/B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql # blob b1cc3d0fd48ac2b92e485136c5e1600f763592e6
-#
+23 docs/migration-drafts/B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql # blob c80e74efe9761e9efe352dce4f208b6e73c579f4
+24 docs/migration-drafts/B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql # blob b1cc3d0fd48ac2b92e485136c5e1600f763592e6
+# Post-manifest F1/F2 actor/action hardening (NOT activation gate 25):
+90 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0
 # seq06 note: the committed draft fails closed by design while its
 # APPROVED_RELEASE_COMMIT_PLACEHOLDER is unresolved. The harness (a) asserts
 # that failure (EXPECTED-FAIL, error B1_ATOMIC_CALLER_RELEASE_EVIDENCE_NOT_APPROVED),
@@ -45,10 +46,6 @@
 # debf9d041f7c05794f6df33877f1dff91253625e so the seq19 cutover release-evidence
 # preflight can be exercised end-to-end. This substitution is documented in the
 # report and is never a production instruction.
-# seq20 is the forward-only payment confirmation predecessor guard (after ACL,
-# before activation). seq21 is secure reads, seq22 is secure draft mutations,
-# and seq23 remains the post-manifest F1/F2 actor/action remediation.
-# seq24 aligns transfer department scope with position_assignment assignees
-# (submit already requires position_assignment for source/target chairs).
-# seq25 null-guards file_withdrawal impact_acknowledgment (and suspension terms)
-# with IS DISTINCT FROM.
+# seq20 payment predecessor guard. seq21 secure reads. seq22 secure draft mutations.
+# seq23 transfer department scope (position_assignment). seq24 withdrawal ack null-guard.
+# Activation remains non-migration gate 25 via 30-pre-activation + 35-activate-local-only.

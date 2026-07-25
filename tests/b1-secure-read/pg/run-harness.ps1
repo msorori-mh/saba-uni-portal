@@ -24,9 +24,9 @@ try {
   if ($serverVersion -notmatch '^17\.') { throw "Expected PostgreSQL 17, got $serverVersion" }
 
   Invoke-PsqlFile (Join-Path $PSScriptRoot "10-minimal-schema.sql")
-  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\20-B1_19_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql")
+  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\21-B1_21_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql")
   Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql")
-  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\20-B1_19_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql")
+  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\21-B1_21_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql")
   Invoke-PsqlFile (Join-Path $PSScriptRoot "40-verifier.sql")
 
   Write-Output "PG_VERSION=$serverVersion"

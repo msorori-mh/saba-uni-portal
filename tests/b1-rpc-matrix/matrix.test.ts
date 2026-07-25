@@ -142,10 +142,10 @@ describe("matrix JSON: coverage", () => {
 });
 
 describe("cross-check: matrix vs sequential-apply manifest", () => {
-  test("manifest has exactly 22 entries in sequence 1..22", () => {
-    expect(manifest.migrations.length).toBe(22);
+  test("manifest has exactly 24 entries in sequence 1..24", () => {
+    expect(manifest.migrations.length).toBe(24);
     const seq = manifest.migrations.map((m) => m.sequence_order);
-    expect(seq).toEqual(Array.from({ length: 22 }, (_, i) => i + 1));
+    expect(seq).toEqual(Array.from({ length: 24 }, (_, i) => i + 1));
   });
   test("harness applies the manifest exactly, then the F1/F2 remediation", () => {
     const orderLines = orderText
@@ -156,8 +156,6 @@ describe("cross-check: matrix vs sequential-apply manifest", () => {
     expect(orderLines.slice(0, manifestFiles.length)).toEqual(manifestFiles);
     expect(orderLines.slice(manifestFiles.length)).toEqual([
       "B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql",
-      "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
-      "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
     ]);
   });
 });

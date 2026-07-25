@@ -29,8 +29,9 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
     }
   });
 
-  test("runner applies secure-read before secure-draft and activates locally only", () => {
+  test("runner applies pinned apply-order through seq24 and activates locally only", () => {
     const runner = readFileSync(join(harnessDir, "run-harness.ps1"), "utf8");
+    expect(runner).toContain("20-draft-apply-order.txt");
     expect(runner).toContain("SECURE-READ-CONTRACTS");
     expect(runner).toContain("SECURE-DRAFT-MUTATIONS");
     expect(runner).toContain("35-activate-workflows-local-only.sql");
@@ -40,26 +41,31 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
     expect(runner).not.toMatch(/supabase\s+db\s+push|production|staging/i);
   });
 
-  test("promotion map order 20/21 and manifest gate 23 remain distinct", () => {
+  test("final stack sequence 21-25 is pinned across promotion-map and manifest", () => {
     const map = JSON.parse(readFileSync(mapPath, "utf8")) as Array<{
       order: number;
       draft: string;
     }>;
-    expect(map.find((x) => x.order === 20)?.draft).toContain("SECURE-READ");
-    expect(map.find((x) => x.order === 21)?.draft).toContain("SECURE-DRAFT");
+    expect(map.find((x) => x.order === 21)?.draft).toContain("SECURE-READ");
+    expect(map.find((x) => x.order === 22)?.draft).toContain("SECURE-DRAFT");
+    expect(map.find((x) => x.order === 23)?.draft).toContain("TRANSFER-DEPARTMENT-SCOPE");
+    expect(map.find((x) => x.order === 24)?.draft).toContain("FILE-WITHDRAWAL-IMPACT-ACK");
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
       global_policies: { activation_gate: string };
       migrations: Array<{ sequence_order: number; filename: string }>;
     };
-    expect(manifest.global_policies.activation_gate).toMatch(/gate 23/);
-    expect(manifest.migrations.find((m) => m.sequence_order === 20)?.filename).toContain(
-      "CONFIRM-PAYMENT-PREDECESSOR",
-    );
+    expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
     expect(manifest.migrations.find((m) => m.sequence_order === 21)?.filename).toContain(
       "SECURE-READ-CONTRACTS",
     );
     expect(manifest.migrations.find((m) => m.sequence_order === 22)?.filename).toContain(
       "SECURE-DRAFT-MUTATIONS",
+    );
+    expect(manifest.migrations.find((m) => m.sequence_order === 23)?.filename).toContain(
+      "TRANSFER-DEPARTMENT-SCOPE",
+    );
+    expect(manifest.migrations.find((m) => m.sequence_order === 24)?.filename).toContain(
+      "FILE-WITHDRAWAL-IMPACT-ACK",
     );
   });
 
@@ -95,7 +101,7 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
       "utf8",
     );
     expect(applyOrder).toContain("B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql");
-    expect(applyOrder).toMatch(/24 docs\/migration-drafts\/B1-TRANSFER-DEPARTMENT-SCOPE/);
+    expect(applyOrder).toMatch(/23 docs\/migration-drafts\/B1-TRANSFER-DEPARTMENT-SCOPE/);
   });
 
   test("file_withdrawal impact ack null-guard uses IS DISTINCT FROM", () => {
@@ -110,7 +116,7 @@ describe("B1 integrated runtime E2E harness — source surface", () => {
       join(root, "tests/b1-rpc-matrix/pg/20-draft-apply-order.txt"),
       "utf8",
     );
-    expect(applyOrder).toMatch(/25 docs\/migration-drafts\/B1-FILE-WITHDRAWAL-IMPACT-ACK/);
+    expect(applyOrder).toMatch(/24 docs\/migration-drafts\/B1-FILE-WITHDRAWAL-IMPACT-ACK/);
   });
 
   test("report path reserved for PASS artifact", () => {

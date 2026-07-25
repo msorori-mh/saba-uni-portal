@@ -22,11 +22,11 @@ const shaLf = (rel: string) =>
   createHash("sha256").update(read(rel).replace(/\r\n/g, "\n").replace(/\r/g, "\n")).digest("hex");
 
 const DRAFT = "docs/migration-drafts/B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql";
-const MIGRATION = "supabase/migrations/20260725130000_b1_19_secure_read_contracts_01.sql";
+const MIGRATION = "supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql";
 const PRE =
-  "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql";
+  "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql";
 const POST =
-  "docs/migration-drafts/b1-backend-verifiers/20-B1_19_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql";
+  "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql";
 const MAP = "docs/migration-drafts/b1-backend-verifiers/PROMOTION-MAP.json";
 
 describe("B1 secure read contracts — source surface", () => {
@@ -43,9 +43,9 @@ describe("B1 secure read contracts — source surface", () => {
     expect(read(POST)).toContain("ROLLBACK;");
   });
 
-  test("promotion map order 20 pins LF SHAs", () => {
+  test("promotion map order 21 pins LF SHAs", () => {
     const map = JSON.parse(read(MAP)) as Array<Record<string, string | number>>;
-    const entry = map.find((x) => x.order === 20);
+    const entry = map.find((x) => x.order === 21);
     expect(entry).toBeTruthy();
     expect(entry!.draft).toBe("B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql");
     expect(entry!.migration).toBe(MIGRATION);

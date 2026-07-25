@@ -33,6 +33,7 @@ declare
   actor uuid;
   action text;
   i integer;
+  expected_version timestamptz;
 begin
   -- =====================================================================
   -- 1) enrollment_suspension
@@ -41,16 +42,14 @@ begin
   perform b1_e2e.set_uid(u_student);
   v := public.create_b1_request_draft_for_student(service, 'e2e-create-' || service);
   req := (v->>'requestId')::uuid;
+  expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.bump('draft_creates');
   select count(*) into n_steps from public.student_request_workflow_steps where student_request_id = req;
   perform b1_e2e.note(service || '/create_no_runtime', 'draft', n_steps = 0, 'steps=' || n_steps);
 
   v := public.save_b1_request_draft_for_student(
-    req,
-    jsonb_build_object('suspension_reason','partial reason'),
-    (v->>'updatedAt')::timestamptz,
-    null
-  );
+    req, jsonb_build_object('suspension_reason','partial reason'), expected_version, null);
+  expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.bump('draft_saves');
   v2 := public.get_b1_request_draft_for_student(req);
   perform b1_e2e.bump('read_allows');
@@ -64,7 +63,7 @@ begin
       'suspension_reason', 'medical leave', 'suspension_duration_type', 'one_semester',
       'terms_acknowledgment', true
     ),
-    (v->>'updatedAt')::timestamptz,
+    expected_version,
     null
   );
   perform b1_e2e.bump('draft_saves');
@@ -113,6 +112,7 @@ begin
   perform b1_e2e.set_uid(u_student);
   v := public.create_b1_request_draft_for_student(service, 'e2e-create-' || service);
   req := (v->>'requestId')::uuid;
+  expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.bump('draft_creates');
   v := public.create_student_request_attachment_upload_intent(
     req, 'excuse_documents', 'excuse.pdf', 'application/pdf', 2048, null);
@@ -143,7 +143,7 @@ begin
       'absence_reason_detail', 'hospital visit note',
       'excuse_documents', jsonb_build_array(att)
     ),
-    (v2->>'updatedAt')::timestamptz, null
+    expected_version, null
   );
   perform b1_e2e.bump('draft_saves');
   v := public.submit_b1_student_request_atomic(
@@ -177,6 +177,7 @@ begin
   perform b1_e2e.set_uid(u_student);
   v := public.create_b1_request_draft_for_student(service, 'e2e-create-' || service);
   req := (v->>'requestId')::uuid;
+  expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.bump('draft_creates');
   v := public.create_student_request_attachment_upload_intent(
     req, 'secondary_certificate', 'cert.pdf', 'application/pdf', 4096, null);
@@ -202,7 +203,7 @@ begin
       'target_program_id', prog_it,
       'transfer_reason', 'career change to IT',
       'secondary_certificate_file', jsonb_build_array(att)
-    ), (v2->>'updatedAt')::timestamptz, null);
+    ), expected_version, null);
   perform b1_e2e.bump('draft_saves');
   begin
     v := public.submit_b1_student_request_atomic(
@@ -298,11 +299,12 @@ begin
   perform b1_e2e.set_uid(u_student);
   v := public.create_b1_request_draft_for_student(service, 'e2e-create-' || service);
   req := (v->>'requestId')::uuid;
+  expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.bump('draft_creates');
   -- reject financial fields
   begin
     perform public.save_b1_request_draft_for_student(
-      req, '{"reason":"x","amount":10}'::jsonb, (v->>'updatedAt')::timestamptz, null);
+      req, '{"reason":"x","amount":10}'::jsonb, expected_version, null);
     perform b1_e2e.note(service || '/no_money_fields', 'draft', false, 'accepted amount');
   exception when others then
     perform b1_e2e.note(service || '/no_money_fields', 'draft',
@@ -313,7 +315,7 @@ begin
     jsonb_build_object(
       'target_academic_year', year_id, 'target_semester', sem_id,
       'reason', 'illness during finals', 'chance_type', 'final_chance'
-    ), (v->>'updatedAt')::timestamptz, null);
+    ), expected_version, null);
   perform b1_e2e.bump('draft_saves');
   v := public.submit_b1_student_request_atomic(
     req, service, v->'formData', (v->>'updatedAt')::timestamptz, '{}'::uuid[]);
@@ -355,14 +357,16 @@ begin
   perform b1_e2e.set_uid(u_student);
   v := public.create_b1_request_draft_for_student(service, 'e2e-create-' || service);
   req := (v->>'requestId')::uuid;
+  expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.bump('draft_creates');
   -- Missing, JSON null, and false acknowledgments must fail without mutation.
   v := public.save_b1_request_draft_for_student(
     req,
     jsonb_build_object('withdrawal_reason','moving abroad permanently'),
-    (v->>'updatedAt')::timestamptz,
+    expected_version,
     null
   );
+  expected_version := (v->>'updatedAt')::timestamptz;
   perform b1_e2e.expect_deny(
     service || '/submit_without_ack',
     'submit',
@@ -372,7 +376,7 @@ begin
       req,
       service,
       jsonb_build_object('withdrawal_reason','moving abroad permanently')::text,
-      v->>'updatedAt',
+      expected_version,
       '{}'
     ),
     '%B1_WITHDRAWAL_INPUT_INVALID%',
@@ -390,7 +394,7 @@ begin
         'withdrawal_reason','moving abroad permanently',
         'impact_acknowledgment', null
       )::text,
-      v->>'updatedAt',
+      expected_version,
       '{}'
     ),
     '%B1_WITHDRAWAL_INPUT_INVALID%',
@@ -408,7 +412,7 @@ begin
         'withdrawal_reason','moving abroad permanently',
         'impact_acknowledgment', false
       )::text,
-      v->>'updatedAt',
+      expected_version,
       '{}'
     ),
     '%B1_WITHDRAWAL_INPUT_INVALID%',
@@ -425,7 +429,7 @@ begin
     jsonb_build_object(
       'withdrawal_reason', 'moving abroad permanently',
       'impact_acknowledgment', true
-    ), (v->>'updatedAt')::timestamptz, null);
+    ), expected_version, null);
   perform b1_e2e.bump('draft_saves');
   v := public.submit_b1_student_request_atomic(
     req, service, v->'formData', (v->>'updatedAt')::timestamptz, '{}'::uuid[]);

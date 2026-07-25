@@ -88,10 +88,14 @@ begin
       '%B1_%', req);
   end if;
 
-  -- save after completed/submitted deny
+  -- save after completed/submitted deny (status gate precedes version; any timestamp OK)
   perform b1_e2e.expect_deny(
     'authz/save_after_terminal', 'draft', u_student,
-    format('select public.save_b1_request_draft_for_student(%L::uuid,%L::jsonb,null,null)',
-      req, '{"suspension_reason":"x"}'),
+    format(
+      'select public.save_b1_request_draft_for_student(%L::uuid,%L::jsonb,%L::timestamptz,null)',
+      req,
+      '{"suspension_reason":"x"}',
+      (select updated_at from public.student_requests where id = req)
+    ),
     '%B1_DRAFT_ACCESS_DENIED%', req);
 end $$;
