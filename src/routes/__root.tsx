@@ -55,7 +55,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   const pathname = router.state.location.pathname;
   const homePath = getErrorRecoveryHomePath(pathname);
-  const homeLabel = homePath === "/admin" ? "العودة إلى لوحة الإدارة" : "العودة للرئيسية";
+  const homeLabel =
+    homePath === "/admin"
+      ? "العودة إلى لوحة الإدارة"
+      : homePath === "/student"
+        ? "العودة إلى بوابة الطالب"
+        : "العودة للرئيسية";
 
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
@@ -167,11 +172,17 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouter().state.location.pathname;
-  const isAdmin = pathname.startsWith("/admin");
+  // The mobile student app shell (/mobile/student and below) provides its own
+  // fixed header and bottom nav; wrapping it in the public site Header/Footer
+  // would duplicate the chrome. The login page keeps the public site chrome.
+  // Admin renders fully bare as before.
+  const isMobileAppShell =
+    pathname === "/mobile/student" || pathname.startsWith("/mobile/student/");
+  const isBareShell = pathname.startsWith("/admin") || isMobileAppShell;
 
   return (
     <QueryClientProvider client={queryClient}>
-      {isAdmin ? (
+      {isBareShell ? (
         <Outlet />
       ) : (
         <div className="flex min-h-screen flex-col">

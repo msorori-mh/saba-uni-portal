@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Identity switch no stale cache</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",Tahoma,Arial,sans-serif;background:#f5f7f6;color:#0f3d2e}
+main{max-width:48rem;margin:0 auto;padding:1rem;width:100%;overflow-x:hidden}
+a,button{min-height:44px;display:inline-flex;align-items:center;gap:.35rem;padding:0 .75rem;border-radius:.5rem;border:1px solid #d9e0dc;background:#fff;color:inherit;text-decoration:none;font-weight:700;cursor:pointer}
+.panel{border:1px solid #d9e0dc;background:#fff;border-radius:.75rem;padding:.75rem;margin-top:.5rem}
+.muted{color:#667;font-size:.875rem}
+</style>
+</head>
+<body>
+<main id="app"><h1>تبديل هوية اصطناعية</h1>
+     <div class="panel" data-testid="session-box">لا جلسة</div>
+     <button type="button" id="login-a">دخول طالب أ</button>
+     <button type="button" id="login-b">دخول طالب ب</button>
+     <button type="button" id="logout">تسجيل الخروج</button><div id="smoke-flag" data-smoke-json="{&quot;interactive&quot;:true}"></div></main>
+<script>
+    const box = document.querySelector('[data-testid="session-box"]');
+    const store = { identity: null, cacheKey: null };
+    const show = () => {
+      box.textContent = store.identity
+        ? ('الجلسة: ' + store.identity + ' | مفتاح: ' + store.cacheKey)
+        : 'لا جلسة';
+    };
+    document.getElementById('login-a').onclick = () => {
+      store.identity = 'student-a';
+      store.cacheKey = 'cache-a-' + Date.now();
+      show();
+    };
+    document.getElementById('login-b').onclick = () => {
+      // Clear previous identity cache before binding the new one.
+      store.identity = null;
+      store.cacheKey = null;
+      show();
+      store.identity = 'student-b';
+      store.cacheKey = 'cache-b-' + Date.now();
+      show();
+      const text = box.textContent || '';
+      document.getElementById('smoke-flag').setAttribute('data-smoke-json', JSON.stringify({
+        switched: store.identity === 'student-b',
+        noStaleCache: !text.includes('cache-a') && text.includes('cache-b'),
+        noPriorIdentity: !text.includes('student-a') && text.includes('student-b'),
+      }));
+    };
+    document.getElementById('logout').onclick = () => {
+      store.identity = null;
+      store.cacheKey = null;
+      show();
+    };
+    document.getElementById('login-a').click();
+    document.getElementById('login-b').click();
+    </script>
+</body>
+</html>

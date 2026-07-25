@@ -1,4 +1,4 @@
-import { AlertCircle, HelpCircle, XCircle } from "lucide-react";
+﻿import { AlertCircle, HelpCircle, XCircle } from "lucide-react";
 import {
   getStudentRequestAvailabilityBadge,
   getStudentRequestUiEligibility,
@@ -31,6 +31,10 @@ const HIDDEN_FOR_EXISTING_REQUEST = new Set([
   "approved",
   "completed",
   "archived",
+  "returned_for_completion",
+  "returned",
+  "rejected",
+  "cancelled",
 ]);
 
 const BLOCKED_CARD_STYLES = {

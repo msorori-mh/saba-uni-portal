@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mobile RTL banner</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", Tahoma, Arial, sans-serif; background: #f5f7f6; color: #0f3d2e; }
+    main { max-width: 42rem; margin: 0 auto; padding: 1rem; width: 100%; overflow-x: hidden; }
+    .card { background: #fff; border: 1px solid #d9e0dc; border-radius: .75rem; padding: 1rem; margin-top: .75rem; }
+    .muted { color: #667; font-size: .875rem; }
+    .loader { width: 1.5rem; height: 1.5rem; border: 2px solid #ccc; border-top-color: #0f3d2e; border-radius: 50%; animation: spin 1s linear infinite; margin: 1rem auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    button.retry { min-height: 44px; margin-top: .5rem; padding: 0 .75rem; border-radius: .5rem; border: 1px solid #f59e0b; background: #fffbeb; color: #92400e; font-weight: 700; cursor: pointer; }
+    .rose { background: #ffe4e6; border: 1px solid #fecdd3; color: #881337; border-radius: .75rem; padding: 1rem; }
+    .amber { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; border-radius: .75rem; padding: .75rem; }
+  </style>
+</head>
+<body>
+<main id="app"><h1>فحص الجوال</h1><div data-testid="notice"><div class="space-y-2 "><div dir="rtl" role="note" class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900"><div class="font-bold mb-1">معلومات الخدمة</div><ul class="list-disc list-inside space-y-0.5"><li>هذا الطلب مخصص لطلاب غير الخريجين.</li><li>شهادة القيد خدمة داخلية للكلية ولا تحتاج توقيعات مركزية.</li></ul></div><div dir="rtl" class="rounded-xl border p-4 space-y-3 bg-rose-100 text-rose-900 border-rose-200" role="alert" aria-live="polite"><div class="flex items-start justify-between gap-3 flex-wrap"><div class="flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-x h-5 w-5 shrink-0" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6"></path><path d="m9 9 6 6"></path></svg><div><div class="text-sm font-bold">شهادة قيد</div><div class="text-[11px] opacity-80">حالة التوفر والأهلية (واجهة)</div></div></div><span class="text-xs font-extrabold px-2.5 py-1 rounded-full border border-current/20 bg-white/40">غير متاح</span></div><div class="text-xs space-y-1"><div class="font-bold">أسباب المنع (واجهة)</div><ul class="space-y-0.5 list-disc list-inside"><li>يوجد طلب نشط مسبق لهذه الخدمة.</li></ul></div><p class="text-[10px] border-t border-current/10 pt-2 opacity-80">التحقق النهائي من الأهلية وتوفر الخدمة يتم عند المعالجة النظامية (RPC) وليس من هذه الواجهة فقط.</p></div></div></div>
+<div id="smoke-flag" data-smoke-json="{&quot;interactive&quot;:true}"></div>
+</main>
+<script>
+  const params = new URLSearchParams(location.search);
+  const w = Number(params.get('w') || 360);
+  const app = document.getElementById('app');
+  const frame = document.createElement('div');
+  frame.style.cssText = 'width:' + w + 'px;max-width:' + w + 'px;overflow-x:auto;margin:0 auto;';
+  while (app.firstChild) frame.appendChild(app.firstChild);
+  app.appendChild(frame);
+  document.getElementById('smoke-flag').setAttribute('data-smoke-json', JSON.stringify({
+    w,
+    scrollWidth: frame.scrollWidth,
+    noHorizontalOverflow: frame.scrollWidth <= w + 1,
+    dir: document.documentElement.getAttribute('dir'),
+    hasAlert: !!frame.querySelector('[role="alert"]'),
+  }));
+  </script>
+</body>
+</html>

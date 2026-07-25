@@ -40,7 +40,9 @@ function StudentProgressPage() {
       {isLoading ? (
         <div className="grid place-items-center py-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : error ? (
-        <div className="rounded-xl border bg-red-50 border-red-200 p-4 text-sm text-red-700">{(error as any).message}</div>
+        <div role="alert" className="rounded-xl border bg-red-50 border-red-200 p-4 text-sm text-red-700">
+          تعذّر تحميل بيانات التقدم الأكاديمي. حاول مرة أخرى لاحقاً.
+        </div>
       ) : data ? (
         <>
           <ProgressSummary d={data} />
