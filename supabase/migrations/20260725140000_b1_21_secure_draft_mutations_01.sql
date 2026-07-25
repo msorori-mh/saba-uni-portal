@@ -19,7 +19,7 @@
 -- Idempotency: optional key in b1_draft_mutation_idempotency; same key+hash â†’ return; same key+diff hash â†’ DENY.
 -- Save: owner + status=draft only; strict allowlist DENY; draft-soft validation; detail upsert only when
 --   NOT NULL detail columns can be satisfied; submit validation remains in persist_validated_b1_request_details.
--- Concurrency: optional p_expected_updated_at â†’ B1_STALE_REQUEST_VERSION (same as submit); row FOR UPDATE always.
+-- Concurrency: required p_expected_updated_at â†’ B1_STALE_REQUEST_VERSION (same as submit); row FOR UPDATE always.
 -- Opaque deny: B1_DRAFT_ACCESS_DENIED (no existence / identity / SQL leakage).
 
 begin;
@@ -643,12 +643,21 @@ begin
   end if;
   v_stored := public.b1_canonical_primary_stored_code(v_canonical);
 
-  -- Known + active type only. student_visible / production activation NOT required (source-testable).
+  -- Creation remains fail-closed until this service is explicitly visible and
+  -- has exactly one active workflow. RPC existence is not activation.
   select rt.* into v_type from public.request_types rt where rt.code = v_stored;
   if not found then
     raise exception 'B1_REQUEST_TYPE_UNKNOWN' using errcode = '22023';
   end if;
-  if v_type.is_active is distinct from true then
+  if v_type.is_active is distinct from true
+     or v_type.student_visible is distinct from true
+     or (
+       select count(*)
+       from public.request_type_workflows w
+       where w.request_type_id = v_type.id
+         and w.status = 'active'
+         and w.is_active is true
+     ) <> 1 then
     raise exception 'B1_REQUEST_TYPE_INACTIVE' using errcode = '42501';
   end if;
 
@@ -686,6 +695,15 @@ begin
         student_profile_id, operation, idempotency_key, request_id, payload_hash
       ) values (v_sp.id, 'create_draft', v_key, v_existing, v_hash)
       on conflict do nothing;
+      if exists (
+        select 1 from public.b1_draft_mutation_idempotency i
+        where i.student_profile_id = v_sp.id
+          and i.operation = 'create_draft'
+          and i.idempotency_key = v_key
+          and (i.payload_hash is distinct from v_hash or i.request_id is distinct from v_existing)
+      ) then
+        raise exception 'B1_IDEMPOTENCY_PAYLOAD_MISMATCH' using errcode = '23514';
+      end if;
     end if;
     return public.b1_build_student_draft_dto(v_existing);
   end if;
@@ -744,7 +762,7 @@ $$;
 create or replace function public.save_b1_request_draft_for_student(
   p_request_id uuid,
   p_form_data jsonb,
-  p_expected_updated_at timestamptz default null,
+  p_expected_updated_at timestamptz,
   p_idempotency_key text default null
 )
 returns jsonb
@@ -787,8 +805,7 @@ begin
     perform public.b1_deny_draft_mutation();
   end if;
 
-  if p_expected_updated_at is not null
-     and v_r.updated_at is distinct from p_expected_updated_at then
+  if p_expected_updated_at is null then
     raise exception 'B1_STALE_REQUEST_VERSION' using errcode = '40001';
   end if;
 
@@ -810,6 +827,12 @@ begin
       end if;
       return public.b1_build_student_draft_dto(p_request_id);
     end if;
+  end if;
+
+  -- Idempotent retries are resolved above. A new mutation must match the
+  -- authoritative timestamp returned by the backend read.
+  if v_r.updated_at is distinct from p_expected_updated_at then
+    raise exception 'B1_STALE_REQUEST_VERSION' using errcode = '40001';
   end if;
 
   v_before := v_r.updated_at;
@@ -843,23 +866,42 @@ stable
 security definer
 set search_path = public, pg_temp
 as $$
-declare v_uid uuid;
+declare v_ready_services jsonb;
+declare v_ready_count integer;
 begin
-  v_uid := public.b1_require_auth_uid();
+  perform public.b1_require_auth_uid();
+  select
+    coalesce(jsonb_agg(x.canonical_code order by x.canonical_code), '[]'::jsonb),
+    count(*)
+  into v_ready_services, v_ready_count
+  from (
+    select public.b1_stored_to_canonical(rt.code) as canonical_code
+    from public.request_types rt
+    where public.b1_is_five_service_type(rt.code)
+      and rt.is_active is true
+      and rt.student_visible is true
+      and (
+        select count(*)
+        from public.request_type_workflows w
+        where w.request_type_id = rt.id
+          and w.status = 'active'
+          and w.is_active is true
+      ) = 1
+    group by public.b1_stored_to_canonical(rt.code)
+  ) x;
   return jsonb_build_object(
-    'available', true,
+    'available', v_ready_count = 5,
     'contract', 'B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01',
     'draft_mutations_contract', 'B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01',
-    'viewer', v_uid,
-    'services', jsonb_build_array(
-      'enrollment_suspension','excused_absence','department_transfer','final_chance','file_withdrawal'
-    ),
+    'services', v_ready_services,
     'reads', jsonb_build_array(
       'form_options','draft','student_details','student_list',
       'assigned_inbox','assigned_details','step_actions','attachments'
     ),
-    'writes_available', jsonb_build_array('create_draft','save_draft'),
-    'writes_fail_closed', jsonb_build_array(),
+    'writes_available', case when v_ready_count = 5
+      then jsonb_build_array('create_draft','save_draft') else '[]'::jsonb end,
+    'writes_fail_closed', case when v_ready_count = 5
+      then '[]'::jsonb else jsonb_build_array('create_draft','save_draft') end,
     'submit_rpc', 'submit_b1_student_request_atomic'
   );
 end;

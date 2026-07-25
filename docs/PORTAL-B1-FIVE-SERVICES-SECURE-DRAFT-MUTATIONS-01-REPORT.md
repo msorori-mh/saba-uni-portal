@@ -90,8 +90,8 @@ Submit يبقى: `submit_b1_student_request_atomic` (خارج هذا المسا�
 | السجل | القيمة | السبب |
 | --- | --- | --- |
 | PROMOTION-MAP | **order 21** | أول رقم بعد secure-read (20) |
-| B1-SEQUENTIAL-APPLY-MANIFEST | **sequence_order 21** | أول رقم بعد payment predecessor guard (20) |
-| Activation gate (وثائقي) | **gate 22** | تجنّب تصادم اسمي مع sequence_order 21 |
+| B1-SEQUENTIAL-APPLY-MANIFEST | **sequence_order 22** | بعد Secure Read المثبتة في sequence_order 21 |
+| Activation gate (وثائقي) | **gate 23** | أول gate بعد Secure Draft sequence_order 22 |
 
 Migration: `supabase/migrations/20260725140000_b1_21_secure_draft_mutations_01.sql` — **NOT APPLIED**.
 
@@ -106,7 +106,8 @@ Migration: `supabase/migrations/20260725140000_b1_21_secure_draft_mutations_01.s
 ## PostgreSQL 17 results
 
 Harness: `tests/b1-secure-draft/pg/run-harness.ps1`  
-النتيجة: **`B1_SECURE_DRAFT_PG17_PASS`** (24/24) على PostgreSQL 17.10  
+النتيجة بعد المراجعة المستقلة: **`B1_SECURE_DRAFT_PG17_PASS`**
+(35/35، إضافة إلى اختبار create متزامن فعلي من جلستين) على PostgreSQL 17.10.
 يشمل: create×5، save، partial، validation، idempotency mismatch+zero mutation، dedupe، isolation، role denials، submitted deny، trusted transfer/absence، secure-read capability regression، لا workflow runtime.  
 الحاوية تُوقف دائمًا.
 
@@ -126,7 +127,7 @@ Harness: `tests/b1-secure-draft/pg/run-harness.ps1`
 
 1. `adapter.live` ما زال بحاجة لربط لاحق — لم يُعدَّل هنا.
 2. Secure-read helpers تُعاد تعريفها CREATE OR REPLACE داخل مسار الكتابة للتوافق مع harness المصفوفة؛ يجب تطبيق secure-read ثم draft mutations بالترتيب على البيئات الحقيقية.
-3. لا apply على Production/Staging؛ التفعيل منفصل (gate 22).
+3. لا apply على Production/Staging؛ التفعيل منفصل (gate 23).
 4. CI عن بُعد قد يبقى محجوبًا بفوترة Actions → `HOLD_REMOTE_CI_BILLING_NO_JOB_STEPS` إن تكرر.
 
 ## تأكيدات الحظر

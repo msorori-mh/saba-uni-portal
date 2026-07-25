@@ -7,6 +7,10 @@ do $$
 declare
   v_create regprocedure := 'public.create_b1_request_draft_for_student(text,text)'::regprocedure;
   v_save regprocedure := 'public.save_b1_request_draft_for_student(uuid,jsonb,timestamptz,text)'::regprocedure;
+  v_capability regprocedure := 'public.get_b1_secure_read_runtime_capability()'::regprocedure;
+  v_create_def text;
+  v_save_def text;
+  v_capability_def text;
 begin
   if to_regprocedure('public.create_b1_request_draft_for_student(text,text)') is null then
     raise exception 'POST_FAIL: create_b1_request_draft_for_student missing';
@@ -38,6 +42,27 @@ begin
     where schemaname='public' and indexname='uq_b1_one_open_draft_per_student_type'
   ) then
     raise exception 'POST_FAIL: unique open-draft index missing';
+  end if;
+  select pg_get_functiondef(v_create), pg_get_functiondef(v_save),
+         pg_get_functiondef(v_capability)
+  into v_create_def, v_save_def, v_capability_def;
+  if v_create_def not ilike '%student_visible is distinct from true%'
+     or v_create_def not ilike '%request_type_workflows%'
+     or v_create_def not ilike '%count(*)%<> 1%' then
+    raise exception 'POST_FAIL: create readiness guard missing';
+  end if;
+  if v_save_def not ilike '%p_expected_updated_at is null%'
+     or v_save_def not ilike '%B1_STALE_REQUEST_VERSION%' then
+    raise exception 'POST_FAIL: mandatory optimistic concurrency guard missing';
+  end if;
+  if position('return public.b1_build_student_draft_dto(p_request_id)' in v_save_def)
+       > position('v_r.updated_at is distinct from p_expected_updated_at' in v_save_def) then
+    raise exception 'POST_FAIL: idempotent retry is checked after stale guard';
+  end if;
+  if v_capability_def ilike '%' || quote_literal('available') || ', true%'
+     or v_capability_def ilike '%' || quote_literal('viewer') || '%'
+     or v_capability_def not ilike '%v_ready_count = 5%' then
+    raise exception 'POST_FAIL: secure-read fail-closed capability regressed';
   end if;
 end $$;
 
