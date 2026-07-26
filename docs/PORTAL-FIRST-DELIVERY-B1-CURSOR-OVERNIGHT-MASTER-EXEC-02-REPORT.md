@@ -90,9 +90,15 @@ Harness: `tests/b1-five-services-authorization/run-full-matrix.ps1`
 - `docs/production-prompts/` (17 prompts, RO→single-apply→STOP)
 - Verifier: `scripts/first-delivery/verify-operator-pack.ts` → PASS
 
-## Real blockers
+## Real blockers / soft gaps
 
-None for source/operator RC. Production apply remains separately approved (K3 merge coordination; Codex independent review).
+| Item | Status |
+|---|---|
+| Production apply | Not a source blocker — separate approval (K3/Codex) |
+| Remote CI on stacked PR #261 | Workflows only run for PRs targeting `main`; will run after #258 merges and #261 is retargeted. Local gates green. |
+| Dedicated B1 Chrome smoke 360/768/1366 | No B1-specific Chrome harness in repo; viewport/RTL contracts documented + covered by UI source tests. Faculty/admin smoke scripts exist from merged main (out of B1 mutation scope). |
+
+None of the above is a security/equivalence HOLD for the source/operator RC.
 
 ## Affirmations
 

@@ -29,7 +29,9 @@ Track: `PORTAL-FIRST-DELIVERY-B1-CURSOR-OVERNIGHT-MASTER-EXEC-02`
 | 7 | `PASS_B1_GATE25_LOCAL_ACTIVATION_RC` | `GATE25_LOCAL=PASS` |
 | 8 | `PASS_FIRST_DELIVERY_FIVE_SERVICES_INTEGRATED_SOURCE_RC` | source RC report + contract test |
 | 9 | `PASS_OPERATOR_PACK_VERIFIER` | `bun scripts/first-delivery/verify-operator-pack.ts` |
-| 10–12 | see master report | full gates + final report |
+| 10 | `PASS_PHASE10_LOCAL_GATES` | 1886 tests; tsc; build; no task containers left |
+| 11 | `PASS_PHASE11_MAIN_SYNC` | merged `origin/main` into overnight branch |
+| 12 | `PASS_PORTAL_FIRST_DELIVERY_B1_COMPLETE_BACKEND_AND_OPERATOR_RC` | master report + Draft PR #261 |
 
 ## Harness transcript (local)
 
