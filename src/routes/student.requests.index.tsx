@@ -2,9 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ClipboardList, FileText, Loader2, Plus, Wallet } from "lucide-react";
-import {
-  getStudentRequestTypesForStudent,
-} from "@/lib/student-affairs.functions";
+import { getStudentRequestTypesForStudent } from "@/lib/student-affairs.functions";
 import { getMyStudentRequestsWithProgress } from "@/lib/student-requests/student-tracking.functions";
 import {
   filterAvailableRequestTypesForStudentPage,
@@ -13,6 +11,7 @@ import {
 import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
 import { getStudentRequestTypeDisplayName } from "@/lib/student-requests/request-type-registry";
 import { portalFeatures } from "@/lib/portal-features";
+import { B1StudentServiceList } from "@/components/student-requests/b1";
 
 export const Route = createFileRoute("/student/requests/")({
   component: StudentRequestsIndexPage,
@@ -51,7 +50,10 @@ type RequestRow = {
   };
 };
 
-function formatFeeShort(fee: RequestRow["fee"]): { text: string; tone: "danger" | "success" | "muted" } {
+function formatFeeShort(fee: RequestRow["fee"]): {
+  text: string;
+  tone: "danger" | "success" | "muted";
+} {
   if (fee.requiresPayment) {
     return {
       text: `مطلوب سداد ${Math.round(fee.amount * 100) / 100} ${fee.currency === "YER" ? "ريال" : fee.currency}`,
@@ -87,7 +89,6 @@ function StudentRequestsIndexPage() {
     staleTime: 60_000,
     retry: 1,
   });
-
 
   const services = filterAvailableRequestTypesForStudentPage(
     filterStudentRequestTypesForDisplay(
@@ -200,6 +201,8 @@ function StudentRequestsIndexPage() {
           </div>
         )}
       </section>
+
+      <B1StudentServiceList />
 
       {/* —— طلباتي —— */}
       <section className="space-y-3">
