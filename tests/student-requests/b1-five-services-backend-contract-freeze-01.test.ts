@@ -71,9 +71,11 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(files).toContain("PROMOTION-MAP.json");
     const preflights = files.filter((f) => f.endsWith("-PREFLIGHT.sql"));
     const posts = files.filter((f) => f.endsWith("-POST-VERIFIER.sql"));
-    // 7–19 (13) + 21–24 (4) = 17; order 20 is namespace bridge without a verifier pair.
-    expect(preflights).toHaveLength(17);
-    expect(posts).toHaveLength(17);
+    // 7–19 (13) + 7B alternate (1) + 21–24 (4) = 18; order 20 is namespace bridge without a verifier pair.
+    expect(preflights).toHaveLength(18);
+    expect(posts).toHaveLength(18);
+    expect(files).toContain("07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql");
+    expect(files).toContain("07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql");
     for (const f of [...preflights, ...posts]) {
       const sql = readFileSync(join(verifiersDir, f), "utf8");
       expect(sql).toContain("READ ONLY");

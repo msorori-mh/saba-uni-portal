@@ -6,7 +6,21 @@
         "draft_sha_lf": "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
         "migration_sha_lf": "66ba4c96c23c44bbcca62de28360d806ee6ff5dbd358a20f2e181b9a8fd6bca8",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql"
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql",
+        "apply_status": "SUPERSEDED_NOT_FOR_LOVABLE_CLOUD_APPLY",
+        "note": "File bytes MUST remain unmodified (pin 66ba4c96…). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
+    },
+    {
+        "order": 7.5,
+        "canonical_order_label": "7B",
+        "draft": "B1-07B-SECURE-ATTACHMENTS-SQL-ONLY-01.sql",
+        "migration": "supabase/migrations/20260725110050_b1_07b_secure_attachments_sql_only_01.sql",
+        "draft_sha_lf": null,
+        "migration_sha_lf": "a49d615b11949f3c8594b282d2241e9dbd2d7be42d37bb5ac4b1d1952ddd4eec",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql",
+        "prerequisite_non_migration": "B0 Lovable Storage tool: create private bucket student-request-secure-attachments (public=false, 5MiB, pdf/jpeg/png) BEFORE applying 7B",
+        "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only — never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
     },
     {
         "order": 8,
