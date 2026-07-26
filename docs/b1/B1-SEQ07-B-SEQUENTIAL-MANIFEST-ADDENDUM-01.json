@@ -1,0 +1,47 @@
+{
+  "addendum_id": "B1-SEQ07-B-SEQUENTIAL-MANIFEST-ADDENDUM-01",
+  "applies_to_manifest": "B1-SEQUENTIAL-APPLY-MANIFEST-01",
+  "mode": "forward-only alternate for Lovable Cloud when order-7 storage.buckets INSERT cannot be applied",
+  "non_negotiables": [
+    "never modify supabase/migrations/20260725110000_b1_07_secure_attachments_source_01.sql",
+    "never reuse version 20260725110000 for different bytes",
+    "never INSERT into schema_migrations manually",
+    "never mark 20260725110000 APPLIED unless that exact file executed",
+    "never apply SEQ08 in the same session as B0/B1"
+  ],
+  "stages": [
+    {
+      "stage_id": "B0",
+      "kind": "non_migration_storage_tool",
+      "channel": "Lovable managed Storage tool",
+      "action": "create bucket student-request-secure-attachments",
+      "required_state": {
+        "public": false,
+        "file_size_limit": 5242880,
+        "allowed_mime_types": ["application/pdf", "image/jpeg", "image/png"]
+      },
+      "idempotent": "re-create/update to exact private contract; no public access; no broad policies",
+      "on_failure": "STOP; do not start B1; orphan incomplete bucket config is operator-corrected via Storage tool only (no SQL DELETE/cleanup of production data)",
+      "history_impact": "none"
+    },
+    {
+      "stage_id": "B1",
+      "kind": "single_sql_migration",
+      "canonical_id": "B1-SECURE-ATTACHMENTS-SQL-ONLY-07B",
+      "sequence_order": 7.5,
+      "sequence_predecessor": "B0 + prior payment confirmation / atomic submit foundations",
+      "filename": "20260725110050_b1_07b_secure_attachments_sql_only_01.sql",
+      "path": "supabase/migrations/",
+      "migration_sha_lf": "a49d615b11949f3c8594b282d2241e9dbd2d7be42d37bb5ac4b1d1952ddd4eec",
+      "preflight": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql",
+      "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql",
+      "apply_channel": "Lovable managed migration runner (must accept SQL without storage.buckets DML)",
+      "history_version": "20260725110050",
+      "on_failure_before_commit": "full SQL rollback; bucket from B0 may remain — re-run B1 after fix; no history row",
+      "on_success": "history contains 20260725110050 once; 20260725110000 remains absent",
+      "supersedes_apply_of": "20260725110000_b1_07_secure_attachments_source_01.sql (bytes retained; SUPERSEDED_NOT_FOR_LOVABLE_CLOUD_APPLY)"
+    }
+  ],
+  "seq08_predecessor_rule": "object proof: public.student_request_attachment_uploads present AND private bucket student-request-secure-attachments present (satisfied by SEQ07 original OR SEQ07-B). Do not require version 20260725110000.",
+  "status": "SOURCE_PACKAGE_PREFLIGHT — REQUIRES_USER_APPROVAL for source merge; separate approval for Production B0/B1"
+}
