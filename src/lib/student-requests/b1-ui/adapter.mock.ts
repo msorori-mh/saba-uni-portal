@@ -170,6 +170,29 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
   const delayMs = options.delayMs ?? 0;
   const requests = new Map<string, MockRequest>();
   let requestCounter = 0;
+  /** Smoke-only deny surface; survives full reloads via sessionStorage. */
+  const staffCanActNow = (): boolean => {
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        const flag = sessionStorage.getItem("B1_SMOKE_STAFF_CAN_ACT");
+        if (flag === "0") return false;
+        if (flag === "1") return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return true;
+  };
+  if (typeof globalThis !== "undefined") {
+    (globalThis as { __B1_SMOKE_SET_STAFF_CAN_ACT__?: (v: boolean) => void }).__B1_SMOKE_SET_STAFF_CAN_ACT__ =
+      (value: boolean) => {
+        try {
+          sessionStorage.setItem("B1_SMOKE_STAFF_CAN_ACT", value ? "1" : "0");
+        } catch {
+          /* ignore */
+        }
+      };
+  }
 
   async function sleep(): Promise<void> {
     if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -277,7 +300,7 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
 
   function seedStaffFixtures(): void {
     // Fixture 1: suspension request waiting at the first review step.
-    const suspensionId = crypto.randomUUID();
+    const suspensionId = "b1mock-seed-suspension";
     const suspensionNumber = `B1-MOCK-${String(++requestCounter).padStart(4, "0")}`;
     requests.set(suspensionId, {
       requestId: suspensionId,
@@ -306,7 +329,7 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
     });
 
     // Fixture 2: transfer request advanced to the payment confirmation step.
-    const transferId = crypto.randomUUID();
+    const transferId = "b1mock-seed-transfer";
     const transferNumber = `B1-MOCK-${String(++requestCounter).padStart(4, "0")}`;
     const transferSteps = buildSteps("department_transfer");
     for (let index = 0; index < 4; index += 1) {
@@ -327,13 +350,13 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       },
       attachments: [
         {
-          attachmentId: crypto.randomUUID(),
+          attachmentId: "b1mock-att-seed-transfer",
           attachmentType: "secondary_certificate",
           fileName: "mock-secondary-certificate.pdf",
           fileSizeBytes: 128 * 1024,
           mimeType: "application/pdf",
           status: "attached",
-          storageRef: `mock://attachments/${crypto.randomUUID()}`,
+          storageRef: "mock://attachments/b1mock-seed-transfer/secondary_certificate",
         },
       ],
       submittedAt: nowIso(),
@@ -375,17 +398,28 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
 
     async getAvailableB1RequestTypes(): Promise<readonly B1ServiceAvailability[]> {
       await sleep();
-      return B1_UI_SERVICES.map((service) => ({
-        code: service.code,
-        titleAr: service.titleAr,
-        descriptionAr: service.descriptionAr,
-        feePolicy: service.feePolicy,
-        studentVisible: true,
-        runtimeAvailable: !service.activationBlockedReason,
-        ...(service.activationBlockedReason
-          ? { activationBlockedReason: service.activationBlockedReason }
-          : {}),
-      }));
+      let forceAvailable = false;
+      try {
+        forceAvailable =
+          typeof sessionStorage !== "undefined" &&
+          sessionStorage.getItem("B1_SMOKE_FORCE_AVAILABLE") === "1";
+      } catch {
+        forceAvailable = false;
+      }
+      return B1_UI_SERVICES.map((service) => {
+        const runtimeAvailable = forceAvailable || !service.activationBlockedReason;
+        return {
+          code: service.code,
+          titleAr: service.titleAr,
+          descriptionAr: service.descriptionAr,
+          feePolicy: service.feePolicy,
+          studentVisible: true,
+          runtimeAvailable,
+          ...(!runtimeAvailable && service.activationBlockedReason
+            ? { activationBlockedReason: service.activationBlockedReason }
+            : {}),
+        };
+      });
     },
 
     async getB1RequestFormOptions(serviceCode: B1CanonicalCode): Promise<B1FormOptions> {
@@ -396,10 +430,12 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
     async createB1RequestDraft(serviceCode: B1CanonicalCode): Promise<B1Draft> {
       await sleep();
       const code = requireServiceCode(serviceCode);
-      const requestId = crypto.randomUUID();
+      // Deterministic non-UUID ids — avoids leaking UUID-shaped strings into the UI.
+      const seq = String(++requestCounter).padStart(4, "0");
+      const requestId = `b1mock-req-${seq}`;
       const request: MockRequest = {
         requestId,
-        requestNumber: `B1-MOCK-${String(++requestCounter).padStart(4, "0")}`,
+        requestNumber: `B1-MOCK-${seq}`,
         serviceCode: code,
         studentNameAr: MOCK_STUDENT_NAME_AR,
         studentNumber: MOCK_STUDENT_NUMBER,
@@ -488,13 +524,13 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
         );
       }
       const meta: B1AttachmentMeta = {
-        attachmentId: crypto.randomUUID(),
+        attachmentId: `b1mock-att-${request.attachments.length + 1}-${requestId}`,
         attachmentType,
         fileName: file.name,
         fileSizeBytes: file.size,
         mimeType: file.type,
         status: "attached",
-        storageRef: `mock://attachments/${crypto.randomUUID()}`,
+        storageRef: `mock://attachments/${requestId}/${attachmentType}`,
       };
       request.attachments.push(meta);
       request.updatedAt = nowIso();
@@ -620,6 +656,7 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
 
     async getAssignedB1Requests(): Promise<readonly B1AssignedRequest[]> {
       await sleep();
+      if (!staffCanActNow()) return [];
       return [...requests.values()]
         .map(toAssignedRequest)
         .filter((item): item is B1AssignedRequest => item !== null)
@@ -628,6 +665,9 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
 
     async getAssignedB1RequestDetails(requestId: string): Promise<B1AssignedRequestDetails> {
       await sleep();
+      if (!staffCanActNow()) {
+        throw new B1AdapterError("PERMISSION_DENIED", "Not assigned to this request.");
+      }
       const request = requireRequest(requestId);
       const assigned = toAssignedRequest(request);
       if (!assigned) {

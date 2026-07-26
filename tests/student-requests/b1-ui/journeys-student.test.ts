@@ -304,7 +304,7 @@ describe("student journey — pre-existing and in-processing requests (cases 19-
       adapter.saveB1RequestDraft(saved.requestId, {}, saved.updatedAt),
       "VALIDATION_ERROR",
     );
-    expect(formSource).toContain('navigate({ to: "/student/requests/$id"');
+    expect(formSource).toContain('to: "/student/requests/b1/view/$requestId"');
   });
 
   it("shows an in-processing status with the current step after submit (case 20)", async () => {

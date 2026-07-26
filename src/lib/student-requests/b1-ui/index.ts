@@ -10,16 +10,28 @@ import type { B1UiAdapter } from "./adapter.types";
 import { createMockB1UiAdapter } from "./adapter.mock";
 import { createLiveB1UiAdapter } from "./adapter.live";
 
-/** Pure decision logic — kept flag-based so it is testable without import.meta.env. */
-export function isB1UiMockEnabledForFlags(dev: boolean, mockFlag: string | undefined): boolean {
+/**
+ * Pure decision logic — kept flag-based so it is testable without import.meta.env.
+ *
+ * - Dev sessions: `VITE_B1_UI_MOCK=1`
+ * - Local smoke production builds only: `VITE_B1_UI_MOCK=1` + `VITE_B1_SMOKE_BUILD=1`
+ *   (never set on Production/Staging deploys)
+ */
+export function isB1UiMockEnabledForFlags(
+  dev: boolean,
+  mockFlag: string | undefined,
+  smokeBuildFlag?: string | undefined,
+): boolean {
+  if (mockFlag === "1" && smokeBuildFlag === "1") return true;
   return dev && mockFlag === "1";
 }
 
-/** True when the UI should run on the mock adapter (dev + VITE_B1_UI_MOCK=1). */
+/** True when the UI should run on the mock adapter. */
 export function isB1UiMockEnabled(): boolean {
   return isB1UiMockEnabledForFlags(
     Boolean(import.meta.env?.DEV),
     import.meta.env?.VITE_B1_UI_MOCK as string | undefined,
+    import.meta.env?.VITE_B1_SMOKE_BUILD as string | undefined,
   );
 }
 
