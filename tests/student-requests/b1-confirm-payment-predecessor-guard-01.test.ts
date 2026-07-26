@@ -180,7 +180,7 @@ describe("B1 confirm-payment predecessor guard 01", () => {
     expect(section).toContain("20260725120000_b1_confirm_payment_predecessor_guard_01.sql");
   });
 
-  it("registers as manifest sequence_order 20 after ACL cutover, before activation gate 21", () => {
+  it("registers as manifest sequence_order 20 before secure reads, secure drafts, and gate 25", () => {
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
       global_policies: { activation_gate: string };
       migrations: Array<{
@@ -191,8 +191,8 @@ describe("B1 confirm-payment predecessor guard 01", () => {
         filename: string;
       }>;
     };
-    // Three namespaces: promotion-map order 19, manifest sequence_order 20, activation gate 21.
-    expect(manifest.global_policies.activation_gate).toMatch(/gate 21/);
+    // Promotion-map order 19 and manifest sequence_order 20 precede reads/drafts/remediations and gate 25.
+    expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
     expect(manifest.global_policies.activation_gate).toMatch(/sequence_order 20/);
     expect(manifest.global_policies.activation_gate).toMatch(/promotion-map order 19/);
     const entry = manifest.migrations.find(

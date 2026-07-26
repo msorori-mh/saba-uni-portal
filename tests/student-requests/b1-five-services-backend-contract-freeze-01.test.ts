@@ -58,7 +58,7 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(freeze).toContain("`is_active=false`");
   });
 
-  it("promotes runbook orders 7–19 with paired preflight/post-verifier companions", () => {
+  it("promotes runbook orders 7–19 and 21–24 with paired preflight/post-verifier companions", () => {
     for (const file of promoted) {
       const path = join(root, "supabase", "migrations", file);
       expect(existsSync(path)).toBe(true);
@@ -71,8 +71,9 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(files).toContain("PROMOTION-MAP.json");
     const preflights = files.filter((f) => f.endsWith("-PREFLIGHT.sql"));
     const posts = files.filter((f) => f.endsWith("-POST-VERIFIER.sql"));
-    expect(preflights).toHaveLength(13);
-    expect(posts).toHaveLength(13);
+    // 7–19 (13) + 21–24 (4) = 17; order 20 is namespace bridge without a verifier pair.
+    expect(preflights).toHaveLength(17);
+    expect(posts).toHaveLength(17);
     for (const f of [...preflights, ...posts]) {
       const sql = readFileSync(join(verifiersDir, f), "utf8");
       expect(sql).toContain("READ ONLY");
