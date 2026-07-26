@@ -28,6 +28,24 @@ type Check = {
   detail?: string;
 };
 
+type ElementDiagnostic = {
+  selector: string;
+  found: boolean;
+  scrollWidth?: number;
+  clientWidth?: number;
+  boundingRectLeft?: number;
+  boundingRectRight?: number;
+  computedWidth?: string;
+  minWidth?: string;
+  maxWidth?: string;
+  whiteSpace?: string;
+  overflowX?: string;
+  position?: string;
+  transform?: string;
+  marginInline?: string;
+  paddingInline?: string;
+};
+
 type SmokeState = {
   route: string;
   mode: Scenario["mode"];
@@ -43,6 +61,7 @@ type SmokeState = {
   permissionDenied: boolean;
   notFoundInShell: boolean;
   errorRoleAlert: boolean;
+  diagnostics: ElementDiagnostic[];
   logoutNavigated: boolean;
   cacheCleared: boolean;
   overflowSafe360: boolean;
@@ -76,8 +95,9 @@ const CHROME_CANDIDATES = [
 ].filter(Boolean) as string[];
 
 const VIEWPORTS = [
-  { name: "desktop-1366", width: 1366, height: 768 },
+  { name: "tablet-768", width: 768, height: 1024 },
   { name: "mobile-360", width: 360, height: 800 },
+  { name: "desktop-1366", width: 1366, height: 768 },
 ] as const;
 
 const MOBILE_SCENARIOS = new Set(["/faculty-portal"]);
@@ -170,7 +190,7 @@ const SCENARIOS: Scenario[] = [
 
 const NEGATIVE_PAGE_LOAD_PORT = Number(process.env.FACULTY_SMOKE_NEGATIVE_PORT || 59993);
 
-function scenarioHtml(s: Scenario): string {
+function scenarioHtml(s: Scenario, viewportWidth: number): string {
   const navItems = [
     { path: "/faculty-portal", label: "1" },
     { path: "/faculty-portal/schedule", label: "2" },
@@ -241,10 +261,11 @@ function scenarioHtml(s: Scenario): string {
     <button id="retry-action">إعادة</button>
 
     <script id="faculty-smoke-state" type="application/json"></script>
-    <script id="faculty-smoke-config" type="application/json">${JSON.stringify({ route: s.path, mode: s.mode })}</script>
-    <script>
+        <script id="faculty-smoke-config" type="application/json">${JSON.stringify({ route: s.path, mode: s.mode, viewportWidth })}</script>
+        <script>
       (function () {
         const config = JSON.parse(document.getElementById("faculty-smoke-config").textContent || "{}");
+        const viewportWidth = Number(config.viewportWidth || 0) || window.innerWidth;
         const state = {
           route: config.route,
           mode: config.mode,
@@ -260,6 +281,7 @@ function scenarioHtml(s: Scenario): string {
           permissionDenied: config.mode === "permission-denied",
           notFoundInShell: config.mode === "not-found",
           errorRoleAlert: !!document.querySelector('[role="alert"]'),
+          diagnostics: [],
           logoutNavigated: false,
           cacheCleared: false,
           overflowSafe360: false,
@@ -281,14 +303,62 @@ function scenarioHtml(s: Scenario): string {
           const nav = document.getElementById("faculty-nav-shell");
           if (!nav) return;
           const safe = nav.scrollWidth <= nav.clientWidth + 4;
-          if (window.innerWidth <= 360) {
+          if (viewportWidth <= 360) {
             state.overflowSafe360 = safe;
           }
-          if (window.innerWidth > 360 && window.innerWidth <= 768) {
+          if (viewportWidth > 360 && viewportWidth <= 768) {
             state.overflowSafe768 = safe;
           }
-          if (window.innerWidth > 768) {
+          if (viewportWidth > 768) {
             state.overflowSafe1366 = safe;
+          }
+        }
+
+        function measureElement(selector) {
+          const el = document.querySelector(selector);
+          if (!el) {
+            state.diagnostics.push({
+              selector,
+              found: false,
+            });
+            return;
+          }
+          const style = window.getComputedStyle(el);
+          const rect = el.getBoundingClientRect();
+          state.diagnostics.push({
+            selector,
+            found: true,
+            scrollWidth: el.scrollWidth,
+            clientWidth: el.clientWidth,
+            boundingRectLeft: Math.round(rect.left),
+            boundingRectRight: Math.round(rect.right),
+            computedWidth: style.width,
+            minWidth: style.minWidth,
+            maxWidth: style.maxWidth,
+            whiteSpace: style.whiteSpace,
+            overflowX: style.overflowX,
+            position: style.position,
+            transform: style.transform,
+            marginInline: style.marginInlineStart + " " + style.marginInlineEnd,
+            paddingInline: style.paddingInlineStart + " " + style.paddingInlineEnd,
+          });
+        }
+
+        function collectDiagnostics() {
+          const selectors = [
+            "html",
+            "body",
+            "#faculty-shell",
+            "header",
+            "#faculty-nav-shell",
+            "#notifications-dropdown",
+            "#menu-trigger",
+            "#menu-panel",
+            "main",
+            ".card-grid",
+          ];
+          for (const selector of selectors) {
+            measureElement(selector);
           }
         }
 
@@ -363,6 +433,7 @@ function scenarioHtml(s: Scenario): string {
         }
 
         measureOverflow();
+        collectDiagnostics();
         document.getElementById("faculty-smoke-state").textContent = JSON.stringify(state);
       })();
     </script>
@@ -371,8 +442,10 @@ function scenarioHtml(s: Scenario): string {
 </html>`;
 }
 
-function scenarioDataUrl(scenario: Scenario): string {
-  return `data:text/html;charset=utf-8,${encodeURIComponent(scenarioHtml(scenario))}`;
+function scenarioDataUrl(scenario: Scenario, viewportWidth: number): string {
+  return `data:text/html;charset=utf-8,${encodeURIComponent(
+    scenarioHtml(scenario, viewportWidth),
+  )}`;
 }
 
 function timeoutDataUrl(): string {
@@ -502,7 +575,7 @@ async function main() {
       for (const viewport of viewports) {
         const slug = scenario.path.replace(/\//g, "_") || "root";
         const html = runChromeDump(
-          scenarioDataUrl(scenario),
+          scenarioDataUrl(scenario, viewport.width),
           viewport,
           `${slug}-${viewport.name}`,
           CHROME_TIMEOUT_MS,
@@ -570,13 +643,31 @@ async function main() {
             : viewport.width <= 768
               ? state.overflowSafe768
               : state.overflowSafe1366;
-        record(checks, `overflow-safe:${scenario.path}:${viewport.name}`, overflowSafe);
+        if (overflowSafe) {
+          record(checks, `overflow-safe:${scenario.path}:${viewport.name}`, true);
+        } else {
+          const navDiagnostic = state.diagnostics?.find((d) => d.selector === "#faculty-nav-shell");
+          const htmlDiagnostic = state.diagnostics?.find((d) => d.selector === "html");
+          record(
+            checks,
+            `overflow-safe:${scenario.path}:${viewport.name}`,
+            false,
+            `nav-scroll=${String(navDiagnostic?.scrollWidth)} nav-client=${String(navDiagnostic?.clientWidth)} html-client=${String(htmlDiagnostic?.clientWidth)} selectors=${state.diagnostics?.filter((d) => d.found).length ?? 0}`,
+          );
+        }
       }
     }
 
     // Negative cases
     try {
-      runChromeDump(timeoutDataUrl(), VIEWPORTS[1] as (typeof VIEWPORTS)[number], "timeout-hang", 300, undefined, 2_500);
+      runChromeDump(
+        timeoutDataUrl(),
+        VIEWPORTS[1] as (typeof VIEWPORTS)[number],
+        "timeout-hang",
+        300,
+        undefined,
+        2_500,
+      );
       record(checks, "negative-timeout", false, "expected timeout did not happen");
     } catch (error) {
       const ok = /timed out|timedout|timeout/i.test(String(error));
