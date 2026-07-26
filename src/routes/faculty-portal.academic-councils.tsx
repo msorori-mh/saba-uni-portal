@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
-  ArrowRight,
   CalendarClock,
   FilePlus2,
   Loader2,
@@ -23,12 +22,8 @@ import {
   ListChecks,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  formatBytes,
-  getExt,
-  policyHint,
-  validateUpload,
-} from "@/lib/storage-validation";
+import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
+import { formatBytes, getExt, policyHint, validateUpload } from "@/lib/storage-validation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,24 +119,18 @@ const TOPIC_STATUS_LABELS: Record<string, string> = {
   archived: "مؤرشف",
 };
 
-const MEETING_SCHEDULE_DENIED_UI =
-  "لا تملك صلاحية جدولة اجتماع لهذا المجلس.";
-const MEETING_UPDATE_DENIED_UI =
-  "لا تملك صلاحية تعديل هذا الاجتماع.";
+const MEETING_SCHEDULE_DENIED_UI = "لا تملك صلاحية جدولة اجتماع لهذا المجلس.";
+const MEETING_UPDATE_DENIED_UI = "لا تملك صلاحية تعديل هذا الاجتماع.";
 const MEETINGS_LOAD_FAILED_UI = "تعذر تحميل الاجتماعات.";
 const MEETING_SAVE_FAILED_UI = "تعذر حفظ الاجتماع.";
 const AGENDA_LOAD_FAILED_UI = "تعذر تحميل جدول الأعمال.";
 const AGENDA_TOPICS_LOAD_FAILED_UI = "تعذر تحميل الموضوعات المتاحة.";
-const AGENDA_WRITE_DENIED_UI =
-  "لا تملك صلاحية إدارة جدول أعمال هذا المجلس.";
-const AGENDA_TOPIC_ALREADY_ADDED_UI =
-  "هذا الموضوع مضاف مسبقاً إلى جدول الأعمال.";
+const AGENDA_WRITE_DENIED_UI = "لا تملك صلاحية إدارة جدول أعمال هذا المجلس.";
+const AGENDA_TOPIC_ALREADY_ADDED_UI = "هذا الموضوع مضاف مسبقاً إلى جدول الأعمال.";
 const AGENDA_REORDER_FAILED_UI = "تعذر حفظ ترتيب جدول الأعمال.";
-const AGENDA_FINALIZE_DENIED_UI =
-  "لا تملك صلاحية اعتماد جدول الأعمال.";
+const AGENDA_FINALIZE_DENIED_UI = "لا تملك صلاحية اعتماد جدول الأعمال.";
 const AGENDA_SAVE_FAILED_UI = "تعذر حفظ جدول الأعمال.";
-const SESSION_EXPIRED_UI =
-  "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
+const SESSION_EXPIRED_UI = "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
 
 const MEETING_STATUS_OPTIONS = [
   "scheduled",
@@ -169,6 +158,16 @@ const ATTACHMENT_OPEN_ERROR_MESSAGE = "تعذر فتح المرفق حالياً
 
 const ATTACHMENT_ACCEPT =
   ".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/**
+ * Heuristic: a message composed only of printable ASCII is a raw technical
+ * (English/driver) error and must be replaced by a generic Arabic message.
+ */
+const PRINTABLE_ASCII_RE = /^[ -~]+$/;
+function isRawTechnicalMessage(message: string): boolean {
+  const trimmed = message.trim();
+  return trimmed.length > 0 && PRINTABLE_ASCII_RE.test(trimmed);
+}
 
 function extractErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -209,7 +208,7 @@ function mapSubmitError(message: string): string {
   if (lower.includes("jwt") || lower.includes("authapi") || lower.includes("refresh token")) {
     return SESSION_EXPIRED_MESSAGE;
   }
-  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+  if (isRawTechnicalMessage(message)) {
     return SUBMIT_GENERIC_ERROR_MESSAGE;
   }
   if (message.trim().length > 0) return message;
@@ -242,7 +241,7 @@ function mapAttachmentError(message: string): string {
   if (message.includes("تعذر رفع الملف") || message.includes("لا يمكن إرفاق")) {
     return message;
   }
-  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+  if (isRawTechnicalMessage(message)) {
     return ATTACHMENT_OPEN_ERROR_MESSAGE;
   }
   if (message.trim().length > 0) return message;
@@ -306,7 +305,7 @@ function mapMeetingUiError(message: string, mode: "schedule" | "update" | "load"
     if (mode === "update") return MEETING_UPDATE_DENIED_UI;
   }
   if (mode === "load") return MEETINGS_LOAD_FAILED_UI;
-  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+  if (isRawTechnicalMessage(message)) {
     return MEETING_SAVE_FAILED_UI;
   }
   if (message.trim().length > 0) return message;
@@ -341,7 +340,7 @@ function mapAgendaUiError(
   if (mode === "topics_load") return AGENDA_TOPICS_LOAD_FAILED_UI;
   if (mode === "reorder") return AGENDA_REORDER_FAILED_UI;
   if (mode === "finalize") return AGENDA_FINALIZE_DENIED_UI;
-  if (/^[\x00-\x7F]+$/.test(message.trim()) && message.trim().length > 0) {
+  if (isRawTechnicalMessage(message)) {
     return AGENDA_SAVE_FAILED_UI;
   }
   if (message.trim().length > 0) return message;
@@ -462,39 +461,30 @@ function FacultyAcademicCouncilsPage() {
   );
 
   const viewerOnly =
-    currentMemberships.length > 0 &&
-    currentMemberships.every((m) => m.role === "viewer");
+    currentMemberships.length > 0 && currentMemberships.every((m) => m.role === "viewer");
 
   const pageLoading =
     membershipsQuery.isLoading && meetingsQuery.isLoading && topicsQuery.isLoading;
 
   return (
-    <div dir="rtl" className="min-h-screen bg-surface">
-      <header className="bg-primary-deep text-primary-foreground border-b-2 border-gold/40">
-        <div className="container mx-auto px-4 py-4">
-          <Link
-            to="/faculty-portal"
-            className="inline-flex items-center gap-1 text-xs font-bold text-gold hover:text-primary-foreground transition-colors mb-3"
-          >
-            <ArrowRight className="h-3.5 w-3.5" />
-            العودة إلى بوابة عضو هيئة التدريس
-          </Link>
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-              <ScrollText className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="font-display text-xl font-extrabold text-gold">مجالسي الأكاديمية</h1>
-              <p className="text-xs text-primary-foreground/70 mt-0.5 max-w-2xl leading-relaxed">
-                من هذه الصفحة يمكنك الاطلاع على عضوياتك في المجالس الأكاديمية، متابعة الاجتماعات،
-                وتقديم موضوعات للعرض على المجلس حسب صلاحياتك.
-              </p>
-            </div>
+    <FacultyPortalShell
+      title="بوابة عضو هيئة التدريس"
+      breadcrumbs={[{ label: "المجالس الأكاديمية" }]}
+    >
+      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+            <ScrollText className="h-5 w-5" aria-hidden />
+          </div>
+          <div>
+            <h1 className="font-display text-xl font-extrabold text-primary">مجالسي الأكاديمية</h1>
+            <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+              من هذه الصفحة يمكنك الاطلاع على عضوياتك في المجالس الأكاديمية، متابعة الاجتماعات،
+              وتقديم موضوعات للعرض على المجلس حسب صلاحياتك.
+            </p>
           </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         {pageLoading ? (
           <div className="grid place-items-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -636,7 +626,7 @@ function FacultyAcademicCouncilsPage() {
           </>
         )}
       </main>
-    </div>
+    </FacultyPortalShell>
   );
 }
 
@@ -751,7 +741,9 @@ function MeetingAgendaExpandable({ meetingId }: { meetingId: string }) {
           ) : agendaQuery.isError ? (
             <p className="text-[11px] text-destructive">{AGENDA_LOAD_FAILED_UI}</p>
           ) : items.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground">لا توجد بنود في جدول الأعمال حتى الآن.</p>
+            <p className="text-[11px] text-muted-foreground">
+              لا توجد بنود في جدول الأعمال حتى الآن.
+            </p>
           ) : (
             <ol className="space-y-2 list-none">
               {items.map((item) => (
@@ -814,9 +806,7 @@ function ChairAgendaEditorSection({
     [upcomingMeetings, writeCouncilIds],
   );
 
-  const [selectedMeetingId, setSelectedMeetingId] = useState(
-    eligibleMeetings[0]?.meeting_id ?? "",
-  );
+  const [selectedMeetingId, setSelectedMeetingId] = useState(eligibleMeetings[0]?.meeting_id ?? "");
   const [manualTitle, setManualTitle] = useState("");
   const [manualNotes, setManualNotes] = useState("");
   const [manualBusy, setManualBusy] = useState(false);
@@ -832,9 +822,7 @@ function ChairAgendaEditorSection({
   const [editBusy, setEditBusy] = useState(false);
 
   const selectedMeeting = eligibleMeetings.find((m) => m.meeting_id === selectedMeetingId) ?? null;
-  const canFinalize = selectedMeeting
-    ? chairCouncilIds.has(selectedMeeting.council_id)
-    : false;
+  const canFinalize = selectedMeeting ? chairCouncilIds.has(selectedMeeting.council_id) : false;
 
   const agendaQuery = useQuery({
     queryKey: ["faculty", "chair-agenda", selectedMeetingId],
@@ -1035,10 +1023,12 @@ function ChairAgendaEditorSection({
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div>
-                          <span className="font-mono font-bold text-primary">{item.order_index}. </span>
+                          <span className="font-mono font-bold text-primary">
+                            {item.order_index}.{" "}
+                          </span>
                           <span className="font-bold">{item.title}</span>
                           {item.is_approved ? (
-                            <Badge variant="secondary" className="text-[9px] mr-2">
+                            <Badge variant="secondary" className="text-[9px] ms-2">
                               معتمد
                             </Badge>
                           ) : null}
@@ -1049,22 +1039,30 @@ function ChairAgendaEditorSection({
                             size="icon"
                             variant="outline"
                             className="h-7 w-7"
+                            aria-label="نقل البند للأعلى"
                             disabled={reorderBusy || idx === 0}
-                            onClick={() => void persistReorder(swapFacultyAgendaOrder(agendaItems, item.id, "up"))}
+                            onClick={() =>
+                              void persistReorder(
+                                swapFacultyAgendaOrder(agendaItems, item.id, "up"),
+                              )
+                            }
                           >
-                            <ChevronUp className="h-4 w-4" />
+                            <ChevronUp className="h-4 w-4" aria-hidden />
                           </Button>
                           <Button
                             type="button"
                             size="icon"
                             variant="outline"
                             className="h-7 w-7"
+                            aria-label="نقل البند للأسفل"
                             disabled={reorderBusy || idx === agendaItems.length - 1}
                             onClick={() =>
-                              void persistReorder(swapFacultyAgendaOrder(agendaItems, item.id, "down"))
+                              void persistReorder(
+                                swapFacultyAgendaOrder(agendaItems, item.id, "down"),
+                              )
                             }
                           >
-                            <ChevronDown className="h-4 w-4" />
+                            <ChevronDown className="h-4 w-4" aria-hidden />
                           </Button>
                           <Button
                             type="button"
@@ -1087,7 +1085,10 @@ function ChairAgendaEditorSection({
                   <div className="text-xs font-bold text-primary">موضوعات متاحة</div>
                   <ul className="space-y-2">
                     {availableTopics.map((t) => (
-                      <li key={t.topic_id} className="flex justify-between gap-2 items-center text-xs">
+                      <li
+                        key={t.topic_id}
+                        className="flex justify-between gap-2 items-center text-xs"
+                      >
                         <span>{t.title}</span>
                         <Button
                           type="button"
@@ -1105,7 +1106,10 @@ function ChairAgendaEditorSection({
                 </div>
               ) : null}
 
-              <form onSubmit={(e) => void handleManualAdd(e)} className="space-y-2 border-t border-border pt-3">
+              <form
+                onSubmit={(e) => void handleManualAdd(e)}
+                className="space-y-2 border-t border-border pt-3"
+              >
                 <div className="text-xs font-bold text-primary">بند يدوي</div>
                 <Input
                   value={manualTitle}
@@ -1121,7 +1125,11 @@ function ChairAgendaEditorSection({
                   dir="rtl"
                 />
                 <Button type="submit" size="sm" disabled={manualBusy} className="gap-1">
-                  {manualBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  {manualBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
                   إضافة بند
                 </Button>
               </form>
@@ -1130,14 +1138,22 @@ function ChairAgendaEditorSection({
         </div>
       )}
 
-      <Dialog open={editTarget !== null} onOpenChange={(open) => !open && !editBusy && setEditTarget(null)}>
+      <Dialog
+        open={editTarget !== null}
+        onOpenChange={(open) => !open && !editBusy && setEditTarget(null)}
+      >
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader>
             <DialogTitle>تعديل بند الأجندة</DialogTitle>
           </DialogHeader>
           <form onSubmit={(e) => void handleEdit(e)} className="space-y-3">
             <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} dir="rtl" />
-            <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} dir="rtl" />
+            <Textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              rows={2}
+              dir="rtl"
+            />
             <Input
               type="number"
               min={1}
@@ -1145,7 +1161,10 @@ function ChairAgendaEditorSection({
               onChange={(e) => setEditOrder(e.target.value)}
             />
             <label className="flex items-center gap-2 text-xs">
-              <Checkbox checked={editApproved} onCheckedChange={(v) => setEditApproved(v === true)} />
+              <Checkbox
+                checked={editApproved}
+                onCheckedChange={(v) => setEditApproved(v === true)}
+              />
               معتمد
             </label>
             <DialogFooter>
@@ -1212,10 +1231,10 @@ function MeetingCard({
           scheduledAt: scheduledIso,
           location: editLocation.trim() || null,
           intakeOpensAt: editIntakeOpensAt.trim()
-            ? toIsoFromDatetimeLocal(editIntakeOpensAt) ?? null
+            ? (toIsoFromDatetimeLocal(editIntakeOpensAt) ?? null)
             : null,
           intakeClosesAt: editIntakeClosesAt.trim()
-            ? toIsoFromDatetimeLocal(editIntakeClosesAt) ?? null
+            ? (toIsoFromDatetimeLocal(editIntakeClosesAt) ?? null)
             : null,
           notes: editNotes.trim() || null,
           status: editStatus as (typeof MEETING_STATUS_OPTIONS)[number],
@@ -1264,7 +1283,9 @@ function MeetingCard({
         </div>
         <div>
           <dt className="text-muted-foreground">التاريخ والوقت</dt>
-          <dd className="font-medium text-foreground mt-0.5">{formatDateTime(meeting.scheduled_at)}</dd>
+          <dd className="font-medium text-foreground mt-0.5">
+            {formatDateTime(meeting.scheduled_at)}
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">المكان</dt>
@@ -1332,7 +1353,11 @@ function MeetingCard({
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium">المكان</label>
-              <Input value={editLocation} onChange={(e) => setEditLocation(e.target.value)} dir="rtl" />
+              <Input
+                value={editLocation}
+                onChange={(e) => setEditLocation(e.target.value)}
+                dir="rtl"
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium">فتح استقبال الموضوعات</label>
@@ -1367,10 +1392,20 @@ function MeetingCard({
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium">ملاحظات</label>
-              <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} dir="rtl" />
+              <Textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                rows={2}
+                dir="rtl"
+              />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button type="button" variant="outline" disabled={editBusy} onClick={() => setEditOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={editBusy}
+                onClick={() => setEditOpen(false)}
+              >
                 إلغاء
               </Button>
               <Button type="submit" disabled={editBusy} className="gap-1.5">
@@ -1447,7 +1482,8 @@ function ChairMeetingScheduleSection({
     <SectionShell icon={CalendarClock} title="جدولة اجتماع (رئيس المجلس)">
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
-          بصفتك رئيس مجلس، يمكنك جدولة اجتماع لمجلسك فقط. الحماية النهائية عبر صلاحيات قاعدة البيانات.
+          بصفتك رئيس مجلس، يمكنك جدولة اجتماع لمجلسك فقط. الحماية النهائية عبر صلاحيات قاعدة
+          البيانات.
         </p>
         {chairMemberships.length > 1 ? (
           <div className="space-y-1.5">
@@ -1472,7 +1508,12 @@ function ChairMeetingScheduleSection({
         )}
         <div className="space-y-1.5">
           <label className="text-xs font-medium">عنوان الاجتماع</label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} dir="rtl" maxLength={500} />
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            dir="rtl"
+            maxLength={500}
+          />
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium">تاريخ ووقت الاجتماع</label>
@@ -1507,7 +1548,11 @@ function ChairMeetingScheduleSection({
           <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} dir="rtl" />
         </div>
         <Button type="submit" className="gap-2" disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarClock className="h-4 w-4" />}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <CalendarClock className="h-4 w-4" />
+          )}
           جدولة الاجتماع
         </Button>
       </form>
@@ -1538,18 +1583,24 @@ function TopicCard({
           <div>
             <dt className="text-muted-foreground">تاريخ التقديم</dt>
             <dd className="font-medium text-foreground mt-0.5">
-              {topic.submitted_at ? formatDateTime(topic.submitted_at) : formatDateTime(topic.created_at)}
+              {topic.submitted_at
+                ? formatDateTime(topic.submitted_at)
+                : formatDateTime(topic.created_at)}
             </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">آخر تحديث</dt>
-            <dd className="font-medium text-foreground mt-0.5">{formatDateTime(topic.updated_at)}</dd>
+            <dd className="font-medium text-foreground mt-0.5">
+              {formatDateTime(topic.updated_at)}
+            </dd>
           </div>
         </div>
         {showDescription && topic.description ? (
           <div>
             <dt className="text-muted-foreground">الوصف</dt>
-            <dd className="text-foreground mt-0.5 leading-relaxed line-clamp-4">{topic.description}</dd>
+            <dd className="text-foreground mt-0.5 leading-relaxed line-clamp-4">
+              {topic.description}
+            </dd>
           </div>
         ) : null}
         {topic.admin_notes ? (
@@ -1837,7 +1888,9 @@ function SubmitTopicForm({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label className="text-xs font-medium text-foreground">
               المرفقات الداعمة{" "}
-              <span className="text-muted-foreground">(اختياري — حتى {MAX_TOPIC_ATTACHMENTS} ملفات)</span>
+              <span className="text-muted-foreground">
+                (اختياري — حتى {MAX_TOPIC_ATTACHMENTS} ملفات)
+              </span>
             </label>
             <span className="text-[10px] text-muted-foreground">
               {selectedFiles.length}/{MAX_TOPIC_ATTACHMENTS}
