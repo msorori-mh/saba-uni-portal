@@ -212,12 +212,16 @@ describe("mock B1 UI adapter — student lifecycle", () => {
     expect(types.length).toBe(5);
     const byCode = new Map(types.map((item) => [item.code, item]));
 
-    expect(byCode.get("enrollment_suspension")!.runtimeAvailable).toBe(true);
-    expect(byCode.get("file_withdrawal")!.runtimeAvailable).toBe(true);
-    for (const blocked of ["excused_absence", "department_transfer", "final_chance"] as const) {
-      expect(byCode.get(blocked)!.studentVisible).toBe(true);
-      expect(byCode.get(blocked)!.runtimeAvailable).toBe(false);
-      expect(byCode.get(blocked)!.activationBlockedReason).toBeTruthy();
+    for (const code of [
+      "enrollment_suspension",
+      "excused_absence",
+      "department_transfer",
+      "final_chance",
+      "file_withdrawal",
+    ] as const) {
+      expect(byCode.get(code)!.studentVisible).toBe(true);
+      expect(byCode.get(code)!.runtimeAvailable).toBe(true);
+      expect(byCode.get(code)!.activationBlockedReason).toBeUndefined();
     }
   });
 

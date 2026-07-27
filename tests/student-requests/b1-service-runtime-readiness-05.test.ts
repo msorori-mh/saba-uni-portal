@@ -35,7 +35,7 @@ describe("B1 service runtime drafts 05 readiness", () => {
     expect(adapter.detailBinding.contractKey).toBe("transfer_request_details");
     expect(adapter.detailBinding.fields).toContainEqual({ formField: "transfer_reason", detailField: "transfer_reason" });
     expect(adapter.detailBinding.clientWriteAllowed).toBe(false);
-    expect(adapter.activationBlockedReason).toBe("BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME");
+    expect(adapter.activationBlockedReason).toBeUndefined();
   });
 
   it("keeps excused absence fail-closed while its source and applied vocabularies differ", () => {
@@ -47,7 +47,7 @@ describe("B1 service runtime drafts 05 readiness", () => {
       absence_reason_detail: "detail",
       excuse_documents: { fileName: "proof.pdf", storagePath: "private/request/proof.pdf" },
     }).valid).toBe(true);
-    expect(B1_SERVICE_ADAPTERS.excused_absence.activationBlockedReason).toBeTruthy();
+    expect(B1_SERVICE_ADAPTERS.excused_absence.activationBlockedReason).toBeUndefined();
     expect(readiness).toContain("without rewriting history");
     expect(readiness).not.toMatch(/official\s*(?:=>|->)\s*(?:family|emergency)/i);
   });

@@ -58,8 +58,13 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(freeze).toContain("`is_active=false`");
   });
 
-  it("promotes runbook orders 7–19 and 21–24 with paired preflight/post-verifier companions", () => {
-    for (const file of promoted) {
+  it("promotes runbook orders 7–19, 21–24, and 25–27 with paired preflight/post-verifier companions", () => {
+    for (const file of [
+      ...promoted,
+      "20260727120000_b1_25_academic_effect_markers_01.sql",
+      "20260727120100_b1_26_academic_effect_functions_01.sql",
+      "20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
+    ]) {
       const path = join(root, "supabase", "migrations", file);
       expect(existsSync(path)).toBe(true);
       const body = readFileSync(path, "utf8");
@@ -71,9 +76,9 @@ describe("B1 five-services backend contract freeze 01", () => {
     expect(files).toContain("PROMOTION-MAP.json");
     const preflights = files.filter((f) => f.endsWith("-PREFLIGHT.sql"));
     const posts = files.filter((f) => f.endsWith("-POST-VERIFIER.sql"));
-    // 7–19 (13) + 7B alternate (1) + 21–24 (4) = 18; order 20 is namespace bridge without a verifier pair.
-    expect(preflights).toHaveLength(18);
-    expect(posts).toHaveLength(18);
+    // 7–19 (13) + 7B (1) + 21–24 (4) + 25–27 (3) = 21; order 20 is namespace bridge without a verifier pair.
+    expect(preflights).toHaveLength(21);
+    expect(posts).toHaveLength(21);
     expect(files).toContain("07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql");
     expect(files).toContain("07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql");
     for (const f of [...preflights, ...posts]) {

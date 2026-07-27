@@ -49,18 +49,18 @@ describe("B1-02 transfer and final-chance source contract", () => {
     }
   });
 
-  it("records the approved external university confirmation policy", () => {
+  it("records the approved external university confirmation policy as go-live ready", () => {
     expect(getB102ActivationDecision("department_transfer")).toEqual({
       status: "SOURCE_POLICY_APPROVED",
       policy: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
-      activationBlockedReason: "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME",
-      runtimeAvailable: false,
+      activationBlockedReason: undefined,
+      runtimeAvailable: true,
     });
     expect(getB102ActivationDecision("final_chance")).toEqual({
       status: "SOURCE_POLICY_APPROVED",
       policy: "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
-      activationBlockedReason: "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
-      runtimeAvailable: false,
+      activationBlockedReason: undefined,
+      runtimeAvailable: true,
     });
   });
 });

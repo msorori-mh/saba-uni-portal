@@ -112,9 +112,7 @@ describe("B1 workflows and payment policy", () => {
       const keys = B1_WORKFLOWS[code].map((s) => s.key);
       expect(keys).not.toContain("fee_assessment");
       expect(keys).toContain("payment_confirmation");
-      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBe(code === "department_transfer"
-        ? "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME"
-        : "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME");
+      expect(B1_SERVICE_ADAPTERS[code].activationBlockedReason).toBeUndefined();
     }
   });
   it("wires authenticated reference data through the new-request route into the dynamic form", () => {
@@ -132,21 +130,15 @@ describe("B1 workflows and payment policy", () => {
     expect(form).not.toContain("placeholder-id");
   });
   it("does not couple external confirmation activation to fee_type.code", () => {
-    for (const code of ["department_transfer", "final_chance"] as const) {
-      expect(validateB1ServiceActivation({ requestTypeCode: code })).toEqual({
-        ok: false,
-        error: code === "department_transfer"
-          ? "BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME"
-          : "BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME",
-        activationError: "SERVICE_ACTIVATION_BLOCKED",
-      });
+    for (const code of [
+      "enrollment_suspension",
+      "excused_absence",
+      "department_transfer",
+      "final_chance",
+      "file_withdrawal",
+    ] as const) {
+      expect(validateB1ServiceActivation({ requestTypeCode: code })).toEqual({ ok: true });
     }
-    expect(validateB1ServiceActivation({ requestTypeCode: "enrollment_suspension" })).toEqual({ ok: true });
-    expect(validateB1ServiceActivation({ requestTypeCode: "excused_absence" })).toEqual({
-      ok: false,
-      error: "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME",
-      activationError: "SERVICE_ACTIVATION_BLOCKED",
-    });
     expect(() => validateB1ServiceActivation({ requestTypeCode: "unknown" })).toThrow("UNKNOWN_STUDENT_REQUEST_TYPE_CODE");
   });
   it("connects activation, trusted reference validation, and stored codes to the submit boundary", () => {
@@ -236,9 +228,9 @@ describe("B1 direct assignment and authorization source contract", () => {
     })).toMatchObject({ valid: false, errors: { transfer_reason: "required" } });
   });
 
-  it("keeps excused absence blocked on secure attachments and rejects unknown reason types", () => {
+  it("keeps excused absence attachment-gated in validation and rejects unknown reason types", () => {
     const adapter = B1_SERVICE_ADAPTERS.excused_absence;
-    expect(adapter.activationBlockedReason).toBe("BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME");
+    expect(adapter.activationBlockedReason).toBeUndefined();
     const valid = {
       course_section_id: "section",
       absence_date: "2026-07-17",

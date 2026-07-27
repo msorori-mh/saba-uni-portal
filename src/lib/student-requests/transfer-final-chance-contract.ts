@@ -75,6 +75,6 @@ export function getB102ActivationDecision(service: "department_transfer" | "fina
     status: "SOURCE_POLICY_APPROVED" as const,
     policy: B1_02_POLICY,
     activationBlockedReason: adapter.activationBlockedReason,
-    runtimeAvailable: adapter.submit.runtimeAvailable,
+    runtimeAvailable: !adapter.activationBlockedReason,
   };
 }

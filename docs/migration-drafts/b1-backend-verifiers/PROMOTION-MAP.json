@@ -8,7 +8,7 @@
         "preflight": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql",
         "apply_status": "SUPERSEDED_NOT_FOR_LOVABLE_CLOUD_APPLY",
-        "note": "File bytes MUST remain unmodified (pin 66ba4c96…). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
+        "note": "File bytes MUST remain unmodified (pin 66ba4c96\u2026). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
     },
     {
         "order": 7.5,
@@ -20,7 +20,7 @@
         "preflight": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql",
         "prerequisite_non_migration": "B0 Lovable Storage tool: create private bucket student-request-secure-attachments (public=false, 5MiB, pdf/jpeg/png) BEFORE applying 7B",
-        "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only — never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
+        "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only \u2014 never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
     },
     {
         "order": 8,
@@ -180,5 +180,32 @@
         "preflight": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-POST-VERIFIER.sql",
         "note": "Null-safe impact_acknowledgment / terms_acknowledgment guards. Activation gate remains 25."
+    },
+    {
+        "order": 25,
+        "draft": "B1-ACADEMIC-EFFECT-MARKERS-01.sql",
+        "migration": "supabase/migrations/20260727120000_b1_25_academic_effect_markers_01.sql",
+        "draft_sha_lf": "50db2dfec04e940d2e474f81e660167ea28453e0cca892228dfd8d6cfa629bdf",
+        "migration_sha_lf": "4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-POST-VERIFIER.sql"
+    },
+    {
+        "order": 26,
+        "draft": "B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
+        "migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
+        "draft_sha_lf": "ad0a5de204a0bfdc7df21a0283c0761e5f4060a062a200352eb828c7cb33e795",
+        "migration_sha_lf": "7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-POST-VERIFIER.sql"
+    },
+    {
+        "order": 27,
+        "draft": "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-01.sql",
+        "migration": "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
+        "draft_sha_lf": "0b29034dd3d30d4e2e54516d09b53be87ec58a175a9b187db7203853f28b0937",
+        "migration_sha_lf": "7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-POST-VERIFIER.sql"
     }
 ]

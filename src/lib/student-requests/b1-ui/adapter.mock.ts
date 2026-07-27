@@ -33,8 +33,8 @@ import {
   isB1ServiceCode,
 } from "./service-config";
 import { validateB1FormValues } from "./validation";
-import { getStudentRequestFormDefinition } from "@/lib/student-requests/request-form-registry";
 import { normalizeStudentRequestTypeCode } from "@/lib/student-requests/request-type-registry";
+import { buildB1StudentFormSummaryItems } from "./form-summary";
 
 export const B1_MOCK_MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export const B1_MOCK_ALLOWED_MIME_TYPES = ["application/pdf", "image/png", "image/jpeg"] as const;
@@ -673,17 +673,10 @@ export function createMockB1UiAdapter(options: MockOptions = {}): B1UiAdapter {
       if (!assigned) {
         throw new B1AdapterError("NOT_FOUND", `No active assigned step for request: ${requestId}`);
       }
-      const form = getStudentRequestFormDefinition(request.serviceCode);
-      const labelByField = new Map<string, string>();
-      for (const section of form?.sections ?? []) {
-        for (const field of section.fields) labelByField.set(field.name, field.labelAr);
-      }
-      const formDataSummary = Object.entries(request.formData)
-        .filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "")
-        .map(([key, value]) => ({
-          labelAr: labelByField.get(key) ?? key,
-          valueAr: value === true ? "نعم" : value === false ? "لا" : String(value),
-        }));
+      const formDataSummary = buildB1StudentFormSummaryItems({
+        serviceCode: request.serviceCode,
+        formData: request.formData,
+      });
       return {
         ...assigned,
         formDataSummary,

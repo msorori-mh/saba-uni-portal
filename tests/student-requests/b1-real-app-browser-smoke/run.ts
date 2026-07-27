@@ -792,6 +792,19 @@ async function main(): Promise<number> {
         return true;
       })()`);
       await cdp!.poll(
+        "success state",
+        `!!document.querySelector('[data-testid="b1-success-state"]')`,
+        30_000,
+      );
+      await cdp!.evaluate(`(() => {
+        const btn = [...document.querySelectorAll('[data-testid="b1-success-state"] button')].find((b) =>
+          (b.textContent || "").includes("متابعة الطلب")
+        );
+        if (!btn) throw new Error("success continue missing");
+        btn.click();
+        return true;
+      })()`);
+      await cdp!.poll(
         "detail page",
         `location.pathname.includes("/student/requests/b1/view/") && !!document.querySelector('[data-testid="b1-student-request-detail"]')`,
         60_000,
@@ -799,6 +812,18 @@ async function main(): Promise<number> {
       await cdp!.poll(
         "status + history",
         `!!document.querySelector('[data-testid="b1-request-status-card"]') && !!document.querySelector('[data-testid="b1-request-history"]')`,
+        20_000,
+      );
+      await cdp!.poll(
+        "arabic detail summary (no snake_case keys)",
+        `(() => {
+          const summary = document.querySelector('[data-testid="b1-request-summary"]');
+          if (!summary) return false;
+          const text = summary.textContent || "";
+          const banned = ["absence_date", "one_semester", "target_program_id", "target_department_id", "withdrawal_reason", "impact_acknowledgment"];
+          if (banned.some((key) => text.includes(key))) return false;
+          return text.includes("سبب سحب الملف") || text.includes("ملخص الطلب");
+        })()`,
         20_000,
       );
       await privacyOk();

@@ -11,6 +11,8 @@ type Props = {
   /** The single legal action for the current step (backend-authoritative). */
   allowedAction: B1StaffAction;
   stepLabelAr: string;
+  /** Authoritative workflow step key for precise Arabic labels. */
+  stepKey?: string;
   /** True while the parent is executing the action call. */
   acting?: boolean;
   onAct: (action: B1StaffAction, comment?: string) => Promise<void> | void;
@@ -39,6 +41,14 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
   },
 };
 
+function approveLabelAr(stepKey?: string): string {
+  if (!stepKey) return "اعتماد";
+  if (stepKey.includes("clearance") || stepKey.endsWith("_clear")) return "إخلاء";
+  if (stepKey === "registrar_apply" || stepKey === "record_apply") return "تطبيق القرار";
+  if (stepKey === "archive") return "أرشفة";
+  return "اعتماد";
+}
+
 function ActionIcon({ action }: { action: ExecutableAction }) {
   const cls = "h-4 w-4";
   if (action === "reject") return <XCircle className={cls} />;
@@ -58,6 +68,7 @@ function ActionIcon({ action }: { action: ExecutableAction }) {
 export function B1EmployeeActionPanel({
   allowedAction,
   stepLabelAr,
+  stepKey,
   acting = false,
   onAct,
   requireComment,
@@ -89,6 +100,8 @@ export function B1EmployeeActionPanel({
   const commentRequired =
     requireComment ?? B1_STAFF_ACTIONS_REQUIRING_COMMENT.includes(allowedAction);
   const meta = ACTION_META[allowedAction];
+  const labelAr =
+    allowedAction === "approve" ? approveLabelAr(stepKey) : meta.labelAr;
   const controlsDisabled = busy || acting;
 
   const handleAct = async () => {
@@ -166,7 +179,7 @@ export function B1EmployeeActionPanel({
           ) : (
             <ActionIcon action={allowedAction} />
           )}
-          {busy || acting ? "جارٍ التنفيذ…" : meta.labelAr}
+          {busy || acting ? "جارٍ التنفيذ…" : labelAr}
         </button>
       </div>
 

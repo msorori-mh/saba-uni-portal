@@ -8,10 +8,14 @@ import {
   filterAvailableRequestTypesForStudentPage,
   isRequestTypeActionable,
 } from "@/lib/student-requests/available-request-types-ui";
-import { filterStudentRequestTypesForDisplay } from "@/lib/student-requests/request-type-registry";
-import { getStudentRequestTypeDisplayName } from "@/lib/student-requests/request-type-registry";
+import {
+  filterStudentRequestTypesForDisplay,
+  getStudentRequestTypeDisplayName,
+  normalizeStudentRequestTypeCode,
+} from "@/lib/student-requests/request-type-registry";
 import { portalFeatures } from "@/lib/portal-features";
 import { B1StudentServiceList } from "@/components/student-requests/b1";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
 
 export const Route = createFileRoute("/student/requests/")({
   component: StudentRequestsIndexPage,
@@ -181,13 +185,23 @@ function StudentRequestsIndexPage() {
                     ) : null}
                     <div className="mt-2">
                       {actionable ? (
-                        <Link
-                          to="/student/requests/new"
-                          search={{ type: type.code }}
-                          className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
-                        >
-                          تقديم طلب
-                        </Link>
+                        isB1ServiceCode(normalizeStudentRequestTypeCode(type.code)) ? (
+                          <Link
+                            to="/student/requests/b1/$service"
+                            params={{ service: normalizeStudentRequestTypeCode(type.code) }}
+                            className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+                          >
+                            تقديم طلب
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/student/requests/new"
+                            search={{ type: type.code }}
+                            className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground"
+                          >
+                            تقديم طلب
+                          </Link>
+                        )
                       ) : (
                         <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-3 py-1.5 text-xs font-bold text-muted-foreground">
                           غير متاح حالياً
@@ -285,13 +299,23 @@ function StudentRequestsIndexPage() {
                         {new Date(request.updated_at).toLocaleString("ar-EG")}
                       </div>
                     </div>
-                    <Link
-                      to="/student/requests/$id"
-                      params={{ id: request.id }}
-                      className="inline-flex min-h-10 items-center justify-center rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-bold text-primary w-full"
-                    >
-                      عرض التفاصيل
-                    </Link>
+                    {isB1ServiceCode(normalizeStudentRequestTypeCode(request.request_type)) ? (
+                      <Link
+                        to="/student/requests/b1/view/$requestId"
+                        params={{ requestId: request.id }}
+                        className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-bold text-primary"
+                      >
+                        عرض التفاصيل
+                      </Link>
+                    ) : (
+                      <Link
+                        to="/student/requests/$id"
+                        params={{ id: request.id }}
+                        className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-primary/30 bg-primary/5 px-3 text-sm font-bold text-primary"
+                      >
+                        عرض التفاصيل
+                      </Link>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -352,13 +376,25 @@ function StudentRequestsIndexPage() {
                           {new Date(request.updated_at).toLocaleString("ar-EG")}
                         </td>
                         <td className="px-3 py-2">
-                          <Link
-                            to="/student/requests/$id"
-                            params={{ id: request.id }}
-                            className="font-bold text-primary underline"
-                          >
-                            عرض
-                          </Link>
+                          {isB1ServiceCode(
+                            normalizeStudentRequestTypeCode(request.request_type),
+                          ) ? (
+                            <Link
+                              to="/student/requests/b1/view/$requestId"
+                              params={{ requestId: request.id }}
+                              className="font-bold text-primary underline"
+                            >
+                              عرض
+                            </Link>
+                          ) : (
+                            <Link
+                              to="/student/requests/$id"
+                              params={{ id: request.id }}
+                              className="font-bold text-primary underline"
+                            >
+                              عرض
+                            </Link>
+                          )}
                         </td>
                       </tr>
                     ))}

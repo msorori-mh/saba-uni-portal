@@ -7,6 +7,8 @@ type Props = {
   attachments: readonly B1AttachmentMeta[];
   onUpload: (file: File) => Promise<void> | void;
   onRemove: (attachmentId: string) => Promise<void> | void;
+  /** Retry the last failed local upload attempt for this field. */
+  onRetry?: () => Promise<void> | void;
   disabled?: boolean;
   /** Comma-separated extensions accepted by the file input. */
   accept?: string;
@@ -45,6 +47,7 @@ export function B1AttachmentUploader({
   attachments,
   onUpload,
   onRemove,
+  onRetry,
   disabled = false,
   accept = DEFAULT_ACCEPT,
   maxSizeMB = DEFAULT_MAX_SIZE_MB,
@@ -173,6 +176,17 @@ export function B1AttachmentUploader({
               >
                 {STATUS_LABELS[attachment.status]}
               </span>
+              {attachment.status === "failed" && onRetry ? (
+                <button
+                  type="button"
+                  aria-label={`إعادة رفع ${attachment.fileName}`}
+                  disabled={controlsDisabled}
+                  onClick={() => void onRetry()}
+                  className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-900 disabled:opacity-50"
+                >
+                  إعادة المحاولة
+                </button>
+              ) : null}
               <button
                 type="button"
                 aria-label={`حذف المرفق ${attachment.fileName}`}
@@ -190,6 +204,17 @@ export function B1AttachmentUploader({
           ))}
         </ul>
       )}
+      {onRetry && localError ? (
+        <button
+          type="button"
+          data-testid="b1-attachment-retry"
+          disabled={controlsDisabled}
+          onClick={() => void onRetry()}
+          className="text-xs font-bold text-primary underline-offset-2 hover:underline disabled:opacity-50"
+        >
+          إعادة محاولة الرفع
+        </button>
+      ) : null}
     </section>
   );
 }

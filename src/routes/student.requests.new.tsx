@@ -36,6 +36,7 @@ import {
   validateB1ServiceActivation,
   type ReferenceDataState,
 } from "@/lib/student-requests/request-service-adapter";
+import { isB1ServiceCode } from "@/lib/student-requests/b1-ui";
 
 export const Route = createFileRoute("/student/requests/new")({
   validateSearch: (search: Record<string, unknown>): { type?: string } => ({
@@ -96,11 +97,20 @@ function NewStudentRequestPage() {
 
   useEffect(() => {
     if (!typeFromSearch) return;
+    const canonical = normalizeStudentRequestTypeCode(typeFromSearch);
+    if (isB1ServiceCode(canonical)) {
+      void navigate({
+        to: "/student/requests/b1/$service",
+        params: { service: canonical },
+        replace: true,
+      });
+      return;
+    }
     const match = typedTypes.find((t) => t.code === typeFromSearch);
     if (match && match.is_eligible && !match.is_disabled) {
       setRequestType(match.code);
     }
-  }, [typeFromSearch, typedTypes]);
+  }, [typeFromSearch, typedTypes, navigate]);
   const selectedType = useMemo(
     () => typedTypes.find((type) => type.code === requestType),
     [typedTypes, requestType],
