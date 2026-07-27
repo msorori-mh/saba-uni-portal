@@ -146,6 +146,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     target: B1Draft,
     vals: Record<string, unknown>,
     fromAutosave = false,
+    phase: B1SavePhase = fromAutosave ? "autosave" : "manual_save",
   ) => {
     if (reviewing || submitting || success) return;
     if (!fromAutosave) setSaveState("saving");
@@ -160,6 +161,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
 
       setDraft(saved);
       setSaveState("saved");
+      // Successful recovery must clear the transient notice; no stale banner.
+      setTransientSaveError(null);
     } catch (error) {
       if (error instanceof B1AdapterError && error.code === "STALE_VERSION") {
         try {
@@ -173,7 +176,17 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         return;
       }
       setSaveState("save_failed");
-      if (!fromAutosave) setFatalError(b1AdapterErrorMessageAr(error));
+      // A save failure never proves the service is inactive: only the
+      // availability/capability probe on load can do that.
+      const classification = classifyB1SaveError(error, phase, {
+        capabilityProvenUnavailable: false,
+      });
+      logB1SaveDiagnostic(phase, classification);
+      if (classification.severity === "fatal") {
+        if (!fromAutosave) setFatalError(classification.messageAr);
+      } else if (!fromAutosave) {
+        setTransientSaveError(classification.messageAr);
+      }
     }
   };
 
@@ -201,8 +214,9 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       } catch {
         /* keep optimistic attachment state */
       }
-      await persistDraft(target, valuesRef.current);
+      await persistDraft(target, valuesRef.current, false, "attachment_sync");
     })();
+
     attachmentSync.current = run;
     setAttachmentSyncing(true);
     try {
