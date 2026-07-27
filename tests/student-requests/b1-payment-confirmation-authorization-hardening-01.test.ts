@@ -83,20 +83,22 @@ describe("G1: bypasses removed on the B1 path", () => {
   test("no admin / system_admin bypass inside the B1 branch", () => {
     expect(b1Branch).not.toContain("is_current_user_admin_actor");
   });
-  test("no broad-role fallback anywhere in the function", () => {
-    expect(DRAFT).not.toContain("has_any_role");
-    expect(DRAFT).not.toContain("revenue_finance_officer");
-    expect(DRAFT).not.toContain("finance_officer");
-    expect(DRAFT).not.toMatch(/registrar/i);
-    expect(DRAFT).not.toMatch(/\bdean\b/i);
+  test("no broad-role fallback anywhere in the function body", () => {
+    expect(BODY).not.toContain("has_any_role");
+    expect(BODY).not.toContain("revenue_finance_officer");
+    expect(BODY).not.toContain("finance_officer");
+    expect(BODY).not.toMatch(/registrar/i);
+    expect(BODY).not.toMatch(/\bdean\b/i);
+    expect(BODY).not.toContain("current_user_processing_assignments");
   });
   test("admin actor survives exactly once, in the legacy branch only", () => {
-    const occurrences = DRAFT.split("is_current_user_admin_actor").length - 1;
+    const occurrences = BODY.split("is_current_user_admin_actor").length - 1;
     expect(occurrences).toBe(1);
-    expect(DRAFT).toContain(
+    expect(BODY).toContain(
       "IF NOT public.is_current_user_admin_actor()\n       AND NOT public.user_matches_workflow_runtime_step(v_runtime_step.id) THEN",
     );
   });
+
 });
 
 describe("G1: hardened requirements 1-10", () => {
