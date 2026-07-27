@@ -1,7 +1,10 @@
 import { useId, useRef, useState } from "react";
 import { FileText, Loader2, Trash2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
-import type { B1AttachmentMeta } from "@/lib/student-requests/b1-ui/adapter.types";
+import {
+  b1AdapterErrorMessageAr,
+  type B1AttachmentMeta,
+} from "@/lib/student-requests/b1-ui/adapter.types";
 
 type Props = {
   attachments: readonly B1AttachmentMeta[];
@@ -98,8 +101,8 @@ export function B1AttachmentUploader({
     setRemovingId(attachmentId);
     try {
       await onRemove(attachmentId);
-    } catch {
-      toast.error("تعذر حذف المرفق. أعد المحاولة.");
+    } catch (error) {
+      toast.error(`تعذر حذف المرفق. ${b1AdapterErrorMessageAr(error)}`);
     } finally {
       setRemovingId(null);
     }

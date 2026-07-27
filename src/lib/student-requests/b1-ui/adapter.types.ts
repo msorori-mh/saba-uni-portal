@@ -39,6 +39,7 @@ export type { B1CanonicalCode, B1FeePolicy, B1WorkflowStep };
 
 export const B1_ADAPTER_ERROR_CODES = [
   "NETWORK_ERROR",
+  "UNEXPECTED_ERROR",
   "PERMISSION_DENIED",
   "STALE_VERSION",
   "VALIDATION_ERROR",
@@ -72,6 +73,8 @@ export function b1AdapterErrorMessageAr(error: unknown): string {
     switch (error.code) {
       case "NETWORK_ERROR":
         return "تعذر الاتصال بالخادم. تحقق من الاتصال ثم أعد المحاولة.";
+      case "UNEXPECTED_ERROR":
+        return "تعذر إتمام العملية بسبب خطأ داخلي في الصفحة. أعد تحميل الصفحة ثم حاول مرة أخرى.";
       case "PERMISSION_DENIED":
         return "لا تملك صلاحية تنفيذ هذا الإجراء على هذا الطلب.";
       case "STALE_VERSION":

@@ -32,6 +32,11 @@ import { B1RequestSummary } from "./B1RequestSummary";
 import { B1ServiceHeader } from "./B1ServiceHeader";
 import { B1SubmissionConfirmation } from "./B1SubmissionConfirmation";
 import { B1SuccessState } from "./B1SuccessState";
+import {
+  describeError,
+  describeUpdatedAt,
+  traceB1Submit,
+} from "@/lib/student-requests/b1-ui/submit-trace";
 
 const AUTOSAVE_MS = 1000;
 const MAX_SIZE_MB = SECURE_ATTACHMENT_MAX_BYTES / (1024 * 1024);
@@ -221,16 +226,49 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     if (!draft || submitLock.current) return;
     submitLock.current = true;
     setSubmitting(true);
+    let serverFnInvoked = false;
     try {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+      traceB1Submit("SUBMIT_BEFORE_SAVE", {
+        serviceCode,
+        requestId: draft.requestId,
+        ...describeUpdatedAt(draft.updatedAt),
+      });
       const saved = await adapter.saveB1RequestDraft(draft.requestId, values, draft.updatedAt);
+      traceB1Submit("SUBMIT_AFTER_SAVE", {
+        serviceCode,
+        requestId: saved.requestId,
+        ...describeUpdatedAt(saved.updatedAt),
+      });
+      traceB1Submit("SUBMIT_BEFORE_SERVER_FN", {
+        serviceCode,
+        requestId: saved.requestId,
+        ...describeUpdatedAt(saved.updatedAt),
+      });
+      serverFnInvoked = true;
+      traceB1Submit("SUBMIT_SERVER_FN_INVOKED", {
+        serviceCode,
+        requestId: saved.requestId,
+        serverFnInvoked: true,
+      });
       const result = await adapter.submitB1Request(saved.requestId, saved.updatedAt);
+      traceB1Submit("SUBMIT_SERVER_FN_RETURNED", {
+        serviceCode,
+        requestId: result.requestId,
+        serverFnInvoked: true,
+      });
       setConfirming(false);
       setSuccess({
         requestId: result.requestId,
         requestNumber: result.requestNumber ?? saved.requestNumber,
       });
     } catch (error) {
+      traceB1Submit("SUBMIT_THROWN", {
+        serviceCode,
+        requestId: draft.requestId,
+        serverFnInvoked,
+        ...describeError(error),
+      });
       if (error instanceof B1AdapterError && error.code === "STALE_VERSION") {
         try {
           await reloadDraft(draft.requestId);
@@ -424,16 +462,22 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
                   }
                   onRemove={async (attachmentId) => {
                     await adapter.removeB1RequestAttachment(draft.requestId, attachmentId);
-                    setDraft((current) =>
-                      current
-                        ? {
-                            ...current,
-                            attachments: current.attachments.filter(
-                              (item) => item.attachmentId !== attachmentId,
-                            ),
-                          }
-                        : current,
-                    );
+                    // Removal bumps the request version server-side; reload so the
+                    // next save/submit carries a fresh updatedAt (no STALE_VERSION).
+                    try {
+                      await reloadDraft(draft.requestId);
+                    } catch {
+                      setDraft((current) =>
+                        current
+                          ? {
+                              ...current,
+                              attachments: current.attachments.filter(
+                                (item) => item.attachmentId !== attachmentId,
+                              ),
+                            }
+                          : current,
+                      );
+                    }
                   }}
                 />
               ) : (

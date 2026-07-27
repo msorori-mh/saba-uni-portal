@@ -125,7 +125,7 @@ describe("buildB1StudentFormSummaryItems — Arabic student tracking", () => {
         excuseReasonTypes: [],
       },
     });
-    expect(items.find((i) => i.labelAr === "المقررات المتأثرة")?.valueAr).toBe(
+    expect(items.find((i) => i.labelAr === "المقرر")?.valueAr).toBe(
       "رياضيات 101 — شعبة أ",
     );
     expect(items.some((i) => i.labelAr === "course_section_id")).toBe(false);
@@ -224,7 +224,7 @@ describe("buildB1StudentFormSummaryItems — Arabic student tracking", () => {
     expect(excuse?.valueAr).toBe("totally_unknown_slug");
     const date = items.find((item) => item.labelAr === "تاريخ بداية الغياب");
     expect(date?.valueAr).toBe("not-a-date");
-    const course = items.find((item) => item.labelAr === "المقررات المتأثرة");
+    const course = items.find((item) => item.labelAr === "المقرر");
     expect(course?.valueAr).toBe("قيمة محفوظة");
     expect(course?.valueAr).not.toMatch(/[0-9a-f-]{36}/i);
   });
