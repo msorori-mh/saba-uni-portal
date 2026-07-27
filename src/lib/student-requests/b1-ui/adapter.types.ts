@@ -77,6 +77,10 @@ export function b1AdapterErrorMessageAr(error: unknown): string {
       case "STALE_VERSION":
         return "تغيّرت حالة الطلب منذ آخر تحميل. أعد تحميل الصفحة قبل المتابعة.";
       case "VALIDATION_ERROR":
+        // Backend business rejections carry a precise meaning; keep it visible.
+        if (/B1_TRANSFER_INPUT_INVALID/i.test(error.message)) {
+          return "لا يمكن التحويل إلى القسم الحالي. اختر قسماً مختلفاً.";
+        }
         return "بعض الحقول غير مكتملة أو غير صحيحة. راجع الحقول المحددة.";
       case "NOT_FOUND":
         return "تعذر العثور على الطلب المطلوب.";
