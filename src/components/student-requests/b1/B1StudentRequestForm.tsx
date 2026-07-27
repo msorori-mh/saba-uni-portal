@@ -24,6 +24,12 @@ import {
   type B1FormOptions,
 } from "@/lib/student-requests/b1-ui";
 import { withSecureAttachmentReferences } from "@/lib/student-requests/b1-ui/attachment-references";
+import {
+  classifyB1SaveError,
+  logB1SaveDiagnostic,
+  type B1SavePhase,
+} from "@/lib/student-requests/b1-ui/save-error-classification";
+
 
 import { B1AttachmentUploader } from "./B1AttachmentUploader";
 import { formatB1DateAr } from "./b1-datetime";
