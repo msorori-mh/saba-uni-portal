@@ -8,7 +8,7 @@ export const SECURE_ATTACHMENT_MAX_BYTES = 5 * 1024 * 1024;
 export const SECURE_ATTACHMENT_MIN_COUNT = 1;
 export const SECURE_ATTACHMENT_MAX_COUNT = 3;
 export const SECURE_ATTACHMENT_SIGNED_URL_SECONDS = 300;
-export const SECURE_ATTACHMENTS_RUNTIME_AVAILABLE = false as const;
+export const SECURE_ATTACHMENTS_RUNTIME_AVAILABLE = true as const;
 export const SECURE_ATTACHMENT_ALLOWED_MIME = ["application/pdf", "image/jpeg", "image/png"] as const;
 
 export type SecureStudentRequestAttachmentStatus = "pending" | "uploaded" | "attached" | "rejected";

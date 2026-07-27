@@ -375,7 +375,6 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       if (!isRealAttachmentReference(input.excuse_documents)) base.errors.excuse_documents = "secure_attachment_required";
       return { valid: Object.keys(base.errors).length === 0, errors: base.errors };
     },
-    BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME,
   ),
   department_transfer: adapter(
     "department_transfer", ["department_transfer", "transfer"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION",
@@ -389,7 +388,6 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       { formField: "transfer_reason", detailField: "transfer_reason" },
     ]),
     requiredText(["target_department_id", "target_program_id", "transfer_reason"]),
-    BLOCKED_PENDING_SECURE_ATTACHMENTS_AND_EXTERNAL_PAYMENT_RUNTIME,
   ),
   final_chance: adapter(
     "final_chance", ["extra_chance"], "EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION", [
@@ -408,7 +406,6 @@ export const B1_SERVICE_ADAPTERS: Readonly<Record<B1CanonicalCode, RequestServic
       if (!isFinalChanceTypeForWrite(value)) base.errors.chance_type = "unknown_chance_type";
       return { valid: Object.keys(base.errors).length === 0, errors: base.errors };
     },
-    BLOCKED_PENDING_EXTERNAL_PAYMENT_RUNTIME,
   ),
   file_withdrawal: adapter(
     "file_withdrawal", ["file_withdrawal"], "FREE_NO_PAYMENT", [],
