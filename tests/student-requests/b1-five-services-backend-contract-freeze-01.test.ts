@@ -108,7 +108,16 @@ describe("B1 five-services backend contract freeze 01", () => {
 
   it("wires generated types for B1 attachment and withdrawal surfaces", () => {
     const types = readFileSync(join(root, "src", "integrations", "supabase", "types.ts"), "utf8");
-    expect(types).toContain("file_withdrawal_details:");
+    // SEQ11 creates file_withdrawal_details in source/local chain; production types
+    // lag until SEQ11 is applied, so pin the migration surface instead of types.ts.
+    const withdrawalMigration = readFileSync(
+      join(root, "supabase", "migrations", "20260725110400_b1_11_file_withdrawal_details_05a.sql"),
+      "utf8",
+    );
+    expect(withdrawalMigration).toContain("CREATE TABLE IF NOT EXISTS public.file_withdrawal_details");
+    expect(withdrawalMigration).toContain(
+      "REVOKE ALL ON TABLE public.file_withdrawal_details FROM sandbox_exec",
+    );
     expect(types).toContain("student_request_attachment_uploads:");
     expect(types).toContain("create_student_request_attachment_upload_intent:");
     expect(types).toContain("authorize_student_request_attachment_download:");

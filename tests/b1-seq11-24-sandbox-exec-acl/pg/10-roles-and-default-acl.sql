@@ -1,0 +1,32 @@
+-- Disposable PG17 helpers for sandbox_exec default-ACL remediation harness.
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+DO $roles$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role NOLOGIN BYPASSRLS;
+  END IF;
+END
+$roles$;
+
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
+
+CREATE OR REPLACE FUNCTION public.is_owner_of_request(p_user_id uuid, p_request_id uuid)
+RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT false $$;
+
+CREATE TABLE IF NOT EXISTS public.student_requests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_type text NOT NULL,
+  status text NOT NULL DEFAULT 'draft',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);

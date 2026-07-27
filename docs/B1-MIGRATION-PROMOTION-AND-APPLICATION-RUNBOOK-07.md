@@ -48,10 +48,10 @@ anywhere in this sequence.
 | 8 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql` | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact academic reference catalog signatures |
 | 9 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql` | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Preserve historical values without mapping/backfill |
 | 10 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql` | `a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4` | Exact trigger, ACL, RLS and owner policy inventory |
-| 11 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql` | `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9` | Creates `file_withdrawal_details` (not a source blocker; migration-owned) |
+| 11 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql` | `febf7a9bedd9d62f6fefe1533784d7e1f8fa7d995ea90a5fc3b16812a392ca71` | Creates `file_withdrawal_details` (not a source blocker; migration-owned) |
 | 12 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql` | `d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284` | Secure opaque attachment contract; typed 7-arg audit calls |
 | 13 | `FINAL-CHANCE-CANONICAL-WRITE-03.sql` | `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704` | Final exam chance only; new writes use `final_chance`; no scan or backfill |
-| 14 | `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql` | `f881a82650983d71f14efee8106866810efd9739976da227081260e64825a8d5` | Installs locked primitive without invoking it |
+| 14 | `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql` | `7c53e89a0cfa48545d115ee7aad1d08c3cbd8719620663e80d3df2217e2b06e0` | Installs locked primitive without invoking it |
 | 15 | `REQUEST-B1-SERVICE-DETAILS-05A.sql` | `d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c` | Replaces stub with exact five-service dispatcher |
 | 16 | Free-service workflows `B1-FREE-SERVICE-WORKFLOWS-08.sql` | `1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c` | Inactive drafts for `enrollment_suspension`, `excused_absence`, `file_withdrawal`; no payment steps |
 | 17 | `EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql` for `department_transfer` and `final_chance` only | `64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250` | Inactive drafts only; exact bindings; no duplicate definitions from row 16 |

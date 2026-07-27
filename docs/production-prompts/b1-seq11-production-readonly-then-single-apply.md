@@ -11,10 +11,15 @@ TEST marker: `TEST_ONLY_FIRST_DELIVERY_5_SERVICES`
 |---|---|
 | Order | 11 |
 | File | `supabase/migrations/20260725110400_b1_11_file_withdrawal_details_05a.sql` |
-| LF SHA-256 | `d655077c41cd9bc81ac935cfceb152433da3cd13746bd981f6f936c2577492ba` |
+| LF SHA-256 | `35468e00c544833626ddec23a8cf5d81659d4a51a16bbaa1d1f3ad99944e6401` |
 | Preflight | `docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-PREFLIGHT.sql` |
 | Post-verifier | `docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-POST-VERIFIER.sql` |
 
+## ACL note (sandbox_exec default ACL)
+
+New `public.file_withdrawal_details` inherits `sandbox_exec=ar` from `pg_default_acl`.
+SEQ11 explicitly revokes `sandbox_exec` when the role exists and never allowlists it.
+Final contract: owner + `authenticated`/`service_role` SELECT only.
 
 ## Step A — Read-only preflight (ROLLBACK)
 
