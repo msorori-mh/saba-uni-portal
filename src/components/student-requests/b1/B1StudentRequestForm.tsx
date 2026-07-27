@@ -140,17 +140,20 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     [],
   );
 
-  const save = async (fromAutosave = false) => {
-    const current = draftRef.current;
-    if (!current || reviewing || submitting || success) return;
+  const persistDraft = async (
+    target: B1Draft,
+    vals: Record<string, unknown>,
+    fromAutosave = false,
+  ) => {
+    if (reviewing || submitting || success) return;
     if (!fromAutosave) setSaveState("saving");
     else if (saveState === "saving") return;
     else setSaveState("saving");
     try {
       const saved = await adapter.saveB1RequestDraft(
-        current.requestId,
-        withSecureAttachmentReferences(serviceCode, valuesRef.current, current.attachments),
-        current.updatedAt,
+        target.requestId,
+        withSecureAttachmentReferences(serviceCode, vals, target.attachments),
+        target.updatedAt,
       );
 
       setDraft(saved);
@@ -158,7 +161,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     } catch (error) {
       if (error instanceof B1AdapterError && error.code === "STALE_VERSION") {
         try {
-          await reloadDraft(current.requestId);
+          await reloadDraft(target.requestId);
           setFatalError(b1AdapterErrorMessageAr(error));
           setSaveState("save_failed");
         } catch (reloadError) {
@@ -171,6 +174,28 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       if (!fromAutosave) setFatalError(b1AdapterErrorMessageAr(error));
     }
   };
+
+  const save = async (fromAutosave = false) => {
+    const current = draftRef.current;
+    if (!current) return;
+    await persistDraft(current, valuesRef.current, fromAutosave);
+  };
+
+  const syncFormDataAfterAttachmentChange = async (requestId: string, fallback: B1Draft) => {
+    let target = fallback;
+    try {
+      const reloaded = await adapter.getB1RequestDraft(requestId);
+      if (reloaded) {
+        target = reloaded;
+        setDraft(reloaded);
+      }
+    } catch {
+      /* keep optimistic attachment state */
+    }
+    await persistDraft(target, valuesRef.current);
+  };
+
+
 
   const scheduleAutosave = () => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
@@ -308,15 +333,21 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         attachmentKey,
         file,
       );
-      setDraft((current) =>
-        current ? { ...current, attachments: [...current.attachments, uploaded] } : current,
-      );
+      const fallback: B1Draft = {
+        ...draft,
+        attachments: [...draft.attachments, uploaded],
+      };
+      setDraft(fallback);
       setErrors((current) => {
         const next = { ...current };
         delete next[attachmentKey];
         return next;
       });
       lastFailedFile.current = null;
+      // Attachment mutations bump the server version: refetch, then persist the
+      // secure reference into form_data so submit can resolve it.
+      await syncFormDataAfterAttachmentChange(draft.requestId, fallback);
+
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       const message = /SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE|create_intent|upload|complete|download/i.test(
@@ -470,23 +501,16 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
                   }
                   onRemove={async (attachmentId) => {
                     await adapter.removeB1RequestAttachment(draft.requestId, attachmentId);
-                    // Removal bumps the request version server-side; reload so the
-                    // next save/submit carries a fresh updatedAt (no STALE_VERSION).
-                    try {
-                      await reloadDraft(draft.requestId);
-                    } catch {
-                      setDraft((current) =>
-                        current
-                          ? {
-                              ...current,
-                              attachments: current.attachments.filter(
-                                (item) => item.attachmentId !== attachmentId,
-                              ),
-                            }
-                          : current,
-                      );
-                    }
+                    // Removal bumps the request version server-side; refetch and
+                    // re-persist so form_data drops the removed secure reference.
+                    await syncFormDataAfterAttachmentChange(draft.requestId, {
+                      ...draft,
+                      attachments: draft.attachments.filter(
+                        (item) => item.attachmentId !== attachmentId,
+                      ),
+                    });
                   }}
+
                 />
               ) : (
                 <p role="alert" className="text-xs font-bold text-destructive">
