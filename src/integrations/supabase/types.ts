@@ -739,6 +739,55 @@ export type Database = {
         }
         Relationships: []
       }
+      b1_draft_mutation_idempotency: {
+        Row: {
+          created_at: string
+          idempotency_key: string
+          operation: string
+          payload_hash: string
+          request_id: string
+          student_profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          idempotency_key: string
+          operation: string
+          payload_hash: string
+          request_id: string
+          student_profile_id: string
+        }
+        Update: {
+          created_at?: string
+          idempotency_key?: string
+          operation?: string
+          payload_hash?: string
+          request_id?: string
+          student_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b1_draft_mutation_idempotency_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "b1_draft_mutation_idempotency_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "b1_draft_mutation_idempotency_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       buildings: {
         Row: {
           code: string
@@ -5906,17 +5955,46 @@ export type Database = {
         Args: { p_attachment_id: string }
         Returns: Json
       }
+      b1_assert_draft_allowlist: {
+        Args: { p_canonical: string; p_form: Json }
+        Returns: undefined
+      }
+      b1_assert_draft_form_object: {
+        Args: { p_form: Json }
+        Returns: undefined
+      }
+      b1_assert_uuid_array_field: {
+        Args: { p_form: Json; p_key: string }
+        Returns: undefined
+      }
       b1_attachment_meta_json: {
         Args: {
           a: Database["public"]["Tables"]["student_request_attachment_uploads"]["Row"]
         }
         Returns: Json
       }
+      b1_build_student_draft_dto: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      b1_canonical_primary_stored_code: {
+        Args: { p_canonical: string }
+        Returns: string
+      }
       b1_canonical_to_stored_codes: {
         Args: { p_canonical: string }
         Returns: string[]
       }
+      b1_deny_draft_mutation: { Args: never; Returns: undefined }
       b1_deny_read: { Args: never; Returns: undefined }
+      b1_draft_form_allowlist: {
+        Args: { p_canonical: string }
+        Returns: string[]
+      }
+      b1_draft_payload_hash: {
+        Args: { p_canonical: string; p_form: Json; p_request_id: string }
+        Returns: string
+      }
       b1_expected_secure_attachment_field: {
         Args: { p_request_type: string }
         Returns: string
@@ -5930,6 +6008,36 @@ export type Database = {
       b1_map_ui_staff_action: {
         Args: { p_action_type: string }
         Returns: string
+      }
+      b1_require_active_student_profile: {
+        Args: never
+        Returns: {
+          academic_number: string
+          consecutive_suspension_years_count: number
+          created_at: string
+          department_id: string | null
+          email: string | null
+          full_name_ar: string
+          full_name_en: string | null
+          id: string
+          must_change_password: boolean
+          national_id: string | null
+          phone: string | null
+          previous_suspension_semesters_count: number
+          program_id: string | null
+          status: string
+          student_study_status: string | null
+          study_system: string | null
+          transferred_current_year: boolean
+          updated_at: string
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "student_profiles"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       b1_require_auth_uid: { Args: never; Returns: string }
       b1_stored_to_canonical: { Args: { p_stored: string }; Returns: string }
@@ -6028,6 +6136,10 @@ export type Database = {
         Returns: number
       }
       count_admins: { Args: never; Returns: number }
+      create_b1_request_draft_for_student: {
+        Args: { p_canonical_code: string; p_idempotency_key?: string }
+        Returns: Json
+      }
       create_notification: {
         Args: {
           _message: string
@@ -6466,6 +6578,15 @@ export type Database = {
         Args: { p_attempt_id: string; p_byte_length: number; p_sha256: string }
         Returns: Json
       }
+      persist_b1_draft_form_and_details: {
+        Args: {
+          p_canonical: string
+          p_form: Json
+          p_profile: Database["public"]["Tables"]["student_profiles"]["Row"]
+          p_request_id: string
+        }
+        Returns: undefined
+      }
       persist_validated_b1_request_details: {
         Args: {
           p_attachment_ids: string[]
@@ -6498,6 +6619,15 @@ export type Database = {
       revert_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
+      }
+      save_b1_request_draft_for_student: {
+        Args: {
+          p_expected_updated_at: string
+          p_form_data: Json
+          p_idempotency_key?: string
+          p_request_id: string
+        }
+        Returns: Json
       }
       student_has_approved_grades_for_transcript: {
         Args: { _student_profile_id: string }
