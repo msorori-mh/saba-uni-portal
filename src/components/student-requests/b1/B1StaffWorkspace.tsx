@@ -168,6 +168,10 @@ export function B1StaffWorkspace() {
                 serviceTitleAr={details.serviceTitleAr}
                 items={details.formDataSummary}
                 attachments={details.attachments}
+                onDownloadAttachment={async (attachmentId) => {
+                  const downloaded = await adapter.downloadB1RequestAttachment(attachmentId);
+                  window.open(downloaded.url, "_blank", "noopener,noreferrer");
+                }}
               />
               <B1WorkflowTimeline steps={details.steps} />
               {details.allowedAction === "confirm_payment" ? (
@@ -180,6 +184,7 @@ export function B1StaffWorkspace() {
                 <B1EmployeeActionPanel
                   allowedAction={details.allowedAction}
                   stepLabelAr={details.stepLabelAr}
+                  stepKey={details.stepKey}
                   acting={acting}
                   onAct={act}
                 />

@@ -6,13 +6,21 @@ type Props = {
   items: readonly { labelAr: string; valueAr: string }[];
   attachments: readonly B1AttachmentMeta[];
   acknowledgmentsAr?: readonly string[];
+  /** Staff-only: open a short-lived authorized download without exposing storage paths. */
+  onDownloadAttachment?: (attachmentId: string) => Promise<void> | void;
 };
 
 /**
  * Pre-submission summary card: entered data, attachment names (never links)
  * and the acknowledgments the student agreed to.
  */
-export function B1RequestSummary({ serviceTitleAr, items, attachments, acknowledgmentsAr }: Props) {
+export function B1RequestSummary({
+  serviceTitleAr,
+  items,
+  attachments,
+  acknowledgmentsAr,
+  onDownloadAttachment,
+}: Props) {
   return (
     <section
       dir="rtl"
@@ -43,7 +51,16 @@ export function B1RequestSummary({ serviceTitleAr, items, attachments, acknowled
             {attachments.map((attachment) => (
               <li key={attachment.attachmentId} className="flex items-center gap-2 text-xs">
                 <FileText className="h-3.5 w-3.5 shrink-0 text-primary" />
-                <span className="truncate">{attachment.fileName}</span>
+                <span className="min-w-0 flex-1 truncate">{attachment.fileName}</span>
+                {onDownloadAttachment ? (
+                  <button
+                    type="button"
+                    className="shrink-0 font-bold text-primary underline-offset-2 hover:underline"
+                    onClick={() => void onDownloadAttachment(attachment.attachmentId)}
+                  >
+                    تحميل
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
