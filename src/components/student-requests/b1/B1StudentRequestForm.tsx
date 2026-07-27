@@ -181,6 +181,21 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     await persistDraft(current, valuesRef.current, fromAutosave);
   };
 
+  const syncFormDataAfterAttachmentChange = async (requestId: string, fallback: B1Draft) => {
+    let target = fallback;
+    try {
+      const reloaded = await adapter.getB1RequestDraft(requestId);
+      if (reloaded) {
+        target = reloaded;
+        setDraft(reloaded);
+      }
+    } catch {
+      /* keep optimistic attachment state */
+    }
+    await persistDraft(target, valuesRef.current);
+  };
+
+
 
   const scheduleAutosave = () => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
