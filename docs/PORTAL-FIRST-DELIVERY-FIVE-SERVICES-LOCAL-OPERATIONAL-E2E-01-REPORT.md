@@ -137,9 +137,10 @@ After each service (`ec_after/<service>/*`) and final EC suite:
 
 ## Git / scope
 
-- PR #261 branch not modified / not force-pushed.
-- This track: shared SEQ07-B bootstrap + auth matrix alignment + report.
-- Draft PR to `main` opens **only after** PR #261 merges (independent Draft; do not merge; K3/Codex review).
+- PR #261 merged: `72813caca57ea1fccddf2d6497cb7c72198265ec` (not force-pushed; branch untouched by this track).
+- `origin/main` merged into `test/b1-five-services-local-operational-e2e-01` without force-push.
+- This track: shared SEQ07-B bootstrap + auth matrix alignment + report + independent Draft PR to `main`.
+- Draft PR: do **not** mark Ready / do **not** merge (K3/Codex review).
 - No cloud migration, Deploy, Publish, or Production write.
 
 ## Assumptions
@@ -173,5 +174,6 @@ no admin/registrar/dean bypass
 real-app UI PASS
 enrollment_certificate regression NONE
 no Production write
-Draft PR: HELD_UNTIL_PR261_MERGED
+Draft PR: OPEN_AFTER_PR261_MERGE (baseline 72813cac)
 ```
+
