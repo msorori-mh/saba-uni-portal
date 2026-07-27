@@ -17,6 +17,7 @@ export type Database = {
       absence_excuse_details: {
         Row: {
           absence_date: string
+          absence_reason_detail: string | null
           course_section_id: string
           created_at: string
           id: string
@@ -27,6 +28,7 @@ export type Database = {
         }
         Insert: {
           absence_date: string
+          absence_reason_detail?: string | null
           course_section_id: string
           created_at?: string
           id?: string
@@ -37,6 +39,7 @@ export type Database = {
         }
         Update: {
           absence_date?: string
+          absence_reason_detail?: string | null
           course_section_id?: string
           created_at?: string
           id?: string
