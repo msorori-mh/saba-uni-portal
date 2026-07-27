@@ -58,6 +58,72 @@ export const B1_ADAPTER_DRAFT_RPC_MAP = {
   submit: "submit_b1_student_request_atomic",
 } as const;
 
+/**
+ * Secure-attachment reference fields. The backend contract
+ * (`b1_assert_uuid_array_field`) accepts ONLY an absent key or an array of
+ * attachment UUIDs. The form registry seeds file fields with `null`, which the
+ * backend rejects with B1_DRAFT_FIELD_TYPE_INVALID, so empty references are
+ * normalized to an absent key here (uploads are tracked by the attachments
+ * subsystem, never by raw form values).
+ */
+export const B1_ATTACHMENT_REFERENCE_FIELDS = [
+  "excuse_documents",
+  "secondary_certificate_file",
+] as const;
+
+export type B1AttachmentReferenceField = (typeof B1_ATTACHMENT_REFERENCE_FIELDS)[number];
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const B1_INPUT_VALIDATION_FAILED = "B1_INPUT_VALIDATION_FAILED" as const;
+
+/** Field-scoped input rejection — carries a safe field name, never values. */
+export class B1DraftFormFieldError extends Error {
+  readonly field: string;
+  readonly reason: string;
+  constructor(field: string, reason: string) {
+    super(`${B1_INPUT_VALIDATION_FAILED}:${field}:${reason}`);
+    this.name = "B1DraftFormFieldError";
+    this.field = field;
+    this.reason = reason;
+  }
+}
+
+function isAttachmentReferenceField(key: string): key is B1AttachmentReferenceField {
+  return (B1_ATTACHMENT_REFERENCE_FIELDS as readonly string[]).includes(key);
+}
+
+/**
+ * Normalizes browser form values into the exact jsonb shape the draft RPC
+ * accepts. Strict: malformed attachment references are rejected by field name
+ * instead of being silently dropped.
+ */
+export function normalizeB1DraftFormData(
+  formData: Record<string, unknown>,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(formData)) {
+    if (value === undefined) continue;
+    if (!isAttachmentReferenceField(key)) {
+      out[key] = value;
+      continue;
+    }
+    if (value === null || value === "") continue;
+    if (!Array.isArray(value)) {
+      throw new B1DraftFormFieldError(key, "attachment_reference_invalid");
+    }
+    if (value.length === 0) continue;
+    for (const item of value) {
+      if (typeof item !== "string" || !UUID_RE.test(item)) {
+        throw new B1DraftFormFieldError(key, "attachment_reference_invalid");
+      }
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+
 export function assertNoStorageCoordinates(value: unknown, path = "$"): void {
   if (value == null) return;
   if (Array.isArray(value)) {

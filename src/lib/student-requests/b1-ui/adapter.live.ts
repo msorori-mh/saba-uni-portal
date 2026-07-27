@@ -129,9 +129,21 @@ function mapLiveError(
     if (/B1_READ_ACCESS_DENIED|B1_DRAFT_ACCESS_DENIED|42501|PERMISSION/i.test(message)) {
       throw new B1AdapterError("PERMISSION_DENIED", message);
     }
+    if (message.startsWith("B1_INPUT_VALIDATION_FAILED")) {
+      const [, field, reason] = message.split(":");
+      throw new B1AdapterError(
+        "VALIDATION_ERROR",
+        message,
+        field ? { [field]: reason || "invalid" } : undefined,
+      );
+    }
+    if (/B1_DRAFT_FIELD_TYPE_INVALID|B1_[A-Z_]*INPUT_INVALID/i.test(message)) {
+      throw new B1AdapterError("VALIDATION_ERROR", message);
+    }
     if (/NOT_FOUND|P0002/i.test(message)) {
       throw new B1AdapterError("NOT_FOUND", message);
     }
+
     if (/INVALID|VALIDATION|UNEXPECTED_FORM|INPUT_INVALID|IDEMPOTENCY/i.test(message)) {
       throw new B1AdapterError("VALIDATION_ERROR", message);
     }
