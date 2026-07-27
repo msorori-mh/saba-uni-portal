@@ -11,7 +11,7 @@ TEST marker: `TEST_ONLY_FIRST_DELIVERY_5_SERVICES`
 |---|---|
 | Order | 13 |
 | File | `supabase/migrations/20260725110600_b1_13_final_chance_canonical_write_03.sql` |
-| LF SHA-256 | `21406c4ffce2ef22c9ef4115ffc2c8df6e9a54e53a9df5467a01a56ddfc64c70` |
+| LF SHA-256 | `ac71b01ca78d0946152be39fee6eb1e659031dcc820f492f419eb7855947be46` |
 | Preflight | `docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-PREFLIGHT.sql` |
 | Post-verifier | `docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-POST-VERIFIER.sql` |
 

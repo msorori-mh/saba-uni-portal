@@ -60,7 +60,7 @@ git cat-file blob <rev>:docs/migration-drafts/<file.sql> | python -c "import sys
      - Creates `file_withdrawal_details`. Missing table is **not** a source blocker;
        it is created by this migration when separately approved.
    - `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql` — `d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284`
-   - `FINAL-CHANCE-CANONICAL-WRITE-03.sql` — `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704`
+   - `FINAL-CHANCE-CANONICAL-WRITE-03.sql` — `1378250a44374a782b612198262ca9c3a4afb9e87afe449179f5de28b2a2535a`
    - `REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql` — `7c53e89a0cfa48545d115ee7aad1d08c3cbd8719620663e80d3df2217e2b06e0`
    - `REQUEST-B1-SERVICE-DETAILS-05A.sql` — `d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c`
 

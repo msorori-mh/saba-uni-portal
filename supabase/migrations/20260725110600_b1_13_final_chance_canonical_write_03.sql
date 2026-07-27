@@ -6,8 +6,10 @@
 -- Semantic parity with the source draft is required; production apply is a separate gate.
 
 -- Migration 3/3 for EXTERNAL_UNIVERSITY_PAYMENT_CONFIRMATION.
--- The stored request-type alias remains extra_chance. This migration constrains
--- new academic chance values only; it performs no historical rewrite or backfill.
+-- Stored request_types may be either canonical final_chance or legacy
+-- extra_chance, but must resolve to exactly one row across both codes.
+-- This migration constrains new academic chance values only; it performs
+-- no historical rewrite or backfill and does not mutate request_types.
 
 BEGIN;
 
@@ -15,6 +17,8 @@ DO $preflight$
 DECLARE
   v_extra_chance_type_count integer;
   v_final_chance_type_count integer;
+  v_legacy_only boolean;
+  v_canonical_only boolean;
 BEGIN
   IF to_regclass('public.extra_chance_details') IS NULL
      OR to_regclass('public.student_extra_chances') IS NULL THEN
@@ -29,7 +33,14 @@ BEGIN
   FROM public.request_types rt
   WHERE rt.code = 'final_chance';
 
-  IF v_extra_chance_type_count <> 1 OR v_final_chance_type_count <> 0 THEN
+  -- Exactly one stored request type across both codes:
+  -- A) legacy-only: extra_chance=1 AND final_chance=0
+  -- B) canonical-only: extra_chance=0 AND final_chance=1
+  -- Fail-closed for both/neither/duplicates/any other count.
+  v_legacy_only := (v_extra_chance_type_count = 1 AND v_final_chance_type_count = 0);
+  v_canonical_only := (v_extra_chance_type_count = 0 AND v_final_chance_type_count = 1);
+
+  IF NOT (v_legacy_only OR v_canonical_only) THEN
     RAISE EXCEPTION 'FINAL_CHANCE_STORED_ALIAS_CONTRACT_MISMATCH:extra=%:canonical=%',
       v_extra_chance_type_count, v_final_chance_type_count;
   END IF;

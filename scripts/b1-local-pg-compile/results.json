@@ -109,7 +109,7 @@
     },
     {
         "file":  "FINAL-CHANCE-CANONICAL-WRITE-03.sql",
-        "sha256_lf":  "9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704",
+        "sha256_lf":  "1378250a44374a782b612198262ca9c3a4afb9e87afe449179f5de28b2a2535a",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "PASS",
