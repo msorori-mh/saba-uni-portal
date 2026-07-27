@@ -140,17 +140,20 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     [],
   );
 
-  const save = async (fromAutosave = false) => {
-    const current = draftRef.current;
-    if (!current || reviewing || submitting || success) return;
+  const persistDraft = async (
+    target: B1Draft,
+    vals: Record<string, unknown>,
+    fromAutosave = false,
+  ) => {
+    if (reviewing || submitting || success) return;
     if (!fromAutosave) setSaveState("saving");
     else if (saveState === "saving") return;
     else setSaveState("saving");
     try {
       const saved = await adapter.saveB1RequestDraft(
-        current.requestId,
-        withSecureAttachmentReferences(serviceCode, valuesRef.current, current.attachments),
-        current.updatedAt,
+        target.requestId,
+        withSecureAttachmentReferences(serviceCode, vals, target.attachments),
+        target.updatedAt,
       );
 
       setDraft(saved);
@@ -158,7 +161,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     } catch (error) {
       if (error instanceof B1AdapterError && error.code === "STALE_VERSION") {
         try {
-          await reloadDraft(current.requestId);
+          await reloadDraft(target.requestId);
           setFatalError(b1AdapterErrorMessageAr(error));
           setSaveState("save_failed");
         } catch (reloadError) {
@@ -171,6 +174,13 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       if (!fromAutosave) setFatalError(b1AdapterErrorMessageAr(error));
     }
   };
+
+  const save = async (fromAutosave = false) => {
+    const current = draftRef.current;
+    if (!current) return;
+    await persistDraft(current, valuesRef.current, fromAutosave);
+  };
+
 
   const scheduleAutosave = () => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
