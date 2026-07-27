@@ -291,6 +291,18 @@ function NewStudentRequestPage() {
 
   const pickType = (code: string, disabled: boolean) => {
     if (disabled) return;
+    // B1 services own a dedicated route with their real form, autosave,
+    // secure attachments and submit contract. The legacy generic form on this
+    // page cannot serve them, so route the student to the B1 form instead of
+    // selecting the code locally.
+    const canonical = normalizeStudentRequestTypeCode(code);
+    if (isB1ServiceCode(canonical)) {
+      void navigate({
+        to: "/student/requests/b1/$service",
+        params: { service: canonical },
+      });
+      return;
+    }
     setRequestType(code);
     setSubject("");
   };
