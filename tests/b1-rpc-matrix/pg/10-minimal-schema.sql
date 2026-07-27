@@ -498,8 +498,40 @@ CREATE TABLE public.extra_chance_details (
 CREATE TABLE public.student_extra_chances (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   student_profile_id uuid,
+  request_id uuid,
+  academic_year_id uuid,
+  semester_id uuid,
   chance_type text,
-  created_at timestamptz NOT NULL DEFAULT now()
+  reason text,
+  approved_by uuid,
+  approved_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (student_profile_id, academic_year_id, semester_id, chance_type)
+);
+
+-- Academic-effect substrate required by SEQ25–27 apply_decision terminals.
+CREATE TABLE public.levels (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid()
+);
+
+CREATE TABLE public.student_academic_status (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_profile_id uuid REFERENCES public.student_profiles(id),
+  academic_year_id uuid REFERENCES public.academic_years(id),
+  semester_id uuid REFERENCES public.semesters(id),
+  level_id uuid REFERENCES public.levels(id),
+  enrollment_status text NOT NULL DEFAULT 'active',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE public.student_excused_absences (
+  student_profile_id uuid NOT NULL,
+  course_section_id uuid NOT NULL,
+  absence_date date NOT NULL,
+  reason_type text,
+  absence_excuse_request_id uuid,
+  PRIMARY KEY (student_profile_id, course_section_id, absence_date)
 );
 
 -- ---- legacy RPC stubs (production-faithful gates per recon N7/N8) ---------
@@ -649,6 +681,22 @@ INSERT INTO public.course_sections(id,course_offering_id,status) VALUES
   ('88888888-8888-4888-8888-888888888802','88888888-8888-4888-8888-888888888801','active');
 INSERT INTO public.student_enrollments(student_profile_id,course_section_id,enrollment_status) VALUES
   ('33333333-3333-4333-8333-333333333301','88888888-8888-4888-8888-888888888802','enrolled');
+
+INSERT INTO public.levels(id) VALUES
+  ('99999999-9999-4999-8999-999999999901');
+INSERT INTO public.student_academic_status(
+  student_profile_id, academic_year_id, semester_id, level_id, enrollment_status
+) VALUES
+  ('33333333-3333-4333-8333-333333333301',
+   '77777777-7777-4777-8777-777777777701',
+   '77777777-7777-4777-8777-777777777702',
+   '99999999-9999-4999-8999-999999999901',
+   'active'),
+  ('33333333-3333-4333-8333-333333333302',
+   '77777777-7777-4777-8777-777777777701',
+   '77777777-7777-4777-8777-777777777702',
+   '99999999-9999-4999-8999-999999999901',
+   'active');
 
 -- ---- harness helpers --------------------------------------------------------
 CREATE TABLE IF NOT EXISTS e_rpcmatrix.results (

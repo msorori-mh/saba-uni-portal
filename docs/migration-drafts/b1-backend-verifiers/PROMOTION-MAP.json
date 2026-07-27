@@ -185,8 +185,8 @@
         "order": 25,
         "draft": "B1-ACADEMIC-EFFECT-MARKERS-01.sql",
         "migration": "supabase/migrations/20260727120000_b1_25_academic_effect_markers_01.sql",
-        "draft_sha_lf": "fc42a2c6cf8e26a7565494c5eea00c6f72323f9dd66db792abd6cced3b7f57f4",
-        "migration_sha_lf": "0184c9483a39ac8a274a7f65ae0394211245a3ba27b98c401d9f65b48b908109",
+        "draft_sha_lf": "50db2dfec04e940d2e474f81e660167ea28453e0cca892228dfd8d6cfa629bdf",
+        "migration_sha_lf": "4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-POST-VERIFIER.sql"
     },
@@ -194,8 +194,8 @@
         "order": 26,
         "draft": "B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
         "migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
-        "draft_sha_lf": "fa1e94456e5b8204279fbb81ba2e7d0685efd0805bee59ebe79fd0a3b335cfc0",
-        "migration_sha_lf": "5b3c06fdee76b033d53674a548246d7e0913c61a2e58b438885b6ff6623c7aef",
+        "draft_sha_lf": "ad0a5de204a0bfdc7df21a0283c0761e5f4060a062a200352eb828c7cb33e795",
+        "migration_sha_lf": "7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-POST-VERIFIER.sql"
     },

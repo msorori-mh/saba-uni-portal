@@ -11,6 +11,7 @@ NO_STUDENT_VISIBLE_MUTATION_IN_THIS_PR
 NO_DEPLOY
 FAIL_CLOSED_ATTACHMENTS_CAPABILITY
 ARABIC_STUDENT_DETAIL_CLOSED
+RPC_MATRIX_M03_PASS
 ```
 
 ## Scope
@@ -65,8 +66,8 @@ Legacy `approved` triggers left untouched; B1 completes as `completed` and appli
 
 | Order | Draft | Migration | draft_sha_lf | migration_sha_lf |
 |---|---|---|---|---|
-| 25 | `B1-ACADEMIC-EFFECT-MARKERS-01.sql` | `20260727120000_b1_25_academic_effect_markers_01.sql` | `fc42a2c6cf8e26a7565494c5eea00c6f72323f9dd66db792abd6cced3b7f57f4` | `0184c9483a39ac8a274a7f65ae0394211245a3ba27b98c401d9f65b48b908109` |
-| 26 | `B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql` | `20260727120100_b1_26_academic_effect_functions_01.sql` | `73f7531245705b7c5fb7bbd9e56c3525cf666e02bff8eb914b44e373dd509668` | `d8a49c23d95118766360dfdf33153e69bdcfb40f8541c72f98db15adb63a71d7` |
+| 25 | `B1-ACADEMIC-EFFECT-MARKERS-01.sql` | `20260727120000_b1_25_academic_effect_markers_01.sql` | `50db2dfec04e940d2e474f81e660167ea28453e0cca892228dfd8d6cfa629bdf` | `4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065` |
+| 26 | `B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql` | `20260727120100_b1_26_academic_effect_functions_01.sql` | `ad0a5de204a0bfdc7df21a0283c0761e5f4060a062a200352eb828c7cb33e795` | `7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305` |
 | 27 | `B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-01.sql` | `20260727120200_b1_27_act_on_academic_effect_integration_01.sql` | `0b29034dd3d30d4e2e54516d09b53be87ec58a175a9b187db7203853f28b0937` | `7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d` |
 
 Companion preflight/post-verifiers under `docs/migration-drafts/b1-backend-verifiers/25-*` … `27-*`.
@@ -84,6 +85,7 @@ Non-migration activation remains **gate 25** (after sequence 27 verifies green).
 | `bun run build` | PASS |
 | `git diff --check` | PASS |
 | `tests/b1-academic-effects/run-harness.ps1` | PASS_B1_ACADEMIC_EFFECTS_AUTHZ_MATRIX (positive=5/5 deny=4/4 zero=4/4 idempotent=5/5 rollback=PASS EC=NONE) |
+| `tests/b1-rpc-matrix/pg/run-harness.ps1` | PASS (RESULTS=65\|12\|0; M03 exact-assignee-apply-decision OK) |
 | Browser CDP smoke `tests/student-requests/b1-real-app-browser-smoke/run.ts` | PASS_PR261_REAL_APP_HTTP_BROWSER_SMOKE (360/768/1366 + Arabic detail no snake_case) |
 | Arabic summary unit | `tests/student-requests/b1-form-summary-arabic-01.test.ts` PASS |
 | Owned-row normalizer + zero storage mutation | `tests/student-requests/secure-attachments-capability-01.test.ts` PASS |

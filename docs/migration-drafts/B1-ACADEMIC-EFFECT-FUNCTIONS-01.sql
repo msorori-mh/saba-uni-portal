@@ -39,7 +39,7 @@ BEGIN
     INSERT INTO public.student_academic_status(student_profile_id,academic_year_id,semester_id,level_id,enrollment_status)
       VALUES(v_request.student_profile_id,v_details.requested_from_academic_year_id,v_details.requested_from_semester_id,v_level_id,'suspended');
   END IF;
-  UPDATE public.enrollment_suspension_details SET effect_applied_at=now(),updated_at=now() WHERE id=v_details.id;
+  UPDATE public.enrollment_suspension_details SET effect_applied_at=now(),updated_at=now() WHERE request_id=p_request_id;
   INSERT INTO public.student_request_workflow_events(student_request_id,workflow_step_runtime_id,event_type,actor_user_id,actor_unit_id,actor_role_id,payload,visible_to_student)
     VALUES(p_request_id,v_step.id,'academic_effect_applied',v_uid,v_step.processing_unit_id,v_step.processing_role_id,
       jsonb_build_object('effect','enrollment_suspension','academic_year_id',v_details.requested_from_academic_year_id,'semester_id',v_details.requested_from_semester_id),true);
@@ -70,7 +70,7 @@ BEGIN
   INSERT INTO public.student_excused_absences(student_profile_id,course_section_id,absence_date,reason_type,absence_excuse_request_id)
     VALUES(v_request.student_profile_id,v_details.course_section_id,v_details.absence_date,v_details.reason_type,p_request_id)
     ON CONFLICT (student_profile_id,course_section_id,absence_date) DO NOTHING;
-  UPDATE public.absence_excuse_details SET record_applied_at=now(),updated_at=now() WHERE id=v_details.id;
+  UPDATE public.absence_excuse_details SET record_applied_at=now(),updated_at=now() WHERE request_id=p_request_id;
   INSERT INTO public.student_request_workflow_events(student_request_id,workflow_step_runtime_id,event_type,actor_user_id,actor_unit_id,actor_role_id,payload,visible_to_student)
     VALUES(p_request_id,v_step.id,'academic_effect_applied',v_uid,v_step.processing_unit_id,v_step.processing_role_id,
       jsonb_build_object('effect','excused_absence','course_section_id',v_details.course_section_id,'absence_date',v_details.absence_date),true);
@@ -99,11 +99,11 @@ BEGIN
   IF v_details.effect_applied_at IS NOT NULL THEN RETURN; END IF;
   SELECT department_id,program_id INTO v_old_department,v_old_program FROM public.student_profiles WHERE id=v_request.student_profile_id FOR UPDATE;
   UPDATE public.transfer_request_details SET previous_department_id=COALESCE(previous_department_id,v_old_department),
-    previous_program_id=COALESCE(previous_program_id,v_old_program),updated_at=now() WHERE id=v_details.id;
+    previous_program_id=COALESCE(previous_program_id,v_old_program),updated_at=now() WHERE request_id=p_request_id;
   PERFORM set_config('app.bypass_student_lock','1',true);
   UPDATE public.student_profiles SET department_id=COALESCE(v_details.requested_department_id,department_id),
     program_id=v_details.requested_program_id,updated_at=now() WHERE id=v_request.student_profile_id;
-  UPDATE public.transfer_request_details SET effect_applied_at=now(),updated_at=now() WHERE id=v_details.id;
+  UPDATE public.transfer_request_details SET effect_applied_at=now(),updated_at=now() WHERE request_id=p_request_id;
   INSERT INTO public.student_request_workflow_events(student_request_id,workflow_step_runtime_id,event_type,actor_user_id,actor_unit_id,actor_role_id,payload,visible_to_student)
     VALUES(p_request_id,v_step.id,'academic_effect_applied',v_uid,v_step.processing_unit_id,v_step.processing_role_id,
       jsonb_build_object('effect','department_transfer','old_department_id',v_old_department,'old_program_id',v_old_program,
@@ -137,7 +137,7 @@ BEGIN
     THEN RAISE EXCEPTION 'B1_FINAL_CHANCE_ACADEMIC_STATUS_REQUIRED'; END IF;
   INSERT INTO public.student_extra_chances(student_profile_id,request_id,academic_year_id,semester_id,chance_type,reason,approved_by,approved_at)
     VALUES(v_request.student_profile_id,p_request_id,v_details.academic_year_id,v_details.semester_id,v_details.chance_type,v_details.reason,v_uid,now());
-  UPDATE public.extra_chance_details SET chance_applied_at=now(),updated_at=now() WHERE id=v_details.id;
+  UPDATE public.extra_chance_details SET chance_applied_at=now(),updated_at=now() WHERE request_id=p_request_id;
   INSERT INTO public.student_request_workflow_events(student_request_id,workflow_step_runtime_id,event_type,actor_user_id,actor_unit_id,actor_role_id,payload,visible_to_student)
     VALUES(p_request_id,v_step.id,'academic_effect_applied',v_uid,v_step.processing_unit_id,v_step.processing_role_id,
       jsonb_build_object('effect','final_chance','academic_year_id',v_details.academic_year_id,'semester_id',v_details.semester_id),true);
