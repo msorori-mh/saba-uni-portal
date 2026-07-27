@@ -1,4 +1,4 @@
-﻿# PORTAL-FIRST-DELIVERY-INDEPENDENT-RELEASE-AUDIT-01-REPORT
+# PORTAL-FIRST-DELIVERY-INDEPENDENT-RELEASE-AUDIT-01-REPORT
 
 ## Context
 - Repository: `msorori-mh/saba-uni-portal`
@@ -61,6 +61,34 @@
 - `NO_DEPLOY`
 - `NO_PUBLISH`
 - `SERVICES_REMAIN_HIDDEN_UNTIL_CONTROLLED_PRODUCTION_SEQUENCE`
+
+## Post-merge update (2026-07-27) — five student services source closure evidence
+This section updates the audit with the published Codex/Cursor evidence from the
+source-closure sequence, superseding the original snapshot baseline.
+
+### Merge chain
+- PR #258 merge SHA: `357e50cb2498531037282bf01f5f03dadcd73434` (MERGED)
+- PR #261 final HEAD: `319d551d68196ad645a1b9013d4c7d4b69337001`
+- PR #261 merge SHA: `72813caca57ea1fccddf2d6497cb7c72198265ec` (MERGED into `main`)
+- Final `main` SHA at update time: `72813caca57ea1fccddf2d6497cb7c72198265ec`
+
+### Five student services (B1)
+- `enrollment_suspension`
+- `excused_absence`
+- `department_transfer`
+- `final_chance`
+- `file_withdrawal`
+
+### Published evidence (PR #261 HEAD `319d551d`)
+- Auth Matrix: **24/528/528/0** (direct RPC positive/negative authorization)
+- Secure Read: **25/25**
+- Secure Draft: **35/35**
+- Real-app HTTP browser smoke (Vite React build, CDP): **PASS** — page errors 0, console errors 0, failed asset requests 0
+- Operational E2E (local, five services): **5/5 PASS**
+- Codex static final security review: **PASS** (`PASS_PR261_CODEX_STATIC_FINAL_SECURITY_REVIEW` on same HEAD) — mock adapter production isolation PASS, direct RPC negative authorization PASS, no role bypass PASS, enrollment_certificate regression NONE
+- Codex HOLD was environment-only (`HOLD_CODEX_EXECUTION_ENVIRONMENT_ONLY`, `SOURCE_DEFECT_CONFIRMED=NO`); no confirmed source security blocker
+- CI on PR #261: GREEN (Web CI + Migration Review, all jobs SUCCESS)
+- `NO_PRODUCTION_WRITE`
 
 ## Final review outcome
 **PASS_PORTAL_FIRST_DELIVERY_INDEPENDENT_RELEASE_AUDIT**
