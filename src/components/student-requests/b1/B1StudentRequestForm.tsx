@@ -23,6 +23,8 @@ import {
   type B1Draft,
   type B1FormOptions,
 } from "@/lib/student-requests/b1-ui";
+import { withSecureAttachmentReferences } from "@/lib/student-requests/b1-ui/attachment-references";
+
 import { B1AttachmentUploader } from "./B1AttachmentUploader";
 import { formatB1DateAr } from "./b1-datetime";
 import { B1DraftStatus, type B1DraftSaveState } from "./B1DraftStatus";
