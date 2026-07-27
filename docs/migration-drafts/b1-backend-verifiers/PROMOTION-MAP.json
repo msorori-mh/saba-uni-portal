@@ -71,8 +71,8 @@
         "order": 13,
         "draft": "FINAL-CHANCE-CANONICAL-WRITE-03.sql",
         "migration": "supabase/migrations/20260725110600_b1_13_final_chance_canonical_write_03.sql",
-        "draft_sha_lf": "9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704",
-        "migration_sha_lf": "21406c4ffce2ef22c9ef4115ffc2c8df6e9a54e53a9df5467a01a56ddfc64c70",
+        "draft_sha_lf": "1378250a44374a782b612198262ca9c3a4afb9e87afe449179f5de28b2a2535a",
+        "migration_sha_lf": "ac71b01ca78d0946152be39fee6eb1e659031dcc820f492f419eb7855947be46",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-POST-VERIFIER.sql"
     },

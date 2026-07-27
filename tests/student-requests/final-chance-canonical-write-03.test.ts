@@ -17,12 +17,17 @@ describe("final chance canonical write draft 3/3", () => {
     expect(sql).toContain("COMMIT;");
   });
 
-  it("keeps extra_chance as the proven stored request-type alias", () => {
+  it("accepts exactly one stored request type: legacy-only or canonical-only", () => {
     expect(sql).toContain("rt.code = 'extra_chance'");
     expect(sql).toContain("rt.code = 'final_chance'");
-    expect(sql).toContain("v_extra_chance_type_count <> 1 OR v_final_chance_type_count <> 0");
+    expect(sql).toContain("v_legacy_only := (v_extra_chance_type_count = 1 AND v_final_chance_type_count = 0)");
+    expect(sql).toContain("v_canonical_only := (v_extra_chance_type_count = 0 AND v_final_chance_type_count = 1)");
+    expect(sql).toContain("IF NOT (v_legacy_only OR v_canonical_only) THEN");
+    expect(sql).toContain("must resolve to exactly one row across both codes");
+    expect(sql).not.toContain("The stored request-type alias remains extra_chance");
     expect(sql).not.toMatch(/UPDATE\s+public\.student_requests/i);
     expect(sql).not.toMatch(/UPDATE\s+public\.request_types/i);
+    expect(sql).not.toMatch(/\b(?:INSERT|DELETE)\s+INTO\s+public\.request_types/i);
   });
 
   it("accepts only final_chance for every new academic write", () => {

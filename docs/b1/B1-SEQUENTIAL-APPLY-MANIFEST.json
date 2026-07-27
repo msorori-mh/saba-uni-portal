@@ -1347,11 +1347,11 @@
    "plan_order": 13,
    "sequence_order": 14,
    "sequence_predecessor": "B1-TRANSFER-SECURE-ATTACHMENT-12",
-   "source_sha": "074e7414099cbf9eb0915519f2cf325b19b26aec",
+   "source_sha": "ed1de1bffcc63b8c265e0fb5672d329422b8aa48",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704",
+   "sha256": "1378250a44374a782b612198262ca9c3a4afb9e87afe449179f5de28b2a2535a",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
-   "byte_size": 6331,
+   "byte_size": 6891,
    "dependencies": [
     "B1-TRANSFER-SECURE-ATTACHMENT-12",
     "B1-ATOMIC-SUBMIT-ACTION-04"
