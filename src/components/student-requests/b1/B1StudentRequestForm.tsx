@@ -121,7 +121,10 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       const saved = await adapter.saveB1RequestDraft(draft.requestId, values, draft.updatedAt);
       const result = await adapter.submitB1Request(saved.requestId, saved.updatedAt);
       setConfirming(false);
-      await navigate({ to: "/student/requests/$id", params: { id: result.requestId } });
+      await navigate({
+        to: "/student/requests/b1/view/$requestId",
+        params: { requestId: result.requestId },
+      });
     } catch (error) {
       setFatalError(b1AdapterErrorMessageAr(error));
       setConfirming(false);
