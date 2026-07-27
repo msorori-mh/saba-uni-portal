@@ -235,7 +235,12 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         requestId: draft.requestId,
         ...describeUpdatedAt(draft.updatedAt),
       });
-      const saved = await adapter.saveB1RequestDraft(draft.requestId, values, draft.updatedAt);
+      const saved = await adapter.saveB1RequestDraft(
+        draft.requestId,
+        withSecureAttachmentReferences(serviceCode, values, draft.attachments),
+        draft.updatedAt,
+      );
+
       traceB1Submit("SUBMIT_AFTER_SAVE", {
         serviceCode,
         requestId: saved.requestId,
