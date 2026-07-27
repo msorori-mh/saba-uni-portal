@@ -23,6 +23,8 @@ import {
   type B1Draft,
   type B1FormOptions,
 } from "@/lib/student-requests/b1-ui";
+import { withSecureAttachmentReferences } from "@/lib/student-requests/b1-ui/attachment-references";
+
 import { B1AttachmentUploader } from "./B1AttachmentUploader";
 import { formatB1DateAr } from "./b1-datetime";
 import { B1DraftStatus, type B1DraftSaveState } from "./B1DraftStatus";
@@ -147,9 +149,10 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     try {
       const saved = await adapter.saveB1RequestDraft(
         current.requestId,
-        valuesRef.current,
+        withSecureAttachmentReferences(serviceCode, valuesRef.current, current.attachments),
         current.updatedAt,
       );
+
       setDraft(saved);
       setSaveState("saved");
     } catch (error) {
@@ -234,7 +237,12 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         requestId: draft.requestId,
         ...describeUpdatedAt(draft.updatedAt),
       });
-      const saved = await adapter.saveB1RequestDraft(draft.requestId, values, draft.updatedAt);
+      const saved = await adapter.saveB1RequestDraft(
+        draft.requestId,
+        withSecureAttachmentReferences(serviceCode, values, draft.attachments),
+        draft.updatedAt,
+      );
+
       traceB1Submit("SUBMIT_AFTER_SAVE", {
         serviceCode,
         requestId: saved.requestId,
