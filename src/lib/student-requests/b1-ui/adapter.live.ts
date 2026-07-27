@@ -109,9 +109,21 @@ function eligibilityMessageAr(message: string): string | null {
   return B1_ELIGIBILITY_GUARDS.find((g) => g.test.test(message))?.messageAr ?? null;
 }
 
+/**
+ * Only a genuine transport failure may surface as "تعذر الاتصال بالخادم".
+ * Local/synchronous client faults must stay distinguishable from network loss.
+ */
+const NETWORK_FAILURE_PATTERN =
+  /failed to fetch|networkerror|fetch failed|load failed|err_network|err_internet_disconnected|connection (refused|reset)|aborted/i;
+
+function classifyFallback(message: string, fallbackCode: B1AdapterError["code"]): B1AdapterError["code"] {
+  if (fallbackCode !== "UNEXPECTED_ERROR") return fallbackCode;
+  return NETWORK_FAILURE_PATTERN.test(message) ? "NETWORK_ERROR" : "UNEXPECTED_ERROR";
+}
+
 function mapLiveError(
   error: unknown,
-  fallbackCode: B1AdapterError["code"] = "NETWORK_ERROR",
+  fallbackCode: B1AdapterError["code"] = "UNEXPECTED_ERROR",
 ): never {
   if (error instanceof B1AdapterError) throw error;
   if (error instanceof B1SecureReadRpcError || error instanceof B1SecureDraftRpcError) {
@@ -147,7 +159,7 @@ function mapLiveError(
     if (/INVALID|VALIDATION|UNEXPECTED_FORM|INPUT_INVALID|IDEMPOTENCY/i.test(message)) {
       throw new B1AdapterError("VALIDATION_ERROR", message);
     }
-    throw new B1AdapterError(fallbackCode, message);
+    throw new B1AdapterError(classifyFallback(message, fallbackCode), message);
   }
   const message = error instanceof Error ? error.message : String(error ?? "unknown");
   const eligibilityArFallback = eligibilityMessageAr(message);
@@ -177,7 +189,7 @@ function mapLiveError(
   if (/INVALID|VALIDATION|COMMENT_REQUIRED|ATTACHMENT_|B1_.*INPUT|UNEXPECTED_FORM/i.test(message)) {
     throw new B1AdapterError("VALIDATION_ERROR", message);
   }
-  throw new B1AdapterError(fallbackCode, message);
+  throw new B1AdapterError(classifyFallback(message, fallbackCode), message);
 }
 
 async function fileToBase64(file: File): Promise<string> {
