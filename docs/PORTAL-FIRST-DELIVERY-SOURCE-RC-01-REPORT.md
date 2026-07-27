@@ -1,9 +1,9 @@
 # PORTAL-FIRST-DELIVERY-SOURCE-RC-01 — تقرير التسليم الأولي للمصدر
 
-Date: 2026-07-26 (UTC)
+Date: 2026-07-26 (UTC) — updated 2026-07-27 (UTC) by PORTAL-FIRST-DELIVERY-FIVE-STUDENT-SERVICES-SOURCE-CLOSURE-FINAL-02
 Coordinator: PORTAL-FIRST-DELIVERY-SOURCE-MERGE-COORDINATOR-OVERNIGHT-01
 Repository: msorori-mh/saba-uni-portal
-Final main SHA: `f13fede66f121e6f33d55712ebcb5fd6e5e9b7d8` (Web CI ✅ + Android Build ✅ على هذا الـSHA)
+Final main SHA: `2b20cdc39302edcc1bca5ec619bf1b19121b0913` (بعد دمج #258 و#261 و#260؛ Web CI ✅ على هذا الـSHA)
 
 ## 1. PRs المدمجة في main خلال هذه المهمة
 
@@ -13,6 +13,9 @@ Final main SHA: `f13fede66f121e6f33d55712ebcb5fd6e5e9b7d8` (Web CI ✅ + Android
 | #255 | fix(admin-portal): navigation RTL and accessibility consistency | `bacc6df` | Web CI ✅ + Android ✅ |
 | #259 | fix(faculty-portal): close mobile 360px overflow review — دُمجت في فرع #251 فقط (stacked) | `b0bade7` (على فرع #251) | — |
 | #251 | fix(faculty-portal): navigation RTL and accessibility consistency | `f13fede` | Web CI ✅ + Android ✅ |
+| #258 | docs/source(b1): SEQ07-B alternate apply package preflight | `357e50cb2498531037282bf01f5f03dadcd73434` | Web CI ✅ |
+| #261 | docs/test(b1): prepare complete first-delivery backend sequence | `72813caca57ea1fccddf2d6497cb7c72198265ec` | Web CI ✅ |
+| #260 | docs: add portal first-delivery independent release audit report | `2b20cdc39302edcc1bca5ec619bf1b19121b0913` | Web CI ✅ |
 
 تحققات ما قبل الدمج المنفذة لكل PR:
 - **#257**: HEAD مثبّت `babdc166…`، OPEN/NOT DRAFT/MERGEABLE/CLEAN، كل checks خضراء، الملفات فقط `src/integrations/supabase/types.ts` + تقرير remediation، freeze test 5/5، student-requests 823/823، وتأكيد احتواء types.ts على `file_withdrawal_details` و`student_request_attachment_uploads` وأسطح RPC المطلوبة.
@@ -22,8 +25,18 @@ Final main SHA: `f13fede66f121e6f33d55712ebcb5fd6e5e9b7d8` (Web CI ✅ + Android
 
 ## 2. PRs المتوقفة وأسبابها
 
-- **PR #258** (docs/source(b1): SEQ07-B alternate apply package preflight): **لم تُدمج — متوقفة بسبب عدم اكتمال شروط الدمج الإلزامية ضمن نافذة المراقبة.** رُوعيت كل 5 دقائق من ~03:15Z إلى 07:15Z (4 ساعات). عند نهاية النافذة: PR ليست Draft ✅، mergeStateStatus=CLEAN ✅، جميع checks خضراء ✅، مراجعة Codex المستقلة `PASS_PR258_INDEPENDENT_SEQ07_B_REVIEW` منشورة ✅، **لكن تعليق Cursor `PASS_B1_SEQ07_B_ALTERNATE_APPLY_PACKAGE_PREFLIGHT` لم يُنشر إطلاقًا** (صفر تعليقات على الـPR طوال النافذة). بقي HEAD ثابتًا على `34c533802a43ddeac9d90d6a7cdb85c8cfd991c9` ولم تُجرَ أي محاولة دمج. فحص تأكيدي أخير عند 16:36Z أظهر استمرار غياب تعليق Cursor. الخطوة التالية لهذه PR: إعادة تفعيلها عند نشر قرار Cursor ثم دمجها وفق نفس البوابات.
+- **PR #258**: ~~متوقفة~~ **أُغلقت بالدمج في 2026-07-27** (merge `357e50cb2498531037282bf01f5f03dadcd73434`) ضمن مهمة SOURCE-CLOSURE-FINAL-02 بعد اكتمال شروط البوابة (HEAD مثبت، CLEAN، checks خضراء، مراجعات PASS منشورة). الإيقاف السابق أدناه للسجل التاريخي فقط: كانت متوقفة بسبب غياب تعليق Cursor `PASS_B1_SEQ07_B_ALTERNATE_APPLY_PACKAGE_PREFLIGHT` ضمن نافذة المراقبة الليلية (03:15Z–07:15Z)، ولم تُجرَ أي محاولة دمج حينها.
 - **PRs #249/#250 و#241–#248** (student portal navigation QA وسلسلة student-experience): خارج نطاق PRs المصدرية المحددة في هذا التفويض؛ لم تُدمج ولم تُمس.
+
+## 2أ. إغلاق الخدمات الخمس (SOURCE-CLOSURE-FINAL-02، 2026-07-27)
+
+- **PR #261** (HEAD نهائي `319d551d68196ad645a1b9013d4c7d4b69337001`): دُمجت بعد بوابة كاملة — HEAD/base/draft/CLEAN مثبتة، كل checks خضراء، مراجعة Codex النهائية `PASS_PR261_CODEX_STATIC_FINAL_SECURITY_REVIEW` على نفس الـHEAD (SOURCE_REVIEW=PASS، MOCK_ADAPTER_PRODUCTION_ISOLATION=PASS، DIRECT_RPC_NEGATIVE_AUTHORIZATION=PASS، NO_ROLE_BYPASS=PASS، ENROLLMENT_CERTIFICATE_REGRESSION=NONE). الـHOLD الوحيد كان بيئيًا (`HOLD_CODEX_EXECUTION_ENVIRONMENT_ONLY`, SOURCE_DEFECT_CONFIRMED=NO) — لا blocker مصدري مؤكد.
+- **Operational E2E محلي للخدمات الخمس: 5/5 PASS.**
+- **Real-app HTTP smoke (بناء Vite React حقيقي عبر CDP): PASS** — صفر أخطاء صفحة/كونسول/أصول، الأسطح الخمسة الحقيقية تعمل (`PASS_PR261_REAL_APP_HTTP_BROWSER_SMOKE` على HEAD `319d551d`).
+- **سلسلة SEQ07-B→SEQ24 التسلسلية: PASS** (`PASS_B1_FIRST_DELIVERY_SEQUENTIAL_CHAIN`)، وGate25 محلي فقط (GATE25_LOCAL=PASS) — لا Gate25 إنتاجي.
+- **عزل mock adapter عن Production مؤكد مصدرًا**: mock لا يُفعَّل إلا بـ`DEV && VITE_B1_UI_MOCK=1` أو smoke build محلي بعلمين صريحين؛ لا flag إنتاجي قابل للتفعيل الخطأ (`src/lib/student-requests/b1-ui/index.ts`).
+- **PR #260** (تقرير التدقيق المستقل): حُدّث بأدلة سلسلة الدمج والخدمات الخمس ثم دُمج (`2b20cdc…`).
+- لا migration/no bucket/no student_visible/no Deploy حدث بسبب هذه الدمجات — كلها docs/source فقط.
 
 ## 3. enrollment_certificate regression
 
@@ -94,17 +107,24 @@ Final main SHA: `f13fede66f121e6f33d55712ebcb5fd6e5e9b7d8` (Web CI ✅ + Android
 
 ## 13. بوابات هذا الفرع (release/portal-first-delivery-source-rc-01)
 
-- `bun test tests/student-requests` = 823/823 PASS (77 ملفًا) ✅
-- `bun test tests` = 1881/1881 PASS (162 ملفًا) ✅
+أُعيد تشغيلها في 2026-07-27 على main النهائي `2b20cdc39302edcc1bca5ec619bf1b19121b0913` (مطابق مصدريًا لهذا الفرع — التغيير الوحيد هنا توثيقي):
+
+- `bun test tests/student-requests` = 828/828 PASS (78 ملفًا) ✅
+- `bun test tests` = 1886/1886 PASS (163 ملفًا) ✅
 - `bunx tsc --noEmit` = PASS ✅
 - `bun run build` = PASS ✅ (TanStack generated Register footer: present)
 - `git diff --check` = PASS ✅
+- release verifier (`scripts/first-delivery/verify-operator-pack.ts`) = exit 0 ✅ (prompts: 17، unique_migrations: 18، bridge_19_20: true، gate25_non_migration: true)
 
 ## 14. تأكيدات إلزامية
 
 - NO_PRODUCTION_MIGRATION_APPLY
+- NO_PRODUCTION_WRITE
 - NO_ACTIVATION
 - NO_DEPLOY
+- NO_PUBLISH
+- NO_GATE25_PRODUCTION
+- NO_STUDENT_VISIBLE_CHANGE
 - SERVICES_REMAIN_HIDDEN_UNTIL_CONTROLLED_PRODUCTION_SEQUENCE
 - لا force push / لا reset --hard / لا حذف worktrees / لا SQL apply طوال المهمة.
 
@@ -113,5 +133,6 @@ Final main SHA: `f13fede66f121e6f33d55712ebcb5fd6e5e9b7d8` (Web CI ✅ + Android
 **PASS_PORTAL_FIRST_DELIVERY_SOURCE_RC**
 
 - المراحل 1–3 مكتملة: PRs ‏#257 و#255 و#259 و#251 مدمجة في main بتحققات كاملة وCI أخضر بعد كل دمج.
-- المرحلة 4: PR #258 أُبقيت مفتوحة عمدًا وفق البروتوكول (غياب قرار Cursor الإلزامي) — هذا إيقاف احترازي موثق وليس فشل تسليم؛ لا يوجد EXACT_FAILURE يستدعي HOLD.
-- المرحلة 5: كل البوابات المحلية خضراء على فرع التقرير (انظر القسم 13)، وmain SHA النهائي `f13fede66f121e6f33d55712ebcb5fd6e5e9b7d8` مع Web CI وAndroid Build خضراوين.
+- المرحلة 4 (إغلاق الخدمات الخمس، 2026-07-27): PRs ‏#258 (`357e50c…`) و#261 (`72813ca…`) و#260 (`2b20cdc…`) مدمجة في main ببوابات كاملة — Auth Matrix ‏24/528/528/0، Secure Read ‏25/25، Secure Draft ‏35/35، Operational E2E ‏5/5، Real-app HTTP smoke PASS، لا bypass عام، enrollment_certificate بلا regression، الخدمات الخمس ما زالت مخفية إنتاجيًا.
+- المرحلة 5: كل البوابات المحلية خضراء على فرع التقرير (انظر القسم 13)، وmain SHA النهائي `2b20cdc39302edcc1bca5ec619bf1b19121b0913` مع Web CI أخضر.
+- الحد المتبقي الوحيد: **موافقة Production فقط** — حزمة التطبيق النهائية جاهزة في `docs/PORTAL-FIRST-DELIVERY-PRODUCTION-APPLY-PACKAGE-FINAL-01.md` (SOURCE-ONLY، بلا تخويل تنفيذ).
