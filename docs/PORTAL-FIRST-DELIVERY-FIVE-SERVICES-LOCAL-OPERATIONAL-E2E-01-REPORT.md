@@ -140,7 +140,7 @@ After each service (`ec_after/<service>/*`) and final EC suite:
 - PR #261 merged: `72813caca57ea1fccddf2d6497cb7c72198265ec` (not force-pushed; branch untouched by this track).
 - `origin/main` merged into `test/b1-five-services-local-operational-e2e-01` without force-push.
 - This track: shared SEQ07-B bootstrap + auth matrix alignment + report + independent Draft PR to `main`.
-- Draft PR: do **not** mark Ready / do **not** merge (K3/Codex review).
+- Draft PR: https://github.com/msorori-mh/saba-uni-portal/pull/263 — do **not** mark Ready / do **not** merge (K3/Codex review).
 - No cloud migration, Deploy, Publish, or Production write.
 
 ## Assumptions
@@ -174,6 +174,7 @@ no admin/registrar/dean bypass
 real-app UI PASS
 enrollment_certificate regression NONE
 no Production write
-Draft PR: OPEN_AFTER_PR261_MERGE (baseline 72813cac)
+PASS_B1_OPERATIONAL_E2E_DRAFT_PR_OPEN
+Draft PR: https://github.com/msorori-mh/saba-uni-portal/pull/263
 ```
 
