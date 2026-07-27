@@ -4528,6 +4528,88 @@ export type Database = {
           },
         ]
       }
+      student_request_attachment_uploads: {
+        Row: {
+          attached_at: string | null
+          checksum_sha256: string | null
+          created_at: string
+          created_by: string
+          field_key: string
+          id: string
+          mime_type: string
+          original_file_name: string
+          rejected_at: string | null
+          rejection_code: string | null
+          size_bytes: number
+          storage_bucket: string
+          storage_object_path: string
+          student_profile_id: string
+          student_request_id: string
+          upload_status: string
+          uploaded_at: string | null
+        }
+        Insert: {
+          attached_at?: string | null
+          checksum_sha256?: string | null
+          created_at?: string
+          created_by: string
+          field_key: string
+          id?: string
+          mime_type: string
+          original_file_name: string
+          rejected_at?: string | null
+          rejection_code?: string | null
+          size_bytes: number
+          storage_bucket: string
+          storage_object_path: string
+          student_profile_id: string
+          student_request_id: string
+          upload_status?: string
+          uploaded_at?: string | null
+        }
+        Update: {
+          attached_at?: string | null
+          checksum_sha256?: string | null
+          created_at?: string
+          created_by?: string
+          field_key?: string
+          id?: string
+          mime_type?: string
+          original_file_name?: string
+          rejected_at?: string | null
+          rejection_code?: string | null
+          size_bytes?: number
+          storage_bucket?: string
+          storage_object_path?: string
+          student_profile_id?: string
+          student_request_id?: string
+          upload_status?: string
+          uploaded_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_request_attachment_uploads_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_course_grade_summary"
+            referencedColumns: ["student_profile_id"]
+          },
+          {
+            foreignKeyName: "student_request_attachment_uploads_student_profile_id_fkey"
+            columns: ["student_profile_id"]
+            isOneToOne: false
+            referencedRelation: "student_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_request_attachment_uploads_student_request_id_fkey"
+            columns: ["student_request_id"]
+            isOneToOne: false
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_request_attachments: {
         Row: {
           file_name: string
@@ -5737,6 +5819,10 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      assert_required_student_request_attachments: {
+        Args: { p_attachment_ids: string[]; p_student_request_id: string }
+        Returns: undefined
+      }
       assert_student_can_use_request_type: {
         Args: { _profile_status: string; _request_audience: string }
         Returns: undefined
@@ -5746,6 +5832,10 @@ export type Database = {
         Returns: Json
       }
       audit_resolve_role: { Args: { _user_id: string }; Returns: string }
+      authorize_student_request_attachment_download: {
+        Args: { p_attachment_id: string }
+        Returns: Json
+      }
       build_enrollment_certificate_issuance_snapshot: {
         Args: { p_student_profile_id: string }
         Returns: Json
@@ -5824,6 +5914,10 @@ export type Database = {
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
+      complete_student_request_attachment_upload: {
+        Args: { p_attachment_id: string }
+        Returns: Json
+      }
       confirm_student_request_fee_payment: {
         Args: {
           p_notes?: string
@@ -5856,6 +5950,17 @@ export type Database = {
           p_title: string
         }
         Returns: string
+      }
+      create_student_request_attachment_upload_intent: {
+        Args: {
+          p_checksum_sha256?: string
+          p_field_key: string
+          p_mime_type: string
+          p_original_file_name: string
+          p_size_bytes: number
+          p_student_request_id: string
+        }
+        Returns: Json
       }
       current_student_profile_for_auth: {
         Args: never
@@ -5990,6 +6095,34 @@ export type Database = {
           title: string
           updated_at: string
         }[]
+      }
+      get_owned_student_request_attachment_upload: {
+        Args: { p_attachment_id: string }
+        Returns: {
+          attached_at: string | null
+          checksum_sha256: string | null
+          created_at: string
+          created_by: string
+          field_key: string
+          id: string
+          mime_type: string
+          original_file_name: string
+          rejected_at: string | null
+          rejection_code: string | null
+          size_bytes: number
+          storage_bucket: string
+          storage_object_path: string
+          student_profile_id: string
+          student_request_id: string
+          upload_status: string
+          uploaded_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "student_request_attachment_uploads"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_public_faculty_count: { Args: never; Returns: number }
       get_public_faculty_directory: {
@@ -6155,6 +6288,34 @@ export type Database = {
         Args: { _profile_id: string; _target_user_id: string }
         Returns: Json
       }
+      list_my_student_request_attachments: {
+        Args: { p_student_request_id: string }
+        Returns: {
+          attached_at: string | null
+          checksum_sha256: string | null
+          created_at: string
+          created_by: string
+          field_key: string
+          id: string
+          mime_type: string
+          original_file_name: string
+          rejected_at: string | null
+          rejection_code: string | null
+          size_bytes: number
+          storage_bucket: string
+          storage_object_path: string
+          student_profile_id: string
+          student_request_id: string
+          upload_status: string
+          uploaded_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "student_request_attachment_uploads"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       log_audit: {
         Args: {
           _action_type: string
@@ -6196,6 +6357,10 @@ export type Database = {
         Args: { p_note?: string; p_step_id: string }
         Returns: Json
       }
+      reject_student_request_attachment: {
+        Args: { p_attachment_id: string; p_rejection_code: string }
+        Returns: boolean
+      }
       replace_class_schedule_for_context: {
         Args: { _rows: Json; _section_ids: string[] }
         Returns: Json
@@ -6229,6 +6394,10 @@ export type Database = {
       submit_student_request: {
         Args: { p_request_id: string }
         Returns: boolean
+      }
+      submit_student_request_with_secure_attachments: {
+        Args: { p_attachment_ids: string[]; p_request_id: string }
+        Returns: undefined
       }
       user_can_see_announcement: {
         Args: { _ann_id: string; _uid: string }
