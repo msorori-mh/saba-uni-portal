@@ -5833,6 +5833,7 @@ export type Database = {
         Args: { p_kind: string; p_profile_id: string }
         Returns: string
       }
+      apply_b1_detail_rpc_write_boundaries: { Args: never; Returns: undefined }
       apply_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
@@ -5882,6 +5883,10 @@ export type Database = {
       }
       assert_enrollment_certificate_pdf_generation_ready: {
         Args: never
+        Returns: undefined
+      }
+      assert_final_chance_type_for_new_write: {
+        Args: { p_chance_type: string }
         Returns: undefined
       }
       assert_required_student_request_attachments: {
