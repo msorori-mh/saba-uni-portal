@@ -5906,10 +5906,33 @@ export type Database = {
         Args: { p_attachment_id: string }
         Returns: Json
       }
+      b1_attachment_meta_json: {
+        Args: {
+          a: Database["public"]["Tables"]["student_request_attachment_uploads"]["Row"]
+        }
+        Returns: Json
+      }
+      b1_canonical_to_stored_codes: {
+        Args: { p_canonical: string }
+        Returns: string[]
+      }
+      b1_deny_read: { Args: never; Returns: undefined }
       b1_expected_secure_attachment_field: {
         Args: { p_request_type: string }
         Returns: string
       }
+      b1_is_five_service_type: { Args: { p_stored: string }; Returns: boolean }
+      b1_list_attachment_metas_for_request: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      b1_map_request_status: { Args: { p_status: string }; Returns: string }
+      b1_map_ui_staff_action: {
+        Args: { p_action_type: string }
+        Returns: string
+      }
+      b1_require_auth_uid: { Args: never; Returns: string }
+      b1_stored_to_canonical: { Args: { p_stored: string }; Returns: string }
       build_enrollment_certificate_issuance_snapshot: {
         Args: { p_student_profile_id: string }
         Returns: Json
@@ -6131,6 +6154,31 @@ export type Database = {
           requires_attachment: boolean
           sort_order: number
         }[]
+      }
+      get_b1_assigned_inbox_for_actor: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
+      get_b1_assigned_request_details_for_actor: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      get_b1_request_details_for_student: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      get_b1_request_draft_for_student: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      get_b1_request_form_options: {
+        Args: { p_canonical_code: string }
+        Returns: Json
+      }
+      get_b1_secure_read_runtime_capability: { Args: never; Returns: Json }
+      get_b1_step_allowed_actions: {
+        Args: { p_step_id: string }
+        Returns: Json
       }
       get_hardening_status: { Args: never; Returns: Json }
       get_my_request_actor_inbox: {
@@ -6360,6 +6408,14 @@ export type Database = {
       }
       link_student_user_account: {
         Args: { _profile_id: string; _target_user_id: string }
+        Returns: Json
+      }
+      list_b1_request_attachments_for_viewer: {
+        Args: { p_request_id: string }
+        Returns: Json
+      }
+      list_b1_requests_for_student: {
+        Args: { p_limit?: number; p_offset?: number }
         Returns: Json
       }
       list_my_student_request_attachments: {
