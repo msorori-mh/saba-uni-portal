@@ -5884,6 +5884,10 @@ export type Database = {
         Args: never
         Returns: undefined
       }
+      assert_final_chance_type_for_new_write: {
+        Args: { p_chance_type: string }
+        Returns: undefined
+      }
       assert_required_student_request_attachments: {
         Args: { p_attachment_ids: string[]; p_student_request_id: string }
         Returns: undefined
