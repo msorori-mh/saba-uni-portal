@@ -24,6 +24,12 @@ import {
   type B1FormOptions,
 } from "@/lib/student-requests/b1-ui";
 import { withSecureAttachmentReferences } from "@/lib/student-requests/b1-ui/attachment-references";
+import {
+  classifyB1SaveError,
+  logB1SaveDiagnostic,
+  type B1SavePhase,
+} from "@/lib/student-requests/b1-ui/save-error-classification";
+
 
 import { B1AttachmentUploader } from "./B1AttachmentUploader";
 import { formatB1DateAr } from "./b1-datetime";
@@ -56,6 +62,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<B1DraftSaveState>("draft");
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [transientSaveError, setTransientSaveError] = useState<string | null>(null);
+
   const [reviewing, setReviewing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -90,6 +98,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
 
   const load = () => {
     setFatalError(null);
+    setTransientSaveError(null);
+
     setSuccess(null);
     void Promise.all([
       adapter.getAvailableB1RequestTypes(),
@@ -146,6 +156,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     target: B1Draft,
     vals: Record<string, unknown>,
     fromAutosave = false,
+    phase: B1SavePhase = fromAutosave ? "autosave" : "manual_save",
   ) => {
     if (reviewing || submitting || success) return;
     if (!fromAutosave) setSaveState("saving");
@@ -160,6 +171,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
 
       setDraft(saved);
       setSaveState("saved");
+      // Successful recovery must clear the transient notice; no stale banner.
+      setTransientSaveError(null);
     } catch (error) {
       if (error instanceof B1AdapterError && error.code === "STALE_VERSION") {
         try {
@@ -173,7 +186,17 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         return;
       }
       setSaveState("save_failed");
-      if (!fromAutosave) setFatalError(b1AdapterErrorMessageAr(error));
+      // A save failure never proves the service is inactive: only the
+      // availability/capability probe on load can do that.
+      const classification = classifyB1SaveError(error, phase, {
+        capabilityProvenUnavailable: false,
+      });
+      logB1SaveDiagnostic(phase, classification);
+      if (classification.severity === "fatal") {
+        if (!fromAutosave) setFatalError(classification.messageAr);
+      } else if (!fromAutosave) {
+        setTransientSaveError(classification.messageAr);
+      }
     }
   };
 
@@ -201,8 +224,9 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       } catch {
         /* keep optimistic attachment state */
       }
-      await persistDraft(target, valuesRef.current);
+      await persistDraft(target, valuesRef.current, false, "attachment_sync");
     })();
+
     attachmentSync.current = run;
     setAttachmentSyncing(true);
     try {
@@ -460,6 +484,23 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       {fatalError ? (
         <B1ErrorState messageAr={fatalError} onRetry={() => setFatalError(null)} />
       ) : null}
+      {!fatalError && transientSaveError ? (
+        <div
+          role="alert"
+          data-testid="b1-transient-save-error"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm font-bold text-amber-900 dark:text-amber-200"
+        >
+          <span>{transientSaveError}</span>
+          <button
+            type="button"
+            className="rounded-md border border-amber-500/50 px-3 py-1 text-xs font-extrabold"
+            onClick={() => void save(false)}
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      ) : null}
+
 
       {!reviewing ? (
         <form
