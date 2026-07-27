@@ -9,7 +9,7 @@ const sha256Lf = (path: string) =>
   createHash("sha256").update(read(path).replace(/\r\n/g, "\n")).digest("hex");
 
 describe("PR227 final unified backend stack independent review", () => {
-  test("sequence 21-24 is contiguous and every source and migration pin is current", () => {
+  test("sequence 21-27 is contiguous and every source and migration pin is current", () => {
     const promotion = JSON.parse(
       read("docs/migration-drafts/b1-backend-verifiers/PROMOTION-MAP.json"),
     ) as Array<{
@@ -27,9 +27,9 @@ describe("PR227 final unified backend stack independent review", () => {
     };
 
     const finalEntries = promotion.filter(({ order }) => order >= 21);
-    expect(finalEntries.map(({ order }) => order)).toEqual([21, 22, 23, 24]);
+    expect(finalEntries.map(({ order }) => order)).toEqual([21, 22, 23, 24, 25, 26, 27]);
     expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
-      Array.from({ length: 24 }, (_, index) => index + 1),
+      Array.from({ length: 27 }, (_, index) => index + 1),
     );
     expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
 

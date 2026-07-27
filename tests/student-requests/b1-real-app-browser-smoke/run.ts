@@ -792,6 +792,19 @@ async function main(): Promise<number> {
         return true;
       })()`);
       await cdp!.poll(
+        "success state",
+        `!!document.querySelector('[data-testid="b1-success-state"]')`,
+        30_000,
+      );
+      await cdp!.evaluate(`(() => {
+        const btn = [...document.querySelectorAll('[data-testid="b1-success-state"] button')].find((b) =>
+          (b.textContent || "").includes("متابعة الطلب")
+        );
+        if (!btn) throw new Error("success continue missing");
+        btn.click();
+        return true;
+      })()`);
+      await cdp!.poll(
         "detail page",
         `location.pathname.includes("/student/requests/b1/view/") && !!document.querySelector('[data-testid="b1-student-request-detail"]')`,
         60_000,

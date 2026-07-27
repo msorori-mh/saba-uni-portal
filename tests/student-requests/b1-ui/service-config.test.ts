@@ -65,14 +65,16 @@ describe("B1 UI service config", () => {
     expect(getB1ServiceConfig("final_chance")!.requiresAttachments).toBe(false);
   });
 
-  it("carries activation blockers only for blocked services", () => {
-    expect(getB1ServiceConfig("enrollment_suspension")!.activationBlockedReason).toBeUndefined();
-    expect(getB1ServiceConfig("file_withdrawal")!.activationBlockedReason).toBeUndefined();
-    expect(getB1ServiceConfig("excused_absence")!.activationBlockedReason).toBe(
-      "BLOCKED_PENDING_SECURE_ATTACHMENTS_RUNTIME",
-    );
-    expect(getB1ServiceConfig("department_transfer")!.activationBlockedReason).toBeTruthy();
-    expect(getB1ServiceConfig("final_chance")!.activationBlockedReason).toBeTruthy();
+  it("clears activation blockers for all five go-live services", () => {
+    for (const code of [
+      "enrollment_suspension",
+      "excused_absence",
+      "department_transfer",
+      "final_chance",
+      "file_withdrawal",
+    ] as const) {
+      expect(getB1ServiceConfig(code)!.activationBlockedReason).toBeUndefined();
+    }
   });
 
   it("contains no amount/currency/price fields anywhere", () => {

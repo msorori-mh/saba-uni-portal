@@ -11,15 +11,16 @@ const capabilityBody = sql.slice(
 );
 
 describe("PR229 independent secure-draft review remediation", () => {
-  test("sequence is contiguous: secure read 21, secure draft 22, remediations 23-24, activation gate 25", () => {
+  test("sequence is contiguous: secure read 21, secure draft 22, remediations 23-24, academic effects 25-27, activation gate 25", () => {
     const manifest = JSON.parse(read("docs/b1/B1-SEQUENTIAL-APPLY-MANIFEST.json"));
     const entries = manifest.migrations as Array<{
       canonical_id: string;
       sequence_order: number;
       sequence_predecessor: string;
+      filename?: string;
     }>;
     expect(entries.map((entry) => entry.sequence_order)).toEqual(
-      Array.from({ length: 24 }, (_, index) => index + 1),
+      Array.from({ length: 27 }, (_, index) => index + 1),
     );
     expect(new Set(entries.map((entry) => entry.sequence_order)).size).toBe(entries.length);
     const secureRead = entries.find(
@@ -38,6 +39,15 @@ describe("PR229 independent secure-draft review remediation", () => {
     );
     expect(entries.find((e) => e.sequence_order === 24)?.filename).toContain(
       "FILE-WITHDRAWAL-IMPACT-ACK",
+    );
+    expect(entries.find((e) => e.sequence_order === 25)?.filename).toContain(
+      "ACADEMIC-EFFECT-MARKERS",
+    );
+    expect(entries.find((e) => e.sequence_order === 26)?.filename).toContain(
+      "ACADEMIC-EFFECT-FUNCTIONS",
+    );
+    expect(entries.find((e) => e.sequence_order === 27)?.filename).toContain(
+      "ACT-ON-ACADEMIC-EFFECT-INTEGRATION",
     );
     expect(manifest.global_policies.activation_gate).toContain("gate 25");
   });
