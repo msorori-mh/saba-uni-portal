@@ -136,6 +136,8 @@ export function mapB1SecureDraftThrown(
   if (error instanceof Error) {
     const known = knownCodeIn(error.message);
     if (known) throw new B1SecureDraftRpcError(known, known);
+    const eligibility = eligibilityIn(error.message);
+    if (eligibility) throw new B1SecureDraftRpcError(eligibility, B1_ELIGIBILITY_CODE);
     if (isB1SecureDraftRpcUnavailable({ message: error.message })) {
       throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG, "", true);
     }
@@ -156,6 +158,8 @@ function mapRpcError(error: { message: string; code?: string }): never {
   // error may legitimately contain phrases like "does not exist".
   const known = knownCodeIn(error.message);
   if (known) throw new B1SecureDraftRpcError(known, known);
+  const eligibility = eligibilityIn(error.message);
+  if (eligibility) throw new B1SecureDraftRpcError(eligibility, B1_ELIGIBILITY_CODE);
   if (isB1SecureDraftRpcUnavailable(error)) {
     throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG, error.code ?? "", true);
   }
