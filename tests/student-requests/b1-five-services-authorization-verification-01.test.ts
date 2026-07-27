@@ -50,6 +50,21 @@ describe("PORTAL-B1-FIVE-SERVICES-AUTHORIZATION-AND-VERIFICATION-01", () => {
     expect(harness).toContain("B1_LOCAL_RPC_HARNESS_PREREQUISITE_MISSING");
   });
 
+  it("bootstraps auth matrix on SEQ07-B→24 with no original SEQ07 apply", () => {
+    expect(runner).toContain("local-seq07b-through-24.ps1");
+    expect(runner).toContain("Invoke-B1Seq07bThrough24Chain");
+    expect(runner).toContain("Invoke-B1F1F2HardeningLocalOnly");
+    expect(runner).toContain("ORIGINAL_SEQ07_ABSENT=PASS");
+    expect(runner).toContain("AUTH_MATRIX_SAME_DELIVERY_CHAIN=PASS");
+    expect(runner).toContain("GATE25=SKIPPED_AUTH_MATRIX_NOT_ACTIVATION");
+    expect(runner).not.toMatch(
+      /Invoke-B1DockerPsqlFile[\s\S]{0,180}20260725110000_b1_07_secure_attachments_source_01/,
+    );
+    expect(runner).not.toMatch(
+      /Invoke-PsqlFile[\s\S]{0,180}20260725110000_b1_07_secure_attachments_source_01/,
+    );
+  });
+
   it("requires zero mutation across every protected surface", () => {
     for (const relation of matrix.zero_mutation_relations) {
       const aliases: Record<string, string> = {

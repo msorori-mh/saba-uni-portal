@@ -28,14 +28,42 @@ CREATE TEMP TABLE full_rpc_results(
   PRIMARY KEY(service,step_key,scenario)
 ) ON COMMIT DROP;
 
+-- SEQ23-aligned department_head path: position_assignment only (faculty path removed).
+INSERT INTO public.position_assignments(id,user_id,is_active,assigned_from)
+VALUES
+  ('a1000000-0000-4000-8000-000000000001'::uuid,'10000000-0000-0000-0000-000000000001'::uuid,true,current_date),
+  ('a2000000-0000-4000-8000-000000000002'::uuid,'20000000-0000-0000-0000-000000000002'::uuid,true,current_date)
+ON CONFLICT (id) DO UPDATE
+SET user_id=EXCLUDED.user_id, is_active=true, assigned_from=EXCLUDED.assigned_from;
+
+DELETE FROM public.request_processing_assignments rpa
+USING public.request_processing_units u, public.request_processing_roles r
+WHERE rpa.unit_id=u.id AND rpa.role_id=r.id
+  AND u.code='department' AND r.code='department_head'
+  AND rpa.user_id='10000000-0000-0000-0000-000000000001';
+
+INSERT INTO public.request_processing_assignments(
+  unit_id, role_id, assignment_type, position_assignment_id, department_id, is_active
+)
+SELECT u.id, r.id, 'position_assignment',
+       'a1000000-0000-4000-8000-000000000001'::uuid, d.dept_id, true
+FROM public.request_processing_units u
+JOIN public.request_processing_roles r ON r.unit_id=u.id AND r.code='department_head'
+CROSS JOIN (VALUES
+  ('60000000-0000-0000-0000-000000000006'::uuid),
+  ('70000000-0000-0000-0000-000000000007'::uuid)
+) AS d(dept_id)
+WHERE u.code='department';
+
 -- Normalize the reusable synthetic fixtures left by 01-runtime-matrix.sql.
 UPDATE public.student_request_workflow_steps s
 SET status='active', decision=NULL, completed_by=NULL, completed_at=NULL,
     assigned_user_id=CASE WHEN m.role_code='department_head' THEN NULL
       ELSE '10000000-0000-0000-0000-000000000001'::uuid END,
-    assigned_faculty_profile_id=CASE WHEN m.role_code='department_head'
-      THEN '10000000-0000-0000-0000-000000000001'::uuid ELSE NULL END,
-    assigned_staff_profile_id=NULL,assigned_position_assignment_id=NULL,
+    assigned_faculty_profile_id=NULL,
+    assigned_staff_profile_id=NULL,
+    assigned_position_assignment_id=CASE WHEN m.role_code='department_head'
+      THEN 'a1000000-0000-4000-8000-000000000001'::uuid ELSE NULL END,
     processing_unit_id=m.unit_id,processing_role_id=m.role_id
 FROM matrix m WHERE s.id=m.runtime_id;
 UPDATE public.student_request_workflow_steps s SET status='completed'
@@ -116,11 +144,9 @@ DO $positive$
 DECLARE m matrix%ROWTYPE; r jsonb; passed boolean;
 BEGIN
  FOR m IN SELECT * FROM matrix LOOP
-  UPDATE public.faculty_profiles SET department_id=CASE
-   WHEN m.step_key='target_department_head_approval' THEN
-    (SELECT requested_department_id FROM public.transfer_request_details WHERE request_id=m.request_id)
-   ELSE (SELECT current_department_id FROM public.transfer_request_details WHERE request_id=m.request_id)
-   END WHERE id='10000000-0000-0000-0000-000000000001' AND m.role_code='department_head';
+  -- SEQ23 scope: keep both source/target department position bindings active.
+  UPDATE public.request_processing_assignments SET is_active=true, starts_at=NULL, ends_at=NULL
+   WHERE position_assignment_id='a1000000-0000-4000-8000-000000000001'::uuid;
   PERFORM set_config('request.jwt.claims',
     json_build_object('sub','10000000-0000-0000-0000-000000000001','role','authenticated')::text,true);
   PERFORM set_config('e_rpcmatrix.uid','10000000-0000-0000-0000-000000000001',true);
@@ -160,11 +186,14 @@ BEGIN
    PERFORM set_config('b1.atomic_init','1',true);
    UPDATE public.student_request_workflow_steps SET status='active',
     assigned_user_id=CASE WHEN m.role_code='department_head' THEN NULL ELSE '10000000-0000-0000-0000-000000000001'::uuid END,
-    assigned_faculty_profile_id=CASE WHEN m.role_code='department_head' THEN '10000000-0000-0000-0000-000000000001'::uuid ELSE NULL END,
-    assigned_position_assignment_id=NULL WHERE id=m.runtime_id;
+    assigned_faculty_profile_id=NULL,
+    assigned_position_assignment_id=CASE WHEN m.role_code='department_head'
+      THEN 'a1000000-0000-4000-8000-000000000001'::uuid ELSE NULL END
+    WHERE id=m.runtime_id;
    UPDATE public.student_request_workflow_steps SET status='completed' WHERE id=m.predecessor_runtime_id;
    UPDATE public.request_processing_assignments SET is_active=true,starts_at=NULL,ends_at=NULL
-    WHERE user_id='10000000-0000-0000-0000-000000000001' AND unit_id=m.unit_id AND role_id=m.role_id;
+    WHERE (user_id='10000000-0000-0000-0000-000000000001' AND unit_id=m.unit_id AND role_id=m.role_id)
+       OR position_assignment_id='a1000000-0000-4000-8000-000000000001'::uuid;
    SELECT request_type,student_profile_id INTO original_type,original_profile
    FROM public.student_requests WHERE id=m.request_id;
    uid:='20000000-0000-0000-0000-000000000002'; act:=m.action_type; sid:=m.runtime_id;
@@ -184,12 +213,21 @@ BEGIN
     WHEN 'registrar_outside_step' THEN uid:='40000000-0000-0000-0000-000000000004';
     WHEN 'dean_outside_step' THEN uid:='50000000-0000-0000-0000-000000000005';
     WHEN 'inactive_assignment' THEN uid:='10000000-0000-0000-0000-000000000001';
-      UPDATE public.request_processing_assignments SET is_active=false WHERE user_id=uid::uuid AND unit_id=m.unit_id AND role_id=m.role_id;
+      UPDATE public.request_processing_assignments SET is_active=false
+       WHERE (user_id=uid::uuid AND unit_id=m.unit_id AND role_id=m.role_id)
+          OR (m.role_code='department_head'
+              AND position_assignment_id='a1000000-0000-4000-8000-000000000001'::uuid);
     WHEN 'expired_assignment' THEN uid:='10000000-0000-0000-0000-000000000001';
-      UPDATE public.request_processing_assignments SET ends_at=now()-interval '1 day' WHERE user_id=uid::uuid AND unit_id=m.unit_id AND role_id=m.role_id;
+      UPDATE public.request_processing_assignments SET ends_at=now()-interval '1 day'
+       WHERE (user_id=uid::uuid AND unit_id=m.unit_id AND role_id=m.role_id)
+          OR (m.role_code='department_head'
+              AND position_assignment_id='a1000000-0000-4000-8000-000000000001'::uuid);
     WHEN 'duplicate_assignment' THEN uid:='10000000-0000-0000-0000-000000000001';
       UPDATE public.student_request_workflow_steps SET assigned_user_id=uid::uuid,
-       assigned_faculty_profile_id='10000000-0000-0000-0000-000000000001' WHERE id=m.runtime_id;
+       assigned_faculty_profile_id='10000000-0000-0000-0000-000000000001',
+       assigned_position_assignment_id=CASE WHEN m.role_code='department_head'
+         THEN 'a1000000-0000-4000-8000-000000000001'::uuid ELSE NULL END
+       WHERE id=m.runtime_id;
     WHEN 'wrong_position_assignment' THEN uid:='10000000-0000-0000-0000-000000000001';
       INSERT INTO public.position_assignments(user_id,is_active,assigned_to)
        VALUES('20000000-0000-0000-0000-000000000002',true,current_date+1) RETURNING id INTO position_id;

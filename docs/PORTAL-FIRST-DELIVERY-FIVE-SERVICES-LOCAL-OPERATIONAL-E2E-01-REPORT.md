@@ -4,12 +4,17 @@
 
 **PASS_FIRST_DELIVERY_FIVE_SERVICES_LOCAL_OPERATIONAL_E2E**
 
+Track addendum: **PORTAL-FIRST-DELIVERY-FIVE-SERVICES-OPERATIONAL-E2E-PR-PREP-02**
+
 ```
 NO_PRODUCTION_WRITE
 TEST_ONLY_B1_FIVE_SERVICES_OPERATIONAL_E2E
 SYNTHETIC_DATA_ONLY
 LOCAL_DISPOSABLE_PG17
 NO_STUDENT_VISIBLE_CLOUD_MUTATION
+CANONICAL_BOOTSTRAP=SEQ07B_THEN_SEQ08_TO_24
+ORIGINAL_SEQ07_ABSENT=PASS
+NO_SILENT_FALLBACK_TO_ORIGINAL_SEQ07=PASS
 ```
 
 ## Baseline
@@ -21,6 +26,40 @@ NO_STUDENT_VISIBLE_CLOUD_MUTATION
 | PR #261 candidate HEAD | `319d551d68196ad645a1b9013d4c7d4b69337001` |
 | Namespace marker | `TEST_ONLY_B1_FIVE_SERVICES_OPERATIONAL_E2E` |
 | PostgreSQL | 17.10 (`postgres:17-alpine`, disposable) |
+| Shared bootstrap | `tests/b1-delivery-chain/local-seq07b-through-24.ps1` |
+
+## Canonical bootstrap proof (closed risk)
+
+Operational E2E **and** Auth Matrix now share one legal apply path:
+
+1. B0 private bucket simulation
+2. **SEQ07-B** (`20260725110050…`) exactly once + second-apply refused
+3. **SEQ08→19,21→24** (skip superseded original SEQ07 + duplicate order 20)
+4. **F1/F2** local actor-action hardening (**after SEQ24**, **not Gate25**, **not Production**)
+5. Gate25 only inside operational E2E (Auth Matrix skips activation)
+
+| Proof | Operational | Auth Matrix |
+|---|---|---|
+| Original SEQ07 absent from apply log | PASS | PASS |
+| SEQ07-B applied exactly once | PASS | PASS |
+| SEQ07-B second apply refused | PASS | PASS |
+| No silent fallback to original SEQ07 | PASS | PASS |
+| Same delivery chain | PASS | PASS (`AUTH_MATRIX_SAME_DELIVERY_CHAIN`) |
+| Hard ban `FORBIDDEN_ORIGINAL_SEQ07_APPLY_PATH` | PASS | PASS |
+
+Ledger/proof SQL: `tests/b1-delivery-chain/pg/40-seq07b-canonical-proof.sql`
+
+Auth matrix department_head positives use SEQ23 `position_assignment` scope (faculty path no longer authorized after SEQ23).
+
+## F1/F2 order (explicit)
+
+| Fact | Value |
+|---|---|
+| When | After SEQ24 |
+| Where | Local operational E2E / Auth Matrix harness only |
+| Gate25? | **No** (`GATE25_IS_NOT_F1F2=PASS`) |
+| Production apply? | **Forbidden** (`F1F2_PRODUCTION_APPLY=FORBIDDEN`) |
+| Purpose | Assignment/actor-action guards for local RPC proof |
 
 ## Environment proof (A)
 
@@ -29,7 +68,7 @@ NO_STUDENT_VISIBLE_CLOUD_MUTATION
 | SEQ07-B apply + second-apply refuse | PASS (`a49d615b…`) |
 | SEQ08→19,21→24 sequential preflight/apply/post | PASS |
 | F1/F2 actor-action hardening (local, post-24) | PASS |
-| Gate25 local activation (non-migration) | PASS |
+| Gate25 local activation (non-migration; ops only) | PASS |
 | Synthetic data only | PASS |
 | Production/Staging write | NONE |
 
@@ -51,8 +90,8 @@ Integrated lifecycle counters (disposable):
 
 ### Authorization / bypass
 
-- Direct RPC negative samples in lifecycle + authz suite: PASS (admin/dean/registrar unassigned denied; wrong dept denied; predecessor/replay denied).
-- Full Auth Matrix: **24 / 528 / 528 / 0** (`positive_cells=24`, `negative_cells=528`, `zero_mutation_assertions=528`, `failures=0`).
+- Direct RPC negative samples in lifecycle + authz suite: PASS.
+- Full Auth Matrix on **SEQ07-B→24** chain: **24 / 528 / 528 / 0**.
 - No admin / registrar / dean global bypass observed.
 
 ### enrollment_certificate protection
@@ -78,47 +117,45 @@ After each service (`ec_after/<service>/*`) and final EC suite:
 | Staff assigned queue + actions | PASS |
 | Unassigned staff: no action panel | PASS |
 | Viewports 360 / 768 / 1366 + RTL + no overflow | PASS |
-| page errors | 0 |
-| console errors | 0 |
-| failed asset requests | 0 |
+| page errors / console errors / failed assets | 0 / 0 / 0 |
 | Decision | `PASS_PR261_REAL_APP_HTTP_BROWSER_SMOKE` |
 
-## Final verifiers (F)
+## Final verifiers (F) — PREP-02 re-run
 
 | Verifier | Result |
 |---|---|
 | Operational E2E harness | `PASS_B1_LOCAL_OPERATIONAL_E2E_5_OF_5` |
-| Auth Matrix | 24/528/528/0 |
+| Auth Matrix (SEQ07-B chain) | **24/528/528/0** `PASS_B1_AUTH_MATRIX_24_528_528_0` |
 | Secure Read | 25/25 `B1_SECURE_READ_PG17_PASS` |
 | Secure Draft | 35/35 + concurrency `B1_SECURE_DRAFT_PG17_PASS` |
-| `bun test tests/student-requests` (+ operational source) | 831 pass / 0 fail |
-| `bun test tests` | 1889 pass / 0 fail |
+| `bun test` student-requests + ops + delivery-chain | 835 pass / 0 fail |
+| `bun test tests` | 1893 pass / 0 fail |
 | `bunx tsc --noEmit` | PASS |
 | `bun run build` | PASS |
 | Real-app HTTP browser smoke | PASS |
-| `git diff --check` | PASS (after harness commit content) |
+| `git diff --check` | PASS |
 
 ## Git / scope
 
 - PR #261 branch not modified / not force-pushed.
-- This track adds local operational harness + report only (`0161958` on `test/b1-five-services-local-operational-e2e-01`).
-- Draft PR to `main` is **held** until PR #261 merges (mission rule: open independent Draft PR only after #261 merge; do not merge).
+- This track: shared SEQ07-B bootstrap + auth matrix alignment + report.
+- Draft PR to `main` opens **only after** PR #261 merges (independent Draft; do not merge; K3/Codex review).
 - No cloud migration, Deploy, Publish, or Production write.
 
 ## Assumptions
 
-- Local Gate25 activates the five workflows inside disposable PostgreSQL only.
+- Local Gate25 activates the five workflows inside disposable PostgreSQL only (ops harness).
 - Local harness may stub `request_types.student_visible` inside the disposable DB for draft create gating (never against Production).
-- F1/F2 actor-action hardening draft is applied locally after SEQ24 (not Gate25; required for assignment guards), matching integrated runtime apply-order seq90.
+- Original SEQ07 remains pin-only in PROMOTION-MAP for SHA drift detection; never applied.
 
 ## Risks
 
-- Auth matrix harness still bootstraps via original SEQ07 file path for its own fixture (separate disposable container); operational E2E uses SEQ07-B as required.
-- Real-app smoke mocks Supabase auth/profiles over HTTP; RPC lifecycle proof is the disposable PG harness, not the browser mock.
+- Real-app smoke mocks Supabase auth/profiles over HTTP; RPC lifecycle + auth matrix proof is disposable PG.
+- ~~Auth matrix original SEQ07 bootstrap~~ → **CLOSED** (SEQ07-B canonical shared chain).
 
 ## Blockers
 
-None.
+None for local PASS. Draft PR blocked only on PR #261 merge.
 
 ## Production impact
 
@@ -129,11 +166,12 @@ None.
 ```
 PASS_FIRST_DELIVERY_FIVE_SERVICES_LOCAL_OPERATIONAL_E2E
 5/5 services PASS
-all lifecycle steps completed
-direct RPC negative matrix PASS (24/528/528/0)
+direct RPC negative matrix PASS (24/528/528/0) on SEQ07-B→24
 zero mutation PASS
+SEQ07-B canonical bootstrap PASS
 no admin/registrar/dean bypass
 real-app UI PASS
 enrollment_certificate regression NONE
 no Production write
+Draft PR: HELD_UNTIL_PR261_MERGED
 ```

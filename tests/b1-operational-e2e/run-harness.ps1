@@ -1,12 +1,17 @@
 param([string]$Image = "postgres:17-alpine")
 
 # PORTAL-FIRST-DELIVERY-FIVE-STUDENT-SERVICES-LOCAL-OPERATIONAL-E2E-01
-# Local disposable only: SEQ07-B → SEQ08..24 → F1/F2 hardening → Gate25 → lifecycle.
+# Local disposable only:
+#   B0 → SEQ07-B → SEQ08..24 → F1/F2 (local operational, NOT Gate25)
+#     → Gate25 local → lifecycle / authz / EC checkpoints
 # Namespace: TEST_ONLY_B1_FIVE_SERVICES_OPERATIONAL_E2E
 # NEVER Production/Staging write, Deploy, Publish, or student_visible cloud mutation.
+# NEVER apply original SEQ07; no silent fallback.
 
 $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+. (Join-Path $repo "tests\b1-delivery-chain\local-seq07b-through-24.ps1")
+
 $integrated = Join-Path $repo "tests\b1-integrated-runtime\pg"
 $rpcMatrix = Join-Path $repo "tests\b1-rpc-matrix\pg"
 $opsPg = Join-Path $PSScriptRoot "pg"
@@ -17,33 +22,6 @@ $releaseSha = "b63725e02d4199b46dee604be8f8c03f72c5d414"
 $artifactDir = Join-Path $repo ".tmp\b1-operational-e2e"
 New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
 
-function Get-LfSha256([string]$Path) {
-  $bytes = [IO.File]::ReadAllBytes($Path)
-  $norm = New-Object System.Collections.Generic.List[byte]
-  foreach ($b in $bytes) { if ($b -ne 13) { [void]$norm.Add($b) } }
-  return [BitConverter]::ToString(
-    [Security.Cryptography.SHA256]::Create().ComputeHash($norm.ToArray())
-  ).Replace('-','').ToLower()
-}
-
-function Invoke-PsqlFile([string]$Path) {
-  Write-Host "APPLY $(Split-Path $Path -Leaf)"
-  Get-Content -LiteralPath $Path -Raw |
-    docker exec -i $name psql -X -v ON_ERROR_STOP=1 -U postgres -d $database | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw "psql failed: $Path" }
-}
-
-function Invoke-PsqlText([string]$Sql) {
-  $Sql | docker exec -i $name psql -X -v ON_ERROR_STOP=1 -U postgres -d $database | Out-Null
-  if ($LASTEXITCODE -ne 0) { throw "psql text failed" }
-}
-
-function Invoke-PsqlCapture([string]$Sql) {
-  $out = $Sql | docker exec -i $name psql -X -At -v ON_ERROR_STOP=1 -U postgres -d $database
-  if ($LASTEXITCODE -ne 0) { throw "psql capture failed" }
-  return $out
-}
-
 $foundation = @(
   "docs/migration-drafts/REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql",
   "docs/migration-drafts/STUDENT-REQUEST-WORKFLOW-ACTOR-AUTHORIZATION-HARDENING.sql",
@@ -51,6 +29,14 @@ $foundation = @(
   "docs/migration-drafts/REQUEST-PROCESSING-DOMAINS-EXPANSION-SOURCE-01.sql",
   "docs/migration-drafts/REQUEST-B1-ATOMIC-SUBMIT-ACTION-04.sql"
 )
+
+# Ban probe: original SEQ07 path is rejected by shared guard.
+try {
+  Assert-B1PathIsNotOriginalSeq07 $script:B1OriginalSeq07Migration
+  throw "EXPECTED_BAN_OF_ORIGINAL_SEQ07_DID_NOT_FIRE"
+} catch {
+  if ("$_" -notmatch "FORBIDDEN_ORIGINAL_SEQ07_APPLY_PATH") { throw }
+}
 
 try {
   docker run --rm --detach --name $name `
@@ -76,9 +62,14 @@ try {
   if ($pg -notmatch "^17\.") { throw "Expected PostgreSQL 17, got $pg" }
   Write-Output "PG_VERSION=$pg"
 
-  Invoke-PsqlFile (Join-Path $rpcMatrix "10-minimal-schema.sql")
-  Invoke-PsqlFile (Join-Path $repo "tests\b1-first-delivery-sequential-chain\10-local-schema-align.sql")
-  foreach ($relative in $foundation) { Invoke-PsqlFile (Join-Path $repo $relative) }
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database `
+    -Path (Join-Path $rpcMatrix "10-minimal-schema.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database `
+    -Path (Join-Path $repo "tests\b1-first-delivery-sequential-chain\10-local-schema-align.sql")
+  foreach ($relative in $foundation) {
+    Assert-B1PathIsNotOriginalSeq07 $relative
+    Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $repo $relative)
+  }
 
   $stampPath = Join-Path $repo "docs\migration-drafts\REQUEST-B1-ATOMIC-CALLER-RELEASE-EVIDENCE-STAMP-01.sql"
   $stamp = Get-Content -LiteralPath $stampPath -Raw
@@ -95,81 +86,51 @@ try {
   $approved | docker exec -i $name psql -X -v ON_ERROR_STOP=1 -U postgres -d $database | Out-Null
   if ($LASTEXITCODE -ne 0) { throw "Harness-only release stamp failed" }
 
-  Invoke-PsqlFile (Join-Path $repo "supabase\migrations\20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql")
-  Invoke-PsqlFile (Join-Path $opsPg "05-namespace-marker.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database `
+    -Path (Join-Path $repo "supabase\migrations\20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database `
+    -Path (Join-Path $opsPg "05-namespace-marker.sql")
 
-  Write-Output "PHASE=B0_storage_sim"
-  Invoke-PsqlText @"
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'student-request-secure-attachments',
-  'student-request-secure-attachments',
-  false,
-  5242880,
-  ARRAY['application/pdf','image/jpeg','image/png']::text[]
-);
-"@
+  Invoke-B1B0PrivateBucketSim -ContainerName $name -Database $database
+  Invoke-B1Seq07bThrough24Chain -Repo $repo -ContainerName $name -Database $database
 
-  $map = Get-Content -LiteralPath (Join-Path $repo "docs\migration-drafts\b1-backend-verifiers\PROMOTION-MAP.json") -Raw |
-    ConvertFrom-Json
-  $seq07b = $map | Where-Object { $_.order -eq 7.5 } | Select-Object -First 1
-  if ((Get-LfSha256 (Join-Path $repo $seq07b.migration)) -ne $seq07b.migration_sha_lf) {
-    throw "SEQ07-B SHA drift"
-  }
-
-  $chain = @($seq07b) + @(
-    $map | Where-Object {
-      $_.order -ge 8 -and $_.order -le 24 -and $_.order -ne 20
-    } | Sort-Object order
-  )
-
-  foreach ($entry in $chain) {
-    $orderLabel = if ($entry.canonical_order_label) { $entry.canonical_order_label } else { [string]$entry.order }
-    Write-Output "PHASE=SEQ$orderLabel"
-    $migAbs = Join-Path $repo ($entry.migration -replace '/', '\')
-    $sha = Get-LfSha256 $migAbs
-    if ($sha -ne $entry.migration_sha_lf) { throw "SHA mismatch SEQ$orderLabel" }
-    Invoke-PsqlFile (Join-Path $repo ($entry.preflight -replace '/', '\'))
-    Invoke-PsqlFile $migAbs
-    Invoke-PsqlFile (Join-Path $repo ($entry.post_verifier -replace '/', '\'))
-
-    if ($entry.order -eq 7.5) {
-      $prev = $ErrorActionPreference; $ErrorActionPreference = "Continue"
-      Get-Content -LiteralPath $migAbs -Raw |
-        docker exec -i $name psql -X -v ON_ERROR_STOP=1 -U postgres -d $database 2>&1 | Out-Null
-      $ErrorActionPreference = $prev
-      if ($LASTEXITCODE -eq 0) { throw "SEQ07-B second apply unexpectedly succeeded" }
-      Write-Output "SEQ07B_SECOND_APPLY_REFUSED=PASS"
-    }
-    Write-Output "SEQ${orderLabel}=PASS sha=$sha"
-  }
-
-  # Post-manifest F1/F2 actor/action hardening (not Gate25; required for assignment guards)
-  Write-Output "PHASE=F1F2_actor_action_hardening"
-  Invoke-PsqlFile (Join-Path $repo "docs\migration-drafts\B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql")
+  # F1/F2: after SEQ24, within local operational E2E, NOT Gate25, NOT Production.
+  Invoke-B1F1F2HardeningLocalOnly -Repo $repo -ContainerName $name -Database $database
 
   Write-Output "PHASE=gate25_local_only"
-  Invoke-PsqlFile (Join-Path $rpcMatrix "30-pre-activation-assert.sql")
-  Invoke-PsqlFile (Join-Path $rpcMatrix "35-activate-workflows-local-only.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database `
+    -Path (Join-Path $rpcMatrix "30-pre-activation-assert.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database `
+    -Path (Join-Path $rpcMatrix "35-activate-workflows-local-only.sql")
   Write-Output "GATE25_LOCAL=PASS"
+  Write-Output "GATE25_IS_NOT_F1F2=PASS"
 
-  Invoke-PsqlText "SELECT set_config('application_name', '$namespace', false);"
-  Invoke-PsqlFile (Join-Path $integrated "10-e2e-helpers.sql")
-  Invoke-PsqlFile (Join-Path $integrated "20-position-assignment-fixtures.sql")
-  Invoke-PsqlFile (Join-Path $integrated "40-lifecycle-five-services.sql")
-  Invoke-PsqlFile (Join-Path $integrated "45-authz-negatives.sql")
-  Invoke-PsqlFile (Join-Path $integrated "50-draft-and-read-matrix.sql")
-  Invoke-PsqlFile (Join-Path $integrated "55-attachments-stub.sql")
-  Invoke-PsqlFile (Join-Path $integrated "60-enrollment-certificate-regression.sql")
-  Invoke-PsqlFile (Join-Path $opsPg "65-per-service-ec-checkpoints.sql")
-  Invoke-PsqlFile (Join-Path $integrated "70-summarize.sql")
-  Invoke-PsqlFile (Join-Path $opsPg "75-service-report-rows.sql")
+  Invoke-B1DockerPsqlText -ContainerName $name -Database $database `
+    -Sql "SELECT set_config('application_name', '$namespace', false);"
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "10-e2e-helpers.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "20-position-assignment-fixtures.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "40-lifecycle-five-services.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "45-authz-negatives.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "50-draft-and-read-matrix.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "55-attachments-stub.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "60-enrollment-certificate-regression.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $opsPg "65-per-service-ec-checkpoints.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $integrated "70-summarize.sql")
+  Invoke-B1DockerPsqlFile -ContainerName $name -Database $database -Path (Join-Path $opsPg "75-service-report-rows.sql")
 
-  $summary = (Invoke-PsqlCapture "select summary_line from b1_e2e.summary limit 1;").Trim()
-  $failCount = [int](Invoke-PsqlCapture "select count(*) from b1_e2e.results where status='FAIL';").Trim()
-  $completed = [int](Invoke-PsqlCapture "select services_completed from b1_e2e.summary limit 1;").Trim()
-  $svcPass = [int](Invoke-PsqlCapture "select count(*) from b1_ops_e2e.service_report where result='PASS';").Trim()
-  $reportCsv = Invoke-PsqlCapture @"
+  $summary = (
+    docker exec $name psql -X -At -U postgres -d $database -c "select summary_line from b1_e2e.summary limit 1;"
+  ).Trim()
+  $failCount = [int](
+    docker exec $name psql -X -At -U postgres -d $database -c "select count(*) from b1_e2e.results where status='FAIL';"
+  ).Trim()
+  $completed = [int](
+    docker exec $name psql -X -At -U postgres -d $database -c "select services_completed from b1_e2e.summary limit 1;"
+  ).Trim()
+  $svcPass = [int](
+    docker exec $name psql -X -At -U postgres -d $database -c "select count(*) from b1_ops_e2e.service_report where result='PASS';"
+  ).Trim()
+  $reportCsv = docker exec $name psql -X -At -U postgres -d $database -c @"
 select service_code || '|' || request_lifecycle || '|' || roles_assignments || '|' ||
        positive_rpc_actions || '|' || negative_rpc_actions || '|' || zero_mutation || '|' ||
        final_state || '|' || ui_smoke || '|' || enrollment_certificate_regression || '|' || result
@@ -181,6 +142,12 @@ order by service_code;
   $summary | Set-Content -LiteralPath (Join-Path $artifactDir "summary.txt") -Encoding utf8
 
   Write-Output "NAMESPACE=$namespace"
+  Write-Output "BOOTSTRAP=SEQ07B_THEN_SEQ08_TO_24"
+  Write-Output "ORIGINAL_SEQ07_ABSENT=PASS"
+  Write-Output "SEQ07B_APPLIED_EXACTLY_ONCE=PASS"
+  Write-Output "SEQ07B_SECOND_APPLY_REFUSED=PASS"
+  Write-Output "NO_SILENT_FALLBACK_TO_ORIGINAL_SEQ07=PASS"
+  Write-Output "F1F2_AFTER_SEQ24_NOT_GATE25=PASS"
   Write-Output "SUMMARY=$summary"
   Write-Output "SERVICES_COMPLETED=$completed"
   Write-Output "SERVICE_REPORT_PASS=$svcPass"

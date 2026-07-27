@@ -22,13 +22,19 @@ describe("B1 local operational E2E harness — source surface", () => {
     expect(existsSync(harness)).toBe(true);
     const body = readFileSync(harness, "utf8");
     expect(body).toContain("TEST_ONLY_B1_FIVE_SERVICES_OPERATIONAL_E2E");
-    expect(body).toContain("PROMOTION-MAP.json");
-    expect(body).toContain("7.5");
+    expect(body).toContain("local-seq07b-through-24.ps1");
+    expect(body).toContain("Invoke-B1Seq07bThrough24Chain");
+    expect(body).toContain("Invoke-B1F1F2HardeningLocalOnly");
     expect(body).toContain("35-activate-workflows-local-only.sql");
     expect(body).toContain("40-lifecycle-five-services.sql");
     expect(body).toContain("65-per-service-ec-checkpoints.sql");
+    expect(body).toContain("F1F2_AFTER_SEQ24_NOT_GATE25=PASS");
+    expect(body).toContain("GATE25_IS_NOT_F1F2=PASS");
     expect(body).toContain("docker stop");
     expect(body).not.toMatch(/supabase\s+db\s+push|force-push|student_visible\s*=\s*true/i);
+    expect(body).not.toMatch(
+      /Invoke-B1DockerPsqlFile[\s\S]{0,180}20260725110000_b1_07_secure_attachments_source_01/,
+    );
   });
 
   it("covers five services and protects enrollment_certificate", () => {
