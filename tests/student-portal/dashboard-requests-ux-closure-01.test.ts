@@ -80,8 +80,8 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
   it("4 — official disabled listing can appear but is not actionable", () => {
     const rows = filterAvailableRequestTypesForStudentPage([
       {
-        code: "excused_absence",
-        name_ar: "عذر غياب",
+        code: "grade_appeal",
+        name_ar: "تظلم درجة",
         description_ar: null,
         is_eligible: false,
         is_disabled: true,
@@ -92,6 +92,31 @@ describe("STUDENT-PORTAL-DASHBOARD-REQUESTS-UX-CLOSURE-01", () => {
     expect(rows).toHaveLength(1);
     expect(isRequestTypeActionable(rows[0]!)).toBe(false);
   });
+
+  it("4b — eligible hidden-mode rows stay visible; B1 services are not duplicated", () => {
+    const rows = filterAvailableRequestTypesForStudentPage([
+      {
+        code: "enrollment_certificate",
+        name_ar: "شهادة قيد",
+        description_ar: null,
+        is_eligible: true,
+        is_disabled: false,
+        ineligible_display_mode: "hidden",
+        sort_order: 1,
+      },
+      {
+        code: "department_transfer",
+        name_ar: "تحويل",
+        description_ar: null,
+        is_eligible: true,
+        is_disabled: false,
+        ineligible_display_mode: "hidden",
+        sort_order: 9,
+      },
+    ]);
+    expect(rows.map((r) => r.code)).toEqual(["enrollment_certificate"]);
+  });
+
 
   it("5 — empty vs error copy exist as distinct strings on page", () => {
     const page = readFileSync(join(ROOT, "src/routes/student.requests.index.tsx"), "utf8");
