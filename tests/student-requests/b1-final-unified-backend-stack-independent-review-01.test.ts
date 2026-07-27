@@ -26,12 +26,21 @@ describe("PR227 final unified backend stack independent review", () => {
       migrations: Array<{ sequence_order: number; filename: string; sha256: string }>;
     };
 
-    const finalEntries = promotion.filter(({ order }) => order >= 21);
+    // Orders 21-27 are promoted into supabase/migrations; order 28 is source-only and unapplied.
+    const finalEntries = promotion.filter(({ order }) => order >= 21 && order <= 27);
     expect(finalEntries.map(({ order }) => order)).toEqual([21, 22, 23, 24, 25, 26, 27]);
+    const sourceOnly = promotion.filter(({ order }) => order >= 28);
+    expect(sourceOnly.map(({ order }) => order)).toEqual([28]);
+    for (const entry of sourceOnly) {
+      expect(entry.migration).toBeNull();
+      expect(entry.migration_sha_lf).toBeNull();
+      expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
+    }
     expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
       Array.from({ length: 27 }, (_, index) => index + 1),
     );
     expect(manifest.global_policies.activation_gate).toMatch(/gate 25/);
+
 
     for (const entry of finalEntries) {
       expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
