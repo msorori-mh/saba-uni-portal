@@ -5901,6 +5901,10 @@ export type Database = {
         Args: { p_attachment_id: string }
         Returns: Json
       }
+      b1_expected_secure_attachment_field: {
+        Args: { p_request_type: string }
+        Returns: string
+      }
       build_enrollment_certificate_issuance_snapshot: {
         Args: { p_student_profile_id: string }
         Returns: Json
