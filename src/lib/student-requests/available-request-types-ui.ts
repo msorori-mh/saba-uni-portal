@@ -18,11 +18,23 @@ function isHiddenMode(mode: string | null | undefined): boolean {
   return m === "hide" || m === "hidden";
 }
 
+/** Codes rendered by the dedicated B1 «الخدمات الأكاديمية» list — not duplicated above. */
+const B1_LIST_CODES = new Set([
+  "enrollment_suspension",
+  "excused_absence",
+  "department_transfer",
+  "transfer",
+  "final_chance",
+  "extra_chance",
+  "file_withdrawal",
+]);
+
 /**
  * Rows the student may see on the requests page.
- * - Drops hidden modes (e.g. enrollment_certificate when catalog hides it).
+ * - "hidden" mode hides the row only when the student is INELIGIBLE.
  * - Keeps actionable eligible types.
  * - Keeps officially disabled listings (RPC ineligible + is_disabled).
+ * - Skips B1 services, which render in their own section.
  * Inactive / non-visible types never arrive from the RPC.
  */
 export function filterAvailableRequestTypesForStudentPage<T extends AvailableRequestTypeRow>(
@@ -30,13 +42,15 @@ export function filterAvailableRequestTypesForStudentPage<T extends AvailableReq
 ): T[] {
   return [...rows]
     .filter((r) => {
-      if (isHiddenMode(r.ineligible_display_mode)) return false;
+      if (B1_LIST_CODES.has(r.code)) return false;
       if (r.is_eligible && !r.is_disabled) return true;
+      if (isHiddenMode(r.ineligible_display_mode)) return false;
       if (!r.is_eligible && r.is_disabled) return true;
       return false;
     })
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 }
+
 
 export function isRequestTypeActionable(
   row: Pick<AvailableRequestTypeRow, "is_eligible" | "is_disabled">,
