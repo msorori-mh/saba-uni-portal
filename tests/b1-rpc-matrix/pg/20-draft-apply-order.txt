@@ -37,7 +37,7 @@
 23 docs/migration-drafts/B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql # blob c80e74efe9761e9efe352dce4f208b6e73c579f4
 24 docs/migration-drafts/B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql # blob b1cc3d0fd48ac2b92e485136c5e1600f763592e6
 25 docs/migration-drafts/B1-ACADEMIC-EFFECT-MARKERS-01.sql # blob 006c93738d1a5ab3add284877c8354877d6bb766
-26 docs/migration-drafts/B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql # blob 01dfd3c7c962b86c1f2e05bad35ffdfa43e7f19c
+26 docs/migration-drafts/B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql # blob 5a3ccb3a59b221c355ff7221bcbe2ee18247ccf4
 27 docs/migration-drafts/B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-01.sql # blob b66959160ce4bc996a38ca77eabe92fcc16b11cc
 # Post-manifest F1/F2 actor/action hardening (NOT activation gate 25):
 90 docs/migration-drafts/B1-FIVE-SERVICES-ACTOR-ACTION-ASSIGNMENT-HARDENING-01.sql # blob cedf8d2149224e17eb5b34cc2b358f073ae1a2d0

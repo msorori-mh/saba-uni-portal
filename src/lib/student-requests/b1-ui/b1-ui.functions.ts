@@ -15,9 +15,13 @@ import {
   SECURE_ATTACHMENT_FIELD_KEYS,
   SECURE_ATTACHMENT_MAX_BYTES,
   SECURE_ATTACHMENT_SIGNED_URL_SECONDS,
-  SECURE_ATTACHMENTS_RUNTIME_AVAILABLE,
   SECURE_ATTACHMENT_ERRORS,
 } from "@/lib/student-requests/secure-attachments-contract";
+import {
+  loadSecureAttachmentsRuntimeCapability,
+  parseOwnedStudentRequestAttachmentUpload,
+  SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR,
+} from "@/lib/student-requests/secure-attachments-capability";
 import { mapBackendRowsToB1Availability } from "./availability";
 import {
   B1_ACT_ON_STEP_ACTIONS,
@@ -245,9 +249,12 @@ const uploadIntentSchema = z
   })
   .strict();
 
-function ensureSecureAttachmentsRuntime(): void {
-  if (!SECURE_ATTACHMENTS_RUNTIME_AVAILABLE) {
-    throw new Error(SECURE_ATTACHMENT_ERRORS.SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE);
+async function ensureSecureAttachmentsRuntime(session: SessionRpc): Promise<void> {
+  const capability = await loadSecureAttachmentsRuntimeCapability(session);
+  if (!capability.available) {
+    throw new Error(
+      `${SECURE_ATTACHMENT_ERRORS.SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE}: ${SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR}`,
+    );
   }
 }
 
@@ -255,8 +262,8 @@ export const uploadB1UiRequestAttachmentFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => uploadIntentSchema.parse(input))
   .handler(async ({ data, context }): Promise<B1AttachmentMeta> => {
-    ensureSecureAttachmentsRuntime();
     const session = asSessionRpc(context.supabase);
+    await ensureSecureAttachmentsRuntime(session);
     const intent = await rpcCreateStudentRequestAttachmentUploadIntent(session, {
       studentRequestId: data.studentRequestId,
       fieldKey: data.fieldKey as (typeof SECURE_ATTACHMENT_FIELD_KEYS)[number],
@@ -266,9 +273,9 @@ export const uploadB1UiRequestAttachmentFn = createServerFn({ method: "POST" })
       checksumSha256: data.checksumSha256 ?? null,
     });
 
-    const owned = await rpcGetOwnedStudentRequestAttachmentUpload(session, intent.attachment_id);
-    const row = owned[0] as Record<string, unknown> | undefined;
-    if (!row || row.upload_status !== "pending" || row.mime_type !== data.mimeType) {
+    const ownedRaw = await rpcGetOwnedStudentRequestAttachmentUpload(session, intent.attachment_id);
+    const row = parseOwnedStudentRequestAttachmentUpload(ownedRaw);
+    if (row.upload_status !== "pending" || row.mime_type !== data.mimeType) {
       throw new Error(SECURE_ATTACHMENT_ERRORS.ATTACHMENT_OBJECT_MISMATCH);
     }
     const bytes = Buffer.from(data.fileBase64, "base64");
@@ -309,9 +316,10 @@ export const removeB1UiRequestAttachmentFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => removeSchema.parse(input))
   .handler(async ({ data, context }): Promise<void> => {
-    ensureSecureAttachmentsRuntime();
+    const session = asSessionRpc(context.supabase);
+    await ensureSecureAttachmentsRuntime(session);
     await rpcRejectStudentRequestAttachment(
-      asSessionRpc(context.supabase),
+      session,
       data.attachmentId,
       "REMOVED_BY_STUDENT",
     );
@@ -323,11 +331,9 @@ export const listB1UiRequestAttachmentsFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => listAttachmentsSchema.parse(input))
   .handler(async ({ data, context }) => {
-    ensureSecureAttachmentsRuntime();
-    return rpcListMyStudentRequestAttachments(
-      asSessionRpc(context.supabase),
-      data.studentRequestId,
-    );
+    const session = asSessionRpc(context.supabase);
+    await ensureSecureAttachmentsRuntime(session);
+    return rpcListMyStudentRequestAttachments(session, data.studentRequestId);
   });
 
 const downloadAuthSchema = z.object({ attachmentId: z.string().uuid() }).strict();
@@ -373,7 +379,8 @@ export const authorizeB1UiAttachmentDownloadFn = createServerFn({ method: "POST"
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => downloadAuthSchema.parse(input))
   .handler(async ({ data, context }) => {
-    ensureSecureAttachmentsRuntime();
+    const session = asSessionRpc(context.supabase);
+    await ensureSecureAttachmentsRuntime(session);
     return createAuthorizedB1AttachmentDownload(
       context.supabase as unknown as AuthorizedDownloadClient,
       data.attachmentId,

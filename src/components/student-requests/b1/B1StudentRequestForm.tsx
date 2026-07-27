@@ -8,6 +8,10 @@ import {
 } from "@/lib/student-requests/request-form-registry";
 import { SECURE_ATTACHMENT_MAX_BYTES } from "@/lib/student-requests/secure-attachments-contract";
 import {
+  resolveSecureAttachmentsRuntimeAvailable,
+  SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR,
+} from "@/lib/student-requests/secure-attachments-capability";
+import {
   B1AdapterError,
   B1_KNOWN_VALUE_LABELS_AR,
   b1AdapterErrorMessageAr,
@@ -50,6 +54,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   const [submitting, setSubmitting] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [attachmentsRuntimeAvailable, setAttachmentsRuntimeAvailable] = useState(false);
   const [success, setSuccess] = useState<{ requestId: string; requestNumber: string } | null>(
     null,
   );
@@ -80,12 +85,26 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     void Promise.all([
       adapter.getAvailableB1RequestTypes(),
       adapter.getB1RequestFormOptions(serviceCode),
+      adapter.getB1RuntimeCapability(),
     ])
-      .then(async ([availability, loadedOptions]) => {
+      .then(async ([availability, loadedOptions, capability]) => {
         const available = availability.some(
           (item) => item.code === serviceCode && item.studentVisible && item.runtimeAvailable,
         );
         if (!available) throw new B1AdapterError("ACTIVATION_BLOCKED", "Service inactive");
+
+        const attachmentsReady = resolveSecureAttachmentsRuntimeAvailable({
+          capabilityAvailable: capability.available === true,
+          reads: capability.reads,
+          // UI mirrors secure-read attachments readiness; server probes the four RPCs on upload.
+          rpcPresence: {
+            create_intent: capability.reads.includes("attachments"),
+            upload: capability.reads.includes("attachments"),
+            complete: capability.reads.includes("attachments"),
+            download: capability.reads.includes("attachments"),
+          },
+        }).available;
+        setAttachmentsRuntimeAvailable(attachmentsReady);
 
         // Prefer an open draft/returned request for this service, then create (server restores one draft).
         const listed = await adapter.listB1StudentRequests();
@@ -221,6 +240,11 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     setUploadingKey(attachmentKey);
     setUploadError(null);
     lastFailedFile.current = { key: attachmentKey, file };
+    if (!attachmentsRuntimeAvailable) {
+      setUploadError(SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR);
+      setUploadingKey(null);
+      throw new B1AdapterError("BACKEND_CONTRACT_PENDING", "SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE");
+    }
     try {
       const uploaded = await adapter.uploadB1RequestAttachment(
         draft.requestId,
@@ -237,7 +261,12 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
       });
       lastFailedFile.current = null;
     } catch (error) {
-      const message = b1AdapterErrorMessageAr(error);
+      const raw = error instanceof Error ? error.message : "";
+      const message = /SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE|create_intent|upload|complete|download/i.test(
+        raw,
+      )
+        ? SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR
+        : b1AdapterErrorMessageAr(error);
       setUploadError(message);
       throw error;
     } finally {
@@ -363,38 +392,44 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
                 {attachment.labelAr}
                 {attachment.required ? " *" : ""}
               </span>
-              <B1AttachmentUploader
-                attachments={draft.attachments.filter(
-                  (item) => item.attachmentType === attachment.key,
-                )}
-                uploading={uploadingKey === attachment.key}
-                maxSizeMB={MAX_SIZE_MB}
-                onUpload={async (file) => {
-                  await uploadAttachment(attachment.key, file);
-                }}
-                onRetry={
-                  lastFailedFile.current?.key === attachment.key
-                    ? async () => {
-                        const pending = lastFailedFile.current;
-                        if (!pending) return;
-                        await uploadAttachment(pending.key, pending.file);
-                      }
-                    : undefined
-                }
-                onRemove={async (attachmentId) => {
-                  await adapter.removeB1RequestAttachment(draft.requestId, attachmentId);
-                  setDraft((current) =>
-                    current
-                      ? {
-                          ...current,
-                          attachments: current.attachments.filter(
-                            (item) => item.attachmentId !== attachmentId,
-                          ),
+              {attachmentsRuntimeAvailable ? (
+                <B1AttachmentUploader
+                  attachments={draft.attachments.filter(
+                    (item) => item.attachmentType === attachment.key,
+                  )}
+                  uploading={uploadingKey === attachment.key}
+                  maxSizeMB={MAX_SIZE_MB}
+                  onUpload={async (file) => {
+                    await uploadAttachment(attachment.key, file);
+                  }}
+                  onRetry={
+                    lastFailedFile.current?.key === attachment.key
+                      ? async () => {
+                          const pending = lastFailedFile.current;
+                          if (!pending) return;
+                          await uploadAttachment(pending.key, pending.file);
                         }
-                      : current,
-                  );
-                }}
-              />
+                      : undefined
+                  }
+                  onRemove={async (attachmentId) => {
+                    await adapter.removeB1RequestAttachment(draft.requestId, attachmentId);
+                    setDraft((current) =>
+                      current
+                        ? {
+                            ...current,
+                            attachments: current.attachments.filter(
+                              (item) => item.attachmentId !== attachmentId,
+                            ),
+                          }
+                        : current,
+                    );
+                  }}
+                />
+              ) : (
+                <p role="alert" className="text-xs font-bold text-destructive">
+                  {SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR}
+                </p>
+              )}
               {uploadError && uploadingKey === null ? (
                 <p role="alert" className="text-xs font-bold text-destructive">
                   {uploadError}

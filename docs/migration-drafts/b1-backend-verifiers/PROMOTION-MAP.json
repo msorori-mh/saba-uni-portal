@@ -8,7 +8,7 @@
         "preflight": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql",
         "apply_status": "SUPERSEDED_NOT_FOR_LOVABLE_CLOUD_APPLY",
-        "note": "File bytes MUST remain unmodified (pin 66ba4c96…). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
+        "note": "File bytes MUST remain unmodified (pin 66ba4c96\u2026). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
     },
     {
         "order": 7.5,
@@ -20,7 +20,7 @@
         "preflight": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql",
         "prerequisite_non_migration": "B0 Lovable Storage tool: create private bucket student-request-secure-attachments (public=false, 5MiB, pdf/jpeg/png) BEFORE applying 7B",
-        "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only — never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
+        "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only \u2014 never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
     },
     {
         "order": 8,
@@ -194,8 +194,8 @@
         "order": 26,
         "draft": "B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
         "migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
-        "draft_sha_lf": "73f7531245705b7c5fb7bbd9e56c3525cf666e02bff8eb914b44e373dd509668",
-        "migration_sha_lf": "d8a49c23d95118766360dfdf33153e69bdcfb40f8541c72f98db15adb63a71d7",
+        "draft_sha_lf": "fa1e94456e5b8204279fbb81ba2e7d0685efd0805bee59ebe79fd0a3b335cfc0",
+        "migration_sha_lf": "5b3c06fdee76b033d53674a548246d7e0913c61a2e58b438885b6ff6623c7aef",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-POST-VERIFIER.sql"
     },

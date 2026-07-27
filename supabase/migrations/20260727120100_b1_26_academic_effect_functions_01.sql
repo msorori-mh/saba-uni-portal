@@ -19,8 +19,8 @@ BEGIN
   SELECT s.* INTO v_step FROM public.student_request_workflow_steps s JOIN public.request_type_workflow_steps c ON c.id=s.workflow_step_id
    WHERE s.student_request_id=p_request_id AND c.step_key='registrar_apply' AND c.action_type='apply_decision'
      AND s.status IN ('active','completed') ORDER BY (s.status='active') DESC LIMIT 1 FOR UPDATE;
-  IF NOT FOUND OR NOT CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
-    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
+  IF NOT FOUND OR NOT (CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
+    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END) THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
   IF EXISTS (SELECT 1 FROM public.student_request_workflow_steps p WHERE p.student_request_id=p_request_id
     AND p.step_order<v_step.step_order AND p.status NOT IN ('completed','skipped')) THEN RAISE EXCEPTION 'B1_PREDECESSOR_INCOMPLETE'; END IF;
   SELECT * INTO v_details FROM public.enrollment_suspension_details WHERE request_id=p_request_id FOR UPDATE;
@@ -55,8 +55,8 @@ BEGIN
   SELECT s.* INTO v_step FROM public.student_request_workflow_steps s JOIN public.request_type_workflow_steps c ON c.id=s.workflow_step_id
    WHERE s.student_request_id=p_request_id AND c.step_key='record_apply' AND c.action_type='apply_decision'
      AND s.status IN ('active','completed') ORDER BY (s.status='active') DESC LIMIT 1 FOR UPDATE;
-  IF NOT FOUND OR NOT CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
-    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
+  IF NOT FOUND OR NOT (CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
+    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END) THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
   IF EXISTS (SELECT 1 FROM public.student_request_workflow_steps p WHERE p.student_request_id=p_request_id
     AND p.step_order<v_step.step_order AND p.status NOT IN ('completed','skipped')) THEN RAISE EXCEPTION 'B1_PREDECESSOR_INCOMPLETE'; END IF;
   SELECT * INTO v_details FROM public.absence_excuse_details WHERE request_id=p_request_id FOR UPDATE;
@@ -87,8 +87,8 @@ BEGIN
   SELECT s.* INTO v_step FROM public.student_request_workflow_steps s JOIN public.request_type_workflow_steps c ON c.id=s.workflow_step_id
    WHERE s.student_request_id=p_request_id AND c.step_key='registrar_apply' AND c.action_type='apply_decision'
      AND s.status IN ('active','completed') ORDER BY (s.status='active') DESC LIMIT 1 FOR UPDATE;
-  IF NOT FOUND OR NOT CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
-    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
+  IF NOT FOUND OR NOT (CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
+    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END) THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
   IF EXISTS (SELECT 1 FROM public.student_request_workflow_steps p WHERE p.student_request_id=p_request_id
     AND p.step_order<v_step.step_order AND p.status NOT IN ('completed','skipped')) THEN RAISE EXCEPTION 'B1_PREDECESSOR_INCOMPLETE'; END IF;
   SELECT * INTO v_details FROM public.transfer_request_details WHERE request_id=p_request_id FOR UPDATE;
@@ -120,8 +120,8 @@ BEGIN
   SELECT s.* INTO v_step FROM public.student_request_workflow_steps s JOIN public.request_type_workflow_steps c ON c.id=s.workflow_step_id
    WHERE s.student_request_id=p_request_id AND c.step_key='registrar_apply' AND c.action_type='apply_decision'
      AND s.status IN ('active','completed') ORDER BY (s.status='active') DESC LIMIT 1 FOR UPDATE;
-  IF NOT FOUND OR NOT CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
-    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
+  IF NOT FOUND OR NOT (CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
+    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END) THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
   IF EXISTS (SELECT 1 FROM public.student_request_workflow_steps p WHERE p.student_request_id=p_request_id
     AND p.step_order<v_step.step_order AND p.status NOT IN ('completed','skipped')) THEN RAISE EXCEPTION 'B1_PREDECESSOR_INCOMPLETE'; END IF;
   SELECT * INTO v_details FROM public.extra_chance_details WHERE request_id=p_request_id FOR UPDATE;
@@ -153,8 +153,8 @@ BEGIN
   SELECT s.* INTO v_step FROM public.student_request_workflow_steps s JOIN public.request_type_workflow_steps c ON c.id=s.workflow_step_id
    WHERE s.student_request_id=p_request_id AND c.step_key='registrar_apply' AND c.action_type='apply_decision'
      AND s.status IN ('active','completed') ORDER BY (s.status='active') DESC LIMIT 1 FOR UPDATE;
-  IF NOT FOUND OR NOT CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
-    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
+  IF NOT FOUND OR NOT (CASE WHEN v_step.status='completed' THEN v_step.completed_by=v_uid
+    ELSE public.can_current_user_act_on_step(v_step.id,'apply_decision') END) THEN RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
   IF EXISTS (SELECT 1 FROM public.student_request_workflow_steps p WHERE p.student_request_id=p_request_id
     AND p.step_order<v_step.step_order AND p.status NOT IN ('completed','skipped')) THEN RAISE EXCEPTION 'B1_PREDECESSOR_INCOMPLETE'; END IF;
   SELECT * INTO v_details FROM public.file_withdrawal_details WHERE request_id=p_request_id FOR UPDATE;

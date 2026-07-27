@@ -2267,11 +2267,11 @@
    "plan_order": null,
    "sequence_order": 26,
    "sequence_predecessor": "B1-ACADEMIC-EFFECT-MARKERS-25",
-   "source_sha": "01dfd3c7c962b86c1f2e05bad35ffdfa43e7f19c",
+   "source_sha": "5a3ccb3a59b221c355ff7221bcbe2ee18247ccf4",
    "source_sha_provenance": "git blob SHA-1 of LF-normalized B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
-   "sha256": "73f7531245705b7c5fb7bbd9e56c3525cf666e02bff8eb914b44e373dd509668",
+   "sha256": "fa1e94456e5b8204279fbb81ba2e7d0685efd0805bee59ebe79fd0a3b335cfc0",
    "sha256_provenance": "locally computed SHA-256 of LF-normalized draft bytes; matches PROMOTION-MAP order 26 draft_sha_lf",
-   "byte_size": 19206,
+   "byte_size": 19216,
    "dependencies": [
     "B1-ACADEMIC-EFFECT-MARKERS-25"
    ],
@@ -2337,7 +2337,7 @@
    "source_promotion": {
     "track": "B1-ACADEMIC-EFFECT-FUNCTIONS-26",
     "promoted_migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
-    "migration_sha_lf": "d8a49c23d95118766360dfdf33153e69bdcfb40f8541c72f98db15adb63a71d7",
+    "migration_sha_lf": "5b3c06fdee76b033d53674a548246d7e0913c61a2e58b438885b6ff6623c7aef",
     "verifiers_dir": "docs/migration-drafts/b1-backend-verifiers/",
     "promotion_map_order": 26
    }

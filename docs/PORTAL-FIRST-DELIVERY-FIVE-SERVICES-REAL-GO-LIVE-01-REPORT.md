@@ -2,13 +2,14 @@
 
 ## Decision
 
-**PASS_REAL_GO_LIVE_SOURCE_PR_READY**
+**PASS_PR267_REAL_GO_LIVE_REMEDIATION_READY**
 
 ```
 NO_PRODUCTION_WRITE
 SOURCE_ONLY
 NO_STUDENT_VISIBLE_MUTATION_IN_THIS_PR
 NO_DEPLOY
+FAIL_CLOSED_ATTACHMENTS_CAPABILITY
 ```
 
 ## Scope
@@ -75,9 +76,10 @@ Non-migration activation remains **gate 25** (after sequence 27 verifies green).
 | `bun test` (full) | PASS (1893) |
 | `bun run build` | PASS |
 | `git diff --check` | PASS |
-| `tests/b1-academic-effects/run-harness.ps1` | PASS_B1_ACADEMIC_EFFECT_MARKERS_HARNESS |
+| `tests/b1-academic-effects/run-harness.ps1` | PASS_B1_ACADEMIC_EFFECTS_AUTHZ_MATRIX (positive=5/5 deny=4/4 zero=4/4 idempotent=5/5 rollback=PASS EC=NONE) |
 | Browser CDP smoke `tests/student-requests/b1-real-app-browser-smoke/run.ts` | PASS_PR261_REAL_APP_HTTP_BROWSER_SMOKE |
 | Source contract | `tests/student-requests/b1-academic-effects-go-live-01.test.ts` |
+| Attachments capability | fail-closed via `get_b1_secure_read_runtime_capability` + create_intent/upload/complete/download RPC probes |
 
 ## Assumptions
 

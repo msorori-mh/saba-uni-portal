@@ -250,15 +250,16 @@ export async function rpcListMyStudentRequestAttachments(
   return (data ?? []) as unknown[];
 }
 
+/** Returns the raw RPC payload (object or array). Callers must parse with parseOwnedStudentRequestAttachmentUpload. */
 export async function rpcGetOwnedStudentRequestAttachmentUpload(
   client: B1RpcClient,
   attachmentId: string,
-): Promise<unknown[]> {
+): Promise<unknown> {
   const { data, error } = await client.rpc("get_owned_student_request_attachment_upload", {
     p_attachment_id: attachmentId,
   });
   if (error) throw new Error(error.message ?? "get_owned_student_request_attachment_upload failed");
-  return Array.isArray(data) ? data : data ? [data] : [];
+  return data;
 }
 
 export async function rpcRejectStudentRequestAttachment(
