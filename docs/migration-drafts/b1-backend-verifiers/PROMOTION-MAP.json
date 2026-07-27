@@ -180,5 +180,32 @@
         "preflight": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-POST-VERIFIER.sql",
         "note": "Null-safe impact_acknowledgment / terms_acknowledgment guards. Activation gate remains 25."
+    },
+    {
+        "order": 25,
+        "draft": "B1-ACADEMIC-EFFECT-MARKERS-01.sql",
+        "migration": "supabase/migrations/20260727120000_b1_25_academic_effect_markers_01.sql",
+        "draft_sha_lf": "fc42a2c6cf8e26a7565494c5eea00c6f72323f9dd66db792abd6cced3b7f57f4",
+        "migration_sha_lf": "0184c9483a39ac8a274a7f65ae0394211245a3ba27b98c401d9f65b48b908109",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-POST-VERIFIER.sql"
+    },
+    {
+        "order": 26,
+        "draft": "B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
+        "migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
+        "draft_sha_lf": "73f7531245705b7c5fb7bbd9e56c3525cf666e02bff8eb914b44e373dd509668",
+        "migration_sha_lf": "d8a49c23d95118766360dfdf33153e69bdcfb40f8541c72f98db15adb63a71d7",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-POST-VERIFIER.sql"
+    },
+    {
+        "order": 27,
+        "draft": "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-01.sql",
+        "migration": "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
+        "draft_sha_lf": "0b29034dd3d30d4e2e54516d09b53be87ec58a175a9b187db7203853f28b0937",
+        "migration_sha_lf": "7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d",
+        "preflight": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-PREFLIGHT.sql",
+        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-POST-VERIFIER.sql"
     }
 ]
