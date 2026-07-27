@@ -78,7 +78,7 @@ BEGIN
       RAISE EXCEPTION 'غير مصرح بالوصول إلى هذا الطلب' USING ERRCODE = '42501';
     END IF;
   ELSE
-    -- B1 PATH - no admin / system_admin / registrar / dean / broad-role bypass.
+    -- B1 PATH - strict direct-assignee only; every broad-role bypass removed.
     -- (9) expected request status: a payment step can only exist on a live request.
     IF v_request.status NOT IN ('submitted', 'in_progress', 'under_review', 'pending_payment') THEN
       RAISE EXCEPTION 'B1_REQUEST_STATUS_NOT_ACTIONABLE:%', v_request.status USING ERRCODE = '42501';
