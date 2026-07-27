@@ -40,6 +40,19 @@ describe("B1 file withdrawal details 05A draft", () => {
     expect(sql).toContain("NOT c.relforcerowsecurity");
   });
 
+  it("fail-safe revokes sandbox_exec when present and never allowlists it", () => {
+    const migration = readFileSync(
+      join(process.cwd(), "supabase", "migrations", "20260725110400_b1_11_file_withdrawal_details_05a.sql"),
+      "utf8",
+    );
+    for (const body of [sql, migration]) {
+      expect(body).toContain("REVOKE ALL ON TABLE public.file_withdrawal_details FROM sandbox_exec");
+      expect(body).toContain("IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec')");
+      expect(body).toMatch(/rolname IN \('authenticated','service_role'\)/);
+      expect(body).not.toMatch(/GRANT\s+.*\bTO\s+sandbox_exec\b/i);
+    }
+  });
+
   it("contains no financial ledger or destructive data operation", () => {
     expect(sql).not.toMatch(/fee_type|amount|currency|invoice|gateway|balance/i);
     expect(sql).not.toMatch(/DELETE\s+FROM|TRUNCATE|DROP\s+TABLE/i);

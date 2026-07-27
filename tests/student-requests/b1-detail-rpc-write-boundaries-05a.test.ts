@@ -34,6 +34,15 @@ describe("B1 detail RPC-write boundaries 05A",()=>{
     expect(sql).toContain("B1_DETAIL_ACL_INVENTORY_MISMATCH");
     expect(sql).toContain("NO FORCE ROW LEVEL SECURITY");
   });
+  it("fail-safe revokes sandbox_exec per table when present and never allowlists it",()=>{
+    const migration=readFileSync(join(process.cwd(),"supabase","migrations","20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql"),"utf8");
+    for(const body of [sql,migration]){
+      expect(body).toContain("EXECUTE format('REVOKE ALL ON TABLE public.%I FROM sandbox_exec', v_table)");
+      expect(body).toContain("IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec')");
+      expect(body).toMatch(/rolname IN \('authenticated','service_role'\)/);
+      expect(body).not.toMatch(/rolname IN \('[^']*'sandbox_exec[^']*'\)/);
+    }
+  });
   it("contains no data mutation, activation, or financial fields",()=>{
     expect(sql).not.toMatch(/INSERT\s+INTO|UPDATE\s+public|DELETE\s+FROM|TRUNCATE|student_visible|fee_type|amount|currency|invoice|gateway|balance/i);
   });

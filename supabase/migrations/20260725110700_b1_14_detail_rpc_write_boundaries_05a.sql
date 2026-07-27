@@ -36,6 +36,10 @@ BEGIN
     EXECUTE format('ALTER TABLE public.%I NO FORCE ROW LEVEL SECURITY',v_table);
     EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC,anon,authenticated,service_role',v_table);
     EXECUTE format('GRANT SELECT ON TABLE public.%I TO authenticated,service_role',v_table);
+    -- Fail-safe for platform default ACL. Fixed role name only; never allowlisted.
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec') THEN
+      EXECUTE format('REVOKE ALL ON TABLE public.%I FROM sandbox_exec', v_table);
+    END IF;
 
     IF EXISTS (SELECT 1 FROM pg_policies
       WHERE schemaname='public' AND tablename=v_table
