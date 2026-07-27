@@ -57,6 +57,25 @@ function knownCodeIn(message: string): string | null {
   return B1_SECURE_DRAFT_KNOWN_CODES.find((code) => message.includes(code)) ?? null;
 }
 
+/**
+ * Controlled domain-eligibility messages raised by the backend validators.
+ * They carry no student data and must reach the adapter so the student sees a
+ * precise Arabic reason instead of the "service disabled" message.
+ */
+const B1_ELIGIBILITY_PATTERNS: readonly RegExp[] = [
+  /suspension request: student is not currently active/i,
+  /transfer request: student is currently suspended/i,
+  /reinstatement request: student is not currently suspended/i,
+  /student profile is not active/i,
+];
+
+export const B1_ELIGIBILITY_CODE = "B1_ELIGIBILITY_BLOCKED" as const;
+
+function eligibilityIn(message: string): string | null {
+  return B1_ELIGIBILITY_PATTERNS.some((re) => re.test(message)) ? message : null;
+}
+
+
 type ZodLikeIssue = { path?: unknown[]; code?: string };
 
 function zodIssuePaths(error: unknown): string[] | null {
