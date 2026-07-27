@@ -147,9 +147,10 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     try {
       const saved = await adapter.saveB1RequestDraft(
         current.requestId,
-        valuesRef.current,
+        withSecureAttachmentReferences(serviceCode, valuesRef.current, current.attachments),
         current.updatedAt,
       );
+
       setDraft(saved);
       setSaveState("saved");
     } catch (error) {
