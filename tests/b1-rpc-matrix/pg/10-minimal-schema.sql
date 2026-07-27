@@ -509,7 +509,7 @@ CREATE TABLE public.student_extra_chances (
   UNIQUE (student_profile_id, academic_year_id, semester_id, chance_type)
 );
 
--- Academic-effect substrate required by SEQ25–27 apply_decision terminals.
+-- Academic-effect substrate required by SEQ25-27 apply_decision terminals.
 CREATE TABLE public.levels (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid()
 );
