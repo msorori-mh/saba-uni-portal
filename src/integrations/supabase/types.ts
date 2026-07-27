@@ -788,6 +788,60 @@ export type Database = {
           },
         ]
       }
+      b1_e2e_assignment_snapshot: {
+        Row: {
+          assignment_id: string
+          assignment_type: string
+          captured_at: string
+          department_id: string | null
+          ends_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_active: boolean
+          position_assignment_id: string | null
+          role_id: string | null
+          staff_profile_id: string | null
+          starts_at: string | null
+          tag: string
+          unit_id: string
+          user_id: string | null
+        }
+        Insert: {
+          assignment_id: string
+          assignment_type: string
+          captured_at?: string
+          department_id?: string | null
+          ends_at?: string | null
+          faculty_profile_id?: string | null
+          id?: string
+          is_active: boolean
+          position_assignment_id?: string | null
+          role_id?: string | null
+          staff_profile_id?: string | null
+          starts_at?: string | null
+          tag: string
+          unit_id: string
+          user_id?: string | null
+        }
+        Update: {
+          assignment_id?: string
+          assignment_type?: string
+          captured_at?: string
+          department_id?: string | null
+          ends_at?: string | null
+          faculty_profile_id?: string | null
+          id?: string
+          is_active?: boolean
+          position_assignment_id?: string | null
+          role_id?: string | null
+          staff_profile_id?: string | null
+          starts_at?: string | null
+          tag?: string
+          unit_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       buildings: {
         Row: {
           code: string
