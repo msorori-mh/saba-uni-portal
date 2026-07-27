@@ -146,28 +146,75 @@ export async function loadSecureAttachmentsRuntimeCapability(
   });
 }
 
+const OWNED_UPLOAD_ROW_REQUIRED_KEYS = [
+  "upload_status",
+  "mime_type",
+  "size_bytes",
+  "storage_bucket",
+  "storage_object_path",
+] as const;
+
+function assertValidOwnedUploadRow(row: Record<string, unknown>): Record<string, unknown> {
+  for (const key of OWNED_UPLOAD_ROW_REQUIRED_KEYS) {
+    const value = row[key];
+    if (value === null || value === undefined || String(value).trim() === "") {
+      throw new Error("ATTACHMENT_OBJECT_MISMATCH");
+    }
+  }
+  return row;
+}
+
 /**
  * Normalize get_owned_student_request_attachment_upload payload.
- * Accepts a single object or an array of length exactly 1.
+ * Accepts only a single object or an array of length exactly 1.
+ * Rejects null/undefined/empty/multiple/invalid objects fail-closed.
+ * Callers must not index [0] without this normalizer.
  */
 export function parseOwnedStudentRequestAttachmentUpload(
   data: unknown,
 ): Record<string, unknown> {
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    return data as Record<string, unknown>;
+  if (data == null) {
+    throw new Error("ATTACHMENT_OBJECT_MISMATCH");
+  }
+  if (typeof data === "object" && !Array.isArray(data)) {
+    return assertValidOwnedUploadRow(data as Record<string, unknown>);
   }
   if (!Array.isArray(data)) {
     throw new Error("ATTACHMENT_OBJECT_MISMATCH");
   }
-  if (data.length === 0) {
-    throw new Error("ATTACHMENT_OBJECT_MISMATCH");
-  }
-  if (data.length > 1) {
+  if (data.length !== 1) {
     throw new Error("ATTACHMENT_OBJECT_MISMATCH");
   }
   const row = data[0];
   if (!row || typeof row !== "object" || Array.isArray(row)) {
     throw new Error("ATTACHMENT_OBJECT_MISMATCH");
   }
-  return row as Record<string, unknown>;
+  return assertValidOwnedUploadRow(row as Record<string, unknown>);
+}
+
+/** Pure gate used by upload path before any storage mutation. */
+export function prepareOwnedAttachmentStorageUpload(input: {
+  ownedRaw: unknown;
+  expectedMimeType: string;
+  expectedSizeBytes: number;
+  maxBytes: number;
+}): { storageBucket: string; storageObjectPath: string; sizeBytes: number; mimeType: string } {
+  const row = parseOwnedStudentRequestAttachmentUpload(input.ownedRaw);
+  if (row.upload_status !== "pending" || row.mime_type !== input.expectedMimeType) {
+    throw new Error("ATTACHMENT_OBJECT_MISMATCH");
+  }
+  const sizeBytes = Number(row.size_bytes);
+  if (
+    !Number.isFinite(sizeBytes) ||
+    sizeBytes !== input.expectedSizeBytes ||
+    sizeBytes > input.maxBytes
+  ) {
+    throw new Error("ATTACHMENT_OBJECT_MISMATCH");
+  }
+  return {
+    storageBucket: String(row.storage_bucket),
+    storageObjectPath: String(row.storage_object_path),
+    sizeBytes,
+    mimeType: String(row.mime_type),
+  };
 }

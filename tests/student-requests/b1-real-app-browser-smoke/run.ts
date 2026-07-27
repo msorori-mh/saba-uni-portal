@@ -814,6 +814,18 @@ async function main(): Promise<number> {
         `!!document.querySelector('[data-testid="b1-request-status-card"]') && !!document.querySelector('[data-testid="b1-request-history"]')`,
         20_000,
       );
+      await cdp!.poll(
+        "arabic detail summary (no snake_case keys)",
+        `(() => {
+          const summary = document.querySelector('[data-testid="b1-request-summary"]');
+          if (!summary) return false;
+          const text = summary.textContent || "";
+          const banned = ["absence_date", "one_semester", "target_program_id", "target_department_id", "withdrawal_reason", "impact_acknowledgment"];
+          if (banned.some((key) => text.includes(key))) return false;
+          return text.includes("سبب سحب الملف") || text.includes("ملخص الطلب");
+        })()`,
+        20_000,
+      );
       await privacyOk();
     });
 

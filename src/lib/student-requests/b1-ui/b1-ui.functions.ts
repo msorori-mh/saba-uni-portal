@@ -19,7 +19,7 @@ import {
 } from "@/lib/student-requests/secure-attachments-contract";
 import {
   loadSecureAttachmentsRuntimeCapability,
-  parseOwnedStudentRequestAttachmentUpload,
+  prepareOwnedAttachmentStorageUpload,
   SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR,
 } from "@/lib/student-requests/secure-attachments-capability";
 import { mapBackendRowsToB1Availability } from "./availability";
@@ -274,20 +274,22 @@ export const uploadB1UiRequestAttachmentFn = createServerFn({ method: "POST" })
     });
 
     const ownedRaw = await rpcGetOwnedStudentRequestAttachmentUpload(session, intent.attachment_id);
-    const row = parseOwnedStudentRequestAttachmentUpload(ownedRaw);
-    if (row.upload_status !== "pending" || row.mime_type !== data.mimeType) {
-      throw new Error(SECURE_ATTACHMENT_ERRORS.ATTACHMENT_OBJECT_MISMATCH);
-    }
     const bytes = Buffer.from(data.fileBase64, "base64");
-    if (
-      bytes.byteLength !== Number(row.size_bytes) ||
-      bytes.byteLength > SECURE_ATTACHMENT_MAX_BYTES
-    ) {
+    // Fail-closed owned-row normalizer runs before any storage mutation.
+    let prepared;
+    try {
+      prepared = prepareOwnedAttachmentStorageUpload({
+        ownedRaw,
+        expectedMimeType: data.mimeType,
+        expectedSizeBytes: bytes.byteLength,
+        maxBytes: SECURE_ATTACHMENT_MAX_BYTES,
+      });
+    } catch {
       throw new Error(SECURE_ATTACHMENT_ERRORS.ATTACHMENT_OBJECT_MISMATCH);
     }
     const uploaded = await supabaseAdmin.storage
-      .from(String(row.storage_bucket))
-      .upload(String(row.storage_object_path), bytes, {
+      .from(prepared.storageBucket)
+      .upload(prepared.storageObjectPath, bytes, {
         contentType: data.mimeType,
         upsert: false,
       });

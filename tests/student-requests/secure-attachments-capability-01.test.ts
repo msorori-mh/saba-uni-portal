@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
   parseOwnedStudentRequestAttachmentUpload,
+  prepareOwnedAttachmentStorageUpload,
   resolveSecureAttachmentsRuntimeAvailable,
   SECURE_ATTACHMENT_RUNTIME_CAPABILITY_KEYS,
   SECURE_ATTACHMENTS_RUNTIME_TECHNICAL_ERROR_AR,
@@ -108,5 +109,88 @@ describe("parseOwnedStudentRequestAttachmentUpload", () => {
     expect(() => parseOwnedStudentRequestAttachmentUpload("x")).toThrow(
       "ATTACHMENT_OBJECT_MISMATCH",
     );
+  });
+
+  test("rejects invalid objects (empty / missing required keys)", () => {
+    expect(() => parseOwnedStudentRequestAttachmentUpload({})).toThrow(
+      "ATTACHMENT_OBJECT_MISMATCH",
+    );
+    expect(() =>
+      parseOwnedStudentRequestAttachmentUpload({
+        upload_status: "pending",
+        mime_type: "application/pdf",
+        // missing size_bytes / storage_*
+      }),
+    ).toThrow("ATTACHMENT_OBJECT_MISMATCH");
+    expect(() =>
+      parseOwnedStudentRequestAttachmentUpload([
+        {
+          upload_status: "pending",
+          mime_type: "",
+          size_bytes: 1,
+          storage_bucket: "b",
+          storage_object_path: "p",
+        },
+      ]),
+    ).toThrow("ATTACHMENT_OBJECT_MISMATCH");
+  });
+});
+
+describe("prepareOwnedAttachmentStorageUpload — zero mutation on reject", () => {
+  const row = {
+    upload_status: "pending",
+    mime_type: "application/pdf",
+    size_bytes: 12,
+    storage_bucket: "student-request-secure-attachments",
+    storage_object_path: "student-requests/x/y/z/content.pdf",
+  };
+
+  function gateThenUpload(ownedRaw: unknown, upload: () => string): string {
+    const prepared = prepareOwnedAttachmentStorageUpload({
+      ownedRaw,
+      expectedMimeType: "application/pdf",
+      expectedSizeBytes: 12,
+      maxBytes: 5 * 1024 * 1024,
+    });
+    return upload() + prepared.storageObjectPath;
+  }
+
+  test("object and single-row array prepare storage paths (PASS)", () => {
+    expect(
+      prepareOwnedAttachmentStorageUpload({
+        ownedRaw: row,
+        expectedMimeType: "application/pdf",
+        expectedSizeBytes: 12,
+        maxBytes: 5 * 1024 * 1024,
+      }).storageObjectPath,
+    ).toBe(row.storage_object_path);
+    expect(
+      prepareOwnedAttachmentStorageUpload({
+        ownedRaw: [row],
+        expectedMimeType: "application/pdf",
+        expectedSizeBytes: 12,
+        maxBytes: 5 * 1024 * 1024,
+      }).storageBucket,
+    ).toBe(row.storage_bucket);
+  });
+
+  test("empty/multiple/null/invalid reject before storage upload (zero mutation)", () => {
+    let uploadCalls = 0;
+    const upload = () => {
+      uploadCalls += 1;
+      return "mutated";
+    };
+
+    for (const ownedRaw of [
+      null,
+      undefined,
+      [],
+      [row, { ...row, storage_object_path: "other.pdf" }],
+      {},
+      "x",
+    ]) {
+      expect(() => gateThenUpload(ownedRaw, upload)).toThrow("ATTACHMENT_OBJECT_MISMATCH");
+    }
+    expect(uploadCalls).toBe(0);
   });
 });

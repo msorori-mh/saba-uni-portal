@@ -2,7 +2,7 @@
 
 ## Decision
 
-**PASS_PR267_REAL_GO_LIVE_REMEDIATION_READY**
+**PASS_PR267_FULL_OPERATIONAL_CLOSURE_SOURCE_READY**
 
 ```
 NO_PRODUCTION_WRITE
@@ -10,6 +10,7 @@ SOURCE_ONLY
 NO_STUDENT_VISIBLE_MUTATION_IN_THIS_PR
 NO_DEPLOY
 FAIL_CLOSED_ATTACHMENTS_CAPABILITY
+ARABIC_STUDENT_DETAIL_CLOSED
 ```
 
 ## Scope
@@ -32,14 +33,19 @@ Protected: `enrollment_certificate` — regression = NONE (no mutation in this t
 |---|---|
 | `B1StudentRequestForm` | restore open draft/returned, autosave (~1s), STALE reload, submit → success |
 | `B1SuccessState` | request number then route to B1 view |
-| `B1StudentRequestDetail` | summary + attachments + messages + steps + resume |
+| `B1StudentRequestDetail` | Arabic summary via form registry + options + attachments + messages + steps + resume |
 | `B1AttachmentUploader` | progress / retry / 5MB contract |
 | `B1EmployeeActionPanel` / `B1StaffWorkspace` | step-accurate Arabic labels; attachment download via existing adapter |
 | `student.requests.index` / `student.requests.new` | B1 list/detail routes; legacy new-request redirect for five codes |
 
+## K3 blockers closed
+
+1. **Owned upload row normalizer** — `parseOwnedStudentRequestAttachmentUpload` / `prepareOwnedAttachmentStorageUpload` accept only a single object or array length 1; reject null/undefined/empty/multi/invalid before any storage mutation.
+2. **Arabic student tracking summary** — `buildB1StudentFormSummaryItems` reuses request-form registry + `B1_KNOWN_VALUE_LABELS_AR` + form options (year/semester/dept/program/section). No snake_case keys; raw UUIDs without lookup → «قيمة محفوظة».
+
 ## Runtime activation (source)
 
-- `SECURE_ATTACHMENTS_RUNTIME_AVAILABLE = true`
+- Attachments runtime: fail-closed capability probe (`create_intent` / `upload` / `complete` / `download`) — never hardcoded true for upload path.
 - Cleared TS `activationBlockedReason` for `excused_absence`, `department_transfer`, `final_chance`
 - Card visibility still gated by DB `studentVisible` (existing main migration out of scope; no new mutation here)
 
@@ -67,44 +73,48 @@ Companion preflight/post-verifiers under `docs/migration-drafts/b1-backend-verif
 `PROMOTION-MAP.json` and `B1-SEQUENTIAL-APPLY-MANIFEST.json` updated through sequence 27.
 Non-migration activation remains **gate 25** (after sequence 27 verifies green).
 
-## Tests and harnesses
+## Tests and harnesses (closure evidence)
 
 | Check | Result |
 |---|---|
+| `bun install --frozen-lockfile` | PASS |
 | `bunx tsc --noEmit` | PASS |
-| `bun test tests/student-requests` | PASS |
-| `bun test` (full) | PASS (1893) |
+| `bun test tests/student-requests` | PASS (856) |
+| `bun test` (full) | PASS (1914) |
 | `bun run build` | PASS |
 | `git diff --check` | PASS |
 | `tests/b1-academic-effects/run-harness.ps1` | PASS_B1_ACADEMIC_EFFECTS_AUTHZ_MATRIX (positive=5/5 deny=4/4 zero=4/4 idempotent=5/5 rollback=PASS EC=NONE) |
-| Browser CDP smoke `tests/student-requests/b1-real-app-browser-smoke/run.ts` | PASS_PR261_REAL_APP_HTTP_BROWSER_SMOKE |
-| Source contract | `tests/student-requests/b1-academic-effects-go-live-01.test.ts` |
-| Attachments capability | fail-closed via `get_b1_secure_read_runtime_capability` + create_intent/upload/complete/download RPC probes |
+| Browser CDP smoke `tests/student-requests/b1-real-app-browser-smoke/run.ts` | PASS_PR261_REAL_APP_HTTP_BROWSER_SMOKE (360/768/1366 + Arabic detail no snake_case) |
+| Arabic summary unit | `tests/student-requests/b1-form-summary-arabic-01.test.ts` PASS |
+| Owned-row normalizer + zero storage mutation | `tests/student-requests/secure-attachments-capability-01.test.ts` PASS |
+| Codex business effects | PASS_PR267_CODEX_BUSINESS_EFFECTS_REVIEW (on prior HEAD; SEQ25–27 compile + matrix) |
 
 ## Assumptions
 
 - Production apply of SEQ25–27 is a separate human-approved gate.
 - Local/TEST_ONLY harnesses may seed `student_visible` without shipping a new visibility mutation.
-- Full positive/negative academic-effect actor matrix on disposable PG remains a FOLLOW-UP CI leg beyond the markers harness + source contracts.
+- Full Browser E2E through all staff steps / academic side-effects against disposable PG remains beyond source smoke; covered by PG authz matrix + real-app HTTP smoke.
 
 ## Risks
 
 - Naming collision: non-migration **activation gate 25** vs migration **sequence_order 25** (academic markers). Documented in manifest `activation_gate`.
 - Effect functions require `b1.atomic_action=1` and direct-assignee authorization; wrong-step / non-assignee must fail closed.
-- Cloud attachment runtime still depends on deployed secure-attachment edge path; source flag is on, deploy is separate.
+- Cloud attachment runtime still depends on deployed secure-attachment edge path; source capability is fail-closed until RPCs are present.
 
 ## Blockers
 
-None for source PR readiness.
+None remaining for source PR operational closure of the five services (Arabic detail + owned-row normalizer closed).
 
 ## Production impact
 
 - **None written.** No Deploy/Publish, no Production catalog apply, no types regeneration from Production, no `student_visible` change in this PR.
 - After approved apply of SEQ25–27, terminal `apply_decision` on the five services will write academic effects idempotently.
 
-## Files modified (summary)
+## Files modified (closure delta)
 
-- Student/staff B1 UI + routes
-- Secure attachments / adapter readiness
-- SEQ25–27 drafts, migrations, verifiers, promotion map, apply manifest, apply-order pins
-- Tests + academic-effects markers harness + this report
+- `src/components/student-requests/b1/B1StudentRequestDetail.tsx` — Arabic summary + form options load
+- `src/lib/student-requests/b1-ui/form-summary.ts` — registry-based student/staff summary helper
+- `src/lib/student-requests/b1-ui/index.ts` / `adapter.mock.ts` / `b1-ui.functions.ts`
+- `src/lib/student-requests/secure-attachments-capability.ts` — strict owned-row + pre-storage gate
+- Tests: Arabic summary, owned-row zero-mutation, browser smoke Arabic assertion
+- This report

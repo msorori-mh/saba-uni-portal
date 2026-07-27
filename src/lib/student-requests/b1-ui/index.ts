@@ -50,6 +50,8 @@ export function getB1UiAdapter(): B1UiAdapter {
 export * from "./adapter.types";
 export * from "./service-config";
 export * from "./validation";
+export { buildB1StudentFormSummaryItems } from "./form-summary";
+export type { B1FormSummaryItem } from "./form-summary";
 export { LIVE_B1_UI_UNSUPPORTED_METHODS } from "./adapter.live";
 export {
   B1_FORM_DATA_ALLOWLISTS,

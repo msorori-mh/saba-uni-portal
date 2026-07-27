@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   b1AdapterErrorMessageAr,
+  buildB1StudentFormSummaryItems,
   getB1ServiceConfig,
   getB1UiAdapter,
+  isB1ServiceCode,
   type B1CanonicalCode,
+  type B1FormOptions,
   type B1RequestDetails,
 } from "@/lib/student-requests/b1-ui";
 import { B1ErrorState } from "./B1ErrorState";
@@ -23,26 +26,29 @@ const STATUS_LABEL_AR: Record<B1RequestDetails["status"], string> = {
   completed: "مكتمل",
 };
 
-function formSummaryItems(formData: Record<string, unknown>) {
-  return Object.entries(formData)
-    .filter(([, value]) => value !== null && value !== undefined && String(value) !== "")
-    .map(([key, value]) => ({
-      labelAr: key,
-      valueAr: typeof value === "boolean" ? (value ? "نعم" : "لا") : String(value),
-    }));
-}
-
 export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
   const adapter = useMemo(() => getB1UiAdapter(), []);
   const [details, setDetails] = useState<B1RequestDetails | null>(null);
+  const [formOptions, setFormOptions] = useState<B1FormOptions | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = () => {
     setError(null);
     setDetails(null);
+    setFormOptions(null);
     void adapter
       .getB1RequestDetails(requestId)
-      .then(setDetails)
+      .then(async (loaded) => {
+        setDetails(loaded);
+        if (isB1ServiceCode(loaded.serviceCode)) {
+          try {
+            setFormOptions(await adapter.getB1RequestFormOptions(loaded.serviceCode));
+          } catch {
+            // Labels still come from the form registry; options enrich names when available.
+            setFormOptions(null);
+          }
+        }
+      })
       .catch((caught) => setError(b1AdapterErrorMessageAr(caught)));
   };
 
@@ -56,6 +62,13 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
   const canResume = details.status === "draft" || details.status === "returned";
   const serviceCode = details.serviceCode as B1CanonicalCode;
   const config = getB1ServiceConfig(serviceCode);
+  const summaryItems = isB1ServiceCode(serviceCode)
+    ? buildB1StudentFormSummaryItems({
+        serviceCode,
+        formData: details.formData,
+        options: formOptions,
+      })
+    : [];
 
   return (
     <main dir="rtl" data-testid="b1-student-request-detail" className="space-y-5">
@@ -86,7 +99,7 @@ export function B1StudentRequestDetail({ requestId }: { requestId: string }) {
 
       <B1RequestSummary
         serviceTitleAr={details.serviceTitleAr}
-        items={formSummaryItems(details.formData)}
+        items={summaryItems}
         attachments={details.attachments}
       />
 
