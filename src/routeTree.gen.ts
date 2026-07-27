@@ -105,6 +105,7 @@ import { Route as FacultyPortalStudentProgressStudentIdRouteImport } from './rou
 import { Route as FacultyPortalMaterialsSectionIdRouteImport } from './routes/faculty-portal.materials.$sectionId'
 import { Route as StudentRequestsB1ServiceRouteImport } from './routes/student.requests.b1.$service'
 import { Route as AdminRequestTypesIdWorkflowRouteImport } from './routes/admin/request-types_.$id.workflow'
+import { Route as StudentRequestsB1ViewRequestIdRouteImport } from './routes/student.requests.b1.view.$requestId'
 
 const AdminIndexLazyRouteImport = createFileRoute('/admin/')()
 const AdminTranscriptsLazyRouteImport = createFileRoute('/admin/transcripts')()
@@ -662,6 +663,12 @@ const AdminRequestTypesIdWorkflowRoute =
     path: '/request-types/$id/workflow',
     getParentRoute: () => AdminRoute,
   } as any)
+const StudentRequestsB1ViewRequestIdRoute =
+  StudentRequestsB1ViewRequestIdRouteImport.update({
+    id: '/b1/view/$requestId',
+    path: '/b1/view/$requestId',
+    getParentRoute: () => StudentRequestsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -767,6 +774,7 @@ export interface FileRoutesByFullPath {
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -866,6 +874,7 @@ export interface FileRoutesByTo {
   '/student/requests': typeof StudentRequestsIndexRoute
   '/admin/request-types/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -972,6 +981,7 @@ export interface FileRoutesById {
   '/student/requests/': typeof StudentRequestsIndexRoute
   '/admin/request-types_/$id/workflow': typeof AdminRequestTypesIdWorkflowRoute
   '/student/requests/b1/$service': typeof StudentRequestsB1ServiceRoute
+  '/student/requests/b1/view/$requestId': typeof StudentRequestsB1ViewRequestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1079,6 +1089,7 @@ export interface FileRouteTypes {
     | '/student/requests/'
     | '/admin/request-types/$id/workflow'
     | '/student/requests/b1/$service'
+    | '/student/requests/b1/view/$requestId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1178,6 +1189,7 @@ export interface FileRouteTypes {
     | '/student/requests'
     | '/admin/request-types/$id/workflow'
     | '/student/requests/b1/$service'
+    | '/student/requests/b1/view/$requestId'
   id:
     | '__root__'
     | '/'
@@ -1283,6 +1295,7 @@ export interface FileRouteTypes {
     | '/student/requests/'
     | '/admin/request-types_/$id/workflow'
     | '/student/requests/b1/$service'
+    | '/student/requests/b1/view/$requestId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -2033,6 +2046,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRequestTypesIdWorkflowRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/student/requests/b1/view/$requestId': {
+      id: '/student/requests/b1/view/$requestId'
+      path: '/b1/view/$requestId'
+      fullPath: '/student/requests/b1/view/$requestId'
+      preLoaderRoute: typeof StudentRequestsB1ViewRequestIdRouteImport
+      parentRoute: typeof StudentRequestsRoute
+    }
   }
 }
 
@@ -2208,6 +2228,7 @@ interface StudentRequestsRouteChildren {
   StudentRequestsNewRoute: typeof StudentRequestsNewRoute
   StudentRequestsIndexRoute: typeof StudentRequestsIndexRoute
   StudentRequestsB1ServiceRoute: typeof StudentRequestsB1ServiceRoute
+  StudentRequestsB1ViewRequestIdRoute: typeof StudentRequestsB1ViewRequestIdRoute
 }
 
 const StudentRequestsRouteChildren: StudentRequestsRouteChildren = {
@@ -2215,6 +2236,7 @@ const StudentRequestsRouteChildren: StudentRequestsRouteChildren = {
   StudentRequestsNewRoute: StudentRequestsNewRoute,
   StudentRequestsIndexRoute: StudentRequestsIndexRoute,
   StudentRequestsB1ServiceRoute: StudentRequestsB1ServiceRoute,
+  StudentRequestsB1ViewRequestIdRoute: StudentRequestsB1ViewRequestIdRoute,
 }
 
 const StudentRequestsRouteWithChildren = StudentRequestsRoute._addFileChildren(

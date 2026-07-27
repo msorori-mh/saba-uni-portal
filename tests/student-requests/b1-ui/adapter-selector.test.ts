@@ -6,12 +6,15 @@ import {
 } from "@/lib/student-requests/b1-ui/index";
 
 describe("B1 UI adapter selection", () => {
-  it("enables the mock only for dev sessions with VITE_B1_UI_MOCK=1", () => {
+  it("enables the mock for dev+VITE_B1_UI_MOCK=1 or smoke production builds", () => {
     expect(isB1UiMockEnabledForFlags(true, "1")).toBe(true);
     expect(isB1UiMockEnabledForFlags(true, "0")).toBe(false);
     expect(isB1UiMockEnabledForFlags(true, undefined)).toBe(false);
     expect(isB1UiMockEnabledForFlags(false, "1")).toBe(false);
     expect(isB1UiMockEnabledForFlags(false, undefined)).toBe(false);
+    expect(isB1UiMockEnabledForFlags(false, "1", "1")).toBe(true);
+    expect(isB1UiMockEnabledForFlags(false, "1", "0")).toBe(false);
+    expect(isB1UiMockEnabledForFlags(false, "0", "1")).toBe(false);
   });
 
   it("exposes a boolean mock flag for UI badges", () => {
