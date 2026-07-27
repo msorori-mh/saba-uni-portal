@@ -86,7 +86,7 @@ activate or implement any of the other four services.
 |   8 | `STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql`           | `6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356` | Private bucket/policy approval still required; no public URLs        |
 |   9 | `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql`            | `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c` | Exact year/semester references                                       |
 |  10 | `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql`              | `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205` | Coupled compile order; no activation/backfill                        |
-|  11 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`                  | `6697c2f953dba3e25ce1a7f3f46c143c13be1d442a47d9285d318d474f992169` | Coupled five-service dispatcher/cutover prerequisite                 |
+|  11 | `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql`                  | `a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4` | Coupled five-service dispatcher/cutover prerequisite                 |
 |  12 | `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql`                 | `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9` | Coupled five-service dispatcher/cutover prerequisite                 |
 |  13 | `REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql`              | `d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284` | Coupled five-service dispatcher/cutover prerequisite                 |
 |  14 | `FINAL-CHANCE-CANONICAL-WRITE-03.sql`                        | `9a01392415fcd97e21adc4e8c2af9490afe759b35452bf43b70bc74013c9f704` | Coupled prerequisite; no historical scan/backfill                    |

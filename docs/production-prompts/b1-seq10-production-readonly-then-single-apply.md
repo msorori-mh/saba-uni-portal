@@ -11,10 +11,15 @@ TEST marker: `TEST_ONLY_FIRST_DELIVERY_5_SERVICES`
 |---|---|
 | Order | 10 |
 | File | `supabase/migrations/20260725110300_b1_10_excused_absence_detail_05a.sql` |
-| LF SHA-256 | `7b9dc57ffef4e69ae79dffbeb42dcc5778dd28b5f3984d0a6d2af894eba0c113` |
+| LF SHA-256 | `ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505` |
 | Preflight | `docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-PREFLIGHT.sql` |
 | Post-verifier | `docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-POST-VERIFIER.sql` |
 
+## ACL note (sandbox_exec)
+
+Production may show `sandbox_exec` table privileges on `absence_excuse_details` before SEQ10.
+That state is **remediable** by this migration (explicit `REVOKE ALL ... FROM sandbox_exec` when the role exists).
+`sandbox_exec` is **never** in the final allowlist. Any other unexpected grantee remains fail-closed.
 
 ## Step A — Read-only preflight (ROLLBACK)
 
@@ -27,6 +32,7 @@ TEST marker: `TEST_ONLY_FIRST_DELIVERY_5_SERVICES`
    - five-service request counts = 0
    - protected records unchanged: SR-20260716-26BAD4C8, SR-20260715-FEDCB3E1, SR-20260713-2DE64041, USR-2026-000001, USR-2026-000002
    - no anon privileges / no public bucket / no broad bypass
+   - ACL: only owner / authenticated SELECT / service_role SELECT / remediable `sandbox_exec` (no other grantees)
 4. STOP if any check fails.
 
 ## Step B — Single migration apply (separate approval)

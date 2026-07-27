@@ -55,7 +55,7 @@ git cat-file blob <rev>:docs/migration-drafts/<file.sql> | python -c "import sys
 8. Five-service executable drafts (source-complete; unapplied):
    - `REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql` — `529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c`
    - `REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql` — `e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205`
-   - `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql` — `6697c2f953dba3e25ce1a7f3f46c143c13be1d442a47d9285d318d474f992169`
+   - `REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql` — `a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4`
    - `REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql` — `1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9`
      - Creates `file_withdrawal_details`. Missing table is **not** a source blocker;
        it is created by this migration when separately approved.

@@ -97,7 +97,7 @@ For each row: preflight → apply **one** → post-verifier → protected record
 |---:|---|---|---|---|---|
 | 8 | `20260725110100_b1_08_trusted_reference_validators_05a.sql` | `20260725110100` | `e04d7b0b2d3fa8cd9748796a2a9e59131894fdd726339ced594ba36d836df0a2` | `08-…-PREFLIGHT.sql` | `08-…-POST-VERIFIER.sql` |
 | 9 | `20260725110200_b1_09_excused_absence_vocabulary_05a.sql` | `20260725110200` | `9ecf6c57167a748399edd0798e9b100e3a6ec9bbad4d09975df448f73fa41ae0` | `09-…-PREFLIGHT.sql` | `09-…-POST-VERIFIER.sql` |
-| 10 | `20260725110300_b1_10_excused_absence_detail_05a.sql` | `20260725110300` | `7b9dc57ffef4e69ae79dffbeb42dcc5778dd28b5f3984d0a6d2af894eba0c113` | `10-…-PREFLIGHT.sql` | `10-…-POST-VERIFIER.sql` |
+| 10 | `20260725110300_b1_10_excused_absence_detail_05a.sql` | `20260725110300` | `ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505` | `10-…-PREFLIGHT.sql` | `10-…-POST-VERIFIER.sql` |
 | 11 | `20260725110400_b1_11_file_withdrawal_details_05a.sql` | `20260725110400` | `d655077c41cd9bc81ac935cfceb152433da3cd13746bd981f6f936c2577492ba` | `11-…-PREFLIGHT.sql` | `11-…-POST-VERIFIER.sql` |
 | 12 | `20260725110500_b1_12_transfer_secure_attachment_05a.sql` | `20260725110500` | `224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9` | `12-…-PREFLIGHT.sql` | `12-…-POST-VERIFIER.sql` |
 | 13 | `20260725110600_b1_13_final_chance_canonical_write_03.sql` | `20260725110600` | `21406c4ffce2ef22c9ef4115ffc2c8df6e9a54e53a9df5467a01a56ddfc64c70` | `13-…-PREFLIGHT.sql` | `13-…-POST-VERIFIER.sql` |

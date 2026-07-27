@@ -1,4 +1,4 @@
-﻿[
+[
     {
         "file":  "REQUEST-B1-LOG-AUDIT-CALL-DISAMBIGUATION-01.sql",
         "sha256_lf":  "3b8e2cfd90ea4301ba65b86b628d9e39dfe24c355d84f94eca27b3415cd32dab",
@@ -82,7 +82,7 @@
     },
     {
         "file":  "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql",
-        "sha256_lf":  "6697c2f953dba3e25ce1a7f3f46c143c13be1d442a47d9285d318d474f992169",
+        "sha256_lf":  "a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4",
         "compile":  "PASS",
         "idempotency":  "PASS",
         "acl_rls_checks":  "PASS",

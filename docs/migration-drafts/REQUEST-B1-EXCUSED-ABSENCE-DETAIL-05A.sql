@@ -59,6 +59,16 @@ ALTER TABLE public.absence_excuse_details NO FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.absence_excuse_details FROM PUBLIC,anon,authenticated,service_role;
 GRANT SELECT ON TABLE public.absence_excuse_details TO authenticated,service_role;
 
+-- Fail-safe for Lovable/Supabase platform role. Never allowlisted in final ACL.
+-- Role may be absent on local PG; migration must not fail in that case.
+DO $revoke_sandbox_exec$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec') THEN
+    REVOKE ALL ON TABLE public.absence_excuse_details FROM sandbox_exec;
+  END IF;
+END
+$revoke_sandbox_exec$;
+
 DO $drop_legacy_policies$
 DECLARE
   v_table constant text := 'absence_excuse_details';
