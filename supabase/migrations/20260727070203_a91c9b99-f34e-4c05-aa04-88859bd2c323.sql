@@ -1,0 +1,1 @@
+ALTER TABLE public.b1_draft_mutation_idempotency NO FORCE ROW LEVEL SECURITY;
