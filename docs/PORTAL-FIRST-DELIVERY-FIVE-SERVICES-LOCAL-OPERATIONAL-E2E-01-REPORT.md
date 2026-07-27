@@ -101,7 +101,8 @@ After each service (`ec_after/<service>/*`) and final EC suite:
 ## Git / scope
 
 - PR #261 branch not modified / not force-pushed.
-- This track adds local operational harness + report only.
+- This track adds local operational harness + report only (`0161958` on `test/b1-five-services-local-operational-e2e-01`).
+- Draft PR to `main` is **held** until PR #261 merges (mission rule: open independent Draft PR only after #261 merge; do not merge).
 - No cloud migration, Deploy, Publish, or Production write.
 
 ## Assumptions
