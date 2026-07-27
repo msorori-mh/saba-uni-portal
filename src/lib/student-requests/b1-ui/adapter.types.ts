@@ -44,6 +44,7 @@ export const B1_ADAPTER_ERROR_CODES = [
   "VALIDATION_ERROR",
   "NOT_FOUND",
   "ACTIVATION_BLOCKED",
+  "ELIGIBILITY_BLOCKED",
   "BACKEND_CONTRACT_PENDING",
 ] as const;
 
@@ -81,6 +82,8 @@ export function b1AdapterErrorMessageAr(error: unknown): string {
         return "تعذر العثور على الطلب المطلوب.";
       case "ACTIVATION_BLOCKED":
         return "هذه الخدمة غير مفعّلة حالياً.";
+      case "ELIGIBILITY_BLOCKED":
+        return error.message || "لا تستوفي حالياً شروط تقديم هذه الخدمة.";
       case "BACKEND_CONTRACT_PENDING":
         return "هذه العملية بانتظار اكتمال الربط الخلفي.";
     }

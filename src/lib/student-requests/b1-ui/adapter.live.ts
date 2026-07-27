@@ -81,6 +81,34 @@ export type LiveB1UiAdapterDeps = {
   downloadAttachment: (attachmentId: string) => Promise<B1AttachmentDownload>;
 };
 
+/**
+ * Backend domain guards reject a draft when the student does not meet the
+ * service preconditions. These are NOT "service disabled" cases, so they must
+ * surface a precise Arabic reason instead of the activation message.
+ */
+const B1_ELIGIBILITY_GUARDS: ReadonlyArray<{ test: RegExp; messageAr: string }> = [
+  {
+    test: /suspension request: student is not currently active/i,
+    messageAr: "لا يمكن تقديم طلب وقف القيد لأن قيدك غير نشط حالياً.",
+  },
+  {
+    test: /transfer request: student is currently suspended/i,
+    messageAr: "لا يمكن تقديم طلب التحويل أثناء وقف القيد.",
+  },
+  {
+    test: /reinstatement request: student is not currently suspended/i,
+    messageAr: "لا يمكن تقديم طلب إعادة القيد لأن قيدك غير موقوف حالياً.",
+  },
+  {
+    test: /student profile is not active|B1_STUDENT_PROFILE_NOT_ACTIVE/i,
+    messageAr: "ملفك الطلابي غير نشط حالياً، لذا لا يمكن تقديم هذا الطلب.",
+  },
+];
+
+function eligibilityMessageAr(message: string): string | null {
+  return B1_ELIGIBILITY_GUARDS.find((g) => g.test.test(message))?.messageAr ?? null;
+}
+
 function mapLiveError(
   error: unknown,
   fallbackCode: B1AdapterError["code"] = "NETWORK_ERROR",
@@ -91,6 +119,10 @@ function mapLiveError(
       throw new B1AdapterError("ACTIVATION_BLOCKED", error.message);
     }
     const message = error.message;
+    const eligibilityAr = eligibilityMessageAr(message);
+    if (eligibilityAr) {
+      throw new B1AdapterError("ELIGIBILITY_BLOCKED", eligibilityAr);
+    }
     if (/B1_STALE_REQUEST_VERSION/i.test(message) || error.code === "40001") {
       throw new B1AdapterError("STALE_VERSION", message);
     }
@@ -106,6 +138,10 @@ function mapLiveError(
     throw new B1AdapterError(fallbackCode, message);
   }
   const message = error instanceof Error ? error.message : String(error ?? "unknown");
+  const eligibilityArFallback = eligibilityMessageAr(message);
+  if (eligibilityArFallback) {
+    throw new B1AdapterError("ELIGIBILITY_BLOCKED", eligibilityArFallback);
+  }
   if (/B1_STALE_REQUEST_VERSION/i.test(message)) {
     throw new B1AdapterError("STALE_VERSION", message);
   }
