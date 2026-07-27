@@ -5797,6 +5797,18 @@ export type Database = {
         Args: { p_comment?: string; p_payload?: Json; p_step_id: string }
         Returns: Json
       }
+      assert_b1_academic_period_reference: {
+        Args: { p_academic_year_id: string; p_semester_id: string }
+        Returns: undefined
+      }
+      assert_b1_active_course_enrollment: {
+        Args: { p_course_section_id: string; p_student_profile_id: string }
+        Returns: undefined
+      }
+      assert_b1_target_program_department: {
+        Args: { p_department_id: string; p_program_id: string }
+        Returns: undefined
+      }
       assert_can_activate_request_workflow: { Args: never; Returns: undefined }
       assert_can_admin_enrollment_certificate_e2e: {
         Args: never
