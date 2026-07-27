@@ -5833,6 +5833,7 @@ export type Database = {
         Args: { p_kind: string; p_profile_id: string }
         Returns: string
       }
+      apply_b1_detail_rpc_write_boundaries: { Args: never; Returns: undefined }
       apply_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
