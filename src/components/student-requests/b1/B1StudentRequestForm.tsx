@@ -501,23 +501,16 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
                   }
                   onRemove={async (attachmentId) => {
                     await adapter.removeB1RequestAttachment(draft.requestId, attachmentId);
-                    // Removal bumps the request version server-side; reload so the
-                    // next save/submit carries a fresh updatedAt (no STALE_VERSION).
-                    try {
-                      await reloadDraft(draft.requestId);
-                    } catch {
-                      setDraft((current) =>
-                        current
-                          ? {
-                              ...current,
-                              attachments: current.attachments.filter(
-                                (item) => item.attachmentId !== attachmentId,
-                              ),
-                            }
-                          : current,
-                      );
-                    }
+                    // Removal bumps the request version server-side; refetch and
+                    // re-persist so form_data drops the removed secure reference.
+                    await syncFormDataAfterAttachmentChange(draft.requestId, {
+                      ...draft,
+                      attachments: draft.attachments.filter(
+                        (item) => item.attachmentId !== attachmentId,
+                      ),
+                    });
                   }}
+
                 />
               ) : (
                 <p role="alert" className="text-xs font-bold text-destructive">
