@@ -109,3 +109,21 @@ describe("mapB1SecureDraftThrown — no more blanket masking", () => {
     expect(error.code).toBe("");
   });
 });
+
+describe("B1 secure draft — domain eligibility messages survive mapping", () => {
+  test("suspension eligibility reason is not collapsed into the generic message", () => {
+    let thrown: unknown;
+    try {
+      mapB1SecureDraftThrown(
+        new Error("Cannot create suspension request: student is not currently active"),
+        { operation: "createDraft", serviceCode: "enrollment_suspension" },
+      );
+    } catch (error) {
+      thrown = error;
+    }
+    const err = thrown as { message: string; code: string; unavailable: boolean };
+    expect(err.code).toBe("B1_ELIGIBILITY_BLOCKED");
+    expect(err.unavailable).toBe(false);
+    expect(err.message).toContain("not currently active");
+  });
+});
