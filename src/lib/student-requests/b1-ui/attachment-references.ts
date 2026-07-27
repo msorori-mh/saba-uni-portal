@@ -1,16 +1,18 @@
 /**
- * Secure attachment references inside B1 draft form data.
+ * Canonical secure-attachment references inside B1 draft form data.
+ *
+ * CONTRACT (frozen): `form_data` stores ONLY arrays of lowercase attachment
+ * UUID strings under the canonical field of the service. No fieldKey, status,
+ * storage coordinates, file metadata, base64, File or Blob ever reach
+ * `form_data`. The field key is derived from the service, never trusted from
+ * the client payload.
  *
  * The draft-save RPC replaces `form_data` with the allowlisted client payload,
- * so the secure attachment reference must be re-sent on every save. Submit then
- * reads those references back from `form_data`.
+ * so these references must be re-sent on every save. Submit then reads the
+ * same UUID arrays back from `form_data`.
  */
 
-export type B1AttachmentReference = {
-  fieldKey: string;
-  status: "attached";
-  attachmentId: string;
-};
+export type B1AttachmentReferenceIds = string[];
 
 type MinimalAttachment = {
   attachmentId: string;
@@ -18,7 +20,7 @@ type MinimalAttachment = {
   status?: string;
 };
 
-/** canonical service code -> { form_data field, secure fieldKey } */
+/** canonical service code -> { form_data field, expected attachmentType } */
 const CONTRACT: Record<string, { field: string; fieldKey: string }> = {
   excused_absence: { field: "excuse_documents", fieldKey: "excuse_documents" },
   department_transfer: { field: "secondary_certificate_file", fieldKey: "secondary_certificate" },
@@ -35,23 +37,22 @@ export function withSecureAttachmentReferences(
   if (!contract) return values;
 
   const seen = new Set<string>();
-  const refs: B1AttachmentReference[] = [];
+  const ids: B1AttachmentReferenceIds = [];
   for (const item of attachments ?? []) {
-    if (item.attachmentType !== contract.fieldKey) continue;
+    if (!item || item.attachmentType !== contract.fieldKey) continue;
     if ((item.status ?? "attached") !== "attached") continue;
     if (typeof item.attachmentId !== "string" || !ATTACHMENT_ID.test(item.attachmentId)) continue;
     const attachmentId = item.attachmentId.toLowerCase();
     if (seen.has(attachmentId)) continue;
     seen.add(attachmentId);
-    refs.push({ fieldKey: contract.fieldKey, status: "attached", attachmentId });
+    ids.push(attachmentId);
   }
 
   const next = { ...values };
-  if (refs.length === 0) {
+  if (ids.length === 0) {
     delete next[contract.field];
     return next;
   }
-  next[contract.field] = refs;
+  next[contract.field] = ids;
   return next;
 }
-

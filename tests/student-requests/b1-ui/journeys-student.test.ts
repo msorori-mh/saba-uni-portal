@@ -263,7 +263,7 @@ describe("student journey — review summary, double-submit, submitting, acknowl
     expect(confirmationSource).toContain("جارٍ الإرسال…");
     expect(confirmationSource).toContain("confirmDisabled = submitting");
     expect(confirmationSource).toContain("disabled={submitting}");
-    expect(formSource).toContain("submitting={submitting}");
+    expect(formSource).toContain("submitting={submitting || attachmentSyncing}");
   });
 
   it("gates confirmation behind the acknowledgment checkbox when required (case 14)", () => {

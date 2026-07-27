@@ -62,29 +62,36 @@ export type NormalizedStudentRequestSubmitInput = {
 
 const SECURE_ATTACHMENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-/** Extract only opaque attachment ids for the atomic B1 RPC; paths and metadata remain untrusted. */
+/**
+ * Extract opaque attachment ids for the atomic B1 RPC.
+ *
+ * Canonical stored shape (single contract): `form_data[<field>]` is an array of
+ * lowercase attachment UUID strings. `fieldKey`/`status`/paths are NEVER read
+ * from client-controlled `form_data`; real ownership, upload status and
+ * field_key are re-verified inside `submit_b1_student_request_atomic` and the
+ * secure attachment RPCs.
+ */
 export function extractB1SecureAttachmentIds(
   requestTypeCode: string,
   formData: Record<string, unknown>,
 ): string[] {
   const canonical = normalizeStudentRequestTypeCode(requestTypeCode);
-  const contract = canonical === "excused_absence"
-    ? { field: "excuse_documents", fieldKey: "excuse_documents" }
+  const field = canonical === "excused_absence"
+    ? "excuse_documents"
     : canonical === "department_transfer"
-      ? { field: "secondary_certificate_file", fieldKey: "secondary_certificate" }
+      ? "secondary_certificate_file"
       : null;
-  if (!contract) return [];
+  if (!field) return [];
 
-  const raw = formData[contract.field];
-  const values = Array.isArray(raw) ? raw : raw == null ? [] : [raw];
-  const ids = values.map((value) => {
-    if (!value || typeof value !== "object") throw new Error("SECURE_ATTACHMENT_REFERENCE_REQUIRED");
-    const ref = value as Record<string, unknown>;
-    if (ref.fieldKey !== contract.fieldKey || ref.status !== "attached"
-      || typeof ref.attachmentId !== "string" || !SECURE_ATTACHMENT_ID.test(ref.attachmentId)) {
+  const raw = formData[field];
+  if (raw == null) throw new Error("SECURE_ATTACHMENT_REFERENCE_COUNT_INVALID");
+  if (!Array.isArray(raw)) throw new Error("SECURE_ATTACHMENT_REFERENCE_INVALID");
+
+  const ids = raw.map((value) => {
+    if (typeof value !== "string" || !SECURE_ATTACHMENT_ID.test(value)) {
       throw new Error("SECURE_ATTACHMENT_REFERENCE_INVALID");
     }
-    return ref.attachmentId.toLowerCase();
+    return value.toLowerCase();
   });
   if (ids.length < 1 || ids.length > 3 || new Set(ids).size !== ids.length) {
     throw new Error("SECURE_ATTACHMENT_REFERENCE_COUNT_INVALID");

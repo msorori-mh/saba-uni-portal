@@ -65,6 +65,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   const [success, setSuccess] = useState<{ requestId: string; requestNumber: string } | null>(
     null,
   );
+  const [attachmentSyncing, setAttachmentSyncing] = useState(false);
+  const attachmentSync = useRef<Promise<void> | null>(null);
   const submitLock = useRef(false);
   const valuesRef = useRef(values);
   const draftRef = useRef(draft);
@@ -178,28 +180,52 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   const save = async (fromAutosave = false) => {
     const current = draftRef.current;
     if (!current) return;
-    await persistDraft(current, valuesRef.current, fromAutosave);
+    // Never race a save against an in-flight attachment sync: the sync owns the
+    // latest server version and re-persists the secure references itself.
+    if (attachmentSync.current) {
+      await attachmentSync.current.catch(() => undefined);
+      if (fromAutosave) return;
+    }
+    await persistDraft(draftRef.current ?? current, valuesRef.current, fromAutosave);
   };
 
   const syncFormDataAfterAttachmentChange = async (requestId: string, fallback: B1Draft) => {
-    let target = fallback;
-    try {
-      const reloaded = await adapter.getB1RequestDraft(requestId);
-      if (reloaded) {
-        target = reloaded;
-        setDraft(reloaded);
+    const run = (async () => {
+      let target = fallback;
+      try {
+        const reloaded = await adapter.getB1RequestDraft(requestId);
+        if (reloaded) {
+          target = reloaded;
+          setDraft(reloaded);
+        }
+      } catch {
+        /* keep optimistic attachment state */
       }
-    } catch {
-      /* keep optimistic attachment state */
+      await persistDraft(target, valuesRef.current);
+    })();
+    attachmentSync.current = run;
+    setAttachmentSyncing(true);
+    try {
+      await run;
+    } finally {
+      if (attachmentSync.current === run) {
+        attachmentSync.current = null;
+        setAttachmentSyncing(false);
+      }
     }
-    await persistDraft(target, valuesRef.current);
   };
 
-
+  /** Submit and review must observe a settled attachment state. */
+  const awaitAttachmentSync = async () => {
+    while (attachmentSync.current) {
+      await attachmentSync.current.catch(() => undefined);
+    }
+  };
 
   const scheduleAutosave = () => {
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => {
+      if (attachmentSync.current || submitLock.current) return;
       void save(true);
     }, AUTOSAVE_MS);
   };
@@ -226,9 +252,12 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     scheduleAutosave();
   };
 
-  const review = () => {
-    const validationValues = { ...values };
-    for (const attachment of draft?.attachments ?? []) {
+  const review = async () => {
+    if (attachmentSync.current || uploadingKey) return;
+    await awaitAttachmentSync();
+    const current = draftRef.current;
+    const validationValues = { ...valuesRef.current };
+    for (const attachment of current?.attachments ?? []) {
       validationValues[attachment.attachmentType] = {
         fileName: attachment.fileName,
         storagePath: attachment.storageRef,
@@ -237,7 +266,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     const result = validateB1FormValues(serviceCode, validationValues);
     const nextErrors = { ...result.errors };
     for (const requirement of definition.requiredAttachments ?? []) {
-      if (!draft?.attachments.some((item) => item.attachmentType === requirement.key)) {
+      if (!current?.attachments.some((item) => item.attachmentType === requirement.key)) {
         nextErrors[requirement.key] = "secure_attachment_required";
       }
     }
@@ -257,16 +286,20 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
     let serverFnInvoked = false;
     try {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+      // Submit must observe the settled attachment state, never a half-applied one.
+      await awaitAttachmentSync();
+      const target = draftRef.current ?? draft;
       traceB1Submit("SUBMIT_BEFORE_SAVE", {
         serviceCode,
-        requestId: draft.requestId,
-        ...describeUpdatedAt(draft.updatedAt),
+        requestId: target.requestId,
+        ...describeUpdatedAt(target.updatedAt),
       });
       const saved = await adapter.saveB1RequestDraft(
-        draft.requestId,
-        withSecureAttachmentReferences(serviceCode, values, draft.attachments),
-        draft.updatedAt,
+        target.requestId,
+        withSecureAttachmentReferences(serviceCode, valuesRef.current, target.attachments),
+        target.updatedAt,
       );
+
 
       traceB1Submit("SUBMIT_AFTER_SAVE", {
         serviceCode,
@@ -433,7 +466,7 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
           className="space-y-5 rounded-xl border border-border bg-card p-4 shadow-card sm:p-6"
           onSubmit={(event) => {
             event.preventDefault();
-            review();
+            void review();
           }}
         >
           {Object.keys(errors).length > 0 ? (
@@ -534,13 +567,15 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
             <button
               type="button"
               onClick={() => void save(false)}
-              className="min-h-11 rounded-lg border border-primary px-4 text-sm font-bold text-primary"
+              disabled={attachmentSyncing || submitting}
+              className="min-h-11 rounded-lg border border-primary px-4 text-sm font-bold text-primary disabled:opacity-60"
             >
               حفظ المسودة
             </button>
             <button
               type="submit"
-              className="min-h-11 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
+              disabled={attachmentSyncing || uploadingKey !== null || submitting}
+              className="min-h-11 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-60"
             >
               مراجعة الطلب
             </button>
@@ -565,7 +600,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
             <button
               type="button"
               onClick={() => setConfirming(true)}
-              className="min-h-11 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground"
+              disabled={attachmentSyncing || submitting}
+              className="min-h-11 rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground disabled:opacity-60"
             >
               إرسال الطلب
             </button>
@@ -580,9 +616,10 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         bodyAr="راجع البيانات والمرفقات قبل الإرسال. لن تتمكن من تعديل المسودة بعد الإرسال."
         requireAcknowledgment={Boolean(requiredAcknowledgment)}
         acknowledgmentLabelAr={requiredAcknowledgment?.labelAr}
-        submitting={submitting}
+        submitting={submitting || attachmentSyncing}
         onConfirm={() => void submit()}
       />
+
     </div>
   );
 }
