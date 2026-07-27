@@ -79,8 +79,11 @@ describe("B1 excused absence detail 05A", () => {
       expect(body).not.toMatch(/rolname IN \('[^']*'sandbox_exec[^']*'\)/);
       expect(body).not.toMatch(/GRANT\s+.*\bTO\s+sandbox_exec\b/i);
     }
-    expect(preflight).toContain("remediable_sandbox_exec");
-    expect(preflight).toContain("no unexpected ACL grantee other than remediable sandbox_exec");
+    expect(preflight).toContain("remediable_pre_state");
+    expect(preflight).toContain("no unexpected ACL grantee outside remediable pre-state set");
+    expect(preflight).toContain("'sandbox_exec'");
+    expect(preflight).toContain("'PUBLIC'");
+    expect(preflight).toContain("'anon'");
     expect(post).toContain("sandbox_exec absent or has zero table privileges");
     expect(post).toContain("ACL inventory matches owner + authenticated/service_role SELECT only");
   });
