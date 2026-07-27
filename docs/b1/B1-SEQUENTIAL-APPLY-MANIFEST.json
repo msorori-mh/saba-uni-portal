@@ -1107,11 +1107,11 @@
    "plan_order": 10,
    "sequence_order": 11,
    "sequence_predecessor": "B1-EXCUSED-ABSENCE-VOCABULARY-09",
-   "source_sha": "27072dcb85054e4ec2da5f6946f1df102c0b7bb5",
-   "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "6697c2f953dba3e25ce1a7f3f46c143c13be1d442a47d9285d318d474f992169",
-   "sha256_provenance": "LF-normalized SHA-256 recomputed after PR219 migration-review remediation (DROP POLICY split-format)",
-   "byte_size": 5112,
+   "source_sha": "fd80dedd7f852842c359822fdd1920201118710e",
+   "source_sha_provenance": "git hash-object of REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql after SEQ10 sandbox_exec ACL fail-safe remediation",
+   "sha256": "a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4",
+   "sha256_provenance": "LF-normalized SHA-256 after SEQ10 sandbox_exec ACL fail-safe remediation (revoke platform role when present; never allowlisted)",
+   "byte_size": 5602,
    "dependencies": [
     "B1-EXCUSED-ABSENCE-VOCABULARY-09",
     "B1-ATOMIC-SUBMIT-ACTION-04"
@@ -1133,7 +1133,8 @@
    "grants_revokes": [
     "REVOKE ALL ON FUNCTION public.enforce_new_absence_reason_detail() FROM PUBLIC,anon,authenticated;",
     "REVOKE ALL ON TABLE public.absence_excuse_details FROM PUBLIC,anon,authenticated,service_role;",
-    "GRANT SELECT ON TABLE public.absence_excuse_details TO authenticated,service_role;"
+    "GRANT SELECT ON TABLE public.absence_excuse_details TO authenticated,service_role;",
+    "DO revoke sandbox_exec ALL on absence_excuse_details when role exists (never allowlisted)"
    ],
    "storage_impact": "none",
    "protected_record_impact": "PROTECTED: historical rows keep NULL absence_reason_detail; trigger enforces only new/changed rows",
@@ -1156,7 +1157,7 @@
    "expected_object_proof": [
     "absence_reason_detail text column present (nullable, no default)",
     "trigger trg_enforce_new_absence_reason_detail present on the 4-column UPDATE set",
-    "exactly 1 policy absence_excuse_details_owner_select; grants = SELECT to authenticated,service_role only"
+    "exactly 1 policy absence_excuse_details_owner_select; grants = SELECT to authenticated,service_role only; sandbox_exec has zero privileges when role exists"
    ],
    "stop_conditions": [
     "ABSENCE_REASON_DETAIL_COLUMN_MISMATCH raised",

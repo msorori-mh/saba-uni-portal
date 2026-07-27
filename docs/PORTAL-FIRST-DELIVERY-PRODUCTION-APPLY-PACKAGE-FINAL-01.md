@@ -26,7 +26,7 @@
 | 7B | `20260725110050_b1_07b_secure_attachments_sql_only_01.sql` | `a49d615b11949f3c8594b282d2241e9dbd2d7be42d37bb5ac4b1d1952ddd4eec` |
 | 8 | `20260725110100_b1_08_trusted_reference_validators_05a.sql` | `e04d7b0b2d3fa8cd9748796a2a9e59131894fdd726339ced594ba36d836df0a2` |
 | 9 | `20260725110200_b1_09_excused_absence_vocabulary_05a.sql` | `9ecf6c57167a748399edd0798e9b100e3a6ec9bbad4d09975df448f73fa41ae0` |
-| 10 | `20260725110300_b1_10_excused_absence_detail_05a.sql` | `7b9dc57ffef4e69ae79dffbeb42dcc5778dd28b5f3984d0a6d2af894eba0c113` |
+| 10 | `20260725110300_b1_10_excused_absence_detail_05a.sql` | `ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505` |
 | 11 | `20260725110400_b1_11_file_withdrawal_details_05a.sql` | `d655077c41cd9bc81ac935cfceb152433da3cd13746bd981f6f936c2577492ba` |
 | 12 | `20260725110500_b1_12_transfer_secure_attachment_05a.sql` | `224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9` |
 | 13 | `20260725110600_b1_13_final_chance_canonical_write_03.sql` | `21406c4ffce2ef22c9ef4115ffc2c8df6e9a54e53a9df5467a01a56ddfc64c70` |

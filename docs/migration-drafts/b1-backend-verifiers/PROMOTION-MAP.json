@@ -44,8 +44,8 @@
         "order": 10,
         "draft": "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql",
         "migration": "supabase/migrations/20260725110300_b1_10_excused_absence_detail_05a.sql",
-        "draft_sha_lf": "6697c2f953dba3e25ce1a7f3f46c143c13be1d442a47d9285d318d474f992169",
-        "migration_sha_lf": "7b9dc57ffef4e69ae79dffbeb42dcc5778dd28b5f3984d0a6d2af894eba0c113",
+        "draft_sha_lf": "a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4",
+        "migration_sha_lf": "ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-POST-VERIFIER.sql"
     },
