@@ -331,7 +331,7 @@ const EXCUSED_ABSENCE: RequestFormDefinition = {
         },
         {
           name: "course_section_id",
-          labelAr: "المقررات المتأثرة",
+          labelAr: "المقرر",
           type: "select",
           required: true,
           referenceResolverKey: "current_student_enrollments",

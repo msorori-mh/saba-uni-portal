@@ -172,10 +172,21 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   };
 
   const changeField = (name: string, value: unknown) => {
-    setValues((current) => ({ ...current, [name]: value }));
+    // Cascading references: a dependent select must not keep a value that no
+    // longer belongs to the newly chosen parent (e.g. program vs department).
+    const dependents = definition.sections
+      .flatMap((section) => section.fields)
+      .filter((field) => field.referenceDependsOnField === name)
+      .map((field) => field.name);
+    setValues((current) => {
+      const next = { ...current, [name]: value };
+      for (const dependent of dependents) next[dependent] = "";
+      return next;
+    });
     setErrors((current) => {
       const next = { ...current };
       delete next[name];
+      for (const dependent of dependents) delete next[dependent];
       return next;
     });
     setSaveState("draft");
@@ -615,6 +626,21 @@ function B1Field({
   );
 }
 
+/** Distinguish repeated course labels by their group order (مجموعة ١، ٢ …). */
+function disambiguateEnrollmentOptions(
+  options: readonly RequestFormFieldOption[],
+): readonly RequestFormFieldOption[] {
+  const counts = new Map<string, number>();
+  for (const option of options) counts.set(option.labelAr, (counts.get(option.labelAr) ?? 0) + 1);
+  const seen = new Map<string, number>();
+  return options.map((option) => {
+    if ((counts.get(option.labelAr) ?? 0) < 2) return option;
+    const index = (seen.get(option.labelAr) ?? 0) + 1;
+    seen.set(option.labelAr, index);
+    return { ...option, labelAr: `${option.labelAr} — مجموعة ${index}` };
+  });
+}
+
 function resolveOptions(
   field: RequestFormFieldDefinition,
   values: Record<string, unknown>,
@@ -625,8 +651,13 @@ function resolveOptions(
   if (field.referenceResolverKey === "semesters_for_year")
     return options.semestersByYear[dependency] ?? [];
   if (field.referenceResolverKey === "current_student_enrollments")
-    return options.currentEnrollments;
-  if (field.referenceResolverKey === "available_departments") return options.availableDepartments;
+    return disambiguateEnrollmentOptions(options.currentEnrollments);
+  if (field.referenceResolverKey === "available_departments")
+    // The backend rejects transferring into the current department, so it must
+    // never appear as a target choice.
+    return options.availableDepartments.filter(
+      (option) => option.labelAr !== options.currentDepartmentLabelAr,
+    );
   if (field.referenceResolverKey === "available_programs")
     return options.programsByDepartment[dependency] ?? [];
   return field.options;

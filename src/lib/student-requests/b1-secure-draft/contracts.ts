@@ -5,6 +5,7 @@
 
 import {
   B1_CANONICAL_CODES,
+  normalizeAttachmentMeta,
   type B1CanonicalCode,
   type B1SecureDraft,
 } from "../b1-secure-read/contracts";
@@ -156,8 +157,10 @@ export function normalizeDraftDto(raw: Record<string, unknown>): B1SecureDraft {
     requestId: String(raw.requestId ?? ""),
     serviceCode: serviceCode as B1CanonicalCode,
     formData: (raw.formData as Record<string, unknown>) ?? {},
+    // Draft-mutation RPCs return attachment metas in backend snake_case; the UI
+    // contract is camelCase. Normalizing here keeps attachments visible after save.
     attachments: Array.isArray(raw.attachments)
-      ? (raw.attachments as B1SecureDraft["attachments"])
+      ? (raw.attachments as Record<string, unknown>[]).map(normalizeAttachmentMeta)
       : [],
     status: "draft",
     updatedAt: String(raw.updatedAt ?? ""),
