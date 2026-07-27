@@ -1960,6 +1960,56 @@ export type Database = {
         }
         Relationships: []
       }
+      file_withdrawal_details: {
+        Row: {
+          activities_cleared_at: string | null
+          created_at: string
+          finance_cleared_at: string | null
+          impact_ack: boolean
+          labs_cleared_at: string | null
+          library_cleared_at: string | null
+          notes: string | null
+          records_transferred_at: string | null
+          request_id: string
+          updated_at: string
+          withdrawal_reason: string
+        }
+        Insert: {
+          activities_cleared_at?: string | null
+          created_at?: string
+          finance_cleared_at?: string | null
+          impact_ack: boolean
+          labs_cleared_at?: string | null
+          library_cleared_at?: string | null
+          notes?: string | null
+          records_transferred_at?: string | null
+          request_id: string
+          updated_at?: string
+          withdrawal_reason: string
+        }
+        Update: {
+          activities_cleared_at?: string | null
+          created_at?: string
+          finance_cleared_at?: string | null
+          impact_ack?: boolean
+          labs_cleared_at?: string | null
+          library_cleared_at?: string | null
+          notes?: string | null
+          records_transferred_at?: string | null
+          request_id?: string
+          updated_at?: string
+          withdrawal_reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_withdrawal_details_request_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "student_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grade_appeal_details: {
         Row: {
           academic_year_id: string
@@ -5850,6 +5900,10 @@ export type Database = {
       authorize_student_request_attachment_download: {
         Args: { p_attachment_id: string }
         Returns: Json
+      }
+      b1_expected_secure_attachment_field: {
+        Args: { p_request_type: string }
+        Returns: string
       }
       build_enrollment_certificate_issuance_snapshot: {
         Args: { p_student_profile_id: string }
