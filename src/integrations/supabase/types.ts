@@ -1605,6 +1605,7 @@ export type Database = {
       enrollment_suspension_details: {
         Row: {
           created_at: string
+          effect_applied_at: string | null
           id: string
           notes: string | null
           request_id: string
@@ -1616,6 +1617,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          effect_applied_at?: string | null
           id?: string
           notes?: string | null
           request_id: string
@@ -1627,6 +1629,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          effect_applied_at?: string | null
           id?: string
           notes?: string | null
           request_id?: string
@@ -2067,6 +2070,7 @@ export type Database = {
         Row: {
           activities_cleared_at: string | null
           created_at: string
+          effect_applied_at: string | null
           finance_cleared_at: string | null
           impact_ack: boolean
           labs_cleared_at: string | null
@@ -2080,6 +2084,7 @@ export type Database = {
         Insert: {
           activities_cleared_at?: string | null
           created_at?: string
+          effect_applied_at?: string | null
           finance_cleared_at?: string | null
           impact_ack: boolean
           labs_cleared_at?: string | null
@@ -2093,6 +2098,7 @@ export type Database = {
         Update: {
           activities_cleared_at?: string | null
           created_at?: string
+          effect_applied_at?: string | null
           finance_cleared_at?: string | null
           impact_ack?: boolean
           labs_cleared_at?: string | null
@@ -5603,8 +5609,11 @@ export type Database = {
           created_at: string
           current_department_id: string | null
           current_program_id: string
+          effect_applied_at: string | null
           id: string
           notes: string | null
+          previous_department_id: string | null
+          previous_program_id: string | null
           request_id: string
           requested_department_id: string | null
           requested_program_id: string
@@ -5615,8 +5624,11 @@ export type Database = {
           created_at?: string
           current_department_id?: string | null
           current_program_id: string
+          effect_applied_at?: string | null
           id?: string
           notes?: string | null
+          previous_department_id?: string | null
+          previous_program_id?: string | null
           request_id: string
           requested_department_id?: string | null
           requested_program_id: string
@@ -5627,8 +5639,11 @@ export type Database = {
           created_at?: string
           current_department_id?: string | null
           current_program_id?: string
+          effect_applied_at?: string | null
           id?: string
           notes?: string | null
+          previous_department_id?: string | null
+          previous_program_id?: string | null
           request_id?: string
           requested_department_id?: string | null
           requested_program_id?: string
@@ -5646,6 +5661,20 @@ export type Database = {
           {
             foreignKeyName: "transfer_request_details_current_program_id_fkey"
             columns: ["current_program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_previous_department_id_fkey"
+            columns: ["previous_department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transfer_request_details_previous_program_id_fkey"
+            columns: ["previous_program_id"]
             isOneToOne: false
             referencedRelation: "programs"
             referencedColumns: ["id"]
