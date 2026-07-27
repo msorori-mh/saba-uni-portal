@@ -1184,11 +1184,11 @@
    "plan_order": 11,
    "sequence_order": 12,
    "sequence_predecessor": "B1-EXCUSED-ABSENCE-DETAIL-10",
-   "source_sha": "d083e953d336a20be1b4f87e0dc3a602a4d66e11",
+   "source_sha": "f3714d00a3c4fa605983018eb80d22141bad0d7a",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9",
+   "sha256": "febf7a9bedd9d62f6fefe1533784d7e1f8fa7d995ea90a5fc3b16812a392ca71",
    "sha256_provenance": "locally computed SHA-256 of byte-exact fetched content; matches B1-plan pin",
-   "byte_size": 7164,
+   "byte_size": 7731,
    "dependencies": [
     "B1-EXCUSED-ABSENCE-DETAIL-10",
     "B1-ATOMIC-SUBMIT-ACTION-04"
@@ -1423,11 +1423,11 @@
    "plan_order": 14,
    "sequence_order": 15,
    "sequence_predecessor": "B1-FINAL-CHANCE-CANONICAL-WRITE-13",
-   "source_sha": "1bac90f373b02c0f40482fc783c3c60fc115e50e",
+   "source_sha": "682f681cbe3cee0ea73807ffb99619ea4f8619e7",
    "source_sha_provenance": "git blob SHA-1 of the draft on main @ 45148e09 (directory listing == get_file_contents API response == git hash-object of locally saved bytes)",
-   "sha256": "f881a82650983d71f14efee8106866810efd9739976da227081260e64825a8d5",
+   "sha256": "7c53e89a0cfa48545d115ee7aad1d08c3cbd8719620663e80d3df2217e2b06e0",
    "sha256_provenance": "LF-normalized SHA-256 recomputed after PR219 migration-review remediation (DROP POLICY split-format)",
-   "byte_size": 3574,
+   "byte_size": 3897,
    "dependencies": [
     "B1-FINAL-CHANCE-CANONICAL-WRITE-13",
     "B1-ATOMIC-SUBMIT-ACTION-04"

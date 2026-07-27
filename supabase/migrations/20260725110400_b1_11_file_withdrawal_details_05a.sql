@@ -101,6 +101,17 @@ REVOKE ALL ON TABLE public.file_withdrawal_details FROM service_role;
 GRANT SELECT ON TABLE public.file_withdrawal_details TO authenticated;
 GRANT SELECT ON TABLE public.file_withdrawal_details TO service_role;
 
+-- Fail-safe for Lovable/Supabase platform default ACL (sandbox_exec=ar).
+-- Role may be absent on local PG; migration must not fail in that case.
+-- Never allowlisted in final ACL inventory.
+DO $revoke_sandbox_exec$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec') THEN
+    REVOKE ALL ON TABLE public.file_withdrawal_details FROM sandbox_exec;
+  END IF;
+END
+$revoke_sandbox_exec$;
+
 DO $acl$
 BEGIN
   IF EXISTS (

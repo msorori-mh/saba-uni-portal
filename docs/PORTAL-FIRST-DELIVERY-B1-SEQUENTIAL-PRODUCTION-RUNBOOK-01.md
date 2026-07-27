@@ -98,10 +98,10 @@ For each row: preflight → apply **one** → post-verifier → protected record
 | 8 | `20260725110100_b1_08_trusted_reference_validators_05a.sql` | `20260725110100` | `e04d7b0b2d3fa8cd9748796a2a9e59131894fdd726339ced594ba36d836df0a2` | `08-…-PREFLIGHT.sql` | `08-…-POST-VERIFIER.sql` |
 | 9 | `20260725110200_b1_09_excused_absence_vocabulary_05a.sql` | `20260725110200` | `9ecf6c57167a748399edd0798e9b100e3a6ec9bbad4d09975df448f73fa41ae0` | `09-…-PREFLIGHT.sql` | `09-…-POST-VERIFIER.sql` |
 | 10 | `20260725110300_b1_10_excused_absence_detail_05a.sql` | `20260725110300` | `ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505` | `10-…-PREFLIGHT.sql` | `10-…-POST-VERIFIER.sql` |
-| 11 | `20260725110400_b1_11_file_withdrawal_details_05a.sql` | `20260725110400` | `d655077c41cd9bc81ac935cfceb152433da3cd13746bd981f6f936c2577492ba` | `11-…-PREFLIGHT.sql` | `11-…-POST-VERIFIER.sql` |
+| 11 | `20260725110400_b1_11_file_withdrawal_details_05a.sql` | `20260725110400` | `35468e00c544833626ddec23a8cf5d81659d4a51a16bbaa1d1f3ad99944e6401` | `11-…-PREFLIGHT.sql` | `11-…-POST-VERIFIER.sql` |
 | 12 | `20260725110500_b1_12_transfer_secure_attachment_05a.sql` | `20260725110500` | `224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9` | `12-…-PREFLIGHT.sql` | `12-…-POST-VERIFIER.sql` |
 | 13 | `20260725110600_b1_13_final_chance_canonical_write_03.sql` | `20260725110600` | `21406c4ffce2ef22c9ef4115ffc2c8df6e9a54e53a9df5467a01a56ddfc64c70` | `13-…-PREFLIGHT.sql` | `13-…-POST-VERIFIER.sql` |
-| 14 | `20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql` | `20260725110700` | `e2b15df0ff031deb2534957cdd67cbc954965edadefa74f0c2ae6291bed8b57a` | `14-…-PREFLIGHT.sql` | `14-…-POST-VERIFIER.sql` |
+| 14 | `20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql` | `20260725110700` | `3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b` | `14-…-PREFLIGHT.sql` | `14-…-POST-VERIFIER.sql` |
 | 15 | `20260725110800_b1_15_service_details_dispatcher_05a.sql` | `20260725110800` | `a1d1e143e89ca457b0776f06d11e0e50f1e8c471e8799debad3ef5dd79d0b8c2` | `15-…-PREFLIGHT.sql` | `15-…-POST-VERIFIER.sql` |
 | 16 | `20260725110900_b1_16_free_service_workflows_08.sql` | `20260725110900` | `b6034a7f61b8de71c5cd0eb8648c6ff16df4a685dcc43c140f19dfe51ca380ae` | `16-…-PREFLIGHT.sql` | `16-…-POST-VERIFIER.sql` |
 | 17 | `20260725111000_b1_17_external_university_payment_workflows_02.sql` | `20260725111000` | `841daba372958e2e7d53d3bc3364dd93cfd67e1b95057c0d58c2a0207c4a8f01` | `17-…-PREFLIGHT.sql` | `17-…-POST-VERIFIER.sql` |

@@ -53,8 +53,8 @@
         "order": 11,
         "draft": "REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql",
         "migration": "supabase/migrations/20260725110400_b1_11_file_withdrawal_details_05a.sql",
-        "draft_sha_lf": "1a2bba070d81b072faf61fe87b62fb8fe114b3fe3611ecb45ba18173cebf9ee9",
-        "migration_sha_lf": "d655077c41cd9bc81ac935cfceb152433da3cd13746bd981f6f936c2577492ba",
+        "draft_sha_lf": "febf7a9bedd9d62f6fefe1533784d7e1f8fa7d995ea90a5fc3b16812a392ca71",
+        "migration_sha_lf": "35468e00c544833626ddec23a8cf5d81659d4a51a16bbaa1d1f3ad99944e6401",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-POST-VERIFIER.sql"
     },
@@ -80,8 +80,8 @@
         "order": 14,
         "draft": "REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql",
         "migration": "supabase/migrations/20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql",
-        "draft_sha_lf": "f881a82650983d71f14efee8106866810efd9739976da227081260e64825a8d5",
-        "migration_sha_lf": "e2b15df0ff031deb2534957cdd67cbc954965edadefa74f0c2ae6291bed8b57a",
+        "draft_sha_lf": "7c53e89a0cfa48545d115ee7aad1d08c3cbd8719620663e80d3df2217e2b06e0",
+        "migration_sha_lf": "3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-POST-VERIFIER.sql"
     },

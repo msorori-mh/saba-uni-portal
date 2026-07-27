@@ -11,10 +11,15 @@ TEST marker: `TEST_ONLY_FIRST_DELIVERY_5_SERVICES`
 |---|---|
 | Order | 14 |
 | File | `supabase/migrations/20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql` |
-| LF SHA-256 | `e2b15df0ff031deb2534957cdd67cbc954965edadefa74f0c2ae6291bed8b57a` |
+| LF SHA-256 | `3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b` |
 | Preflight | `docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-PREFLIGHT.sql` |
 | Post-verifier | `docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-POST-VERIFIER.sql` |
 
+## ACL note (sandbox_exec)
+
+`apply_b1_detail_rpc_write_boundaries()` revokes `sandbox_exec` on
+`enrollment_suspension_details`, `transfer_request_details`, and `extra_chance_details`
+when the role exists. Fixed role name only; never allowlisted. No global `pg_default_acl` change.
 
 ## Step A — Read-only preflight (ROLLBACK)
 

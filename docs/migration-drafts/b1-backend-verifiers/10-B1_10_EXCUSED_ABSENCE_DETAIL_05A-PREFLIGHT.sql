@@ -4,97 +4,160 @@
 -- READ-ONLY. Ends with ROLLBACK. Zero writes. SOURCE-ONLY companion.
 -- Do NOT run as a supabase migration. Operator runs before/after approved apply.
 --
--- ACL note (SEQ10 sandbox_exec remediation):
---   - owner / authenticated SELECT / service_role SELECT = expected
---   - sandbox_exec privileges = REMEDIABLE by SEQ10 (not a preflight hard-fail)
---   - any other unexpected grantee = PREFLIGHT FAIL (fail-closed)
+-- ACL note (pre-state, remediable by SEQ10 migration):
+--   - owner privileges = expected
+--   - authenticated/service_role SELECT-only = already final-shaped (ok)
+--   - sandbox_exec OR PUBLIC/anon/authenticated/service_role privileges that
+--     SEQ10 will REVOKE/rewrite = REMEDIABLE (not a preflight hard-fail)
+--   - any other grantee = PREFLIGHT FAIL (fail-closed)
+-- Migration SEQ10 bytes / SHA are immutable after production apply.
 -- ============================================================================
 
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE READ ONLY;
 SET LOCAL search_path TO public;
 
-WITH unexpected_acl AS (
+WITH acl_rows AS (
   SELECT
-    coalesce(r.rolname, x.grantee::text) AS grantee_name,
-    x.privilege_type
+    CASE
+      WHEN x.grantee = 0 THEN 'PUBLIC'
+      ELSE coalesce(r.rolname, x.grantee::text)
+    END AS grantee_name,
+    x.privilege_type,
+    x.is_grantable,
+    (x.grantee = c.relowner) AS is_owner
   FROM pg_class c
   CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) x
   LEFT JOIN pg_roles r ON r.oid = x.grantee
-  WHERE to_regclass('public.absence_excuse_details') IS NOT NULL
-    AND c.oid = 'public.absence_excuse_details'::regclass
-    AND NOT (
-      x.grantee = c.relowner
-      OR (
-        r.rolname IN ('authenticated', 'service_role')
-        AND x.privilege_type = 'SELECT'
-        AND NOT x.is_grantable
-      )
-    )
+  WHERE c.oid = to_regclass('public.absence_excuse_details')
+),
+classified AS (
+  SELECT
+    grantee_name,
+    privilege_type,
+    CASE
+      WHEN is_owner THEN 'owner'
+      WHEN grantee_name IN ('authenticated', 'service_role')
+           AND privilege_type = 'SELECT'
+           AND NOT is_grantable THEN 'expected_select'
+      WHEN grantee_name IN (
+             'sandbox_exec',
+             'PUBLIC',
+             'anon',
+             'authenticated',
+             'service_role'
+           ) THEN 'remediable_pre_state'
+      ELSE 'unexpected'
+    END AS classification
+  FROM acl_rows
 ),
 checks(check_name, detail, ok) AS (
   SELECT 'CHECK_01', 'to_regclass(''public.absence_excuse_details'') IS NOT NULL',
          (to_regclass('public.absence_excuse_details') IS NOT NULL)
   UNION ALL SELECT 'CHECK_02', 'to_regprocedure(''public.assert_b1_active_course_enrollment(uuid,uuid)'') IS NOT NULL',
          (to_regprocedure('public.assert_b1_active_course_enrollment(uuid,uuid)') IS NOT NULL)
-  UNION ALL SELECT 'CHECK_03', 'no unexpected ACL grantee other than remediable sandbox_exec',
+  UNION ALL SELECT 'CHECK_03', 'no unexpected ACL grantee outside remediable pre-state set',
          (
            to_regclass('public.absence_excuse_details') IS NOT NULL
            AND NOT EXISTS (
-             SELECT 1 FROM unexpected_acl u
-             WHERE u.grantee_name IS DISTINCT FROM 'sandbox_exec'
+             SELECT 1 FROM classified c WHERE c.classification = 'unexpected'
            )
          )
-  UNION ALL SELECT 'CHECK_04', 'sandbox_exec ACL state is absent or remediable (informational ok)',
+  UNION ALL SELECT 'CHECK_04', 'sandbox_exec absent or remediable when present (informational)',
          (
            to_regclass('public.absence_excuse_details') IS NOT NULL
            AND (
              NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec')
-             OR EXISTS (SELECT 1 FROM unexpected_acl u WHERE u.grantee_name = 'sandbox_exec')
-             OR NOT EXISTS (SELECT 1 FROM unexpected_acl)
+             OR EXISTS (
+               SELECT 1 FROM classified c
+               WHERE c.grantee_name = 'sandbox_exec'
+                 AND c.classification = 'remediable_pre_state'
+             )
+             OR NOT EXISTS (
+               SELECT 1 FROM classified c WHERE c.grantee_name = 'sandbox_exec'
+             )
            )
          )
 )
 SELECT check_name, detail, ok FROM checks ORDER BY check_name;
 
+WITH acl_rows AS (
+  SELECT
+    CASE
+      WHEN x.grantee = 0 THEN 'PUBLIC'
+      ELSE coalesce(r.rolname, x.grantee::text)
+    END AS grantee_name,
+    x.privilege_type,
+    x.is_grantable,
+    (x.grantee = c.relowner) AS is_owner
+  FROM pg_class c
+  CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) x
+  LEFT JOIN pg_roles r ON r.oid = x.grantee
+  WHERE c.oid = to_regclass('public.absence_excuse_details')
+),
+classified AS (
+  SELECT
+    grantee_name,
+    privilege_type,
+    CASE
+      WHEN is_owner THEN 'owner'
+      WHEN grantee_name IN ('authenticated', 'service_role')
+           AND privilege_type = 'SELECT'
+           AND NOT is_grantable THEN 'expected_select'
+      WHEN grantee_name IN (
+             'sandbox_exec',
+             'PUBLIC',
+             'anon',
+             'authenticated',
+             'service_role'
+           ) THEN 'remediable_pre_state'
+      ELSE 'unexpected'
+    END AS classification
+  FROM acl_rows
+)
 SELECT
   'EVIDENCE_ACL' AS evidence_kind,
-  coalesce(r.rolname, x.grantee::text) AS grantee_name,
-  x.privilege_type,
-  CASE
-    WHEN x.grantee = c.relowner THEN 'owner'
-    WHEN r.rolname IN ('authenticated', 'service_role')
-         AND x.privilege_type = 'SELECT'
-         AND NOT x.is_grantable THEN 'expected_select'
-    WHEN r.rolname = 'sandbox_exec' THEN 'remediable_sandbox_exec'
-    ELSE 'unexpected'
-  END AS classification
-FROM pg_class c
-CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) x
-LEFT JOIN pg_roles r ON r.oid = x.grantee
-WHERE to_regclass('public.absence_excuse_details') IS NOT NULL
-  AND c.oid = 'public.absence_excuse_details'::regclass
+  grantee_name,
+  privilege_type,
+  classification
+FROM classified
 ORDER BY 2, 3;
 
 DO $guard$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM (
-      WITH unexpected_acl AS (
+      WITH acl_rows AS (
         SELECT
-          coalesce(r.rolname, x.grantee::text) AS grantee_name
+          CASE
+            WHEN x.grantee = 0 THEN 'PUBLIC'
+            ELSE coalesce(r.rolname, x.grantee::text)
+          END AS grantee_name,
+          x.privilege_type,
+          x.is_grantable,
+          (x.grantee = c.relowner) AS is_owner
         FROM pg_class c
         CROSS JOIN LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) x
         LEFT JOIN pg_roles r ON r.oid = x.grantee
-        WHERE to_regclass('public.absence_excuse_details') IS NOT NULL
-          AND c.oid = 'public.absence_excuse_details'::regclass
-          AND NOT (
-            x.grantee = c.relowner
-            OR (
-              r.rolname IN ('authenticated', 'service_role')
-              AND x.privilege_type = 'SELECT'
-              AND NOT x.is_grantable
-            )
-          )
+        WHERE c.oid = to_regclass('public.absence_excuse_details')
+      ),
+      classified AS (
+        SELECT
+          grantee_name,
+          CASE
+            WHEN is_owner THEN 'owner'
+            WHEN grantee_name IN ('authenticated', 'service_role')
+                 AND privilege_type = 'SELECT'
+                 AND NOT is_grantable THEN 'expected_select'
+            WHEN grantee_name IN (
+                   'sandbox_exec',
+                   'PUBLIC',
+                   'anon',
+                   'authenticated',
+                   'service_role'
+                 ) THEN 'remediable_pre_state'
+            ELSE 'unexpected'
+          END AS classification
+        FROM acl_rows
       ),
       checks(ok) AS (
         SELECT (to_regclass('public.absence_excuse_details') IS NOT NULL)
@@ -102,8 +165,7 @@ BEGIN
         UNION ALL SELECT (
           to_regclass('public.absence_excuse_details') IS NOT NULL
           AND NOT EXISTS (
-            SELECT 1 FROM unexpected_acl u
-            WHERE u.grantee_name IS DISTINCT FROM 'sandbox_exec'
+            SELECT 1 FROM classified c WHERE c.classification = 'unexpected'
           )
         )
       )
