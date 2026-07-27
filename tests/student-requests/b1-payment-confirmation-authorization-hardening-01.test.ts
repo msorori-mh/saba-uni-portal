@@ -33,7 +33,16 @@ const POST = readFileSync(
   "utf8",
 );
 
-const b1Branch = DRAFT.slice(DRAFT.indexOf("ELSE\n    -- B1 PATH"), DRAFT.indexOf("-- (8) fee assessment"));
+/** Executable body only (comments in the header are documentation, not logic). */
+const BODY = DRAFT.slice(DRAFT.indexOf("AS $function$"), DRAFT.lastIndexOf("$function$;"));
+/** Code that only runs for B1 canonical requests. */
+const b1Branch =
+  BODY.slice(BODY.indexOf("ELSE\n    -- B1 PATH"), BODY.indexOf("  -- Active runtime step (3)")) +
+  BODY.slice(
+    BODY.indexOf("  IF v_is_b1 THEN\n    -- (4)(5)(6)(7)"),
+    BODY.indexOf("  ELSE\n    -- LEGACY step check"),
+  );
+
 
 describe("G5: source package shape", () => {
   test("draft is forward-only and explicitly not applied", () => {
