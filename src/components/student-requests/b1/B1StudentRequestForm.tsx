@@ -318,15 +318,21 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
         attachmentKey,
         file,
       );
-      setDraft((current) =>
-        current ? { ...current, attachments: [...current.attachments, uploaded] } : current,
-      );
+      const fallback: B1Draft = {
+        ...draft,
+        attachments: [...draft.attachments, uploaded],
+      };
+      setDraft(fallback);
       setErrors((current) => {
         const next = { ...current };
         delete next[attachmentKey];
         return next;
       });
       lastFailedFile.current = null;
+      // Attachment mutations bump the server version: refetch, then persist the
+      // secure reference into form_data so submit can resolve it.
+      await syncFormDataAfterAttachmentChange(draft.requestId, fallback);
+
     } catch (error) {
       const raw = error instanceof Error ? error.message : "";
       const message = /SECURE_ATTACHMENTS_RUNTIME_NOT_AVAILABLE|create_intent|upload|complete|download/i.test(
