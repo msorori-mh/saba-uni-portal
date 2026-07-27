@@ -56,6 +56,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<B1DraftSaveState>("draft");
   const [fatalError, setFatalError] = useState<string | null>(null);
+  const [transientSaveError, setTransientSaveError] = useState<string | null>(null);
+
   const [reviewing, setReviewing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
