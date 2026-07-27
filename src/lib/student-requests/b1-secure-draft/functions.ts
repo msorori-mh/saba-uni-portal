@@ -2,32 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { B1_CANONICAL_CODES } from "../request-service-adapter";
-import {
-  B1SecureDraftRpcClient,
-  B1SecureDraftRpcError,
-  isB1SecureDraftRpcUnavailable,
-} from "./rpc";
-import { B1_SECURE_DRAFT_UPDATING_MSG } from "./contracts";
+import { B1SecureDraftRpcClient, mapB1SecureDraftThrown } from "./rpc";
+import { normalizeB1DraftFormData } from "./contracts";
 
 const uuid = z.string().uuid();
 const canonical = z.enum(B1_CANONICAL_CODES);
-
-type RpcLike = ConstructorParameters<typeof B1SecureDraftRpcClient>[0];
-
-function clientOf(supabase: RpcLike) {
-  return new B1SecureDraftRpcClient(supabase);
-}
-
-function mapThrown(error: unknown): never {
-  if (error instanceof B1SecureDraftRpcError) throw error;
-  if (error instanceof Error) {
-    if (isB1SecureDraftRpcUnavailable({ message: error.message })) {
-      throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG, "", true);
-    }
-    throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG);
-  }
-  throw new B1SecureDraftRpcError(B1_SECURE_DRAFT_UPDATING_MSG, "", true);
-}
 
 /** Adapter-consumable: createB1Draft */
 export const createB1Draft = createServerFn({ method: "POST" })
@@ -43,9 +22,16 @@ export const createB1Draft = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     try {
-      return await clientOf(context.supabase).createDraft(data.serviceCode, data.idempotencyKey);
+      return await new B1SecureDraftRpcClient(context.supabase).createDraft(
+        data.serviceCode,
+        data.idempotencyKey,
+      );
     } catch (error) {
-      mapThrown(error);
+      mapB1SecureDraftThrown(error, {
+        operation: "createDraft",
+        serviceCode: data.serviceCode,
+        requestId: null,
+      });
     }
   });
 
@@ -65,13 +51,19 @@ export const saveB1Draft = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     try {
-      return await clientOf(context.supabase).saveDraft({
+      return await new B1SecureDraftRpcClient(context.supabase).saveDraft({
         requestId: data.requestId,
-        formData: data.formData,
+        // Normalize secure-attachment reference fields to the exact jsonb shape
+        // the backend contract accepts (absent key or uuid array).
+        formData: normalizeB1DraftFormData(data.formData),
         expectedUpdatedAt: data.expectedUpdatedAt,
         idempotencyKey: data.idempotencyKey,
       });
     } catch (error) {
-      mapThrown(error);
+      mapB1SecureDraftThrown(error, {
+        operation: "saveDraft",
+        serviceCode: null,
+        requestId: data.requestId,
+      });
     }
   });
