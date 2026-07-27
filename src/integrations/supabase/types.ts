@@ -5965,7 +5965,31 @@ export type Database = {
         Args: { p_kind: string; p_profile_id: string }
         Returns: string
       }
+      apply_b1_academic_effect_for_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      apply_b1_department_transfer_effect: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       apply_b1_detail_rpc_write_boundaries: { Args: never; Returns: undefined }
+      apply_b1_enrollment_suspension_effect: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      apply_b1_excused_absence_effect: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      apply_b1_file_withdrawal_effect: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      apply_b1_final_chance_effect: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       apply_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
