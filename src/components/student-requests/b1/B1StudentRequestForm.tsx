@@ -92,6 +92,8 @@ export function B1StudentRequestForm({ serviceCode }: { serviceCode: B1Canonical
 
   const load = () => {
     setFatalError(null);
+    setTransientSaveError(null);
+
     setSuccess(null);
     void Promise.all([
       adapter.getAvailableB1RequestTypes(),
