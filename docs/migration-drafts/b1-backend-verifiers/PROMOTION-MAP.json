@@ -1,223 +1,225 @@
 [
-    {
-        "order": 7,
-        "draft": "STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql",
-        "migration": "supabase/migrations/20260725110000_b1_07_secure_attachments_source_01.sql",
-        "draft_sha_lf": "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
-        "migration_sha_lf": "66ba4c96c23c44bbcca62de28360d806ee6ff5dbd358a20f2e181b9a8fd6bca8",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql",
-        "apply_status": "SUPERSEDED_NOT_FOR_LOVABLE_CLOUD_APPLY",
-        "note": "File bytes MUST remain unmodified (pin 66ba4c96…). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
-    },
-    {
-        "order": 7.5,
-        "canonical_order_label": "7B",
-        "draft": "B1-07B-SECURE-ATTACHMENTS-SQL-ONLY-01.sql",
-        "migration": "supabase/migrations/20260725110050_b1_07b_secure_attachments_sql_only_01.sql",
-        "draft_sha_lf": null,
-        "migration_sha_lf": "a49d615b11949f3c8594b282d2241e9dbd2d7be42d37bb5ac4b1d1952ddd4eec",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql",
-        "prerequisite_non_migration": "B0 Lovable Storage tool: create private bucket student-request-secure-attachments (public=false, 5MiB, pdf/jpeg/png) BEFORE applying 7B",
-        "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only — never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
-    },
-    {
-        "order": 8,
-        "draft": "REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql",
-        "migration": "supabase/migrations/20260725110100_b1_08_trusted_reference_validators_05a.sql",
-        "draft_sha_lf": "529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c",
-        "migration_sha_lf": "e04d7b0b2d3fa8cd9748796a2a9e59131894fdd726339ced594ba36d836df0a2",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/08-B1_08_TRUSTED_REFERENCE_VALIDATORS_05A-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/08-B1_08_TRUSTED_REFERENCE_VALIDATORS_05A-POST-VERIFIER.sql"
-    },
-    {
-        "order": 9,
-        "draft": "REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql",
-        "migration": "supabase/migrations/20260725110200_b1_09_excused_absence_vocabulary_05a.sql",
-        "draft_sha_lf": "e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205",
-        "migration_sha_lf": "9ecf6c57167a748399edd0798e9b100e3a6ec9bbad4d09975df448f73fa41ae0",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/09-B1_09_EXCUSED_ABSENCE_VOCABULARY_05A-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/09-B1_09_EXCUSED_ABSENCE_VOCABULARY_05A-POST-VERIFIER.sql"
-    },
-    {
-        "order": 10,
-        "draft": "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql",
-        "migration": "supabase/migrations/20260725110300_b1_10_excused_absence_detail_05a.sql",
-        "draft_sha_lf": "a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4",
-        "migration_sha_lf": "ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-POST-VERIFIER.sql"
-    },
-    {
-        "order": 11,
-        "draft": "REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql",
-        "migration": "supabase/migrations/20260725110400_b1_11_file_withdrawal_details_05a.sql",
-        "draft_sha_lf": "febf7a9bedd9d62f6fefe1533784d7e1f8fa7d995ea90a5fc3b16812a392ca71",
-        "migration_sha_lf": "35468e00c544833626ddec23a8cf5d81659d4a51a16bbaa1d1f3ad99944e6401",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-POST-VERIFIER.sql"
-    },
-    {
-        "order": 12,
-        "draft": "REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql",
-        "migration": "supabase/migrations/20260725110500_b1_12_transfer_secure_attachment_05a.sql",
-        "draft_sha_lf": "d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284",
-        "migration_sha_lf": "224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/12-B1_12_TRANSFER_SECURE_ATTACHMENT_05A-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/12-B1_12_TRANSFER_SECURE_ATTACHMENT_05A-POST-VERIFIER.sql"
-    },
-    {
-        "order": 13,
-        "draft": "FINAL-CHANCE-CANONICAL-WRITE-03.sql",
-        "migration": "supabase/migrations/20260725110600_b1_13_final_chance_canonical_write_03.sql",
-        "draft_sha_lf": "1378250a44374a782b612198262ca9c3a4afb9e87afe449179f5de28b2a2535a",
-        "migration_sha_lf": "ac71b01ca78d0946152be39fee6eb1e659031dcc820f492f419eb7855947be46",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-POST-VERIFIER.sql"
-    },
-    {
-        "order": 14,
-        "draft": "REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql",
-        "migration": "supabase/migrations/20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql",
-        "draft_sha_lf": "7c53e89a0cfa48545d115ee7aad1d08c3cbd8719620663e80d3df2217e2b06e0",
-        "migration_sha_lf": "3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-POST-VERIFIER.sql"
-    },
-    {
-        "order": 15,
-        "draft": "REQUEST-B1-SERVICE-DETAILS-05A.sql",
-        "migration": "supabase/migrations/20260725110800_b1_15_service_details_dispatcher_05a.sql",
-        "draft_sha_lf": "d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c",
-        "migration_sha_lf": "a1d1e143e89ca457b0776f06d11e0e50f1e8c471e8799debad3ef5dd79d0b8c2",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/15-B1_15_SERVICE_DETAILS_DISPATCHER_05A-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/15-B1_15_SERVICE_DETAILS_DISPATCHER_05A-POST-VERIFIER.sql"
-    },
-    {
-        "order": 16,
-        "draft": "B1-FREE-SERVICE-WORKFLOWS-08.sql",
-        "migration": "supabase/migrations/20260725110900_b1_16_free_service_workflows_08.sql",
-        "draft_sha_lf": "1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c",
-        "migration_sha_lf": "b6034a7f61b8de71c5cd0eb8648c6ff16df4a685dcc43c140f19dfe51ca380ae",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-POST-VERIFIER.sql"
-    },
-    {
-        "order": 17,
-        "draft": "EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql",
-        "migration": "supabase/migrations/20260725111000_b1_17_external_university_payment_workflows_02.sql",
-        "draft_sha_lf": "64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250",
-        "migration_sha_lf": "841daba372958e2e7d53d3bc3364dd93cfd67e1b95057c0d58c2a0207c4a8f01",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-POST-VERIFIER.sql"
-    },
-    {
-        "order": 18,
-        "draft": "REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql",
-        "migration": "supabase/migrations/20260725111100_b1_18_detail_acl_cutover_06.sql",
-        "draft_sha_lf": "55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383",
-        "migration_sha_lf": "3eb6501f03ccab78ed739253e1ce64f2d5b48ac2b812121397d924f045359e3c",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-POST-VERIFIER.sql"
-    },
-    {
-        "order": 19,
-        "draft": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql",
-        "migration": "supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
-        "draft_sha_lf": "98bcf77cbda492135d19801b9997eced6a4699a6f555bdfda4d739998389b035",
-        "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
-        "note": "Namespaces: promotion-map order 19; manifest sequence_order 20; secure read/draft/transfer/withdrawal follow at 21-24; activation gate 25 is not a migration entry. Does not renumber promoted migrations 7-18."
-    },
-    {
-        "order": 20,
-        "draft": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql",
-        "migration": "supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
-        "draft_sha_lf": "98bcf77cbda492135d19801b9997eced6a4699a6f555bdfda4d739998389b035",
-        "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
-        "note": "Namespace bridge only: manifest sequence_order 20 remains the payment predecessor guard (promotion-map order 19). Formal stack continues at promotion-map/sequence 21 (secure read). This order-20 bridge prevents a missing promotion-map integer without inventing a new draft."
-    },
-    {
-        "order": 21,
-        "draft": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql",
-        "migration": "supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql",
-        "draft_sha_lf": "0470e807fe3733658930b7916524c36e0f00b96ea5f48d962ea582144ecdd027",
-        "migration_sha_lf": "cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql",
-        "note": "Read-contract track at promotion-map/sequence 21. Does not open create/save draft writes. Activation gate is 25."
-    },
-    {
-        "order": 22,
-        "draft": "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql",
-        "migration": "supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql",
-        "draft_sha_lf": "e8610fbe35c166af1c0552990566fd3eb5e295de582e4e59f0fabf8483110fa6",
-        "migration_sha_lf": "da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql",
-        "note": "Draft create/save write track at promotion-map/sequence 22. Submit remains submit_b1_student_request_atomic. Activation remains non-migration gate 25."
-    },
-    {
-        "order": 23,
-        "draft": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
-        "migration": "supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql",
-        "draft_sha_lf": "85d6a256127584f4e8793d2db7ed0a5925e7787dea36d0d255a76e11a45271d2",
-        "migration_sha_lf": "4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/23-B1_23_TRANSFER_DEPARTMENT_SCOPE_POSITION_ASSIGNMENT_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/23-B1_23_TRANSFER_DEPARTMENT_SCOPE_POSITION_ASSIGNMENT_01-POST-VERIFIER.sql",
-        "note": "Aligns transfer department scope with position_assignment assignees required by submit/init. Activation gate remains 25."
-    },
-    {
-        "order": 24,
-        "draft": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
-        "migration": "supabase/migrations/20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql",
-        "draft_sha_lf": "684aac3bc3801e7e50bb9c65ff041489afb3d9bf91083b28b97b63faa0434425",
-        "migration_sha_lf": "67257aa9201538b1a4691ec4602e1ae4dcbd7a2f2b511dcac1da8a714ae9d70b",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-POST-VERIFIER.sql",
-        "note": "Null-safe impact_acknowledgment / terms_acknowledgment guards. Activation gate remains 25."
-    },
-    {
-        "order": 25,
-        "draft": "B1-ACADEMIC-EFFECT-MARKERS-01.sql",
-        "migration": "supabase/migrations/20260727120000_b1_25_academic_effect_markers_01.sql",
-        "draft_sha_lf": "50db2dfec04e940d2e474f81e660167ea28453e0cca892228dfd8d6cfa629bdf",
-        "migration_sha_lf": "4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-POST-VERIFIER.sql"
-    },
-    {
-        "order": 26,
-        "draft": "B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
-        "migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
-        "draft_sha_lf": "ad0a5de204a0bfdc7df21a0283c0761e5f4060a062a200352eb828c7cb33e795",
-        "migration_sha_lf": "7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-POST-VERIFIER.sql"
-    },
-    {
-        "order": 27,
-        "draft": "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-01.sql",
-        "migration": "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
-        "draft_sha_lf": "0b29034dd3d30d4e2e54516d09b53be87ec58a175a9b187db7203853f28b0937",
-        "migration_sha_lf": "7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-POST-VERIFIER.sql"
-    },
-    {
-        "order": 28,
-        "draft": "B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-01.sql",
-        "migration": "supabase/migrations/20260728015540_9a307610-cd06-4e91-b3f8-4b9b58ab2819.sql",
-        "draft_sha_lf": "7f1314bccec8fa5201e967f723db09be47aa88fafa0ea835012304d30a54c15f",
-        "migration_sha_lf": "8dd8da6748b6a19a50b3e15108728a3d1c1111c49a8ed218916a24a8118003a1",
-        "preflight": "docs/migration-drafts/b1-backend-verifiers/28-B1_28_PAYMENT_CONFIRMATION_AUTHORIZATION_HARDENING_01-PREFLIGHT.sql",
-        "post_verifier": "docs/migration-drafts/b1-backend-verifiers/28-B1_28_PAYMENT_CONFIRMATION_AUTHORIZATION_HARDENING_01-POST-VERIFIER.sql",
-        "apply_status": "APPLIED",
-        "applied_at": "2026-07-28T01:55:40Z",
-        "note": "Forward-only B1 payment-confirmation authorization hardening. Applied to production as a single migration under track PORTAL-B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-PRODUCTION-APPLY-01. Migration body is byte-identical to the draft except for the absent trailing newline. Preflight PASS, post-verifier PASS, business_rows_mutated = 0."
-    }
+  {
+    "order": 7,
+    "draft": "STUDENT-REQUEST-SECURE-ATTACHMENTS-SOURCE-01.sql",
+    "migration": "supabase/migrations/20260725110000_b1_07_secure_attachments_source_01.sql",
+    "draft_sha_lf": "6034c0de0a7a347f576ef8839b730d5c1f1d281ebe74a7ac312266ac92ee2356",
+    "migration_sha_lf": "66ba4c96c23c44bbcca62de28360d806ee6ff5dbd358a20f2e181b9a8fd6bca8",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql",
+    "apply_status": "SUPERSEDED_NOT_FOR_LOVABLE_CLOUD_APPLY",
+    "note": "File bytes MUST remain unmodified (pin 66ba4c96…). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
+  },
+  {
+    "order": 7.5,
+    "canonical_order_label": "7B",
+    "draft": "B1-07B-SECURE-ATTACHMENTS-SQL-ONLY-01.sql",
+    "migration": "supabase/migrations/20260725110050_b1_07b_secure_attachments_sql_only_01.sql",
+    "draft_sha_lf": null,
+    "migration_sha_lf": "a49d615b11949f3c8594b282d2241e9dbd2d7be42d37bb5ac4b1d1952ddd4eec",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql",
+    "prerequisite_non_migration": "B0 Lovable Storage tool: create private bucket student-request-secure-attachments (public=false, 5MiB, pdf/jpeg/png) BEFORE applying 7B",
+    "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only — never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
+  },
+  {
+    "order": 8,
+    "draft": "REQUEST-B1-TRUSTED-REFERENCE-VALIDATORS-05A.sql",
+    "migration": "supabase/migrations/20260725110100_b1_08_trusted_reference_validators_05a.sql",
+    "draft_sha_lf": "529366401a8a57124211e1efb21c88ee9acf4ea0395c0daff93573e82b44897c",
+    "migration_sha_lf": "e04d7b0b2d3fa8cd9748796a2a9e59131894fdd726339ced594ba36d836df0a2",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/08-B1_08_TRUSTED_REFERENCE_VALIDATORS_05A-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/08-B1_08_TRUSTED_REFERENCE_VALIDATORS_05A-POST-VERIFIER.sql"
+  },
+  {
+    "order": 9,
+    "draft": "REQUEST-B1-EXCUSED-ABSENCE-VOCABULARY-05A.sql",
+    "migration": "supabase/migrations/20260725110200_b1_09_excused_absence_vocabulary_05a.sql",
+    "draft_sha_lf": "e2d1cbe1ff09749583f66bf7e32a3f7570bf190ea77dffe113910bb397ba4205",
+    "migration_sha_lf": "9ecf6c57167a748399edd0798e9b100e3a6ec9bbad4d09975df448f73fa41ae0",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/09-B1_09_EXCUSED_ABSENCE_VOCABULARY_05A-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/09-B1_09_EXCUSED_ABSENCE_VOCABULARY_05A-POST-VERIFIER.sql"
+  },
+  {
+    "order": 10,
+    "draft": "REQUEST-B1-EXCUSED-ABSENCE-DETAIL-05A.sql",
+    "migration": "supabase/migrations/20260725110300_b1_10_excused_absence_detail_05a.sql",
+    "draft_sha_lf": "a94233525724f96959568672744b7466a88b22d338298eaf13a6b75319f97df4",
+    "migration_sha_lf": "ff61ae4a400b2b7d9dfbbec03212d04032103d5343f54a4ad42e274cbb9ab505",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/10-B1_10_EXCUSED_ABSENCE_DETAIL_05A-POST-VERIFIER.sql"
+  },
+  {
+    "order": 11,
+    "draft": "REQUEST-B1-FILE-WITHDRAWAL-DETAILS-05A.sql",
+    "migration": "supabase/migrations/20260725110400_b1_11_file_withdrawal_details_05a.sql",
+    "draft_sha_lf": "febf7a9bedd9d62f6fefe1533784d7e1f8fa7d995ea90a5fc3b16812a392ca71",
+    "migration_sha_lf": "35468e00c544833626ddec23a8cf5d81659d4a51a16bbaa1d1f3ad99944e6401",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/11-B1_11_FILE_WITHDRAWAL_DETAILS_05A-POST-VERIFIER.sql"
+  },
+  {
+    "order": 12,
+    "draft": "REQUEST-B1-TRANSFER-SECURE-ATTACHMENT-05A.sql",
+    "migration": "supabase/migrations/20260725110500_b1_12_transfer_secure_attachment_05a.sql",
+    "draft_sha_lf": "d80f691c0fd2dd2e403d241f45bc96608f1d3dec74dd6286762732e4632aa284",
+    "migration_sha_lf": "224186f4b9b06b9b57e9460492e7bc74383e8bd18a949bf66b4946aff9d84cd9",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/12-B1_12_TRANSFER_SECURE_ATTACHMENT_05A-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/12-B1_12_TRANSFER_SECURE_ATTACHMENT_05A-POST-VERIFIER.sql"
+  },
+  {
+    "order": 13,
+    "draft": "FINAL-CHANCE-CANONICAL-WRITE-03.sql",
+    "migration": "supabase/migrations/20260725110600_b1_13_final_chance_canonical_write_03.sql",
+    "draft_sha_lf": "1378250a44374a782b612198262ca9c3a4afb9e87afe449179f5de28b2a2535a",
+    "migration_sha_lf": "ac71b01ca78d0946152be39fee6eb1e659031dcc820f492f419eb7855947be46",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/13-B1_13_FINAL_CHANCE_CANONICAL_WRITE_03-POST-VERIFIER.sql"
+  },
+  {
+    "order": 14,
+    "draft": "REQUEST-B1-DETAIL-RPC-WRITE-BOUNDARIES-05A.sql",
+    "migration": "supabase/migrations/20260725110700_b1_14_detail_rpc_write_boundaries_05a.sql",
+    "draft_sha_lf": "7c53e89a0cfa48545d115ee7aad1d08c3cbd8719620663e80d3df2217e2b06e0",
+    "migration_sha_lf": "3d3f274d1d0f864b8ed387138f92a78bb3952e1cedfe9232d9a657564f50399b",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/14-B1_14_DETAIL_RPC_WRITE_BOUNDARIES_05A-POST-VERIFIER.sql"
+  },
+  {
+    "order": 15,
+    "draft": "REQUEST-B1-SERVICE-DETAILS-05A.sql",
+    "migration": "supabase/migrations/20260725110800_b1_15_service_details_dispatcher_05a.sql",
+    "draft_sha_lf": "d8eec185033818b6612d6ada94e6be95264ed34ac4647fe1f712bb385674600c",
+    "migration_sha_lf": "a1d1e143e89ca457b0776f06d11e0e50f1e8c471e8799debad3ef5dd79d0b8c2",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/15-B1_15_SERVICE_DETAILS_DISPATCHER_05A-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/15-B1_15_SERVICE_DETAILS_DISPATCHER_05A-POST-VERIFIER.sql"
+  },
+  {
+    "order": 16,
+    "draft": "B1-FREE-SERVICE-WORKFLOWS-08.sql",
+    "migration": "supabase/migrations/20260725110900_b1_16_free_service_workflows_08.sql",
+    "draft_sha_lf": "1e8b6437ce71aab4c60ad122dd1a405841d1dcca1fda09ab45df1ca4907db44c",
+    "migration_sha_lf": "b6034a7f61b8de71c5cd0eb8648c6ff16df4a685dcc43c140f19dfe51ca380ae",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/16-B1_16_FREE_SERVICE_WORKFLOWS_08-POST-VERIFIER.sql"
+  },
+  {
+    "order": 17,
+    "draft": "EXTERNAL-UNIVERSITY-PAYMENT-WORKFLOWS-02.sql",
+    "migration": "supabase/migrations/20260725111000_b1_17_external_university_payment_workflows_02.sql",
+    "draft_sha_lf": "64e3436cda5e485fdea5144bb0668eec62b5098c62e444342d18411ea7cd8250",
+    "migration_sha_lf": "841daba372958e2e7d53d3bc3364dd93cfd67e1b95057c0d58c2a0207c4a8f01",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/17-B1_17_EXTERNAL_UNIVERSITY_PAYMENT_WORKFLOWS_02-POST-VERIFIER.sql"
+  },
+  {
+    "order": 18,
+    "draft": "REQUEST-B1-DETAIL-ACL-CUTOVER-06.sql",
+    "migration": "supabase/migrations/20260725111100_b1_18_detail_acl_cutover_06.sql",
+    "draft_sha_lf": "55f008fa7f516af5da33ea75bb9cfc9cf3b78f6240345c3466fbdbc42cd38383",
+    "migration_sha_lf": "3eb6501f03ccab78ed739253e1ce64f2d5b48ac2b812121397d924f045359e3c",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/18-B1_18_DETAIL_ACL_CUTOVER_06-POST-VERIFIER.sql"
+  },
+  {
+    "order": 19,
+    "draft": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql",
+    "migration": "supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
+    "draft_sha_lf": "98bcf77cbda492135d19801b9997eced6a4699a6f555bdfda4d739998389b035",
+    "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
+    "note": "Namespaces: promotion-map order 19; manifest sequence_order 20; secure read/draft/transfer/withdrawal follow at 21-24; activation gate 25 is not a migration entry. Does not renumber promoted migrations 7-18."
+  },
+  {
+    "order": 20,
+    "draft": "B1-CONFIRM-PAYMENT-PREDECESSOR-GUARD-01.sql",
+    "migration": "supabase/migrations/20260725120000_b1_confirm_payment_predecessor_guard_01.sql",
+    "draft_sha_lf": "98bcf77cbda492135d19801b9997eced6a4699a6f555bdfda4d739998389b035",
+    "migration_sha_lf": "e4a9f7f3a9a9fe060fdf325a5aa39e8d3437170b71795ce431ca629166622335",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/19-B1_CONFIRM_PAYMENT_PREDECESSOR_GUARD_01-POST-VERIFIER.sql",
+    "note": "Namespace bridge only: manifest sequence_order 20 remains the payment predecessor guard (promotion-map order 19). Formal stack continues at promotion-map/sequence 21 (secure read). This order-20 bridge prevents a missing promotion-map integer without inventing a new draft."
+  },
+  {
+    "order": 21,
+    "draft": "B1-FIVE-SERVICES-SECURE-READ-CONTRACTS-01.sql",
+    "migration": "supabase/migrations/20260725130000_b1_21_secure_read_contracts_01.sql",
+    "draft_sha_lf": "0470e807fe3733658930b7916524c36e0f00b96ea5f48d962ea582144ecdd027",
+    "migration_sha_lf": "cd71670022c534d15639c530acd4135b72a15cb053debf554d90c6e2405385ca",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/21-B1_21_SECURE_READ_CONTRACTS_01-POST-VERIFIER.sql",
+    "note": "Read-contract track at promotion-map/sequence 21. Does not open create/save draft writes. Activation gate is 25."
+  },
+  {
+    "order": 22,
+    "draft": "B1-FIVE-SERVICES-SECURE-DRAFT-MUTATIONS-01.sql",
+    "migration": "supabase/migrations/20260725140000_b1_22_secure_draft_mutations_01.sql",
+    "draft_sha_lf": "e8610fbe35c166af1c0552990566fd3eb5e295de582e4e59f0fabf8483110fa6",
+    "migration_sha_lf": "da6754dc3b9e6830f666321447558227612e616ec592f312d092fff0f009d242",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/22-B1_22_SECURE_DRAFT_MUTATIONS_01-POST-VERIFIER.sql",
+    "note": "Draft create/save write track at promotion-map/sequence 22. Submit remains submit_b1_student_request_atomic. Activation remains non-migration gate 25."
+  },
+  {
+    "order": 23,
+    "draft": "B1-TRANSFER-DEPARTMENT-SCOPE-POSITION-ASSIGNMENT-01.sql",
+    "migration": "supabase/migrations/20260725150000_b1_23_transfer_department_scope_position_assignment_01.sql",
+    "draft_sha_lf": "85d6a256127584f4e8793d2db7ed0a5925e7787dea36d0d255a76e11a45271d2",
+    "migration_sha_lf": "4bc35f9b1e17c9dc6155b6b7c26d4ba6b8cf203297e66bcf9c8771e358130c85",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/23-B1_23_TRANSFER_DEPARTMENT_SCOPE_POSITION_ASSIGNMENT_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/23-B1_23_TRANSFER_DEPARTMENT_SCOPE_POSITION_ASSIGNMENT_01-POST-VERIFIER.sql",
+    "note": "Aligns transfer department scope with position_assignment assignees required by submit/init. Activation gate remains 25."
+  },
+  {
+    "order": 24,
+    "draft": "B1-FILE-WITHDRAWAL-IMPACT-ACK-NULL-GUARD-01.sql",
+    "migration": "supabase/migrations/20260725160000_b1_24_file_withdrawal_impact_ack_null_guard_01.sql",
+    "draft_sha_lf": "684aac3bc3801e7e50bb9c65ff041489afb3d9bf91083b28b97b63faa0434425",
+    "migration_sha_lf": "67257aa9201538b1a4691ec4602e1ae4dcbd7a2f2b511dcac1da8a714ae9d70b",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/24-B1_24_FILE_WITHDRAWAL_IMPACT_ACK_NULL_GUARD_01-POST-VERIFIER.sql",
+    "note": "Null-safe impact_acknowledgment / terms_acknowledgment guards. Activation gate remains 25."
+  },
+  {
+    "order": 25,
+    "draft": "B1-ACADEMIC-EFFECT-MARKERS-01.sql",
+    "migration": "supabase/migrations/20260727120000_b1_25_academic_effect_markers_01.sql",
+    "draft_sha_lf": "50db2dfec04e940d2e474f81e660167ea28453e0cca892228dfd8d6cfa629bdf",
+    "migration_sha_lf": "4d818e9df43b6eaa3a8cc13de00c23f470886e7bb18a96e0cfb0fed9d6153065",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/25-B1_25_ACADEMIC_EFFECT_MARKERS_01-POST-VERIFIER.sql"
+  },
+  {
+    "order": 26,
+    "draft": "B1-ACADEMIC-EFFECT-FUNCTIONS-01.sql",
+    "migration": "supabase/migrations/20260727120100_b1_26_academic_effect_functions_01.sql",
+    "draft_sha_lf": "ad0a5de204a0bfdc7df21a0283c0761e5f4060a062a200352eb828c7cb33e795",
+    "migration_sha_lf": "7cafecd5e4fc1a49aac123616640163478eb8680df9aee00b297b48dcb4ac305",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/26-B1_26_ACADEMIC_EFFECT_FUNCTIONS_01-POST-VERIFIER.sql"
+  },
+  {
+    "order": 27,
+    "draft": "B1-ACT-ON-ACADEMIC-EFFECT-INTEGRATION-01.sql",
+    "migration": "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql",
+    "draft_sha_lf": "0b29034dd3d30d4e2e54516d09b53be87ec58a175a9b187db7203853f28b0937",
+    "migration_sha_lf": "7a8f46fdc9c1a12da3d5f864099ddff947b58fdcde1bbffae9637d6af45a598d",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/27-B1_27_ACT_ON_ACADEMIC_EFFECT_INTEGRATION_01-POST-VERIFIER.sql"
+  },
+  {
+    "order": 28,
+    "draft": "B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-01.sql",
+    "migration": "supabase/migrations/20260728015540_9a307610-cd06-4e91-b3f8-4b9b58ab2819.sql",
+    "draft_sha_lf": "7f1314bccec8fa5201e967f723db09be47aa88fafa0ea835012304d30a54c15f",
+    "migration_sha_lf": "8dd8da6748b6a19a50b3e15108728a3d1c1111c49a8ed218916a24a8118003a1",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/28-B1_28_PAYMENT_CONFIRMATION_AUTHORIZATION_HARDENING_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/28-B1_28_PAYMENT_CONFIRMATION_AUTHORIZATION_HARDENING_01-POST-VERIFIER.sql",
+    "apply_status": "APPLIED",
+    "applied_at": "2026-07-28T01:55:40Z",
+    "note": "Forward-only B1 payment-confirmation authorization hardening. Applied to production as a single migration under track PORTAL-B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-PRODUCTION-APPLY-01. Migration body is byte-identical to the draft except for the absent trailing newline. Preflight PASS, post-verifier PASS, business_rows_mutated = 0. Production registry version is 20260728015541 (registry apply timestamp); the registry name column equals the migration filename prefix 20260728015540.",
+    "production_version": "20260728015541",
+    "migration_filename": "20260728015540_9a307610-cd06-4e91-b3f8-4b9b58ab2819.sql"
+  }
 ]
