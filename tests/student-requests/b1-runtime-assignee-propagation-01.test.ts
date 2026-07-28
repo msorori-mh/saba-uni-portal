@@ -289,7 +289,10 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
     // Every lock trigger is statement level.
     const lockTriggerBodies = migration
       .split("CREATE TRIGGER ")
-      .filter((chunk) => chunk.includes("b1_lock_assignment_identity_stmt()"));
+      .filter(
+        (chunk) =>
+          chunk.startsWith("trg_") && chunk.includes("b1_lock_assignment_identity_stmt()"),
+      );
     expect(lockTriggerBodies.length).toBe(6);
     for (const body of lockTriggerBodies) {
       expect(body).toContain("FOR EACH STATEMENT");
