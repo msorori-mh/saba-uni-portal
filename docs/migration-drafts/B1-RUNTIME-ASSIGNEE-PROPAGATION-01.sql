@@ -376,9 +376,23 @@ WHEN (NEW.status = 'active' AND OLD.status IS DISTINCT FROM 'active')
 EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
 
 -- ----------------------------------------------------------------------------
--- 3. Mutation side of the SAME global lock contract
---    Every trigger below only takes the lock. It writes nothing, emits no
---    event, and performs no backfill.
+-- 3. Mutation side of the SAME global lock contract — STATEMENT LEVEL
+--
+--    Why statement level and not row level:
+--      A BEFORE ROW trigger fires per tuple, and by the time it fires for the
+--      SECOND tuple of a multi-row statement the executor already holds the
+--      row lock of the FIRST tuple. Two transactions updating the same set of
+--      rows in opposite order can therefore each hold a row lock and then
+--      block on the advisory key / on each other — the row-level design could
+--      not guarantee deadlock freedom for multi-row DML.
+--      A BEFORE STATEMENT trigger fires exactly once, before the executor
+--      touches any tuple, so the single global key is always acquired BEFORE
+--      the first row lock. With one key and no row lock held at acquisition
+--      time, no wait-for cycle can be constructed, whatever the row order or
+--      row count.
+--
+--    Every trigger below only takes the lock. It reads no business row, writes
+--    nothing, emits no event, performs no backfill and uses no dynamic SQL.
 --
 --    Covered writer paths (both plain PostgREST DML under RLS and the
 --    SECURITY DEFINER admin RPCs — triggers cover both, which is why the
@@ -391,91 +405,73 @@ EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
 --         department_id / DELETE (admin_set_faculty_status,
 --          admin_unlink_portal_login, link_faculty_profile_account)
 --      d. position_assignments            INSERT / UPDATE / DELETE
---      e. transfer_request_details        department scope change
---         (apply_b1_department_transfer_effect, admin surfaces)
+--      e. transfer_request_details        UPDATE OF current_department_id,
+--         requested_department_id (apply_b1_department_transfer_effect, admin)
+--
+--    Note on UPDATE OF <cols> at statement level: the column list still gates
+--    which statements fire the trigger; it is deliberately kept so unrelated
+--    profile edits (name, phone, …) never take the boundary lock.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_row()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-BEGIN
-  PERFORM public.b1_lock_assignment_identity_boundary();
-  IF TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
-  RETURN NEW;
-END;
-$function$;
 
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM anon;
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM authenticated;
-
+-- The superseded row-lock-only design is removed, not left behind.
 DROP TRIGGER IF EXISTS trg_b1_lock_processing_assignment_scope
   ON public.request_processing_assignments;
-
-CREATE TRIGGER trg_b1_lock_processing_assignment_scope
-BEFORE INSERT OR UPDATE OR DELETE ON public.request_processing_assignments
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_position_assignment_scope
   ON public.position_assignments;
-
-CREATE TRIGGER trg_b1_lock_position_assignment_scope
-BEFORE INSERT OR UPDATE OR DELETE ON public.position_assignments
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity
   ON public.staff_profiles;
-
-CREATE TRIGGER trg_b1_lock_staff_profile_identity
-BEFORE UPDATE OF user_id, status ON public.staff_profiles
-FOR EACH ROW
-WHEN (NEW.user_id IS DISTINCT FROM OLD.user_id
-   OR NEW.status IS DISTINCT FROM OLD.status)
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity_delete
   ON public.staff_profiles;
-
-CREATE TRIGGER trg_b1_lock_staff_profile_identity_delete
-BEFORE DELETE ON public.staff_profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity
   ON public.faculty_profiles;
-
-CREATE TRIGGER trg_b1_lock_faculty_profile_identity
-BEFORE UPDATE OF user_id, status, department_id ON public.faculty_profiles
-FOR EACH ROW
-WHEN (NEW.user_id IS DISTINCT FROM OLD.user_id
-   OR NEW.status IS DISTINCT FROM OLD.status
-   OR NEW.department_id IS DISTINCT FROM OLD.department_id)
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity_delete
   ON public.faculty_profiles;
-
-CREATE TRIGGER trg_b1_lock_faculty_profile_identity_delete
-BEFORE DELETE ON public.faculty_profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_transfer_department_scope
   ON public.transfer_request_details;
+DROP FUNCTION IF EXISTS public.b1_lock_assignment_identity_row();
 
-CREATE TRIGGER trg_b1_lock_transfer_department_scope
+DROP TRIGGER IF EXISTS trg_b1_lock_processing_assignment_stmt
+  ON public.request_processing_assignments;
+
+CREATE TRIGGER trg_b1_lock_processing_assignment_stmt
+BEFORE INSERT OR UPDATE OR DELETE ON public.request_processing_assignments
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_position_assignment_stmt
+  ON public.position_assignments;
+
+CREATE TRIGGER trg_b1_lock_position_assignment_stmt
+BEFORE INSERT OR UPDATE OR DELETE ON public.position_assignments
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity_stmt
+  ON public.staff_profiles;
+
+CREATE TRIGGER trg_b1_lock_staff_profile_identity_stmt
+BEFORE UPDATE OF user_id, status OR DELETE ON public.staff_profiles
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity_stmt
+  ON public.faculty_profiles;
+
+CREATE TRIGGER trg_b1_lock_faculty_profile_identity_stmt
+BEFORE UPDATE OF user_id, status, department_id OR DELETE ON public.faculty_profiles
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_transfer_department_scope_stmt
+  ON public.transfer_request_details;
+
+CREATE TRIGGER trg_b1_lock_transfer_department_scope_stmt
 BEFORE UPDATE OF current_department_id, requested_department_id
   ON public.transfer_request_details
-FOR EACH ROW
-WHEN (NEW.current_department_id IS DISTINCT FROM OLD.current_department_id
-   OR NEW.requested_department_id IS DISTINCT FROM OLD.requested_department_id)
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+
 
 COMMIT;
 
