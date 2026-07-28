@@ -25,6 +25,11 @@ ROOT = HERE.parents[1]
 DRAFT = ROOT / "docs" / "migration-drafts" / "B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql"
 
 DB = "b1lock"
+os.environ["PGSSLMODE"] = "disable"
+os.environ.pop("PGHOST", None)
+os.environ.pop("PGUSER", None)
+os.environ.pop("PGPASSWORD", None)
+os.environ.pop("PGDATABASE", None)
 results = []
 
 
