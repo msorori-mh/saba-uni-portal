@@ -478,7 +478,10 @@ COMMIT;
 -- ============================================================================
 -- Fail-closed semantics
 --   Any RAISE above aborts the whole calling transaction. Therefore:
---     * the predecessor step is NOT completed,
+--     * for the INITIAL ACTIVE INSERT path, NO runtime step row of the request
+--       is created at all (the whole initialize transaction rolls back): no
+--       partial workflow, no event, no half-built request,
+--     * for the activation UPDATE path, the predecessor step is NOT completed,
 --     * no workflow event row is created,
 --     * the active-step count stays exactly as it was (never 0, never >1),
 --     * no partial mutation persists,
@@ -490,25 +493,39 @@ COMMIT;
 --   * The advisory key is global and transaction-scoped: it is released only at
 --     COMMIT or ROLLBACK, so the "exactly one effective identity" predicate
 --     proven by the assert still holds at the instant the activation commits.
+--   * The key is acquired by BEFORE STATEMENT triggers, i.e. before the
+--     executor takes the first row lock of the statement, on both the identity
+--     tables and the runtime-step table itself.
 --   * A concurrent deactivate / delete / second INSERT / department re-scope /
 --     staff or faculty profile disable / user_id swap / department move BLOCKS
 --     until the activating transaction finishes; the mirror case (mutation
 --     first) makes activation block and then re-read the committed state, so it
 --     can never act on a stale snapshot.
---   * Deadlock freedom: there is exactly ONE key for the whole boundary, so no
---     wait-for cycle between two identity-boundary transactions can be built,
---     regardless of how many rows a statement touches or in which row order.
+--   * Deadlock freedom: exactly ONE key for the whole boundary, taken before
+--     any row lock, so no wait-for cycle between two identity-boundary
+--     transactions can be built — regardless of how many rows a statement
+--     touches or in which row order.
 --   * Phantom freedom: the predicate is protected by the boundary lock rather
 --     than by per-row locks, so a newly INSERTed second assignment cannot slip
 --     into the window.
 --   * Both outcomes are total: either activation with exactly one valid
 --     assignee, or a fully rejected transaction. Retry is safe.
 --
+-- Legacy scope of the runtime-step statement lock
+--   trg_b1_lock_runtime_step_identity_stmt is lock-only and unconditional on
+--   student_request_workflow_steps. It changes no functional behaviour for
+--   enrollment_certificate or any non-B1 flow (the row guards still return
+--   before validating them); the only effect is that two concurrent workflow
+--   statements serialize on one advisory key for the duration of a single
+--   statement's transaction.
+--
 -- Proof
 --   tests/b1-runtime-assignee-lock-concurrency-01/run-harness.py executes this
 --   exact file against a throwaway Postgres 17 cluster with real concurrent
---   sessions (deactivate, phantom insert, department re-scope, staff/faculty
---   status and user_id mutation, faculty department move, multi-row reversed
---   order, legacy control, retry). Results:
+--   sessions (initial active INSERT accept/reject, disabled profile, user_id
+--   swap, phantom assignment, multi-row reversed order on assignments and on
+--   profiles, activation vs multi-row mutation, deactivate, department
+--   re-scope, legacy control, retry). Results:
 --   tests/b1-runtime-assignee-lock-concurrency-01/RESULTS.md
 -- ============================================================================
+
