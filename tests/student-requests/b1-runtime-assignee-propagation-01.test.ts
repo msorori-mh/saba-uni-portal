@@ -381,21 +381,28 @@ describe("B1 runtime assignee propagation — concurrency proof", () => {
       "C5 retry after correction activates exactly once",
       "C6a global identity lock: no deadlock, reentrant",
       "C6b crossed activation/mutation in reversed row order: no deadlock",
-      "C7 enrollment_certificate activation is not blocked and not guarded",
+      "C7 enrollment_certificate activation succeeds and is never guarded",
       "C8 activation rejected after the principal was disabled",
       "C9 activation rejected after the principal was unlinked",
       "C10 concurrent staff disable blocked until activation commit",
       "C11 faculty step activation rejected fail-closed",
       "C12 faculty department move serializes with activation",
       "C13 head activation rejected after the position was unlinked",
+      "C14 initial active INSERT with a valid effective assignee is accepted",
+      "C15 initial active INSERT rejected fail-closed",
+      "C15 no partial workflow row survived the rejected initialize",
+      "C16 legacy enrollment_certificate active INSERT unaffected",
+      "C17 multi-row identity statements in opposite order: no deadlock",
+      "C18 activation vs multi-row profile statement: serialized, no deadlock",
     ]) {
       expect(concurrencyRunner).toContain(marker);
     }
   });
 
   it("records a fully green recorded run", () => {
-    expect(concurrencyResults).toContain("29 passed, 0 failed");
+    expect(concurrencyResults).toContain("37 passed, 0 failed");
     expect(concurrencyResults).not.toMatch(/^FAIL /m);
   });
 });
+
 
