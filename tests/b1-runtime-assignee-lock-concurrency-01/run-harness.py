@@ -28,13 +28,24 @@ DB = "b1lock"
 results = []
 
 
+SANDBOX_UID = 1000  # postgres refuses to run as root; drop privileges when needed
+
+
 def run(cmd, **kw):
     return subprocess.run(cmd, capture_output=True, text=True, **kw)
 
 
+def run_pg(cmd, **kw):
+    """Run a server-side binary (initdb/pg_ctl) as a non-root uid when needed."""
+    if os.geteuid() == 0:
+        cmd = ["setpriv", "--reuid", str(SANDBOX_UID), "--regid", str(SANDBOX_UID),
+               "--clear-groups", "env", "HOME=/tmp"] + cmd
+    return run(cmd, **kw)
+
+
 def psql(sql, port, expect_ok=True):
     p = run(["psql", "-h", "127.0.0.1", "-p", str(port), "-d", DB, "-v", "ON_ERROR_STOP=1",
-             "-X", "-q", "-c", sql])
+             "-X", "-q", "-U", "postgres", "-c", sql])
     if expect_ok and p.returncode != 0:
         raise RuntimeError(p.stderr.strip())
     return p
@@ -42,7 +53,7 @@ def psql(sql, port, expect_ok=True):
 
 def psql_file(path, port):
     p = run(["psql", "-h", "127.0.0.1", "-p", str(port), "-d", DB, "-v", "ON_ERROR_STOP=1",
-             "-X", "-q", "-f", str(path)])
+             "-X", "-q", "-U", "postgres", "-f", str(path)])
     if p.returncode != 0:
         raise RuntimeError(f"{path}: {p.stderr.strip()}")
 
@@ -55,7 +66,7 @@ def scalar(sql, port):
 def session(sql, port, out, key):
     t0 = time.time()
     p = run(["psql", "-h", "127.0.0.1", "-p", str(port), "-d", DB, "-v", "ON_ERROR_STOP=1",
-             "-X", "-q", "-c", sql])
+             "-X", "-q", "-U", "postgres", "-c", sql])
     out[key] = {"rc": p.returncode, "err": p.stderr.strip(), "elapsed": time.time() - t0}
 
 
@@ -69,10 +80,19 @@ def main():
     data = os.path.join(tmp, "data")
     port = 55439
     try:
-        run(["initdb", "-D", data, "-U", os.environ.get("USER", "postgres"), "-A", "trust"])
-        run(["pg_ctl", "-D", data, "-o", f"-p {port} -k {tmp} -c listen_addresses=127.0.0.1",
-             "-l", os.path.join(tmp, "log"), "-w", "start"])
-        run(["createdb", "-h", "127.0.0.1", "-p", str(port), DB])
+        if os.geteuid() == 0:
+            os.chown(tmp, SANDBOX_UID, SANDBOX_UID)
+        r = run_pg(["initdb", "-D", data, "-U", "postgres", "-A", "trust"])
+        if r.returncode != 0:
+            raise RuntimeError("initdb failed: " + r.stderr.strip())
+        r = run_pg(["pg_ctl", "-D", data,
+                    "-o", f"-p {port} -k {tmp} -c listen_addresses=127.0.0.1",
+                    "-l", os.path.join(tmp, "log"), "-w", "start"])
+        if r.returncode != 0:
+            raise RuntimeError("pg_ctl start failed: " + r.stdout + r.stderr)
+        r = run(["createdb", "-h", "127.0.0.1", "-p", str(port), "-U", "postgres", DB])
+        if r.returncode != 0:
+            raise RuntimeError("createdb failed: " + r.stderr.strip())
 
         psql_file(PG / "10-minimal-schema.sql", port)
         psql_file(DRAFT, port)
@@ -217,7 +237,7 @@ def main():
         print("\nSUMMARY:", len(results) - len(failed), "passed,", len(failed), "failed")
         return 1 if failed else 0
     finally:
-        run(["pg_ctl", "-D", data, "-m", "immediate", "-w", "stop"])
+        run_pg(["pg_ctl", "-D", data, "-m", "immediate", "-w", "stop"])
         shutil.rmtree(tmp, ignore_errors=True)
 
 
