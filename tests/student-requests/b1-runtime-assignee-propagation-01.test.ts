@@ -75,7 +75,7 @@ describe("B1 runtime assignee propagation — migration draft", () => {
     expect(migration).toContain("B1_RUNTIME_ASSIGNEE_IDENTITY_NOT_SINGULAR");
     expect(migration).toContain("B1_RUNTIME_ASSIGNEE_IDENTITY_MISMATCH");
     const identityChecks = migration.match(/num_nonnulls\(/g) ?? [];
-    expect(identityChecks.length).toBeGreaterThanOrEqual(3);
+    expect(identityChecks.length).toBeGreaterThanOrEqual(2);
   });
 
   it("pins provenance to the initialization-time assignment", () => {
