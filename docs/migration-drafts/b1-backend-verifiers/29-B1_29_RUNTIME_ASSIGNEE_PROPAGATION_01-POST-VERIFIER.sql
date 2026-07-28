@@ -7,7 +7,7 @@ DO $$
 DECLARE
   v_def text;
   v_owner oid;
-  r record;
+  v_fn record;
   v_rec record;
 BEGIN
   -- ------------------------------------------------------------------
@@ -95,7 +95,7 @@ BEGIN
   SELECT c.relowner INTO v_owner FROM pg_class c
    WHERE c.oid = 'public.request_processing_assignments'::regclass;
 
-  FOR r IN
+  FOR v_fn IN
     SELECT p.oid, p.proname, p.prosecdef, p.proowner, p.proconfig, p.proacl,
            p.prorettype
     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -106,33 +106,33 @@ BEGIN
                         'guard_b1_runtime_step_activation',
                         'assert_b1_runtime_step_assignee_effective')
   LOOP
-    IF r.proowner <> v_owner THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has unexpected owner', r.proname;
+    IF v_fn.proowner <> v_owner THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has unexpected owner', v_fn.proname;
     END IF;
-    IF r.proconfig IS NULL
-       OR NOT ('search_path=public' = ANY(r.proconfig)
-               OR 'search_path="public"' = ANY(r.proconfig)) THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has no pinned search_path', r.proname;
+    IF v_fn.proconfig IS NULL
+       OR NOT ('search_path=public' = ANY(v_fn.proconfig)
+               OR 'search_path="public"' = ANY(v_fn.proconfig)) THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has no pinned search_path', v_fn.proname;
     END IF;
-    IF r.proname IN ('b1_lock_assignment_identity_row',
+    IF v_fn.proname IN ('b1_lock_assignment_identity_row',
                      'guard_b1_runtime_step_activation',
                      'assert_b1_runtime_step_assignee_effective')
-       AND NOT r.prosecdef THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY DEFINER', r.proname;
+       AND NOT v_fn.prosecdef THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY DEFINER', v_fn.proname;
     END IF;
-    IF r.proname IN ('b1_assignment_identity_lock_key',
+    IF v_fn.proname IN ('b1_assignment_identity_lock_key',
                      'b1_lock_assignment_identity_boundary')
-       AND r.prosecdef THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY INVOKER', r.proname;
+       AND v_fn.prosecdef THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY INVOKER', v_fn.proname;
     END IF;
     -- Trigger-only / internal functions must not be callable by clients.
-    IF r.proacl IS NOT NULL AND EXISTS (
-      SELECT 1 FROM aclexplode(r.proacl) a
+    IF v_fn.proacl IS NOT NULL AND EXISTS (
+      SELECT 1 FROM aclexplode(v_fn.proacl) a
       LEFT JOIN pg_roles g ON g.oid = a.grantee
       WHERE a.privilege_type = 'EXECUTE'
         AND (a.grantee = 0 OR g.rolname IN ('anon','authenticated'))
     ) THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % is executable by PUBLIC/anon/authenticated', r.proname;
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % is executable by PUBLIC/anon/authenticated', v_fn.proname;
     END IF;
   END LOOP;
 
