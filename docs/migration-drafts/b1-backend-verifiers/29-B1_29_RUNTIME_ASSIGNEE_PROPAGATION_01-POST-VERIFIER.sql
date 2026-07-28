@@ -117,8 +117,9 @@ BEGIN
     WHERE n.nspname = 'public'
       AND p.proname IN ('b1_assignment_identity_lock_key',
                         'b1_lock_assignment_identity_boundary',
-                        'b1_lock_assignment_identity_row',
+                        'b1_lock_assignment_identity_stmt',
                         'guard_b1_runtime_step_activation',
+                        'assert_b1_runtime_step_row_assignee_effective',
                         'assert_b1_runtime_step_assignee_effective')
   LOOP
     IF v_fn.proowner <> v_owner THEN
@@ -129,12 +130,14 @@ BEGIN
                OR 'search_path="public"' = ANY(v_fn.proconfig)) THEN
       RAISE EXCEPTION 'POSTVERIFY_FAIL: % has no pinned search_path', v_fn.proname;
     END IF;
-    IF v_fn.proname IN ('b1_lock_assignment_identity_row',
+    IF v_fn.proname IN ('b1_lock_assignment_identity_stmt',
                      'guard_b1_runtime_step_activation',
+                     'assert_b1_runtime_step_row_assignee_effective',
                      'assert_b1_runtime_step_assignee_effective')
        AND NOT v_fn.prosecdef THEN
       RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY DEFINER', v_fn.proname;
     END IF;
+
     IF v_fn.proname IN ('b1_assignment_identity_lock_key',
                      'b1_lock_assignment_identity_boundary')
        AND v_fn.prosecdef THEN
