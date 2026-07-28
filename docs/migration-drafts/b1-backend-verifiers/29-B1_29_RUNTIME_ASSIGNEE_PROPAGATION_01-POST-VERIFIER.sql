@@ -232,25 +232,50 @@ BEGIN
 
   -- Explicit named coverage assertions (catalog-derived, greppable).
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.request_processing_assignments'::regclass
-                   AND tgname='trg_b1_lock_processing_assignment_scope' AND NOT tgisinternal) THEN
+                   AND tgname='trg_b1_lock_processing_assignment_stmt' AND NOT tgisinternal) THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: assignment mutation lock trigger missing';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.position_assignments'::regclass
-                   AND tgname='trg_b1_lock_position_assignment_scope' AND NOT tgisinternal) THEN
+                   AND tgname='trg_b1_lock_position_assignment_stmt' AND NOT tgisinternal) THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: position assignment lock trigger missing';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.staff_profiles'::regclass
-                   AND tgname='trg_b1_lock_staff_profile_identity' AND NOT tgisinternal) THEN
+                   AND tgname='trg_b1_lock_staff_profile_identity_stmt' AND NOT tgisinternal) THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: staff_profiles identity lock trigger missing';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.faculty_profiles'::regclass
-                   AND tgname='trg_b1_lock_faculty_profile_identity' AND NOT tgisinternal) THEN
+                   AND tgname='trg_b1_lock_faculty_profile_identity_stmt' AND NOT tgisinternal) THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: faculty_profiles identity lock trigger missing';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.transfer_request_details'::regclass
-                   AND tgname='trg_b1_lock_transfer_department_scope' AND NOT tgisinternal) THEN
+                   AND tgname='trg_b1_lock_transfer_department_scope_stmt' AND NOT tgisinternal) THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: transfer department scope lock trigger missing';
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.student_request_workflow_steps'::regclass
+                   AND tgname='trg_guard_b1_runtime_step_activation_insert' AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: initial active INSERT guard missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.student_request_workflow_steps'::regclass
+                   AND tgname='trg_b1_lock_runtime_step_identity_stmt' AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: runtime-step statement lock trigger missing';
+  END IF;
+
+  -- No identity-boundary lock trigger may remain FOR EACH ROW.
+  IF EXISTS (
+    SELECT 1 FROM pg_trigger
+     WHERE NOT tgisinternal
+       AND tgfoid = 'public.b1_lock_assignment_identity_stmt()'::regprocedure
+       AND (tgtype & 1) = 1
+  ) THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: identity lock trigger is row-level (deadlock risk)';
+  END IF;
+  -- The initial-INSERT guard must be conditioned on the active status.
+  IF (SELECT pg_get_triggerdef(oid) FROM pg_trigger
+       WHERE tgrelid='public.student_request_workflow_steps'::regclass
+         AND tgname='trg_guard_b1_runtime_step_activation_insert') NOT LIKE '%active%' THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: INSERT guard has no active-status WHEN clause';
+  END IF;
+
 
   -- ------------------------------------------------------------------
   -- 5. Data invariants (unchanged by this migration, re-proven)
