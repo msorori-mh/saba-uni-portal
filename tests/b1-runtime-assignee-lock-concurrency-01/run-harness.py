@@ -219,25 +219,24 @@ def main():
               scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP2}'", port)
               == "active")
 
-        # ---- Case 6: no deadlock under the lock contract
-        # 6a. one multi-scope call with reversed key arrays: the shared entry
-        #     point sorts the keys, so the acquisition order is global.
+        # ---- Case 6: no deadlock under the single global lock contract
+        # 6a. two transactions taking the boundary key in opposite statement
+        #     orders: one global key cannot form a wait-for cycle.
         reset()
         out = {}
-        k1 = "public.b1_assignment_scope_lock_key('f1000000-0000-0000-0000-000000000001','f2000000-0000-0000-0000-000000000001')"
-        k2 = "public.b1_assignment_scope_lock_key('f1000000-0000-0000-0000-000000000002','f2000000-0000-0000-0000-000000000002')"
-        a = f"BEGIN; SELECT public.b1_lock_assignment_scopes(ARRAY[{k1},{k2}]); SELECT pg_sleep(1.5); COMMIT;"
-        b = f"BEGIN; SELECT pg_sleep(0.3); SELECT public.b1_lock_assignment_scopes(ARRAY[{k2},{k1}]); COMMIT;"
+        k = "public.b1_lock_assignment_identity_boundary()"
+        a = f"BEGIN; SELECT {k}; SELECT pg_sleep(1.5); SELECT {k}; COMMIT;"
+        b = f"BEGIN; SELECT pg_sleep(0.3); SELECT {k}; SELECT {k}; COMMIT;"
         t1 = threading.Thread(target=session, args=(a, port, out, "a")); t1.start()
         t2 = threading.Thread(target=session, args=(b, port, out, "b")); t2.start()
         t1.join(); t2.join()
-        check("C6a multi-scope call sorts keys: no deadlock",
+        check("C6a global identity lock: no deadlock, reentrant",
               out["a"]["rc"] == 0 and out["b"]["rc"] == 0 and
               "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
               (out["a"]["err"] + out["b"]["err"])[:120])
 
-        # 6b. natural production ordering: each transaction touches exactly one
-        #     scope (one activation, or one assignment statement), crossed.
+        # 6b. natural production ordering: activation crossed with a multi-row
+        #     assignment statement touching rows in the opposite order.
         reset()
         out = {}
         a = (f"BEGIN; UPDATE public.student_request_workflow_steps SET status='completed' "
@@ -245,13 +244,13 @@ def main():
              f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}'; "
              f"SELECT pg_sleep(1); COMMIT;")
         b = ("BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
-             "WHERE id='bbbbbbbb-0000-0000-0000-000000000002'; SELECT pg_sleep(1); "
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000003'; SELECT pg_sleep(1); "
              "UPDATE public.request_processing_assignments SET is_active=is_active "
-             "WHERE id='bbbbbbbb-0000-0000-0000-000000000003'; COMMIT;")
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000002'; COMMIT;")
         t1 = threading.Thread(target=session, args=(a, port, out, "a")); t1.start()
         t2 = threading.Thread(target=session, args=(b, port, out, "b")); t2.start()
         t1.join(); t2.join()
-        check("C6b crossed activation/mutation on distinct scopes: no deadlock",
+        check("C6b crossed activation/mutation in reversed row order: no deadlock",
               out["a"]["rc"] == 0 and out["b"]["rc"] == 0 and
               "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
               (out["a"]["err"] + out["b"]["err"])[:120])
@@ -269,6 +268,109 @@ def main():
         check("C7 enrollment_certificate activation is not blocked and not guarded",
               out["legacy"]["rc"] == 0 and out["legacy"]["elapsed"] < 1.0,
               f"{out['legacy']['elapsed']:.2f}s")
+
+        # ---- Case 8: staff profile DISABLED concurrently with activation
+        reset()
+        out = {}
+        mut = (f"BEGIN; UPDATE public.staff_profiles SET status='inactive' "
+               f"WHERE id='{STAFF}'; SELECT pg_sleep(2); COMMIT;")
+        act = f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}';"
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C8 activation waited for the staff status change",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C8 activation rejected after the principal was disabled",
+              out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"],
+              out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+        check("C8 no partial activation persisted",
+              scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP2}'", port)
+              == "pending")
+
+        # ---- Case 9: staff profile user_id UNLINKED concurrently (account swap)
+        reset()
+        out = {}
+        mut = (f"BEGIN; UPDATE public.staff_profiles SET user_id=NULL "
+               f"WHERE id='{STAFF}'; SELECT pg_sleep(2); COMMIT;")
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C9 activation waited for the staff user_id change",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C9 activation rejected after the principal was unlinked",
+              out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"],
+              out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+
+        # ---- Case 10: activation holds the lock; staff status change must wait
+        reset()
+        out = {}
+        act_hold = (f"BEGIN; UPDATE public.student_request_workflow_steps SET status='completed' "
+                    f"WHERE id='eeeeeeee-0000-0000-0000-000000000001'; "
+                    f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}'; "
+                    f"SELECT pg_sleep(2); COMMIT;")
+        mut = f"UPDATE public.staff_profiles SET status='inactive' WHERE id='{STAFF}';"
+        t1 = threading.Thread(target=session, args=(act_hold, port, out, "act")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(mut, port, out, "mut")); t2.start()
+        t1.join(); t2.join()
+        check("C10 activation succeeds", out["act"]["rc"] == 0, out["act"]["err"][:120])
+        check("C10 concurrent staff disable blocked until activation commit",
+              out["mut"]["rc"] == 0 and out["mut"]["elapsed"] > 1.0,
+              f"waited {out['mut']['elapsed']:.2f}s")
+
+        # ---- Case 11: faculty profile status change vs faculty-backed step
+        reset()
+        out = {}
+        mut = (f"BEGIN; UPDATE public.faculty_profiles SET status='inactive' "
+               f"WHERE id='{FACULTY}'; SELECT pg_sleep(2); COMMIT;")
+        act_fac = f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP_FAC}';"
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act_fac, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C11 faculty step activation waited for the faculty status change",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C11 faculty step activation rejected fail-closed",
+              out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"],
+              out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+
+        # ---- Case 12: faculty department move is inside the lock boundary
+        reset()
+        out = {}
+        mut = (f"BEGIN; UPDATE public.faculty_profiles "
+               f"SET department_id='dddddddd-0000-0000-0000-000000000002' "
+               f"WHERE id='{FACULTY}'; SELECT pg_sleep(2); COMMIT;")
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act_fac, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C12 faculty department move serializes with activation",
+              out["act"]["elapsed"] > 1.0 and out["mut"]["rc"] == 0,
+              f"waited {out['act']['elapsed']:.2f}s")
+        check("C12 faculty step state is total (active or pending, never partial)",
+              scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP_FAC}'", port)
+              in ("active", "pending"))
+
+        # ---- Case 13: position assignment principal change vs transfer head
+        reset()
+        out = {}
+        mut = ("BEGIN; UPDATE public.position_assignments SET user_id=NULL "
+               "WHERE id='aaaaaaaa-0000-0000-0000-000000000001'; SELECT pg_sleep(2); COMMIT;")
+        act_tr2 = f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP_TR}';"
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act_tr2, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        psql("UPDATE public.position_assignments SET user_id='11111111-0000-0000-0000-000000000001' "
+             "WHERE id='aaaaaaaa-0000-0000-0000-000000000001';", port)
+        check("C13 head activation waited for the position principal change",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C13 head activation rejected after the position was unlinked",
+              out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"],
+              out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+
 
         failed = [n for n, ok, _ in results if not ok]
         print("\nSUMMARY:", len(results) - len(failed), "passed,", len(failed), "failed")
