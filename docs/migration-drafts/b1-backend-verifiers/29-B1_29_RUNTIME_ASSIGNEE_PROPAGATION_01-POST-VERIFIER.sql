@@ -30,6 +30,45 @@ BEGIN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: role bypass detected in assignee assert';
   END IF;
 
+  -- Lock contract must exist as real objects, not as comments.
+  IF to_regprocedure('public.b1_assignment_scope_lock_key(uuid,uuid)') IS NULL
+     OR to_regprocedure('public.b1_lock_assignment_scopes(bigint[])') IS NULL THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: assignment scope lock primitive missing';
+  END IF;
+  IF pg_get_functiondef('public.b1_lock_assignment_scopes(bigint[])'::regprocedure)
+       NOT LIKE '%pg_advisory_xact_lock%'
+     OR pg_get_functiondef('public.b1_lock_assignment_scopes(bigint[])'::regprocedure)
+       NOT LIKE '%ORDER BY k%' THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: scope lock is not an ordered transaction-scoped lock';
+  END IF;
+  IF v_def NOT LIKE '%b1_lock_assignment_scopes%' THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: activation path does not take the shared scope lock';
+  END IF;
+  -- Lock must be taken BEFORE the effective-assignment read (TOCTOU closure).
+  IF position('b1_lock_assignment_scopes' in v_def)
+     > position('FROM public.request_processing_assignments' in v_def) THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: scope lock taken after the assignment read';
+  END IF;
+  -- Mutation side of the same contract.
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger
+                 WHERE tgrelid = 'public.request_processing_assignments'::regclass
+                   AND tgname = 'trg_b1_lock_processing_assignment_scope'
+                   AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: assignment mutation lock trigger missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger
+                 WHERE tgrelid = 'public.position_assignments'::regclass
+                   AND tgname = 'trg_b1_lock_position_assignment_scope'
+                   AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: position assignment lock trigger missing';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger
+                 WHERE tgrelid = 'public.transfer_request_details'::regclass
+                   AND tgname = 'trg_b1_lock_transfer_department_scope'
+                   AND NOT tgisinternal) THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: transfer department scope lock trigger missing';
+  END IF;
+
   -- Every existing B1 runtime step still carries exactly one identity.
   IF EXISTS (
     SELECT 1
