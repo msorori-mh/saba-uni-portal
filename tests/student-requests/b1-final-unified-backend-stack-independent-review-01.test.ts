@@ -30,11 +30,20 @@ describe("PR227 final unified backend stack independent review", () => {
     // separately under PORTAL-B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-PRODUCTION-APPLY-01.
     const finalEntries = promotion.filter(({ order }) => order >= 21 && order <= 27);
     expect(finalEntries.map(({ order }) => order)).toEqual([21, 22, 23, 24, 25, 26, 27]);
-    const appliedOutOfManifest = promotion.filter(({ order }) => order >= 28);
+    const appliedOutOfManifest = promotion.filter(
+      ({ order, apply_status }) => order >= 28 && apply_status !== "NOT_APPLIED",
+    );
     expect(appliedOutOfManifest.map(({ order }) => order)).toEqual([28]);
     for (const entry of appliedOutOfManifest) {
       expect(entry.migration).toBeTruthy();
       expect(sha256Lf(entry.migration)).toBe(entry.migration_sha_lf);
+      expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
+    }
+    // Order 29 is source-only: draft pinned, no promoted migration, not applied.
+    const notApplied = promotion.filter(({ apply_status }) => apply_status === "NOT_APPLIED");
+    expect(notApplied.map(({ order }) => order)).toEqual([29]);
+    for (const entry of notApplied) {
+      expect(entry.migration).toBeNull();
       expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
     }
     expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(

@@ -221,5 +221,15 @@
     "note": "Forward-only B1 payment-confirmation authorization hardening. Applied to production as a single migration under track PORTAL-B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-PRODUCTION-APPLY-01. Migration body is byte-identical to the draft except for the absent trailing newline. Preflight PASS, post-verifier PASS, business_rows_mutated = 0. Production registry version is 20260728015541 (registry apply timestamp); the registry name column equals the migration filename prefix 20260728015540.",
     "production_version": "20260728015541",
     "migration_filename": "20260728015540_9a307610-cd06-4e91-b3f8-4b9b58ab2819.sql"
+  },
+  {
+    "order": 29,
+    "draft": "B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql",
+    "migration": null,
+    "draft_sha_lf": "647dc9d3dd5abd3cdb0a7d9440538cdf2e02bcd06ac480f97c71ad388034fbaa",
+    "preflight": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-PREFLIGHT.sql",
+    "post_verifier": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-POST-VERIFIER.sql",
+    "apply_status": "NOT_APPLIED",
+    "note": "Source-only draft under PORTAL-B1-RUNTIME-ASSIGNEE-PROPAGATION-AND-RPC-PRINCIPAL-HARNESS-01. Generic fail-closed re-validation of the effective direct assignee at B1 runtime step activation. No-op for non-B1 request types including enrollment_certificate. NOT promoted to supabase/migrations and NOT applied."
   }
 ]
