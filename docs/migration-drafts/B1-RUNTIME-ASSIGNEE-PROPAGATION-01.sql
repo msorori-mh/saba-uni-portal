@@ -13,84 +13,95 @@
 --   time by initialize_b1_request_workflow_strict (one identity per step,
 --   department-scoped for the two department_transfer head steps). The
 --   remaining gap is temporal: an assignment may be deactivated, ended,
---   re-scoped, duplicated, or detached between submit and activation, and no
---   engine re-checks it before flipping pending -> active. This migration
---   closes that gap.
+--   re-scoped, duplicated, or detached — or the PRINCIPAL PROFILE behind it may
+--   be disabled, re-pointed to another auth user, or moved to another
+--   department — between submit and activation, and no engine re-checks it
+--   before flipping pending -> active. This migration closes that gap.
 --
 -- TOCTOU root cause (why re-reading alone is NOT sufficient)
---   The assignment rows the assert depends on are mutated exclusively by
---   direct table DML through PostgREST under RLS (admin surfaces) — verified
---   against pg_proc: no SECURITY DEFINER RPC writes
---   public.request_processing_assignments. Therefore the writers take no lock
---   the activation path could observe. Under READ COMMITTED (the PostgREST
---   default), the assert's SELECTs take a fresh snapshot, so a concurrent
---   transaction can COMMIT a deactivate / delete / second INSERT / department
---   re-scope AFTER the assert reads and BEFORE the activating transaction
---   commits. MVCC gives the reader a consistent snapshot; it does NOT give it
---   a predicate lock. Without SERIALIZABLE (which this database does not
+--   The rows the assert depends on are mutated by direct table DML through
+--   PostgREST under RLS (admin surfaces) AND by a small set of SECURITY DEFINER
+--   RPCs (admin_set_staff_status, admin_set_faculty_status,
+--   admin_unlink_portal_login, link_staff_profile_account,
+--   link_faculty_profile_account, apply_b1_department_transfer_effect, …).
+--   None of those writers takes a lock the activation path could observe.
+--   Under READ COMMITTED (the PostgREST default), the assert's SELECTs take a
+--   fresh snapshot, so a concurrent transaction can COMMIT a deactivate /
+--   delete / second INSERT / department re-scope / profile disable / user_id
+--   swap AFTER the assert reads and BEFORE the activating transaction commits.
+--   MVCC gives the reader a consistent snapshot; it does NOT give it a
+--   predicate lock. Without SERIALIZABLE (which this database does not
 --   enforce) the "exactly one effective identity" predicate is therefore not
 --   stable across the activation commit.
 --
---   Remedy below: ONE transaction-scoped advisory lock, keyed on the
---   (processing_unit_id, processing_role_id) scope, shared by BOTH sides —
---   the activation path and every assignment-mutation path that can change
---   the effective identity for that scope. Keys are always acquired in
---   ascending order, so no lock-ordering deadlock is possible.
+-- Mutable identity surface covered (every field the effective-identity
+-- predicate reads, directly or through is_valid_b1_direct_assignment):
+--   request_processing_assignments : unit_id, role_id, assignment_type,
+--     user_id, staff_profile_id, faculty_profile_id, position_assignment_id,
+--     department_id, is_active, starts_at, ends_at  (+ row INSERT/DELETE)
+--   staff_profiles                 : user_id, status                (+ DELETE)
+--   faculty_profiles               : user_id, status, department_id (+ DELETE)
+--   position_assignments           : user_id, is_active, assigned_from,
+--     assigned_to, position_id                                      (+ I/U/D)
+--   transfer_request_details       : current_department_id, requested_department_id
+--   student_request_workflow_steps : the activating row itself (row-locked by
+--     the UPDATE that fires the guard)
+--
+-- Remedy below: ONE global transaction-scoped advisory lock ("B1 assignment
+--   identity boundary"), taken by the activation path BEFORE any identity read
+--   and by every mutation path listed above. A single key cannot participate
+--   in a lock cycle, so multi-row / opposite-order statements are deadlock-free
+--   by construction and no phantom row can appear inside the window.
 --
 -- Legacy impact
---   The guard is a strict no-op for every non-B1 request type, including
---   enrollment_certificate: the trigger function returns immediately when
---   is_b1_stored_request_type(request_type) is false. No legacy function,
---   policy, grant, or row is modified.
+--   The activation guard is a strict no-op for every non-B1 request type,
+--   including enrollment_certificate: the trigger function returns immediately
+--   — before taking the lock — when is_b1_stored_request_type(request_type) is
+--   false. Administrative profile/assignment maintenance keeps its exact
+--   functional contract; the only observable change is that two concurrent
+--   identity-boundary writers now serialize on one advisory lock. These are
+--   rare, low-volume admin operations, so the added wait is bounded by the
+--   duration of a single admin statement. No legacy function, policy, grant,
+--   or row is modified.
 -- ============================================================================
 
 BEGIN;
 
 -- ----------------------------------------------------------------------------
--- 0. Shared lock primitive
---    One stable key per (unit, role) processing scope. Every path that can
---    change the effective identity for a scope, and the activation path that
+-- 0. Shared GLOBAL lock primitive
+--    One constant key for the whole B1 assignment-identity boundary. Every
+--    path that can change an effective identity, and the activation path that
 --    depends on it, take the SAME key in the SAME transaction-scoped mode.
+--    Single key => no lock ordering, no cycle, no phantom gap.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.b1_assignment_scope_lock_key(
-  p_unit_id uuid,
-  p_role_id uuid
-)
+CREATE OR REPLACE FUNCTION public.b1_assignment_identity_lock_key()
 RETURNS bigint
 LANGUAGE sql
 IMMUTABLE
 SET search_path TO 'public'
 AS $function$
-  SELECT hashtextextended(
-    'b1_assignment_scope:' || coalesce(p_unit_id::text, '-') || ':' ||
-    coalesce(p_role_id::text, '-'), 0);
+  -- Constant, namespaced to B1 assignment identity. Never derive it from row
+  -- data: a single global key is what makes the contract deadlock-free.
+  SELECT 7346501982230114001::bigint;
 $function$;
 
--- Deterministic ordered acquisition: sorting the keys inside the single
--- entry point makes lock ordering global and identical for every caller,
--- which removes any deadlock window between activation and mutation paths.
-CREATE OR REPLACE FUNCTION public.b1_lock_assignment_scopes(p_keys bigint[])
+CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_boundary()
 RETURNS void
 LANGUAGE plpgsql
 VOLATILE
 SET search_path TO 'public'
 AS $function$
-DECLARE
-  v_key bigint;
 BEGIN
-  IF p_keys IS NULL THEN
-    RETURN;
-  END IF;
-  FOR v_key IN
-    SELECT DISTINCT k FROM unnest(p_keys) AS k WHERE k IS NOT NULL ORDER BY k
-  LOOP
-    PERFORM pg_advisory_xact_lock(v_key);
-  END LOOP;
+  PERFORM pg_advisory_xact_lock(public.b1_assignment_identity_lock_key());
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_scopes(bigint[]) FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_scopes(bigint[]) FROM anon;
+REVOKE ALL ON FUNCTION public.b1_assignment_identity_lock_key() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.b1_assignment_identity_lock_key() FROM anon;
+REVOKE ALL ON FUNCTION public.b1_assignment_identity_lock_key() FROM authenticated;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_boundary() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_boundary() FROM anon;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_boundary() FROM authenticated;
 
 -- ----------------------------------------------------------------------------
 -- 1. Effective-identity re-resolver (lock-then-read, fail-closed)
@@ -125,16 +136,15 @@ BEGIN
     RAISE EXCEPTION 'B1_RUNTIME_REQUEST_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
 
-  -- Legacy / non-B1: untouched behaviour. No lock is taken either.
+  -- Legacy / non-B1: untouched behaviour. Early return BEFORE the lock.
   IF NOT public.is_b1_stored_request_type(v_request_type) THEN
     RETURN;
   END IF;
 
-  -- LOCK BEFORE READ. Everything below observes a scope that no concurrent
-  -- assignment mutation can change until this transaction commits or aborts.
-  PERFORM public.b1_lock_assignment_scopes(
-    ARRAY[public.b1_assignment_scope_lock_key(
-      v_step.processing_unit_id, v_step.processing_role_id)]);
+  -- LOCK BEFORE READ. Everything below observes an identity boundary that no
+  -- concurrent assignment, profile, position or transfer-scope mutation can
+  -- change until this transaction commits or aborts.
+  PERFORM public.b1_lock_assignment_identity_boundary();
 
   v_canonical := CASE v_request_type
     WHEN 'absence_excuse' THEN 'excused_absence'
@@ -161,6 +171,10 @@ BEGIN
   END IF;
 
   -- Exactly one effective assignment for (unit, role, department scope).
+  -- is_valid_b1_direct_assignment re-reads staff_profiles.status/user_id,
+  -- faculty_profiles.status/user_id/department_id and
+  -- position_assignments.user_id/is_active/assigned_from/assigned_to under the
+  -- lock, so a disabled profile or a swapped user_id is seen here.
   SELECT count(*) INTO v_count
   FROM public.request_processing_assignments a
   WHERE a.unit_id = v_step.processing_unit_id
@@ -245,6 +259,10 @@ BEGIN
 END;
 $function$;
 
+REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM anon;
+REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM authenticated;
+
 DROP TRIGGER IF EXISTS trg_guard_b1_runtime_step_activation
   ON public.student_request_workflow_steps;
 
@@ -257,39 +275,42 @@ WHEN (NEW.status = 'active' AND OLD.status IS DISTINCT FROM 'active')
 EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
 
 -- ----------------------------------------------------------------------------
--- 3. Mutation-side of the SAME lock contract
---    Covered writer paths (all of them are plain table DML through PostgREST
---    under RLS; none of them is wrapped in a SECURITY DEFINER RPC):
+-- 3. Mutation side of the SAME global lock contract
+--    Every trigger below only takes the lock. It writes nothing, emits no
+--    event, and performs no backfill.
+--
+--    Covered writer paths (both plain PostgREST DML under RLS and the
+--    SECURITY DEFINER admin RPCs — triggers cover both, which is why the
+--    contract does not depend on an RPC inventory being complete):
 --      a. request_processing_assignments  INSERT / UPDATE / DELETE
---         (deactivate via is_active, expire via ends_at, re-scope via
---          department_id/unit_id/role_id, identity swap, phantom second row)
---      b. position_assignments            INSERT / UPDATE / DELETE
---         (provenance behind assignment_type = 'position_assignment')
---      c. transfer_request_details        department scope change
---         (moves which department the two head steps must resolve)
+--      b. staff_profiles                  UPDATE OF user_id, status / DELETE
+--         (admin_set_staff_status, admin_unlink_portal_login,
+--          link_staff_profile_account, admin surfaces)
+--      c. faculty_profiles                UPDATE OF user_id, status,
+--         department_id / DELETE (admin_set_faculty_status,
+--          admin_unlink_portal_login, link_faculty_profile_account)
+--      d. position_assignments            INSERT / UPDATE / DELETE
+--      e. transfer_request_details        department scope change
+--         (apply_b1_department_transfer_effect, admin surfaces)
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.b1_lock_processing_assignment_scope()
+CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_row()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
-DECLARE
-  v_keys bigint[] := ARRAY[]::bigint[];
 BEGIN
-  IF TG_OP <> 'INSERT' THEN
-    v_keys := v_keys || public.b1_assignment_scope_lock_key(OLD.unit_id, OLD.role_id);
-  END IF;
-  IF TG_OP <> 'DELETE' THEN
-    v_keys := v_keys || public.b1_assignment_scope_lock_key(NEW.unit_id, NEW.role_id);
-  END IF;
-  PERFORM public.b1_lock_assignment_scopes(v_keys);
+  PERFORM public.b1_lock_assignment_identity_boundary();
   IF TG_OP = 'DELETE' THEN
     RETURN OLD;
   END IF;
   RETURN NEW;
 END;
 $function$;
+
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM anon;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM authenticated;
 
 DROP TRIGGER IF EXISTS trg_b1_lock_processing_assignment_scope
   ON public.request_processing_assignments;
@@ -297,31 +318,7 @@ DROP TRIGGER IF EXISTS trg_b1_lock_processing_assignment_scope
 CREATE TRIGGER trg_b1_lock_processing_assignment_scope
 BEFORE INSERT OR UPDATE OR DELETE ON public.request_processing_assignments
 FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_processing_assignment_scope();
-
-CREATE OR REPLACE FUNCTION public.b1_lock_position_assignment_scope()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-DECLARE
-  v_keys bigint[];
-BEGIN
-  SELECT coalesce(array_agg(public.b1_assignment_scope_lock_key(a.unit_id, a.role_id)),
-                  ARRAY[]::bigint[])
-    INTO v_keys
-  FROM public.request_processing_assignments a
-  WHERE a.position_assignment_id = CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END
-     OR (TG_OP = 'UPDATE' AND a.position_assignment_id = OLD.id);
-
-  PERFORM public.b1_lock_assignment_scopes(v_keys);
-  IF TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
-  RETURN NEW;
-END;
-$function$;
+EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
 
 DROP TRIGGER IF EXISTS trg_b1_lock_position_assignment_scope
   ON public.position_assignments;
@@ -329,28 +326,44 @@ DROP TRIGGER IF EXISTS trg_b1_lock_position_assignment_scope
 CREATE TRIGGER trg_b1_lock_position_assignment_scope
 BEFORE INSERT OR UPDATE OR DELETE ON public.position_assignments
 FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_position_assignment_scope();
+EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
 
-CREATE OR REPLACE FUNCTION public.b1_lock_transfer_department_scope()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-DECLARE
-  v_keys bigint[];
-BEGIN
-  SELECT coalesce(array_agg(public.b1_assignment_scope_lock_key(
-           s.processing_unit_id, s.processing_role_id)), ARRAY[]::bigint[])
-    INTO v_keys
-  FROM public.student_request_workflow_steps s
-  WHERE s.student_request_id = NEW.request_id
-    AND s.step_key IN ('source_department_head_approval','target_department_head_approval');
+DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity
+  ON public.staff_profiles;
 
-  PERFORM public.b1_lock_assignment_scopes(v_keys);
-  RETURN NEW;
-END;
-$function$;
+CREATE TRIGGER trg_b1_lock_staff_profile_identity
+BEFORE UPDATE OF user_id, status ON public.staff_profiles
+FOR EACH ROW
+WHEN (NEW.user_id IS DISTINCT FROM OLD.user_id
+   OR NEW.status IS DISTINCT FROM OLD.status)
+EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity_delete
+  ON public.staff_profiles;
+
+CREATE TRIGGER trg_b1_lock_staff_profile_identity_delete
+BEFORE DELETE ON public.staff_profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity
+  ON public.faculty_profiles;
+
+CREATE TRIGGER trg_b1_lock_faculty_profile_identity
+BEFORE UPDATE OF user_id, status, department_id ON public.faculty_profiles
+FOR EACH ROW
+WHEN (NEW.user_id IS DISTINCT FROM OLD.user_id
+   OR NEW.status IS DISTINCT FROM OLD.status
+   OR NEW.department_id IS DISTINCT FROM OLD.department_id)
+EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity_delete
+  ON public.faculty_profiles;
+
+CREATE TRIGGER trg_b1_lock_faculty_profile_identity_delete
+BEFORE DELETE ON public.faculty_profiles
+FOR EACH ROW
+EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
 
 DROP TRIGGER IF EXISTS trg_b1_lock_transfer_department_scope
   ON public.transfer_request_details;
@@ -361,7 +374,7 @@ BEFORE UPDATE OF current_department_id, requested_department_id
 FOR EACH ROW
 WHEN (NEW.current_department_id IS DISTINCT FROM OLD.current_department_id
    OR NEW.requested_department_id IS DISTINCT FROM OLD.requested_department_id)
-EXECUTE FUNCTION public.b1_lock_transfer_department_scope();
+EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
 
 COMMIT;
 
@@ -377,27 +390,28 @@ COMMIT;
 --   are covered without any backfill: the guard runs at their activation.
 --
 -- Concurrency semantics
---   * The advisory key is transaction-scoped: it is released only at COMMIT or
---     ROLLBACK, so the "exactly one effective identity" predicate proven by the
---     assert still holds at the instant the activation commits.
---   * A concurrent deactivate / delete / second INSERT / department re-scope
---     for the same scope BLOCKS until the activating transaction finishes; the
---     mirror case (mutation first) makes activation block and then re-read the
---     committed state, so it can never act on a stale snapshot.
---   * Deadlock freedom: every production path takes the scope keys through the
---     single entry point b1_lock_assignment_scopes, which acquires them in
---     ascending key order, so a multi-scope caller can never build a cyclic
---     order against another multi-scope caller. Activation transactions touch
---     exactly one scope, and a per-row assignment statement takes at most the
---     OLD and NEW scope of that row in the same sorted call.
+--   * The advisory key is global and transaction-scoped: it is released only at
+--     COMMIT or ROLLBACK, so the "exactly one effective identity" predicate
+--     proven by the assert still holds at the instant the activation commits.
+--   * A concurrent deactivate / delete / second INSERT / department re-scope /
+--     staff or faculty profile disable / user_id swap / department move BLOCKS
+--     until the activating transaction finishes; the mirror case (mutation
+--     first) makes activation block and then re-read the committed state, so it
+--     can never act on a stale snapshot.
+--   * Deadlock freedom: there is exactly ONE key for the whole boundary, so no
+--     wait-for cycle between two identity-boundary transactions can be built,
+--     regardless of how many rows a statement touches or in which row order.
+--   * Phantom freedom: the predicate is protected by the boundary lock rather
+--     than by per-row locks, so a newly INSERTed second assignment cannot slip
+--     into the window.
 --   * Both outcomes are total: either activation with exactly one valid
 --     assignee, or a fully rejected transaction. Retry is safe.
 --
 -- Proof
 --   tests/b1-runtime-assignee-lock-concurrency-01/run-harness.py executes this
---   exact file against a throwaway Postgres 17 cluster with two real
---   concurrent sessions (deactivate, phantom insert, department re-scope,
---   reversed lock order, legacy control, retry). Results:
+--   exact file against a throwaway Postgres 17 cluster with real concurrent
+--   sessions (deactivate, phantom insert, department re-scope, staff/faculty
+--   status and user_id mutation, faculty department move, multi-row reversed
+--   order, legacy control, retry). Results:
 --   tests/b1-runtime-assignee-lock-concurrency-01/RESULTS.md
 -- ============================================================================
-

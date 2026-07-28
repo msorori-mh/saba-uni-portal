@@ -226,10 +226,11 @@
     "order": 29,
     "draft": "B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql",
     "migration": null,
-    "draft_sha_lf": "a9832278ae3c7b04b875a07ddead6890778243df3bb0f1e4557004f8a3eaca25",
+    "draft_sha_lf": "d3d07cc9b639c4e14906fffd678ced0a55e7b2b04681a04b24f70e5746ecb1d8",
     "preflight": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-PREFLIGHT.sql",
     "post_verifier": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-POST-VERIFIER.sql",
     "apply_status": "NOT_APPLIED",
-    "note": "Source-only draft under PORTAL-B1-RUNTIME-ASSIGNEE-PROPAGATION-AND-RPC-PRINCIPAL-HARNESS-01. Generic fail-closed re-validation of the effective direct assignee at B1 runtime step activation. No-op for non-B1 request types including enrollment_certificate. NOT promoted to supabase/migrations and NOT applied. Updated under PORTAL-B1-RUNTIME-ASSIGNEE-PROPAGATION-REMEDIATION-02: adds the shared transaction-scoped assignment-scope lock contract (activation + all assignment mutation paths) closing the TOCTOU window; proven by tests/b1-runtime-assignee-lock-concurrency-01."
+    "note": "Source-only draft under PORTAL-B1-RUNTIME-ASSIGNEE-PROPAGATION-AND-RPC-PRINCIPAL-HARNESS-01. Generic fail-closed re-validation of the effective direct assignee at B1 runtime step activation. No-op for non-B1 request types including enrollment_certificate. NOT promoted to supabase/migrations and NOT applied. Revised under PORTAL-B1-RUNTIME-ASSIGNEE-TOCTOU-IDENTITY-PROFILE-LOCK-REMEDIATION-03: the scoped per-(unit,role) lock is replaced by ONE global transaction-scoped identity-boundary lock (b1_assignment_identity_lock_key / b1_lock_assignment_identity_boundary) taken by the activation path before any identity read and by every mutation path on request_processing_assignments, position_assignments, staff_profiles (user_id, status, delete), faculty_profiles (user_id, status, department_id, delete) and transfer_request_details. A single key is deadlock-free and phantom-free by construction. Post-verifier is catalog-driven (trigger OID, tgtype, tgenabled, owner, prosecdef, pinned search_path, PUBLIC/anon/authenticated EXECUTE ACL). Proven by tests/b1-runtime-assignee-lock-concurrency-01 (29 passed, 0 failed, real Postgres 17 concurrent sessions)."
+
   }
 ]

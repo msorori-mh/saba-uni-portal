@@ -204,22 +204,48 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
     expect(migration).toContain("it does NOT give it");
   });
 
-  it("defines one shared transaction-scoped lock primitive", () => {
-    expect(migration).toContain(
-      "CREATE OR REPLACE FUNCTION public.b1_assignment_scope_lock_key(",
-    );
-    expect(migration).toContain(
-      "CREATE OR REPLACE FUNCTION public.b1_lock_assignment_scopes(p_keys bigint[])",
-    );
-    expect(migration).toContain("pg_advisory_xact_lock(v_key)");
-    expect(migration).toContain("ORDER BY k");
+  it("enumerates the complete mutable identity surface", () => {
+    for (const marker of [
+      "Mutable identity surface covered",
+      "staff_profiles                 : user_id, status",
+      "faculty_profiles               : user_id, status, department_id",
+      "position_assignments           : user_id, is_active",
+      "transfer_request_details       : current_department_id, requested_department_id",
+    ]) {
+      expect(migration).toContain(marker);
+    }
   });
 
-  it("takes the lock before reading the effective assignments", () => {
-    const lockAt = migration.indexOf("PERFORM public.b1_lock_assignment_scopes(");
+  it("defines ONE global transaction-scoped lock primitive", () => {
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION public.b1_assignment_identity_lock_key()",
+    );
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_boundary()",
+    );
+    expect(migration).toContain("pg_advisory_xact_lock(public.b1_assignment_identity_lock_key())");
+    expect(migration).toMatch(/SELECT [0-9]{6,}::bigint;/);
+    // A single constant key: no per-row derivation, therefore no lock ordering.
+    expect(migration).not.toContain("b1_assignment_scope_lock_key");
+    expect(migration).not.toContain("b1_lock_assignment_scopes");
+  });
+
+  it("takes the lock before reading any identity row", () => {
+    const lockAt = migration.indexOf("PERFORM public.b1_lock_assignment_identity_boundary();");
     const readAt = migration.indexOf("FROM public.request_processing_assignments a");
+    const scopeAt = migration.indexOf("FROM public.transfer_request_details d");
+    const validatorAt = migration.indexOf("public.is_valid_b1_direct_assignment(a.id");
     expect(lockAt).toBeGreaterThan(0);
     expect(lockAt).toBeLessThan(readAt);
+    expect(lockAt).toBeLessThan(scopeAt);
+    expect(lockAt).toBeLessThan(validatorAt);
+  });
+
+  it("returns for non-B1 requests before taking the lock", () => {
+    const guardAt = migration.indexOf("IF NOT public.is_b1_stored_request_type(v_request_type)");
+    const lockAt = migration.indexOf("PERFORM public.b1_lock_assignment_identity_boundary();");
+    expect(guardAt).toBeGreaterThan(0);
+    expect(guardAt).toBeLessThan(lockAt);
   });
 
   it("makes the assert volatile so the lock is actually acquired", () => {
@@ -239,24 +265,61 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
     );
   });
 
-  it("locks both the OLD and the NEW scope on a re-scoping update", () => {
-    expect(migration).toContain("OLD.unit_id, OLD.role_id");
-    expect(migration).toContain("NEW.unit_id, NEW.role_id");
+  it("covers profile identity mutations on staff_profiles and faculty_profiles", () => {
+    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_staff_profile_identity");
+    expect(migration).toContain("BEFORE UPDATE OF user_id, status ON public.staff_profiles");
+    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_staff_profile_identity_delete");
+    expect(migration).toContain("BEFORE DELETE ON public.staff_profiles");
+    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_faculty_profile_identity");
+    expect(migration).toContain(
+      "BEFORE UPDATE OF user_id, status, department_id ON public.faculty_profiles",
+    );
+    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_faculty_profile_identity_delete");
+    expect(migration).toContain("BEFORE DELETE ON public.faculty_profiles");
   });
 
-  it("post-verifier checks the lock objects, not the comments", () => {
-    expect(postVerifier).toContain("assignment scope lock primitive missing");
-    expect(postVerifier).toContain("scope lock is not an ordered transaction-scoped lock");
-    expect(postVerifier).toContain("activation path does not take the shared scope lock");
-    expect(postVerifier).toContain("scope lock taken after the assignment read");
-    expect(postVerifier).toContain("trg_b1_lock_processing_assignment_scope");
-    expect(postVerifier).toContain("trg_b1_lock_position_assignment_scope");
-    expect(postVerifier).toContain("trg_b1_lock_transfer_department_scope");
+  it("keeps the mutation triggers lock-only (no writes, no events)", () => {
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_row()",
+    );
+    expect(migration).toContain("It writes nothing, emits no");
+  });
+
+  it("post-verifier checks catalogs, not comments", () => {
+    for (const marker of [
+      "assignment scope lock primitive missing",
+      "scope lock is not an ordered transaction-scoped lock",
+      "activation path does not take the shared scope lock",
+      "scope lock taken after the assignment read",
+      "non-B1 early return is not before the lock",
+      "trg_b1_lock_processing_assignment_scope",
+      "trg_b1_lock_position_assignment_scope",
+      "trg_b1_lock_transfer_department_scope",
+      "staff_profiles identity lock trigger missing",
+      "faculty_profiles identity lock trigger missing",
+      "superseded scoped lock objects still present",
+    ]) {
+      expect(postVerifier).toContain(marker);
+    }
+  });
+
+  it("post-verifier hardens trigger OID, security, search_path and ACL", () => {
+    expect(postVerifier).toContain("t_row.tgfoid <> v_rec.fn::regprocedure");
+    expect(postVerifier).toContain("t_row.tgtype <> v_rec.tgtype");
+    expect(postVerifier).toContain("t_row.tgenabled <> 'O'");
+    expect(postVerifier).toContain("must be SECURITY DEFINER");
+    expect(postVerifier).toContain("must be SECURITY INVOKER");
+    expect(postVerifier).toContain("has no pinned search_path");
+    expect(postVerifier).toContain("is executable by PUBLIC/anon/authenticated");
+    expect(postVerifier).toContain("has unexpected owner");
   });
 
   it("preflight still blocks a double apply of order 29", () => {
     expect(preflight).toContain("order 29 already applied");
-    expect(preflight).toContain("public.b1_lock_assignment_scopes(bigint[])");
+    expect(preflight).toContain("public.b1_assignment_identity_lock_key()");
+    expect(preflight).toContain("incomplete earlier revision of order 29 detected");
+    expect(preflight).toContain("staff_profiles identity columns missing");
+    expect(preflight).toContain("faculty_profiles identity columns missing");
   });
 });
 
@@ -274,16 +337,23 @@ describe("B1 runtime assignee propagation — concurrency proof", () => {
       "C3 activation rejected with count 2",
       "C4 head activation rejected after re-scope",
       "C5 retry after correction activates exactly once",
-      "C6a multi-scope call sorts keys: no deadlock",
-      "C6b crossed activation/mutation on distinct scopes: no deadlock",
+      "C6a global identity lock: no deadlock, reentrant",
+      "C6b crossed activation/mutation in reversed row order: no deadlock",
       "C7 enrollment_certificate activation is not blocked and not guarded",
+      "C8 activation rejected after the principal was disabled",
+      "C9 activation rejected after the principal was unlinked",
+      "C10 concurrent staff disable blocked until activation commit",
+      "C11 faculty step activation rejected fail-closed",
+      "C12 faculty department move serializes with activation",
+      "C13 head activation rejected after the position was unlinked",
     ]) {
       expect(concurrencyRunner).toContain(marker);
     }
   });
 
   it("records a fully green recorded run", () => {
-    expect(concurrencyResults).toContain("16 passed, 0 failed");
+    expect(concurrencyResults).toContain("29 passed, 0 failed");
     expect(concurrencyResults).not.toMatch(/^FAIL /m);
   });
 });
+

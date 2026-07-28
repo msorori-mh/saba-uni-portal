@@ -12,7 +12,24 @@ CREATE TABLE public.position_assignments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   position_id uuid,
   user_id uuid,
-  is_active boolean NOT NULL DEFAULT true
+  is_active boolean NOT NULL DEFAULT true,
+  assigned_from date,
+  assigned_to date
+);
+
+-- Mutable principal profiles: the effective identity behind a staff/faculty
+-- assignment depends on these columns, so they are part of the lock boundary.
+CREATE TABLE public.staff_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid,
+  status text NOT NULL DEFAULT 'active'
+);
+
+CREATE TABLE public.faculty_profiles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid,
+  status text NOT NULL DEFAULT 'active',
+  department_id uuid
 );
 
 CREATE TABLE public.request_processing_assignments (
@@ -65,6 +82,9 @@ RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
                     'extra_chance','file_withdrawal');
 $$;
 
+-- Mirrors production: an assignment is only a valid direct assignment when the
+-- principal behind it is still linked to an auth user and still active, and
+-- (for faculty) still in the scoped department.
 CREATE FUNCTION public.is_valid_b1_direct_assignment(
   p_assignment_id uuid, p_department_id uuid, p_allow_inactive boolean)
 RETURNS boolean LANGUAGE sql STABLE AS $$
@@ -74,9 +94,24 @@ RETURNS boolean LANGUAGE sql STABLE AS $$
       AND (p_allow_inactive OR a.is_active)
       AND num_nonnulls(a.user_id, a.staff_profile_id, a.faculty_profile_id,
                        a.position_assignment_id) = 1
+      AND (a.staff_profile_id IS NULL OR EXISTS (
+        SELECT 1 FROM public.staff_profiles sp
+        WHERE sp.id = a.staff_profile_id
+          AND sp.user_id IS NOT NULL
+          AND sp.status = 'active'))
+      AND (a.faculty_profile_id IS NULL OR EXISTS (
+        SELECT 1 FROM public.faculty_profiles fp
+        WHERE fp.id = a.faculty_profile_id
+          AND fp.user_id IS NOT NULL
+          AND fp.status = 'active'
+          AND (p_department_id IS NULL OR fp.department_id = p_department_id)))
       AND (a.position_assignment_id IS NULL OR EXISTS (
         SELECT 1 FROM public.position_assignments pa
-        WHERE pa.id = a.position_assignment_id AND pa.is_active))
+        WHERE pa.id = a.position_assignment_id
+          AND pa.is_active
+          AND pa.user_id IS NOT NULL
+          AND (pa.assigned_from IS NULL OR pa.assigned_from <= current_date)
+          AND (pa.assigned_to IS NULL OR pa.assigned_to >= current_date)))
   );
 $$;
 
