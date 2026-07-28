@@ -104,15 +104,48 @@ REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_boundary() FROM anon;
 REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_boundary() FROM authenticated;
 
 -- ----------------------------------------------------------------------------
--- 1. Effective-identity re-resolver (lock-then-read, fail-closed)
+-- 0b. Statement-level lock-only trigger function
+--     FOR EACH STATEMENT, BEFORE. It runs once, before the executor takes ANY
+--     row lock of the statement, so multi-row DML in opposite row order can
+--     never build a wait-for cycle: every identity-boundary writer is already
+--     serialized on the single global key before the first tuple is touched.
+--     It reads no business row, writes nothing, emits no event, and uses no
+--     dynamic SQL.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_assignee_effective(p_step_id uuid)
+CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_stmt()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  PERFORM public.b1_lock_assignment_identity_boundary();
+  RETURN NULL; -- BEFORE STATEMENT triggers ignore the return value.
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_stmt() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_stmt() FROM anon;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_stmt() FROM authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 1. Effective-identity re-resolver (lock-then-read, fail-closed)
+--
+--    Row-shaped entry point: the guard must also run from a BEFORE INSERT
+--    trigger, where the runtime row does NOT yet exist in the table and cannot
+--    be re-selected by id. Both entry points share ONE body, so the INSERT and
+--    the UPDATE activation guards can never diverge.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  p_step public.student_request_workflow_steps
+)
 RETURNS void
 LANGUAGE plpgsql
 VOLATILE
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
+
 DECLARE
   v_step public.student_request_workflow_steps%ROWTYPE;
   v_request_type text;
