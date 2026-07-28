@@ -162,8 +162,8 @@ def main():
         out = {}
         mut = ("BEGIN; INSERT INTO public.request_processing_assignments "
                "(id,unit_id,role_id,assignment_type,staff_profile_id,is_active) VALUES "
-               "('bbbbbbbb-0000-0000-0000-0000000000ff','uuuuuuuu-0000-0000-0000-000000000001',"
-               "'rrrrrrrr-0000-0000-0000-000000000001','staff_profile',"
+               "('bbbbbbbb-0000-0000-0000-0000000000ff','f1000000-0000-0000-0000-000000000001',"
+               "'f2000000-0000-0000-0000-000000000001','staff_profile',"
                "'22222222-0000-0000-0000-000000000002',true); SELECT pg_sleep(2); COMMIT;")
         t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
         time.sleep(0.7)

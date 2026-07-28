@@ -15,21 +15,21 @@ INSERT INTO public.position_assignments (id, user_id, is_active) VALUES
 INSERT INTO public.request_processing_assignments
   (id, unit_id, role_id, assignment_type, staff_profile_id, is_active) VALUES
   ('bbbbbbbb-0000-0000-0000-000000000001',
-   'uuuuuuuu-0000-0000-0000-000000000001',
-   'rrrrrrrr-0000-0000-0000-000000000001',
+   'f1000000-0000-0000-0000-000000000001',
+   'f2000000-0000-0000-0000-000000000001',
    'staff_profile', '22222222-0000-0000-0000-000000000001', true);
 
 -- unit U2 / role R2 -> department scoped position assignments
 INSERT INTO public.request_processing_assignments
   (id, unit_id, role_id, assignment_type, position_assignment_id, department_id, is_active) VALUES
   ('bbbbbbbb-0000-0000-0000-000000000002',
-   'uuuuuuuu-0000-0000-0000-000000000002',
-   'rrrrrrrr-0000-0000-0000-000000000002',
+   'f1000000-0000-0000-0000-000000000002',
+   'f2000000-0000-0000-0000-000000000002',
    'position_assignment', 'aaaaaaaa-0000-0000-0000-000000000001',
    'dddddddd-0000-0000-0000-000000000001', true),
   ('bbbbbbbb-0000-0000-0000-000000000003',
-   'uuuuuuuu-0000-0000-0000-000000000002',
-   'rrrrrrrr-0000-0000-0000-000000000002',
+   'f1000000-0000-0000-0000-000000000002',
+   'f2000000-0000-0000-0000-000000000002',
    'position_assignment', 'aaaaaaaa-0000-0000-0000-000000000002',
    'dddddddd-0000-0000-0000-000000000002', true);
 
@@ -49,12 +49,12 @@ INSERT INTO public.student_request_workflow_steps
    processing_unit_id, processing_role_id, assigned_staff_profile_id, metadata) VALUES
   ('eeeeeeee-0000-0000-0000-000000000001', 'cccccccc-0000-0000-0000-000000000001',
    1, 'student_affairs_review', 'active',
-   'uuuuuuuu-0000-0000-0000-000000000001', 'rrrrrrrr-0000-0000-0000-000000000001',
+   'f1000000-0000-0000-0000-000000000001', 'f2000000-0000-0000-0000-000000000001',
    '22222222-0000-0000-0000-000000000001',
    '{"direct_assignment_id":"bbbbbbbb-0000-0000-0000-000000000001"}'::jsonb),
   ('eeeeeeee-0000-0000-0000-000000000002', 'cccccccc-0000-0000-0000-000000000001',
    2, 'registrar_review', 'pending',
-   'uuuuuuuu-0000-0000-0000-000000000001', 'rrrrrrrr-0000-0000-0000-000000000001',
+   'f1000000-0000-0000-0000-000000000001', 'f2000000-0000-0000-0000-000000000001',
    '22222222-0000-0000-0000-000000000001',
    '{"direct_assignment_id":"bbbbbbbb-0000-0000-0000-000000000001"}'::jsonb);
 
@@ -63,7 +63,7 @@ INSERT INTO public.student_request_workflow_steps
    processing_unit_id, processing_role_id, assigned_position_assignment_id, metadata) VALUES
   ('eeeeeeee-0000-0000-0000-000000000003', 'cccccccc-0000-0000-0000-000000000002',
    2, 'source_department_head_approval', 'pending',
-   'uuuuuuuu-0000-0000-0000-000000000002', 'rrrrrrrr-0000-0000-0000-000000000002',
+   'f1000000-0000-0000-0000-000000000002', 'f2000000-0000-0000-0000-000000000002',
    'aaaaaaaa-0000-0000-0000-000000000001',
    '{"direct_assignment_id":"bbbbbbbb-0000-0000-0000-000000000002"}'::jsonb);
 
