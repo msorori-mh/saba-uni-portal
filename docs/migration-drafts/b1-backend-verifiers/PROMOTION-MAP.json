@@ -8,7 +8,7 @@
     "preflight": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-PREFLIGHT.sql",
     "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07-B1_07_SECURE_ATTACHMENTS_SOURCE_01-POST-VERIFIER.sql",
     "apply_status": "SUPERSEDED_NOT_FOR_LOVABLE_CLOUD_APPLY",
-    "note": "File bytes MUST remain unmodified (pin 66ba4c96…). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
+    "note": "File bytes MUST remain unmodified (pin 66ba4c96\u2026). Do NOT apply on Lovable Cloud (storage.buckets INSERT rejected). Production attach path is order 7B + B0 Storage prerequisite. Never mark version 20260725110000 APPLIED unless this exact file was executed."
   },
   {
     "order": 7.5,
@@ -20,7 +20,7 @@
     "preflight": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-PREFLIGHT.sql",
     "post_verifier": "docs/migration-drafts/b1-backend-verifiers/07B-B1_07B_SECURE_ATTACHMENTS_SQL_ONLY_01-POST-VERIFIER.sql",
     "prerequisite_non_migration": "B0 Lovable Storage tool: create private bucket student-request-secure-attachments (public=false, 5MiB, pdf/jpeg/png) BEFORE applying 7B",
-    "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only — never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
+    "note": "Forward-only alternate for Lovable Cloud. Equivalent SQL objects to order 7 minus bucket upsert. History version is 20260725110050 only \u2014 never reuse 20260725110000 for different bytes. SEQ08 predecessor becomes object-level (uploads table + private bucket) satisfied by 7B."
   },
   {
     "order": 8,
@@ -226,10 +226,10 @@
     "order": 29,
     "draft": "B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql",
     "migration": null,
-    "draft_sha_lf": "647dc9d3dd5abd3cdb0a7d9440538cdf2e02bcd06ac480f97c71ad388034fbaa",
+    "draft_sha_lf": "a9832278ae3c7b04b875a07ddead6890778243df3bb0f1e4557004f8a3eaca25",
     "preflight": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-PREFLIGHT.sql",
     "post_verifier": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-POST-VERIFIER.sql",
     "apply_status": "NOT_APPLIED",
-    "note": "Source-only draft under PORTAL-B1-RUNTIME-ASSIGNEE-PROPAGATION-AND-RPC-PRINCIPAL-HARNESS-01. Generic fail-closed re-validation of the effective direct assignee at B1 runtime step activation. No-op for non-B1 request types including enrollment_certificate. NOT promoted to supabase/migrations and NOT applied."
+    "note": "Source-only draft under PORTAL-B1-RUNTIME-ASSIGNEE-PROPAGATION-AND-RPC-PRINCIPAL-HARNESS-01. Generic fail-closed re-validation of the effective direct assignee at B1 runtime step activation. No-op for non-B1 request types including enrollment_certificate. NOT promoted to supabase/migrations and NOT applied. Updated under PORTAL-B1-RUNTIME-ASSIGNEE-PROPAGATION-REMEDIATION-02: adds the shared transaction-scoped assignment-scope lock contract (activation + all assignment mutation paths) closing the TOCTOU window; proven by tests/b1-runtime-assignee-lock-concurrency-01."
   }
 ]
