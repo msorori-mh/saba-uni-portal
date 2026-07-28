@@ -183,3 +183,107 @@ describe("B1 RPC principal harness", () => {
     expect(executable).toEqual(["\\set ON_ERROR_STOP on"]);
   });
 });
+
+const concurrencyRunner = normalize(
+  readFileSync(
+    join(root, "tests", "b1-runtime-assignee-lock-concurrency-01", "run-harness.py"),
+    "utf8",
+  ),
+);
+const concurrencyResults = normalize(
+  readFileSync(
+    join(root, "tests", "b1-runtime-assignee-lock-concurrency-01", "RESULTS.md"),
+    "utf8",
+  ),
+);
+
+describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
+  it("documents why MVCC alone is not a guarantee", () => {
+    expect(migration).toContain("TOCTOU root cause");
+    expect(migration).toContain("READ COMMITTED");
+    expect(migration).toContain("it does NOT give it");
+  });
+
+  it("defines one shared transaction-scoped lock primitive", () => {
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION public.b1_assignment_scope_lock_key(",
+    );
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION public.b1_lock_assignment_scopes(p_keys bigint[])",
+    );
+    expect(migration).toContain("pg_advisory_xact_lock(v_key)");
+    expect(migration).toContain("ORDER BY k");
+  });
+
+  it("takes the lock before reading the effective assignments", () => {
+    const lockAt = migration.indexOf("PERFORM public.b1_lock_assignment_scopes(");
+    const readAt = migration.indexOf("FROM public.request_processing_assignments a");
+    expect(lockAt).toBeGreaterThan(0);
+    expect(lockAt).toBeLessThan(readAt);
+  });
+
+  it("makes the assert volatile so the lock is actually acquired", () => {
+    expect(migration).toContain("LANGUAGE plpgsql\nVOLATILE\nSECURITY DEFINER");
+  });
+
+  it("covers every assignment mutation path with the same key", () => {
+    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_processing_assignment_scope");
+    expect(migration).toContain(
+      "BEFORE INSERT OR UPDATE OR DELETE ON public.request_processing_assignments",
+    );
+    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_position_assignment_scope");
+    expect(migration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.position_assignments");
+    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_transfer_department_scope");
+    expect(migration).toContain(
+      "BEFORE UPDATE OF current_department_id, requested_department_id",
+    );
+  });
+
+  it("locks both the OLD and the NEW scope on a re-scoping update", () => {
+    expect(migration).toContain("OLD.unit_id, OLD.role_id");
+    expect(migration).toContain("NEW.unit_id, NEW.role_id");
+  });
+
+  it("post-verifier checks the lock objects, not the comments", () => {
+    expect(postVerifier).toContain("assignment scope lock primitive missing");
+    expect(postVerifier).toContain("scope lock is not an ordered transaction-scoped lock");
+    expect(postVerifier).toContain("activation path does not take the shared scope lock");
+    expect(postVerifier).toContain("scope lock taken after the assignment read");
+    expect(postVerifier).toContain("trg_b1_lock_processing_assignment_scope");
+    expect(postVerifier).toContain("trg_b1_lock_position_assignment_scope");
+    expect(postVerifier).toContain("trg_b1_lock_transfer_department_scope");
+  });
+
+  it("preflight still blocks a double apply of order 29", () => {
+    expect(preflight).toContain("order 29 already applied");
+    expect(preflight).toContain("public.b1_lock_assignment_scopes(bigint[])");
+  });
+});
+
+describe("B1 runtime assignee propagation — concurrency proof", () => {
+  it("runs the unmodified draft against a throwaway cluster", () => {
+    expect(concurrencyRunner).toContain("B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql");
+    expect(concurrencyRunner).toContain("tempfile.mkdtemp");
+    expect(concurrencyRunner).not.toContain("supabase.co");
+  });
+
+  it("covers all required concurrency cases", () => {
+    for (const marker of [
+      "C1 concurrent deactivate blocked until activation commit",
+      "C2 activation rejected fail-closed",
+      "C3 activation rejected with count 2",
+      "C4 head activation rejected after re-scope",
+      "C5 retry after correction activates exactly once",
+      "C6a multi-scope call sorts keys: no deadlock",
+      "C6b crossed activation/mutation on distinct scopes: no deadlock",
+      "C7 enrollment_certificate activation is not blocked and not guarded",
+    ]) {
+      expect(concurrencyRunner).toContain(marker);
+    }
+  });
+
+  it("records a fully green recorded run", () => {
+    expect(concurrencyResults).toContain("16 passed, 0 failed");
+    expect(concurrencyResults).not.toMatch(/^FAIL /m);
+  });
+});
