@@ -155,39 +155,51 @@ BEGIN
   END LOOP;
 
   -- Trigger functions must return trigger.
-  IF (SELECT prorettype FROM pg_proc WHERE oid = 'public.b1_lock_assignment_identity_row()'::regprocedure)
+  IF (SELECT prorettype FROM pg_proc WHERE oid = 'public.b1_lock_assignment_identity_stmt()'::regprocedure)
      <> 'pg_catalog.trigger'::regtype THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: lock trigger function does not return trigger';
   END IF;
-  IF pg_get_functiondef('public.b1_lock_assignment_identity_row()'::regprocedure)
+  IF pg_get_functiondef('public.b1_lock_assignment_identity_stmt()'::regprocedure)
        NOT LIKE '%b1_lock_assignment_identity_boundary%' THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: mutation trigger does not take the shared lock';
+  END IF;
+  -- Lock-only: the statement trigger must read/write no business row.
+  IF pg_get_functiondef('public.b1_lock_assignment_identity_stmt()'::regprocedure)
+       ~* '(insert|update|delete)[[:space:]]' THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: statement lock trigger is not lock-only';
   END IF;
 
   -- ------------------------------------------------------------------
   -- 4. Trigger-level catalog checks
   --    tgtype bits: ROW=1 BEFORE=2 INSERT=4 DELETE=8 UPDATE=16
+  --    Identity-boundary locks MUST be BEFORE ... FOR EACH STATEMENT (no ROW
+  --    bit): the key has to be taken before the executor acquires the first
+  --    row lock, otherwise multi-row DML can still build a wait-for cycle.
+  --    Validation guards stay FOR EACH ROW, on INSERT (initial active step)
+  --    and on UPDATE OF status (later activation).
   -- ------------------------------------------------------------------
   FOR v_rec IN
     SELECT * FROM (VALUES
       ('public.student_request_workflow_steps', 'trg_guard_b1_runtime_step_activation',
        'public.guard_b1_runtime_step_activation()', 19, ARRAY['status']),
-      ('public.request_processing_assignments', 'trg_b1_lock_processing_assignment_scope',
-       'public.b1_lock_assignment_identity_row()', 31, ARRAY[]::text[]),
-      ('public.position_assignments', 'trg_b1_lock_position_assignment_scope',
-       'public.b1_lock_assignment_identity_row()', 31, ARRAY[]::text[]),
-      ('public.staff_profiles', 'trg_b1_lock_staff_profile_identity',
-       'public.b1_lock_assignment_identity_row()', 19, ARRAY['user_id','status']),
-      ('public.staff_profiles', 'trg_b1_lock_staff_profile_identity_delete',
-       'public.b1_lock_assignment_identity_row()', 11, ARRAY[]::text[]),
-      ('public.faculty_profiles', 'trg_b1_lock_faculty_profile_identity',
-       'public.b1_lock_assignment_identity_row()', 19, ARRAY['user_id','status','department_id']),
-      ('public.faculty_profiles', 'trg_b1_lock_faculty_profile_identity_delete',
-       'public.b1_lock_assignment_identity_row()', 11, ARRAY[]::text[]),
-      ('public.transfer_request_details', 'trg_b1_lock_transfer_department_scope',
-       'public.b1_lock_assignment_identity_row()', 19,
+      ('public.student_request_workflow_steps', 'trg_guard_b1_runtime_step_activation_insert',
+       'public.guard_b1_runtime_step_activation()', 7, ARRAY[]::text[]),
+      ('public.student_request_workflow_steps', 'trg_b1_lock_runtime_step_identity_stmt',
+       'public.b1_lock_assignment_identity_stmt()', 22, ARRAY[]::text[]),
+      ('public.request_processing_assignments', 'trg_b1_lock_processing_assignment_stmt',
+       'public.b1_lock_assignment_identity_stmt()', 30, ARRAY[]::text[]),
+      ('public.position_assignments', 'trg_b1_lock_position_assignment_stmt',
+       'public.b1_lock_assignment_identity_stmt()', 30, ARRAY[]::text[]),
+      ('public.staff_profiles', 'trg_b1_lock_staff_profile_identity_stmt',
+       'public.b1_lock_assignment_identity_stmt()', 26, ARRAY['user_id','status']),
+      ('public.faculty_profiles', 'trg_b1_lock_faculty_profile_identity_stmt',
+       'public.b1_lock_assignment_identity_stmt()', 26,
+       ARRAY['user_id','status','department_id']),
+      ('public.transfer_request_details', 'trg_b1_lock_transfer_department_scope_stmt',
+       'public.b1_lock_assignment_identity_stmt()', 18,
        ARRAY['current_department_id','requested_department_id'])
     ) AS t(tbl, trg, fn, tgtype, cols)
+
   LOOP
     DECLARE
       t_row pg_trigger%ROWTYPE;
