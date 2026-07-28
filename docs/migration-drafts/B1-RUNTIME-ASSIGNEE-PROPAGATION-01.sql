@@ -44,14 +44,20 @@
 --   position_assignments           : user_id, is_active, assigned_from,
 --     assigned_to, position_id                                      (+ I/U/D)
 --   transfer_request_details       : current_department_id, requested_department_id
---   student_request_workflow_steps : the activating row itself (row-locked by
---     the UPDATE that fires the guard)
+--   student_request_workflow_steps : the activating row itself, on BOTH the
+--     initial INSERT with status='active' (initialize_b1_request_workflow_strict
+--     creates the first step already active — it never performs a
+--     pending -> active UPDATE) and the later pending -> active UPDATE
 --
 -- Remedy below: ONE global transaction-scoped advisory lock ("B1 assignment
---   identity boundary"), taken by the activation path BEFORE any identity read
---   and by every mutation path listed above. A single key cannot participate
+--   identity boundary"), acquired by BEFORE STATEMENT lock-only triggers —
+--   i.e. before the executor takes any row lock — on every identity table and
+--   on the runtime-step table, plus TWO row-level validation guards
+--   (BEFORE INSERT active, BEFORE UPDATE OF status to active) sharing one
+--   validation body. A single key taken before any row lock cannot participate
 --   in a lock cycle, so multi-row / opposite-order statements are deadlock-free
 --   by construction and no phantom row can appear inside the window.
+
 --
 -- Legacy impact
 --   The activation guard is a strict no-op for every non-B1 request type,
