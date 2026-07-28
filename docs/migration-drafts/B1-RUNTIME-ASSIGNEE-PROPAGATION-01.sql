@@ -384,8 +384,20 @@ COMMIT;
 --     for the same scope BLOCKS until the activating transaction finishes; the
 --     mirror case (mutation first) makes activation block and then re-read the
 --     committed state, so it can never act on a stale snapshot.
---   * Keys are always acquired ascending inside b1_lock_assignment_scopes, so
---     multi-scope callers cannot build a cyclic lock order: no deadlock.
+--   * Deadlock freedom: every production path takes the scope keys through the
+--     single entry point b1_lock_assignment_scopes, which acquires them in
+--     ascending key order, so a multi-scope caller can never build a cyclic
+--     order against another multi-scope caller. Activation transactions touch
+--     exactly one scope, and a per-row assignment statement takes at most the
+--     OLD and NEW scope of that row in the same sorted call.
 --   * Both outcomes are total: either activation with exactly one valid
 --     assignee, or a fully rejected transaction. Retry is safe.
+--
+-- Proof
+--   tests/b1-runtime-assignee-lock-concurrency-01/run-harness.py executes this
+--   exact file against a throwaway Postgres 17 cluster with two real
+--   concurrent sessions (deactivate, phantom insert, department re-scope,
+--   reversed lock order, legacy control, retry). Results:
+--   tests/b1-runtime-assignee-lock-concurrency-01/RESULTS.md
 -- ============================================================================
+
