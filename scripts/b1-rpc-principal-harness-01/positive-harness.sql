@@ -1,0 +1,60 @@
+-- ============================================================================
+-- OPERATOR POSITIVE HARNESS — B1 RPC PRINCIPAL EXECUTION
+-- DO NOT RUN. Prepared for a later, separately authorized execution window.
+--
+-- This file is COMMIT-capable by design and is therefore held back until the
+-- negative matrix has fully passed with zero unauthorized successes.
+--
+-- Preconditions to be re-proved immediately before any run:
+--   1. Negative matrix: 100% denied, zero persistent mutation.
+--   2. Order 29 (B1-RUNTIME-ASSIGNEE-PROPAGATION-01) applied + post-verifier PASS.
+--   3. Fee assessment present for final_chance and department_transfer
+--      (separate authorization; NOT part of this harness).
+--   4. Only TEST_ONLY tagged requests are touched.
+-- ============================================================================
+
+\set ON_ERROR_STOP on
+
+-- BEGIN;
+--   SET LOCAL ROLE authenticated;
+--   SELECT set_config(
+--     'request.jwt.claims',
+--     json_build_object('sub', :'principal_user_id', 'role', 'authenticated')::text,
+--     true
+--   );
+--
+--   -- Principal equivalence gate.
+--   DO $$
+--   BEGIN
+--     IF auth.uid() IS NULL OR auth.role() <> 'authenticated'
+--        OR current_role <> 'authenticated' THEN
+--       RAISE EXCEPTION 'HARNESS_PRINCIPAL_NOT_AUTHENTICATED_EQUIVALENT';
+--     END IF;
+--   END $$;
+--
+--   -- Authorization must be true BEFORE acting.
+--   DO $$
+--   BEGIN
+--     IF NOT public.can_current_user_act_on_step(:'step_id'::uuid, :'action') THEN
+--       RAISE EXCEPTION 'HARNESS_POSITIVE_PRECONDITION_FAILED';
+--     END IF;
+--   END $$;
+--
+--   SELECT public.act_on_b1_student_request_step_atomic(
+--     :'step_id'::uuid, :'action', :'comment', '{}'::jsonb);
+--
+--   -- Exactly one active step must remain (or zero on terminal completion).
+-- COMMIT;
+
+-- Ordered execution plan (one transaction per step, in order):
+--   file_withdrawal       SR-20260727-42393846: intake -> library -> labs ->
+--                         activities -> finance -> registrar_apply -> archive
+--   enrollment_suspension SR-20260727-50BEDCE2: initial_review -> manager_approval
+--                         -> registrar_apply
+--   excused_absence       SR-20260727-695EC35B: intake -> manager_review -> record_apply
+--   final_chance          SR-20260727-3C550070: intake -> manager_review ->
+--                         dean_decision -> payment_confirmation* -> registrar_apply
+--   department_transfer   SR-20260727-88D885F0: intake -> source head -> target head
+--                         -> dean_approval -> payment_confirmation* -> registrar_apply
+--   * payment_confirmation uses confirm_student_request_fee_payment, never
+--     act_on_b1_student_request_step_atomic.
