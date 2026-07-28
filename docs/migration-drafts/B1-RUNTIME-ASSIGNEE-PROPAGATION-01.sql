@@ -272,12 +272,60 @@ BEGIN
 END;
 $function$;
 
+REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  public.student_request_workflow_steps) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  public.student_request_workflow_steps) FROM anon;
+REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  public.student_request_workflow_steps) FROM authenticated;
+
+-- By-id entry point, kept for callers/tests that address a persisted step.
+-- It only fetches the row and delegates: one body, no divergence.
+CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_assignee_effective(p_step_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_step public.student_request_workflow_steps%ROWTYPE;
+BEGIN
+  SELECT s.* INTO v_step
+  FROM public.student_request_workflow_steps s
+  WHERE s.id = p_step_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'B1_RUNTIME_STEP_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+  PERFORM public.assert_b1_runtime_step_row_assignee_effective(v_step);
+END;
+$function$;
+
 REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_assignee_effective(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_assignee_effective(uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_assignee_effective(uuid) FROM authenticated;
 
 -- ----------------------------------------------------------------------------
--- 2. Activation guard trigger (generic, engine-agnostic)
+-- 2. Activation guards (generic, engine-agnostic)
+--
+--    Two row-level guards share one validation body:
+--      * BEFORE INSERT  WHEN NEW.status = 'active'
+--          The FIRST runtime step of every B1 request is created ALREADY
+--          active by initialize_b1_request_workflow_strict
+--          (status = CASE WHEN step_order = first_order THEN 'active' ...),
+--          so it never performs a pending -> active UPDATE and the UPDATE
+--          guard alone would never see it. The same hole exists for any direct
+--          INSERT of an active row through PostgREST DML.
+--      * BEFORE UPDATE OF status WHEN NEW.status = 'active'
+--          AND OLD.status IS DISTINCT FROM 'active'
+--
+--    Both run AFTER the BEFORE STATEMENT lock trigger below has already taken
+--    the global identity boundary, so every identity read they perform is
+--    inside the boundary and no row lock was acquired before it.
+--
+--    Failure of either aborts the whole calling transaction: for the INSERT
+--    case that means NO runtime step of the request is created at all, no
+--    workflow event exists, and no partial request survives.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.guard_b1_runtime_step_activation()
 RETURNS trigger
@@ -286,7 +334,7 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 BEGIN
-  PERFORM public.assert_b1_runtime_step_assignee_effective(NEW.id);
+  PERFORM public.assert_b1_runtime_step_row_assignee_effective(NEW);
   RETURN NEW;
 END;
 $function$;
@@ -294,6 +342,27 @@ $function$;
 REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM anon;
 REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM authenticated;
+
+-- Statement-level lock for the runtime-step table itself: taken once, before
+-- the executor locks any runtime row, for BOTH the initial active INSERT path
+-- and every activation UPDATE path (RPC engines and direct DML alike).
+DROP TRIGGER IF EXISTS trg_b1_lock_runtime_step_identity_stmt
+  ON public.student_request_workflow_steps;
+
+CREATE TRIGGER trg_b1_lock_runtime_step_identity_stmt
+BEFORE INSERT OR UPDATE ON public.student_request_workflow_steps
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_guard_b1_runtime_step_activation_insert
+  ON public.student_request_workflow_steps;
+
+CREATE TRIGGER trg_guard_b1_runtime_step_activation_insert
+BEFORE INSERT ON public.student_request_workflow_steps
+FOR EACH ROW
+WHEN (NEW.status = 'active')
+EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
+
 
 DROP TRIGGER IF EXISTS trg_guard_b1_runtime_step_activation
   ON public.student_request_workflow_steps;
