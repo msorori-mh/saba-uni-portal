@@ -155,12 +155,11 @@ DECLARE
   v_count integer;
   v_assignment_id uuid;
 BEGIN
-  SELECT s.* INTO v_step
-  FROM public.student_request_workflow_steps s
-  WHERE s.id = p_step_id;
-  IF NOT FOUND THEN
+  v_step := p_step;
+  IF v_step.id IS NULL OR v_step.student_request_id IS NULL THEN
     RAISE EXCEPTION 'B1_RUNTIME_STEP_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
+
 
   SELECT r.request_type INTO v_request_type
   FROM public.student_requests r
