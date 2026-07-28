@@ -113,8 +113,11 @@ def main():
         FACULTY = "33333333-0000-0000-0000-000000000001"
 
         def reset():
+            psql("DELETE FROM public.student_request_workflow_steps "
+                 "WHERE id::text LIKE 'ffffffff-%';", port)
             psql(f"UPDATE public.student_request_workflow_steps SET status='pending' "
                  f"WHERE id IN ('{STEP2}','{STEP_TR}','{STEP_FAC}','{STEP_EC}');", port)
+
             psql(f"UPDATE public.request_processing_assignments SET is_active=true "
                  f"WHERE id='{ASSN}';", port)
             psql("DELETE FROM public.request_processing_assignments "
