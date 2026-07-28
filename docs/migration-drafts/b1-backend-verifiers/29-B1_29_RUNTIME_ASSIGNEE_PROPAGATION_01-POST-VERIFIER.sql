@@ -57,7 +57,15 @@ BEGIN
   -- ------------------------------------------------------------------
   -- 2. Activation assert: contract, lock ordering, no bypass
   -- ------------------------------------------------------------------
-  v_def := pg_get_functiondef('public.assert_b1_runtime_step_assignee_effective(uuid)'::regprocedure);
+  v_def := pg_get_functiondef(
+    'public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)'::regprocedure);
+  -- The by-id wrapper must delegate to the same body, so INSERT and UPDATE
+  -- guards can never diverge.
+  IF pg_get_functiondef('public.assert_b1_runtime_step_assignee_effective(uuid)'::regprocedure)
+       NOT LIKE '%assert_b1_runtime_step_row_assignee_effective%' THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: by-id assert does not delegate to the shared row body';
+  END IF;
+
   IF v_def NOT LIKE '%is_b1_stored_request_type%'
      OR v_def NOT LIKE '%B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE%'
      OR v_def NOT LIKE '%B1_RUNTIME_ASSIGNEE_IDENTITY_MISMATCH%'
