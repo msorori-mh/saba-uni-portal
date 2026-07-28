@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""
+B1 runtime-assignee LOCK CONCURRENCY harness (local Postgres 17 only).
+
+Boots a throwaway cluster, loads the minimal schema, applies the *unmodified*
+migration draft docs/migration-drafts/B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql,
+then runs real two-session concurrency cases against it.
+
+Never point this at production. It only ever talks to the temp cluster it
+creates under a temp directory.
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+PG = HERE / "pg"
+ROOT = HERE.parents[1]
+DRAFT = ROOT / "docs" / "migration-drafts" / "B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql"
+
+DB = "b1lock"
+results = []
+
+
+def run(cmd, **kw):
+    return subprocess.run(cmd, capture_output=True, text=True, **kw)
+
+
+def psql(sql, port, expect_ok=True):
+    p = run(["psql", "-h", "127.0.0.1", "-p", str(port), "-d", DB, "-v", "ON_ERROR_STOP=1",
+             "-X", "-q", "-c", sql])
+    if expect_ok and p.returncode != 0:
+        raise RuntimeError(p.stderr.strip())
+    return p
+
+
+def psql_file(path, port):
+    p = run(["psql", "-h", "127.0.0.1", "-p", str(port), "-d", DB, "-v", "ON_ERROR_STOP=1",
+             "-X", "-q", "-f", str(path)])
+    if p.returncode != 0:
+        raise RuntimeError(f"{path}: {p.stderr.strip()}")
+
+
+def scalar(sql, port):
+    p = psql(f"SELECT ({sql})::text", port)
+    return p.stdout.strip().splitlines()[2].strip() if len(p.stdout.strip().splitlines()) > 2 else ""
+
+
+def session(sql, port, out, key):
+    t0 = time.time()
+    p = run(["psql", "-h", "127.0.0.1", "-p", str(port), "-d", DB, "-v", "ON_ERROR_STOP=1",
+             "-X", "-q", "-c", sql])
+    out[key] = {"rc": p.returncode, "err": p.stderr.strip(), "elapsed": time.time() - t0}
+
+
+def check(name, ok, detail=""):
+    results.append((name, bool(ok), detail))
+    print(("PASS " if ok else "FAIL ") + name + (f"  [{detail}]" if detail else ""))
+
+
+def main():
+    tmp = tempfile.mkdtemp(prefix="b1lock-")
+    data = os.path.join(tmp, "data")
+    port = 55439
+    try:
+        run(["initdb", "-D", data, "-U", os.environ.get("USER", "postgres"), "-A", "trust"])
+        run(["pg_ctl", "-D", data, "-o", f"-p {port} -k {tmp} -c listen_addresses=127.0.0.1",
+             "-l", os.path.join(tmp, "log"), "-w", "start"])
+        run(["createdb", "-h", "127.0.0.1", "-p", str(port), DB])
+
+        psql_file(PG / "10-minimal-schema.sql", port)
+        psql_file(DRAFT, port)
+        psql_file(PG / "20-fixtures.sql", port)
+        check("draft applies cleanly on minimal schema", True)
+
+        STEP2 = "eeeeeeee-0000-0000-0000-000000000002"
+        STEP_TR = "eeeeeeee-0000-0000-0000-000000000003"
+        STEP_EC = "eeeeeeee-0000-0000-0000-000000000009"
+        ASSN = "bbbbbbbb-0000-0000-0000-000000000001"
+
+        def reset():
+            psql(f"UPDATE public.student_request_workflow_steps SET status='pending' "
+                 f"WHERE id IN ('{STEP2}','{STEP_TR}','{STEP_EC}');", port)
+            psql(f"UPDATE public.request_processing_assignments SET is_active=true "
+                 f"WHERE id='{ASSN}';", port)
+            psql("DELETE FROM public.request_processing_assignments "
+                 "WHERE id='bbbbbbbb-0000-0000-0000-0000000000ff';", port)
+            psql("UPDATE public.transfer_request_details "
+                 "SET current_department_id='dddddddd-0000-0000-0000-000000000001' "
+                 "WHERE request_id='cccccccc-0000-0000-0000-000000000002';", port)
+
+        # ---- Case 1: activation holds the lock; concurrent deactivate must wait
+        reset()
+        out = {}
+        act = f"BEGIN; UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}'; SELECT pg_sleep(2); COMMIT;"
+        mut = f"UPDATE public.request_processing_assignments SET is_active=false WHERE id='{ASSN}';"
+        t1 = threading.Thread(target=session, args=(act, port, out, "act"))
+        t1.start(); time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(mut, port, out, "mut"))
+        t2.start(); t1.join(); t2.join()
+        check("C1 activation succeeds", out["act"]["rc"] == 0, out["act"]["err"][:120])
+        check("C1 concurrent deactivate blocked until activation commit",
+              out["mut"]["rc"] == 0 and out["mut"]["elapsed"] > 1.0,
+              f"waited {out['mut']['elapsed']:.2f}s")
+        check("C1 step ended active exactly once",
+              scalar(f"SELECT count(*) FROM public.student_request_workflow_steps "
+                     f"WHERE student_request_id='cccccccc-0000-0000-0000-000000000001' "
+                     f"AND status='active'", port) == "1")
+
+        # ---- Case 2: deactivate first -> activation blocks, then is rejected
+        reset()
+        out = {}
+        mut = (f"BEGIN; UPDATE public.request_processing_assignments SET is_active=false "
+               f"WHERE id='{ASSN}'; SELECT pg_sleep(2); COMMIT;")
+        act = f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}';"
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C2 activation waited for the mutation (no stale read)",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C2 activation rejected fail-closed",
+              out["act"]["rc"] != 0 and "B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE" in out["act"]["err"],
+              out["act"]["err"].splitlines()[0][:120] if out["act"]["err"] else "")
+        check("C2 no partial activation persisted",
+              scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP2}'", port)
+              == "pending")
+
+        # ---- Case 3: concurrent phantom second assignment
+        reset()
+        out = {}
+        mut = ("BEGIN; INSERT INTO public.request_processing_assignments "
+               "(id,unit_id,role_id,assignment_type,staff_profile_id,is_active) VALUES "
+               "('bbbbbbbb-0000-0000-0000-0000000000ff','uuuuuuuu-0000-0000-0000-000000000001',"
+               "'rrrrrrrr-0000-0000-0000-000000000001','staff_profile',"
+               "'22222222-0000-0000-0000-000000000002',true); SELECT pg_sleep(2); COMMIT;")
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C3 activation waited for the phantom insert",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C3 activation rejected with count 2",
+              out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"]
+              and out["act"]["err"].rstrip().endswith("2"),
+              out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+        check("C3 no active step created",
+              scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP2}'", port)
+              == "pending")
+
+        # ---- Case 4: department scope change vs transfer head activation
+        reset()
+        out = {}
+        mut = ("BEGIN; UPDATE public.transfer_request_details "
+               "SET current_department_id='dddddddd-0000-0000-0000-000000000002' "
+               "WHERE request_id='cccccccc-0000-0000-0000-000000000002'; "
+               "SELECT pg_sleep(2); COMMIT;")
+        act_tr = f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP_TR}';"
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(act_tr, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C4 head activation waited for the department re-scope",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C4 head activation rejected after re-scope",
+              out["act"]["rc"] != 0 and "B1_RUNTIME_ASSIGNEE" in out["act"]["err"],
+              out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+
+        # ---- Case 5: safe retry after the data is corrected
+        reset()
+        p = psql(act, port, expect_ok=False)
+        check("C5 retry after correction activates exactly once",
+              p.returncode == 0 and
+              scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP2}'", port)
+              == "active")
+
+        # ---- Case 6: no deadlock under reversed multi-scope lock order
+        reset()
+        out = {}
+        a = ("BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000001'; SELECT pg_sleep(1); "
+             "UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000002'; COMMIT;")
+        b = ("BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000002'; SELECT pg_sleep(1); "
+             "UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000001'; COMMIT;")
+        t1 = threading.Thread(target=session, args=(a, port, out, "a")); t1.start()
+        t2 = threading.Thread(target=session, args=(b, port, out, "b")); t2.start()
+        t1.join(); t2.join()
+        check("C6 no deadlock across reversed scope order",
+              out["a"]["rc"] == 0 and out["b"]["rc"] == 0 and
+              "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
+              (out["a"]["err"] + out["b"]["err"])[:120])
+
+        # ---- Case 7: legacy (non-B1) activation takes no lock and is unaffected
+        reset()
+        out = {}
+        hold = (f"BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
+                f"WHERE id='{ASSN}'; SELECT pg_sleep(2); COMMIT;")
+        legacy = f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP_EC}';"
+        t1 = threading.Thread(target=session, args=(hold, port, out, "hold")); t1.start()
+        time.sleep(0.5)
+        t2 = threading.Thread(target=session, args=(legacy, port, out, "legacy")); t2.start()
+        t1.join(); t2.join()
+        check("C7 enrollment_certificate activation is not blocked and not guarded",
+              out["legacy"]["rc"] == 0 and out["legacy"]["elapsed"] < 1.0,
+              f"{out['legacy']['elapsed']:.2f}s")
+
+        failed = [n for n, ok, _ in results if not ok]
+        print("\nSUMMARY:", len(results) - len(failed), "passed,", len(failed), "failed")
+        return 1 if failed else 0
+    finally:
+        run(["pg_ctl", "-D", data, "-m", "immediate", "-w", "stop"])
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
