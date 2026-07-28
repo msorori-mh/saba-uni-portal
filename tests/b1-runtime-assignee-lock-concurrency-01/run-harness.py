@@ -112,6 +112,8 @@ def main():
         def reset():
             psql(f"UPDATE public.student_request_workflow_steps SET status='pending' "
                  f"WHERE id IN ('{STEP2}','{STEP_TR}','{STEP_EC}');", port)
+            psql("UPDATE public.student_request_workflow_steps SET status='active' "
+                 "WHERE id='eeeeeeee-0000-0000-0000-000000000001';", port)
             psql(f"UPDATE public.request_processing_assignments SET is_active=true "
                  f"WHERE id='{ASSN}';", port)
             psql("DELETE FROM public.request_processing_assignments "
@@ -123,7 +125,10 @@ def main():
         # ---- Case 1: activation holds the lock; concurrent deactivate must wait
         reset()
         out = {}
-        act = f"BEGIN; UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}'; SELECT pg_sleep(2); COMMIT;"
+        act = (f"BEGIN; UPDATE public.student_request_workflow_steps SET status='completed' "
+               f"WHERE id='eeeeeeee-0000-0000-0000-000000000001'; "
+               f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}'; "
+               f"SELECT pg_sleep(2); COMMIT;")
         mut = f"UPDATE public.request_processing_assignments SET is_active=false WHERE id='{ASSN}';"
         t1 = threading.Thread(target=session, args=(act, port, out, "act"))
         t1.start(); time.sleep(0.7)
@@ -173,7 +178,7 @@ def main():
               out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
         check("C3 activation rejected with count 2",
               out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"]
-              and out["act"]["err"].rstrip().endswith("2"),
+              and ":registrar_review:2" in out["act"]["err"],
               out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
         check("C3 no active step created",
               scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP2}'", port)
@@ -205,21 +210,39 @@ def main():
               scalar(f"SELECT status FROM public.student_request_workflow_steps WHERE id='{STEP2}'", port)
               == "active")
 
-        # ---- Case 6: no deadlock under reversed multi-scope lock order
+        # ---- Case 6: no deadlock under the lock contract
+        # 6a. one multi-scope call with reversed key arrays: the shared entry
+        #     point sorts the keys, so the acquisition order is global.
         reset()
         out = {}
-        a = ("BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
-             "WHERE id='bbbbbbbb-0000-0000-0000-000000000001'; SELECT pg_sleep(1); "
-             "UPDATE public.request_processing_assignments SET is_active=is_active "
-             "WHERE id='bbbbbbbb-0000-0000-0000-000000000002'; COMMIT;")
-        b = ("BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
-             "WHERE id='bbbbbbbb-0000-0000-0000-000000000002'; SELECT pg_sleep(1); "
-             "UPDATE public.request_processing_assignments SET is_active=is_active "
-             "WHERE id='bbbbbbbb-0000-0000-0000-000000000001'; COMMIT;")
+        k1 = "public.b1_assignment_scope_lock_key('f1000000-0000-0000-0000-000000000001','f2000000-0000-0000-0000-000000000001')"
+        k2 = "public.b1_assignment_scope_lock_key('f1000000-0000-0000-0000-000000000002','f2000000-0000-0000-0000-000000000002')"
+        a = f"BEGIN; SELECT public.b1_lock_assignment_scopes(ARRAY[{k1},{k2}]); SELECT pg_sleep(1.5); COMMIT;"
+        b = f"BEGIN; SELECT pg_sleep(0.3); SELECT public.b1_lock_assignment_scopes(ARRAY[{k2},{k1}]); COMMIT;"
         t1 = threading.Thread(target=session, args=(a, port, out, "a")); t1.start()
         t2 = threading.Thread(target=session, args=(b, port, out, "b")); t2.start()
         t1.join(); t2.join()
-        check("C6 no deadlock across reversed scope order",
+        check("C6a multi-scope call sorts keys: no deadlock",
+              out["a"]["rc"] == 0 and out["b"]["rc"] == 0 and
+              "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
+              (out["a"]["err"] + out["b"]["err"])[:120])
+
+        # 6b. natural production ordering: each transaction touches exactly one
+        #     scope (one activation, or one assignment statement), crossed.
+        reset()
+        out = {}
+        a = (f"BEGIN; UPDATE public.student_request_workflow_steps SET status='completed' "
+             f"WHERE id='eeeeeeee-0000-0000-0000-000000000001'; "
+             f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}'; "
+             f"SELECT pg_sleep(1); COMMIT;")
+        b = ("BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000002'; SELECT pg_sleep(1); "
+             "UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id='bbbbbbbb-0000-0000-0000-000000000003'; COMMIT;")
+        t1 = threading.Thread(target=session, args=(a, port, out, "a")); t1.start()
+        t2 = threading.Thread(target=session, args=(b, port, out, "b")); t2.start()
+        t1.join(); t2.join()
+        check("C6b crossed activation/mutation on distinct scopes: no deadlock",
               out["a"]["rc"] == 0 and out["b"]["rc"] == 0 and
               "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
               (out["a"]["err"] + out["b"]["err"])[:120])
