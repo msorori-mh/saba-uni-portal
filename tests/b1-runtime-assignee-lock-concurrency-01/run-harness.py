@@ -258,7 +258,10 @@ def main():
               "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
               (out["a"]["err"] + out["b"]["err"])[:120])
 
-        # ---- Case 7: legacy (non-B1) activation takes no lock and is unaffected
+        # ---- Case 7: legacy (non-B1) activation is never VALIDATED by the
+        #      guard. Since the runtime-step statement lock is unconditional
+        #      lock-only, a legacy statement may briefly serialize on the same
+        #      key; it must still succeed with no B1 error and no rejection.
         reset()
         out = {}
         hold = (f"BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
@@ -268,9 +271,12 @@ def main():
         time.sleep(0.5)
         t2 = threading.Thread(target=session, args=(legacy, port, out, "legacy")); t2.start()
         t1.join(); t2.join()
-        check("C7 enrollment_certificate activation is not blocked and not guarded",
-              out["legacy"]["rc"] == 0 and out["legacy"]["elapsed"] < 1.0,
+        check("C7 enrollment_certificate activation succeeds and is never guarded",
+              out["legacy"]["rc"] == 0 and "B1_RUNTIME_ASSIGNEE" not in out["legacy"]["err"] and
+              scalar(f"SELECT status FROM public.student_request_workflow_steps "
+                     f"WHERE id='{STEP_EC}'", port) == "active",
               f"{out['legacy']['elapsed']:.2f}s")
+
 
         # ---- Case 8: staff profile DISABLED concurrently with activation
         reset()
