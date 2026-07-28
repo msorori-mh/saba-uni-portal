@@ -16,18 +16,25 @@ BEGIN
   IF to_regprocedure('public.assert_b1_runtime_step_assignee_effective(uuid)') IS NULL THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: assert_b1_runtime_step_assignee_effective missing';
   END IF;
+  IF to_regprocedure(
+       'public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)'
+     ) IS NULL THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: row-shaped assignee assert missing (INSERT guard body)';
+  END IF;
   IF to_regprocedure('public.b1_assignment_identity_lock_key()') IS NULL
      OR to_regprocedure('public.b1_lock_assignment_identity_boundary()') IS NULL
-     OR to_regprocedure('public.b1_lock_assignment_identity_row()') IS NULL
+     OR to_regprocedure('public.b1_lock_assignment_identity_stmt()') IS NULL
      OR to_regprocedure('public.guard_b1_runtime_step_activation()') IS NULL THEN
     RAISE EXCEPTION 'POSTVERIFY_FAIL: assignment scope lock primitive missing';
   END IF;
 
-  -- The scoped-key predecessor design must be fully gone.
+  -- The scoped-key and row-lock predecessor designs must be fully gone.
   IF to_regprocedure('public.b1_assignment_scope_lock_key(uuid,uuid)') IS NOT NULL
-     OR to_regprocedure('public.b1_lock_assignment_scopes(bigint[])') IS NOT NULL THEN
-    RAISE EXCEPTION 'POSTVERIFY_FAIL: superseded scoped lock objects still present';
+     OR to_regprocedure('public.b1_lock_assignment_scopes(bigint[])') IS NOT NULL
+     OR to_regprocedure('public.b1_lock_assignment_identity_row()') IS NOT NULL THEN
+    RAISE EXCEPTION 'POSTVERIFY_FAIL: superseded scoped/row lock objects still present';
   END IF;
+
 
   -- ------------------------------------------------------------------
   -- 1. Lock primitive is a real global transaction-scoped advisory lock
