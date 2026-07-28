@@ -3,11 +3,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
-const migration = readFileSync(
+// CRLF portability: every SQL artifact below is compared as normalized LF text
+// so the suite behaves identically on Windows checkouts (core.autocrlf=true)
+// and on LF checkouts (CI, macOS, Linux).
+const normalize = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+const migration = normalize(readFileSync(
   join(root, "docs", "migration-drafts", "B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql"),
   "utf8",
-);
-const preflight = readFileSync(
+));
+const preflight = normalize(readFileSync(
   join(
     root,
     "docs",
@@ -16,8 +20,8 @@ const preflight = readFileSync(
     "29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-PREFLIGHT.sql",
   ),
   "utf8",
-);
-const postVerifier = readFileSync(
+));
+const postVerifier = normalize(readFileSync(
   join(
     root,
     "docs",
@@ -26,15 +30,15 @@ const postVerifier = readFileSync(
     "29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-POST-VERIFIER.sql",
   ),
   "utf8",
-);
-const negativeHarness = readFileSync(
+));
+const negativeHarness = normalize(readFileSync(
   join(root, "scripts", "b1-rpc-principal-harness-01", "negative-harness.sql"),
   "utf8",
-);
-const positiveHarness = readFileSync(
+));
+const positiveHarness = normalize(readFileSync(
   join(root, "scripts", "b1-rpc-principal-harness-01", "positive-harness.sql"),
   "utf8",
-);
+));
 
 describe("B1 runtime assignee propagation — migration draft", () => {
   it("creates the effective-assignee assert and the activation guard trigger", () => {
