@@ -252,37 +252,69 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
     expect(migration).toContain("LANGUAGE plpgsql\nVOLATILE\nSECURITY DEFINER");
   });
 
+  it("guards the initial active INSERT, not only the pending -> active UPDATE", () => {
+    expect(migration).toContain("CREATE TRIGGER trg_guard_b1_runtime_step_activation_insert");
+    expect(migration).toContain("BEFORE INSERT ON public.student_request_workflow_steps");
+    expect(migration).toContain("WHEN (NEW.status = 'active')");
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_row_assignee_effective(",
+    );
+    // Both guards share ONE validation body.
+    expect(migration).toContain(
+      "PERFORM public.assert_b1_runtime_step_row_assignee_effective(NEW);",
+    );
+  });
+
+  it("takes the boundary lock at STATEMENT level, before any row lock", () => {
+    expect(migration).toContain(
+      "CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_stmt()",
+    );
+    for (const trigger of [
+      "trg_b1_lock_runtime_step_identity_stmt",
+      "trg_b1_lock_processing_assignment_stmt",
+      "trg_b1_lock_position_assignment_stmt",
+      "trg_b1_lock_staff_profile_identity_stmt",
+      "trg_b1_lock_faculty_profile_identity_stmt",
+      "trg_b1_lock_transfer_department_scope_stmt",
+    ]) {
+      expect(migration).toContain(`CREATE TRIGGER ${trigger}`);
+    }
+    // Every lock trigger is statement level.
+    const lockTriggerBodies = migration
+      .split("CREATE TRIGGER ")
+      .filter((chunk) => chunk.includes("b1_lock_assignment_identity_stmt()"));
+    expect(lockTriggerBodies.length).toBe(6);
+    for (const body of lockTriggerBodies) {
+      expect(body).toContain("FOR EACH STATEMENT");
+      expect(body).not.toContain("FOR EACH ROW");
+    }
+    // The superseded row-level lock design is removed, not left behind.
+    expect(migration).toContain(
+      "DROP FUNCTION IF EXISTS public.b1_lock_assignment_identity_row();",
+    );
+  });
+
   it("covers every assignment mutation path with the same key", () => {
-    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_processing_assignment_scope");
     expect(migration).toContain(
       "BEFORE INSERT OR UPDATE OR DELETE ON public.request_processing_assignments",
     );
-    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_position_assignment_scope");
     expect(migration).toContain("BEFORE INSERT OR UPDATE OR DELETE ON public.position_assignments");
-    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_transfer_department_scope");
     expect(migration).toContain(
       "BEFORE UPDATE OF current_department_id, requested_department_id",
     );
   });
 
   it("covers profile identity mutations on staff_profiles and faculty_profiles", () => {
-    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_staff_profile_identity");
-    expect(migration).toContain("BEFORE UPDATE OF user_id, status ON public.staff_profiles");
-    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_staff_profile_identity_delete");
-    expect(migration).toContain("BEFORE DELETE ON public.staff_profiles");
-    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_faculty_profile_identity");
     expect(migration).toContain(
-      "BEFORE UPDATE OF user_id, status, department_id ON public.faculty_profiles",
+      "BEFORE UPDATE OF user_id, status OR DELETE ON public.staff_profiles",
     );
-    expect(migration).toContain("CREATE TRIGGER trg_b1_lock_faculty_profile_identity_delete");
-    expect(migration).toContain("BEFORE DELETE ON public.faculty_profiles");
+    expect(migration).toContain(
+      "BEFORE UPDATE OF user_id, status, department_id OR DELETE ON public.faculty_profiles",
+    );
   });
 
   it("keeps the mutation triggers lock-only (no writes, no events)", () => {
-    expect(migration).toContain(
-      "CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_row()",
-    );
-    expect(migration).toContain("It writes nothing, emits no");
+    expect(migration).toContain("writes nothing, emits no event");
   });
 
   it("post-verifier checks catalogs, not comments", () => {
@@ -292,16 +324,26 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
       "activation path does not take the shared scope lock",
       "scope lock taken after the assignment read",
       "non-B1 early return is not before the lock",
-      "trg_b1_lock_processing_assignment_scope",
-      "trg_b1_lock_position_assignment_scope",
-      "trg_b1_lock_transfer_department_scope",
+      "trg_b1_lock_processing_assignment_stmt",
+      "trg_b1_lock_position_assignment_stmt",
+      "trg_b1_lock_transfer_department_scope_stmt",
+      "trg_b1_lock_runtime_step_identity_stmt",
+      "trg_guard_b1_runtime_step_activation_insert",
       "staff_profiles identity lock trigger missing",
       "faculty_profiles identity lock trigger missing",
-      "superseded scoped lock objects still present",
+      "superseded scoped/row lock objects still present",
+      "initial active INSERT guard missing",
+      "runtime-step statement lock trigger missing",
+      "identity lock trigger is row-level (deadlock risk)",
+      "INSERT guard has no active-status WHEN clause",
+      "row-shaped assignee assert missing (INSERT guard body)",
+      "by-id assert does not delegate to the shared row body",
+      "statement lock trigger is not lock-only",
     ]) {
       expect(postVerifier).toContain(marker);
     }
   });
+
 
   it("post-verifier hardens trigger OID, security, search_path and ACL", () => {
     expect(postVerifier).toContain("t_row.tgfoid <> v_rec.fn::regprocedure");
