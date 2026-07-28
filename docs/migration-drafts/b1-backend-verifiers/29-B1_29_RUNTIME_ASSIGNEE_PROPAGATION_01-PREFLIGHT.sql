@@ -53,7 +53,7 @@ BEGIN
   -- Double-apply protection (final revision objects).
   IF to_regprocedure('public.b1_assignment_identity_lock_key()') IS NOT NULL
      OR to_regprocedure('public.b1_lock_assignment_identity_boundary()') IS NOT NULL
-     OR to_regprocedure('public.b1_lock_assignment_identity_row()') IS NOT NULL THEN
+     OR to_regprocedure('public.b1_lock_assignment_identity_stmt()') IS NOT NULL THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: order 29 already applied';
   END IF;
   IF EXISTS (
@@ -67,7 +67,8 @@ BEGIN
   -- Stale / partial earlier revision (scoped-key design) must be detected too.
   IF to_regprocedure('public.b1_assignment_scope_lock_key(uuid,uuid)') IS NOT NULL
      OR to_regprocedure('public.b1_lock_assignment_scopes(bigint[])') IS NOT NULL
-     OR to_regprocedure('public.b1_lock_processing_assignment_scope()') IS NOT NULL THEN
+     OR to_regprocedure('public.b1_lock_processing_assignment_scope()') IS NOT NULL
+     OR to_regprocedure('public.b1_lock_assignment_identity_row()') IS NOT NULL THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: incomplete earlier revision of order 29 detected';
   END IF;
   IF EXISTS (

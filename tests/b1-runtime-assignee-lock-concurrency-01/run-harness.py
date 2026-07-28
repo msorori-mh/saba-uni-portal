@@ -113,8 +113,11 @@ def main():
         FACULTY = "33333333-0000-0000-0000-000000000001"
 
         def reset():
+            psql("DELETE FROM public.student_request_workflow_steps "
+                 "WHERE id::text LIKE 'ffffffff-%';", port)
             psql(f"UPDATE public.student_request_workflow_steps SET status='pending' "
                  f"WHERE id IN ('{STEP2}','{STEP_TR}','{STEP_FAC}','{STEP_EC}');", port)
+
             psql(f"UPDATE public.request_processing_assignments SET is_active=true "
                  f"WHERE id='{ASSN}';", port)
             psql("DELETE FROM public.request_processing_assignments "
@@ -255,7 +258,10 @@ def main():
               "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
               (out["a"]["err"] + out["b"]["err"])[:120])
 
-        # ---- Case 7: legacy (non-B1) activation takes no lock and is unaffected
+        # ---- Case 7: legacy (non-B1) activation is never VALIDATED by the
+        #      guard. Since the runtime-step statement lock is unconditional
+        #      lock-only, a legacy statement may briefly serialize on the same
+        #      key; it must still succeed with no B1 error and no rejection.
         reset()
         out = {}
         hold = (f"BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
@@ -265,9 +271,12 @@ def main():
         time.sleep(0.5)
         t2 = threading.Thread(target=session, args=(legacy, port, out, "legacy")); t2.start()
         t1.join(); t2.join()
-        check("C7 enrollment_certificate activation is not blocked and not guarded",
-              out["legacy"]["rc"] == 0 and out["legacy"]["elapsed"] < 1.0,
+        check("C7 enrollment_certificate activation succeeds and is never guarded",
+              out["legacy"]["rc"] == 0 and "B1_RUNTIME_ASSIGNEE" not in out["legacy"]["err"] and
+              scalar(f"SELECT status FROM public.student_request_workflow_steps "
+                     f"WHERE id='{STEP_EC}'", port) == "active",
               f"{out['legacy']['elapsed']:.2f}s")
+
 
         # ---- Case 8: staff profile DISABLED concurrently with activation
         reset()
@@ -370,6 +379,112 @@ def main():
         check("C13 head activation rejected after the position was unlinked",
               out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"],
               out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+
+        # ---- Case 14: INITIAL ACTIVE INSERT is guarded (the first B1 step is
+        #      created already active and never performs a pending->active
+        #      UPDATE, so the UPDATE guard alone never sees it).
+        reset()
+        ins_ok = ("INSERT INTO public.student_request_workflow_steps "
+                  "(id,student_request_id,step_order,step_key,status,"
+                  "processing_unit_id,processing_role_id,assigned_staff_profile_id,metadata) VALUES "
+                  f"('ffffffff-0000-0000-0000-000000000001','cccccccc-0000-0000-0000-000000000001',"
+                  "3,'initial_review','active','f1000000-0000-0000-0000-000000000001',"
+                  "'f2000000-0000-0000-0000-000000000001','22222222-0000-0000-0000-000000000001',"
+                  "'{\"direct_assignment_id\":\"bbbbbbbb-0000-0000-0000-000000000001\"}'::jsonb);")
+        p = psql(ins_ok, port, expect_ok=False)
+        check("C14 initial active INSERT with a valid effective assignee is accepted",
+              p.returncode == 0, p.stderr.strip().splitlines()[0][:140] if p.stderr.strip() else "")
+        psql("DELETE FROM public.student_request_workflow_steps "
+             "WHERE id='ffffffff-0000-0000-0000-000000000001';", port)
+
+        # ---- Case 15: initial active INSERT racing a principal disable.
+        #      The whole initialize transaction must roll back: NO step row at
+        #      all, not a partially built workflow.
+        reset()
+        out = {}
+        mut = (f"BEGIN; UPDATE public.staff_profiles SET status='inactive' "
+               f"WHERE id='{STAFF}'; SELECT pg_sleep(2); COMMIT;")
+        init_tx = ("BEGIN; " + ins_ok +
+                   " INSERT INTO public.student_request_workflow_steps "
+                   "(id,student_request_id,step_order,step_key,status,"
+                   "processing_unit_id,processing_role_id,assigned_staff_profile_id) VALUES "
+                   "('ffffffff-0000-0000-0000-000000000002','cccccccc-0000-0000-0000-000000000001',"
+                   "4,'registrar_review','pending','f1000000-0000-0000-0000-000000000001',"
+                   "'f2000000-0000-0000-0000-000000000001','22222222-0000-0000-0000-000000000001');"
+                   " COMMIT;")
+        t1 = threading.Thread(target=session, args=(mut, port, out, "mut")); t1.start()
+        time.sleep(0.7)
+        t2 = threading.Thread(target=session, args=(init_tx, port, out, "act")); t2.start()
+        t1.join(); t2.join()
+        check("C15 initial INSERT waited for the concurrent principal disable",
+              out["act"]["elapsed"] > 1.0, f"waited {out['act']['elapsed']:.2f}s")
+        check("C15 initial active INSERT rejected fail-closed",
+              out["act"]["rc"] != 0 and "MUST_RESOLVE_ONCE" in out["act"]["err"],
+              out["act"]["err"].splitlines()[0][:140] if out["act"]["err"] else "")
+        check("C15 no partial workflow row survived the rejected initialize",
+              scalar("SELECT count(*) FROM public.student_request_workflow_steps "
+                     "WHERE id IN ('ffffffff-0000-0000-0000-000000000001',"
+                     "'ffffffff-0000-0000-0000-000000000002')", port) == "0")
+
+        # ---- Case 16: legacy control — a non-B1 initial active INSERT is
+        #      accepted unchanged (statement lock is lock-only, no validation).
+        reset()
+        p = psql("INSERT INTO public.student_request_workflow_steps "
+                 "(id,student_request_id,step_order,step_key,status) VALUES "
+                 "('ffffffff-0000-0000-0000-000000000003',"
+                 "'cccccccc-0000-0000-0000-000000000009',2,'archive','active');",
+                 port, expect_ok=False)
+        check("C16 legacy enrollment_certificate active INSERT unaffected",
+              p.returncode == 0, p.stderr.strip().splitlines()[0][:140] if p.stderr.strip() else "")
+        psql("DELETE FROM public.student_request_workflow_steps "
+             "WHERE id='ffffffff-0000-0000-0000-000000000003';", port)
+
+        # ---- Case 17: multi-row statements on the identity tables in opposite
+        #      row order. With BEFORE STATEMENT locking, the key is taken before
+        #      the first row lock, so no wait-for cycle can form.
+        reset()
+        out = {}
+        a = ("BEGIN; UPDATE public.staff_profiles SET status=status "
+             "WHERE id IN ('22222222-0000-0000-0000-000000000001',"
+             "'22222222-0000-0000-0000-000000000002'); SELECT pg_sleep(1); "
+             "UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id IN ('bbbbbbbb-0000-0000-0000-000000000002',"
+             "'bbbbbbbb-0000-0000-0000-000000000003'); COMMIT;")
+        b = ("BEGIN; UPDATE public.request_processing_assignments SET is_active=is_active "
+             "WHERE id IN ('bbbbbbbb-0000-0000-0000-000000000003',"
+             "'bbbbbbbb-0000-0000-0000-000000000002'); SELECT pg_sleep(1); "
+             "UPDATE public.staff_profiles SET status=status "
+             "WHERE id IN ('22222222-0000-0000-0000-000000000002',"
+             "'22222222-0000-0000-0000-000000000001'); COMMIT;")
+        t1 = threading.Thread(target=session, args=(a, port, out, "a")); t1.start()
+        t2 = threading.Thread(target=session, args=(b, port, out, "b")); t2.start()
+        t1.join(); t2.join()
+        check("C17 multi-row identity statements in opposite order: no deadlock",
+              out["a"]["rc"] == 0 and out["b"]["rc"] == 0 and
+              "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
+              (out["a"]["err"] + out["b"]["err"])[:140])
+
+        # ---- Case 18: activation crossed with a multi-row profile statement.
+        reset()
+        out = {}
+        a = (f"BEGIN; UPDATE public.student_request_workflow_steps SET status='completed' "
+             f"WHERE id='eeeeeeee-0000-0000-0000-000000000001'; "
+             f"UPDATE public.student_request_workflow_steps SET status='active' WHERE id='{STEP2}'; "
+             f"SELECT pg_sleep(1); COMMIT;")
+        b = ("BEGIN; UPDATE public.staff_profiles SET status=status "
+             "WHERE id IN ('22222222-0000-0000-0000-000000000002',"
+             "'22222222-0000-0000-0000-000000000001'); SELECT pg_sleep(1); COMMIT;")
+        t1 = threading.Thread(target=session, args=(a, port, out, "a")); t1.start()
+        t2 = threading.Thread(target=session, args=(b, port, out, "b")); t2.start()
+        t1.join(); t2.join()
+        check("C18 activation vs multi-row profile statement: serialized, no deadlock",
+              out["a"]["rc"] == 0 and out["b"]["rc"] == 0 and
+              "deadlock" not in (out["a"]["err"] + out["b"]["err"]).lower(),
+              (out["a"]["err"] + out["b"]["err"])[:140])
+        check("C18 exactly one active step remains",
+              scalar("SELECT count(*) FROM public.student_request_workflow_steps "
+                     "WHERE student_request_id='cccccccc-0000-0000-0000-000000000001' "
+                     "AND status='active'", port) == "1")
 
 
         failed = [n for n, ok, _ in results if not ok]

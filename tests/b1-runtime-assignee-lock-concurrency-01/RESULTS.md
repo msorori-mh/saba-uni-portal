@@ -9,9 +9,9 @@ Applied artifact: `docs/migration-drafts/B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql`
 ```
 PASS draft applies cleanly on minimal schema
 PASS C1 activation succeeds
-PASS C1 concurrent deactivate blocked until activation commit  [waited 1.35s]
+PASS C1 concurrent deactivate blocked until activation commit  [waited 1.34s]
 PASS C1 step ended active exactly once
-PASS C2 activation waited for the mutation (no stale read)  [waited 1.34s]
+PASS C2 activation waited for the mutation (no stale read)  [waited 1.33s]
 PASS C2 activation rejected fail-closed  [ERROR:  B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE:registrar_review:0]
 PASS C2 no partial activation persisted
 PASS C3 activation waited for the phantom insert  [waited 1.34s]
@@ -22,22 +22,30 @@ PASS C4 head activation rejected after re-scope  [ERROR:  B1_RUNTIME_ASSIGNEE_ID
 PASS C5 retry after correction activates exactly once
 PASS C6a global identity lock: no deadlock, reentrant
 PASS C6b crossed activation/mutation in reversed row order: no deadlock
-PASS C7 enrollment_certificate activation is not blocked and not guarded  [0.05s]
-PASS C8 activation waited for the staff status change  [waited 1.33s]
+PASS C7 enrollment_certificate activation succeeds and is never guarded  [1.54s]
+PASS C8 activation waited for the staff status change  [waited 1.34s]
 PASS C8 activation rejected after the principal was disabled  [ERROR:  B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE:registrar_review:0]
 PASS C8 no partial activation persisted
-PASS C9 activation waited for the staff user_id change  [waited 1.34s]
+PASS C9 activation waited for the staff user_id change  [waited 1.33s]
 PASS C9 activation rejected after the principal was unlinked  [ERROR:  B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE:registrar_review:0]
 PASS C10 activation succeeds
-PASS C10 concurrent staff disable blocked until activation commit  [waited 1.35s]
+PASS C10 concurrent staff disable blocked until activation commit  [waited 1.34s]
 PASS C11 faculty step activation waited for the faculty status change  [waited 1.34s]
 PASS C11 faculty step activation rejected fail-closed  [ERROR:  B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE:academic_advisor_review:0]
-PASS C12 faculty department move serializes with activation  [waited 1.34s]
+PASS C12 faculty department move serializes with activation  [waited 1.33s]
 PASS C12 faculty step state is total (active or pending, never partial)
-PASS C13 head activation waited for the position principal change  [waited 1.33s]
+PASS C13 head activation waited for the position principal change  [waited 1.34s]
 PASS C13 head activation rejected after the position was unlinked  [ERROR:  B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE:source_department_head_approval:0]
+PASS C14 initial active INSERT with a valid effective assignee is accepted
+PASS C15 initial INSERT waited for the concurrent principal disable  [waited 1.34s]
+PASS C15 initial active INSERT rejected fail-closed  [ERROR:  B1_RUNTIME_ASSIGNEE_MUST_RESOLVE_ONCE:initial_review:0]
+PASS C15 no partial workflow row survived the rejected initialize
+PASS C16 legacy enrollment_certificate active INSERT unaffected
+PASS C17 multi-row identity statements in opposite order: no deadlock
+PASS C18 activation vs multi-row profile statement: serialized, no deadlock
+PASS C18 exactly one active step remains
 
-SUMMARY: 29 passed, 0 failed
+SUMMARY: 37 passed, 0 failed
 ```
 
 ## What each case proves
@@ -51,10 +59,15 @@ SUMMARY: 29 passed, 0 failed
 | C5   | corrected data | retry is idempotent and total |
 | C6a  | lock primitive itself | one global key ⇒ reentrant, cycle-free |
 | C6b  | multi-row statement, reversed row order | no deadlock in the natural production pattern |
-| C7   | legacy `enrollment_certificate` | no guard, no lock, no added latency |
+| C7   | legacy `enrollment_certificate` | activation succeeds, never validated by the guard |
 | C8   | `staff_profiles.status` | disabled principal rejected at activation |
 | C9   | `staff_profiles.user_id` | unlinked/swapped account rejected |
 | C10  | `staff_profiles.status`, activation first | profile mutation waits for the activation commit |
 | C11  | `faculty_profiles.status` | faculty-backed step fails closed |
 | C12  | `faculty_profiles.department_id` | department move serializes; state stays total |
 | C13  | `position_assignments.user_id` | department-head position principal re-checked |
+| C14  | initial active `INSERT` | the first step, created already active, is guarded |
+| C15  | initial `INSERT` vs `staff_profiles.status` | whole initialize rolls back; no partial workflow |
+| C16  | legacy active `INSERT` | non-B1 initial insert unaffected |
+| C17  | multi-row statements, opposite order, two tables | statement-level lock ⇒ no deadlock |
+| C18  | activation vs multi-row profile statement | serialized, exactly one active step |

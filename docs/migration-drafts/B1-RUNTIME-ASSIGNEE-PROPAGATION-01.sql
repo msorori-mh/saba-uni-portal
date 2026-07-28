@@ -44,14 +44,20 @@
 --   position_assignments           : user_id, is_active, assigned_from,
 --     assigned_to, position_id                                      (+ I/U/D)
 --   transfer_request_details       : current_department_id, requested_department_id
---   student_request_workflow_steps : the activating row itself (row-locked by
---     the UPDATE that fires the guard)
+--   student_request_workflow_steps : the activating row itself, on BOTH the
+--     initial INSERT with status='active' (initialize_b1_request_workflow_strict
+--     creates the first step already active — it never performs a
+--     pending -> active UPDATE) and the later pending -> active UPDATE
 --
 -- Remedy below: ONE global transaction-scoped advisory lock ("B1 assignment
---   identity boundary"), taken by the activation path BEFORE any identity read
---   and by every mutation path listed above. A single key cannot participate
+--   identity boundary"), acquired by BEFORE STATEMENT lock-only triggers —
+--   i.e. before the executor takes any row lock — on every identity table and
+--   on the runtime-step table, plus TWO row-level validation guards
+--   (BEFORE INSERT active, BEFORE UPDATE OF status to active) sharing one
+--   validation body. A single key taken before any row lock cannot participate
 --   in a lock cycle, so multi-row / opposite-order statements are deadlock-free
 --   by construction and no phantom row can appear inside the window.
+
 --
 -- Legacy impact
 --   The activation guard is a strict no-op for every non-B1 request type,
@@ -104,15 +110,48 @@ REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_boundary() FROM anon;
 REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_boundary() FROM authenticated;
 
 -- ----------------------------------------------------------------------------
--- 1. Effective-identity re-resolver (lock-then-read, fail-closed)
+-- 0b. Statement-level lock-only trigger function
+--     FOR EACH STATEMENT, BEFORE. It runs once, before the executor takes ANY
+--     row lock of the statement, so multi-row DML in opposite row order can
+--     never build a wait-for cycle: every identity-boundary writer is already
+--     serialized on the single global key before the first tuple is touched.
+--     It reads no business row, writes nothing, emits no event, and uses no
+--     dynamic SQL.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_assignee_effective(p_step_id uuid)
+CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_stmt()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+BEGIN
+  PERFORM public.b1_lock_assignment_identity_boundary();
+  RETURN NULL; -- BEFORE STATEMENT triggers ignore the return value.
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_stmt() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_stmt() FROM anon;
+REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_stmt() FROM authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 1. Effective-identity re-resolver (lock-then-read, fail-closed)
+--
+--    Row-shaped entry point: the guard must also run from a BEFORE INSERT
+--    trigger, where the runtime row does NOT yet exist in the table and cannot
+--    be re-selected by id. Both entry points share ONE body, so the INSERT and
+--    the UPDATE activation guards can never diverge.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  p_step public.student_request_workflow_steps
+)
 RETURNS void
 LANGUAGE plpgsql
 VOLATILE
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
+
 DECLARE
   v_step public.student_request_workflow_steps%ROWTYPE;
   v_request_type text;
@@ -122,12 +161,11 @@ DECLARE
   v_count integer;
   v_assignment_id uuid;
 BEGIN
-  SELECT s.* INTO v_step
-  FROM public.student_request_workflow_steps s
-  WHERE s.id = p_step_id;
-  IF NOT FOUND THEN
+  v_step := p_step;
+  IF v_step.id IS NULL OR v_step.student_request_id IS NULL THEN
     RAISE EXCEPTION 'B1_RUNTIME_STEP_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
+
 
   SELECT r.request_type INTO v_request_type
   FROM public.student_requests r
@@ -240,12 +278,60 @@ BEGIN
 END;
 $function$;
 
+REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  public.student_request_workflow_steps) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  public.student_request_workflow_steps) FROM anon;
+REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
+  public.student_request_workflow_steps) FROM authenticated;
+
+-- By-id entry point, kept for callers/tests that address a persisted step.
+-- It only fetches the row and delegates: one body, no divergence.
+CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_assignee_effective(p_step_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_step public.student_request_workflow_steps%ROWTYPE;
+BEGIN
+  SELECT s.* INTO v_step
+  FROM public.student_request_workflow_steps s
+  WHERE s.id = p_step_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'B1_RUNTIME_STEP_NOT_FOUND' USING ERRCODE = 'P0002';
+  END IF;
+  PERFORM public.assert_b1_runtime_step_row_assignee_effective(v_step);
+END;
+$function$;
+
 REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_assignee_effective(uuid) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_assignee_effective(uuid) FROM anon;
 REVOKE ALL ON FUNCTION public.assert_b1_runtime_step_assignee_effective(uuid) FROM authenticated;
 
 -- ----------------------------------------------------------------------------
--- 2. Activation guard trigger (generic, engine-agnostic)
+-- 2. Activation guards (generic, engine-agnostic)
+--
+--    Two row-level guards share one validation body:
+--      * BEFORE INSERT  WHEN NEW.status = 'active'
+--          The FIRST runtime step of every B1 request is created ALREADY
+--          active by initialize_b1_request_workflow_strict
+--          (status = CASE WHEN step_order = first_order THEN 'active' ...),
+--          so it never performs a pending -> active UPDATE and the UPDATE
+--          guard alone would never see it. The same hole exists for any direct
+--          INSERT of an active row through PostgREST DML.
+--      * BEFORE UPDATE OF status WHEN NEW.status = 'active'
+--          AND OLD.status IS DISTINCT FROM 'active'
+--
+--    Both run AFTER the BEFORE STATEMENT lock trigger below has already taken
+--    the global identity boundary, so every identity read they perform is
+--    inside the boundary and no row lock was acquired before it.
+--
+--    Failure of either aborts the whole calling transaction: for the INSERT
+--    case that means NO runtime step of the request is created at all, no
+--    workflow event exists, and no partial request survives.
 -- ----------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.guard_b1_runtime_step_activation()
 RETURNS trigger
@@ -254,7 +340,7 @@ SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
 BEGIN
-  PERFORM public.assert_b1_runtime_step_assignee_effective(NEW.id);
+  PERFORM public.assert_b1_runtime_step_row_assignee_effective(NEW);
   RETURN NEW;
 END;
 $function$;
@@ -262,6 +348,27 @@ $function$;
 REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM anon;
 REVOKE ALL ON FUNCTION public.guard_b1_runtime_step_activation() FROM authenticated;
+
+-- Statement-level lock for the runtime-step table itself: taken once, before
+-- the executor locks any runtime row, for BOTH the initial active INSERT path
+-- and every activation UPDATE path (RPC engines and direct DML alike).
+DROP TRIGGER IF EXISTS trg_b1_lock_runtime_step_identity_stmt
+  ON public.student_request_workflow_steps;
+
+CREATE TRIGGER trg_b1_lock_runtime_step_identity_stmt
+BEFORE INSERT OR UPDATE ON public.student_request_workflow_steps
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_guard_b1_runtime_step_activation_insert
+  ON public.student_request_workflow_steps;
+
+CREATE TRIGGER trg_guard_b1_runtime_step_activation_insert
+BEFORE INSERT ON public.student_request_workflow_steps
+FOR EACH ROW
+WHEN (NEW.status = 'active')
+EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
+
 
 DROP TRIGGER IF EXISTS trg_guard_b1_runtime_step_activation
   ON public.student_request_workflow_steps;
@@ -275,9 +382,23 @@ WHEN (NEW.status = 'active' AND OLD.status IS DISTINCT FROM 'active')
 EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
 
 -- ----------------------------------------------------------------------------
--- 3. Mutation side of the SAME global lock contract
---    Every trigger below only takes the lock. It writes nothing, emits no
---    event, and performs no backfill.
+-- 3. Mutation side of the SAME global lock contract — STATEMENT LEVEL
+--
+--    Why statement level and not row level:
+--      A BEFORE ROW trigger fires per tuple, and by the time it fires for the
+--      SECOND tuple of a multi-row statement the executor already holds the
+--      row lock of the FIRST tuple. Two transactions updating the same set of
+--      rows in opposite order can therefore each hold a row lock and then
+--      block on the advisory key / on each other — the row-level design could
+--      not guarantee deadlock freedom for multi-row DML.
+--      A BEFORE STATEMENT trigger fires exactly once, before the executor
+--      touches any tuple, so the single global key is always acquired BEFORE
+--      the first row lock. With one key and no row lock held at acquisition
+--      time, no wait-for cycle can be constructed, whatever the row order or
+--      row count.
+--
+--    Every trigger below only takes the lock. It reads no business row, writes
+--    nothing, emits no event, performs no backfill and uses no dynamic SQL.
 --
 --    Covered writer paths (both plain PostgREST DML under RLS and the
 --    SECURITY DEFINER admin RPCs — triggers cover both, which is why the
@@ -290,98 +411,83 @@ EXECUTE FUNCTION public.guard_b1_runtime_step_activation();
 --         department_id / DELETE (admin_set_faculty_status,
 --          admin_unlink_portal_login, link_faculty_profile_account)
 --      d. position_assignments            INSERT / UPDATE / DELETE
---      e. transfer_request_details        department scope change
---         (apply_b1_department_transfer_effect, admin surfaces)
+--      e. transfer_request_details        UPDATE OF current_department_id,
+--         requested_department_id (apply_b1_department_transfer_effect, admin)
+--
+--    Note on UPDATE OF <cols> at statement level: the column list still gates
+--    which statements fire the trigger; it is deliberately kept so unrelated
+--    profile edits (name, phone, …) never take the boundary lock.
 -- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.b1_lock_assignment_identity_row()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-BEGIN
-  PERFORM public.b1_lock_assignment_identity_boundary();
-  IF TG_OP = 'DELETE' THEN
-    RETURN OLD;
-  END IF;
-  RETURN NEW;
-END;
-$function$;
 
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM anon;
-REVOKE ALL ON FUNCTION public.b1_lock_assignment_identity_row() FROM authenticated;
-
+-- The superseded row-lock-only design is removed, not left behind.
 DROP TRIGGER IF EXISTS trg_b1_lock_processing_assignment_scope
   ON public.request_processing_assignments;
-
-CREATE TRIGGER trg_b1_lock_processing_assignment_scope
-BEFORE INSERT OR UPDATE OR DELETE ON public.request_processing_assignments
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_position_assignment_scope
   ON public.position_assignments;
-
-CREATE TRIGGER trg_b1_lock_position_assignment_scope
-BEFORE INSERT OR UPDATE OR DELETE ON public.position_assignments
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity
   ON public.staff_profiles;
-
-CREATE TRIGGER trg_b1_lock_staff_profile_identity
-BEFORE UPDATE OF user_id, status ON public.staff_profiles
-FOR EACH ROW
-WHEN (NEW.user_id IS DISTINCT FROM OLD.user_id
-   OR NEW.status IS DISTINCT FROM OLD.status)
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity_delete
   ON public.staff_profiles;
-
-CREATE TRIGGER trg_b1_lock_staff_profile_identity_delete
-BEFORE DELETE ON public.staff_profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity
   ON public.faculty_profiles;
-
-CREATE TRIGGER trg_b1_lock_faculty_profile_identity
-BEFORE UPDATE OF user_id, status, department_id ON public.faculty_profiles
-FOR EACH ROW
-WHEN (NEW.user_id IS DISTINCT FROM OLD.user_id
-   OR NEW.status IS DISTINCT FROM OLD.status
-   OR NEW.department_id IS DISTINCT FROM OLD.department_id)
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity_delete
   ON public.faculty_profiles;
-
-CREATE TRIGGER trg_b1_lock_faculty_profile_identity_delete
-BEFORE DELETE ON public.faculty_profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
-
 DROP TRIGGER IF EXISTS trg_b1_lock_transfer_department_scope
   ON public.transfer_request_details;
+DROP FUNCTION IF EXISTS public.b1_lock_assignment_identity_row();
 
-CREATE TRIGGER trg_b1_lock_transfer_department_scope
+DROP TRIGGER IF EXISTS trg_b1_lock_processing_assignment_stmt
+  ON public.request_processing_assignments;
+
+CREATE TRIGGER trg_b1_lock_processing_assignment_stmt
+BEFORE INSERT OR UPDATE OR DELETE ON public.request_processing_assignments
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_position_assignment_stmt
+  ON public.position_assignments;
+
+CREATE TRIGGER trg_b1_lock_position_assignment_stmt
+BEFORE INSERT OR UPDATE OR DELETE ON public.position_assignments
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_staff_profile_identity_stmt
+  ON public.staff_profiles;
+
+CREATE TRIGGER trg_b1_lock_staff_profile_identity_stmt
+BEFORE UPDATE OF user_id, status OR DELETE ON public.staff_profiles
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_faculty_profile_identity_stmt
+  ON public.faculty_profiles;
+
+CREATE TRIGGER trg_b1_lock_faculty_profile_identity_stmt
+BEFORE UPDATE OF user_id, status, department_id OR DELETE ON public.faculty_profiles
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+DROP TRIGGER IF EXISTS trg_b1_lock_transfer_department_scope_stmt
+  ON public.transfer_request_details;
+
+CREATE TRIGGER trg_b1_lock_transfer_department_scope_stmt
 BEFORE UPDATE OF current_department_id, requested_department_id
   ON public.transfer_request_details
-FOR EACH ROW
-WHEN (NEW.current_department_id IS DISTINCT FROM OLD.current_department_id
-   OR NEW.requested_department_id IS DISTINCT FROM OLD.requested_department_id)
-EXECUTE FUNCTION public.b1_lock_assignment_identity_row();
+FOR EACH STATEMENT
+EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
+
+
 
 COMMIT;
 
 -- ============================================================================
 -- Fail-closed semantics
 --   Any RAISE above aborts the whole calling transaction. Therefore:
---     * the predecessor step is NOT completed,
+--     * for the INITIAL ACTIVE INSERT path, NO runtime step row of the request
+--       is created at all (the whole initialize transaction rolls back): no
+--       partial workflow, no event, no half-built request,
+--     * for the activation UPDATE path, the predecessor step is NOT completed,
 --     * no workflow event row is created,
 --     * the active-step count stays exactly as it was (never 0, never >1),
 --     * no partial mutation persists,
@@ -393,25 +499,39 @@ COMMIT;
 --   * The advisory key is global and transaction-scoped: it is released only at
 --     COMMIT or ROLLBACK, so the "exactly one effective identity" predicate
 --     proven by the assert still holds at the instant the activation commits.
+--   * The key is acquired by BEFORE STATEMENT triggers, i.e. before the
+--     executor takes the first row lock of the statement, on both the identity
+--     tables and the runtime-step table itself.
 --   * A concurrent deactivate / delete / second INSERT / department re-scope /
 --     staff or faculty profile disable / user_id swap / department move BLOCKS
 --     until the activating transaction finishes; the mirror case (mutation
 --     first) makes activation block and then re-read the committed state, so it
 --     can never act on a stale snapshot.
---   * Deadlock freedom: there is exactly ONE key for the whole boundary, so no
---     wait-for cycle between two identity-boundary transactions can be built,
---     regardless of how many rows a statement touches or in which row order.
+--   * Deadlock freedom: exactly ONE key for the whole boundary, taken before
+--     any row lock, so no wait-for cycle between two identity-boundary
+--     transactions can be built — regardless of how many rows a statement
+--     touches or in which row order.
 --   * Phantom freedom: the predicate is protected by the boundary lock rather
 --     than by per-row locks, so a newly INSERTed second assignment cannot slip
 --     into the window.
 --   * Both outcomes are total: either activation with exactly one valid
 --     assignee, or a fully rejected transaction. Retry is safe.
 --
+-- Legacy scope of the runtime-step statement lock
+--   trg_b1_lock_runtime_step_identity_stmt is lock-only and unconditional on
+--   student_request_workflow_steps. It changes no functional behaviour for
+--   enrollment_certificate or any non-B1 flow (the row guards still return
+--   before validating them); the only effect is that two concurrent workflow
+--   statements serialize on one advisory key for the duration of a single
+--   statement's transaction.
+--
 -- Proof
 --   tests/b1-runtime-assignee-lock-concurrency-01/run-harness.py executes this
 --   exact file against a throwaway Postgres 17 cluster with real concurrent
---   sessions (deactivate, phantom insert, department re-scope, staff/faculty
---   status and user_id mutation, faculty department move, multi-row reversed
---   order, legacy control, retry). Results:
+--   sessions (initial active INSERT accept/reject, disabled profile, user_id
+--   swap, phantom assignment, multi-row reversed order on assignments and on
+--   profiles, activation vs multi-row mutation, deactivate, department
+--   re-scope, legacy control, retry). Results:
 --   tests/b1-runtime-assignee-lock-concurrency-01/RESULTS.md
 -- ============================================================================
+
