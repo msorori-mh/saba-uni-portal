@@ -230,11 +230,17 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
     expect(migration).not.toContain("b1_lock_assignment_scopes");
   });
 
+  // Ordering assertions are scoped to the validation body, so the statement
+  // lock function defined earlier in the file cannot mask a regression.
+  const assertBody = migration.slice(
+    migration.indexOf("CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_row_assignee_effective("),
+  );
+
   it("takes the lock before reading any identity row", () => {
-    const lockAt = migration.indexOf("PERFORM public.b1_lock_assignment_identity_boundary();");
-    const readAt = migration.indexOf("FROM public.request_processing_assignments a");
-    const scopeAt = migration.indexOf("FROM public.transfer_request_details d");
-    const validatorAt = migration.indexOf("public.is_valid_b1_direct_assignment(a.id");
+    const lockAt = assertBody.indexOf("PERFORM public.b1_lock_assignment_identity_boundary();");
+    const readAt = assertBody.indexOf("FROM public.request_processing_assignments a");
+    const scopeAt = assertBody.indexOf("FROM public.transfer_request_details d");
+    const validatorAt = assertBody.indexOf("public.is_valid_b1_direct_assignment(a.id");
     expect(lockAt).toBeGreaterThan(0);
     expect(lockAt).toBeLessThan(readAt);
     expect(lockAt).toBeLessThan(scopeAt);
@@ -242,11 +248,12 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
   });
 
   it("returns for non-B1 requests before taking the lock", () => {
-    const guardAt = migration.indexOf("IF NOT public.is_b1_stored_request_type(v_request_type)");
-    const lockAt = migration.indexOf("PERFORM public.b1_lock_assignment_identity_boundary();");
+    const guardAt = assertBody.indexOf("IF NOT public.is_b1_stored_request_type(v_request_type)");
+    const lockAt = assertBody.indexOf("PERFORM public.b1_lock_assignment_identity_boundary();");
     expect(guardAt).toBeGreaterThan(0);
     expect(guardAt).toBeLessThan(lockAt);
   });
+
 
   it("makes the assert volatile so the lock is actually acquired", () => {
     expect(migration).toContain("LANGUAGE plpgsql\nVOLATILE\nSECURITY DEFINER");
