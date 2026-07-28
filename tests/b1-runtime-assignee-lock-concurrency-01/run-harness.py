@@ -112,8 +112,6 @@ def main():
         def reset():
             psql(f"UPDATE public.student_request_workflow_steps SET status='pending' "
                  f"WHERE id IN ('{STEP2}','{STEP_TR}','{STEP_EC}');", port)
-            psql("UPDATE public.student_request_workflow_steps SET status='active' "
-                 "WHERE id='eeeeeeee-0000-0000-0000-000000000001';", port)
             psql(f"UPDATE public.request_processing_assignments SET is_active=true "
                  f"WHERE id='{ASSN}';", port)
             psql("DELETE FROM public.request_processing_assignments "
@@ -121,6 +119,8 @@ def main():
             psql("UPDATE public.transfer_request_details "
                  "SET current_department_id='dddddddd-0000-0000-0000-000000000001' "
                  "WHERE request_id='cccccccc-0000-0000-0000-000000000002';", port)
+            psql("UPDATE public.student_request_workflow_steps SET status='active' "
+                 "WHERE id='eeeeeeee-0000-0000-0000-000000000001';", port)
 
         # ---- Case 1: activation holds the lock; concurrent deactivate must wait
         reset()
