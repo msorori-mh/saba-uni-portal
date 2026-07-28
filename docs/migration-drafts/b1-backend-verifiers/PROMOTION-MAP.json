@@ -211,12 +211,13 @@
     {
         "order": 28,
         "draft": "B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-01.sql",
-        "migration": null,
+        "migration": "supabase/migrations/20260728015540_9a307610-cd06-4e91-b3f8-4b9b58ab2819.sql",
         "draft_sha_lf": "7f1314bccec8fa5201e967f723db09be47aa88fafa0ea835012304d30a54c15f",
-        "migration_sha_lf": null,
+        "migration_sha_lf": "8dd8da6748b6a19a50b3e15108728a3d1c1111c49a8ed218916a24a8118003a1",
         "preflight": "docs/migration-drafts/b1-backend-verifiers/28-B1_28_PAYMENT_CONFIRMATION_AUTHORIZATION_HARDENING_01-PREFLIGHT.sql",
         "post_verifier": "docs/migration-drafts/b1-backend-verifiers/28-B1_28_PAYMENT_CONFIRMATION_AUTHORIZATION_HARDENING_01-POST-VERIFIER.sql",
-        "apply_status": "SOURCE_ONLY_NOT_APPLIED",
-        "note": "Forward-only B1 payment-confirmation authorization hardening. Not promoted into supabase/migrations and NOT applied; requires a separate single-migration approval."
+        "apply_status": "APPLIED",
+        "applied_at": "2026-07-28T01:55:40Z",
+        "note": "Forward-only B1 payment-confirmation authorization hardening. Applied to production as a single migration under track PORTAL-B1-PAYMENT-CONFIRMATION-AUTHORIZATION-HARDENING-PRODUCTION-APPLY-01. Migration body is byte-identical to the draft except for the absent trailing newline. Preflight PASS, post-verifier PASS, business_rows_mutated = 0."
     }
 ]
