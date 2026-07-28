@@ -106,21 +106,30 @@ def main():
 
         STEP2 = "eeeeeeee-0000-0000-0000-000000000002"
         STEP_TR = "eeeeeeee-0000-0000-0000-000000000003"
+        STEP_FAC = "eeeeeeee-0000-0000-0000-000000000004"
         STEP_EC = "eeeeeeee-0000-0000-0000-000000000009"
         ASSN = "bbbbbbbb-0000-0000-0000-000000000001"
+        STAFF = "22222222-0000-0000-0000-000000000001"
+        FACULTY = "33333333-0000-0000-0000-000000000001"
 
         def reset():
             psql(f"UPDATE public.student_request_workflow_steps SET status='pending' "
-                 f"WHERE id IN ('{STEP2}','{STEP_TR}','{STEP_EC}');", port)
+                 f"WHERE id IN ('{STEP2}','{STEP_TR}','{STEP_FAC}','{STEP_EC}');", port)
             psql(f"UPDATE public.request_processing_assignments SET is_active=true "
                  f"WHERE id='{ASSN}';", port)
             psql("DELETE FROM public.request_processing_assignments "
                  "WHERE id='bbbbbbbb-0000-0000-0000-0000000000ff';", port)
+            psql(f"UPDATE public.staff_profiles SET status='active', "
+                 f"user_id='11111111-0000-0000-0000-00000000000a' WHERE id='{STAFF}';", port)
+            psql(f"UPDATE public.faculty_profiles SET status='active', "
+                 f"user_id='11111111-0000-0000-0000-00000000000c', "
+                 f"department_id='dddddddd-0000-0000-0000-000000000001' WHERE id='{FACULTY}';", port)
             psql("UPDATE public.transfer_request_details "
                  "SET current_department_id='dddddddd-0000-0000-0000-000000000001' "
                  "WHERE request_id='cccccccc-0000-0000-0000-000000000002';", port)
             psql("UPDATE public.student_request_workflow_steps SET status='active' "
                  "WHERE id='eeeeeeee-0000-0000-0000-000000000001';", port)
+
 
         # ---- Case 1: activation holds the lock; concurrent deactivate must wait
         reset()
