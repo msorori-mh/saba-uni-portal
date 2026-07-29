@@ -6,6 +6,7 @@ export { B1RequestSummary } from "./B1RequestSummary";
 export { B1SubmissionConfirmation } from "./B1SubmissionConfirmation";
 export { B1RequestStatusCard } from "./B1RequestStatusCard";
 export { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
+export { B1StaffStepActionSection } from "./B1StaffStepActionSection";
 export { B1ErrorState } from "./B1ErrorState";
 export { B1LoadingState } from "./B1LoadingState";
 export { B1EmptyState } from "./B1EmptyState";
