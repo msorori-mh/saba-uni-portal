@@ -67,8 +67,14 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-EXECUTION-PACKAGE-01", () => {
     }
     expect(pf).toContain("sandbox_exec");
     expect(pf.trimEnd().endsWith("ROLLBACK;")).toBe(true);
-    // read-only: no DDL, no grants, no role management
-    expect(pf).not.toMatch(/\b(CREATE ROLE|ALTER ROLE|GRANT|CREATE TABLE|DROP|INSERT|UPDATE|DELETE)\b/);
+    // read-only: no DDL, no grants, no role management (ignore comment lines)
+    const executable = pf
+      .split("\n")
+      .filter((l) => !l.trimStart().startsWith("--"))
+      .join("\n");
+    expect(executable).not.toMatch(
+      /\b(CREATE ROLE|ALTER ROLE|GRANT|CREATE TABLE|DROP|INSERT|UPDATE|DELETE)\b/,
+    );
   });
 
   it("the launcher keeps credentials out of git, logs and reports", () => {
