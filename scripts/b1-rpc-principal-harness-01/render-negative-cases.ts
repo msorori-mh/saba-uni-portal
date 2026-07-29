@@ -646,7 +646,7 @@ export function main(): void {
     if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
     const ordinal = index + 1;
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
-    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr), "utf8");
+    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract), "utf8");
     files.push(`cases/${name}`);
   });
 
