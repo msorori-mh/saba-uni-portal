@@ -8,8 +8,11 @@ import {
   EXPECTED_NEGATIVE_TOTAL,
   FORBIDDEN_PATTERNS,
   MATRIX_SHA256_LF,
+  assertDenialContract,
   assertSafeDiagnostic,
   assertSafeScalar,
+  classifyDenialOutcome,
+  expectationFor,
   extractFingerprintExpr,
   sha256Lf,
 } from "../../scripts/b1-rpc-principal-harness-01/render-negative-cases";
@@ -26,6 +29,11 @@ const fingerprint = read(join(pkg, "fingerprint.sql"));
 const launcher = read(join(pkg, "run-negative-matrix.ps1"));
 const renderer = read(join(pkg, "render-negative-cases.ts"));
 const readme = read(join(pkg, "README.md"));
+const renderedCase = read(join(pkg, "generated", "cases", "case-0001.sql"));
+const contract = assertDenialContract(matrix.denial_class_contract);
+const EXPECT_ERROR = "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED";
+const classify = (o: { allowed: boolean; sqlstate?: string | null; message?: string | null }) =>
+  classifyDenialOutcome(o, contract, EXPECT_ERROR);
 
 /** SQL with `--` line comments and block comments stripped. */
 const strip = (sql: string) =>
@@ -256,10 +264,120 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
     expect(launcher).toContain("'-f', $master");
   });
 
-  it("G9: the run is read-only and stops on the first error", () => {
-    expect(launcher).toContain("default_transaction_read_only=on");
+  it("G9: the run is read-write (no masking layer) and stops on the first error", () => {
+    expect(launcher).not.toContain("default_transaction_read_only=on");
+    expect(launcher).toContain("default_transaction_read_only=off");
     expect(launcher).toContain("'ON_ERROR_STOP=1'");
     expect(preflight).toContain("\\set ON_ERROR_STOP on");
+  });
+
+
+  // ---- G1 denial class fail-closed ---------------------------------------
+  describe("G1: denial class gate is fail-closed", () => {
+    it("contract is pinned in MATRIX.json and covers every expect_error", () => {
+      expect(contract.fail_closed).toBe(true);
+      expect(contract.authorization_sqlstates).toEqual(["P0001"]);
+      const all = [
+        ...matrix.negative_cases,
+        ...matrix.illegal_action_cases,
+        ...matrix.supplemental_department_scope_cases,
+      ];
+      for (const c of all) expect(() => expectationFor(contract, c.expect_error)).not.toThrow();
+      for (const s of ["25006", "42501", "42883", "42P01", "40001", "40P01", "55P03", "57014", "08006", "42601"]) {
+        expect(contract.infrastructure_sqlstates).toContain(s);
+      }
+    });
+
+    it("1. correct authorization denial => PASS", () => {
+      expect(
+        classify({ allowed: false, sqlstate: "P0001", message: "UNAUTHORIZED_STEP_ACTION: principal is not assigned" }),
+      ).toEqual({ verdict: "PASS", reason: expect.any(String) });
+    });
+
+    it("2. read-only transaction error => HOLD", () => {
+      const v = classify({ allowed: false, sqlstate: "25006", message: "cannot execute UPDATE in a read-only transaction" });
+      expect(v.verdict).toBe("HOLD");
+      expect(v.reason).toContain("CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL");
+    });
+
+    it("3. table/sequence permission error => HOLD", () => {
+      const v = classify({ allowed: false, sqlstate: "42501", message: "permission denied for table student_requests" });
+      expect(v.verdict).toBe("HOLD");
+      expect(v.reason).toContain("CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL");
+    });
+
+    it("4. RLS hidden-row error => HOLD", () => {
+      const v = classify({
+        allowed: false,
+        sqlstate: "42501",
+        message: "new row violates row-level security policy for table student_request_workflow_steps",
+      });
+      expect(v.verdict).toBe("HOLD");
+      expect(v.reason).toContain("CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL");
+    });
+
+    it("5. serialization / deadlock / lock timeout / connection / syntax => HOLD", () => {
+      for (const o of [
+        { sqlstate: "40001", message: "could not serialize access due to read/write dependencies" },
+        { sqlstate: "40P01", message: "deadlock detected" },
+        { sqlstate: "55P03", message: "could not obtain lock on row" },
+        { sqlstate: "57014", message: "canceling statement due to statement timeout" },
+        { sqlstate: "08006", message: "connection failure" },
+        { sqlstate: "42601", message: "syntax error at or near" },
+        { sqlstate: "42883", message: "function public.act_on_b1_student_request_step_atomic does not exist" },
+      ]) {
+        const v = classify({ allowed: false, ...o });
+        expect(v.verdict).toBe("HOLD");
+        expect(v.reason).toContain("CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL");
+      }
+    });
+
+    it("6. unexpected RPC success => HOLD", () => {
+      const v = classify({ allowed: true });
+      expect(v.verdict).toBe("HOLD");
+      expect(v.reason).toContain("CASE_FAIL_ALLOWED");
+    });
+
+    it("7. correct message with wrong SQLSTATE => HOLD", () => {
+      const v = classify({ allowed: false, sqlstate: "P0002", message: "UNAUTHORIZED_STEP_ACTION" });
+      expect(v.verdict).toBe("HOLD");
+      expect(v.reason).toContain("sqlstate");
+    });
+
+    it("8. correct SQLSTATE with wrong message => HOLD", () => {
+      const v = classify({ allowed: false, sqlstate: "P0001", message: "SOME_OTHER_GUARD tripped" });
+      expect(v.verdict).toBe("HOLD");
+      expect(v.reason).toContain("message outside the expected family");
+    });
+
+    it("rendered cases embed the gate and never rely on a read-only session", () => {
+      expect(renderedCase).toContain("GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE");
+      expect(renderedCase).toContain("CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL");
+      expect(renderedCase).toContain("CASE_FAIL_ALLOWED");
+      expect(renderedCase).toContain("current_setting('transaction_read_only') = 'on'");
+      expect(renderedCase).toContain("'UNAUTHORIZED_STEP_ACTION'");
+      expect((renderedCase.match(/BEGIN ISOLATION LEVEL SERIALIZABLE;/gu) ?? []).length).toBe(1);
+      expect((renderedCase.match(/^ROLLBACK;$/gmu) ?? []).length).toBe(1);
+      expect(strip(renderedCase)).not.toMatch(/\bCOMMIT\b/u);
+    });
+
+    it("contract validation itself is fail-closed", () => {
+      expect(() => assertDenialContract(undefined)).toThrow(/DENIAL_CONTRACT_NOT_FAIL_CLOSED/u);
+      expect(() => assertDenialContract({ ...contract, fail_closed: false })).toThrow(/NOT_FAIL_CLOSED/u);
+      expect(() =>
+        assertDenialContract({ ...contract, infrastructure_sqlstates: [...contract.infrastructure_sqlstates, "P0001"] }),
+      ).toThrow(/SQLSTATE_OVERLAP/u);
+      expect(() => expectationFor(contract, "no such family")).toThrow(/MISSING_EXPECTATION/u);
+    });
+  });
+
+  // ---- G2 package state ---------------------------------------------------
+  it("G2: 267 = 240 + 24 + 3 and the baseline is PENDING and fails closed", () => {
+    expect(matrix.counts.negative_core).toBe(240);
+    expect(matrix.counts.illegal_action).toBe(24);
+    expect(matrix.counts.supplemental_department_scope).toBe(3);
+    expect(manifest.authoritative_baseline.status).toBe("PENDING");
+    expect(manifest.authoritative_baseline.fingerprint === null || manifest.authoritative_baseline.fingerprint === "PENDING").toBe(true);
   });
 
   // ---- matrix / package invariants ---------------------------------------
