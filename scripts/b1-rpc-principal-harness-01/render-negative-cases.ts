@@ -259,6 +259,7 @@ function renderCase(
   if (nc.zero_mutation !== true) throw new Error("MATRIX_VALIDATION_FAIL: zero_mutation must be true");
   assertSafeDiagnostic("expect_error", nc.expect_error);
   assertSafeScalar("case_class", nc.case);
+  const expected = expectationFor(contract, nc.expect_error);
 
   const rpcCall =
     pc.rpc === "record_external_university_payment_confirmation"
