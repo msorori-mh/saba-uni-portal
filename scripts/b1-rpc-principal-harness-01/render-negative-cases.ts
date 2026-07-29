@@ -709,7 +709,19 @@ export function main(): void {
     throw new Error("MANIFEST_MIGRATION_MISMATCH");
   }
 
+  if (manifest.matrix?.sha256_lf !== MATRIX_SHA256_LF) throw new Error("MANIFEST_MATRIX_SHA_MISMATCH");
+  for (const f of manifest.function_graph.functions as Array<{ signature: string; definition_sha256: string }>) {
+    if (!/^[0-9a-f]{64}$/u.test(f.definition_sha256 ?? "")) {
+      throw new Error(`FUNCTION_GRAPH_UNPINNED: ${f.signature}`);
+    }
+  }
+
   const fingerprintExpr = extractFingerprintExpr(readFileSync(FINGERPRINT_PATH, "utf8"));
+
+  const attestation = matrix.production_readonly_attestation?.requests as
+    | Record<string, AttestedRequestState>
+    | undefined;
+  if (!attestation) throw new Error("MATRIX_MISSING_PRODUCTION_READONLY_ATTESTATION");
 
   const positives: PositiveCase[] = matrix.positive_cases;
   const byStep = new Map<string, PositiveCase>();
@@ -731,11 +743,14 @@ export function main(): void {
   negatives.forEach((nc, index) => {
     const pc = byStep.get(`${nc.request_number}|${nc.step_key}`);
     if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
+    const attest = attestation[nc.request_number];
+    if (!attest) throw new Error(`MATRIX_VALIDATION_FAIL: no attested state for ${nc.request_number}`);
     const ordinal = index + 1;
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
-    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract), "utf8");
+    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest), "utf8");
     files.push(`cases/${name}`);
   });
+
 
   writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
