@@ -18,8 +18,8 @@ where n.nspname = 'public'
 
 \echo == S2: helper never defaults to 'approve' and performs no write
 select case
-  when pg_get_functiondef(p.oid) ~* '''approve''' then 'FAIL_DEFAULT_APPROVE'
-  when pg_get_functiondef(p.oid) ~* '\m(insert|update|delete|create|drop|alter)\M' then 'FAIL_WRITE_IN_HELPER'
+  when p.prosrc ~* '''approve''' then 'FAIL_DEFAULT_APPROVE'
+  when p.prosrc ~* '\m(insert|update|delete|create|drop|alter)\M' then 'FAIL_WRITE_IN_HELPER'
   else 'PASS' end as check
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.proname = 'workflow_runtime_step_configured_action';
@@ -37,15 +37,15 @@ where n.nspname = 'public' and p.proname = 'workflow_runtime_step_configured_act
 select case when count(*) = 0 then 'PASS' else 'FAIL_LITERAL_ACTION_REMAINS' end as check
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.prokind = 'f'
-  and pg_get_functiondef(p.oid) ~* 'can_current_user_act_on_step\s*\([^)]*''approve''';
+  and p.prosrc ~* 'can_current_user_act_on_step\s*\([^)]*''approve''';
 
 \echo == S5: the three fixed RPCs resolve the configured action
 select p.proname,
   case
     when p.proname = 'get_student_request_fee_processing_context'
-         and pg_get_functiondef(p.oid) ~* 'v_config\.action_type\s+IS NOT NULL' then 'PASS'
+         and p.prosrc ~* 'v_config\.action_type\s+IS NOT NULL' then 'PASS'
     when p.proname <> 'get_student_request_fee_processing_context'
-         and pg_get_functiondef(p.oid) ~* 'workflow_runtime_step_configured_action\(s\.id\)\s+IS NOT NULL' then 'PASS'
+         and p.prosrc ~* 'workflow_runtime_step_configured_action\(s\.id\)\s+IS NOT NULL' then 'PASS'
     else 'FAIL_NOT_FAIL_CLOSED' end as check
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
@@ -59,7 +59,7 @@ order by 1;
 \echo == S6: no new role bypass introduced in the three RPCs
 select p.proname, case
   when p.proname <> 'get_student_request_fee_processing_context'
-       and pg_get_functiondef(p.oid) ~* '(has_role|has_any_role|is_current_user_admin_actor|''admin''|''registrar''|''dean'')'
+       and p.prosrc ~* '(has_role|has_any_role|is_current_user_admin_actor|''admin''|''registrar''|''dean'')'
     then 'FAIL_ROLE_BYPASS_INTRODUCED'
   else 'PASS' end as check
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
@@ -72,10 +72,10 @@ where n.nspname = 'public'
 order by 1;
 
 \echo == S7: authorization gate body untouched (compare md5 to preflight P3)
-select proname, md5(pg_get_functiondef(oid)) as body_md5
+select p.proname, md5(p.prosrc) as body_md5
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
-  and proname in ('can_current_user_act_on_step', 'user_matches_workflow_runtime_step');
+  and p.proname in ('can_current_user_act_on_step', 'user_matches_workflow_runtime_step');
 
 \echo == S8: signatures of the three RPCs are unchanged (no overload created)
 select p.proname, count(*) as overloads
@@ -197,6 +197,6 @@ where n.nspname = 'public'
     'build_enrollment_certificate_issuance_snapshot',
     'assert_enrollment_certificate_pdf_generation_ready'
   )
-  and pg_get_functiondef(p.oid) ~* 'workflow_runtime_step_configured_action';
+  and p.prosrc ~* 'workflow_runtime_step_configured_action';
 
 ROLLBACK;
