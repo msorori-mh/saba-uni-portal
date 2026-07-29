@@ -70,7 +70,7 @@ function asSessionRpc(supabase: unknown): SessionRpc {
 /** Resolve RPC p_action from UI action + authoritative step action_type. */
 export async function resolveB1ActOnRpcAction(
   stepId: string,
-  clientAction: "approve" | "review" | "return" | "reject",
+  clientAction: "approve" | "review" | "apply_decision" | "clear" | "return" | "reject",
 ): Promise<B1ActOnStepAction> {
   if (clientAction === "return" || clientAction === "reject") return clientAction;
 
@@ -97,15 +97,9 @@ export async function resolveB1ActOnRpcAction(
   }
 
   const resolved = actionType as B1ActOnStepAction;
-  if (clientAction === "review") {
-    if (resolved !== "review") throw new Error("B1_ACTION_TYPE_MISMATCH");
-    return "review";
-  }
-  // UI collapses clear / apply_decision / archive / approve → "approve".
-  if (["approve", "clear", "apply_decision", "archive"].includes(resolved)) {
-    return resolved;
-  }
-  throw new Error("B1_ACTION_TYPE_MISMATCH");
+  // No aliasing: the client action must equal the configured action_type literally.
+  if (clientAction !== resolved) throw new Error("B1_ACTION_TYPE_MISMATCH");
+  return resolved;
 }
 
 export const getAvailableB1RequestTypesFn = createServerFn({ method: "POST" })
@@ -182,7 +176,7 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
 const actSchema = z
   .object({
     stepId: z.string().uuid(),
-    action: z.enum(["approve", "review", "return", "reject"]),
+    action: z.enum(["approve", "review", "apply_decision", "clear", "return", "reject"]),
     comment: z.string().trim().max(2000).optional().nullable(),
   })
   .strict();
