@@ -105,10 +105,12 @@ export function extractFingerprintExpr(sql: string): string {
   }
   const expr = sql.slice(start + "-- BEGIN_FINGERPRINT_EXPR".length, end).trim();
   if (!expr.startsWith("(") || !expr.endsWith(")")) throw new Error("FINGERPRINT_EXPR_MALFORMED");
+  // G3: strip block comments first, then line comments, and only then look for
+  // LIMIT. A comment that merely mentions LIMIT must never fail the render, and
+  // a real LIMIT must never hide inside one.
   const withoutComments = expr
-    .split("\n")
-    .map((line) => line.replace(/--.*$/u, ""))
-    .join("\n");
+    .replace(/\/\*[\s\S]*?\*\//gu, " ")
+    .replace(/--[^\r\n]*/gu, " ");
   if (/\bLIMIT\b/iu.test(withoutComments)) throw new Error("FINGERPRINT_EXPR_HAS_LIMIT");
   return expr;
 }
