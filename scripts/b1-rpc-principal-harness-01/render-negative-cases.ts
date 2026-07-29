@@ -863,7 +863,9 @@ function renderMaster(executable: string[], total: number): string {
   const count = executable.length;
   return `-- GENERATED master script (G9). ONE psql process executes the whole run.
 -- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
--- MATRIX total = ${total}; blocked and excluded = ${total - count} (${TRANSFER_SCOPE_BLOCKED_TOKEN}).
+-- MATRIX total = ${total}; blocked and excluded = ${total - count} (${BLOCKED_TOKEN}).
+-- Blocked cases can never be counted as PASS: while any exists the run halts with
+-- ${BLOCKED_HOLD_TOKEN}.
 -- ON_ERROR_STOP aborts the entire run at the first failure. No COMMIT anywhere.
 \\set ON_ERROR_STOP on
 \\timing off

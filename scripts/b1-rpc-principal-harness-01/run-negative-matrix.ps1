@@ -17,8 +17,13 @@
 
   G9 EXECUTION CONTRACT
     * Exactly ONE psql process runs generated/master-negative-matrix.sql:
-      preflight -> 264 executable rollback-only cases -> outside-transaction baseline check.
-      (3 transfer-scope cases are BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE and excluded.)
+      preflight -> 245 executable rollback-only cases -> outside-transaction baseline check.
+      (22 cases are BLOCKED_PENDING_ACTIVE_FIXTURE and excluded: 19 illegal-action
+       cases on pending steps + 3 transfer-scope cases.)
+
+  G3 ACTIVE FIXTURE GATE
+    * While blocked_cases > 0 the launcher refuses to start the matrix and exits
+      with HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE.
 #>
 
 [CmdletBinding()]
@@ -175,14 +180,14 @@ Set-Content -Path $logPath -Value $redacted -Encoding UTF8
 $pass = ([regex]::Matches($redacted, 'CASE_PASS')).Count
 $fail = ([regex]::Matches($redacted, 'CASE_FAIL|PREFLIGHT_FAIL|POST_RUN_FAIL|CASE_STATE_DRIFT')).Count
 
-Write-Host "cases passed: $pass / 264 executable (3 blocked: BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE)"
+Write-Host "cases passed: $pass / 245 executable (0 blocked required for PASS)"
 Write-Host "failures    : $fail"
 Write-Host "report      : $logPath"
 
-if ($exit -ne 0 -or $fail -gt 0 -or $pass -ne 264) {
+if ($exit -ne 0 -or $fail -gt 0 -or $pass -ne 245 -or $blockedCases.Count -gt 0) {
   Write-Host 'RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX'
   exit 1
 }
 
-Write-Host 'RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_264_DENY_ZERO_MUTATION_3_BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE'
+Write-Host 'RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_245_DENY_ZERO_MUTATION_0_BLOCKED'
 exit 0
