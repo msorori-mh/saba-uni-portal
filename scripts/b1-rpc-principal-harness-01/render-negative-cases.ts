@@ -63,7 +63,7 @@ const KEY_RE = /^[a-z][a-z0-9_]{2,63}$/u;
 const ACTION_RE = /^[a-z][a-z0-9_]{2,63}$/u;
 
 export function sha256Lf(text: string): string {
-  return createHash("sha256").update(text.replace(/\r\n/gu, "\n"), "utf8").digest("hex");
+  return createHash("sha256").update(toLf(text), "utf8").digest("hex");
 }
 
 export function assertSafeScalar(label: string, value: string): string {
@@ -106,8 +106,20 @@ function comment(label: string, value: unknown): string {
   return `-- ${label}: ${encoded}`;
 }
 
+/** REMEDIATION-57 G1 — every text input is normalized to LF BEFORE it is
+ *  parsed, scanned for LIMIT, or hashed. A CRLF checkout must produce a
+ *  byte-identical render and an identical SHA256 to an LF checkout. */
+export function toLf(text: string): string {
+  return text.replace(/\r\n/gu, "\n").replace(/\r/gu, "\n");
+}
+
+export function readLf(path: string): string {
+  return toLf(readFileSync(path, "utf8"));
+}
+
 /** Extracts the single canonical fingerprint expression from fingerprint.sql. */
-export function extractFingerprintExpr(sql: string): string {
+export function extractFingerprintExpr(rawSql: string): string {
+  const sql = toLf(rawSql);
   const start = sql.indexOf("-- BEGIN_FINGERPRINT_EXPR");
   const end = sql.indexOf("-- END_FINGERPRINT_EXPR");
   if (start < 0 || end < 0 || end < start) {
@@ -115,6 +127,7 @@ export function extractFingerprintExpr(sql: string): string {
   }
   const expr = sql.slice(start + "-- BEGIN_FINGERPRINT_EXPR".length, end).trim();
   if (!expr.startsWith("(") || !expr.endsWith(")")) throw new Error("FINGERPRINT_EXPR_MALFORMED");
+
   // G3: strip block comments first, then line comments, and only then look for
   // LIMIT. A comment that merely mentions LIMIT must never fail the render, and
   // a real LIMIT must never hide inside one.
@@ -886,7 +899,7 @@ ${includes.join("\n")}
 }
 
 export function main(): void {
-  const matrixRaw = readFileSync(MATRIX_PATH, "utf8");
+  const matrixRaw = readLf(MATRIX_PATH);
   const actual = sha256Lf(matrixRaw);
   if (actual !== MATRIX_SHA256_LF) {
     throw new Error(`MATRIX_SHA256_DRIFT: expected ${MATRIX_SHA256_LF}, got ${actual}`);
@@ -895,7 +908,7 @@ export function main(): void {
   const contract = assertDenialContract(matrix.denial_class_contract);
   if (matrix.production_ref !== APPROVED_PROJECT_REF) throw new Error("MATRIX_REF_MISMATCH");
 
-  const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+  const manifest = JSON.parse(readLf(MANIFEST_PATH));
   if (manifest.endpoint.project_ref !== APPROVED_PROJECT_REF) throw new Error("MANIFEST_REF_MISMATCH");
   if (manifest.migration.version !== matrix.installed_migration.version) {
     throw new Error("MANIFEST_MIGRATION_MISMATCH");
@@ -908,7 +921,7 @@ export function main(): void {
     }
   }
 
-  const fingerprintExpr = extractFingerprintExpr(readFileSync(FINGERPRINT_PATH, "utf8"));
+  const fingerprintExpr = extractFingerprintExpr(readLf(FINGERPRINT_PATH));
 
   const attestation = matrix.production_readonly_attestation?.requests as
     | Record<string, AttestedRequestState>

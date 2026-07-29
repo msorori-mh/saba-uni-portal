@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import {
@@ -17,13 +17,21 @@ import {
   expectationFor,
   extractFingerprintExpr,
   isBlockedCase,
+  main as renderPackage,
+  readLf,
   requiresActiveFixture,
   sha256Lf,
+  toLf,
 } from "../../scripts/b1-rpc-principal-harness-01/render-negative-cases";
 
 const root = process.cwd();
 const pkg = join(root, "scripts", "b1-rpc-principal-harness-01");
-const read = (p: string) => readFileSync(p, "utf8").replace(/\r\n/gu, "\n");
+const read = (p: string) => toLf(readFileSync(p, "utf8"));
+
+// REMEDIATION-57 G3: the package is regenerated from source on EVERY run.
+// generated/ is never committed and a stale tree can never be tested or
+// executed — the renderer wipes and rewrites it before a single assertion runs.
+renderPackage();
 
 const matrixRaw = read(join(root, "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json"));
 const matrix = JSON.parse(matrixRaw);
@@ -34,6 +42,7 @@ const launcher = read(join(pkg, "run-negative-matrix.ps1"));
 const renderer = read(join(pkg, "render-negative-cases.ts"));
 const readme = read(join(pkg, "README.md"));
 const renderedCase = read(join(pkg, "generated", "cases", "case-0001.sql"));
+
 const contract = assertDenialContract(matrix.denial_class_contract);
 const CTX = {
   rpc: "act_on_b1_student_request_step_atomic",
@@ -819,5 +828,267 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", (
     expect(later).toContain("CASE_STATE_DRIFT: transfer department scope");
     const withPreds = read(join(pkg, "generated", "cases", "case-0031.sql"));
     expect(withPreds).toMatch(/predecessor [a-z_]+ is not (pending|completed|skipped|active)/u);
+  });
+});
+
+// ===========================================================================
+// PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57
+// Closes HOLD_B1_NEGATIVE_RPC_MATRIX_FINAL_PACKAGE_NOT_EXECUTABLE.
+// Source-only. No case is executed, no RPC is called, no connection is opened.
+// ===========================================================================
+describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () => {
+  const caseDir = join(pkg, "generated", "cases");
+  const caseFiles = readdirSync(caseDir).filter((f) => f.startsWith("case-")).sort();
+  const executableFiles = caseFiles.filter((f) => !f.endsWith(".BLOCKED.sql"));
+  const executableSql = executableFiles.map((f) => ({ name: f, sql: read(join(caseDir, f)) }));
+
+  // ---- 1. EOL normalization ------------------------------------------------
+  it("1: LF and CRLF inputs produce an identical hash and an identical parse", () => {
+    const lf = "line-a\nline-b\n";
+    const crlf = "line-a\r\nline-b\r\n";
+    expect(sha256Lf(crlf)).toBe(sha256Lf(lf));
+    expect(toLf(crlf)).toBe(lf);
+    expect(toLf("legacy-cr\rnext")).toBe("legacy-cr\nnext");
+    expect(sha256Lf(matrixRaw)).toBe(MATRIX_SHA256_LF);
+    expect(sha256Lf(matrixRaw.replace(/\n/gu, "\r\n"))).toBe(MATRIX_SHA256_LF);
+  });
+
+  it("1: the fingerprint expression is normalized to LF before the LIMIT scan", () => {
+    const crlfFingerprint = fingerprint.replace(/\n/gu, "\r\n");
+    expect(extractFingerprintExpr(crlfFingerprint)).toBe(extractFingerprintExpr(fingerprint));
+    expect(extractFingerprintExpr(crlfFingerprint)).not.toMatch(/\r/u);
+    const withLimit = fingerprint.replace(
+      "-- END_FINGERPRINT_EXPR",
+      "\r\n-- END_FINGERPRINT_EXPR",
+    ).replace("-- BEGIN_FINGERPRINT_EXPR", "-- BEGIN_FINGERPRINT_EXPR\r\n(select 1 limit 1)--");
+    expect(() => extractFingerprintExpr(withLimit)).toThrow();
+  });
+
+  it("1: every read boundary in the renderer normalizes line endings", () => {
+    expect(renderer).toContain("export function readLf(");
+    expect(renderer).toContain("readLf(MATRIX_PATH)");
+    expect(renderer).toContain("readLf(MANIFEST_PATH)");
+    expect(renderer).toContain("readLf(FINGERPRINT_PATH)");
+    expect(renderer).not.toMatch(/readFileSync\((MATRIX|MANIFEST|FINGERPRINT)_PATH/u);
+    expect(readLf(join(pkg, "fingerprint.sql"))).not.toMatch(/\r/u);
+  });
+
+  // ---- 2. control-character regex -----------------------------------------
+  it("2: the control-character pattern is exactly /[\\u0000-\\u001F\\u007F]/u", () => {
+    const control = FORBIDDEN_PATTERNS.find(([n]) => n === "control_char")?.[1];
+    expect(control).toBeDefined();
+    expect(control!.source).toBe("[\\u0000-\\u001F\\u007F]");
+    expect(control!.flags).toBe("u");
+    for (const cp of [0x00, 0x07, 0x0a, 0x0d, 0x1f, 0x7f]) {
+      expect(control!.test(String.fromCharCode(cp))).toBe(true);
+    }
+    expect(control!.test("review")).toBe(false);
+  });
+
+  // ---- 3. no -SkipRender, always regenerate --------------------------------
+  it("3: -SkipRender is gone and both the launcher and the renderer force a fresh tree", () => {
+    expect(launcher).not.toMatch(/SkipRender\s*[)\],]/u);
+    expect(launcher).not.toMatch(/\[switch\]/u);
+    expect(launcher).toContain("param()");
+    expect(launcher).toContain("there is no skip path");
+    expect(renderer).toContain("rmSync(OUT, { recursive: true, force: true })");
+  });
+
+  it("3: a stale generated tree can never be executed — the test itself re-renders", () => {
+    const testSelf = read(
+      join(root, "tests/b1-five-services-rpc-authorization-preflight-01/operator-execution-package-01.test.ts"),
+    );
+    expect(testSelf).toContain("renderPackage()");
+    // generated/ must stay out of version control.
+    expect(read(join(root, ".gitignore"))).toMatch(/b1-rpc-principal-harness-01\/generated/u);
+  });
+
+  // ---- 4. payment RPC takes the workflow step uuid -------------------------
+  it("4: the payment RPC is always called with the runtime STEP id, never the request id", () => {
+    const paymentCases = executableSql.filter((c) =>
+      c.sql.includes("record_external_university_payment_confirmation"),
+    );
+    expect(paymentCases.length).toBeGreaterThan(0);
+    for (const c of paymentCases) {
+      expect(c.sql).toContain("PERFORM public.record_external_university_payment_confirmation(v_step,");
+      expect(c.sql).not.toMatch(/record_external_university_payment_confirmation\(\s*v_req/u);
+    }
+    expect(renderer).toContain("record_external_university_payment_confirmation(v_step,");
+    expect(renderer).not.toMatch(/record_external_university_payment_confirmation\(v_req/u);
+  });
+
+  // ---- 5. denial classified by the exact (SQLSTATE, message family) pair ---
+  it("5: a denial is PASS only on the exact SQLSTATE + approved message family pair", () => {
+    const expected = expectationFor(contract, CTX);
+    expect(contract.fail_closed).toBe(true);
+    expect(classify({ allowed: false, sqlstate: expected.sqlstate, message: expected.message_family[0] }).verdict)
+      .toBe("PASS");
+    // known SQLSTATE, unknown message family => HOLD
+    expect(classify({ allowed: false, sqlstate: "42501", message: "some other refusal" }).verdict).toBe("HOLD");
+    // known message family, unexpected SQLSTATE => HOLD
+    expect(classify({ allowed: false, sqlstate: "42P01", message: expected.message_family[0] }).verdict).toBe("HOLD");
+    expect(classify({ allowed: true }).verdict).toBe("HOLD");
+    for (const c of executableSql) {
+      expect(c.sql).toContain("sqlstate % expected");
+      expect(c.sql).toContain("message outside expected family");
+    }
+  });
+
+  // ---- 6/7. connection-override and TLS contract ---------------------------
+  it("6: every connection-override channel is refused by the manifest and the launcher", () => {
+    for (const banned of ["PGHOSTADDR", "PGSERVICE", "PGSERVICEFILE", "DATABASE_URL", "PGPASSWORD", "PGPASSFILE"]) {
+      expect(manifest.endpoint.forbidden_environment_channels).toContain(banned);
+    }
+    expect(launcher).toContain("FORBIDDEN_CREDENTIAL_CHANNEL");
+    expect(launcher).toMatch(/Test-Path "env:\$banned"/u);
+  });
+
+  it("7: sslmode=verify-full with a pinned CA bundle is mandatory", () => {
+    expect(manifest.endpoint.approved_pgsslmode).toBe("verify-full");
+    expect(manifest.endpoint.approved_pgsslrootcert_path).toBeTruthy();
+    expect(launcher).toContain("HOLD_NEEDS_VERIFIED_TLS_ENDPOINT");
+    expect(launcher).toMatch(/\$env:PGSSLMODE\s*=\s*\$pgSslMode/u);
+    expect(launcher).toMatch(/\$env:PGSSLROOTCERT\s*=/u);
+  });
+
+  // ---- 8. no row locks, operator stays a read-only observer -----------------
+  it("8: no FOR SHARE / FOR UPDATE anywhere in the package", () => {
+    for (const sql of [preflight, fingerprint, ...executableSql.map((c) => c.sql)]) {
+      // Comments may describe why row locking was removed; executable SQL may not use it.
+      expect(strip(sql)).not.toMatch(/\bFOR\s+(SHARE|UPDATE|KEY\s+SHARE|NO\s+KEY\s+UPDATE)\b/iu);
+    }
+    expect(manifest.operator_privilege_contract).toBeDefined();
+  });
+
+  // ---- 9. full per-case state pinning --------------------------------------
+  it("9: every executable case pins request, action, unit, role, assignee, scope, predecessors, counts and fees", () => {
+    for (const c of executableSql) {
+      expect(c.sql).toContain("CASE_STATE_DRIFT: request status");
+      expect(c.sql).toContain("active steps (want");
+      expect(c.sql).toContain("fee assessments (want");
+      expect(c.sql).toContain("unit/role/action_type pin failed");
+      expect(c.sql).toContain("direct assignee pin failed");
+      expect(c.sql).toContain("predecessor steps (want");
+      expect(c.sql).toContain("unsatisfied predecessor steps (want");
+    }
+  });
+
+  // ---- 10. function graph completeness -------------------------------------
+  it("10: every function in the graph has a signature and a non-empty SHA256", () => {
+    const fns = manifest.function_graph.functions as Array<Record<string, string>>;
+    expect(fns.length).toBeGreaterThanOrEqual(28);
+    for (const f of fns) {
+      expect(typeof f.signature).toBe("string");
+      expect(f.signature.length).toBeGreaterThan(0);
+      expect(f.definition_sha256).toMatch(/^[0-9a-f]{64}$/u);
+      expect(f.security).toBeTruthy();
+      expect(f.owner).toBeTruthy();
+    }
+    expect(fns.filter((f) => (f as unknown as { entry_point: boolean }).entry_point).length).toBe(2);
+  });
+
+  // ---- 11. external-call scan ----------------------------------------------
+  it("11: nextval/setval/pg_net/http/dblink/pg_notify/COPY PROGRAM/EXECUTE/CALL are all rejected", () => {
+    const ids = (manifest.function_graph.forbidden_definition_patterns as Array<{ id: string }>).map((p) => p.id);
+    for (const id of [
+      "nextval",
+      "setval",
+      "pg_net",
+      "http",
+      "dblink",
+      "pg_notify",
+      "copy_program",
+      "dynamic_execute",
+      "dynamic_call",
+    ]) {
+      expect(ids).toContain(id);
+    }
+    expect(preflight).toContain("b1_pin_forbidden_pattern");
+  });
+
+  // ---- 12. fingerprint has no LIMIT ----------------------------------------
+  it("12: the canonical fingerprint covers full content with no LIMIT", () => {
+    const expr = extractFingerprintExpr(fingerprint);
+    expect(strip(expr)).not.toMatch(/\bLIMIT\b/iu);
+    expect(expr.startsWith("(")).toBe(true);
+  });
+
+  // ---- 13. authoritative baseline stays PENDING ----------------------------
+  it("13: the authoritative baseline is PENDING with a null fingerprint and blocks execution", () => {
+    expect(manifest.authoritative_baseline.status).toBe("PENDING");
+    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
+    const check = read(join(pkg, "generated", "fingerprint-check.sql"));
+    expect(check).toContain("v_expected text := NULL");
+    expect(check).toContain("POST_RUN_FAIL: authoritative baseline is PENDING");
+  });
+
+  // ---- 14. positive harness held back --------------------------------------
+  it("14: the positive harness stays HELD_BACK and is never rendered or included", () => {
+    const positive = read(
+      join(root, "tests/b1-five-services-rpc-authorization-preflight-01/02-positive-harness.HELD_BACK.sql"),
+    );
+    expect(positive).toContain("B1_POSITIVE_HARNESS_HELD_BACK");
+    expect(positive).toContain("HELD_BACK_PENDING_SEPARATE_WRITE_APPROVAL");
+    const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
+    expect(master).not.toMatch(/positive/iu);
+    expect(JSON.parse(read(join(pkg, "generated", "MANIFEST.json"))).positive_rendered).toBe(0);
+  });
+
+  // ---- 15. counts + transaction shape --------------------------------------
+  it("15: 267 = 240 + 24 + 3, partitioned into 245 executable + 22 blocked", () => {
+    expect(matrix.negative_cases.length).toBe(240);
+    expect(matrix.illegal_action_cases.length).toBe(24);
+    expect(matrix.supplemental_department_scope_cases.length).toBe(3);
+    expect(240 + 24 + 3).toBe(EXPECTED_NEGATIVE_TOTAL);
+    expect(caseFiles.length).toBe(EXPECTED_NEGATIVE_TOTAL);
+    expect(executableFiles.length).toBe(EXPECTED_EXECUTABLE_TOTAL);
+    expect(caseFiles.length - executableFiles.length).toBe(EXPECTED_BLOCKED_TOTAL);
+  });
+
+  it("15: every executable case is exactly one BEGIN SERIALIZABLE, one ROLLBACK, zero COMMIT", () => {
+    for (const c of executableSql) {
+      const sql = strip(c.sql);
+      expect((sql.match(/\bBEGIN ISOLATION LEVEL SERIALIZABLE\b/gu) ?? []).length).toBe(1);
+      expect((sql.match(/^ROLLBACK;$/gmu) ?? []).length).toBe(1);
+      expect((sql.match(/\bCOMMIT\b/giu) ?? []).length).toBe(0);
+      expect((sql.match(/\bSAVEPOINT\b/giu) ?? []).length).toBe(0);
+    }
+  });
+
+  it("15: blocked cases raise instead of running and are excluded from the master script", () => {
+    const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
+    for (const f of caseFiles.filter((n) => n.endsWith(".BLOCKED.sql"))) {
+      const sql = read(join(caseDir, f));
+      expect(sql).toContain("BLOCKED_PENDING_ACTIVE_FIXTURE");
+      expect(sql).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
+      expect(master).not.toContain(f);
+    }
+  });
+
+  // ---- enrollment_certificate protection -----------------------------------
+  it("regression: enrollment_certificate is untouched and the five B1 services stay hidden", () => {
+    const protectedRecords = ["SR-20260713-2DE64041", "SR-20260715-FEDCB3E1", "SR-20260716-26BAD4C8"];
+    for (const c of executableSql) {
+      // The only permitted mention is the read-only fingerprint relation.
+      const mentions = c.sql.match(/enrollment_certificate[a-z_]*/gu) ?? [];
+      expect(new Set(mentions)).toEqual(new Set(["enrollment_certificate_document_details"]));
+      // No case may target a protected enrollment-certificate request.
+      for (const rec of protectedRecords) {
+        expect(c.sql).not.toMatch(new RegExp(`request_number = '${rec}'`, "u"));
+      }
+      expect(c.sql).not.toMatch(/PERFORM public\.[a-z_]*enrollment_certificate/u);
+    }
+    expect(matrix.positive_cases.every((p: { request_type: string }) => p.request_type !== "enrollment_certificate"))
+      .toBe(true);
+    expect(manifest.b1_services as string[]).toEqual([
+      "enrollment_suspension",
+      "excused_absence",
+      "department_transfer",
+      "final_chance",
+      "file_withdrawal",
+    ]);
+    expect(manifest.b1_services as string[]).not.toContain("enrollment_certificate");
+    // The five services stay hidden: the preflight asserts student_visible = false.
+    expect(preflight).toMatch(/student_visible/u);
   });
 });
