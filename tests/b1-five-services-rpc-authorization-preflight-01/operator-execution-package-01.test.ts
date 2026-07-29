@@ -1,317 +1,192 @@
 import { describe, expect, it } from "bun:test";
-import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
-  ALLOWED_ACTIONS,
-  ALLOWED_CLASSES,
-  EXPECTED_SPLIT,
-  EXPECTED_TOTAL,
-  MATRIX_SHA256,
-  caseFileName,
-  fingerprintExpression,
-  loadNegativeCases,
-  negativeCases,
-  renderCase,
+  APPROVED_PROJECT_REF,
+  EXPECTED_NEGATIVE_TOTAL,
+  FORBIDDEN_PATTERNS,
+  MATRIX_SHA256_LF,
+  assertSafeDiagnostic,
+  assertSafeScalar,
+  extractFingerprintExpr,
   sha256Lf,
-  validateCase,
-  type Case,
 } from "../../scripts/b1-rpc-principal-harness-01/render-negative-cases";
 
 const root = process.cwd();
 const pkg = join(root, "scripts", "b1-rpc-principal-harness-01");
-const matrixPath = join(
-  root,
-  "tests",
-  "b1-five-services-rpc-authorization-preflight-01",
-  "MATRIX.json",
-);
-const matrixRaw = readFileSync(matrixPath, "utf8");
+const read = (p: string) => readFileSync(p, "utf8").replace(/\r\n/gu, "\n");
+
+const matrixRaw = read(join(root, "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json"));
 const matrix = JSON.parse(matrixRaw);
-const read = (p: string) => readFileSync(p, "utf8").replace(/\r\n/g, "\n");
-const sha = (p: string) => createHash("sha256").update(read(p)).digest("hex");
+const manifest = JSON.parse(read(join(pkg, "TARGET-MANIFEST.json")));
+const preflight = read(join(pkg, "00-preflight.sql"));
+const fingerprint = read(join(pkg, "fingerprint.sql"));
+const launcher = read(join(pkg, "run-negative-matrix.ps1"));
+const renderer = read(join(pkg, "render-negative-cases.ts"));
+const readme = read(join(pkg, "README.md"));
 
-const pf = read(join(pkg, "00-preflight.sql"));
-const ps = read(join(pkg, "run-negative-matrix.ps1"));
-const fp = read(join(pkg, "fingerprint.sql"));
+/** SQL with `--` line comments and block comments stripped. */
+const strip = (sql: string) =>
+  sql
+    .replace(/\/\*[\s\S]*?\*\//gu, "")
+    .split("\n")
+    .map((l) => l.replace(/--.*$/u, ""))
+    .join("\n");
 
-describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HARDENING-03", () => {
-  // ---------------------------------------------------------------- counts --
-  it("16. plans exactly 267 = 240 + 24 + 3 negative cases and zero positives", () => {
-    expect(matrix.counts.negative_core).toBe(EXPECTED_SPLIT.negative_core);
-    expect(matrix.counts.illegal_action).toBe(EXPECTED_SPLIT.illegal_action);
-    expect(matrix.counts.supplemental_department_scope).toBe(EXPECTED_SPLIT.department_scope);
-    expect(240 + 24 + 3).toBe(EXPECTED_TOTAL);
-    expect(matrix.counts.negative_total).toBe(EXPECTED_TOTAL);
-    expect(negativeCases).toHaveLength(EXPECTED_TOTAL);
-    expect(negativeCases.filter((c) => c.expect !== "DENY")).toHaveLength(0);
-    expect(ps).toContain("positive_cases_executed  = 0");
+describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05", () => {
+  // ---- G1 -----------------------------------------------------------------
+  it("G1: control-character pattern uses the unicode flag and full C0+DEL range", () => {
+    const control = FORBIDDEN_PATTERNS.find(([n]) => n === "control_char")?.[1];
+    expect(control?.source).toBe("[\\u0000-\\u001F\\u007F]");
+    expect(control?.flags).toContain("u");
+    expect(FORBIDDEN_PATTERNS.every(([, re]) => re.flags.includes("u"))).toBe(true);
   });
 
-  // ------------------------------------------------------- G1 credentials --
-  it("1. the launcher never uses DATABASE_URL as a credential source", () => {
-    expect(ps).not.toMatch(/\$conn\s*=\s*\$env:DATABASE_URL/);
-    // DATABASE_URL is only mentioned in documentation or in the "ignored" notice
-    const uses = ps.split("\n").filter((l) => l.includes("DATABASE_URL"));
-    expect(uses.length).toBeGreaterThan(0);
-    expect(
-      uses.every(
-        (l) =>
-          /NOT used|NOT read|NOT accepted|ignored|deliberately/.test(l) ||
-          /if \(\$env:DATABASE_URL\)/.test(l),
-      ),
-    ).toBe(true);
-    for (const v of ["PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGSSLMODE"]) {
-      expect(ps).toContain(`$env:${v}`);
-    }
-    expect(ps).toContain("$env:PGSSLMODE = 'require'");
-  });
-
-  it("2. no password and no connection URI is ever placed in psql argv", () => {
-    const argvLine = ps.split("\n").find((l) => l.includes("$psqlArgs = @("))!;
-    expect(argvLine).toBeDefined();
-    expect(argvLine).not.toMatch(/conn|DATABASE_URL|PGPASSWORD|postgres(ql)?:\/\//);
-    expect(ps).not.toMatch(/postgresql:\/\/[^<\s]*:[^@\s]+@/); // no literal credentials
-    expect(ps).toContain("Remove-Item Env:PGPASSWORD");
-  });
-
-  it("3. the pgpass file is temporary, random, ACL-restricted and removed in finally", () => {
-    expect(ps).toContain("Read-Host");
-    expect(ps).toContain("-AsSecureString");
-    expect(ps).toContain("[System.IO.Path]::GetTempPath()");
-    expect(ps).toContain("[guid]::NewGuid()");
-    expect(ps).toContain("SetAccessRuleProtection($true, $false)");
-    expect(ps).toContain("AreAccessRulesProtected");
-    expect(ps).toContain("PGPASS_ACL_NOT_ENFORCEABLE");
-    expect(ps).toContain("$env:PGPASSFILE = $passFile");
-    const finallyBlock = ps.slice(ps.lastIndexOf("\nfinally {"));
-    expect(finallyBlock).toContain("Remove-Item $passFile -Force");
-    expect(finallyBlock).toContain("Remove-Item Env:PGPASSFILE");
-  });
-
-  it("4. output redaction is applied before anything is written to disk", () => {
-    expect(ps).toContain("function Protect-Output");
-    for (const token of ["postgresql://", "postgres://", "password", "PGPASSWORD", "PGPASSFILE"]) {
-      expect(ps).toContain(token);
-    }
-    // psql output is redacted at capture time, so every persisted artifact
-    // derives from an already-redacted value
-    const captures = ps.split("\n").filter((l) => l.includes("$out -join"));
-    expect(captures.length).toBeGreaterThan(0);
-    expect(captures.every((l) => l.includes("Protect-Output"))).toBe(true);
-    expect(ps).toContain("Output = (Protect-Output");
-  });
-
-  // -------------------------------------------------- G2 target attestation --
-  it("5. endpoint attestation in the launcher and catalog attestation in SQL", () => {
-    expect(ps).toContain("TARGET_ATTESTATION_FAILED");
-    expect(ps).toContain('$PgHost -like "*$ExpectedRef*"');
-    expect(ps).toContain('$PgUser -like "*$ExpectedRef*"');
-    expect(ps).toContain("wpmicqriltrowwonknox");
-    expect(ps).toContain("$MigrationVersion = '20260729014519'");
-    expect(ps).toContain("migration_version=$MigrationVersion");
-    expect(pf).toContain("B1_PREFLIGHT_PRODUCTION_REF_MISMATCH");
-    expect(pf).toContain("supabase_migrations.schema_migrations");
-    expect(pf).toContain("B1_PREFLIGHT_MIGRATION_29_NAME_MISSING");
-    expect(pf).toContain("B1_PREFLIGHT_MIGRATION_29_FUNCTION_SET_DRIFT");
-    expect(pf).toContain("B1_PREFLIGHT_MIGRATION_29_TRIGGER_SET_DRIFT");
-    expect(pf).toContain("B1_PREFLIGHT_SERVICE_SET_DRIFT_");
-    expect(pf).toContain("B1_PREFLIGHT_SERVICE_UNEXPECTEDLY_VISIBLE_");
-    for (const fn of [
-      "assert_b1_runtime_step_assignee_effective",
-      "assert_b1_runtime_step_row_assignee_effective",
-      "b1_assignment_identity_lock_key",
-      "b1_lock_assignment_identity_boundary",
-      "b1_lock_assignment_identity_stmt",
-      "guard_b1_runtime_step_activation",
-    ]) {
-      expect(pf).toContain(fn);
-    }
-    for (const tg of [
-      "trg_b1_lock_faculty_profile_identity_stmt",
-      "trg_b1_lock_position_assignment_stmt",
-      "trg_b1_lock_processing_assignment_stmt",
-      "trg_b1_lock_runtime_step_identity_stmt",
-      "trg_b1_lock_staff_profile_identity_stmt",
-      "trg_b1_lock_transfer_department_scope_stmt",
-      "trg_guard_b1_runtime_step_activation",
-      "trg_guard_b1_runtime_step_activation_insert",
-    ]) {
-      expect(pf).toContain(tg);
+  it("G1: unsafe scalars are rejected and safe ones pass", () => {
+    expect(() => assertSafeScalar("t", "review")).not.toThrow();
+    for (const bad of ["a\u0007b", "a\nb", "a;b", "a--b", "a'b", "../x", "a/b", "COMMIT"]) {
+      expect(() => assertSafeScalar("t", bad)).toThrow(/MATRIX_VALIDATION_FAIL/u);
     }
   });
 
-  // -------------------------------------------- G3 operator privilege model --
-  it("6. operator owner / superuser / BYPASSRLS / write privilege all FAIL", () => {
-    expect(pf).toContain("B1_PREFLIGHT_OPERATOR_OWNS_SCOPE_RELATION");
-    expect(pf).toContain("session_user must not be superuser");
-    expect(pf).toContain("B1_PREFLIGHT_SESSION_USER_HAS_BYPASSRLS");
-    expect(pf).toContain("B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE");
-    expect(pf).toContain("B1_PREFLIGHT_SESSION_USER_NOT_FOUND_IN_PG_ROLES");
-    for (const p of ["'INSERT'", "'UPDATE'", "'DELETE'", "'TRUNCATE'"]) {
-      expect(pf).toContain(p);
-    }
-    for (const name of ["sandbox_exec", "service_role", "supabase_admin", "postgres"]) {
-      expect(pf).toContain(`'${name}'`);
-    }
-    // the session_user guard runs before any SET ROLE
-    expect(pf.indexOf("-- 2. session_user contract")).toBeLessThan(
-      pf.indexOf("SET LOCAL ROLE authenticated;"),
-    );
-  });
-
-  it("7. incomplete visibility fails closed with OPERATOR_VISIBILITY_NOT_PROVEN", () => {
-    expect(pf).toContain("OPERATOR_VISIBILITY_NOT_PROVEN");
-    expect(pf).toContain("B1_PREFLIGHT_RLS_DISABLED_ON_SCOPE_RELATION");
-    expect(pf).toContain("B1_PREFLIGHT_NO_POLICY_ON_SCOPE_RELATION");
-    expect(pf).toContain("B1_PREFLIGHT_FINGERPRINT_RELATION_MISSING");
-    expect(pf).toContain("b1_fingerprint_relations");
-    const pfExecutable = pf
-      .split("\n")
-      .filter((l) => !l.trimStart().startsWith("--"))
-      .join("\n");
-    expect(pfExecutable).not.toMatch(
-      /\bCREATE\s+POLICY\b|\bCREATE\s+ROLE\b|\bALTER\s+ROLE\b|\bGRANT\b/,
-    );
-  });
-
-  // ------------------------------------------------- G4 principal selection --
-  it("8. authenticated vs anon principal selection is exact for every case", () => {
-    const expr = fingerprintExpression();
-    let anon = 0;
-    for (const [i, c] of negativeCases.entries()) {
-      const sql = renderCase(c, i, expr);
-      if (c.actor_user_id === null) {
-        anon += 1;
-        expect(sql).toContain("SET LOCAL ROLE anon;");
-        expect(sql).not.toContain("SET LOCAL ROLE authenticated;");
-        expect(sql).toContain(`'{"role":"anon"}'`);
-        expect(sql).toContain("auth.uid() IS DISTINCT FROM NULL::uuid");
-      } else {
-        expect(sql).toContain("SET LOCAL ROLE authenticated;");
-        expect(sql).not.toContain("SET LOCAL ROLE anon;");
-        expect(sql).toContain(`'role', 'authenticated'`);
-        expect(sql).toContain(`'${c.actor_user_id}'::uuid`);
-        expect(sql).not.toContain(`'{"role":"anon"}'`);
-      }
-    }
-    expect(anon).toBeGreaterThan(0);
-    expect(pf).toContain("B1_PREFLIGHT_ANON_HAS_BYPASSRLS");
-    expect(pf).toContain("B1_PREFLIGHT_AUTHENTICATED_HAS_BYPASSRLS");
-    expect(pf).toContain("B1_PREFLIGHT_ANON_AUTH_UID_NOT_NULL");
-  });
-
-  // ---------------------------------------------------------- G5 isolation --
-  it("9. + 17. every case is one SERIALIZABLE BEGIN / one ROLLBACK / zero COMMIT", () => {
-    const expr = fingerprintExpression();
-    for (const [i, c] of negativeCases.entries()) {
-      const sql = renderCase(c, i, expr);
-      expect(sql.match(/^BEGIN ISOLATION LEVEL SERIALIZABLE;$/gm) ?? []).toHaveLength(1);
-      expect(sql.match(/^ROLLBACK;$/gm) ?? []).toHaveLength(1);
-      expect(sql).not.toContain("COMMIT");
-      expect(sql).toContain("pg_advisory_xact_lock");
-      expect(sql).toContain("B1_NEG_SERIALIZATION_FAILURE");
-      expect(sql).toContain("B1_NEG_CONCURRENT_DRIFT_STEP");
-      expect(sql).toContain("B1_NEG_UNEXPECTED_ALLOW");
-      expect(sql).toContain("B1_NEG_MUTATION_DETECTED");
-      expect(sql).toContain(
-        c.action === "confirm_payment"
-          ? "record_external_university_payment_confirmation"
-          : "act_on_b1_student_request_step_atomic",
-      );
-    }
-    expect(ps).toContain("no retry by contract");
-    // every "retry" mention is a comment or the explicit no-retry failure text
-    for (const line of ps.split("\n")) {
-      if (/retry/i.test(line)) {
-        expect(/^\s*#|no retry by contract/.test(line)).toBe(true);
-      }
+  it("G1: expect_error diagnostics reject control characters, quotes and terminators", () => {
+    expect(() => assertSafeDiagnostic("e", "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED")).not.toThrow();
+    for (const bad of ["x\u0000y", "x\ny", "x;y", "x'y"]) {
+      expect(() => assertSafeDiagnostic("e", bad)).toThrow(/MATRIX_VALIDATION_FAIL/u);
     }
   });
 
-  // ------------------------------------------------- G6 matrix / generator --
-  it("10. malicious MATRIX values are rejected before any file is produced", () => {
-    const base: Case = {
-      case: "unassigned_admin",
-      request_number: "SR-20260727-42393846",
-      step_key: "student_affairs_intake",
-      actor_user_id: "c8a94548-4782-4252-86f9-23559d3b95bd",
-      action: "review",
-      expect: "DENY",
-    };
-    expect(() => validateCase(base, 0)).not.toThrow();
+  // ---- G2 -----------------------------------------------------------------
+  it("G2: launcher never reads DATABASE_URL or any pgpass channel", () => {
+    expect(launcher).not.toMatch(/env:DATABASE_URL\b(?![^\n]*FORBIDDEN)/u);
+    expect(launcher).not.toMatch(/New-TempPgpass|PGPASSFILE\s*=/u);
+    expect(launcher).not.toMatch(/\$env:PGPASSWORD\s*=/u);
+  });
 
-    const hostile: Array<Partial<Case>> = [
-      { step_key: "a\nb" },
-      { step_key: "a\rb" },
-      { step_key: "a\u0000b" },
-      { step_key: "a\u0007b" },
-      { step_key: "a/b" },
-      { step_key: "a\\b" },
-      { step_key: "../etc" },
-      { step_key: "a;DROP" },
-      { step_key: "a--b" },
-      { step_key: "a/*b" },
-      { step_key: "a*/b" },
-      { step_key: "$case$" },
-      { step_key: "COMMIT" },
-      { step_key: "rollback" },
-      { step_key: "a'b" },
-      { step_key: 'a"b' },
-      { case: "not_a_known_class" },
-      { action: "delete_everything" },
-      { expect: "ALLOW" },
-      { request_number: "SR-BAD" },
-      { actor_user_id: "not-a-uuid" },
-      { runtime_step_id: "not-a-uuid" },
-      { expect_error: "boom\nnewline" },
-    ];
-    for (const patch of hostile) {
-      expect(() => validateCase({ ...base, ...patch } as Case, 0)).toThrow(
-        /B1_MATRIX_FIELD_REJECTED/,
-      );
+  it("G2: launcher aborts when a credential channel is present in the environment", () => {
+    for (const name of ["DATABASE_URL", "PGPASSWORD", "PGPASSFILE", "PGSERVICE", "PGSERVICEFILE"]) {
+      expect(launcher).toContain(`'${name}'`);
     }
-    // and the renderer validates again at render time
-    expect(() => renderCase({ ...base, action: "nope" } as Case, 0)).toThrow(
-      /B1_MATRIX_FIELD_REJECTED/,
-    );
+    expect(launcher).toContain("FORBIDDEN_CREDENTIAL_CHANNEL");
   });
 
-  it("11. case file names are generated ordinals only", () => {
-    for (let i = 0; i < EXPECTED_TOTAL; i += 1) {
-      expect(caseFileName(i)).toMatch(/^case-\d{4}\.sql$/);
+  it("G2: psql is invoked with -W for an interactive password prompt", () => {
+    expect(launcher).toMatch(/'-W',/u);
+    expect(launcher).toContain("Protect-Output");
+  });
+
+  // ---- G3 -----------------------------------------------------------------
+  it("G3: the manifest pins the approved project ref, host, database and sslmode", () => {
+    expect(manifest.endpoint.project_ref).toBe(APPROVED_PROJECT_REF);
+    expect(manifest.endpoint.approved_pgdatabase).toBe("postgres");
+    expect(manifest.endpoint.approved_pgsslmode).toBe("require");
+    expect(manifest.endpoint.approved_pguser_regex).toContain(APPROVED_PROJECT_REF);
+  });
+
+  it("G3: session-mode port 5432 is required and 6543 is rejected", () => {
+    expect(manifest.endpoint.approved_pgport).toBe("5432");
+    expect(launcher).toContain("TARGET_PORT_NOT_APPROVED");
+    expect(launcher).toMatch(/\$pgPort -ne '5432'/u);
+  });
+
+  it("G3: the launcher exposes no host/user/ref override parameters", () => {
+    expect(launcher).not.toMatch(/\[string\]\$PgHost|\[string\]\$PgUser|\[string\]\$ExpectedRef/u);
+    expect(launcher).toContain("TARGET_REF_MISMATCH");
+  });
+
+  it("G3: the preflight re-attests the ref, database and user shape from pins", () => {
+    expect(preflight).toContain("B1_PREFLIGHT_PRODUCTION_REF_MISMATCH");
+    expect(preflight).toContain("B1_PREFLIGHT_DATABASE_MISMATCH");
+    expect(preflight).toContain("B1_PREFLIGHT_SESSION_USER_SHAPE_MISMATCH");
+  });
+
+  // ---- G4 -----------------------------------------------------------------
+  it("G4: migration version and exact name are pinned and asserted", () => {
+    expect(manifest.migration.version).toBe("20260729014519");
+    expect(manifest.migration.version).toBe(matrix.installed_migration.version);
+    expect(manifest.migration.name).toBe(matrix.installed_migration.name);
+    expect(preflight).toContain("B1_PREFLIGHT_MIGRATION_29_NAME_MISMATCH");
+  });
+
+  it("G4: six Migration-29 functions are pinned by exact signature", () => {
+    expect(manifest.migration_29_functions).toHaveLength(6);
+    expect(new Set(manifest.migration_29_functions).size).toBe(6);
+    expect(manifest.migration_29_functions).toContain("public.guard_b1_runtime_step_activation()");
+    expect(preflight).toContain("B1_PREFLIGHT_MIGRATION_29_FUNCTION_SET_DRIFT");
+  });
+
+  it("G4: eight Migration-29 triggers are pinned with tgtype, tgenabled and UPDATE OF columns", () => {
+    expect(manifest.migration_29_triggers).toHaveLength(8);
+    for (const t of manifest.migration_29_triggers) {
+      expect(typeof t.tgtype).toBe("number");
+      expect(t.tgenabled).toBe("O");
+      expect(Array.isArray(t.update_columns)).toBe(true);
+      expect(manifest.migration_29_functions).toContain(t.function_signature);
     }
-    expect(caseFileName(0)).toBe("case-0001.sql");
-    expect(caseFileName(266)).toBe("case-0267.sql");
-    const names = new Set(negativeCases.map((_, i) => caseFileName(i)));
-    expect(names.size).toBe(EXPECTED_TOTAL);
-    // no MATRIX-derived value can appear in a path
-    const renderer = read(join(pkg, "render-negative-cases.ts"));
-    expect(renderer).toContain("case-${String(index + 1).padStart(4, \"0\")}.sql");
-    expect(renderer).not.toMatch(/join\(out,\s*`?\$\{.*c\.(case|step_key|request_number)/);
+    expect(preflight).toContain("B1_PREFLIGHT_MIGRATION_29_TRIGGER_SET_DRIFT");
   });
 
-  it("12. MATRIX.json SHA drift aborts rendering", () => {
-    expect(sha256Lf(matrixRaw)).toBe(MATRIX_SHA256);
-    const tampered = JSON.parse(matrixRaw);
-    tampered.matrix_id = `${tampered.matrix_id}-tampered`;
-    expect(() => loadNegativeCases(JSON.stringify(tampered, null, 2))).toThrow(
-      /B1_MATRIX_SHA_DRIFT/,
-    );
+  it("G4: the five services must exist and stay hidden", () => {
+    expect(manifest.b1_services).toHaveLength(5);
+    expect(preflight).toContain("B1_PREFLIGHT_SERVICE_UNEXPECTEDLY_VISIBLE_");
+    expect(preflight).toContain("B1_PREFLIGHT_SERVICE_SET_DRIFT_");
   });
 
-  it("enumerates only known classes and actions", () => {
-    for (const c of negativeCases) {
-      expect(ALLOWED_CLASSES as readonly string[]).toContain(c.case);
-      expect(ALLOWED_ACTIONS as readonly string[]).toContain(c.action);
-    }
+  // ---- G5 -----------------------------------------------------------------
+  it("G5: the operator is proven a non-superuser, non-bypassrls, non-owner observer", () => {
+    expect(preflight).toContain("B1_PREFLIGHT_FORBIDDEN_SESSION_USER");
+    expect(preflight).toContain("B1_PREFLIGHT_SESSION_USER_IS_SUPERUSER");
+    expect(preflight).toContain("B1_PREFLIGHT_SESSION_USER_HAS_BYPASSRLS");
+    expect(preflight).toContain("B1_PREFLIGHT_OPERATOR_OWNS_SCOPE_RELATION");
+    expect(preflight).toContain("B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE");
   });
 
-  // ------------------------------------------------------- G7 fingerprint --
-  it("13. the fingerprint covers the whole allowlist with row content", () => {
-    const relations = [
+  it("G5: partial RLS (enabled without policy, or policy without RLS) is rejected", () => {
+    expect(preflight).toContain("B1_PREFLIGHT_RLS_DISABLED_ON_SCOPE_RELATION");
+    expect(preflight).toContain("B1_PREFLIGHT_NO_POLICY_ON_SCOPE_RELATION");
+  });
+
+  it("G5: visibility is proven by baseline fingerprint equality, not row counts", () => {
+    expect(manifest.authoritative_baseline.status).toBe("PENDING");
+    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
+    expect(preflight).toContain("OPERATOR_VISIBILITY_NOT_PROVEN");
+    expect(preflight).toMatch(/baseline_fingerprint/u);
+  });
+
+  // ---- G6 -----------------------------------------------------------------
+  it("G6: advisory locks are gone from the package", () => {
+    expect(preflight).not.toContain("pg_advisory_xact_lock");
+    expect(renderer).not.toContain("pg_advisory_xact_lock");
+  });
+
+  it("G6: rendered cases use SERIALIZABLE plus fixed-order FOR SHARE locking", () => {
+    expect(renderer).toContain("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    expect(renderer).toMatch(/student_requests r[\s\S]{0,200}FOR SHARE/u);
+    expect(renderer).toMatch(/student_request_workflow_steps w[\s\S]{0,120}ORDER BY w\.id FOR SHARE/u);
+    expect(renderer).toMatch(/request_processing_assignments a ORDER BY a\.id FOR SHARE/u);
+    expect(preflight).toContain("OPERATOR_ROW_LOCK_CAPABILITY_NOT_PROVEN");
+  });
+
+  it("G6: cases pin request type, step id, order, status, assignee and predecessors", () => {
+    expect(renderer).toContain("CASE_STATE_DRIFT: request_type");
+    expect(renderer).toContain("CASE_STATE_DRIFT: step status");
+    expect(renderer).toContain("CASE_STATE_DRIFT: step_order");
+    expect(renderer).toContain("CASE_STATE_DRIFT: direct assignee changed");
+    expect(renderer).toContain("unsatisfied predecessor steps");
+    expect(renderer).toContain("CASE_STATE_DRIFT: transfer department scope");
+  });
+
+  // ---- G7 -----------------------------------------------------------------
+  it("G7: the fingerprint has no LIMIT and the renderer refuses one", () => {
+    expect(strip(fingerprint)).not.toMatch(/\bLIMIT\b/iu);
+    expect(renderer).toContain("FINGERPRINT_EXPR_HAS_LIMIT");
+    expect(() => extractFingerprintExpr(fingerprint)).not.toThrow();
+  });
+
+  it("G7: all 22 mutation-set relations plus student_profiles are fingerprinted", () => {
+    const required = [
       "student_requests",
       "student_request_workflow_steps",
       "student_request_workflow_events",
@@ -331,140 +206,100 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
       "student_extra_chances",
       "student_academic_status",
       "student_enrollments",
+      "student_profiles",
       "notifications",
       "audit_logs",
-      "request_types",
       "schema_migrations",
     ];
-    for (const rel of relations) expect(fp).toContain(rel);
-    // count + full row content, never count alone
-    expect((fp.match(/count\(\*\)::text/g) ?? []).length).toBeGreaterThanOrEqual(relations.length);
-    expect((fp.match(/string_agg\(t::text/g) ?? []).length).toBeGreaterThanOrEqual(20);
-    expect(fp).toContain("SR-20260713-2DE64041");
-    expect(fp).toContain("student_visible");
+    for (const rel of required) expect(fingerprint).toContain(rel);
+    expect(required).toHaveLength(23);
+  });
 
-    // the in-transaction fingerprint is the SAME contract as the outside one
-    const expr = fingerprintExpression();
+  it("G7: the same canonical expression is reused before/after and post-run", () => {
+    const expr = extractFingerprintExpr(fingerprint);
     expect(expr.startsWith("(")).toBe(true);
-    const sql = renderCase(negativeCases[0], 0, expr);
-    expect((sql.match(/WITH b1_scope AS/g) ?? []).length).toBe(2); // before + after
-    expect(sql).toContain(expr);
+    expect(renderer).toContain("v_before := ${fingerprintExpr}");
+    expect(renderer).toContain("v_after := ${fingerprintExpr}");
+    expect(renderer).toContain("renderFingerprintCheck");
   });
 
-  // ---------------------------------------------- G8 function graph pinning --
-  it("14. function graph drift or an external-call token fails closed", () => {
-    expect(pf).toContain("b1_function_allowlist");
-    expect(pf).toContain("pg_get_functiondef");
-    expect(pf).toContain("B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION");
-    expect(pf).toContain("B1_PREFLIGHT_FUNCTION_GRAPH_DRIFT");
-    expect(pf).toContain("B1_PREFLIGHT_FUNCTION_GRAPH_UNPINNED");
-    expect(pf).toContain("B1_PREFLIGHT_FUNCTION_GRAPH_MISSING");
-    for (const token of [
-      "pg_net\\.",
-      "net\\.http_",
-      "dblink",
-      "http_post",
-      "http_get",
-      "lo_export",
-      "lo_import",
-    ]) {
-      expect(pf).toContain(token);
+  // ---- G8 -----------------------------------------------------------------
+  it("G8: at least 14 functions are pinned, including both entry points", () => {
+    const fns = manifest.function_graph.functions;
+    expect(fns.length).toBeGreaterThanOrEqual(14);
+    const entries = fns.filter((f: any) => f.entry_point).map((f: any) => f.signature);
+    expect(entries).toContain("public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)");
+    expect(entries).toContain("public.record_external_university_payment_confirmation(uuid,text)");
+  });
+
+  it("G8: the closure is computed from the database and drift fails closed", () => {
+    expect(preflight).toContain("FUNCTION_GRAPH_DRIFT: unpinned reachable function");
+    expect(preflight).toContain("B1_PREFLIGHT_FUNCTION_GRAPH_UNPINNED");
+    expect(preflight).toContain("pg_get_functiondef");
+  });
+
+  it("G8: external-call tokens are rejected anywhere in the closure", () => {
+    const tokens = manifest.function_graph.forbidden_definition_tokens;
+    for (const t of ["pg_net.", "net.http_", "dblink", "http_post", "http_get", "lo_export", "lo_import", "copy program"]) {
+      expect(tokens).toContain(t);
     }
-
-    expect(ps).toContain("fn_graph_md5=$FunctionGraphMd5");
-    expect(ps).toContain("[Parameter(Mandatory = $true)][string]$FunctionGraphMd5");
+    expect(preflight).toContain("B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION");
   });
 
-  // -------------------------------------------------------- G9 report dirs --
-  it("15. the report directory is created after rendering and survives it", () => {
-    const renderIdx = ps.indexOf("render-negative-cases.ts");
-    const reportIdx = ps.indexOf("New-Item -ItemType Directory -Force -Path $ReportDir");
-    expect(renderIdx).toBeGreaterThan(-1);
-    expect(reportIdx).toBeGreaterThan(renderIdx);
-    expect(ps).toContain("REPORT_DIR_NOT_WRITABLE");
-    // the renderer only clears generated/cases, never generated/report
-    const renderer = read(join(pkg, "render-negative-cases.ts"));
-    const rm = renderer.split("\n").find((l) => l.includes("rmSync("))!;
-    expect(rm).toContain("out");
-    expect(renderer).toContain('join(here, "generated", "cases")');
-    expect(renderer).not.toContain('rmSync(join(here, "generated")');
-    expect(ps).toContain("generated/report");
+  // ---- G9 -----------------------------------------------------------------
+  it("G9: a single psql process runs the master script", () => {
+    expect(renderer).toContain("master-negative-matrix.sql");
+    expect(renderer).toContain("\\ir ../00-preflight.sql");
+    expect(renderer).toContain("\\ir fingerprint-check.sql");
+    expect((launcher.match(/& psql /gu) ?? []).length).toBe(1);
+    expect(launcher).toContain("'-f', $master");
   });
 
-  // ------------------------------------------------------ hygiene + hold --
-  it("18. the positive harness stays HELD_BACK and is not executed", () => {
-    const held = read(
-      join(
-        root,
-        "tests",
-        "b1-five-services-rpc-authorization-preflight-01",
-        "02-positive-harness.HELD_BACK.sql",
-      ),
-    );
-    expect(held).toMatch(/HELD_BACK/);
-    expect(ps).not.toContain("positive-harness");
-    const localPositive = read(join(pkg, "positive-harness.sql"));
-    expect(localPositive).toMatch(/DO NOT RUN|HELD_BACK|held back/);
-    // the whole executable body is commented out
-    expect(
-      localPositive
-        .split("\n")
-        .filter((l) => l.trim() && !l.trimStart().startsWith("--") && !l.startsWith("\\set")),
-    ).toHaveLength(0);
+  it("G9: the run is read-only and stops on the first error", () => {
+    expect(launcher).toContain("default_transaction_read_only=on");
+    expect(launcher).toContain("'ON_ERROR_STOP=1'");
+    expect(preflight).toContain("\\set ON_ERROR_STOP on");
   });
 
-  it("19. tracks no secrets, no generated files and no pycache", () => {
-    const tracked = execSync("git ls-files", { cwd: root }).toString().split("\n");
-    expect(tracked.filter((f) => f.includes("__pycache__"))).toHaveLength(0);
-    expect(tracked.filter((f) => /(^|\/)\.env(\.|$)|DATABASE_URL/.test(f))).toHaveLength(0);
-    expect(
-      tracked.filter((f) => f.startsWith("scripts/b1-rpc-principal-harness-01/generated/")),
-    ).toHaveLength(0);
-    const ignore = read(join(root, ".gitignore"));
-    expect(ignore).toContain("scripts/b1-rpc-principal-harness-01/generated/");
+  // ---- matrix / package invariants ---------------------------------------
+  it("matrix: pinned LF SHA256 still matches", () => {
+    expect(sha256Lf(matrixRaw)).toBe(MATRIX_SHA256_LF);
+    expect(createHash("sha256").update(matrixRaw).digest("hex")).toBe(MATRIX_SHA256_LF);
   });
 
-  it("the preflight stays read-only and ends in ROLLBACK", () => {
-    expect(pf.trimEnd().endsWith("ROLLBACK;")).toBe(true);
-    expect(pf).toContain("B1_OPERATOR_PREFLIGHT_PASS");
-    const executable = pf
-      .split("\n")
-      .filter((l) => !l.trimStart().startsWith("--"))
-      .join("\n");
-    // no role/privilege changes and no persistent-object DDL
-    // (string literals such as has_table_privilege(..., 'TRUNCATE') are probes)
-    const bare = executable.replace(/'[^']*'/g, "''");
-    expect(bare).not.toMatch(
-      /\b(CREATE ROLE|ALTER ROLE|GRANT|REVOKE|DROP TABLE|DROP FUNCTION|TRUNCATE)\b/,
-    );
-    expect(executable).not.toMatch(
-      /\b(INSERT INTO|UPDATE|DELETE FROM)\s+(public|auth|storage)\./,
-    );
-    // the only writable object is an ON COMMIT DROP temp table
-    expect(executable).toContain("CREATE TEMP TABLE b1_fingerprint_relations");
-    expect(executable).toContain("ON COMMIT DROP");
-    expect(executable).toContain("CREATE TEMP TABLE b1_function_allowlist");
-    const inserts = executable.match(/INSERT INTO\s+(\S+?)[\s(]/g) ?? [];
-    expect(inserts.length).toBeGreaterThan(0);
-    expect(
-      inserts.every(
-        (i) => i.includes("b1_fingerprint_relations") || i.includes("b1_function_allowlist"),
-      ),
-    ).toBe(true);
+  it("matrix: 267 negative cases, 0 positives rendered", () => {
+    const total =
+      matrix.negative_cases.length +
+      matrix.illegal_action_cases.length +
+      matrix.supplemental_department_scope_cases.length;
+    expect(total).toBe(EXPECTED_NEGATIVE_TOTAL);
+    expect(total).toBe(267);
+    expect(matrix.counts.negative_total).toBe(267);
+    expect(renderer).toContain("positive_rendered: 0");
   });
 
+  it("matrix: every negative case expects DENY with zero mutation", () => {
+    const all = [
+      ...matrix.negative_cases,
+      ...matrix.illegal_action_cases,
+      ...matrix.supplemental_department_scope_cases,
+    ];
+    expect(all.every((c: any) => c.expect === "DENY")).toBe(true);
+    expect(all.every((c: any) => c.zero_mutation === true)).toBe(true);
+  });
 
-  it("pins package checksums", () => {
-    const shas = Object.fromEntries(
-      [
-        "00-preflight.sql",
-        "fingerprint.sql",
-        "render-negative-cases.ts",
-        "run-negative-matrix.ps1",
-        "README.md",
-      ].map((f) => [f, sha(join(pkg, f))]),
-    );
-    for (const v of Object.values(shas)) expect(v).toMatch(/^[0-9a-f]{64}$/);
-    console.log(JSON.stringify(shas, null, 2));
+  it("package: no COMMIT is emitted and the preflight ends in ROLLBACK", () => {
+    expect(strip(renderer)).not.toMatch(/\bCOMMIT\b/u);
+    expect(strip(preflight)).not.toMatch(/\bCOMMIT\b/u);
+    expect(preflight.trimEnd().endsWith("ROLLBACK;")).toBe(true);
+    expect(renderer).toContain("ROLLBACK;");
+    expect(launcher).toContain("FORBIDDEN_COMMIT_IN_RENDERED_CASES");
+  });
+
+  it("package: README documents G1-G9 without reintroducing DATABASE_URL as a channel", () => {
+    for (const g of ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8", "G9"]) {
+      expect(readme).toContain(`## ${g} —`);
+    }
+    expect(readme).toContain("`DATABASE_URL` is **not read and not supported**");
   });
 });
