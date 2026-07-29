@@ -362,9 +362,26 @@ describe("B1 runtime assignee propagation — TOCTOU lock contract", () => {
     expect(postVerifier).toContain("must be SECURITY DEFINER");
     expect(postVerifier).toContain("must be SECURITY INVOKER");
     expect(postVerifier).toContain("has no pinned search_path");
-    expect(postVerifier).toContain("is executable by PUBLIC/anon/authenticated");
     expect(postVerifier).toContain("has unexpected owner");
   });
+
+  // Fail-closed ACL: a NULL proacl means PostgreSQL's default EXECUTE-to-PUBLIC,
+  // so the verifier may never treat "no ACL row" as denial.
+  it("ACL check is fail-closed in the migration and in both verifiers", () => {
+    for (const sql of [migration, postVerifier, structuralVerifier]) {
+      expect(sql).toContain("NULL proacl");
+      expect(sql).toContain("has_function_privilege");
+      expect(sql).toContain("is EXECUTE-able by PUBLIC");
+      expect(sql).toContain("ARRAY['anon','authenticated']");
+      expect(sql).toContain("missing with the exact required signature");
+    }
+    // Both verifiers expose the block verbatim to the negative harness.
+    for (const sql of [postVerifier, structuralVerifier]) {
+      expect(sql).toContain("B1_ACL_CONTRACT_BEGIN");
+      expect(sql).toContain("B1_ACL_CONTRACT_END");
+    }
+  });
+
 
   it("preflight still blocks a double apply of order 29", () => {
     expect(preflight).toContain("order 29 already applied");
