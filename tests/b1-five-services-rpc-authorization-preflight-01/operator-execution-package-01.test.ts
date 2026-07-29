@@ -162,7 +162,13 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
     expect(pf).toContain("B1_PREFLIGHT_NO_POLICY_ON_SCOPE_RELATION");
     expect(pf).toContain("B1_PREFLIGHT_FINGERPRINT_RELATION_MISSING");
     expect(pf).toContain("b1_fingerprint_relations");
-    expect(pf).not.toMatch(/\bCREATE\s+POLICY\b|\bCREATE\s+ROLE\b|\bALTER\s+ROLE\b|\bGRANT\b/);
+    const pfExecutable = pf
+      .split("\n")
+      .filter((l) => !l.trimStart().startsWith("--"))
+      .join("\n");
+    expect(pfExecutable).not.toMatch(
+      /\bCREATE\s+POLICY\b|\bCREATE\s+ROLE\b|\bALTER\s+ROLE\b|\bGRANT\b/,
+    );
   });
 
   // ------------------------------------------------- G4 principal selection --
