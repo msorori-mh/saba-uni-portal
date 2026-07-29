@@ -342,9 +342,18 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
     expect(pf).toContain("B1_PREFLIGHT_FUNCTION_GRAPH_DRIFT");
     expect(pf).toContain("B1_PREFLIGHT_FUNCTION_GRAPH_UNPINNED");
     expect(pf).toContain("B1_PREFLIGHT_FUNCTION_GRAPH_MISSING");
-    for (const token of ["pg_net", "net.http_", "dblink", "http_post", "http_get", "lo_export", "lo_import"]) {
+    for (const token of [
+      "pg_net\\.",
+      "net\\.http_",
+      "dblink",
+      "http_post",
+      "http_get",
+      "lo_export",
+      "lo_import",
+    ]) {
       expect(pf).toContain(token);
     }
+
     expect(ps).toContain("fn_graph_md5=$FunctionGraphMd5");
     expect(ps).toContain("[Parameter(Mandatory = $true)][string]$FunctionGraphMd5");
   });
