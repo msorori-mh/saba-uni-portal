@@ -60,10 +60,15 @@ describe("PR227 final unified backend stack independent review", () => {
       "supabase/migrations/20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql",
     );
     expect(sha256Lf(`docs/migration-drafts/${entry30.draft}`)).toBe(entry30.draft_sha_lf);
+    const entry30Files = promotion.find(({ order }) => order === 30) as unknown as {
+      preflight: string;
+      structural_verifier: string;
+      post_verifier: string;
+    };
     for (const companion of [
-      draft30.preflight,
-      draft30.structural_verifier,
-      draft30.post_verifier,
+      entry30Files.preflight,
+      entry30Files.structural_verifier,
+      entry30Files.post_verifier,
     ]) {
       expect(existsSync(join(root, companion))).toBe(true);
     }
