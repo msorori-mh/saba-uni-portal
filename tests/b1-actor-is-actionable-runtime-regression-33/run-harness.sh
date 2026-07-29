@@ -34,7 +34,17 @@ if [ "$(id -u)" = "0" ] && [ -z "${B1_REGRESSION_33_REEXEC:-}" ]; then
     exit 2
   fi
   SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-  exec su "$HARNESS_USER" -s /bin/bash -c "B1_REGRESSION_33_REEXEC=1 PATH='$PATH' HOME=/tmp bash '$SELF'"
+  if command -v su >/dev/null 2>&1; then
+    exec su "$HARNESS_USER" -s /bin/bash -c "B1_REGRESSION_33_REEXEC=1 PATH='$PATH' HOME=/tmp bash '$SELF'"
+  fi
+  # No su/setpriv in the image: drop privileges with python3 instead.
+  exec python3 - "$HARNESS_USER" "$SELF" <<'PYDROP'
+import os, pwd, sys
+u = pwd.getpwnam(sys.argv[1])
+os.setgid(u.pw_gid); os.setgroups([u.pw_gid]); os.setuid(u.pw_uid)
+os.environ.update({"B1_REGRESSION_33_REEXEC": "1", "HOME": "/tmp", "USER": u.pw_name})
+os.execvp("bash", ["bash", sys.argv[2]])
+PYDROP
 fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
