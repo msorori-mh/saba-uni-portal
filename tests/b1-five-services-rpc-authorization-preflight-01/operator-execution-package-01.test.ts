@@ -53,9 +53,16 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
   // ------------------------------------------------------- G1 credentials --
   it("1. the launcher never uses DATABASE_URL as a credential source", () => {
     expect(ps).not.toMatch(/\$conn\s*=\s*\$env:DATABASE_URL/);
-    // the only DATABASE_URL mention is the explicit "ignored" notice
+    // DATABASE_URL is only mentioned in documentation or in the "ignored" notice
     const uses = ps.split("\n").filter((l) => l.includes("DATABASE_URL"));
-    expect(uses.every((l) => /ignored|deliberately/.test(l) || /if \(\$env:DATABASE_URL\)/.test(l))).toBe(true);
+    expect(uses.length).toBeGreaterThan(0);
+    expect(
+      uses.every(
+        (l) =>
+          /NOT used|NOT read|NOT accepted|ignored|deliberately/.test(l) ||
+          /if \(\$env:DATABASE_URL\)/.test(l),
+      ),
+    ).toBe(true);
     for (const v of ["PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGSSLMODE"]) {
       expect(ps).toContain(`$env:${v}`);
     }
