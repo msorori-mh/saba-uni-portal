@@ -97,9 +97,9 @@ where p.oid = to_regprocedure('public.workflow_runtime_step_configured_action(uu
 \echo == V10: three RPCs identical to the preflight baseline (signature/owner/mode/volatility/search_path)
 with expected(identity, owner, secdef, volatility, proconfig) as (
   values
-    ('public.get_my_request_actor_inbox(jsonb,integer,integer)',   'postgres', true, 's', '{search_path=public}'),
-    ('public.get_student_request_detail_for_actor(uuid)',          'postgres', true, 's', '{search_path=public}'),
-    ('public.get_student_request_fee_processing_context(uuid)',    'postgres', true, 's', '{search_path=public}')
+    ('public.get_my_request_actor_inbox(jsonb,integer,integer)',   'postgres', true, 's', '{"search_path=public, pg_temp"}'),
+    ('public.get_student_request_detail_for_actor(uuid)',          'postgres', true, 's', '{"search_path=public, pg_temp"}'),
+    ('public.get_student_request_fee_processing_context(uuid)',    'postgres', true, 's', '{"search_path=public, pg_temp"}')
 )
 select e.identity,
   case
