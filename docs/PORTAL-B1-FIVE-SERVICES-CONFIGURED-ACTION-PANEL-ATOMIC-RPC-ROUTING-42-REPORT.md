@@ -98,14 +98,57 @@ name or order was guessed.
   `tests/student-requests/staff-inbox-{sign,archive}-action.test.ts` (assertions
   updated for the new label and the added routing guard)
 
-## 8. Tests
+## 8. Tests (finalization run — package 43)
 
-`bun test` → **2121 passed / 2 failed / 0 skipped** (181 files).
-The 2 failures are the same pre-existing, environment-only assertion
-(`PORTAL-D02-READONLY-PRODUCTION-EXECUTION-01` expects an operator SQL artifact
-that lives outside git and is only present on CI). Unrelated to this mission.
+- `bunx tsc --noEmit` → exit 0, clean.
+- `bun test tests/b1-configured-action-panel-routing-42` + the four modified
+  test files → **109 pass / 0 fail**, 484 assertions, 5 files, exit 0.
+- `bun test` (full) → **2121 pass / 2 fail / 0 skipped**, 181 files, exit 1.
+- `bun run build` → exit 0, success.
+- `git diff --check` → exit 0, clean.
 
-`bunx tsc --noEmit` → clean. `bun run build` → success. `git diff --check` → clean.
+### 8.1 `src/routeTree.gen.ts` verdict
+
+Package 42 adds no route files and changes no route. The build regenerates the
+file with a non-semantic footer/order drift only. It was restored **byte-for-byte
+to BASE SHA `69de4473740149ea3d0586fddf613db474973e6c`**; `git diff
+src/routeTree.gen.ts` is empty. It is **excluded** from the package.
+
+### 8.2 PORTAL-D02 BASE vs candidate comparison
+
+A clean tree of BASE SHA was extracted to a temporary directory and the exact
+test was run in the same environment.
+
+| item | BASE `69de4473` | candidate |
+|---|---|---|
+| failing test | `PORTAL-D02-READONLY-PRODUCTION-EXECUTION-01 > outside-git SQL exists and passes static forbid check` | identical |
+| file:line | `tests/docs/portal-d02-readonly-production-execution-01.test.ts:55` | identical |
+| assertion | `expect(onCi).toBe(true)` — Expected true, Received false | identical |
+| cause | `SQL_ABS` operator artifact lives outside git; absent off-CI | identical |
+| exit code | 1 | 1 |
+
+Counted twice in the full run because the suite resolves that spec through two
+matched paths — one distinct failing assertion.
+
+`git diff --name-only BASE -- tests/docs scripts docs/PORTAL-D02*` → empty:
+Package 42 touched **no** PORTAL-D02 file. All Package 42 tests and every
+affected test pass. Zero new failures.
+
+**Baseline exception verdict: ACCEPTED** (pre-existing, environment-only,
+semantically identical on BASE and candidate).
+
+### 8.3 Proven behaviours
+
+Five services use the B1 panel; `enrollment_certificate` does not; `review`
+stays `review` in both label and payload; `reviewed` (action_result) is rejected,
+never sent; the generic executor throws before any DB access; the atomic RPC is
+the only B1 execution path; missing / unsupported / mismatched actions fail
+closed; `is_actionable = false` blocks the RPC; the `inFlightRef` pending guard
+blocks repeated clicks.
+
+## 8.4 Migration delta
+
+`supabase/migrations` file count: BASE 264, candidate 264 → **delta = 0**.
 
 ## 9. enrollment_certificate regression verdict
 
