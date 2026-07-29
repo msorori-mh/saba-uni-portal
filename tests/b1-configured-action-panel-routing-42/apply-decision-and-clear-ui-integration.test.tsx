@@ -57,7 +57,7 @@ const CASES = [
     requestTypeCode: "excused_absence",
     stepId: "step-record-apply-1",
     stepKey: "record_apply",
-    stepLabelAr: "تطبيق القرار في السجل",
+    stepLabelAr: "مرحلة السجل الأكاديمي",
   },
   {
     action: "clear" as const,
@@ -65,7 +65,7 @@ const CASES = [
     requestTypeCode: "file_withdrawal",
     stepId: "step-library-clear-1",
     stepKey: "library_clear",
-    stepLabelAr: "إخلاء طرف المكتبة",
+    stepLabelAr: "مرحلة المكتبة",
   },
 ];
 
@@ -126,7 +126,6 @@ for (const c of CASES) {
       expect(html).toContain(`data-b1-action="${c.action}"`);
       expect(html).toContain('data-testid="b1-employee-action-panel"');
       expect(html).not.toContain("b1-staff-action-blocked");
-      expect(html).toHaveLength(html.length);
       expect((html.match(/<button/g) ?? []).length).toBe(1);
       expect((html.match(new RegExp(c.labelAr, "g")) ?? []).length).toBe(1);
       expect(html).not.toContain("اعتماد");
