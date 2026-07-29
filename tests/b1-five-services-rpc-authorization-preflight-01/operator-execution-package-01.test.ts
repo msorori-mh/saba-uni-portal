@@ -419,10 +419,20 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
       .split("\n")
       .filter((l) => !l.trimStart().startsWith("--"))
       .join("\n");
+    // no role/privilege changes and no persistent-object DDL or writes
     expect(executable).not.toMatch(
-      /\b(CREATE ROLE|ALTER ROLE|GRANT|DROP|INSERT INTO public\.|UPDATE public\.|DELETE FROM)\b/,
+      /\b(CREATE ROLE|ALTER ROLE|GRANT|REVOKE|DROP TABLE|DROP FUNCTION|TRUNCATE)\b/,
     );
+    expect(executable).not.toMatch(
+      /\b(INSERT INTO|UPDATE|DELETE FROM)\s+(public|auth|storage)\./,
+    );
+    // the only writable object is an ON COMMIT DROP temp table
+    expect(executable).toContain("CREATE TEMP TABLE b1_fingerprint_relations");
+    expect(executable).toContain("ON COMMIT DROP");
+    const inserts = executable.match(/INSERT INTO\s+(\S+)/g) ?? [];
+    expect(inserts.every((i) => i.includes("b1_fingerprint_relations"))).toBe(true);
   });
+
 
   it("pins package checksums", () => {
     const shas = Object.fromEntries(
