@@ -68,7 +68,6 @@ function ActionIcon({ action }: { action: ExecutableAction }) {
 export function B1EmployeeActionPanel({
   allowedAction,
   stepLabelAr,
-  stepKey,
   acting = false,
   onAct,
   requireComment,
