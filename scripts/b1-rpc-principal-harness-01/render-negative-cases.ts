@@ -28,7 +28,7 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "eec8307189adf6ef556ca517596759aa519f14de20a318dbc029a6cdd92fda05";
+export const MATRIX_SHA256_LF = "52ce69679dcc7494eaab7ed35292879312efffd2651dcc169f9f28b18e4ff35d";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
