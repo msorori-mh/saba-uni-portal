@@ -1,7 +1,9 @@
 import {
+  assertGenericExecutorAuthoritativeRequestType,
   GENERIC_EXECUTOR_B1_FORBIDDEN_ERROR,
   isB1StaffRoutedRequestType,
 } from "@/lib/student-requests/b1-staff-action-routing";
+
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -921,7 +923,9 @@ export type ReviewStepExecutableAction = (typeof REVIEW_STEP_EXECUTABLE_ACTIONS)
 const executeReviewActionSchema = z
   .object({
     requestId: z.string().uuid(),
-    requestTypeCode: z.string().trim().min(1).optional().nullable(),
+    // REQUIRED + non-null + non-empty. This is only a first line of defence:
+    // the authoritative decision is taken server-side against the DB value.
+    requestTypeCode: z.string().trim().min(1),
     workflowStepRuntimeId: z.string().uuid(),
     action: z.enum(REVIEW_STEP_EXECUTABLE_ACTIONS),
     comment: z.string().trim().max(4000).optional().nullable(),
@@ -936,6 +940,7 @@ const executeReviewActionSchema = z
       });
     }
   });
+
 
 export type ExecuteStudentRequestStaffActionResult = {
   success: boolean;
@@ -967,7 +972,9 @@ export const executeStudentRequestStaffAction = createServerFn({ method: "POST" 
     // archive have their own contracts and dedicated executors.
     const { data: stepRow, error: stepErr } = await supabaseAdmin
       .from("student_request_workflow_steps")
-      .select("id, status, student_request_id, config:request_type_workflow_steps!inner(action_type)")
+      .select(
+        "id, status, student_request_id, config:request_type_workflow_steps!inner(action_type), request:student_requests!inner(id, request_type)",
+      )
       .eq("id", data.workflowStepRuntimeId)
       .maybeSingle();
 
@@ -976,6 +983,25 @@ export const executeStudentRequestStaffAction = createServerFn({ method: "POST" 
     if (stepRow.student_request_id !== data.requestId) {
       throw new Error("الخطوة لا تنتمي لهذا الطلب");
     }
+
+    // AUTHORITATIVE B1 routing guard — runs BEFORE any workflow RPC or write.
+    // The client-provided requestTypeCode is cross-checked against the real
+    // `student_requests.request_type` bound to this step; every ambiguous,
+    // missing, forged or mismatched value fails closed here.
+    await assertGenericExecutorAuthoritativeRequestType({
+      requestId: data.requestId,
+      stepId: data.workflowStepRuntimeId,
+      clientRequestTypeCode: data.requestTypeCode,
+      lookup: async () => {
+        const request = (stepRow as {
+          request?: { id?: string | null; request_type?: string | null } | null;
+        }).request ?? null;
+        return request
+          ? { requestId: request.id ?? null, requestTypeCode: request.request_type ?? null }
+          : null;
+      },
+    });
+
     if (stepRow.status !== "active") {
       throw new Error("الخطوة ليست نشطة — لا يمكن تنفيذ الإجراء");
     }
@@ -989,6 +1015,7 @@ export const executeStudentRequestStaffAction = createServerFn({ method: "POST" 
     if ((data.action === "reject" || data.action === "return") && !data.comment?.trim()) {
       throw new Error("التعليق مطلوب عند الرفض أو الإرجاع");
     }
+
 
     const { data: rpcData, error: rpcErr } = await (
       context.supabase as {

@@ -94,21 +94,15 @@ name or order was guessed.
 - `src/lib/student-requests/staff-inbox.functions.ts` (input validator rejects B1
   before any DB access)
 - `tests/b1-configured-action-panel-routing-42/routing.test.ts` (new, 29 tests)
-- `tests/b1-configured-action-panel-routing-42/excused-absence-review-ui-integration.test.tsx`
-  (new — single local UI integration test: `excused_absence` + configured
-  `review` renders «مراجعة», executes `review` via B1 atomic adapter only,
-  generic executor unreachable, pending guard blocks double-click)
 - `tests/student-requests/b1-ui/{components.test.tsx,journeys-staff.test.ts}` and
   `tests/student-requests/staff-inbox-{sign,archive}-action.test.ts` (assertions
   updated for the new label and the added routing guard)
 
-## 8. Tests (finalization run — package 43 / SHA-44 immutable review)
+## 8. Tests (finalization run — package 43)
 
 - `bunx tsc --noEmit` → exit 0, clean.
-- `bun test tests/b1-configured-action-panel-routing-42` (includes
-  `routing.test.ts` + `excused-absence-review-ui-integration.test.tsx`) →
-  **32 pass / 0 fail**, 109 assertions, 2 files, exit 0 (SHA-44 final
-  targeted suite).
+- `bun test tests/b1-configured-action-panel-routing-42` + the four modified
+  test files → **109 pass / 0 fail**, 484 assertions, 5 files, exit 0.
 - `bun test` (full) → **2121 pass / 2 fail / 0 skipped**, 181 files, exit 1.
 - `bun run build` → exit 0, success.
 - `git diff --check` → exit 0, clean.
@@ -169,3 +163,78 @@ visibility or workflow configuration was touched.
 - workflow RPC actions = 0
 - migrations = 0
 - deploys = 0
+
+---
+
+# Addendum — Package 46 (INDEPENDENT-REVIEW-REMEDIATION)
+
+MODE: SOURCE REMEDIATION + OFFLINE VERIFICATION ONLY
+REVIEW SHA (external, unmodified): `ee2b357ebf651a4ab3899b11582f789181d78f7d`
+
+## 11. Review outcomes addressed
+
+- **Cursor HOLD**: (a) the generic executor could be reached by omitting or
+  forging `requestTypeCode`; (b) the UI test registered permanent
+  `mock.module` replacements that broke later files in one `bun test` process.
+- **Codex PASS not accepted**: it exercised the UI path only and never ran the
+  full suite, so the module-cache pollution and the server-side bypass were
+  both invisible to it.
+
+## 12. Authoritative request-type guard
+
+Client input is no longer the security decision source.
+
+- Schema: `requestTypeCode: z.string().trim().min(1)` — required, non-null,
+  non-empty (first line of defence only).
+- Handler: the existing step query now also selects
+  `request:student_requests!inner(id, request_type)`; the real type is passed
+  to `assertGenericExecutorAuthoritativeRequestType()`
+  (`src/lib/student-requests/b1-staff-action-routing.ts`), which runs **before**
+  `act_on_student_request_step` and before the `audit_logs` insert.
+- Fail-closed cases: empty/omitted/null client type, client type is B1,
+  authoritative type is B1 (any forged client value), authoritative type
+  missing/ambiguous, step row absent, step's `student_request_id` ≠ submitted
+  `requestId`, and canonical client/authoritative mismatch
+  (`GENERIC_EXECUTOR_TYPE_MISMATCH_ERROR`).
+- Legacy alias `absence_excuse` is canonicalized and blocked.
+- Non-B1 services (incl. `enrollment_certificate`) pass unchanged.
+
+The client-side guard in `StaffRequestActionPanel` is retained for UX only.
+
+## 13. Mock isolation
+
+`tests/b1-configured-action-panel-routing-42/excused-absence-review-ui-integration.test.tsx`
+contains **zero** module-registry mocking. The real `B1StaffStepActionSection`
+and real `B1EmployeeActionPanel` are rendered; the adapter arrives through a
+normal DI prop (`adapter?: B1StaffStepActionExecutor`, default
+`getB1UiAdapter()` — no test-environment branching). The pending double-submit
+proof now drives the exported production handler factory
+`createB1StaffActHandler()` used by the component itself. A self-check test
+asserts the file registers no module mock.
+
+## 14. Verification (same environment)
+
+| group | pass | fail | skipped | exit |
+|---|---|---|---|---|
+| `bunx tsc --noEmit` | — | — | — | 0 |
+| `tests/b1-configured-action-panel-routing-42` | 46 | 0 | 0 | 0 |
+| co-run UI + `b1-ui/components` + `b1-ui/journeys-staff` | 47 | 0 | 0 | 0 |
+| same three, reversed order | 47 | 0 | 0 | 0 |
+| `staff-inbox-{sign,archive}-action` | 38 | 0 | 0 | 0 |
+| full `bun test` — BASE (pre-remediation tree) | 2116 | 10 | 0 | 1 |
+| full `bun test` — Candidate | 2138 | 2 | 0 | 1 |
+| `bun run build` | — | — | — | 0 |
+| `git diff --check` | — | — | — | 0 |
+
+BASE failures included the 8 mock-pollution failures (`B1EmployeeActionPanel` ×5,
+`B1 UI adapter selection` ×2, confirm_payment journey ×1) plus the PORTAL-D02
+environment pair. Candidate retains only the PORTAL-D02 pair, reproduced
+identically on BASE in this environment. **No new failures; 8 removed.**
+
+## 15. Counters
+
+- production operations = 0, production connections = 0
+- workflow RPC actions = 0, migrations = 0, deploys = 0
+- `enrollment_certificate` regression verdict: **PASS** (generic path intact,
+  authoritative guard allows it, visibility untouched)
+- five services `student_visible = false` (unchanged)
