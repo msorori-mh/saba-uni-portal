@@ -18,14 +18,23 @@ if [ -n "${PGHOST:-}" ] || [ -n "${DATABASE_URL:-}" ] || [ -n "${PGURI:-}" ]; th
 fi
 
 # PostgreSQL refuses to run as root. When the harness is invoked by root (CI
-# containers, sandboxes), re-exec once as a dedicated unprivileged local user.
+# containers, sandboxes), re-exec once as an unprivileged local user.
 if [ "$(id -u)" = "0" ] && [ -z "${B1_REGRESSION_33_REEXEC:-}" ]; then
-  HARNESS_USER="${B1_REGRESSION_33_USER:-pgharness}"
-  if ! id "$HARNESS_USER" >/dev/null 2>&1; then
-    useradd -m "$HARNESS_USER" >/dev/null 2>&1 || adduser -D "$HARNESS_USER" >/dev/null 2>&1
+  HARNESS_USER=""
+  for cand in ${B1_REGRESSION_33_USER:-} pgharness lovable nobody; do
+    if id "$cand" >/dev/null 2>&1; then HARNESS_USER="$cand"; break; fi
+  done
+  if [ -z "$HARNESS_USER" ]; then
+    if command -v useradd >/dev/null 2>&1; then
+      useradd -m pgharness >/dev/null 2>&1 && HARNESS_USER=pgharness
+    fi
+  fi
+  if [ -z "$HARNESS_USER" ]; then
+    echo "REFUSING TO RUN AS ROOT: no unprivileged user available for initdb." >&2
+    exit 2
   fi
   SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-  exec su "$HARNESS_USER" -s /bin/bash -c "B1_REGRESSION_33_REEXEC=1 PATH='$PATH' bash '$SELF'"
+  exec su "$HARNESS_USER" -s /bin/bash -c "B1_REGRESSION_33_REEXEC=1 PATH='$PATH' HOME=/tmp bash '$SELF'"
 fi
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
