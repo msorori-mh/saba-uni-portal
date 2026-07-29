@@ -855,22 +855,44 @@ export function main(): void {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(CASES, { recursive: true });
 
+  const stepPins = matrix.step_state_pins as Record<string, StepStatePin> | undefined;
+  if (!stepPins) throw new Error("MATRIX_MISSING_STEP_STATE_PINS");
+
   const files: string[] = [];
+  const executable: string[] = [];
+  const blocked: string[] = [];
   negatives.forEach((nc, index) => {
-    const pc = byStep.get(`${nc.request_number}|${nc.step_key}`);
+    const key = `${nc.request_number}|${nc.step_key}`;
+    const pc = byStep.get(key);
     if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
     const attest = attestation[nc.request_number];
     if (!attest) throw new Error(`MATRIX_VALIDATION_FAIL: no attested state for ${nc.request_number}`);
+    const pin = stepPins[key];
+    if (!pin) throw new Error(`MATRIX_VALIDATION_FAIL: no step state pin for ${key}`);
     const ordinal = index + 1;
+    if (isBlockedScopeCase(nc, pin)) {
+      if (nc.execution_status !== TRANSFER_SCOPE_BLOCKED_TOKEN) {
+        throw new Error(`MATRIX_VALIDATION_FAIL: blocked scope case ${key} must be marked ${TRANSFER_SCOPE_BLOCKED_TOKEN}`);
+      }
+      const name = `case-${String(ordinal).padStart(4, "0")}.BLOCKED.sql`;
+      writeFileSync(join(CASES, name), renderBlockedCase(ordinal, nc), "utf8");
+      files.push(`cases/${name}`);
+      blocked.push(`cases/${name}`);
+      return;
+    }
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
-    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest), "utf8");
+    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest, pin), "utf8");
     files.push(`cases/${name}`);
+    executable.push(`cases/${name}`);
   });
 
+  if (executable.length !== EXPECTED_EXECUTABLE_TOTAL) {
+    throw new Error(`MATRIX_EXECUTABLE_COUNT_DRIFT: ${executable.length}`);
+  }
 
   writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
-  writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(negatives.length), "utf8");
+  writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(executable, negatives.length), "utf8");
   writeFileSync(
     join(OUT, "MANIFEST.json"),
     `${JSON.stringify(
@@ -878,6 +900,10 @@ export function main(): void {
         rendered_at_utc: new Date().toISOString(),
         matrix_sha256_lf: MATRIX_SHA256_LF,
         negative_total: negatives.length,
+        executable_negative_total: executable.length,
+        blocked_negative_total: blocked.length,
+        blocked_reason: blocked.length ? TRANSFER_SCOPE_BLOCKED_TOKEN : null,
+        blocked_files: blocked,
         positive_rendered: 0,
         commits: 0,
         files: ["pins.sql", "fingerprint-check.sql", "master-negative-matrix.sql", ...files],
