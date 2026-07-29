@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = join(import.meta.dir, "../..");
@@ -63,7 +63,7 @@ describe("PR227 final unified backend stack independent review", () => {
       draft30.structural_verifier,
       draft30.post_verifier,
     ]) {
-      expect(existsSync(companion)).toBe(true);
+      expect(existsSync(join(root, companion))).toBe(true);
     }
 
     expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
