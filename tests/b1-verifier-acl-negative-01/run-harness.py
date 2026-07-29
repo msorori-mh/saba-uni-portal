@@ -119,8 +119,10 @@ CASES = [
     (
         "N1",
         "NULL proacl (no explicit REVOKE) is rejected",
-        # recreating the function resets proacl to NULL
-        "CREATE OR REPLACE FUNCTION public.guard_b1_runtime_step_activation()"
+        # DROP + CREATE without a REVOKE leaves proacl NULL, i.e. the built-in
+        # default EXECUTE-to-PUBLIC. CREATE OR REPLACE would keep the old ACL.
+        "DROP FUNCTION public.guard_b1_runtime_step_activation();"
+        " CREATE FUNCTION public.guard_b1_runtime_step_activation()"
         " RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public'"
         " AS $f$ BEGIN RETURN NEW; END $f$;",
         False,
