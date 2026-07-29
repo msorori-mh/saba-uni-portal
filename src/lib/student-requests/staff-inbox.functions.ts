@@ -1,3 +1,7 @@
+import {
+  GENERIC_EXECUTOR_B1_FORBIDDEN_ERROR,
+  isB1StaffRoutedRequestType,
+} from "@/lib/student-requests/b1-staff-action-routing";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -914,12 +918,24 @@ export const prepareStudentRequestDocumentArchiveAction = createServerFn({ metho
 export const REVIEW_STEP_EXECUTABLE_ACTIONS = ["approve", "reject", "return", "comment"] as const;
 export type ReviewStepExecutableAction = (typeof REVIEW_STEP_EXECUTABLE_ACTIONS)[number];
 
-const executeReviewActionSchema = z.object({
-  requestId: z.string().uuid(),
-  workflowStepRuntimeId: z.string().uuid(),
-  action: z.enum(REVIEW_STEP_EXECUTABLE_ACTIONS),
-  comment: z.string().trim().max(4000).optional().nullable(),
-});
+const executeReviewActionSchema = z
+  .object({
+    requestId: z.string().uuid(),
+    requestTypeCode: z.string().trim().min(1).optional().nullable(),
+    workflowStepRuntimeId: z.string().uuid(),
+    action: z.enum(REVIEW_STEP_EXECUTABLE_ACTIONS),
+    comment: z.string().trim().max(4000).optional().nullable(),
+  })
+  // Fail-closed BEFORE any DB access: B1 services must use the atomic RPC path.
+  .superRefine((value, ctx) => {
+    if (isB1StaffRoutedRequestType(value.requestTypeCode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: GENERIC_EXECUTOR_B1_FORBIDDEN_ERROR,
+        path: ["requestTypeCode"],
+      });
+    }
+  });
 
 export type ExecuteStudentRequestStaffActionResult = {
   success: boolean;

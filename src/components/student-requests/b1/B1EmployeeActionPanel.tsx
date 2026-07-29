@@ -28,7 +28,7 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
     buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
   },
   review: {
-    labelAr: "تمت المراجعة",
+    labelAr: "مراجعة",
     buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
   },
   return: {
