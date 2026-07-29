@@ -17,7 +17,8 @@ NO_ROLE_CHANGE, NO_MIGRATION, NO_DEPLOY.**
 | `negative-harness.sql`, `positive-harness.sql` | superseded / **HELD_BACK** | not run |
 
 Case source of truth: `tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json`
-(240 core + 24 illegal-action + 3 transfer-scope = **267**, positives rendered **0**,
+(240 core + 24 illegal-action + 3 transfer-scope = **267** defined, of which **264 executable**
+and **3 BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE**, positives rendered **0**,
 `COMMIT` statements **0**).
 
 ## G1 — value sanitation and denial-class fail-closed gate
@@ -132,7 +133,8 @@ as a notice for review.
 ## G9 — single-psql master execution
 
 `generated/master-negative-matrix.sql` is executed by one `psql -W … -f` process:
-preflight → `case-0001` … `case-0267` → outside-transaction baseline check. Each
+preflight → the 264 executable cases (`case-0001` … `case-0264`) → outside-transaction
+baseline check. `case-0265..0267` are rendered as `*.BLOCKED.sql` and excluded. Each
 case is its own `BEGIN ISOLATION LEVEL SERIALIZABLE … ROLLBACK`. `ON_ERROR_STOP`
 aborts the entire run at the first `PREFLIGHT_FAIL`, `CASE_STATE_DRIFT`,
 `CASE_FAIL_ALLOWED`, `CASE_FAIL_MUTATION` or `POST_RUN_FAIL`. The session runs with
@@ -155,3 +157,29 @@ the target or for credentials by design.
 - No fee assessment, no workflow transition, no `student_visible` change.
 - Negative cases always end in `ROLLBACK`; positives are **not** part of this package.
 - Secrets never enter Git, logs, or the generated report.
+
+## G10 — REMEDIATION-09 (Codex final findings)
+
+* **Illegal-action denial class.** In `act_on_b1_student_request_step_atomic` the
+  authorization gate `can_current_user_act_on_step(step, action)` runs **before**
+  the `action_type` comparison, and that predicate itself returns false when the
+  action differs from the configured `action_type`. An exact direct assignee
+  sending an illegal action is therefore denied with **`42501` /
+  `B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED`**. `B1_ACTION_TYPE_MISMATCH` is
+  unreachable from any external caller and is never accepted as proof.
+* **Transfer department scope.** The three scope-swap cases target steps that are
+  currently `pending`; the RPC would deny with `B1_ACTIVE_STEP_REQUIRED`, which
+  proves nothing about scope. They are rendered as non-executing
+  `case-02NN.BLOCKED.sql` files, excluded from the master script, and the launcher
+  fails if a blocked case ever reaches it. Status:
+  `TRANSFER_SCOPE_EXECUTION=BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE`.
+* **Per-step state pinning.** Every executable case now also pins the processing
+  unit code, processing role code, configured `action_type`, the resolved direct
+  assignee `user_id` (staff / faculty / position assignment slot) and the expected
+  predecessor state. Any drift aborts the case as `CASE_STATE_DRIFT`.
+* **Migration ledger privileges.** `supabase_migrations.schema_migrations` is part
+  of the operator privilege contract: SELECT required, any write privilege fails
+  the preflight.
+* **Trigger-aware closure.** Every enabled, non-internal trigger on a
+  write-reachable relation must map to a pinned function and seeds the transitive
+  closure walk; an unpinned trigger function is `FUNCTION_GRAPH_DRIFT`.
