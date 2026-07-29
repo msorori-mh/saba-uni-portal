@@ -1,446 +1,517 @@
 {
- "manifest_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-07",
- "note": "Authoritative, in-repository target attestation. NOTHING here may be supplied, overridden or relaxed from the CLI. The launcher and the preflight read these values only from this file.",
- "endpoint": {
-  "project_ref": "wpmicqriltrowwonknox",
-  "source": "Lovable Cloud project pooler connection string (project metadata, no database connection was opened to obtain it)",
-  "approved_pghost": "aws-1-eu-north-1.pooler.supabase.com",
-  "approved_pgport": "5432",
-  "pooler_transaction_mode_port_not_approved": "6543",
-  "approved_pgdatabase": "postgres",
-  "approved_pguser_regex": "^postgres\\.wpmicqriltrowwonknox$",
-  "approved_pgsslmode": "verify-full",
-  "host_match": "exact",
-  "user_alone_may_not_attest_target": true,
-  "reason_port_5432": "The package needs session-mode pooling: ON COMMIT DROP temp tables in the preflight, SET LOCAL ROLE and one multi-statement transaction per case. Transaction-mode port 6543 is explicitly NOT approved.",
-  "approved_pgsslrootcert_path": "scripts/b1-rpc-principal-harness-01/tls/prod-ca.crt",
-  "tls_contract": "verify-full only. The launcher must present a CA bundle at approved_pgsslrootcert_path; if it is absent, or if sslmode is anything other than verify-full, the run stops with HOLD_NEEDS_VERIFIED_TLS_ENDPOINT. sslmode=require is NOT accepted: it proves neither the CA chain nor the hostname.",
-  "forbidden_environment_channels": [
-   "PGHOSTADDR",
-   "PGSERVICE",
-   "PGSERVICEFILE",
-   "DATABASE_URL",
-   "PGPASSWORD",
-   "PGPASSFILE",
-   "PGOPTIONS",
-   "PGREQUIRESSL"
-  ]
- },
- "migration": {
-  "version": "20260729014519",
-  "name": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2",
-  "file": "supabase/migrations/20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
-  "file_sha256_lf": "b7cdc3f5b0903e2b421b959ba8103bc634b086766763f1f308a96baea78ededf"
- },
- "migration_29_functions": [
-  "public.assert_b1_runtime_step_assignee_effective(uuid)",
-  "public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)",
-  "public.b1_assignment_identity_lock_key()",
-  "public.b1_lock_assignment_identity_boundary()",
-  "public.b1_lock_assignment_identity_stmt()",
-  "public.guard_b1_runtime_step_activation()"
- ],
- "migration_29_triggers": [
-  {
-   "table": "public.student_request_workflow_steps",
-   "tgname": "trg_b1_lock_runtime_step_identity_stmt",
-   "function_signature": "public.b1_lock_assignment_identity_stmt()",
-   "tgtype": 22,
-   "tgenabled": "O",
-   "update_columns": []
+  "manifest_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-07",
+  "note": "Authoritative, in-repository target attestation. NOTHING here may be supplied, overridden or relaxed from the CLI. The launcher and the preflight read these values only from this file.",
+  "endpoint": {
+    "project_ref": "wpmicqriltrowwonknox",
+    "source": "Lovable Cloud project pooler connection string (project metadata, no database connection was opened to obtain it)",
+    "approved_pghost": "aws-1-eu-north-1.pooler.supabase.com",
+    "approved_pgport": "5432",
+    "pooler_transaction_mode_port_not_approved": "6543",
+    "approved_pgdatabase": "postgres",
+    "approved_pguser_regex": "^postgres\\.wpmicqriltrowwonknox$",
+    "approved_pgsslmode": "verify-full",
+    "host_match": "exact",
+    "user_alone_may_not_attest_target": true,
+    "reason_port_5432": "The package needs session-mode pooling: ON COMMIT DROP temp tables in the preflight, SET LOCAL ROLE and one multi-statement transaction per case. Transaction-mode port 6543 is explicitly NOT approved.",
+    "approved_pgsslrootcert_path": "scripts/b1-rpc-principal-harness-01/tls/prod-ca.crt",
+    "tls_contract": "verify-full only. The launcher must present a CA bundle at approved_pgsslrootcert_path; if it is absent, or if sslmode is anything other than verify-full, the run stops with HOLD_NEEDS_VERIFIED_TLS_ENDPOINT. sslmode=require is NOT accepted: it proves neither the CA chain nor the hostname.",
+    "forbidden_environment_channels": [
+      "PGHOSTADDR",
+      "PGSERVICE",
+      "PGSERVICEFILE",
+      "DATABASE_URL",
+      "PGPASSWORD",
+      "PGPASSFILE",
+      "PGOPTIONS",
+      "PGREQUIRESSL"
+    ]
   },
-  {
-   "table": "public.student_request_workflow_steps",
-   "tgname": "trg_guard_b1_runtime_step_activation_insert",
-   "function_signature": "public.guard_b1_runtime_step_activation()",
-   "tgtype": 7,
-   "tgenabled": "O",
-   "update_columns": []
+  "migration": {
+    "version": "20260729014519",
+    "name": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2",
+    "file": "supabase/migrations/20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "file_sha256_lf": "b7cdc3f5b0903e2b421b959ba8103bc634b086766763f1f308a96baea78ededf"
   },
-  {
-   "table": "public.student_request_workflow_steps",
-   "tgname": "trg_guard_b1_runtime_step_activation",
-   "function_signature": "public.guard_b1_runtime_step_activation()",
-   "tgtype": 19,
-   "tgenabled": "O",
-   "update_columns": [
-    "status"
-   ]
-  },
-  {
-   "table": "public.request_processing_assignments",
-   "tgname": "trg_b1_lock_processing_assignment_stmt",
-   "function_signature": "public.b1_lock_assignment_identity_stmt()",
-   "tgtype": 30,
-   "tgenabled": "O",
-   "update_columns": []
-  },
-  {
-   "table": "public.position_assignments",
-   "tgname": "trg_b1_lock_position_assignment_stmt",
-   "function_signature": "public.b1_lock_assignment_identity_stmt()",
-   "tgtype": 30,
-   "tgenabled": "O",
-   "update_columns": []
-  },
-  {
-   "table": "public.staff_profiles",
-   "tgname": "trg_b1_lock_staff_profile_identity_stmt",
-   "function_signature": "public.b1_lock_assignment_identity_stmt()",
-   "tgtype": 26,
-   "tgenabled": "O",
-   "update_columns": [
-    "user_id",
-    "status"
-   ]
-  },
-  {
-   "table": "public.faculty_profiles",
-   "tgname": "trg_b1_lock_faculty_profile_identity_stmt",
-   "function_signature": "public.b1_lock_assignment_identity_stmt()",
-   "tgtype": 26,
-   "tgenabled": "O",
-   "update_columns": [
-    "user_id",
-    "status",
-    "department_id"
-   ]
-  },
-  {
-   "table": "public.transfer_request_details",
-   "tgname": "trg_b1_lock_transfer_department_scope_stmt",
-   "function_signature": "public.b1_lock_assignment_identity_stmt()",
-   "tgtype": 18,
-   "tgenabled": "O",
-   "update_columns": [
-    "current_department_id",
-    "requested_department_id"
-   ]
-  }
- ],
- "function_graph": {
-  "note": "REMEDIATION-07 G8. Complete transitive closure discovered by a production READ-ONLY attestation (SELECT on pg_proc/pg_get_functiondef only) plus the Migration-29 trigger-function closure. definition_sha256 is SHA256 of pg_get_functiondef() with runs of whitespace collapsed to one space and trimmed. No entry may be null.",
-  "attested_at_utc": "2026-07-29T04:55:00Z",
-  "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY",
-  "closure_size": 25,
-  "functions": [
-   {
-    "signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
-    "definition_sha256": "109033a026b765266eb33ae5bd993118c9c6a69a3250520304b0c6ab9fedf791",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "entry_point": true
-   },
-   {
-    "signature": "public.apply_b1_academic_effect_for_request(uuid)",
-    "definition_sha256": "f65778ae23d6b8114cb6a5be09b97773bd033151c1948d0bb3204abc7135a8ac",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.apply_b1_department_transfer_effect(uuid)",
-    "definition_sha256": "c7025773b88fce8ee6e7547cd8d3b06d378908a9bd054f8da7f8222f7ccfaaa5",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.apply_b1_enrollment_suspension_effect(uuid)",
-    "definition_sha256": "ac25732184d6d4ce7c7804dbc3823b53b213b635b99512b8d4fb09887901c6b9",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.apply_b1_excused_absence_effect(uuid)",
-    "definition_sha256": "f280ca0c08530409ce949d9bfa33faeb1aac7f2eee8fcb7ce9ee6332e96e8826",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.apply_b1_file_withdrawal_effect(uuid)",
-    "definition_sha256": "9e489e9668783f022b60e6c2410262e6d29bd20eea26a47f54964f8133fa8c9d",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.apply_b1_final_chance_effect(uuid)",
-    "definition_sha256": "bd6b16adcfab57dc9be06cb8a0e29f9c3f36b3c5f3f36b38a6175035f9a5fe74",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.assert_b1_runtime_step_assignee_effective(uuid)",
-    "definition_sha256": "cd37c05339c5e7d4142e109ee1ab30352aeaf1bfa3ee49cc43ef5f8e6b30c90e",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "migration_29_trigger_closure": true
-   },
-   {
-    "signature": "public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)",
-    "definition_sha256": "4ed1775bd7598a049ca3f9b5937f11b1ee4725899a81f8ac4a71df7af5634362",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "migration_29_trigger_closure": true
-   },
-   {
-    "signature": "public.b1_assignment_identity_lock_key()",
-    "definition_sha256": "69dbed6746cd420b0094eb783e37a8a0d674ce7f836aa93044856ccf0b1d43ec",
-    "security": "INVOKER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "migration_29_trigger_closure": true
-   },
-   {
-    "signature": "public.b1_lock_assignment_identity_boundary()",
-    "definition_sha256": "30ceca8e2a60845093cbaa06b4c011ac4920a80a1874e377f58173c4170b6e30",
-    "security": "INVOKER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "migration_29_trigger_closure": true
-   },
-   {
-    "signature": "public.b1_lock_assignment_identity_stmt()",
-    "definition_sha256": "4e63de611e3c0a0ae07574c13be2c6722d697355b806ba4563c50ed513362e48",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "migration_29_trigger_closure": true
-   },
-   {
-    "signature": "public.b1_map_ui_staff_action(text)",
-    "definition_sha256": "5361cc1543d2329aa3196dda96c6fb9fabf5db75a9b4acef05c257b581305d3f",
-    "security": "INVOKER",
-    "owner": "postgres",
-    "search_path": "search_path=public, pg_temp"
-   },
-   {
-    "signature": "public.can_current_user_act_on_step(uuid,text)",
-    "definition_sha256": "8925ba22dc61080cbaf353354995cb40ce734bf3ff6a06203602e4f9a7e38fdf",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.current_user_has_exact_processing_binding(uuid,uuid)",
-    "definition_sha256": "d07510198cf7c89a8f574cc39687bcd82825dd16cdc45991d43a64ea929285e9",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.current_user_matches_transfer_department_scope(uuid,text)",
-    "definition_sha256": "a606fb5042a91f125bb7d88a685d9faaecd7584d8858d00eea4f77ba237d51c7",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.guard_b1_runtime_step_activation()",
-    "definition_sha256": "cb798f54e981e552a78300cb27550357fb8e0b1668686742f9cc660fd9fac2a1",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "migration_29_trigger_closure": true
-   },
-   {
-    "signature": "public.is_b1_stored_request_type(text)",
-    "definition_sha256": "5bc14b53c66c89fb74aaa631c106089dfaf11febb9533a042a8c0c136db6c55c",
-    "security": "INVOKER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.is_owner_of_request(uuid,uuid)",
-    "definition_sha256": "3af5fce62271fb2c998b8066d2185553d7f7bd5cae5fad704fde761ecb263234",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.is_valid_actor_request_action(text)",
-    "definition_sha256": "1a261965401a0978ee6130a92d9170f99a10f17fff9dcae351bc67bd1f2f80b6",
-    "security": "INVOKER",
-    "owner": "postgres",
-    "search_path": "search_path=public, pg_temp"
-   },
-   {
-    "signature": "public.is_valid_b1_runtime_step_contract(text,text,text,text,text)",
-    "definition_sha256": "3e02f7d89ae45fc2896908f2409f6a96008e8893ef6f0f4d77546a8497650720",
-    "security": "INVOKER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.record_external_university_payment_confirmation(uuid,text)",
-    "definition_sha256": "bbd71af7c9e32588fea8038dd898330001f2b037985cbb82992b44a5df0f5875",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public",
-    "entry_point": true
-   },
-   {
-    "signature": "public.user_matches_workflow_runtime_step(uuid)",
-    "definition_sha256": "4f87c5547f2216e82ff2564ca59ca765ac091017264e3e710c27a97cfe5118b6",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.workflow_action_result_matches(text,text)",
-    "definition_sha256": "ad701791847740302d60eabc84c533cb35dcb1f5f880b0643fdcc0b164d83e16",
-    "security": "INVOKER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   },
-   {
-    "signature": "public.workflow_runtime_predecessors_satisfied(uuid)",
-    "definition_sha256": "a47e0c17f91af232335eef086a3aaa5590865ee9506e85f039e4ed1bca1064b1",
-    "security": "DEFINER",
-    "owner": "postgres",
-    "search_path": "search_path=public"
-   }
-  ],
-  "forbidden_definition_patterns": [
-   {
-    "id": "nextval",
-    "regex": "\\mnextval\\M"
-   },
-   {
-    "id": "setval",
-    "regex": "\\msetval\\M"
-   },
-   {
-    "id": "pg_net",
-    "regex": "pg_net\\.|\\mnet\\.http_"
-   },
-   {
-    "id": "http",
-    "regex": "\\mhttp_post\\M|\\mhttp_get\\M|\\mhttp\\s*\\("
-   },
-   {
-    "id": "dblink",
-    "regex": "\\mdblink"
-   },
-   {
-    "id": "pg_notify",
-    "regex": "\\mpg_notify\\M"
-   },
-   {
-    "id": "large_object",
-    "regex": "\\mlo_export\\M|\\mlo_import\\M"
-   },
-   {
-    "id": "copy_program",
-    "regex": "\\mcopy\\M[\\s\\S]{0,200}\\mprogram\\M"
-   },
-   {
-    "id": "dynamic_execute",
-    "regex": "\\mexecute\\M"
-   },
-   {
-    "id": "dynamic_call",
-    "regex": "\\mcall\\M"
-   }
-  ],
-  "scan_contract": "The scan runs on the function body with -- line comments and /* */ block comments removed and the text lower-cased, so a comment that merely contains the word execute can never trip it and a real dynamic EXECUTE can never hide behind one.",
-  "trigger_aware_closure": {
-   "note": "REMEDIATION-09 G5. Every enabled, non-internal trigger on any relation the two RPC entry points can write is discovered at preflight time. Its trigger function must be pinned in function_graph.functions and is seeded into the transitive closure walk. An unpinned trigger function is FUNCTION_GRAPH_DRIFT and halts the run.",
-   "dml_relations": [
-    "student_request_workflow_steps",
-    "student_request_workflow_events",
-    "student_requests",
-    "student_request_fee_assessments",
-    "payment_receipts",
-    "official_documents",
-    "notifications",
-    "audit_logs",
-    "transfer_request_details",
-    "enrollment_suspension_details",
-    "absence_excuse_details",
-    "extra_chance_details",
-    "file_withdrawal_details",
-    "student_excused_absences",
-    "student_extra_chances",
-    "student_academic_status",
-    "student_enrollments"
-   ],
-   "pinned_trigger_functions": [
+  "migration_29_functions": [
+    "public.assert_b1_runtime_step_assignee_effective(uuid)",
+    "public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)",
+    "public.b1_assignment_identity_lock_key()",
+    "public.b1_lock_assignment_identity_boundary()",
     "public.b1_lock_assignment_identity_stmt()",
     "public.guard_b1_runtime_step_activation()"
-   ],
-   "unpinned_trigger_function_verdict": "FUNCTION_GRAPH_DRIFT"
-  }
- },
- "authoritative_baseline": {
-  "status": "PENDING",
-  "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
-  "artifact_sha256": null,
-  "fingerprint": null,
-  "generated_by": "Lovable read-only channel, immediately before the operator run",
-  "valid_for_minutes": 120,
-  "scope": [
-   "SR-20260727-42393846",
-   "SR-20260727-50BEDCE2",
-   "SR-20260727-3C550070",
-   "SR-20260727-88D885F0",
-   "SR-20260727-695EC35B",
-   "SR-20260713-2DE64041",
-   "SR-20260715-FEDCB3E1",
-   "SR-20260716-26BAD4C8"
   ],
-  "contains_secrets": false,
-  "on_mismatch": "PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN"
- },
- "protected_records": [
-  "SR-20260713-2DE64041",
-  "SR-20260715-FEDCB3E1",
-  "SR-20260716-26BAD4C8",
-  "USR-2026-000001",
-  "USR-2026-000002"
- ],
- "b1_services": [
-  "enrollment_suspension",
-  "excused_absence",
-  "department_transfer",
-  "final_chance",
-  "file_withdrawal"
- ],
- "probe_sub": "3a279561-f8e6-41d9-b8ca-ce60682c9eab",
- "matrix": {
-  "path": "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json",
-  "sha256_lf": "c5e63b6a067a6deb812016cbd7e376460da711be2162aff59c8266b2f242282c",
-  "negative_total": 267,
-  "decomposition": "240 core + 24 illegal-action + 3 transfer-scope (3 blocked, 264 executable)",
-  "executable_negative_total": 264,
-  "blocked_negative_total": 3,
-  "blocked_reason": "BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE (transfer department scope requires an ACTIVE head step)"
- },
- "operator_privilege_contract": {
-  "row_locks": "FORBIDDEN. No FOR SHARE / FOR UPDATE / FOR KEY SHARE anywhere in the package: PostgreSQL requires UPDATE privilege for row-level lock clauses, which contradicts a pure read-only observer.",
-  "advisory_locks": "FORBIDDEN as a protection claim: ordinary write paths do not take them.",
-  "required": [
-   "SELECT on every scope relation",
-   "not owner of any scope relation",
-   "not SUPERUSER",
-   "not BYPASSRLS",
-   "no table-level INSERT/UPDATE/DELETE/TRUNCATE",
-   "no column-level INSERT/UPDATE on any scope relation",
-   "SELECT on supabase_migrations.schema_migrations",
-   "no INSERT/UPDATE/DELETE on supabase_migrations.schema_migrations"
+  "migration_29_triggers": [
+    {
+      "table": "public.student_request_workflow_steps",
+      "tgname": "trg_b1_lock_runtime_step_identity_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 22,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.student_request_workflow_steps",
+      "tgname": "trg_guard_b1_runtime_step_activation_insert",
+      "function_signature": "public.guard_b1_runtime_step_activation()",
+      "tgtype": 7,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.student_request_workflow_steps",
+      "tgname": "trg_guard_b1_runtime_step_activation",
+      "function_signature": "public.guard_b1_runtime_step_activation()",
+      "tgtype": 19,
+      "tgenabled": "O",
+      "update_columns": [
+        "status"
+      ]
+    },
+    {
+      "table": "public.request_processing_assignments",
+      "tgname": "trg_b1_lock_processing_assignment_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 30,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.position_assignments",
+      "tgname": "trg_b1_lock_position_assignment_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 30,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.staff_profiles",
+      "tgname": "trg_b1_lock_staff_profile_identity_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 26,
+      "tgenabled": "O",
+      "update_columns": [
+        "user_id",
+        "status"
+      ]
+    },
+    {
+      "table": "public.faculty_profiles",
+      "tgname": "trg_b1_lock_faculty_profile_identity_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 26,
+      "tgenabled": "O",
+      "update_columns": [
+        "user_id",
+        "status",
+        "department_id"
+      ]
+    },
+    {
+      "table": "public.transfer_request_details",
+      "tgname": "trg_b1_lock_transfer_department_scope_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 18,
+      "tgenabled": "O",
+      "update_columns": [
+        "current_department_id",
+        "requested_department_id"
+      ]
+    }
   ],
-  "isolation": "BEGIN ISOLATION LEVEL SERIALIZABLE per case, ROLLBACK only, no retry. Any serialization failure or drift stops the run.",
-  "migration_ledger": {
-   "relation": "supabase_migrations.schema_migrations",
-   "read": "REQUIRED — the exact Migration-29 version+name contract is verified from it",
-   "write": "FORBIDDEN — any write privilege on the ledger fails the preflight"
+  "function_graph": {
+    "note": "REMEDIATION-07 G8. Complete transitive closure discovered by a production READ-ONLY attestation (SELECT on pg_proc/pg_get_functiondef only) plus the Migration-29 trigger-function closure. definition_sha256 is SHA256 of pg_get_functiondef() with runs of whitespace collapsed to one space and trimmed. No entry may be null.",
+    "attested_at_utc": "2026-07-29T04:55:00Z",
+    "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY",
+    "closure_size": 25,
+    "functions": [
+      {
+        "signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+        "definition_sha256": "109033a026b765266eb33ae5bd993118c9c6a69a3250520304b0c6ab9fedf791",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "entry_point": true
+      },
+      {
+        "signature": "public.apply_b1_academic_effect_for_request(uuid)",
+        "definition_sha256": "f65778ae23d6b8114cb6a5be09b97773bd033151c1948d0bb3204abc7135a8ac",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.apply_b1_department_transfer_effect(uuid)",
+        "definition_sha256": "c7025773b88fce8ee6e7547cd8d3b06d378908a9bd054f8da7f8222f7ccfaaa5",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.apply_b1_enrollment_suspension_effect(uuid)",
+        "definition_sha256": "ac25732184d6d4ce7c7804dbc3823b53b213b635b99512b8d4fb09887901c6b9",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.apply_b1_excused_absence_effect(uuid)",
+        "definition_sha256": "f280ca0c08530409ce949d9bfa33faeb1aac7f2eee8fcb7ce9ee6332e96e8826",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.apply_b1_file_withdrawal_effect(uuid)",
+        "definition_sha256": "9e489e9668783f022b60e6c2410262e6d29bd20eea26a47f54964f8133fa8c9d",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.apply_b1_final_chance_effect(uuid)",
+        "definition_sha256": "bd6b16adcfab57dc9be06cb8a0e29f9c3f36b3c5f3f36b38a6175035f9a5fe74",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.assert_b1_runtime_step_assignee_effective(uuid)",
+        "definition_sha256": "cd37c05339c5e7d4142e109ee1ab30352aeaf1bfa3ee49cc43ef5f8e6b30c90e",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "migration_29_trigger_closure": true
+      },
+      {
+        "signature": "public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)",
+        "definition_sha256": "4ed1775bd7598a049ca3f9b5937f11b1ee4725899a81f8ac4a71df7af5634362",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "migration_29_trigger_closure": true
+      },
+      {
+        "signature": "public.b1_assignment_identity_lock_key()",
+        "definition_sha256": "69dbed6746cd420b0094eb783e37a8a0d674ce7f836aa93044856ccf0b1d43ec",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "migration_29_trigger_closure": true
+      },
+      {
+        "signature": "public.b1_lock_assignment_identity_boundary()",
+        "definition_sha256": "30ceca8e2a60845093cbaa06b4c011ac4920a80a1874e377f58173c4170b6e30",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "migration_29_trigger_closure": true
+      },
+      {
+        "signature": "public.b1_lock_assignment_identity_stmt()",
+        "definition_sha256": "4e63de611e3c0a0ae07574c13be2c6722d697355b806ba4563c50ed513362e48",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "migration_29_trigger_closure": true
+      },
+      {
+        "signature": "public.b1_map_ui_staff_action(text)",
+        "definition_sha256": "5361cc1543d2329aa3196dda96c6fb9fabf5db75a9b4acef05c257b581305d3f",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp"
+      },
+      {
+        "signature": "public.can_current_user_act_on_step(uuid,text)",
+        "definition_sha256": "8925ba22dc61080cbaf353354995cb40ce734bf3ff6a06203602e4f9a7e38fdf",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.current_user_has_exact_processing_binding(uuid,uuid)",
+        "definition_sha256": "d07510198cf7c89a8f574cc39687bcd82825dd16cdc45991d43a64ea929285e9",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.current_user_matches_transfer_department_scope(uuid,text)",
+        "definition_sha256": "a606fb5042a91f125bb7d88a685d9faaecd7584d8858d00eea4f77ba237d51c7",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.guard_b1_runtime_step_activation()",
+        "definition_sha256": "cb798f54e981e552a78300cb27550357fb8e0b1668686742f9cc660fd9fac2a1",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "migration_29_trigger_closure": true
+      },
+      {
+        "signature": "public.is_b1_stored_request_type(text)",
+        "definition_sha256": "5bc14b53c66c89fb74aaa631c106089dfaf11febb9533a042a8c0c136db6c55c",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.is_owner_of_request(uuid,uuid)",
+        "definition_sha256": "3af5fce62271fb2c998b8066d2185553d7f7bd5cae5fad704fde761ecb263234",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.is_valid_actor_request_action(text)",
+        "definition_sha256": "1a261965401a0978ee6130a92d9170f99a10f17fff9dcae351bc67bd1f2f80b6",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp"
+      },
+      {
+        "signature": "public.is_valid_b1_runtime_step_contract(text,text,text,text,text)",
+        "definition_sha256": "3e02f7d89ae45fc2896908f2409f6a96008e8893ef6f0f4d77546a8497650720",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.record_external_university_payment_confirmation(uuid,text)",
+        "definition_sha256": "bbd71af7c9e32588fea8038dd898330001f2b037985cbb82992b44a5df0f5875",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public",
+        "entry_point": true
+      },
+      {
+        "signature": "public.user_matches_workflow_runtime_step(uuid)",
+        "definition_sha256": "4f87c5547f2216e82ff2564ca59ca765ac091017264e3e710c27a97cfe5118b6",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.workflow_action_result_matches(text,text)",
+        "definition_sha256": "ad701791847740302d60eabc84c533cb35dcb1f5f880b0643fdcc0b164d83e16",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      },
+      {
+        "signature": "public.workflow_runtime_predecessors_satisfied(uuid)",
+        "definition_sha256": "a47e0c17f91af232335eef086a3aaa5590865ee9506e85f039e4ed1bca1064b1",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public"
+      }
+    ],
+    "forbidden_definition_patterns": [
+      {
+        "id": "nextval",
+        "regex": "\\mnextval\\M"
+      },
+      {
+        "id": "setval",
+        "regex": "\\msetval\\M"
+      },
+      {
+        "id": "pg_net",
+        "regex": "pg_net\\.|\\mnet\\.http_"
+      },
+      {
+        "id": "http",
+        "regex": "\\mhttp_post\\M|\\mhttp_get\\M|\\mhttp\\s*\\("
+      },
+      {
+        "id": "dblink",
+        "regex": "\\mdblink"
+      },
+      {
+        "id": "pg_notify",
+        "regex": "\\mpg_notify\\M"
+      },
+      {
+        "id": "large_object",
+        "regex": "\\mlo_export\\M|\\mlo_import\\M"
+      },
+      {
+        "id": "copy_program",
+        "regex": "\\mcopy\\M[\\s\\S]{0,200}\\mprogram\\M"
+      },
+      {
+        "id": "dynamic_execute",
+        "regex": "\\mexecute\\M"
+      },
+      {
+        "id": "dynamic_call",
+        "regex": "\\mcall\\M"
+      }
+    ],
+    "scan_contract": "The scan runs on the function body with -- line comments and /* */ block comments removed and the text lower-cased, so a comment that merely contains the word execute can never trip it and a real dynamic EXECUTE can never hide behind one.",
+    "trigger_aware_closure": {
+      "note": "REMEDIATION-09 G5. Every enabled, non-internal trigger on any relation the two RPC entry points can write is discovered at preflight time. Its trigger function must be pinned in function_graph.functions and is seeded into the transitive closure walk. An unpinned trigger function is FUNCTION_GRAPH_DRIFT and halts the run. REMEDIATION-12 G5: public.student_profiles is part of the DML-reachable set (the department_transfer / file_withdrawal academic effects touch it), so every enabled trigger on it is discovered and must be pinned.",
+      "dml_relations": [
+        "student_request_workflow_steps",
+        "student_request_workflow_events",
+        "student_requests",
+        "student_request_fee_assessments",
+        "payment_receipts",
+        "official_documents",
+        "notifications",
+        "audit_logs",
+        "transfer_request_details",
+        "enrollment_suspension_details",
+        "absence_excuse_details",
+        "extra_chance_details",
+        "file_withdrawal_details",
+        "student_excused_absences",
+        "student_extra_chances",
+        "student_academic_status",
+        "student_enrollments",
+        "student_profiles"
+      ],
+      "pinned_trigger_functions": [
+        "public.b1_lock_assignment_identity_stmt()",
+        "public.guard_b1_runtime_step_activation()"
+      ],
+      "unpinned_trigger_function_verdict": "FUNCTION_GRAPH_DRIFT",
+      "declared_relation_triggers": {
+        "public.student_profiles": [
+          {
+            "tgname": "trg_student_profiles_updated_at",
+            "function_signature": "public.update_updated_at_column()",
+            "timing": "BEFORE UPDATE",
+            "level": "ROW",
+            "tgtype": 19,
+            "tgenabled": "O",
+            "source_migration": "20260531222858_bb6a8a90-2945-410c-a835-2268e62c3927.sql"
+          },
+          {
+            "tgname": "trg_protect_student_sensitive",
+            "function_signature": "public.protect_student_sensitive_fields()",
+            "timing": "BEFORE UPDATE",
+            "level": "ROW",
+            "tgtype": 19,
+            "tgenabled": "O",
+            "source_migration": "20260531223457_2c9e7828-e98e-42e0-b688-0c49f4810787.sql"
+          }
+        ]
+      },
+      "pending_attestation": {
+        "status": "PENDING_PRODUCTION_ATTESTATION",
+        "reason": "REMEDIATION-12 is SOURCE-ONLY: NO_PRODUCTION_CONNECTION, so pg_get_functiondef SHA256, owner and proconfig for the student_profiles trigger closure could not be captured in this round.",
+        "verdict_when_unpinned": "FUNCTION_GRAPH_DRIFT",
+        "functions": [
+          {
+            "signature": "public.update_updated_at_column()",
+            "definition_sha256": null,
+            "security": "INVOKER",
+            "owner": "postgres",
+            "search_path": "search_path=public",
+            "source_derived_calls": [],
+            "external_side_effects_source_scan": "none"
+          },
+          {
+            "signature": "public.protect_student_sensitive_fields()",
+            "definition_sha256": null,
+            "security": "DEFINER",
+            "owner": "postgres",
+            "search_path": "search_path=public",
+            "source_derived_calls": [
+              "public.has_any_role(uuid,text[])",
+              "auth.uid()",
+              "current_setting(text,boolean)"
+            ],
+            "external_side_effects_source_scan": "none"
+          },
+          {
+            "signature": "public.has_any_role(uuid,text[])",
+            "definition_sha256": null,
+            "security": "DEFINER",
+            "owner": "postgres",
+            "search_path": "search_path=public",
+            "source_derived_calls": [],
+            "external_side_effects_source_scan": "none"
+          }
+        ]
+      }
+    }
+  },
+  "authoritative_baseline": {
+    "status": "PENDING",
+    "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
+    "artifact_sha256": null,
+    "fingerprint": null,
+    "generated_by": "Lovable read-only channel, immediately before the operator run",
+    "valid_for_minutes": 120,
+    "scope": [
+      "SR-20260727-42393846",
+      "SR-20260727-50BEDCE2",
+      "SR-20260727-3C550070",
+      "SR-20260727-88D885F0",
+      "SR-20260727-695EC35B",
+      "SR-20260713-2DE64041",
+      "SR-20260715-FEDCB3E1",
+      "SR-20260716-26BAD4C8"
+    ],
+    "contains_secrets": false,
+    "on_mismatch": "PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN"
+  },
+  "protected_records": [
+    "SR-20260713-2DE64041",
+    "SR-20260715-FEDCB3E1",
+    "SR-20260716-26BAD4C8",
+    "USR-2026-000001",
+    "USR-2026-000002"
+  ],
+  "b1_services": [
+    "enrollment_suspension",
+    "excused_absence",
+    "department_transfer",
+    "final_chance",
+    "file_withdrawal"
+  ],
+  "probe_sub": "3a279561-f8e6-41d9-b8ca-ce60682c9eab",
+  "matrix": {
+    "path": "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json",
+    "sha256_lf": "fd2621877d4db1df5927f0583d6de5a269c9e50b258578592c299f373459739d",
+    "negative_total": 267,
+    "decomposition": "240 core + 24 illegal-action + 3 transfer-scope (3 blocked, 264 executable)",
+    "executable_negative_total": 245,
+    "blocked_negative_total": 22,
+    "blocked_reason": "BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE (transfer department scope requires an ACTIVE head step)",
+    "blocked_token": "BLOCKED_PENDING_ACTIVE_FIXTURE"
+  },
+  "operator_privilege_contract": {
+    "row_locks": "FORBIDDEN. No FOR SHARE / FOR UPDATE / FOR KEY SHARE anywhere in the package: PostgreSQL requires UPDATE privilege for row-level lock clauses, which contradicts a pure read-only observer.",
+    "advisory_locks": "FORBIDDEN as a protection claim: ordinary write paths do not take them.",
+    "required": [
+      "SELECT on every scope relation",
+      "not owner of any scope relation",
+      "not SUPERUSER",
+      "not BYPASSRLS",
+      "no table-level INSERT/UPDATE/DELETE/TRUNCATE",
+      "no column-level INSERT/UPDATE on any scope relation",
+      "SELECT on supabase_migrations.schema_migrations",
+      "not owner of supabase_migrations.schema_migrations",
+      "no table-level INSERT/UPDATE/DELETE/TRUNCATE on supabase_migrations.schema_migrations",
+      "no column-level INSERT/UPDATE on supabase_migrations.schema_migrations"
+    ],
+    "isolation": "BEGIN ISOLATION LEVEL SERIALIZABLE per case, ROLLBACK only, no retry. Any serialization failure or drift stops the run.",
+    "migration_ledger": {
+      "relation": "supabase_migrations.schema_migrations",
+      "ownership": "FORBIDDEN — owning the ledger implies an implicit RLS/permission bypass; B1_PREFLIGHT_OPERATOR_OWNS_MIGRATION_LEDGER",
+      "read": "REQUIRED — the exact Migration-29 version+name contract is verified from it; missing SELECT is OPERATOR_VISIBILITY_NOT_PROVEN",
+      "table_level_write": "FORBIDDEN — INSERT/UPDATE/DELETE/TRUNCATE all fail the preflight with B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE",
+      "column_level_write": "FORBIDDEN — any applicable column-level INSERT/UPDATE grant fails the preflight with B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE"
+    },
+    "blocked_cases": {
+      "rule": "The matrix may not start and may not be declared PASS while blocked_cases > 0.",
+      "hold_token": "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE",
+      "current_blocked_total": 22
+    }
   }
- }
 }
