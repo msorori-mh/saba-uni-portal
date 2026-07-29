@@ -477,9 +477,55 @@ BEFORE UPDATE OF current_department_id, requested_department_id
 FOR EACH STATEMENT
 EXECUTE FUNCTION public.b1_lock_assignment_identity_stmt();
 
-
+-- ----------------------------------------------------------------------------
+-- 4. FAIL-CLOSED ACL ASSERTION (in-migration, same transaction)
+--    Every function created above is internal / trigger-only. None of them is
+--    granted to any client role. The REVOKEs above are what materialise an
+--    explicit proacl: without them PostgreSQL leaves proacl NULL and the
+--    built-in default (EXECUTE to PUBLIC) applies. This block refuses to
+--    commit if that contract is not satisfied, so the apply itself is
+--    fail-closed and never depends on the post-verifier being run.
+--    It grants nothing and widens nothing.
+-- ----------------------------------------------------------------------------
+DO $acl$
+DECLARE
+  v_sig  text;
+  v_oid  oid;
+  v_acl  aclitem[];
+  v_role text;
+BEGIN
+  FOREACH v_sig IN ARRAY ARRAY[
+    'public.b1_assignment_identity_lock_key()',
+    'public.b1_lock_assignment_identity_boundary()',
+    'public.b1_lock_assignment_identity_stmt()',
+    'public.guard_b1_runtime_step_activation()',
+    'public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)',
+    'public.assert_b1_runtime_step_assignee_effective(uuid)'
+  ] LOOP
+    v_oid := to_regprocedure(v_sig);
+    IF v_oid IS NULL THEN
+      RAISE EXCEPTION 'B1_ACL_CONTRACT_FAIL: % missing with the exact required signature', v_sig;
+    END IF;
+    SELECT p.proacl INTO v_acl FROM pg_proc p WHERE p.oid = v_oid;
+    IF v_acl IS NULL THEN
+      RAISE EXCEPTION
+        'B1_ACL_CONTRACT_FAIL: % has NULL proacl (default PUBLIC EXECUTE applies)', v_sig;
+    END IF;
+    IF has_function_privilege('public', v_oid, 'EXECUTE') THEN
+      RAISE EXCEPTION 'B1_ACL_CONTRACT_FAIL: % is EXECUTE-able by PUBLIC', v_sig;
+    END IF;
+    FOREACH v_role IN ARRAY ARRAY['anon','authenticated'] LOOP
+      IF EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname = v_role)
+         AND has_function_privilege(v_role, v_oid, 'EXECUTE') THEN
+        RAISE EXCEPTION 'B1_ACL_CONTRACT_FAIL: % is EXECUTE-able by %', v_sig, v_role;
+      END IF;
+    END LOOP;
+  END LOOP;
+END
+$acl$;
 
 COMMIT;
+
 
 -- ============================================================================
 -- Fail-closed semantics
