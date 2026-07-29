@@ -184,7 +184,6 @@ BEGIN
         RAISE EXCEPTION 'POSTVERIFY_FAIL: % is EXECUTE-able by %', v_fn.sig, v_role;
       END IF;
     END LOOP;
-  -- <<< B1_ACL_CONTRACT_END
     -- Belt and braces: no explicit EXECUTE ACE for PUBLIC/anon/authenticated.
     IF EXISTS (
       SELECT 1 FROM aclexplode(v_fn.proacl) a
@@ -195,6 +194,7 @@ BEGIN
       RAISE EXCEPTION 'POSTVERIFY_FAIL: % has an explicit EXECUTE grant to PUBLIC/anon/authenticated', v_fn.sig;
     END IF;
   END LOOP;
+  -- <<< B1_ACL_CONTRACT_END
 
   -- Trigger functions must return trigger.
   IF (SELECT prorettype FROM pg_proc WHERE oid = 'public.b1_lock_assignment_identity_stmt()'::regprocedure)
