@@ -28,8 +28,12 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "1f246d358e2f58a400b374f09c1b1873d3088a9c2b8a095a27b9ff0df83cacae";
+export const MATRIX_SHA256_LF = "c5e63b6a067a6deb812016cbd7e376460da711be2162aff59c8266b2f242282c";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
+/** REMEDIATION-09 G2: the three transfer-scope cases are blocked until an
+ *  ACTIVE transfer head fixture exists; they are rendered non-executing. */
+export const EXPECTED_EXECUTABLE_TOTAL = 264;
+export const TRANSFER_SCOPE_BLOCKED_TOKEN = "BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE";
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
 /** G1 — forbidden characters / tokens in ANY MATRIX-derived value. */
