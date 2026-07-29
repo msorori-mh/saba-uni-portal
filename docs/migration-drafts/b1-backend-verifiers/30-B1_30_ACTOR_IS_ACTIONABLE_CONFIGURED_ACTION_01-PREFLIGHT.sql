@@ -175,10 +175,13 @@ select 'enrollment_certificate' as code,
 
 \echo == P11a: enrollment_certificate workflow + authorization surface baseline (must not change)
 select
-  (select count(*) from public.request_type_workflows w where w.request_type_code = 'enrollment_certificate') as ec_workflows,
+  (select count(*) from public.request_type_workflows w
+     join public.request_types rt on rt.id = w.request_type_id
+    where rt.code = 'enrollment_certificate') as ec_workflows,
   (select count(*) from public.request_type_workflow_steps s
      join public.request_type_workflows w on w.id = s.workflow_id
-    where w.request_type_code = 'enrollment_certificate') as ec_workflow_steps,
+     join public.request_types rt on rt.id = w.request_type_id
+    where rt.code = 'enrollment_certificate') as ec_workflow_steps,
   (select count(*) from public.official_documents) as official_documents,
   (select count(*) from public.enrollment_certificate_document_details) as ec_document_details;
 
