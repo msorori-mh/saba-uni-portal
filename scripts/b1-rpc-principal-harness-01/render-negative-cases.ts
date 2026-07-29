@@ -269,17 +269,39 @@ type NegativeCase = {
   zero_mutation: boolean;
 };
 
+export type AttestedRequestState = {
+  request_type: string;
+  request_status: string;
+  active_step_count: number;
+  active_step_id: string;
+  fee_assessment_rows: number;
+  source_department_id: string | null;
+  target_department_id: string | null;
+};
+
 function renderCase(
   ordinal: number,
   nc: NegativeCase,
   pc: PositiveCase,
   fingerprintExpr: string,
   contract: DenialContract,
+  attest: AttestedRequestState,
 ): string {
   const isAnon = nc.actor_user_id === null;
   const actor = isAnon ? null : assertUuid("actor_user_id", nc.actor_user_id as string);
   const stepId = assertUuid("runtime_step_id", nc.runtime_step_id ?? pc.runtime_step_id);
   const action = assertSafeScalar("action", nc.action);
+  if (attest.request_type !== pc.request_type) {
+    throw new Error(`MATRIX_VALIDATION_FAIL: attested request_type drift for ${nc.request_number}`);
+  }
+  const attestedSourceDepartment =
+    pc.request_type === "department_transfer"
+      ? assertUuid("source_department_id", attest.source_department_id as string)
+      : "";
+  const attestedTargetDepartment =
+    pc.request_type === "department_transfer"
+      ? assertUuid("target_department_id", attest.target_department_id as string)
+      : "";
   if (!ACTION_RE.test(action)) throw new Error("MATRIX_VALIDATION_FAIL: action shape");
   if (!KEY_RE.test(assertSafeScalar("step_key", nc.step_key))) {
     throw new Error("MATRIX_VALIDATION_FAIL: step_key shape");
