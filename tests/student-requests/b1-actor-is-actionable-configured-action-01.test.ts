@@ -45,22 +45,21 @@ const FIXED_RPCS = [
 ] as const;
 
 describe("B1 actor is_actionable — configured-action source contract", () => {
-  it("is a forward-only draft and NOT an applied migration", () => {
+  // RECONCILIATION-38: the draft was promoted and applied exactly once as
+  // supabase/migrations/20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql.
+  it("is a forward-only package applied exactly once", () => {
     expect(sql).toContain("SOURCE-ONLY");
-    expect(sql).toContain("NEVER APPLIED BY THIS PR");
     expect(sql).toContain("FORWARD-ONLY");
     expect(sql.trimStart().startsWith("--")).toBe(true);
     expect(sql).toContain("begin;");
     expect(sql.trimEnd().endsWith("commit;")).toBe(true);
 
-    const applied = readdirSync(join(ROOT, "supabase/migrations"));
-    expect(
-      applied.some((f) =>
-        readFileSync(join(ROOT, "supabase/migrations", f), "utf8").includes(
-          "workflow_runtime_step_configured_action",
-        ),
+    const carriers = readdirSync(join(ROOT, "supabase/migrations")).filter((f) =>
+      readFileSync(join(ROOT, "supabase/migrations", f), "utf8").includes(
+        "workflow_runtime_step_configured_action",
       ),
-    ).toBe(false);
+    );
+    expect(carriers).toEqual(["20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql"]);
   });
 
   it("adds the fail-closed configured-action resolver with a stable signature", () => {

@@ -4,10 +4,14 @@
 -- Executed inside an explicit READ ONLY transaction; ends with ROLLBACK.
 BEGIN READ ONLY;
 
-\echo == V1: migration history advanced by exactly one and nothing was rewritten
-select count(*) as migrations,
-       max(version) as latest_version
-from supabase_migrations.schema_migrations;
+-- DEFECT-3 FIX: supabase_migrations.schema_migrations is not readable by the
+-- roles available to this verifier, so V1 no longer depends on it. The applied
+-- version is attested from the source-of-truth migration file under
+-- supabase/migrations (20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql)
+-- and by PROMOTION-MAP.json. The optional ledger read is at the end of this
+-- file, fully detached, and may only be run by a privileged operator.
+\echo == V1: migration ledger read intentionally detached (see optional block at EOF)
+select 'SKIPPED_BY_DESIGN_SEE_PROMOTION_MAP' as check;
 
 \echo == V2: helper installed
 select p.proname, pg_get_function_identity_arguments(p.oid) as args,
@@ -19,7 +23,7 @@ where n.nspname = 'public' and p.proname = 'workflow_runtime_step_configured_act
 select case when count(*) = 0 then 'PASS' else 'FAIL' end as check
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.prokind = 'f'
-  and pg_get_functiondef(p.oid) ~* 'can_current_user_act_on_step\s*\([^)]*''approve''';
+  and p.prosrc ~* 'can_current_user_act_on_step\s*\([^)]*''approve''';
 
 \echo == V4: ACL of the three RPCs identical to preflight P5 snapshot
 select p.proname, coalesce(p.proacl::text, '<default>') as acl
@@ -64,10 +68,10 @@ select
   (select count(*) from public.request_types where student_visible) as student_visible_types;
 
 \echo == V8: gate body unchanged (compare md5 with preflight P3 / structural S7)
-select proname, md5(pg_get_functiondef(oid)) as body_md5
+select p.proname, md5(p.prosrc) as body_md5
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
-  and proname in ('can_current_user_act_on_step', 'user_matches_workflow_runtime_step');
+  and p.proname in ('can_current_user_act_on_step', 'user_matches_workflow_runtime_step');
 
 ROLLBACK;
 
@@ -174,3 +178,11 @@ select
   (select count(*) from public.enrollment_certificate_document_details) as ec_document_details;
 
 ROLLBACK;
+
+-- OPTIONAL / SEPARATE — migration ledger attestation (privileged operator only).
+-- Detached on purpose: a permission error here must never invalidate V2..V12a.
+-- BEGIN READ ONLY;
+-- select count(*) as migrations, max(version) as latest_version
+-- from supabase_migrations.schema_migrations;
+-- expected latest_version = 20260729173359
+-- ROLLBACK;

@@ -135,13 +135,16 @@ describe("G4 — deterministic executable runtime regression", () => {
 });
 
 describe("promotion map stays truthful", () => {
-  it("records the current LF SHA256 of every package artifact and NOT_APPLIED", () => {
+  it("records the current LF SHA256 of every package artifact and APPLIED state", () => {
     const map = JSON.parse(read(`${VERIFIER_DIR}/PROMOTION-MAP.json`));
     const list: Array<Record<string, unknown>> = Array.isArray(map) ? map : map.packages;
     const entry = list.find((e) => e.draft === "B1-ACTOR-IS-ACTIONABLE-CONFIGURED-ACTION-01.sql");
     expect(entry).toBeTruthy();
-    expect(entry!.apply_status).toBe("NOT_APPLIED");
-    expect(entry!.migration).toBeNull();
+    // RECONCILIATION-38: applied in production as version 20260729173359.
+    expect(entry!.apply_status).toBe("APPLIED");
+    expect(entry!.migration).toBe(
+      "supabase/migrations/20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql",
+    );
 
     const sha = (text: string) => createHash("sha256").update(text, "utf8").digest("hex");
     expect(entry!.draft_sha_lf).toBe(sha(draft));
@@ -150,14 +153,12 @@ describe("promotion map stays truthful", () => {
     expect(entry!.post_verifier_sha_lf).toBe(sha(post));
   });
 
-  it("the draft is still absent from applied migrations", () => {
-    const applied = readdirSync(join(ROOT, "supabase/migrations"));
-    expect(
-      applied.some((f) =>
-        readFileSync(join(ROOT, "supabase/migrations", f), "utf8").includes(
-          "workflow_runtime_step_configured_action",
-        ),
+  it("the draft is present in exactly one applied migration", () => {
+    const carriers = readdirSync(join(ROOT, "supabase/migrations")).filter((f) =>
+      readFileSync(join(ROOT, "supabase/migrations", f), "utf8").includes(
+        "workflow_runtime_step_configured_action",
       ),
-    ).toBe(false);
+    );
+    expect(carriers).toEqual(["20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql"]);
   });
 });
