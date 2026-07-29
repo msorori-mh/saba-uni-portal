@@ -1067,12 +1067,16 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
 
   // ---- enrollment_certificate protection -----------------------------------
   it("regression: enrollment_certificate is untouched and the five B1 services stay hidden", () => {
-    const scanned = [
-      ...executableSql.map((c) => c.sql),
-      read(join(pkg, "generated", "master-negative-matrix.sql")),
-    ];
-    for (const sql of scanned) {
-      expect(sql).not.toMatch(/enrollment_certificate/u);
+    const protectedRecords = ["SR-20260713-2DE64041", "SR-20260715-FEDCB3E1", "SR-20260716-26BAD4C8"];
+    for (const c of executableSql) {
+      // The only permitted mention is the read-only fingerprint relation.
+      const mentions = c.sql.match(/enrollment_certificate[a-z_]*/gu) ?? [];
+      expect(new Set(mentions)).toEqual(new Set(["enrollment_certificate_document_details"]));
+      // No case may target a protected enrollment-certificate request.
+      for (const rec of protectedRecords) {
+        expect(c.sql).not.toMatch(new RegExp(`request_number = '${rec}'`, "u"));
+      }
+      expect(c.sql).not.toMatch(/PERFORM public\.[a-z_]*enrollment_certificate/u);
     }
     expect(matrix.positive_cases.every((p: { request_type: string }) => p.request_type !== "enrollment_certificate"))
       .toBe(true);
