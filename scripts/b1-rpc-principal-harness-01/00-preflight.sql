@@ -1,5 +1,5 @@
 -- ============================================================================
--- PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+-- PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07
 -- FAIL-CLOSED OPERATOR PREFLIGHT (G3 / G4 / G5 / G6 / G8)
 --
 -- READ-ONLY. No RPC action, no DDL on persistent objects, no GRANT, no ALTER

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+ * PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07
  * Offline renderer. NO database connection, NO RPC call, NO role change.
  *
  * Inputs (both in-repository, both pinned):

@@ -1,5 +1,5 @@
 <#
-  PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+  PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07
   Operator launcher. Windows PowerShell 5.1+ / PowerShell 7+.
 
   G2 CREDENTIAL CONTRACT
@@ -21,9 +21,9 @@
 #>
 
 [CmdletBinding()]
-param(
-  [switch]$SkipRender
-)
+param()   # G3: no parameters at all. The target, the render and the case set
+          # are fixed by TARGET-MANIFEST.json; -SkipRender is gone so a stale
+          # generated/ tree can never be executed.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -72,10 +72,16 @@ if ($projectRef -ne 'wpmicqriltrowwonknox') { throw "TARGET_REF_MISMATCH: $proje
 if ([string]::IsNullOrWhiteSpace($pgHost)) { throw 'TARGET_HOST_MISSING' }
 if ($pgPort -ne '5432') { throw "TARGET_PORT_NOT_APPROVED: $pgPort (transaction-mode 6543 is forbidden)" }
 if ($pgUser -notmatch $pgUserRegex) { throw 'TARGET_USER_SHAPE_MISMATCH' }
-if ($pgSslMode -ne 'require') { throw 'TARGET_SSLMODE_NOT_REQUIRE' }
+if ($pgSslMode -ne 'verify-full') { throw 'HOLD_NEEDS_VERIFIED_TLS_ENDPOINT: sslmode must be verify-full' }
+
+$caRelative = $manifest.endpoint.approved_pgsslrootcert_path
+$caPath = Join-Path (Split-Path -Parent (Split-Path -Parent $here)) $caRelative
+if (-not (Test-Path $caPath)) {
+  throw "HOLD_NEEDS_VERIFIED_TLS_ENDPOINT: CA bundle missing at $caRelative"
+}
 
 # G2 - refuse to run if a credential channel is present in the environment.
-foreach ($banned in @('DATABASE_URL', 'PGPASSWORD', 'PGPASSFILE', 'PGSERVICE', 'PGSERVICEFILE')) {
+foreach ($banned in @($manifest.endpoint.forbidden_environment_channels)) {
   if (Test-Path "env:$banned") {
     throw "FORBIDDEN_CREDENTIAL_CHANNEL: $banned is set; unset it before running this package"
   }
@@ -86,6 +92,7 @@ $env:PGPORT = $pgPort
 $env:PGDATABASE = $pgDatabase
 $env:PGUSER = $pgUser
 $env:PGSSLMODE = $pgSslMode
+$env:PGSSLROOTCERT = $caPath
 $env:PGAPPNAME = 'b1-negative-rpc-matrix'
 # G1: the session must be genuinely read-write. default_transaction_read_only
 # must never be the layer that blocks a write, or an authorization bypass would
@@ -97,18 +104,20 @@ Write-Host "target: ref=$projectRef host=$pgHost port=$pgPort db=$pgDatabase ssl
 # ---------------------------------------------------------------------------
 # 2. offline render (no connection)
 # ---------------------------------------------------------------------------
-if (-not $SkipRender) {
-  Write-Host 'rendering cases offline...'
-  & bun (Join-Path $here 'render-negative-cases.ts')
-  if ($LASTEXITCODE -ne 0) { throw 'RENDER_FAILED' }
-}
-if (-not (Test-Path $master)) { throw 'MASTER_SCRIPT_MISSING: run without -SkipRender' }
+Write-Host 'rendering cases offline (always; there is no skip path)...'
+& bun (Join-Path $here 'render-negative-cases.ts')
+if ($LASTEXITCODE -ne 0) { throw 'RENDER_FAILED' }
+if (-not (Test-Path $master)) { throw 'MASTER_SCRIPT_MISSING' }
 
 $caseCount = (Get-ChildItem -Path (Join-Path $generated 'cases') -Filter 'case-*.sql').Count
 if ($caseCount -ne 267) { throw "CASE_COUNT_DRIFT: $caseCount" }
 
 $commitHits = Select-String -Path (Join-Path $generated 'cases\*.sql') -Pattern '(?im)^\s*COMMIT\b'
 if ($commitHits) { throw 'FORBIDDEN_COMMIT_IN_RENDERED_CASES' }
+
+# G6: the observer must never take a row lock.
+$lockHits = Select-String -Path (Join-Path $generated 'cases\*.sql') -Pattern '(?i)\bFOR\s+(SHARE|UPDATE|KEY\s+SHARE|NO\s+KEY\s+UPDATE)\b'
+if ($lockHits) { throw 'FORBIDDEN_ROW_LOCK_IN_RENDERED_CASES' }
 
 # ---------------------------------------------------------------------------
 # 3. G9 - single psql process, interactive password prompt (-W)
