@@ -291,11 +291,16 @@ function renderCase(
   if (nc.zero_mutation !== true) throw new Error("MATRIX_VALIDATION_FAIL: zero_mutation must be true");
   assertSafeDiagnostic("expect_error", nc.expect_error);
   assertSafeScalar("case_class", nc.case);
-  const expected = expectationFor(contract, nc.expect_error);
+  const expected = expectationFor(contract, {
+    rpc: pc.rpc,
+    case_class: nc.case,
+    runtime_status: pc.runtime_status,
+  });
 
+  // G6: the payment RPC takes the RUNTIME STEP id, not the request id.
   const rpcCall =
     pc.rpc === "record_external_university_payment_confirmation"
-      ? `PERFORM public.record_external_university_payment_confirmation(v_req, 'TEST_ONLY_NEGATIVE_MATRIX');`
+      ? `PERFORM public.record_external_university_payment_confirmation(v_step, 'TEST_ONLY_NEGATIVE_MATRIX');`
       : `PERFORM public.act_on_b1_student_request_step_atomic(v_step, ${lit(action)}, NULL::text, NULL::jsonb);`;
 
   const claims = isAnon
@@ -310,27 +315,42 @@ function renderCase(
       RAISE EXCEPTION 'PRINCIPAL_MISMATCH: %', auth.uid();
     END IF;`;
 
-  const assigneePin =
-    pc.principal_user_id && !isAnon
-      ? `IF v_assignee IS DISTINCT FROM ${lit(pc.principal_user_id)}::uuid THEN
-    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee changed on step %', v_step;
-  END IF;`
-      : `IF v_assignee IS DISTINCT FROM ${lit(pc.principal_user_id)}::uuid THEN
-    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee changed on step %', v_step;
+  // G7: assigned_user_id is NULL in production; the effective assignee is bound
+  // through exactly one direct slot (staff / faculty / position assignment) plus
+  // exactly one active unit+role processing assignment. Both are pinned.
+  const assigneePin = `IF v_assignee IS NOT NULL THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step %', v_step;
+  END IF;
+  SELECT (CASE WHEN w.assigned_staff_profile_id IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN w.assigned_faculty_profile_id IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN w.assigned_position_assignment_id IS NOT NULL THEN 1 ELSE 0 END)
+    INTO v_n
+    FROM public.student_request_workflow_steps w WHERE w.id = v_step;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % direct assignee slots on step % (want 1)', v_n, v_step;
+  END IF;
+  SELECT count(*) INTO v_n
+    FROM public.request_processing_assignments a
+    JOIN public.student_request_workflow_steps w ON w.id = v_step
+   WHERE a.processing_unit_id = w.processing_unit_id
+     AND a.processing_role_id = w.processing_role_id
+     AND a.is_active;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % active unit+role assignments for step % (want 1)', v_n, v_step;
   END IF;`;
 
   const transferScopePin =
     pc.request_type === "department_transfer"
-      ? `PERFORM 1 FROM public.transfer_request_details d WHERE d.request_id = v_req FOR SHARE;
-  SELECT count(*) INTO v_n FROM public.transfer_request_details d
+      ? `SELECT count(*) INTO v_n FROM public.transfer_request_details d
    WHERE d.request_id = v_req
-     AND d.current_department_id IS NOT NULL
-     AND d.requested_department_id IS NOT NULL
+     AND d.current_department_id = ${lit(attestedSourceDepartment)}::uuid
+     AND d.requested_department_id = ${lit(attestedTargetDepartment)}::uuid
      AND d.current_department_id <> d.requested_department_id;
   IF v_n <> 1 THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: transfer department scope';
   END IF;`
       : `-- no department scope pin for this service`;
+
 
   const id = String(ordinal).padStart(4, "0");
   return `-- ============================================================================
