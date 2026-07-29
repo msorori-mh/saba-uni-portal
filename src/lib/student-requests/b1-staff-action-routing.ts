@@ -175,3 +175,73 @@ export function assertGenericStaffExecutorAllowed(code: string | null | undefine
     throw new Error(GENERIC_EXECUTOR_B1_FORBIDDEN_ERROR);
   }
 }
+
+// ============================================================================
+// PORTAL-B1-CONFIGURED-ACTION-ATOMIC-ROUTING-INDEPENDENT-REVIEW-REMEDIATION-46
+// Authoritative (server-side) generic-executor guard.
+//
+// The client-supplied `requestTypeCode` is NEVER the security decision source.
+// The server resolves the real request type from the database and this pure
+// guard decides — fail-closed — whether the generic executor may proceed.
+// ============================================================================
+
+export const GENERIC_EXECUTOR_TYPE_UNRESOLVED_ERROR =
+  "B1_AUTHORITATIVE_REQUEST_TYPE_UNRESOLVED: تعذر تحديد نوع الطلب الموثوق — تم إيقاف التنفيذ.";
+
+export const GENERIC_EXECUTOR_TYPE_MISMATCH_ERROR =
+  "B1_REQUEST_TYPE_MISMATCH: نوع الطلب المرسل لا يطابق النوع الموثوق في قاعدة البيانات.";
+
+export const GENERIC_EXECUTOR_REQUEST_MISMATCH_ERROR =
+  "B1_REQUEST_STEP_MISMATCH: الخطوة لا تنتمي للطلب المُرسل — تم إيقاف التنفيذ.";
+
+export type AuthoritativeRequestTypeRow = {
+  /** `student_request_id` the step actually belongs to. */
+  requestId: string | null | undefined;
+  /** Real `student_requests.request_type` value. */
+  requestTypeCode: string | null | undefined;
+};
+
+export type AuthoritativeRequestTypeLookup = (args: {
+  requestId: string;
+  stepId: string;
+}) => Promise<AuthoritativeRequestTypeRow | null | undefined>;
+
+/**
+ * Fail-closed authoritative guard. MUST run before any workflow RPC, audit
+ * insert, or other write. Returns the canonical (normalized) authoritative
+ * request type when — and only when — the generic executor is allowed.
+ */
+export async function assertGenericExecutorAuthoritativeRequestType(params: {
+  requestId: string;
+  stepId: string;
+  clientRequestTypeCode: string | null | undefined;
+  lookup: AuthoritativeRequestTypeLookup;
+}): Promise<{ canonicalRequestTypeCode: string }> {
+  const clientRaw = (params.clientRequestTypeCode ?? "").trim();
+  if (!clientRaw) throw new Error(GENERIC_EXECUTOR_TYPE_UNRESOLVED_ERROR);
+  // Cheap client-side-claim rejection (defence in depth, never the last word).
+  assertGenericStaffExecutorAllowed(clientRaw);
+
+  const row = await params.lookup({ requestId: params.requestId, stepId: params.stepId });
+  if (!row) throw new Error(GENERIC_EXECUTOR_TYPE_UNRESOLVED_ERROR);
+
+  const authoritativeRaw = (row.requestTypeCode ?? "").trim();
+  if (!authoritativeRaw) throw new Error(GENERIC_EXECUTOR_TYPE_UNRESOLVED_ERROR);
+
+  const boundRequestId = (row.requestId ?? "").trim();
+  if (!boundRequestId || boundRequestId !== params.requestId) {
+    throw new Error(GENERIC_EXECUTOR_REQUEST_MISMATCH_ERROR);
+  }
+
+  // Authoritative decision: real type is a B1 service → generic path forbidden.
+  assertGenericStaffExecutorAllowed(authoritativeRaw);
+
+  const canonicalAuthoritative = normalizeStudentRequestTypeCode(authoritativeRaw);
+  const canonicalClient = normalizeStudentRequestTypeCode(clientRaw);
+  if (!canonicalAuthoritative) throw new Error(GENERIC_EXECUTOR_TYPE_UNRESOLVED_ERROR);
+  if (canonicalClient !== canonicalAuthoritative) {
+    throw new Error(GENERIC_EXECUTOR_TYPE_MISMATCH_ERROR);
+  }
+
+  return { canonicalRequestTypeCode: canonicalAuthoritative };
+}
