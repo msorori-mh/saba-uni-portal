@@ -106,8 +106,20 @@ function comment(label: string, value: unknown): string {
   return `-- ${label}: ${encoded}`;
 }
 
+/** REMEDIATION-57 G1 — every text input is normalized to LF BEFORE it is
+ *  parsed, scanned for LIMIT, or hashed. A CRLF checkout must produce a
+ *  byte-identical render and an identical SHA256 to an LF checkout. */
+export function toLf(text: string): string {
+  return text.replace(/\r\n/gu, "\n").replace(/\r/gu, "\n");
+}
+
+export function readLf(path: string): string {
+  return toLf(readFileSync(path, "utf8"));
+}
+
 /** Extracts the single canonical fingerprint expression from fingerprint.sql. */
-export function extractFingerprintExpr(sql: string): string {
+export function extractFingerprintExpr(rawSql: string): string {
+  const sql = toLf(rawSql);
   const start = sql.indexOf("-- BEGIN_FINGERPRINT_EXPR");
   const end = sql.indexOf("-- END_FINGERPRINT_EXPR");
   if (start < 0 || end < 0 || end < start) {
@@ -115,6 +127,7 @@ export function extractFingerprintExpr(sql: string): string {
   }
   const expr = sql.slice(start + "-- BEGIN_FINGERPRINT_EXPR".length, end).trim();
   if (!expr.startsWith("(") || !expr.endsWith(")")) throw new Error("FINGERPRINT_EXPR_MALFORMED");
+
   // G3: strip block comments first, then line comments, and only then look for
   // LIMIT. A comment that merely mentions LIMIT must never fail the render, and
   // a real LIMIT must never hide inside one.
