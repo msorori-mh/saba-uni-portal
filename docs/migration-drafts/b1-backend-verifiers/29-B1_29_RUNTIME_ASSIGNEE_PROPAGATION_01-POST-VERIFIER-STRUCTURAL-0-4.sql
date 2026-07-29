@@ -17,6 +17,7 @@ DECLARE
   v_def text;
   v_owner oid;
   v_fn record;
+  v_role text;
   v_rec record;
 BEGIN
   -- ------------------------------------------------------------------
@@ -114,52 +115,81 @@ BEGIN
   END IF;
 
   -- ------------------------------------------------------------------
-  -- 3. Function-level catalog checks: owner, security, search_path, ACL
+  -- 3. Function-level catalog checks: existence (full signature), owner,
+  --    security context, pinned search_path, and FAIL-CLOSED ACL.
+  --
+  --    ACL contract (fail-closed): a NULL proacl is NOT evidence of denial.
+  --    PostgreSQL grants EXECUTE to PUBLIC by default and only materialises
+  --    proacl once an explicit GRANT/REVOKE happens. Order 29 therefore
+  --    REVOKEs from PUBLIC/anon/authenticated, which MUST leave a non-NULL
+  --    proacl. NULL proacl => explicit POSTVERIFY_FAIL. On top of that the
+  --    effective privilege is probed directly with has_function_privilege,
+  --    so inherited or role-membership paths cannot slip through.
   -- ------------------------------------------------------------------
   SELECT c.relowner INTO v_owner FROM pg_class c
    WHERE c.oid = 'public.request_processing_assignments'::regclass;
 
   FOR v_fn IN
-    SELECT p.oid, p.proname, p.prosecdef, p.proowner, p.proconfig, p.proacl,
-           p.prorettype
-    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public'
-      AND p.proname IN ('b1_assignment_identity_lock_key',
-                        'b1_lock_assignment_identity_boundary',
-                        'b1_lock_assignment_identity_stmt',
-                        'guard_b1_runtime_step_activation',
-                        'assert_b1_runtime_step_row_assignee_effective',
-                        'assert_b1_runtime_step_assignee_effective')
+    SELECT s.sig,
+           s.must_secdef,
+           p.oid,
+           p.proname,
+           p.prosecdef,
+           p.proowner,
+           p.proconfig,
+           p.proacl
+    FROM (VALUES
+      ('public.b1_assignment_identity_lock_key()', false),
+      ('public.b1_lock_assignment_identity_boundary()', false),
+      ('public.b1_lock_assignment_identity_stmt()', true),
+      ('public.guard_b1_runtime_step_activation()', true),
+      ('public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)', true),
+      ('public.assert_b1_runtime_step_assignee_effective(uuid)', true)
+    ) AS s(sig, must_secdef)
+    LEFT JOIN pg_proc p ON p.oid = to_regprocedure(s.sig)
   LOOP
+    -- Exact signature, not just the name.
+    IF v_fn.oid IS NULL THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % missing with the exact required signature', v_fn.sig;
+    END IF;
     IF v_fn.proowner <> v_owner THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has unexpected owner', v_fn.proname;
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has unexpected owner', v_fn.sig;
     END IF;
     IF v_fn.proconfig IS NULL
        OR NOT ('search_path=public' = ANY(v_fn.proconfig)
                OR 'search_path="public"' = ANY(v_fn.proconfig)) THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has no pinned search_path', v_fn.proname;
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has no pinned search_path', v_fn.sig;
     END IF;
-    IF v_fn.proname IN ('b1_lock_assignment_identity_stmt',
-                     'guard_b1_runtime_step_activation',
-                     'assert_b1_runtime_step_row_assignee_effective',
-                     'assert_b1_runtime_step_assignee_effective')
-       AND NOT v_fn.prosecdef THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY DEFINER', v_fn.proname;
+    IF v_fn.must_secdef AND NOT v_fn.prosecdef THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY DEFINER', v_fn.sig;
+    END IF;
+    IF NOT v_fn.must_secdef AND v_fn.prosecdef THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY INVOKER', v_fn.sig;
     END IF;
 
-    IF v_fn.proname IN ('b1_assignment_identity_lock_key',
-                     'b1_lock_assignment_identity_boundary')
-       AND v_fn.prosecdef THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % must be SECURITY INVOKER', v_fn.proname;
+    -- FAIL-CLOSED ACL: absence of an ACL row is never proof of denial.
+    IF v_fn.proacl IS NULL THEN
+      RAISE EXCEPTION
+        'POSTVERIFY_FAIL: % has NULL proacl (default PUBLIC EXECUTE applies; explicit REVOKE required)',
+        v_fn.sig;
     END IF;
-    -- Trigger-only / internal functions must not be callable by clients.
-    IF v_fn.proacl IS NOT NULL AND EXISTS (
+    IF has_function_privilege('public', v_fn.oid, 'EXECUTE') THEN
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % is EXECUTE-able by PUBLIC', v_fn.sig;
+    END IF;
+    FOREACH v_role IN ARRAY ARRAY['anon','authenticated'] LOOP
+      IF EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname = v_role)
+         AND has_function_privilege(v_role, v_fn.oid, 'EXECUTE') THEN
+        RAISE EXCEPTION 'POSTVERIFY_FAIL: % is EXECUTE-able by %', v_fn.sig, v_role;
+      END IF;
+    END LOOP;
+    -- Belt and braces: no explicit EXECUTE ACE for PUBLIC/anon/authenticated.
+    IF EXISTS (
       SELECT 1 FROM aclexplode(v_fn.proacl) a
       LEFT JOIN pg_roles g ON g.oid = a.grantee
       WHERE a.privilege_type = 'EXECUTE'
         AND (a.grantee = 0 OR g.rolname IN ('anon','authenticated'))
     ) THEN
-      RAISE EXCEPTION 'POSTVERIFY_FAIL: % is executable by PUBLIC/anon/authenticated', v_fn.proname;
+      RAISE EXCEPTION 'POSTVERIFY_FAIL: % has an explicit EXECUTE grant to PUBLIC/anon/authenticated', v_fn.sig;
     END IF;
   END LOOP;
 
