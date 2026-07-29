@@ -123,8 +123,9 @@ as a notice for review.
 preflight → `case-0001` … `case-0267` → outside-transaction baseline check. Each
 case is its own `BEGIN ISOLATION LEVEL SERIALIZABLE … ROLLBACK`. `ON_ERROR_STOP`
 aborts the entire run at the first `PREFLIGHT_FAIL`, `CASE_STATE_DRIFT`,
-`CASE_FAIL_ALLOWED`, `CASE_FAIL_MUTATION` or `POST_RUN_FAIL`. The session runs
-with `default_transaction_read_only=on`.
+`CASE_FAIL_ALLOWED`, `CASE_FAIL_MUTATION` or `POST_RUN_FAIL`. The session runs with
+`default_transaction_read_only=off` on purpose (see G1): read-only sessions must
+never mask an authorization bypass. Isolation comes from the ROLLBACK-only cases.
 
 ## Usage
 
