@@ -113,6 +113,10 @@ class Cluster:
         )
 
 
+# Required POSTVERIFY_FAIL message fragment per negative case: proves the case
+# is rejected by the ACL/catalog contract and not by an incidental error.
+EXPECTED_FRAGMENT = {'N1': 'NULL proacl', 'N2': 'EXECUTE-able by PUBLIC', 'N3': 'EXECUTE-able by anon', 'N4': 'EXECUTE-able by authenticated', 'N5': 'missing with the exact required signature', 'N6': 'unexpected owner', 'N7': 'no pinned search_path', 'N8': 'EXECUTE-able by anon', 'N9': 'must be SECURITY DEFINER'}
+
 # (case id, description, setup SQL applied on top of the good fixture, expect_pass)
 CASES = [
     ("A1", "exact contract shape is accepted", "", True),
@@ -206,6 +210,16 @@ def main() -> int:
                 env_sql = FIXTURE + "\n" + setup + "\n" + body
                 r = cluster.psql(env_sql, db=db)
                 passed = r.returncode == 0
+                frag = EXPECTED_FRAGMENT.get(cid)
+                if not passed and frag and (
+                    "POSTVERIFY_FAIL" not in r.stderr or frag not in r.stderr
+                ):
+                    failures.append(
+                        f"{name} {cid} ({desc}): rejected for the wrong reason, "
+                        f"expected POSTVERIFY_FAIL containing {frag!r} :: "
+                        f"{r.stderr.strip()[:300]}"
+                    )
+                    continue
                 if passed != expect_pass:
                     failures.append(
                         f"{name} {cid} ({desc}): expected "
