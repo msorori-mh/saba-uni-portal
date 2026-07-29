@@ -17,13 +17,21 @@ import {
   expectationFor,
   extractFingerprintExpr,
   isBlockedCase,
+  main as renderPackage,
+  readLf,
   requiresActiveFixture,
   sha256Lf,
+  toLf,
 } from "../../scripts/b1-rpc-principal-harness-01/render-negative-cases";
 
 const root = process.cwd();
 const pkg = join(root, "scripts", "b1-rpc-principal-harness-01");
-const read = (p: string) => readFileSync(p, "utf8").replace(/\r\n/gu, "\n");
+const read = (p: string) => toLf(readFileSync(p, "utf8"));
+
+// REMEDIATION-57 G3: the package is regenerated from source on EVERY run.
+// generated/ is never committed and a stale tree can never be tested or
+// executed — the renderer wipes and rewrites it before a single assertion runs.
+renderPackage();
 
 const matrixRaw = read(join(root, "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json"));
 const matrix = JSON.parse(matrixRaw);
@@ -34,6 +42,7 @@ const launcher = read(join(pkg, "run-negative-matrix.ps1"));
 const renderer = read(join(pkg, "render-negative-cases.ts"));
 const readme = read(join(pkg, "README.md"));
 const renderedCase = read(join(pkg, "generated", "cases", "case-0001.sql"));
+
 const contract = assertDenialContract(matrix.denial_class_contract);
 const CTX = {
   rpc: "act_on_b1_student_request_step_atomic",
