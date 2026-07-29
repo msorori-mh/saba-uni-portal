@@ -39,9 +39,32 @@ describe("PR227 final unified backend stack independent review", () => {
       expect(sha256Lf(entry.migration)).toBe(entry.migration_sha_lf);
       expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
     }
-    // Nothing is left pending: orders 28 and 29 are both applied in production.
+    // Orders 28 and 29 are applied in production; order 30 is the current
+    // source-only draft (PORTAL-B1-ACTOR-IS-ACTIONABLE-CONFIGURED-ACTION-01),
+    // deliberately NOT promoted and NOT applied.
     const notApplied = promotion.filter(({ apply_status }) => apply_status === "NOT_APPLIED");
-    expect(notApplied.map(({ order }) => order)).toEqual([]);
+    expect(notApplied.map(({ order }) => order)).toEqual([30]);
+    const draft30 = notApplied[0] as unknown as {
+      draft: string;
+      draft_sha_lf: string;
+      migration: string | null;
+      preflight: string;
+      structural_verifier: string;
+      post_verifier: string;
+      proposed_migration_filename: string;
+    };
+    expect(draft30.migration).toBeNull();
+    expect(draft30.proposed_migration_filename).toBe(
+      "20260730000000_b1_30_actor_is_actionable_configured_action_01.sql",
+    );
+    expect(sha256Lf(`docs/migration-drafts/${draft30.draft}`)).toBe(draft30.draft_sha_lf);
+    for (const companion of [
+      draft30.preflight,
+      draft30.structural_verifier,
+      draft30.post_verifier,
+    ]) {
+      expect(existsSync(companion)).toBe(true);
+    }
 
     expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
       Array.from({ length: 27 }, (_, index) => index + 1),
