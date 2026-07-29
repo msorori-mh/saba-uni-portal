@@ -28,7 +28,7 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "eec8307189adf6ef556ca517596759aa519f14de20a318dbc029a6cdd92fda05";
+export const MATRIX_SHA256_LF = "52ce69679dcc7494eaab7ed35292879312efffd2651dcc169f9f28b18e4ff35d";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
@@ -113,6 +113,104 @@ export function extractFingerprintExpr(sql: string): string {
   return expr;
 }
 
+/* ==========================================================================
+ * G1 — DENIAL CLASS FAIL-CLOSED CONTRACT
+ * A negative case is PASS only when the RPC was denied by the authorization
+ * layer itself: SQLSTATE and message family must both match MATRIX.json.
+ * Every other outcome is CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL -> HOLD.
+ * ========================================================================== */
+
+export type DenialContract = {
+  version: number;
+  fail_closed: boolean;
+  authorization_sqlstates: string[];
+  expected_by_expect_error: Record<string, { sqlstate: string; message_family: string[] }>;
+  infrastructure_sqlstates: string[];
+  infrastructure_message_tokens: string[];
+};
+
+export type DenialObservation = {
+  allowed: boolean;
+  sqlstate?: string | null;
+  message?: string | null;
+};
+
+export type DenialVerdict = { verdict: "PASS" | "HOLD"; reason: string };
+
+export const CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL = "CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL";
+export const CASE_FAIL_ALLOWED = "CASE_FAIL_ALLOWED";
+
+export function assertDenialContract(contract: any): DenialContract {
+  if (!contract || contract.fail_closed !== true) throw new Error("DENIAL_CONTRACT_NOT_FAIL_CLOSED");
+  if (!Array.isArray(contract.authorization_sqlstates) || contract.authorization_sqlstates.length === 0) {
+    throw new Error("DENIAL_CONTRACT_NO_AUTHORIZATION_SQLSTATE");
+  }
+  if (!Array.isArray(contract.infrastructure_sqlstates) || contract.infrastructure_sqlstates.length === 0) {
+    throw new Error("DENIAL_CONTRACT_NO_INFRASTRUCTURE_SQLSTATE");
+  }
+  for (const s of [...contract.authorization_sqlstates, ...contract.infrastructure_sqlstates]) {
+    if (!/^[0-9A-Z]{5}$/u.test(s)) throw new Error(`DENIAL_CONTRACT_BAD_SQLSTATE: ${s}`);
+  }
+  for (const s of contract.authorization_sqlstates) {
+    if (contract.infrastructure_sqlstates.includes(s)) throw new Error("DENIAL_CONTRACT_SQLSTATE_OVERLAP");
+  }
+  for (const [key, exp] of Object.entries<any>(contract.expected_by_expect_error ?? {})) {
+    assertSafeDiagnostic(`expected_by_expect_error.${key}`, key);
+    if (!contract.authorization_sqlstates.includes(exp?.sqlstate)) {
+      throw new Error(`DENIAL_CONTRACT_BAD_EXPECTED_SQLSTATE: ${key}`);
+    }
+    if (!Array.isArray(exp.message_family) || exp.message_family.length === 0) {
+      throw new Error(`DENIAL_CONTRACT_EMPTY_MESSAGE_FAMILY: ${key}`);
+    }
+    for (const token of exp.message_family) assertSafeScalar(`message_family.${key}`, token);
+  }
+  for (const token of contract.infrastructure_message_tokens ?? []) {
+    assertSafeDiagnostic("infrastructure_message_tokens", token);
+  }
+  return contract as DenialContract;
+}
+
+export function expectationFor(contract: DenialContract, expectError: string) {
+  const exp = contract.expected_by_expect_error[expectError];
+  if (!exp) throw new Error(`DENIAL_CONTRACT_MISSING_EXPECTATION: ${expectError}`);
+  return exp;
+}
+
+/** Pure, offline mirror of the SQL gate emitted into every rendered case. */
+export function classifyDenialOutcome(
+  observation: DenialObservation,
+  contract: DenialContract,
+  expectError: string,
+): DenialVerdict {
+  const expected = expectationFor(contract, expectError);
+  if (observation.allowed) {
+    return { verdict: "HOLD", reason: `${CASE_FAIL_ALLOWED}: RPC succeeded but DENY was required` };
+  }
+  const sqlstate = (observation.sqlstate ?? "").toUpperCase();
+  const message = observation.message ?? "";
+  const lower = message.toLowerCase();
+
+  if (contract.infrastructure_sqlstates.includes(sqlstate)) {
+    return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: infrastructure sqlstate ${sqlstate}` };
+  }
+  const hit = contract.infrastructure_message_tokens.find((t) => lower.includes(t.toLowerCase()));
+  if (hit) {
+    return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: infrastructure message token "${hit}"` };
+  }
+  if (sqlstate !== expected.sqlstate) {
+    return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: sqlstate ${sqlstate || "<none>"} != ${expected.sqlstate}` };
+  }
+  const upper = message.toUpperCase();
+  if (!expected.message_family.some((t) => upper.includes(t.toUpperCase()))) {
+    return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: message outside the expected family` };
+  }
+  return { verdict: "PASS", reason: "authorization denial matches the pinned denial class" };
+}
+
+function sqlTextArray(values: string[]): string {
+  return `ARRAY[${values.map((v) => `'${v.replace(/'/gu, "''")}'`).join(",")}]::text[]`;
+}
+
 type PositiveCase = {
   request_type: string;
   request_number: string;
@@ -144,6 +242,7 @@ function renderCase(
   nc: NegativeCase,
   pc: PositiveCase,
   fingerprintExpr: string,
+  contract: DenialContract,
 ): string {
   const isAnon = nc.actor_user_id === null;
   const actor = isAnon ? null : assertUuid("actor_user_id", nc.actor_user_id as string);
@@ -160,6 +259,7 @@ function renderCase(
   if (nc.zero_mutation !== true) throw new Error("MATRIX_VALIDATION_FAIL: zero_mutation must be true");
   assertSafeDiagnostic("expect_error", nc.expect_error);
   assertSafeScalar("case_class", nc.case);
+  const expected = expectationFor(contract, nc.expect_error);
 
   const rpcCall =
     pc.rpc === "record_external_university_payment_confirmation"
@@ -228,9 +328,17 @@ DECLARE
   v_after    text;
   v_allowed  boolean := false;
   v_err      text;
+  v_sqlstate text;
   v_status2  text;
   v_assign2  uuid;
 BEGIN
+  -- ---- G1: the case must run in a genuinely read-write transaction --------
+  -- default_transaction_read_only must NEVER be the layer that blocks a write,
+  -- otherwise an authorization bypass would be masked as a denial.
+  IF current_setting('transaction_read_only') = 'on' THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id}: transaction is read-only';
+  END IF;
+
   -- ---- G6: real row locks, fixed order: request -> steps -> assignments ----
   SELECT r.id, r.request_type, r.status
     INTO v_req, v_type, v_status
@@ -292,14 +400,41 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     v_allowed := false;
     v_err := SQLERRM;
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
   END;
 
   PERFORM set_config('request.jwt.claims', NULL, true);
   EXECUTE 'RESET ROLE';
 
-  -- ---- DENY proof ---------------------------------------------------------
+  -- ---- G1: DENIAL CLASS GATE (fail-closed) --------------------------------
   IF v_allowed THEN
     RAISE EXCEPTION 'CASE_FAIL_ALLOWED case-${id} ${nc.case}: RPC succeeded but DENY was required';
+  END IF;
+
+  IF v_sqlstate = ANY (${sqlTextArray(contract.infrastructure_sqlstates)}) THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: infrastructure sqlstate % : %',
+      v_sqlstate, left(coalesce(v_err, ''), 160);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM unnest(${sqlTextArray(contract.infrastructure_message_tokens)}) AS t(tok)
+     WHERE position(lower(t.tok) in lower(coalesce(v_err, ''))) > 0
+  ) THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: infrastructure message % : %',
+      v_sqlstate, left(coalesce(v_err, ''), 160);
+  END IF;
+
+  IF v_sqlstate IS DISTINCT FROM ${lit(expected.sqlstate)} THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: sqlstate % expected ${expected.sqlstate} : %',
+      v_sqlstate, left(coalesce(v_err, ''), 160);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM unnest(${sqlTextArray(expected.message_family)}) AS t(tok)
+     WHERE position(upper(t.tok) in upper(coalesce(v_err, ''))) > 0
+  ) THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: message outside expected family : %',
+      left(coalesce(v_err, ''), 160);
   END IF;
 
   -- ---- zero-mutation proof ------------------------------------------------
@@ -307,6 +442,7 @@ BEGIN
   IF v_after IS DISTINCT FROM v_before THEN
     RAISE EXCEPTION 'CASE_FAIL_MUTATION case-${id} ${nc.case}: fingerprint changed';
   END IF;
+
 
   SELECT w.status, w.assigned_user_id INTO v_status2, v_assign2
     FROM public.student_request_workflow_steps w WHERE w.id = v_step;
@@ -477,6 +613,7 @@ export function main(): void {
     throw new Error(`MATRIX_SHA256_DRIFT: expected ${MATRIX_SHA256_LF}, got ${actual}`);
   }
   const matrix = JSON.parse(matrixRaw);
+  const contract = assertDenialContract(matrix.denial_class_contract);
   if (matrix.production_ref !== APPROVED_PROJECT_REF) throw new Error("MATRIX_REF_MISMATCH");
 
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
@@ -509,7 +646,7 @@ export function main(): void {
     if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
     const ordinal = index + 1;
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
-    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr), "utf8");
+    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract), "utf8");
     files.push(`cases/${name}`);
   });
 

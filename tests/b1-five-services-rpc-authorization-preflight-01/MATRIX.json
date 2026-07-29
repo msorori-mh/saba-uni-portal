@@ -376,6 +376,79 @@
     "next_step_assignee_early",
     "previous_step_assignee_replay"
   ],
+  "denial_class_contract": {
+    "version": 1,
+    "fail_closed": true,
+    "note": "A negative case is PASS only when the RPC is denied by the authorization layer itself. Any other error class is CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL -> ROLLBACK + immediate stop.",
+    "authorization_sqlstates": [
+      "P0001"
+    ],
+    "expected_by_expect_error": {
+      "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED": {
+        "sqlstate": "P0001",
+        "message_family": [
+          "UNAUTHORIZED_STEP_ACTION",
+          "STEP_ACTION_NOT_ALLOWED"
+        ]
+      },
+      "B1 action gate: action != configured action_type": {
+        "sqlstate": "P0001",
+        "message_family": [
+          "STEP_ACTION_NOT_ALLOWED",
+          "ACTION_NOT_ALLOWED",
+          "INVALID_STEP_ACTION",
+          "UNAUTHORIZED_STEP_ACTION"
+        ]
+      },
+      "transfer department scope mismatch": {
+        "sqlstate": "P0001",
+        "message_family": [
+          "UNAUTHORIZED_STEP_ACTION",
+          "STEP_ACTION_NOT_ALLOWED",
+          "DEPARTMENT_SCOPE"
+        ]
+      }
+    },
+    "infrastructure_sqlstates": [
+      "25006",
+      "42501",
+      "42883",
+      "42P01",
+      "42P02",
+      "42601",
+      "40001",
+      "40P01",
+      "55P03",
+      "57014",
+      "57P01",
+      "08000",
+      "08001",
+      "08003",
+      "08004",
+      "08006",
+      "53300",
+      "3D000",
+      "3F000",
+      "0A000"
+    ],
+    "infrastructure_message_tokens": [
+      "read-only sql transaction",
+      "cannot execute",
+      "permission denied",
+      "insufficient privilege",
+      "row-level security",
+      "does not exist",
+      "could not serialize",
+      "deadlock detected",
+      "lock timeout",
+      "could not obtain lock",
+      "canceling statement",
+      "statement timeout",
+      "connection",
+      "server closed",
+      "syntax error"
+    ]
+  },
   "negative_cases": [
     {
       "step_key": "student_affairs_intake",

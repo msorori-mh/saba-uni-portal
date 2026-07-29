@@ -87,7 +87,10 @@ $env:PGDATABASE = $pgDatabase
 $env:PGUSER = $pgUser
 $env:PGSSLMODE = $pgSslMode
 $env:PGAPPNAME = 'b1-negative-rpc-matrix'
-$env:PGOPTIONS = '-c default_transaction_read_only=on'
+# G1: the session must be genuinely read-write. default_transaction_read_only
+# must never be the layer that blocks a write, or an authorization bypass would
+# be masked as a denial. Isolation comes from ROLLBACK-only cases instead.
+$env:PGOPTIONS = '-c default_transaction_read_only=off'
 
 Write-Host "target: ref=$projectRef host=$pgHost port=$pgPort db=$pgDatabase sslmode=$pgSslMode"
 
