@@ -6873,6 +6873,10 @@ export type Database = {
         Args: { p_step_id: string }
         Returns: boolean
       }
+      workflow_runtime_step_configured_action: {
+        Args: { p_step_id: string }
+        Returns: string
+      }
     }
     Enums: {
       academic_council_decision_status:

@@ -244,7 +244,7 @@
   {
     "order": 30,
     "draft": "B1-ACTOR-IS-ACTIONABLE-CONFIGURED-ACTION-01.sql",
-    "migration": null,
+    "migration": "supabase/migrations/20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql",
     "proposed_migration_filename": "20260730000000_b1_30_actor_is_actionable_configured_action_01.sql",
     "draft_sha_lf": "d24d42c99f8a8f19935f659e5e4e6c2bca0e86f4639970735e6db033dbdbf1b2",
     "preflight": "docs/migration-drafts/b1-backend-verifiers/30-B1_30_ACTOR_IS_ACTIONABLE_CONFIGURED_ACTION_01-PREFLIGHT.sql",
@@ -254,9 +254,11 @@
     "post_verifier": "docs/migration-drafts/b1-backend-verifiers/30-B1_30_ACTOR_IS_ACTIONABLE_CONFIGURED_ACTION_01-POST-VERIFIER.sql",
     "post_verifier_sha_lf": "3bc7bd9978fc8a144f1f98ef78577f8967a4a96c9d50815dd4ee1bbb1600f379",
     "regression_tests": "tests/student-requests/b1-actor-is-actionable-configured-action-01.test.ts, tests/student-requests/b1-actor-is-actionable-remediation-33.test.ts",
-    "apply_status": "NOT_APPLIED",
+    "apply_status": "APPLIED",
     "prepared_under_mission": "PORTAL-B1-ACTOR-IS-ACTIONABLE-VERIFIER-AND-RUNTIME-REGRESSION-REMEDIATION-33",
     "note": "Source-only forward-only draft. Replaces the hard-coded literal 'approve' actionability probe in exactly three actor-facing RPCs (get_my_request_actor_inbox, get_student_request_detail_for_actor, get_student_request_fee_processing_context) with the configured action_type resolved by the new fail-closed helper public.workflow_runtime_step_configured_action(uuid). can_current_user_act_on_step and user_matches_workflow_runtime_step are NOT modified. No role bypass added; the pre-existing is_current_user_admin_actor() display clause in the fee context RPC is preserved unchanged. Helper EXECUTE revoked from public, anon and authenticated. No DML, no student_visible change, no enrollment_certificate impact. NOT promoted to supabase/migrations and NOT applied. REMEDIATION-33: owner pinned to postgres and search_path pinned to 'public, pg_temp' for the helper and the three RPCs; preflight/structural/post verifiers now pin owner, security mode, volatility, search_path and EXECUTE grants fail-closed, pin the five B1 services individually (is_active=true, student_visible=false) and pin enrollment_certificate individually (is_active=true, student_visible=true); deterministic executable runtime regression added (cases A..E).",
-    "runtime_regression_harness": "tests/b1-actor-is-actionable-runtime-regression-33 (local disposable PostgreSQL; RESULTS.md = REGRESSION_PASS, 5 cases / 21 assertions)"
+    "runtime_regression_harness": "tests/b1-actor-is-actionable-runtime-regression-33 (local disposable PostgreSQL; RESULTS.md = REGRESSION_PASS, 5 cases / 21 assertions)",
+    "applied_migration_version": "20260729173359",
+    "apply_note": "Applied once on 2026-07-29 under mission PORTAL-B1-ACTOR-IS-ACTIONABLE-SINGLE-PRODUCTION-MIGRATION-APPLY-37. Lovable Cloud assigned its own migration version/filename; the proposed filename 20260730000000_b1_30_actor_is_actionable_configured_action_01.sql was NOT used and was removed to prevent a duplicate second apply of identical CREATE OR REPLACE bytes. Migration-history delta = 1; all data counters delta = 0."
   }
 ]
