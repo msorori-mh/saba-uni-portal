@@ -1,5 +1,5 @@
 -- ============================================================================
--- PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+-- PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07
 -- FAIL-CLOSED OPERATOR PREFLIGHT (G3 / G4 / G5 / G6 / G8)
 --
 -- READ-ONLY. No RPC action, no DDL on persistent objects, no GRANT, no ALTER
@@ -47,6 +47,7 @@ DECLARE
   v_ref  text := (SELECT value FROM b1_pin_scalar WHERE key = 'project_ref');
   v_db   text := (SELECT value FROM b1_pin_scalar WHERE key = 'approved_pgdatabase');
   v_user text := (SELECT value FROM b1_pin_scalar WHERE key = 'approved_pguser_regex');
+  v_ssl  boolean;
 BEGIN
   IF v_ref IS DISTINCT FROM 'wpmicqriltrowwonknox' THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_PRODUCTION_REF_MISMATCH: %', v_ref;
@@ -57,7 +58,16 @@ BEGIN
   IF session_user !~ v_user THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_SESSION_USER_SHAPE_MISMATCH';
   END IF;
+
+  -- G5: the user shape alone never attests the target. The launcher pins host,
+  -- port and sslmode=verify-full from TARGET-MANIFEST.json; here we prove the
+  -- backend actually terminated a TLS connection.
+  SELECT s.ssl INTO v_ssl FROM pg_stat_ssl s WHERE s.pid = pg_backend_pid();
+  IF v_ssl IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_NEEDS_VERIFIED_TLS_ENDPOINT: backend connection is not TLS';
+  END IF;
 END $$;
+
 
 -- ============================================================================
 -- 3. session_user contract — runs BEFORE any SET ROLE
@@ -144,24 +154,39 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 5. G6 — row-lock capability probe (FOR SHARE is used by every case)
---    Postgres requires UPDATE/DELETE privilege for row-level locking, which
---    contradicts the pure-observer privilege contract above. This probe makes
---    the contradiction explicit and FAIL-CLOSED: it never grants anything.
+-- 5. G6 — pure-observer probe. NO row locks anywhere in this package.
+--    PostgreSQL requires UPDATE privilege for FOR SHARE / FOR UPDATE, which
+--    directly contradicts the observer privilege contract above, so row locking
+--    was removed entirely: isolation comes from SERIALIZABLE + ROLLBACK-only
+--    cases and from the before/after complete-content fingerprint in each case.
+--    Column-level write privileges are checked here because table-level checks
+--    alone can miss a column grant.
 -- ============================================================================
 DO $$
-DECLARE v_id uuid;
+DECLARE
+  r    record;
+  v_id uuid;
 BEGIN
-  BEGIN
-    SELECT r.id INTO v_id FROM public.student_requests r
-     WHERE r.request_number = 'SR-20260727-42393846' FOR SHARE;
-  EXCEPTION WHEN insufficient_privilege THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_ROW_LOCK_CAPABILITY_NOT_PROVEN: the operator role cannot take FOR SHARE on public.student_requests; a DBA must provision a role that can take row share locks while holding no INSERT/UPDATE/DELETE/TRUNCATE, outside this package';
-  END;
+  FOR r IN
+    SELECT DISTINCT g.table_name, g.privilege_type
+      FROM information_schema.column_privileges g
+      JOIN b1_pin_relation f ON f.relname = g.table_name
+     WHERE g.table_schema = 'public'
+       AND g.grantee IN (SELECT rolname FROM pg_roles
+                          WHERE pg_has_role(session_user, oid, 'USAGE'))
+       AND g.privilege_type IN ('INSERT', 'UPDATE')
+  LOOP
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE: % %',
+      r.table_name, r.privilege_type;
+  END LOOP;
+
+  SELECT r2.id INTO v_id FROM public.student_requests r2
+   WHERE r2.request_number = 'SR-20260727-42393846';
   IF v_id IS NULL THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: locked probe row invisible';
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: probe row invisible';
   END IF;
 END $$;
+
 
 -- ============================================================================
 -- 6. G5 — AUTHORITATIVE BASELINE: complete-content equality, not row counts
@@ -442,18 +467,26 @@ DECLARE
   v_sec    text;
   v_owner  text;
   v_path   text;
-  v_tok    record;
+  v_pat    record;
+  v_scan   text;
 BEGIN
   FOR r IN SELECT * FROM b1_pin_function LOOP
     v_oid := to_regprocedure(r.signature)::oid;
     v_def := pg_get_functiondef(v_oid);
 
-    FOR v_tok IN SELECT token FROM b1_pin_forbidden_token LOOP
-      IF position(v_tok.token IN lower(v_def)) > 0 THEN
-        RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION: % token %',
-          r.signature, v_tok.token;
+    -- G9: strip block and line comments before the side-effect scan, so a
+    -- comment can neither trip the scan nor hide a real dynamic EXECUTE.
+    v_scan := lower(regexp_replace(
+                regexp_replace(v_def, '/\*.*?\*/', ' ', 'gs'),
+                '--[^\n]*', ' ', 'g'));
+
+    FOR v_pat IN SELECT id, regex FROM b1_pin_forbidden_pattern LOOP
+      IF v_scan ~ v_pat.regex THEN
+        RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION: % pattern %',
+          r.signature, v_pat.id;
       END IF;
     END LOOP;
+
 
     v_norm := btrim(regexp_replace(v_def, '\s+', ' ', 'g'));
     v_hash := encode(sha256(convert_to(v_norm, 'UTF8')), 'hex');

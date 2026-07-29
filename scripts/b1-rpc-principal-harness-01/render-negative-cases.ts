@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+ * PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07
  * Offline renderer. NO database connection, NO RPC call, NO role change.
  *
  * Inputs (both in-repository, both pinned):
@@ -28,7 +28,7 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "52ce69679dcc7494eaab7ed35292879312efffd2651dcc169f9f28b18e4ff35d";
+export const MATRIX_SHA256_LF = "1f246d358e2f58a400b374f09c1b1873d3088a9c2b8a095a27b9ff0df83cacae";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
@@ -105,10 +105,12 @@ export function extractFingerprintExpr(sql: string): string {
   }
   const expr = sql.slice(start + "-- BEGIN_FINGERPRINT_EXPR".length, end).trim();
   if (!expr.startsWith("(") || !expr.endsWith(")")) throw new Error("FINGERPRINT_EXPR_MALFORMED");
+  // G3: strip block comments first, then line comments, and only then look for
+  // LIMIT. A comment that merely mentions LIMIT must never fail the render, and
+  // a real LIMIT must never hide inside one.
   const withoutComments = expr
-    .split("\n")
-    .map((line) => line.replace(/--.*$/u, ""))
-    .join("\n");
+    .replace(/\/\*[\s\S]*?\*\//gu, " ")
+    .replace(/--[^\r\n]*/gu, " ");
   if (/\bLIMIT\b/iu.test(withoutComments)) throw new Error("FINGERPRINT_EXPR_HAS_LIMIT");
   return expr;
 }
@@ -120,11 +122,18 @@ export function extractFingerprintExpr(sql: string): string {
  * Every other outcome is CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL -> HOLD.
  * ========================================================================== */
 
+export type DenialRule = {
+  id: string;
+  match: { rpc?: string; case_class?: string; runtime_status?: string };
+  sqlstate: string;
+  message_family: string[];
+};
+
 export type DenialContract = {
   version: number;
   fail_closed: boolean;
   authorization_sqlstates: string[];
-  expected_by_expect_error: Record<string, { sqlstate: string; message_family: string[] }>;
+  resolution_rules: DenialRule[];
   infrastructure_sqlstates: string[];
   infrastructure_message_tokens: string[];
 };
@@ -137,11 +146,14 @@ export type DenialObservation = {
 
 export type DenialVerdict = { verdict: "PASS" | "HOLD"; reason: string };
 
+export type DenialContext = { rpc: string; case_class: string; runtime_status: string };
+
 export const CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL = "CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL";
 export const CASE_FAIL_ALLOWED = "CASE_FAIL_ALLOWED";
 
 export function assertDenialContract(contract: any): DenialContract {
   if (!contract || contract.fail_closed !== true) throw new Error("DENIAL_CONTRACT_NOT_FAIL_CLOSED");
+  if (contract.version < 3) throw new Error("DENIAL_CONTRACT_VERSION_TOO_OLD");
   if (!Array.isArray(contract.authorization_sqlstates) || contract.authorization_sqlstates.length === 0) {
     throw new Error("DENIAL_CONTRACT_NO_AUTHORIZATION_SQLSTATE");
   }
@@ -154,15 +166,24 @@ export function assertDenialContract(contract: any): DenialContract {
   for (const s of contract.authorization_sqlstates) {
     if (contract.infrastructure_sqlstates.includes(s)) throw new Error("DENIAL_CONTRACT_SQLSTATE_OVERLAP");
   }
-  for (const [key, exp] of Object.entries<any>(contract.expected_by_expect_error ?? {})) {
-    assertSafeDiagnostic(`expected_by_expect_error.${key}`, key);
-    if (!contract.authorization_sqlstates.includes(exp?.sqlstate)) {
-      throw new Error(`DENIAL_CONTRACT_BAD_EXPECTED_SQLSTATE: ${key}`);
+  if (!Array.isArray(contract.resolution_rules) || contract.resolution_rules.length === 0) {
+    throw new Error("DENIAL_CONTRACT_NO_RESOLUTION_RULES");
+  }
+  for (const rule of contract.resolution_rules as DenialRule[]) {
+    assertSafeScalar(`resolution_rules.${rule.id}`, rule.id);
+    if (!contract.authorization_sqlstates.includes(rule.sqlstate)) {
+      throw new Error(`DENIAL_CONTRACT_BAD_EXPECTED_SQLSTATE: ${rule.id}`);
     }
-    if (!Array.isArray(exp.message_family) || exp.message_family.length === 0) {
-      throw new Error(`DENIAL_CONTRACT_EMPTY_MESSAGE_FAMILY: ${key}`);
+    if (!Array.isArray(rule.message_family) || rule.message_family.length === 0) {
+      throw new Error(`DENIAL_CONTRACT_EMPTY_MESSAGE_FAMILY: ${rule.id}`);
     }
-    for (const token of exp.message_family) assertSafeScalar(`message_family.${key}`, token);
+    for (const token of rule.message_family) assertSafeScalar(`message_family.${rule.id}`, token);
+    for (const [k, v] of Object.entries(rule.match ?? {})) {
+      if (!["rpc", "case_class", "runtime_status"].includes(k)) {
+        throw new Error(`DENIAL_CONTRACT_BAD_MATCH_KEY: ${rule.id}.${k}`);
+      }
+      assertSafeScalar(`match.${rule.id}.${k}`, String(v));
+    }
   }
   for (const token of contract.infrastructure_message_tokens ?? []) {
     assertSafeDiagnostic("infrastructure_message_tokens", token);
@@ -170,42 +191,53 @@ export function assertDenialContract(contract: any): DenialContract {
   return contract as DenialContract;
 }
 
-export function expectationFor(contract: DenialContract, expectError: string) {
-  const exp = contract.expected_by_expect_error[expectError];
-  if (!exp) throw new Error(`DENIAL_CONTRACT_MISSING_EXPECTATION: ${expectError}`);
-  return exp;
+/** First matching rule wins; no match is fail-closed. */
+export function expectationFor(contract: DenialContract, ctx: DenialContext): DenialRule {
+  const rule = contract.resolution_rules.find(
+    (r) =>
+      (r.match.rpc === undefined || r.match.rpc === ctx.rpc) &&
+      (r.match.case_class === undefined || r.match.case_class === ctx.case_class) &&
+      (r.match.runtime_status === undefined || r.match.runtime_status === ctx.runtime_status),
+  );
+  if (!rule) {
+    throw new Error(`DENIAL_CONTRACT_MISSING_EXPECTATION: ${ctx.rpc}/${ctx.case_class}/${ctx.runtime_status}`);
+  }
+  return rule;
 }
 
-/** Pure, offline mirror of the SQL gate emitted into every rendered case. */
+/** Pure, offline mirror of the SQL gate emitted into every rendered case.
+ *  The (SQLSTATE, message family) pair is compared FIRST; only a pair that does
+ *  not match the resolved authorization rule is classified as infrastructure. */
 export function classifyDenialOutcome(
   observation: DenialObservation,
   contract: DenialContract,
-  expectError: string,
+  ctx: DenialContext,
 ): DenialVerdict {
-  const expected = expectationFor(contract, expectError);
+  const expected = expectationFor(contract, ctx);
   if (observation.allowed) {
     return { verdict: "HOLD", reason: `${CASE_FAIL_ALLOWED}: RPC succeeded but DENY was required` };
   }
   const sqlstate = (observation.sqlstate ?? "").toUpperCase();
   const message = observation.message ?? "";
-  const lower = message.toLowerCase();
+  const upper = message.toUpperCase();
+  const familyHit = expected.message_family.some((t) => upper.includes(t.toUpperCase()));
 
+  if (sqlstate === expected.sqlstate && familyHit) {
+    return { verdict: "PASS", reason: "authorization denial matches the resolved denial class" };
+  }
   if (contract.infrastructure_sqlstates.includes(sqlstate)) {
     return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: infrastructure sqlstate ${sqlstate}` };
   }
-  const hit = contract.infrastructure_message_tokens.find((t) => lower.includes(t.toLowerCase()));
+  const hit = contract.infrastructure_message_tokens.find((t) => message.toLowerCase().includes(t.toLowerCase()));
   if (hit) {
     return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: infrastructure message token "${hit}"` };
   }
   if (sqlstate !== expected.sqlstate) {
     return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: sqlstate ${sqlstate || "<none>"} != ${expected.sqlstate}` };
   }
-  const upper = message.toUpperCase();
-  if (!expected.message_family.some((t) => upper.includes(t.toUpperCase()))) {
-    return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: message outside the expected family` };
-  }
-  return { verdict: "PASS", reason: "authorization denial matches the pinned denial class" };
+  return { verdict: "HOLD", reason: `${CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL}: message outside the expected family` };
 }
+
 
 function sqlTextArray(values: string[]): string {
   return `ARRAY[${values.map((v) => `'${v.replace(/'/gu, "''")}'`).join(",")}]::text[]`;
@@ -237,17 +269,39 @@ type NegativeCase = {
   zero_mutation: boolean;
 };
 
+export type AttestedRequestState = {
+  request_type: string;
+  request_status: string;
+  active_step_count: number;
+  active_step_id: string;
+  fee_assessment_rows: number;
+  source_department_id: string | null;
+  target_department_id: string | null;
+};
+
 function renderCase(
   ordinal: number,
   nc: NegativeCase,
   pc: PositiveCase,
   fingerprintExpr: string,
   contract: DenialContract,
+  attest: AttestedRequestState,
 ): string {
   const isAnon = nc.actor_user_id === null;
   const actor = isAnon ? null : assertUuid("actor_user_id", nc.actor_user_id as string);
   const stepId = assertUuid("runtime_step_id", nc.runtime_step_id ?? pc.runtime_step_id);
   const action = assertSafeScalar("action", nc.action);
+  if (attest.request_type !== pc.request_type) {
+    throw new Error(`MATRIX_VALIDATION_FAIL: attested request_type drift for ${nc.request_number}`);
+  }
+  const attestedSourceDepartment =
+    pc.request_type === "department_transfer"
+      ? assertUuid("source_department_id", attest.source_department_id as string)
+      : "";
+  const attestedTargetDepartment =
+    pc.request_type === "department_transfer"
+      ? assertUuid("target_department_id", attest.target_department_id as string)
+      : "";
   if (!ACTION_RE.test(action)) throw new Error("MATRIX_VALIDATION_FAIL: action shape");
   if (!KEY_RE.test(assertSafeScalar("step_key", nc.step_key))) {
     throw new Error("MATRIX_VALIDATION_FAIL: step_key shape");
@@ -259,11 +313,16 @@ function renderCase(
   if (nc.zero_mutation !== true) throw new Error("MATRIX_VALIDATION_FAIL: zero_mutation must be true");
   assertSafeDiagnostic("expect_error", nc.expect_error);
   assertSafeScalar("case_class", nc.case);
-  const expected = expectationFor(contract, nc.expect_error);
+  const expected = expectationFor(contract, {
+    rpc: pc.rpc,
+    case_class: nc.case,
+    runtime_status: pc.runtime_status,
+  });
 
+  // G6: the payment RPC takes the RUNTIME STEP id, not the request id.
   const rpcCall =
     pc.rpc === "record_external_university_payment_confirmation"
-      ? `PERFORM public.record_external_university_payment_confirmation(v_req, 'TEST_ONLY_NEGATIVE_MATRIX');`
+      ? `PERFORM public.record_external_university_payment_confirmation(v_step, 'TEST_ONLY_NEGATIVE_MATRIX');`
       : `PERFORM public.act_on_b1_student_request_step_atomic(v_step, ${lit(action)}, NULL::text, NULL::jsonb);`;
 
   const claims = isAnon
@@ -278,27 +337,42 @@ function renderCase(
       RAISE EXCEPTION 'PRINCIPAL_MISMATCH: %', auth.uid();
     END IF;`;
 
-  const assigneePin =
-    pc.principal_user_id && !isAnon
-      ? `IF v_assignee IS DISTINCT FROM ${lit(pc.principal_user_id)}::uuid THEN
-    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee changed on step %', v_step;
-  END IF;`
-      : `IF v_assignee IS DISTINCT FROM ${lit(pc.principal_user_id)}::uuid THEN
-    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee changed on step %', v_step;
+  // G7: assigned_user_id is NULL in production; the effective assignee is bound
+  // through exactly one direct slot (staff / faculty / position assignment) plus
+  // exactly one active unit+role processing assignment. Both are pinned.
+  const assigneePin = `IF v_assignee IS NOT NULL THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step %', v_step;
+  END IF;
+  SELECT (CASE WHEN w.assigned_staff_profile_id IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN w.assigned_faculty_profile_id IS NOT NULL THEN 1 ELSE 0 END
+        + CASE WHEN w.assigned_position_assignment_id IS NOT NULL THEN 1 ELSE 0 END)
+    INTO v_n
+    FROM public.student_request_workflow_steps w WHERE w.id = v_step;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % direct assignee slots on step % (want 1)', v_n, v_step;
+  END IF;
+  SELECT count(*) INTO v_n
+    FROM public.request_processing_assignments a
+    JOIN public.student_request_workflow_steps w ON w.id = v_step
+   WHERE a.processing_unit_id = w.processing_unit_id
+     AND a.processing_role_id = w.processing_role_id
+     AND a.is_active;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % active unit+role assignments for step % (want 1)', v_n, v_step;
   END IF;`;
 
   const transferScopePin =
     pc.request_type === "department_transfer"
-      ? `PERFORM 1 FROM public.transfer_request_details d WHERE d.request_id = v_req FOR SHARE;
-  SELECT count(*) INTO v_n FROM public.transfer_request_details d
+      ? `SELECT count(*) INTO v_n FROM public.transfer_request_details d
    WHERE d.request_id = v_req
-     AND d.current_department_id IS NOT NULL
-     AND d.requested_department_id IS NOT NULL
+     AND d.current_department_id = ${lit(attestedSourceDepartment)}::uuid
+     AND d.requested_department_id = ${lit(attestedTargetDepartment)}::uuid
      AND d.current_department_id <> d.requested_department_id;
   IF v_n <> 1 THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: transfer department scope';
   END IF;`
       : `-- no department scope pin for this service`;
+
 
   const id = String(ordinal).padStart(4, "0");
   return `-- ============================================================================
@@ -339,20 +413,32 @@ BEGIN
     RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id}: transaction is read-only';
   END IF;
 
-  -- ---- G6: real row locks, fixed order: request -> steps -> assignments ----
+  -- ---- G6: no row-lock clause is emitted anywhere. Row-level locking needs
+  -- UPDATE privilege and would contradict the pure-observer contract.
+  -- Isolation is SERIALIZABLE + ROLLBACK-only, and mutation is proven
+  -- impossible by the before/after complete-content fingerprint below.
   SELECT r.id, r.request_type, r.status
     INTO v_req, v_type, v_status
     FROM public.student_requests r
-   WHERE r.request_number = ${lit(nc.request_number)}
-   FOR SHARE;
+   WHERE r.request_number = ${lit(nc.request_number)};
   IF v_req IS NULL THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: request ${nc.request_number} not visible';
   END IF;
+  IF v_status IS DISTINCT FROM ${lit(attest.request_status)} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: request status % (want ${attest.request_status})', v_status;
+  END IF;
 
-  PERFORM 1 FROM public.student_request_workflow_steps w
-   WHERE w.student_request_id = v_req ORDER BY w.id FOR SHARE;
+  SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
+   WHERE w.student_request_id = v_req AND w.status = 'active';
+  IF v_n <> ${attest.active_step_count} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % active steps (want ${attest.active_step_count})', v_n;
+  END IF;
 
-  PERFORM 1 FROM public.request_processing_assignments a ORDER BY a.id FOR SHARE;
+  SELECT count(*) INTO v_n FROM public.student_request_fee_assessments f
+   WHERE f.request_id = v_req;
+  IF v_n <> ${attest.fee_assessment_rows} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % fee assessments (want ${attest.fee_assessment_rows})', v_n;
+  END IF;
 
   ${transferScopePin}
 
@@ -360,6 +446,7 @@ BEGIN
   IF v_type IS DISTINCT FROM ${lit(pc.request_type)} THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: request_type %', v_type;
   END IF;
+
 
   SELECT w.status, w.assigned_user_id, w.step_order
     INTO v_status2, v_assignee, v_order
@@ -542,10 +629,10 @@ ${trg
   )
   .join(",\n")};
 
-CREATE TEMP TABLE b1_pin_forbidden_token(token text primary key) ON COMMIT DROP;
-INSERT INTO b1_pin_forbidden_token(token) VALUES
-${(manifest.function_graph.forbidden_definition_tokens as string[])
-  .map((t) => `  (${sqlText(t.toLowerCase())})`)
+CREATE TEMP TABLE b1_pin_forbidden_pattern(id text primary key, regex text not null) ON COMMIT DROP;
+INSERT INTO b1_pin_forbidden_pattern(id, regex) VALUES
+${(manifest.function_graph.forbidden_definition_patterns as Array<{ id: string; regex: string }>)
+  .map((p) => `  (${sqlText(p.id)}, ${sqlText(p.regex)})`)
   .join(",\n")};
 
 CREATE TEMP TABLE b1_pin_relation(relname text primary key, rls_required boolean not null) ON COMMIT DROP;
@@ -622,7 +709,19 @@ export function main(): void {
     throw new Error("MANIFEST_MIGRATION_MISMATCH");
   }
 
+  if (manifest.matrix?.sha256_lf !== MATRIX_SHA256_LF) throw new Error("MANIFEST_MATRIX_SHA_MISMATCH");
+  for (const f of manifest.function_graph.functions as Array<{ signature: string; definition_sha256: string }>) {
+    if (!/^[0-9a-f]{64}$/u.test(f.definition_sha256 ?? "")) {
+      throw new Error(`FUNCTION_GRAPH_UNPINNED: ${f.signature}`);
+    }
+  }
+
   const fingerprintExpr = extractFingerprintExpr(readFileSync(FINGERPRINT_PATH, "utf8"));
+
+  const attestation = matrix.production_readonly_attestation?.requests as
+    | Record<string, AttestedRequestState>
+    | undefined;
+  if (!attestation) throw new Error("MATRIX_MISSING_PRODUCTION_READONLY_ATTESTATION");
 
   const positives: PositiveCase[] = matrix.positive_cases;
   const byStep = new Map<string, PositiveCase>();
@@ -644,11 +743,14 @@ export function main(): void {
   negatives.forEach((nc, index) => {
     const pc = byStep.get(`${nc.request_number}|${nc.step_key}`);
     if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
+    const attest = attestation[nc.request_number];
+    if (!attest) throw new Error(`MATRIX_VALIDATION_FAIL: no attested state for ${nc.request_number}`);
     const ordinal = index + 1;
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
-    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract), "utf8");
+    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest), "utf8");
     files.push(`cases/${name}`);
   });
+
 
   writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
