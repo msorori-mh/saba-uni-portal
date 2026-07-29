@@ -443,8 +443,14 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
     // the only writable object is an ON COMMIT DROP temp table
     expect(executable).toContain("CREATE TEMP TABLE b1_fingerprint_relations");
     expect(executable).toContain("ON COMMIT DROP");
-    const inserts = executable.match(/INSERT INTO\s+(\S+)/g) ?? [];
-    expect(inserts.every((i) => i.includes("b1_fingerprint_relations"))).toBe(true);
+    expect(executable).toContain("CREATE TEMP TABLE b1_function_allowlist");
+    const inserts = executable.match(/INSERT INTO\s+(\S+?)[\s(]/g) ?? [];
+    expect(inserts.length).toBeGreaterThan(0);
+    expect(
+      inserts.every(
+        (i) => i.includes("b1_fingerprint_relations") || i.includes("b1_function_allowlist"),
+      ),
+    ).toBe(true);
   });
 
 
