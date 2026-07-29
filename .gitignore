@@ -52,3 +52,7 @@ tests/security/.env.setup.local
 /android/app/src/main/assets/public/
 *.keystore
 !debug.keystore
+
+# Python cache
+__pycache__/
+*.py[cod]
