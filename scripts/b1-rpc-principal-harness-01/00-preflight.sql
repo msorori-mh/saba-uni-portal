@@ -467,18 +467,26 @@ DECLARE
   v_sec    text;
   v_owner  text;
   v_path   text;
-  v_tok    record;
+  v_pat    record;
+  v_scan   text;
 BEGIN
   FOR r IN SELECT * FROM b1_pin_function LOOP
     v_oid := to_regprocedure(r.signature)::oid;
     v_def := pg_get_functiondef(v_oid);
 
-    FOR v_tok IN SELECT token FROM b1_pin_forbidden_token LOOP
-      IF position(v_tok.token IN lower(v_def)) > 0 THEN
-        RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION: % token %',
-          r.signature, v_tok.token;
+    -- G9: strip block and line comments before the side-effect scan, so a
+    -- comment can neither trip the scan nor hide a real dynamic EXECUTE.
+    v_scan := lower(regexp_replace(
+                regexp_replace(v_def, '/\*.*?\*/', ' ', 'gs'),
+                '--[^\n]*', ' ', 'g'));
+
+    FOR v_pat IN SELECT id, regex FROM b1_pin_forbidden_pattern LOOP
+      IF v_scan ~ v_pat.regex THEN
+        RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION: % pattern %',
+          r.signature, v_pat.id;
       END IF;
     END LOOP;
+
 
     v_norm := btrim(regexp_replace(v_def, '\s+', ' ', 'g'));
     v_hash := encode(sha256(convert_to(v_norm, 'UTF8')), 'hex');
