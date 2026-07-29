@@ -271,6 +271,26 @@ type NegativeCase = {
   expect: string;
   expect_error: string;
   zero_mutation: boolean;
+  configured_action_type?: string;
+  assignee_is_exact_direct_assignee?: boolean;
+  only_negative_variable?: string;
+  requires_active_transfer_scope_fixture?: boolean;
+  execution_status?: string;
+  blocked_reason?: string | null;
+};
+
+/** REMEDIATION-09 G3 — per-step production state pinned in MATRIX.json. */
+export type StepStatePin = {
+  request_type: string;
+  step_order: number;
+  runtime_step_id: string;
+  runtime_status: string;
+  processing_unit_code: string;
+  processing_role_code: string;
+  configured_action_type: string;
+  direct_assignee_user_id: string;
+  predecessor_incomplete_expected: number | null;
+  rpc: string;
 };
 
 export type AttestedRequestState = {
@@ -283,6 +303,31 @@ export type AttestedRequestState = {
   target_department_id: string | null;
 };
 
+/** G2 — a scope case may only execute against an ACTIVE step; otherwise the
+ *  RPC denies with B1_ACTIVE_STEP_REQUIRED, which never proves scope. */
+export function isBlockedScopeCase(nc: NegativeCase, pin: StepStatePin): boolean {
+  return nc.requires_active_transfer_scope_fixture === true && pin.runtime_status !== "active";
+}
+
+export function renderBlockedCase(ordinal: number, nc: NegativeCase): string {
+  const id = String(ordinal).padStart(4, "0");
+  return `-- ============================================================================
+-- case-${id} — NOT EXECUTED
+${comment("class", nc.case)}
+${comment("request_number", nc.request_number)}
+${comment("step_key", nc.step_key)}
+${comment("execution_status", TRANSFER_SCOPE_BLOCKED_TOKEN)}
+${comment("blocked_reason", nc.blocked_reason ?? "target step is not active")}
+-- This file is excluded from master-negative-matrix.sql. Running it raises.
+-- ============================================================================
+DO $blocked$
+BEGIN
+  RAISE EXCEPTION 'TRANSFER_SCOPE_CASE_${TRANSFER_SCOPE_BLOCKED_TOKEN} case-${id} ${nc.case}';
+END
+$blocked$;
+`;
+}
+
 function renderCase(
   ordinal: number,
   nc: NegativeCase,
@@ -290,6 +335,7 @@ function renderCase(
   fingerprintExpr: string,
   contract: DenialContract,
   attest: AttestedRequestState,
+  pin: StepStatePin,
 ): string {
   const isAnon = nc.actor_user_id === null;
   const actor = isAnon ? null : assertUuid("actor_user_id", nc.actor_user_id as string);
