@@ -78,9 +78,12 @@ left join public.request_type_workflow_steps c on c.id = s.workflow_step_id
 where sr.request_number = 'SR-20260727-695EC35B'
 order by s.step_order;
 
+-- DEFECT-3 FIX: supabase_migrations.schema_migrations is NOT readable by the
+-- roles available to this preflight. It is therefore NOT part of P8. Migration
+-- history is attested separately through the platform's own migration ledger
+-- (see P8m below, which is OPTIONAL and only runs for a superuser operator).
 \echo == P8: baseline invariants (must be unchanged by a read-only migration)
 select
-  (select count(*) from supabase_migrations.schema_migrations) as migrations,
   (select count(*) from public.student_requests)               as requests,
   (select count(*) from public.student_request_workflow_steps) as workflow_steps,
   (select count(*) from public.student_request_workflow_events) as workflow_events,
