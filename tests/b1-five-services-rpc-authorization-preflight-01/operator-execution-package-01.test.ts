@@ -89,14 +89,12 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
     for (const token of ["postgresql://", "postgres://", "password", "PGPASSWORD", "PGPASSFILE"]) {
       expect(ps).toContain(token);
     }
-    // every Set-Content of psql output goes through Protect-Output
+    // psql output is redacted at capture time, so every persisted artifact
+    // derives from an already-redacted value
     const captures = ps.split("\n").filter((l) => l.includes("$out -join"));
+    expect(captures.length).toBeGreaterThan(0);
     expect(captures.every((l) => l.includes("Protect-Output"))).toBe(true);
-    for (const l of ps.split("\n")) {
-      if (/Set-Content .*negative-matrix-(report|cases)/.test(l)) {
-        expect(l).toContain("Protect-Output");
-      }
-    }
+    expect(ps).toContain("Output = (Protect-Output");
   });
 
   // -------------------------------------------------- G2 target attestation --
