@@ -120,7 +120,7 @@
   ],
   "function_graph": {
     "note": "REMEDIATION-07 G8. Complete transitive closure discovered by a production READ-ONLY attestation (SELECT on pg_proc/pg_get_functiondef only) plus the Migration-29 trigger-function closure. definition_sha256 is SHA256 of pg_get_functiondef() with runs of whitespace collapsed to one space and trimmed. No entry may be null.",
-    "attested_at_utc": "2026-07-29T06:20:00Z",
+    "attested_at_utc": "2026-07-29T22:45:00Z",
     "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY",
     "closure_size": 28,
     "functions": [
@@ -252,11 +252,12 @@
       },
       {
         "signature": "public.has_any_role(uuid,text[])",
-        "definition_sha256": "e2e431b29d4ba7f3ffb79ca2bfc3cc6830b50e77fbd6ef54578a2fb475064f38",
+        "definition_sha256": "2673511089eb62974801e0d1d35c1b8568f69071874c537353abd129236f785a",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "student_profiles_trigger_closure": true
+        "student_profiles_trigger_closure": true,
+        "repinned_from_production_read_only": "2026-07-29T22:45:00Z"
       },
       {
         "signature": "public.is_b1_stored_request_type(text)",
@@ -288,11 +289,12 @@
       },
       {
         "signature": "public.protect_student_sensitive_fields()",
-        "definition_sha256": "45d6df61ecdb0fce6bb6a759171400cfd60f32d1f07218556a342d7c6e713708",
+        "definition_sha256": "0aa3efc8e2dce49b7f0aa92a591da44ed7e8aec8b27967f59ee922fa7ecc6583",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "student_profiles_trigger_closure": true
+        "student_profiles_trigger_closure": true,
+        "repinned_from_production_read_only": "2026-07-29T22:45:00Z"
       },
       {
         "signature": "public.record_external_university_payment_confirmation(uuid,text)",
@@ -304,11 +306,12 @@
       },
       {
         "signature": "public.update_updated_at_column()",
-        "definition_sha256": "4f969bb9535c476c235c45b984a7030118dc8a0e520b233d066e91beb4cb2f07",
+        "definition_sha256": "4b210dde823c21c4e1aa07135b278271f7f527add2a6f1c015aed9595f58a565",
         "security": "INVOKER",
         "owner": "postgres",
         "search_path": "search_path=public",
-        "student_profiles_trigger_closure": true
+        "student_profiles_trigger_closure": true,
+        "repinned_from_production_read_only": "2026-07-29T22:45:00Z"
       },
       {
         "signature": "public.user_matches_workflow_runtime_step(uuid)",
