@@ -7,6 +7,8 @@ import {
   APPROVED_PROJECT_REF,
   EXPECTED_NEGATIVE_TOTAL,
   FORBIDDEN_PATTERNS,
+  EXPECTED_BLOCKED_TOTAL,
+  EXPECTED_EXECUTABLE_TOTAL,
   MATRIX_SHA256_LF,
   assertDenialContract,
   assertSafeDiagnostic,
@@ -14,6 +16,8 @@ import {
   classifyDenialOutcome,
   expectationFor,
   extractFingerprintExpr,
+  isBlockedCase,
+  requiresActiveFixture,
   sha256Lf,
 } from "../../scripts/b1-rpc-principal-harness-01/render-negative-cases";
 
@@ -521,25 +525,24 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
     expect(scope.length).toBe(3);
     for (const c of scope) {
       expect(c.requires_active_transfer_scope_fixture).toBe(true);
-      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
       expect(matrix.step_state_pins[`${c.request_number}|${c.step_key}`].runtime_status).not.toBe("active");
     }
-    expect(matrix.transfer_scope_execution.status).toBe("BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
-    expect(matrix.counts.execution_blocked).toBe(3);
-    expect(matrix.counts.executable_negative_total).toBe(EXPECTED_NEGATIVE_TOTAL - 3);
+    expect(matrix.transfer_scope_execution.status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
+    expect(matrix.counts.execution_blocked_transfer_scope).toBe(3);
 
     const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
-    expect((master.match(/\\ir cases\//gu) ?? []).length).toBe(EXPECTED_NEGATIVE_TOTAL - 3);
     expect(master).not.toContain("BLOCKED.sql");
     for (const n of [265, 266, 267]) {
       const blocked = read(join(pkg, "generated", "cases", `case-0${n}.BLOCKED.sql`));
-      expect(blocked).toContain("TRANSFER_SCOPE_CASE_BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+      expect(blocked).toContain("CASE_BLOCKED_PENDING_ACTIVE_FIXTURE");
+      expect(blocked).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
       expect(blocked).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
     }
   });
 
   it("G3: every executable case pins unit, role, configured action_type and the direct assignee", () => {
-    for (const n of [1, 100, 264]) {
+    for (const n of [1, 100, 240]) {
       const sql = read(join(pkg, "generated", "cases", `case-${String(n).padStart(4, "0")}.sql`));
       expect(sql).toContain("unit/role/action_type pin failed");
       expect(sql).toContain("direct assignee pin failed");
@@ -564,7 +567,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
       "supabase_migrations.schema_migrations",
     );
     expect(manifest.operator_privilege_contract.required).toContain(
-      "no INSERT/UPDATE/DELETE on supabase_migrations.schema_migrations",
+      "no table-level INSERT/UPDATE/DELETE/TRUNCATE on supabase_migrations.schema_migrations",
     );
   });
 
@@ -572,6 +575,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
     const closure = manifest.function_graph.trigger_aware_closure;
     expect(closure.unpinned_trigger_function_verdict).toBe("FUNCTION_GRAPH_DRIFT");
     expect(closure.dml_relations).toContain("student_request_workflow_steps");
+    expect(closure.dml_relations).toContain("student_profiles");
     expect(closure.dml_relations.length).toBeGreaterThanOrEqual(10);
     expect(preflight).toContain("unpinned trigger function");
     expect(preflight).toContain("b1_pin_dml_relation");
@@ -585,8 +589,222 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
   it("G6: matrix SHA and manifest stay consistent after remediation", () => {
     expect(sha256Lf(matrixRaw)).toBe(MATRIX_SHA256_LF);
     expect(manifest.matrix.sha256_lf).toBe(MATRIX_SHA256_LF);
-    expect(manifest.matrix.executable_negative_total).toBe(264);
-    expect(manifest.matrix.blocked_negative_total).toBe(3);
+    expect(manifest.matrix.executable_negative_total).toBe(245);
+    expect(manifest.matrix.blocked_negative_total).toBe(22);
     expect(matrix.production_ref).toBe(APPROVED_PROJECT_REF);
+  });
+});
+
+describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", () => {
+  const allCases = [
+    ...matrix.negative_cases,
+    ...matrix.illegal_action_cases,
+    ...matrix.supplemental_department_scope_cases,
+  ] as any[];
+  const pins = matrix.step_state_pins as Record<string, any>;
+  const isBlocked = (c: any) => c.execution_status === "BLOCKED_PENDING_ACTIVE_FIXTURE";
+  const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
+  const generatedManifest = JSON.parse(read(join(pkg, "generated", "MANIFEST.json")));
+  const pinsSql = read(join(pkg, "generated", "pins.sql"));
+
+  // ---- G1 / G7: 267 = 245 executable + 22 blocked --------------------------
+  it("G1: 267 defined = 245 executable + 22 blocked, 0 positives", () => {
+    expect(allCases).toHaveLength(267);
+    expect(EXPECTED_EXECUTABLE_TOTAL).toBe(245);
+    expect(EXPECTED_BLOCKED_TOTAL).toBe(22);
+    expect(matrix.counts.negative_total).toBe(267);
+    expect(matrix.counts.executable_negative_total).toBe(245);
+    expect(matrix.counts.execution_blocked).toBe(22);
+    expect(matrix.counts.positive).toBe(0);
+    expect(matrix.counts.positive_rendered).toBe(0);
+    expect(allCases.filter(isBlocked)).toHaveLength(22);
+    expect(allCases.filter((c) => !isBlocked(c))).toHaveLength(245);
+    expect(generatedManifest.negative_total).toBe(267);
+    expect(generatedManifest.executable_negative_total).toBe(245);
+    expect(generatedManifest.blocked_negative_total).toBe(22);
+    expect(generatedManifest.positive_rendered).toBe(0);
+    expect(generatedManifest.commits).toBe(0);
+  });
+
+  it("G1: exactly the 5 illegal-action cases on ACTIVE steps stay executable", () => {
+    const ia = matrix.illegal_action_cases as any[];
+    const active = ia.filter((c) => pins[`${c.request_number}|${c.step_key}`].runtime_status === "active");
+    const pending = ia.filter((c) => pins[`${c.request_number}|${c.step_key}`].runtime_status !== "active");
+    expect(active).toHaveLength(5);
+    expect(pending).toHaveLength(19);
+    for (const c of active) expect(c.execution_status).toBe("EXECUTABLE");
+    for (const c of pending) {
+      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
+      expect(c.blocked_reason).toContain("B1_ACTIVE_STEP_REQUIRED");
+    }
+  });
+
+  it("G1: the 19 pending illegal-action cases can never PASS", () => {
+    const pending = (matrix.illegal_action_cases as any[]).filter(
+      (c) => pins[`${c.request_number}|${c.step_key}`].runtime_status !== "active",
+    );
+    expect(pending).toHaveLength(19);
+    for (const c of pending) {
+      const pin = pins[`${c.request_number}|${c.step_key}`];
+      expect(isBlockedCase(c, pin)).toBe(true);
+      expect(requiresActiveFixture(c)).toBe(true);
+    }
+  });
+
+  it("G1: the 3 transfer-scope cases can never PASS", () => {
+    const scope = matrix.supplemental_department_scope_cases as any[];
+    expect(scope).toHaveLength(3);
+    for (const c of scope) {
+      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
+      expect(isBlockedCase(c, pins[`${c.request_number}|${c.step_key}`])).toBe(true);
+    }
+  });
+
+  // ---- G2: blocked cases are outside master, non-executable, never PASS ----
+  it("G2: master contains exactly the 245 executable cases and no blocked file", () => {
+    expect((master.match(/\\ir cases\//gu) ?? []).length).toBe(245);
+    expect(master).not.toContain("BLOCKED.sql");
+    expect(master).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
+    for (const f of generatedManifest.blocked_files as string[]) {
+      expect(master).not.toContain(f);
+      const sql = read(join(pkg, "generated", f));
+      expect(sql).toContain("RAISE EXCEPTION 'CASE_BLOCKED_PENDING_ACTIVE_FIXTURE");
+      expect(sql).toContain("NOT EXECUTED");
+      expect(sql).toContain("can NEVER be reported as PASS");
+      expect(sql).not.toContain("CASE_PASS");
+      expect(sql).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
+    }
+    expect(generatedManifest.blocked_files).toHaveLength(22);
+    expect(generatedManifest.final_pass_allowed).toBe(false);
+    expect(generatedManifest.hold_token_when_blocked).toBe(
+      "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE",
+    );
+    expect(generatedManifest.blocked_by_class["illegal_action_by_exact_assignee"]).toBe(19);
+    expect(generatedManifest.blocked_by_class["department_scope_swap_source_head_on_target_step"]).toBeGreaterThan(0);
+  });
+
+  // ---- G3: launcher + preflight refuse to run while blocked_cases > 0 ------
+  it("G3: the launcher refuses to start and never prints PASS while blocked > 0", () => {
+    expect(launcher).toMatch(/if \(\$blockedCases\.Count -gt 0\) \{/u);
+    expect(launcher).toContain("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
+    expect(launcher).toContain("exit 2");
+    expect(launcher).toContain("$blockedCases.Count -gt 0)");
+    expect(launcher).toContain("RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_245_DENY_ZERO_MUTATION_0_BLOCKED");
+    const gateIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
+    expect(gateIdx).toBeGreaterThan(-1);
+    expect(gateIdx).toBeLessThan(launcher.indexOf("& psql "));
+    expect(launcher).toContain("if ($blockedCases.Count -ne 22)");
+    expect(launcher).toContain("if ($executableCount -ne 245)");
+    expect(launcher).toContain("if ($masterIncludes -ne 245)");
+  });
+
+  it("G3: the preflight itself halts on blocked cases, so psql cannot bypass the launcher", () => {
+    expect(pinsSql).toContain("('blocked_case_total', '22')");
+    expect(pinsSql).toContain("('executable_case_total', '245')");
+    expect(pinsSql).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
+    expect(preflight).toContain("B1_PREFLIGHT_BLOCKED_CASE_PIN_MISSING");
+    expect(preflight).toContain("blocked_case_total");
+    expect(preflight).toContain("BLOCKED_PENDING_ACTIVE_FIXTURE");
+  });
+
+  // ---- G4: complete migration-ledger contract ------------------------------
+  it("G4: schema_migrations contract covers ownership, SELECT and table/column writes", () => {
+    const ledger = manifest.operator_privilege_contract.migration_ledger;
+    expect(ledger.relation).toBe("supabase_migrations.schema_migrations");
+    expect(ledger.ownership).toContain("FORBIDDEN");
+    expect(ledger.read).toContain("REQUIRED");
+    expect(ledger.table_level_write).toContain("FORBIDDEN");
+    expect(ledger.column_level_write).toContain("FORBIDDEN");
+    for (const req of [
+      "SELECT on supabase_migrations.schema_migrations",
+      "not owner of supabase_migrations.schema_migrations",
+      "no table-level INSERT/UPDATE/DELETE/TRUNCATE on supabase_migrations.schema_migrations",
+      "no column-level INSERT/UPDATE on supabase_migrations.schema_migrations",
+    ]) {
+      expect(manifest.operator_privilege_contract.required).toContain(req);
+    }
+    expect(preflight).toContain("B1_PREFLIGHT_OPERATOR_OWNS_MIGRATION_LEDGER");
+    expect(preflight).toContain(
+      "B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE: supabase_migrations.schema_migrations",
+    );
+    expect(preflight).toContain(
+      "B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE: supabase_migrations.schema_migrations",
+    );
+    expect(preflight).toContain("g.table_schema = 'supabase_migrations'");
+  });
+
+  // ---- G5: student_profiles trigger closure --------------------------------
+  it("G5: student_profiles is in the DML closure with both enabled triggers pinned", () => {
+    const closure = manifest.function_graph.trigger_aware_closure;
+    expect(closure.dml_relations).toContain("student_profiles");
+    expect(pinsSql).toContain("'student_profiles'");
+    const trg = closure.declared_relation_triggers["public.student_profiles"] as any[];
+    expect(trg).toHaveLength(2);
+    const names = trg.map((t) => t.tgname);
+    expect(names).toContain("trg_student_profiles_updated_at");
+    expect(names).toContain("trg_protect_student_sensitive");
+    for (const t of trg) {
+      expect(t.tgenabled).toBe("O");
+      expect(t.tgtype).toBe(19);
+      expect(t.timing).toBe("BEFORE UPDATE");
+    }
+    const sigs = trg.map((t) => t.function_signature);
+    expect(sigs).toContain("public.update_updated_at_column()");
+    expect(sigs).toContain("public.protect_student_sensitive_fields()");
+  });
+
+  it("G5: the student_profiles trigger closure is transitively declared and side-effect scanned", () => {
+    const pending = manifest.function_graph.trigger_aware_closure.pending_attestation;
+    expect(pending.status).toBe("PENDING_PRODUCTION_ATTESTATION");
+    expect(pending.verdict_when_unpinned).toBe("FUNCTION_GRAPH_DRIFT");
+    const bySig = new Map<string, any>(pending.functions.map((f: any) => [f.signature, f]));
+    for (const sig of [
+      "public.update_updated_at_column()",
+      "public.protect_student_sensitive_fields()",
+      "public.has_any_role(uuid,text[])",
+    ]) {
+      const f = bySig.get(sig);
+      expect(f).toBeTruthy();
+      expect(["DEFINER", "INVOKER"]).toContain(f.security);
+      expect(f.owner).toBe("postgres");
+      expect(f.search_path).toBe("search_path=public");
+      expect(f.external_side_effects_source_scan).toBe("none");
+      expect(Object.hasOwn(f, "definition_sha256")).toBe(true);
+    }
+    // the transitive callee discovered from protect_student_sensitive_fields
+    expect(bySig.get("public.protect_student_sensitive_fields()").source_derived_calls).toContain(
+      "public.has_any_role(uuid,text[])",
+    );
+    // unpinned (SHA-less) closure members must keep the run fail-closed
+    expect(preflight).toContain("FUNCTION_GRAPH_DRIFT: unpinned reachable function");
+  });
+
+  // ---- G6: exact state pinning ---------------------------------------------
+  it("G6: every step pin carries action, unit, role, assignee, predecessor set and scope", () => {
+    for (const [key, pin] of Object.entries(pins)) {
+      expect(pin.configured_action_type).toBeTruthy();
+      expect(pin.processing_unit_code).toBeTruthy();
+      expect(pin.processing_role_code).toBeTruthy();
+      expect(pin.direct_assignee_user_id).toMatch(/^[0-9a-f-]{36}$/u);
+      expect(Array.isArray(pin.predecessor_set)).toBe(true);
+      expect(pin.predecessor_set).toHaveLength(pin.predecessor_total_expected);
+      expect(pin.predecessor_set.filter((p: any) => !["completed", "skipped"].includes(p.runtime_status))).toHaveLength(
+        pin.predecessor_incomplete_expected,
+      );
+      expect(pin.department_scope).toBe(
+        key.startsWith("SR-20260727-88D885F0") ? "transfer_department_scope" : "not_applicable",
+      );
+    }
+  });
+
+  it("G6: rendered cases compare the exact predecessor set, statuses and scope", () => {
+    const later = read(join(pkg, "generated", "cases", "case-0010.sql"));
+    expect(later).toContain("predecessor steps (want");
+    expect(later).toContain("unsatisfied predecessor steps (want");
+    expect(later).toContain("unit/role/action_type pin failed");
+    expect(later).toContain("direct assignee pin failed");
+    expect(later).toContain("CASE_STATE_DRIFT: transfer department scope");
+    const withPreds = read(join(pkg, "generated", "cases", "case-0031.sql"));
+    expect(withPreds).toMatch(/predecessor [a-z_]+ is not (pending|completed|skipped|active)/u);
   });
 });

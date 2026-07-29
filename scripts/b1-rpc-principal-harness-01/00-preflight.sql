@@ -291,20 +291,71 @@ END $$;
 -- contract. It must be readable (the contract above depends on it) and it must
 -- never be writable by the operator session.
 DO $$
+DECLARE
+  r record;
 BEGIN
   IF to_regclass('supabase_migrations.schema_migrations') IS NULL THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_MIGRATION_LEDGER_MISSING';
   END IF;
+
+  -- REMEDIATION-12 G4: ownership rejection. Owning the ledger is an implicit
+  -- bypass of every privilege check made against it.
+  IF EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'supabase_migrations' AND c.relname = 'schema_migrations'
+      AND pg_get_userbyid(c.relowner) = session_user
+  ) THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_OWNS_MIGRATION_LEDGER: supabase_migrations.schema_migrations';
+  END IF;
+
+  -- SELECT requirement
   IF NOT has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'SELECT') THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: no SELECT on supabase_migrations.schema_migrations';
   END IF;
+
+  -- table-level write rejection
   IF has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'INSERT')
      OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'UPDATE')
      OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'DELETE')
      OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'TRUNCATE') THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE: supabase_migrations.schema_migrations';
   END IF;
+
+  -- applicable column-level INSERT/UPDATE rejection
+  FOR r IN
+    SELECT DISTINCT g.column_name, g.privilege_type
+      FROM information_schema.column_privileges g
+     WHERE g.table_schema = 'supabase_migrations'
+       AND g.table_name = 'schema_migrations'
+       AND g.privilege_type IN ('INSERT', 'UPDATE')
+       AND g.grantee IN (SELECT rolname FROM pg_roles
+                          WHERE pg_has_role(session_user, oid, 'USAGE'))
+  LOOP
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE: supabase_migrations.schema_migrations % %',
+      r.column_name, r.privilege_type;
+  END LOOP;
 END $$;
+
+-- ============================================================================
+-- 8b. REMEDIATION-12 G3 — ACTIVE FIXTURE GATE (fail-closed)
+--     The matrix may not run and may not be declared PASS while any case is
+--     BLOCKED_PENDING_ACTIVE_FIXTURE. This gate is inside the master script so
+--     a direct psql invocation cannot bypass the launcher check.
+-- ============================================================================
+DO $$
+DECLARE
+  v_blocked int  := (SELECT value::int FROM b1_pin_scalar WHERE key = 'blocked_case_total');
+  v_hold    text := (SELECT value FROM b1_pin_scalar WHERE key = 'blocked_hold_token');
+BEGIN
+  IF v_blocked IS NULL OR v_hold IS NULL THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_BLOCKED_CASE_PIN_MISSING';
+  END IF;
+  IF v_blocked > 0 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % negative cases are BLOCKED_PENDING_ACTIVE_FIXTURE', v_hold, v_blocked;
+  END IF;
+END $$;
+
 
 -- the six Migration-29 functions, by EXACT signature
 DO $$
