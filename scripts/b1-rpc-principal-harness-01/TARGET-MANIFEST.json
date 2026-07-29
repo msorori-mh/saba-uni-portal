@@ -339,7 +339,7 @@
       },
       {
         "id": "copy_program",
-        "regex": "\\mcopy\\M[\\s\\S]{0,400}\\mprogram\\M"
+        "regex": "\\mcopy\\M[\\s\\S]{0,200}\\mprogram\\M"
       },
       {
         "id": "dynamic_execute",
