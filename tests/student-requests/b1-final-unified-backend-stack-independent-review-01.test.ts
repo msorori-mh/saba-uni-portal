@@ -33,19 +33,16 @@ describe("PR227 final unified backend stack independent review", () => {
     const appliedOutOfManifest = promotion.filter(
       ({ order, apply_status }) => order >= 28 && apply_status !== "NOT_APPLIED",
     );
-    expect(appliedOutOfManifest.map(({ order }) => order)).toEqual([28]);
+    expect(appliedOutOfManifest.map(({ order }) => order)).toEqual([28, 29]);
     for (const entry of appliedOutOfManifest) {
       expect(entry.migration).toBeTruthy();
       expect(sha256Lf(entry.migration)).toBe(entry.migration_sha_lf);
       expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
     }
-    // Order 29 is source-only: draft pinned, no promoted migration, not applied.
+    // Nothing is left pending: orders 28 and 29 are both applied in production.
     const notApplied = promotion.filter(({ apply_status }) => apply_status === "NOT_APPLIED");
-    expect(notApplied.map(({ order }) => order)).toEqual([29]);
-    for (const entry of notApplied) {
-      expect(entry.migration).toBeNull();
-      expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
-    }
+    expect(notApplied.map(({ order }) => order)).toEqual([]);
+
     expect(manifest.migrations.map(({ sequence_order }) => sequence_order)).toEqual(
       Array.from({ length: 27 }, (_, index) => index + 1),
     );

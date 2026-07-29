@@ -1,0 +1,179 @@
+{
+  "manifest_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
+  "note": "Authoritative, in-repository target attestation. NOTHING here may be supplied, overridden or relaxed from the CLI. The launcher and the preflight read these values only from this file.",
+  "endpoint": {
+    "project_ref": "wpmicqriltrowwonknox",
+    "source": "Lovable Cloud project pooler connection string (project metadata, no database connection was opened to obtain it)",
+    "approved_pghost": "aws-1-eu-north-1.pooler.supabase.com",
+    "approved_pgport": "5432",
+    "pooler_transaction_mode_port_not_approved": "6543",
+    "approved_pgdatabase": "postgres",
+    "approved_pguser_regex": "^postgres\\.wpmicqriltrowwonknox$",
+    "approved_pgsslmode": "require",
+    "host_match": "exact",
+    "user_alone_may_not_attest_target": true,
+    "reason_port_5432": "The package needs session-mode pooling: ON COMMIT DROP temp tables in the preflight, SET LOCAL ROLE and one multi-statement transaction per case. Transaction-mode port 6543 is explicitly NOT approved."
+  },
+  "migration": {
+    "version": "20260729014519",
+    "name": "20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2",
+    "file": "supabase/migrations/20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
+    "file_sha256_lf": "b7cdc3f5b0903e2b421b959ba8103bc634b086766763f1f308a96baea78ededf"
+  },
+  "migration_29_functions": [
+    "public.assert_b1_runtime_step_assignee_effective(uuid)",
+    "public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)",
+    "public.b1_assignment_identity_lock_key()",
+    "public.b1_lock_assignment_identity_boundary()",
+    "public.b1_lock_assignment_identity_stmt()",
+    "public.guard_b1_runtime_step_activation()"
+  ],
+  "migration_29_triggers": [
+    {
+      "table": "public.student_request_workflow_steps",
+      "tgname": "trg_b1_lock_runtime_step_identity_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 22,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.student_request_workflow_steps",
+      "tgname": "trg_guard_b1_runtime_step_activation_insert",
+      "function_signature": "public.guard_b1_runtime_step_activation()",
+      "tgtype": 7,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.student_request_workflow_steps",
+      "tgname": "trg_guard_b1_runtime_step_activation",
+      "function_signature": "public.guard_b1_runtime_step_activation()",
+      "tgtype": 19,
+      "tgenabled": "O",
+      "update_columns": ["status"]
+    },
+    {
+      "table": "public.request_processing_assignments",
+      "tgname": "trg_b1_lock_processing_assignment_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 30,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.position_assignments",
+      "tgname": "trg_b1_lock_position_assignment_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 30,
+      "tgenabled": "O",
+      "update_columns": []
+    },
+    {
+      "table": "public.staff_profiles",
+      "tgname": "trg_b1_lock_staff_profile_identity_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 26,
+      "tgenabled": "O",
+      "update_columns": ["user_id", "status"]
+    },
+    {
+      "table": "public.faculty_profiles",
+      "tgname": "trg_b1_lock_faculty_profile_identity_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 26,
+      "tgenabled": "O",
+      "update_columns": ["user_id", "status", "department_id"]
+    },
+    {
+      "table": "public.transfer_request_details",
+      "tgname": "trg_b1_lock_transfer_department_scope_stmt",
+      "function_signature": "public.b1_lock_assignment_identity_stmt()",
+      "tgtype": 18,
+      "tgenabled": "O",
+      "update_columns": ["current_department_id", "requested_department_id"]
+    }
+  ],
+  "function_graph": {
+    "note": "Transitive closure reachable from the two RPC entry points. definition_sha256 is the SHA256 of pg_get_functiondef() with runs of whitespace collapsed to a single space and the result trimmed. null = UNPINNED => PREFLIGHT_FAIL. Values may only be pinned from a reviewed read-only attestation and committed here; they can never be supplied by the operator.",
+    "functions": [
+      { "signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)", "entry_point": true, "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.record_external_university_payment_confirmation(uuid,text)", "entry_point": true, "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.b1_map_ui_staff_action(text)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.apply_b1_academic_effect_for_request(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.apply_b1_enrollment_suspension_effect(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.apply_b1_excused_absence_effect(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.apply_b1_department_transfer_effect(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.apply_b1_final_chance_effect(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.apply_b1_file_withdrawal_effect(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.apply_student_request_workflow_transition(uuid,uuid,text,uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.can_current_user_act_on_step(uuid,text)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.can_current_user_access_request(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.current_user_has_exact_processing_binding(uuid,uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.current_user_matches_transfer_department_scope(uuid,text)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.user_matches_workflow_runtime_step(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.workflow_runtime_predecessors_satisfied(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.workflow_action_result_matches(text,text)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.is_valid_actor_request_action(text)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.is_b1_stored_request_type(text)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.is_owner_of_request(uuid,uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.is_current_user_admin_actor()", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.assert_can_confirm_student_request_fee_payment(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.confirm_student_request_fee_payment(uuid,text,text)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.create_notification(uuid,text,text,text,jsonb)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.log_audit(text,text,uuid,jsonb)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.assert_b1_runtime_step_assignee_effective(uuid)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.assert_b1_runtime_step_row_assignee_effective(public.student_request_workflow_steps)", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.b1_assignment_identity_lock_key()", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.b1_lock_assignment_identity_boundary()", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.b1_lock_assignment_identity_stmt()", "definition_sha256": null, "security": null, "owner": null, "search_path": null },
+      { "signature": "public.guard_b1_runtime_step_activation()", "definition_sha256": null, "security": null, "owner": null, "search_path": null }
+    ],
+    "forbidden_definition_tokens": [
+      "pg_net.",
+      "net.http_",
+      "dblink",
+      "http_post",
+      "http_get",
+      "pg_notify",
+      "lo_export",
+      "lo_import",
+      "copy program"
+    ]
+  },
+  "authoritative_baseline": {
+    "status": "PENDING",
+    "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
+    "artifact_sha256": null,
+    "fingerprint": null,
+    "generated_by": "Lovable read-only channel, immediately before the operator run",
+    "valid_for_minutes": 120,
+    "scope": [
+      "SR-20260727-42393846",
+      "SR-20260727-50BEDCE2",
+      "SR-20260727-3C550070",
+      "SR-20260727-88D885F0",
+      "SR-20260727-695EC35B",
+      "SR-20260713-2DE64041",
+      "SR-20260715-FEDCB3E1",
+      "SR-20260716-26BAD4C8"
+    ],
+    "contains_secrets": false,
+    "on_mismatch": "PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN"
+  },
+  "protected_records": [
+    "SR-20260713-2DE64041",
+    "SR-20260715-FEDCB3E1",
+    "SR-20260716-26BAD4C8",
+    "USR-2026-000001",
+    "USR-2026-000002"
+  ],
+  "b1_services": [
+    "enrollment_suspension",
+    "excused_absence",
+    "department_transfer",
+    "final_chance",
+    "file_withdrawal"
+  ],
+  "probe_sub": "3a279561-f8e6-41d9-b8ca-ce60682c9eab"
+}

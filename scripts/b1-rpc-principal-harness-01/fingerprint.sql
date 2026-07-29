@@ -1,26 +1,30 @@
 -- ============================================================================
--- PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE — COMPLETE CONTENT FINGERPRINT
+-- PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+-- G7 — COMPLETE CONTENT FINGERPRINT
 --
--- G7 contract: count + deterministic FULL ROW CONTENT hash for every relation
--- in the transitive mutation set of the two RPCs under test
--- (act_on_b1_student_request_step_atomic, record_external_university_payment_confirmation)
--- plus the protected/attested surfaces (service visibility, enrollment
--- certificate records, migration history).
+-- Contract: count + deterministic FULL-ROW-CONTENT hash for every relation in
+-- the transitive mutation set of the two RPCs under test
+-- (act_on_b1_student_request_step_atomic,
+--  record_external_university_payment_confirmation),
+-- plus every protected / attested surface.
+--
+-- G7 hard rules:
+--   * NO `LIMIT`, NO "newest N rows" window anywhere. notifications and
+--     audit_logs are hashed in FULL.
+--   * NO non-semantic column exclusion: every relation hashes t::text.
+--   * Deterministic ordering: rows are aggregated ORDER BY t::text, which is a
+--     total order over the full row image and therefore stable regardless of
+--     physical order or primary-key type.
+--   * public.student_profiles is included explicitly: the department-transfer
+--     effect writes it.
 --
 -- READ-ONLY. No DDL, no writes, no role changes, no external calls.
 --
--- The expression between the BEGIN/END markers below is the SINGLE canonical
--- fingerprint contract. render-negative-cases.ts inlines this exact text as the
--- in-transaction before/after fingerprint, so the in-transaction fingerprint and
--- the outside-transaction fingerprint are byte-identical contracts.
---
--- Non-semantic column exclusions: NONE. Every relation below hashes the full
--- row image (t::text), so any column change is detected.
--- Bounded relations: `notifications` and `audit_logs` are unbounded global logs;
--- they are covered by (a) an exact global count and (b) a full-row-content hash
--- of the newest 500 rows ordered deterministically by (created_at, id). Any
--- insert performed by the RPC chain changes the count AND enters the newest-500
--- window, so an append is always detected.
+-- The expression between BEGIN_FINGERPRINT_EXPR / END_FINGERPRINT_EXPR is the
+-- SINGLE canonical contract. render-negative-cases.ts inlines this exact text
+-- as the in-transaction before/after fingerprint, as the post-run outside
+-- fingerprint and as the authoritative-baseline comparison, so all four are
+-- byte-identical.
 -- ============================================================================
 \set ON_ERROR_STOP on
 \pset tuples_only on
@@ -30,15 +34,16 @@ SELECT
 -- BEGIN_FINGERPRINT_EXPR
 (
 WITH b1_scope AS (
-  SELECT r.id, r.request_number
+  SELECT r.id
   FROM public.student_requests r
   WHERE r.request_number IN (
     'SR-20260727-42393846','SR-20260727-50BEDCE2','SR-20260727-3C550070',
-    'SR-20260727-88D885F0','SR-20260727-695EC35B')
+    'SR-20260727-88D885F0','SR-20260727-695EC35B',
+    'SR-20260713-2DE64041','SR-20260715-FEDCB3E1','SR-20260716-26BAD4C8')
 )
 SELECT md5(string_agg(rel || '=' || h, '|' ORDER BY rel))
 FROM (
-  -- ---- request core ------------------------------------------------------
+  -- ---- request core (five TEST_ONLY + three protected certificates) -------
   SELECT 'student_requests' AS rel,
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-') AS h
     FROM (SELECT r.* FROM public.student_requests r
@@ -54,12 +59,12 @@ FROM (
     FROM (SELECT e.* FROM public.student_request_workflow_events e
           WHERE e.student_request_id IN (SELECT id FROM b1_scope)) t
   UNION ALL
-  -- ---- assignment surface (config the guard reads; global, small) ---------
+  -- ---- assignment / direct-assignment surface (global, small) -------------
   SELECT 'request_processing_assignments',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT a.* FROM public.request_processing_assignments a) t
   UNION ALL
-  -- ---- attachments -------------------------------------------------------
+  -- ---- attachments --------------------------------------------------------
   SELECT 'student_request_attachment_uploads',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT u.* FROM public.student_request_attachment_uploads u
@@ -70,7 +75,7 @@ FROM (
     FROM (SELECT x.* FROM public.student_request_attachments x
           WHERE x.request_id IN (SELECT id FROM b1_scope)) t
   UNION ALL
-  -- ---- money surfaces (global; must never gain a row) --------------------
+  -- ---- money surfaces (global; must never gain a row) ---------------------
   SELECT 'student_request_fee_assessments',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT f.* FROM public.student_request_fee_assessments f) t
@@ -79,7 +84,7 @@ FROM (
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT p.* FROM public.payment_receipts p) t
   UNION ALL
-  -- ---- documents ---------------------------------------------------------
+  -- ---- documents ----------------------------------------------------------
   SELECT 'official_documents',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT d.* FROM public.official_documents d) t
@@ -88,11 +93,10 @@ FROM (
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT c.* FROM public.enrollment_certificate_document_details c) t
   UNION ALL
-  -- ---- per-service detail tables ----------------------------------------
+  -- ---- per-service detail tables -----------------------------------------
   SELECT 'transfer_request_details',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
-    FROM (SELECT x.* FROM public.transfer_request_details x
-          WHERE x.request_id IN (SELECT id FROM b1_scope)) t
+    FROM (SELECT x.* FROM public.transfer_request_details x) t
   UNION ALL
   SELECT 'enrollment_suspension_details',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
@@ -114,7 +118,7 @@ FROM (
     FROM (SELECT x.* FROM public.file_withdrawal_details x
           WHERE x.request_id IN (SELECT id FROM b1_scope)) t
   UNION ALL
-  -- ---- academic-effect tables the apply_* functions can write ------------
+  -- ---- academic / clearance effect tables --------------------------------
   SELECT 'student_excused_absences',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT x.* FROM public.student_excused_absences x) t
@@ -131,22 +135,19 @@ FROM (
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
     FROM (SELECT x.* FROM public.student_enrollments x) t
   UNION ALL
-  -- ---- notification / audit logs (count + newest-500 full content) -------
-  SELECT 'notifications_count',
-         count(*)::text || ':-' FROM public.notifications
-  UNION ALL
-  SELECT 'notifications_recent',
+  -- ---- department transfer effect target ---------------------------------
+  SELECT 'student_profiles',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
-    FROM (SELECT n.* FROM public.notifications n
-          ORDER BY n.created_at DESC, n.id DESC LIMIT 500) t
+    FROM (SELECT x.* FROM public.student_profiles x) t
   UNION ALL
-  SELECT 'audit_logs_count',
-         count(*)::text || ':-' FROM public.audit_logs
-  UNION ALL
-  SELECT 'audit_logs_recent',
+  -- ---- notification / audit logs: FULL CONTENT, no LIMIT -----------------
+  SELECT 'notifications',
          count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
-    FROM (SELECT l.* FROM public.audit_logs l
-          ORDER BY l.created_at DESC, l.id DESC LIMIT 500) t
+    FROM (SELECT n.* FROM public.notifications n) t
+  UNION ALL
+  SELECT 'audit_logs',
+         count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
+    FROM (SELECT l.* FROM public.audit_logs l) t
   UNION ALL
   -- ---- service visibility (must stay student_visible = false) ------------
   SELECT 'b1_service_visibility',
@@ -155,13 +156,6 @@ FROM (
           FROM public.request_types rt
           WHERE rt.code IN ('enrollment_suspension','excused_absence',
                             'department_transfer','final_chance','file_withdrawal')) t
-  UNION ALL
-  -- ---- protected records --------------------------------------------------
-  SELECT 'protected_enrollment_certificate_requests',
-         count(*)::text || ':' || coalesce(md5(string_agg(t::text,'|' ORDER BY t::text)),'-')
-    FROM (SELECT r.* FROM public.student_requests r
-          WHERE r.request_number IN ('SR-20260713-2DE64041','SR-20260715-FEDCB3E1',
-                                     'SR-20260716-26BAD4C8')) t
   UNION ALL
   -- ---- production migration history --------------------------------------
   SELECT 'schema_migrations',

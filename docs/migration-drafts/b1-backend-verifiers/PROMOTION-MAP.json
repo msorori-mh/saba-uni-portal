@@ -227,6 +227,7 @@
     "draft": "B1-RUNTIME-ASSIGNEE-PROPAGATION-01.sql",
     "migration": "supabase/migrations/20260729014518_65fd6606-34b7-430e-89f5-d58f9b2a4ac2.sql",
     "draft_sha_lf": "b7cdc3f5b0903e2b421b959ba8103bc634b086766763f1f308a96baea78ededf",
+    "migration_sha_lf": "b7cdc3f5b0903e2b421b959ba8103bc634b086766763f1f308a96baea78ededf",
     "preflight": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-PREFLIGHT.sql",
     "post_verifier": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-POST-VERIFIER.sql",
     "post_verifier_structural_subset": "docs/migration-drafts/b1-backend-verifiers/29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-POST-VERIFIER-STRUCTURAL-0-4.sql",

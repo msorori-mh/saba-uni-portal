@@ -1,472 +1,542 @@
+#!/usr/bin/env bun
 /**
- * PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HARDENING-03
+ * PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+ * Offline renderer. NO database connection, NO RPC call, NO role change.
  *
- * Renders the 267 negative authorization cases from MATRIX.json into one
- * self-contained, SERIALIZABLE, ROLLBACK-only .sql file per case.
+ * Inputs (both in-repository, both pinned):
+ *   tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json
+ *   scripts/b1-rpc-principal-harness-01/TARGET-MANIFEST.json
  *
- * OFFLINE ONLY. This script never connects to a database.
- * Output goes to scripts/b1-rpc-principal-harness-01/generated/cases (git-ignored).
- *
- *   bun run scripts/b1-rpc-principal-harness-01/render-negative-cases.ts
- *
- * G6 contract:
- *   - MATRIX.json SHA256 (LF-normalised) is pinned; any drift aborts rendering.
- *   - Every field is validated against a strict schema + character allowlist
- *     BEFORE any file is produced. Injection/breakout characters are rejected.
- *   - File names are purely generated ordinals: case-0001.sql .. case-0267.sql.
- *     No MATRIX-derived value ever reaches a path.
- *   - SQL comments carry only JSON-encoded scalars, which cannot break a line.
+ * Outputs (git-ignored, under generated/):
+ *   pins.sql                    - temp-table pins consumed by 00-preflight.sql
+ *   cases/case-0001.sql ... 0267.sql
+ *   fingerprint-check.sql       - post-run outside-transaction baseline equality
+ *   master-negative-matrix.sql  - G9 single-psql master script
+ *   MANIFEST.json               - counts + rendered file list
  */
+
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-export type Case = {
-  case: string;
-  request_number: string;
-  step_key: string;
-  runtime_step_id?: string | null;
-  actor_user_id: string | null;
-  action: string;
-  expect: string;
-  expect_error?: string;
-  zero_mutation?: boolean;
-};
+const HERE = dirname(fileURLToPath(import.meta.url));
+const REPO = join(HERE, "..", "..");
+const MATRIX_PATH = join(REPO, "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json");
+const MANIFEST_PATH = join(HERE, "TARGET-MANIFEST.json");
+const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
+const OUT = join(HERE, "generated");
+const CASES = join(OUT, "cases");
 
-const here = join(process.cwd(), "scripts", "b1-rpc-principal-harness-01");
-const matrixPath = join(
-  process.cwd(),
-  "tests",
-  "b1-five-services-rpc-authorization-preflight-01",
-  "MATRIX.json",
-);
+export const MATRIX_SHA256_LF = "eec8307189adf6ef556ca517596759aa519f14de20a318dbc029a6cdd92fda05";
+export const EXPECTED_NEGATIVE_TOTAL = 267;
+export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
-/** G6 — pinned content hash of the reviewed matrix (LF-normalised). */
-export const MATRIX_SHA256 =
-  "eec8307189adf6ef556ca517596759aa519f14de20a318dbc029a6cdd92fda05";
-
-export const EXPECTED_TOTAL = 267;
-export const EXPECTED_SPLIT = { negative_core: 240, illegal_action: 24, department_scope: 3 };
-
-export const ALLOWED_CLASSES = [
-  "anonymous_no_jwt",
-  "dean_outside_step",
-  "department_scope_swap_source_head_on_target_step",
-  "department_scope_swap_target_head_on_source_step",
-  "illegal_action_by_exact_assignee",
-  "next_step_assignee_early",
-  "previous_step_assignee_replay",
-  "registrar_outside_step",
-  "request_owner_student",
-  "third_department_head_unrelated",
-  "unassigned_admin",
-  "unassigned_system_admin",
-  "wrong_role_same_unit_or_peer",
-  "wrong_unit_principal",
-] as const;
-
-export const ALLOWED_ACTIONS = [
-  "apply_decision",
-  "approve",
-  "archive",
-  "clear",
-  "confirm_payment",
-  "review",
-] as const;
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const REQUEST_NUMBER_RE = /^SR-\d{8}-[0-9A-F]{8}$/;
-const STEP_KEY_RE = /^[a-z][a-z0-9_]{2,63}$/;
-
-/** Characters / tokens that must never appear in any MATRIX-derived value. */
-const FORBIDDEN_PATTERNS: Array<[string, RegExp]> = [
-  ["newline_or_cr", /[\r\n]/],
-  ["null_byte", /\0/],
-  ["control_char", /[\u0000-\u001f\u007f]/],
-  ["path_separator", /[/\\]/],
-  ["parent_path", /\.\./],
-  ["psql_meta_command", /\\/],
-  ["semicolon", /;/],
-  ["sql_line_comment", /--/],
-  ["sql_block_comment_open", /\/\*/],
-  ["sql_block_comment_close", /\*\//],
-  ["dollar_case_tag", /\$case\$/i],
-  ["tx_control_keyword", /\b(BEGIN|COMMIT|ROLLBACK|SAVEPOINT)\b/i],
-  ["quote", /['"`]/],
+/** G1 — forbidden characters / tokens in ANY MATRIX-derived value. */
+export const FORBIDDEN_PATTERNS: Array<[string, RegExp]> = [
+  ["newline_or_cr", /[\r\n]/u],
+  ["control_char", /[\u0000-\u001F\u007F]/u],
+  ["path_separator", /[/\\]/u],
+  ["parent_path", /\.\./u],
+  ["semicolon", /;/u],
+  ["sql_line_comment", /--/u],
+  ["sql_block_comment_open", /\/\*/u],
+  ["sql_block_comment_close", /\*\//u],
+  ["dollar_case_tag", /\$case\$/iu],
+  ["tx_control_keyword", /\b(BEGIN|COMMIT|ROLLBACK|SAVEPOINT)\b/iu],
+  ["quote", /['"`]/u],
 ];
 
-export class MatrixValidationError extends Error {}
-
-function assertSafeScalar(field: string, value: string): void {
-  for (const [name, re] of FORBIDDEN_PATTERNS) {
-    if (re.test(value)) {
-      throw new MatrixValidationError(
-        `B1_MATRIX_FIELD_REJECTED: field=${field} rule=${name}`,
-      );
-    }
-  }
-}
-
-/** G6 — strict per-case schema validation. Throws on the first violation. */
-export function validateCase(c: Case, index: number): void {
-  const at = `case[${index}]`;
-  if (typeof c !== "object" || c === null) {
-    throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at} not_an_object`);
-  }
-  for (const [field, value] of Object.entries({
-    case: c.case,
-    request_number: c.request_number,
-    step_key: c.step_key,
-    action: c.action,
-    expect: c.expect,
-  })) {
-    if (typeof value !== "string" || value.length === 0 || value.length > 128) {
-      throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.${field} bad_scalar`);
-    }
-    assertSafeScalar(`${at}.${field}`, value);
-  }
-  if (!(ALLOWED_CLASSES as readonly string[]).includes(c.case)) {
-    throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.case not_in_enum`);
-  }
-  if (!(ALLOWED_ACTIONS as readonly string[]).includes(c.action)) {
-    throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.action not_in_enum`);
-  }
-  if (c.expect !== "DENY") {
-    throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.expect not_deny`);
-  }
-  if (!REQUEST_NUMBER_RE.test(c.request_number)) {
-    throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.request_number bad_format`);
-  }
-  if (!STEP_KEY_RE.test(c.step_key)) {
-    throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.step_key bad_format`);
-  }
-  if (c.actor_user_id !== null) {
-    if (typeof c.actor_user_id !== "string" || !UUID_RE.test(c.actor_user_id)) {
-      throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.actor_user_id bad_uuid`);
-    }
-  }
-  if (c.runtime_step_id !== undefined && c.runtime_step_id !== null) {
-    if (typeof c.runtime_step_id !== "string" || !UUID_RE.test(c.runtime_step_id)) {
-      throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.runtime_step_id bad_uuid`);
-    }
-  }
-  if (c.expect_error !== undefined) {
-    if (typeof c.expect_error !== "string" || c.expect_error.length > 256) {
-      throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.expect_error bad_scalar`);
-    }
-    // expect_error is documentation only and is emitted JSON-encoded, but it
-    // still may not contain line-breaking or comment-breakout characters.
-    for (const [name, re] of ([
-      ["newline_or_cr", /[\r\n]/],
-      ["null_byte", /\0/],
-      ["control_char", /[\u0000-\u001f\u007f]/],
-      ["psql_meta_command", /\\/],
-    ] as Array<[string, RegExp]>)) {
-      if (re.test(c.expect_error)) {
-        throw new MatrixValidationError(
-          `B1_MATRIX_FIELD_REJECTED: ${at}.expect_error rule=${name}`,
-        );
-      }
-    }
-  }
-  if (c.zero_mutation !== undefined && typeof c.zero_mutation !== "boolean") {
-    throw new MatrixValidationError(`B1_MATRIX_FIELD_REJECTED: ${at}.zero_mutation bad_boolean`);
-  }
-}
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const REQUEST_NUMBER_RE = /^SR-\d{8}-[0-9A-F]{8}$/u;
+const KEY_RE = /^[a-z][a-z0-9_]{2,63}$/u;
+const ACTION_RE = /^[a-z][a-z0-9_]{2,63}$/u;
 
 export function sha256Lf(text: string): string {
-  return createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+  return createHash("sha256").update(text.replace(/\r\n/gu, "\n"), "utf8").digest("hex");
 }
 
-/** Loads MATRIX.json, pins its SHA256 and validates every case. */
-export function loadNegativeCases(rawOverride?: string): Case[] {
-  const raw = rawOverride ?? readFileSync(matrixPath, "utf8");
-  const digest = sha256Lf(raw);
-  if (digest !== MATRIX_SHA256) {
-    throw new MatrixValidationError(
-      `B1_MATRIX_SHA_DRIFT: expected ${MATRIX_SHA256}, got ${digest}`,
-    );
+export function assertSafeScalar(label: string, value: string): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 200) {
+    throw new Error(`MATRIX_VALIDATION_FAIL: ${label}: bad length`);
   }
-  const matrix = JSON.parse(raw);
-  if (matrix.production_ref !== "wpmicqriltrowwonknox") {
-    throw new MatrixValidationError("B1_RENDER_PRODUCTION_REF_MISMATCH");
+  for (const [name, re] of FORBIDDEN_PATTERNS) {
+    if (re.test(value)) throw new Error(`MATRIX_VALIDATION_FAIL: ${label}: ${name}`);
   }
-  if (
-    matrix.negative_cases.length !== EXPECTED_SPLIT.negative_core ||
-    matrix.illegal_action_cases.length !== EXPECTED_SPLIT.illegal_action ||
-    matrix.supplemental_department_scope_cases.length !== EXPECTED_SPLIT.department_scope
-  ) {
-    throw new MatrixValidationError("B1_RENDER_CASE_SPLIT_MISMATCH");
-  }
-  const cases: Case[] = [
-    ...matrix.negative_cases,
-    ...matrix.illegal_action_cases,
-    ...matrix.supplemental_department_scope_cases,
-  ];
-  if (cases.length !== EXPECTED_TOTAL) {
-    throw new MatrixValidationError(
-      `B1_RENDER_CASE_COUNT_MISMATCH: expected ${EXPECTED_TOTAL}, got ${cases.length}`,
-    );
-  }
-  cases.forEach(validateCase);
-  return cases;
+  return value;
 }
 
-export const negativeCases: Case[] = loadNegativeCases();
+/** Free-text diagnostics (expect_error) may contain spaces and slashes but never
+ *  newlines, control characters, quotes or statement terminators. */
+export function assertSafeDiagnostic(label: string, value: string): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 300) {
+    throw new Error(`MATRIX_VALIDATION_FAIL: ${label}: bad length`);
+  }
+  for (const [name, re] of FORBIDDEN_PATTERNS) {
+    if (name === "path_separator" || name === "sql_line_comment") continue;
+    if (re.test(value)) throw new Error(`MATRIX_VALIDATION_FAIL: ${label}: ${name}`);
+  }
+  return value;
+}
 
-/** G7 — the single canonical fingerprint expression, read from fingerprint.sql. */
-export function fingerprintExpression(): string {
-  const sql = readFileSync(join(here, "fingerprint.sql"), "utf8").replace(/\r\n/g, "\n");
+function assertUuid(label: string, value: string): string {
+  assertSafeScalar(label, value);
+  if (!UUID_RE.test(value)) throw new Error(`MATRIX_VALIDATION_FAIL: ${label}: not a uuid`);
+  return value;
+}
+
+function lit(value: string): string {
+  assertSafeScalar("sql_literal", value);
+  return `'${value}'`;
+}
+
+function comment(label: string, value: unknown): string {
+  const encoded = JSON.stringify(value).replace(/[\r\n]/gu, " ");
+  if (/[\r\n]/u.test(encoded)) throw new Error("MATRIX_VALIDATION_FAIL: comment newline");
+  return `-- ${label}: ${encoded}`;
+}
+
+/** Extracts the single canonical fingerprint expression from fingerprint.sql. */
+export function extractFingerprintExpr(sql: string): string {
   const start = sql.indexOf("-- BEGIN_FINGERPRINT_EXPR");
   const end = sql.indexOf("-- END_FINGERPRINT_EXPR");
   if (start < 0 || end < 0 || end < start) {
-    throw new MatrixValidationError("B1_FINGERPRINT_EXPR_MARKERS_MISSING");
+    throw new Error("FINGERPRINT_MARKERS_MISSING");
   }
-  return sql
-    .slice(start + "-- BEGIN_FINGERPRINT_EXPR".length, end)
-    .trim();
+  const expr = sql.slice(start + "-- BEGIN_FINGERPRINT_EXPR".length, end).trim();
+  if (!expr.startsWith("(") || !expr.endsWith(")")) throw new Error("FINGERPRINT_EXPR_MALFORMED");
+  const withoutComments = expr
+    .split("\n")
+    .map((line) => line.replace(/--.*$/u, ""))
+    .join("\n");
+  if (/\bLIMIT\b/iu.test(withoutComments)) throw new Error("FINGERPRINT_EXPR_HAS_LIMIT");
+  return expr;
 }
 
-/** Safe SQL string literal for values already proven free of quotes/controls. */
-const lit = (v: string) => `'${v.replace(/'/g, "''")}'`;
-/** JSON-encoded comment scalar: cannot contain a raw newline. */
-const cmt = (v: unknown) => JSON.stringify(v ?? null);
+type PositiveCase = {
+  request_type: string;
+  request_number: string;
+  step_order: number;
+  step_key: string;
+  runtime_step_id: string;
+  runtime_status: string;
+  unit: string;
+  role: string;
+  legal_action: string;
+  rpc: string;
+  principal_user_id: string;
+};
 
-export function caseFileName(index: number): string {
-  return `case-${String(index + 1).padStart(4, "0")}.sql`;
-}
+type NegativeCase = {
+  case: string;
+  request_number: string;
+  step_key: string;
+  runtime_step_id?: string;
+  actor_user_id: string | null;
+  action: string;
+  expect: string;
+  expect_error: string;
+  zero_mutation: boolean;
+};
 
-export function renderCase(c: Case, index: number, fpExpr = fingerprintExpression()): string {
-  validateCase(c, index);
+function renderCase(
+  ordinal: number,
+  nc: NegativeCase,
+  pc: PositiveCase,
+  fingerprintExpr: string,
+): string {
+  const isAnon = nc.actor_user_id === null;
+  const actor = isAnon ? null : assertUuid("actor_user_id", nc.actor_user_id as string);
+  const stepId = assertUuid("runtime_step_id", nc.runtime_step_id ?? pc.runtime_step_id);
+  const action = assertSafeScalar("action", nc.action);
+  if (!ACTION_RE.test(action)) throw new Error("MATRIX_VALIDATION_FAIL: action shape");
+  if (!KEY_RE.test(assertSafeScalar("step_key", nc.step_key))) {
+    throw new Error("MATRIX_VALIDATION_FAIL: step_key shape");
+  }
+  if (!REQUEST_NUMBER_RE.test(assertSafeScalar("request_number", nc.request_number))) {
+    throw new Error("MATRIX_VALIDATION_FAIL: request_number shape");
+  }
+  if (nc.expect !== "DENY") throw new Error("MATRIX_VALIDATION_FAIL: expect must be DENY");
+  if (nc.zero_mutation !== true) throw new Error("MATRIX_VALIDATION_FAIL: zero_mutation must be true");
+  assertSafeDiagnostic("expect_error", nc.expect_error);
+  assertSafeScalar("case_class", nc.case);
 
-  const anonymous = c.actor_user_id === null;
-  const principalRole = anonymous ? "anon" : "authenticated";
-  const claims = anonymous
+  const rpcCall =
+    pc.rpc === "record_external_university_payment_confirmation"
+      ? `PERFORM public.record_external_university_payment_confirmation(v_req, 'TEST_ONLY_NEGATIVE_MATRIX');`
+      : `PERFORM public.act_on_b1_student_request_step_atomic(v_step, ${lit(action)}, NULL::text, NULL::jsonb);`;
+
+  const claims = isAnon
     ? `'{"role":"anon"}'`
-    : `json_build_object('sub', ${lit(c.actor_user_id!)}, 'role', 'authenticated')::text`;
-  const expectedUid = anonymous ? "NULL::uuid" : `${lit(c.actor_user_id!)}::uuid`;
-  const rpc =
-    c.action === "confirm_payment"
-      ? `PERFORM public.record_external_university_payment_confirmation(v_step, 'B1_NEG_OPERATOR_HARNESS');`
-      : `PERFORM public.act_on_b1_student_request_step_atomic(v_step, ${lit(c.action)}, 'B1_NEG_OPERATOR_HARNESS', '{}'::jsonb);`;
+    : `json_build_object('sub', ${lit(actor as string)}, 'role', 'authenticated')::text`;
 
+  const principalAssertion = isAnon
+    ? `IF auth.uid() IS NOT NULL OR auth.role() <> 'anon' THEN
+      RAISE EXCEPTION 'PRINCIPAL_MISMATCH: anon';
+    END IF;`
+    : `IF auth.uid()::text IS DISTINCT FROM ${lit(actor as string)} OR auth.role() <> 'authenticated' THEN
+      RAISE EXCEPTION 'PRINCIPAL_MISMATCH: %', auth.uid();
+    END IF;`;
+
+  const assigneePin =
+    pc.principal_user_id && !isAnon
+      ? `IF v_assignee IS DISTINCT FROM ${lit(pc.principal_user_id)}::uuid THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee changed on step %', v_step;
+  END IF;`
+      : `IF v_assignee IS DISTINCT FROM ${lit(pc.principal_user_id)}::uuid THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee changed on step %', v_step;
+  END IF;`;
+
+  const transferScopePin =
+    pc.request_type === "department_transfer"
+      ? `PERFORM 1 FROM public.transfer_request_details d WHERE d.request_id = v_req FOR SHARE;
+  SELECT count(*) INTO v_n FROM public.transfer_request_details d
+   WHERE d.request_id = v_req
+     AND d.current_department_id IS NOT NULL
+     AND d.requested_department_id IS NOT NULL
+     AND d.current_department_id <> d.requested_department_id;
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: transfer department scope';
+  END IF;`
+      : `-- no department scope pin for this service`;
+
+  const id = String(ordinal).padStart(4, "0");
   return `-- ============================================================================
--- B1 negative authorization case ${String(index + 1).padStart(4, "0")} of ${EXPECTED_TOTAL}
--- class          = ${cmt(c.case)}
--- request_number = ${cmt(c.request_number)}
--- step_key       = ${cmt(c.step_key)}
--- action         = ${cmt(c.action)}
--- principal_role = ${cmt(principalRole)}
--- actor_user_id  = ${cmt(c.actor_user_id)}
--- expect         = "DENY" (${cmt(c.expect_error ?? "denial")})
---
--- One case = one SERIALIZABLE transaction = one unconditional ROLLBACK.
--- No retry on serialization failure: the launcher stops instead.
+-- case-${id}
+${comment("class", nc.case)}
+${comment("request_number", nc.request_number)}
+${comment("step_key", nc.step_key)}
+${comment("action", nc.action)}
+${comment("expect", nc.expect)}
+${comment("expect_error", nc.expect_error)}
+-- ROLLBACK-ONLY. No COMMIT anywhere in this file.
 -- ============================================================================
-\\set ON_ERROR_STOP on
-
 BEGIN ISOLATION LEVEL SERIALIZABLE;
-SET LOCAL statement_timeout = '30s';
-SET LOCAL idle_in_transaction_session_timeout = '60s';
-
--- ---------------------------------------------------------------------------
--- G5 phase 1 (observer): fixed-order locking, state pinning, before fingerprint
--- ---------------------------------------------------------------------------
-DO $pin$
-DECLARE
-  v_request uuid;
-  v_step    uuid;
-  v_before  text;
-  r         record;
-BEGIN
-  IF current_setting('row_security', true) <> 'on' THEN
-    RAISE EXCEPTION 'B1_CASE_ROW_SECURITY_OFF';
-  END IF;
-  IF (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = session_user) THEN
-    RAISE EXCEPTION 'B1_CASE_OPERATOR_HAS_BYPASS';
-  END IF;
-
-  SELECT r0.id INTO v_request FROM public.student_requests r0
-   WHERE r0.request_number = ${lit(c.request_number)};
-  IF v_request IS NULL THEN
-    RAISE EXCEPTION 'B1_CASE_REQUEST_NOT_FOUND';
-  END IF;
-
-  -- Fixed lock order: request -> runtime steps -> processing assignments.
-  -- Transaction-scoped advisory locks are used instead of SELECT ... FOR UPDATE
-  -- because the G3 operator contract forbids any UPDATE privilege on the scope
-  -- relations (Postgres requires UPDATE privilege for row-level locking).
-  -- SERIALIZABLE + explicit state pinning below provides the drift proof.
-  PERFORM pg_advisory_xact_lock(hashtext('b1_request:' || v_request::text));
-  FOR r IN
-    SELECT w.id FROM public.student_request_workflow_steps w
-     WHERE w.student_request_id = v_request ORDER BY w.id
-  LOOP
-    PERFORM pg_advisory_xact_lock(hashtext('b1_step:' || r.id::text));
-  END LOOP;
-  FOR r IN
-    SELECT a.id FROM public.request_processing_assignments a
-     WHERE a.is_active ORDER BY a.id
-  LOOP
-    PERFORM pg_advisory_xact_lock_shared(hashtext('b1_assignment:' || r.id::text));
-  END LOOP;
-
-  -- state pinning: the runtime step must still be exactly what MATRIX.json saw
-  SELECT w.id INTO v_step
-    FROM public.student_request_workflow_steps w
-   WHERE w.student_request_id = v_request AND w.step_key = ${lit(c.step_key)};
-${
-  c.runtime_step_id
-    ? `  IF v_step IS DISTINCT FROM ${lit(c.runtime_step_id)}::uuid THEN
-    RAISE EXCEPTION 'B1_CASE_STEP_ID_DRIFT: %', v_step;
-  END IF;`
-    : `  IF v_step IS NULL THEN
-    RAISE EXCEPTION 'B1_CASE_STEP_NOT_FOUND';
-  END IF;`
-}
-
-  PERFORM set_config('b1.case_request_id', v_request::text, true);
-  PERFORM set_config('b1.case_step_id', v_step::text, true);
-
-  SELECT ${fpExpr} INTO v_before;
-  IF v_before IS NULL THEN
-    RAISE EXCEPTION 'B1_CASE_FINGERPRINT_NULL_BEFORE';
-  END IF;
-  PERFORM set_config('b1.case_fp_before', v_before, true);
-END
-$pin$;
-
--- ---------------------------------------------------------------------------
--- G4 phase 2: the exact principal for this case (${principalRole})
--- ---------------------------------------------------------------------------
-SET LOCAL ROLE ${principalRole};
+SET LOCAL statement_timeout = '120s';
+SET LOCAL idle_in_transaction_session_timeout = '180s';
 
 DO $case$
 DECLARE
-  v_step     uuid := current_setting('b1.case_step_id', true)::uuid;
-  v_observed text := 'ALLOW';
-  v_state    text;
-  v_msg      text;
+  v_req      uuid;
+  v_step     uuid := ${lit(stepId)}::uuid;
+  v_type     text;
+  v_status   text;
+  v_assignee uuid;
+  v_order    int;
+  v_n        int;
+  v_before   text;
+  v_after    text;
+  v_allowed  boolean := false;
+  v_err      text;
+  v_status2  text;
+  v_assign2  uuid;
 BEGIN
-  IF current_user <> ${lit(principalRole)} THEN
-    RAISE EXCEPTION 'B1_CASE_ROLE_MISMATCH: %', current_user;
-  END IF;
-  IF current_setting('row_security', true) <> 'on' THEN
-    RAISE EXCEPTION 'B1_CASE_ROW_SECURITY_OFF';
-  END IF;
-  IF (SELECT rolbypassrls OR rolsuper FROM pg_roles WHERE rolname = current_user) THEN
-    RAISE EXCEPTION 'B1_CASE_PRINCIPAL_HAS_BYPASS';
+  -- ---- G6: real row locks, fixed order: request -> steps -> assignments ----
+  SELECT r.id, r.request_type, r.status
+    INTO v_req, v_type, v_status
+    FROM public.student_requests r
+   WHERE r.request_number = ${lit(nc.request_number)}
+   FOR SHARE;
+  IF v_req IS NULL THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: request ${nc.request_number} not visible';
   END IF;
 
+  PERFORM 1 FROM public.student_request_workflow_steps w
+   WHERE w.student_request_id = v_req ORDER BY w.id FOR SHARE;
+
+  PERFORM 1 FROM public.request_processing_assignments a ORDER BY a.id FOR SHARE;
+
+  ${transferScopePin}
+
+  -- ---- G6: state pinning against MATRIX.json ------------------------------
+  IF v_type IS DISTINCT FROM ${lit(pc.request_type)} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: request_type %', v_type;
+  END IF;
+
+  SELECT w.status, w.assigned_user_id, w.step_order
+    INTO v_status2, v_assignee, v_order
+    FROM public.student_request_workflow_steps w
+   WHERE w.id = v_step AND w.student_request_id = v_req;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: runtime step % not on request', v_step;
+  END IF;
+  IF v_status2 IS DISTINCT FROM ${lit(pc.runtime_status)} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: step status % (want ${pc.runtime_status})', v_status2;
+  END IF;
+  IF v_order IS DISTINCT FROM ${pc.step_order} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: step_order %', v_order;
+  END IF;
+  ${assigneePin}
+
+  IF ${lit(pc.runtime_status)} = 'active' THEN
+    SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
+     WHERE w.student_request_id = v_req
+       AND w.step_order < v_order
+       AND w.status NOT IN ('completed','skipped');
+    IF v_n <> 0 THEN
+      RAISE EXCEPTION 'CASE_STATE_DRIFT: % unsatisfied predecessor steps', v_n;
+    END IF;
+  END IF;
+
+  -- ---- G7: complete-content fingerprint BEFORE the RPC --------------------
+  v_before := ${fingerprintExpr};
+
+  -- ---- principal switch ---------------------------------------------------
+  EXECUTE 'SET LOCAL ROLE ${isAnon ? "anon" : "authenticated"}';
   PERFORM set_config('request.jwt.claims', ${claims}, true);
-
-  IF auth.role() <> ${lit(principalRole)} THEN
-    RAISE EXCEPTION 'B1_CASE_AUTH_ROLE_MISMATCH: %', auth.role();
-  END IF;
-  IF auth.uid() IS DISTINCT FROM ${expectedUid} THEN
-    RAISE EXCEPTION 'B1_CASE_AUTH_UID_MISMATCH: %', auth.uid();
-  END IF;
+  ${principalAssertion}
 
   BEGIN
-    ${rpc}
+    ${rpcCall}
+    v_allowed := true;
   EXCEPTION WHEN OTHERS THEN
-    v_observed := 'DENY';
-    GET STACKED DIAGNOSTICS v_state = RETURNED_SQLSTATE, v_msg = MESSAGE_TEXT;
-    IF v_state IN ('40001', '40P01') THEN
-      RAISE EXCEPTION 'B1_NEG_SERIALIZATION_FAILURE sqlstate=%', v_state;
-    END IF;
+    v_allowed := false;
+    v_err := SQLERRM;
   END;
 
   PERFORM set_config('request.jwt.claims', NULL, true);
-  PERFORM set_config('b1.case_observed', v_observed, true);
-  PERFORM set_config('b1.case_sqlstate', coalesce(v_state, ''), true);
-  PERFORM set_config('b1.case_message', coalesce(v_msg, ''), true);
+  EXECUTE 'RESET ROLE';
+
+  -- ---- DENY proof ---------------------------------------------------------
+  IF v_allowed THEN
+    RAISE EXCEPTION 'CASE_FAIL_ALLOWED case-${id} ${nc.case}: RPC succeeded but DENY was required';
+  END IF;
+
+  -- ---- zero-mutation proof ------------------------------------------------
+  v_after := ${fingerprintExpr};
+  IF v_after IS DISTINCT FROM v_before THEN
+    RAISE EXCEPTION 'CASE_FAIL_MUTATION case-${id} ${nc.case}: fingerprint changed';
+  END IF;
+
+  SELECT w.status, w.assigned_user_id INTO v_status2, v_assign2
+    FROM public.student_request_workflow_steps w WHERE w.id = v_step;
+  IF v_status2 IS DISTINCT FROM ${lit(pc.runtime_status)} OR v_assign2 IS DISTINCT FROM v_assignee THEN
+    RAISE EXCEPTION 'CASE_FAIL_MUTATION case-${id}: step drift after RPC';
+  END IF;
+
+  RAISE NOTICE 'CASE_PASS case-${id} % denied: %', ${lit(nc.case)}, left(coalesce(v_err, ''), 160);
 END
 $case$;
 
-RESET ROLE;
-
--- ---------------------------------------------------------------------------
--- G5 phase 3 (observer): DENY proof + after fingerprint + drift proof
--- ---------------------------------------------------------------------------
-DO $verify$
-DECLARE
-  v_after   text;
-  v_before  text := current_setting('b1.case_fp_before', true);
-  v_step    uuid := current_setting('b1.case_step_id', true)::uuid;
-  v_request uuid := current_setting('b1.case_request_id', true)::uuid;
-  v_now     uuid;
-BEGIN
-  IF current_setting('b1.case_observed', true) <> 'DENY' THEN
-    RAISE EXCEPTION 'B1_NEG_UNEXPECTED_ALLOW class=% request=% step=% action=%',
-      ${lit(c.case)}, ${lit(c.request_number)}, ${lit(c.step_key)}, ${lit(c.action)};
-  END IF;
-
-  -- current step / direct assignee must not have drifted underneath the case
-  SELECT w.id INTO v_now FROM public.student_request_workflow_steps w
-   WHERE w.student_request_id = v_request AND w.step_key = ${lit(c.step_key)};
-  IF v_now IS DISTINCT FROM v_step THEN
-    RAISE EXCEPTION 'B1_NEG_CONCURRENT_DRIFT_STEP request=%', ${lit(c.request_number)};
-  END IF;
-
-  SELECT ${fpExpr} INTO v_after;
-  IF v_after IS DISTINCT FROM v_before THEN
-    RAISE EXCEPTION 'B1_NEG_MUTATION_DETECTED class=% request=%',
-      ${lit(c.case)}, ${lit(c.request_number)};
-  END IF;
-
-  RAISE NOTICE 'B1_NEG_CASE_PASS idx=% class=% request=% step=% action=% role=% sqlstate=% msg=%',
-    ${index + 1}, ${lit(c.case)}, ${lit(c.request_number)}, ${lit(c.step_key)},
-    ${lit(c.action)}, ${lit(principalRole)},
-    current_setting('b1.case_sqlstate', true), current_setting('b1.case_message', true);
-END
-$verify$;
-
--- UNCONDITIONAL: one case = one transaction = one ROLLBACK.
 ROLLBACK;
 `;
 }
 
-function main() {
-  const cases = loadNegativeCases();
-  const fpExpr = fingerprintExpression();
+function renderPins(manifest: any, fingerprintExpr: string): string {
+  const fn = manifest.function_graph.functions as any[];
+  const trg = manifest.migration_29_triggers as any[];
+  const m29 = new Set<string>(manifest.migration_29_functions);
 
-  // G9 step 1: the renderer owns (and clears) ONLY generated/cases.
-  const out = join(here, "generated", "cases");
-  rmSync(out, { recursive: true, force: true });
-  mkdirSync(out, { recursive: true });
+  const relations: Array<[string, boolean]> = [
+    ["student_requests", true],
+    ["student_request_workflow_steps", true],
+    ["student_request_workflow_events", true],
+    ["request_processing_assignments", true],
+    ["student_request_attachment_uploads", true],
+    ["student_request_attachments", true],
+    ["student_request_fee_assessments", true],
+    ["payment_receipts", true],
+    ["official_documents", true],
+    ["enrollment_certificate_document_details", true],
+    ["transfer_request_details", true],
+    ["enrollment_suspension_details", true],
+    ["absence_excuse_details", true],
+    ["extra_chance_details", true],
+    ["file_withdrawal_details", true],
+    ["student_excused_absences", true],
+    ["student_extra_chances", true],
+    ["student_academic_status", true],
+    ["student_enrollments", true],
+    ["student_profiles", true],
+    ["notifications", true],
+    ["audit_logs", true],
+    ["request_types", true],
+  ];
 
-  const manifest: Array<Record<string, unknown>> = [];
-  cases.forEach((c, i) => {
-    const file = caseFileName(i);
-    writeFileSync(join(out, file), renderCase(c, i, fpExpr), "utf8");
-    manifest.push({
-      index: i + 1,
-      file,
-      class: c.case,
-      request_number: c.request_number,
-      step_key: c.step_key,
-      actor_user_id: c.actor_user_id,
-      principal_role: c.actor_user_id === null ? "anon" : "authenticated",
-      action: c.action,
-      expect: "DENY",
-    });
+  const sqlText = (v: unknown) => (v === null || v === undefined ? "NULL" : `'${String(v).replace(/'/gu, "''")}'`);
+
+  return `-- GENERATED by render-negative-cases.ts from TARGET-MANIFEST.json. DO NOT EDIT.
+-- Pins are in-repository only; nothing here can be supplied from the CLI.
+CREATE TEMP TABLE b1_pin_scalar(key text primary key, value text) ON COMMIT DROP;
+INSERT INTO b1_pin_scalar(key, value) VALUES
+  ('project_ref', ${sqlText(manifest.endpoint.project_ref)}),
+  ('approved_pgdatabase', ${sqlText(manifest.endpoint.approved_pgdatabase)}),
+  ('approved_pguser_regex', ${sqlText(manifest.endpoint.approved_pguser_regex)}),
+  ('migration_version', ${sqlText(manifest.migration.version)}),
+  ('migration_name', ${sqlText(manifest.migration.name)}),
+  ('probe_sub', ${sqlText(manifest.probe_sub)}),
+  ('baseline_status', ${sqlText(manifest.authoritative_baseline.status)}),
+  ('baseline_fingerprint', ${sqlText(manifest.authoritative_baseline.fingerprint)});
+
+CREATE TEMP TABLE b1_pin_function(
+  signature text primary key,
+  entry_point boolean not null default false,
+  migration_29 boolean not null default false,
+  definition_sha256 text,
+  security text,
+  owner text,
+  search_path text
+) ON COMMIT DROP;
+INSERT INTO b1_pin_function(signature, entry_point, migration_29, definition_sha256, security, owner, search_path) VALUES
+${fn
+  .map(
+    (f) =>
+      `  (${sqlText(f.signature)}, ${f.entry_point ? "true" : "false"}, ${m29.has(f.signature) ? "true" : "false"}, ${sqlText(
+        f.definition_sha256,
+      )}, ${sqlText(f.security)}, ${sqlText(f.owner)}, ${sqlText(f.search_path)})`,
+  )
+  .join(",\n")};
+
+CREATE TEMP TABLE b1_pin_trigger(
+  table_name text not null,
+  tgname text not null,
+  function_signature text not null,
+  tgtype int not null,
+  tgenabled text not null,
+  update_columns text[] not null,
+  primary key (table_name, tgname)
+) ON COMMIT DROP;
+INSERT INTO b1_pin_trigger(table_name, tgname, function_signature, tgtype, tgenabled, update_columns) VALUES
+${trg
+  .map(
+    (t) =>
+      `  (${sqlText(t.table)}, ${sqlText(t.tgname)}, ${sqlText(t.function_signature)}, ${t.tgtype}, ${sqlText(
+        t.tgenabled,
+      )}, ARRAY[${(t.update_columns as string[]).map(sqlText).join(",")}]::text[])`,
+  )
+  .join(",\n")};
+
+CREATE TEMP TABLE b1_pin_forbidden_token(token text primary key) ON COMMIT DROP;
+INSERT INTO b1_pin_forbidden_token(token) VALUES
+${(manifest.function_graph.forbidden_definition_tokens as string[])
+  .map((t) => `  (${sqlText(t.toLowerCase())})`)
+  .join(",\n")};
+
+CREATE TEMP TABLE b1_pin_relation(relname text primary key, rls_required boolean not null) ON COMMIT DROP;
+INSERT INTO b1_pin_relation(relname, rls_required) VALUES
+${relations.map(([r, rls]) => `  (${sqlText(r)}, ${rls})`).join(",\n")};
+
+CREATE TEMP TABLE b1_observed_fingerprint(fingerprint text) ON COMMIT DROP;
+INSERT INTO b1_observed_fingerprint(fingerprint) SELECT ${fingerprintExpr};
+`;
+}
+
+function renderFingerprintCheck(manifest: any, fingerprintExpr: string): string {
+  const baseline = manifest.authoritative_baseline;
+  const pinned = baseline.fingerprint ? `'${baseline.fingerprint}'` : "NULL";
+  return `-- GENERATED. Post-run, OUTSIDE any transaction, read-only.
+\\set ON_ERROR_STOP on
+DO $fp$
+DECLARE
+  v_expected text := ${pinned};
+  v_observed text;
+BEGIN
+  IF v_expected IS NULL THEN
+    RAISE EXCEPTION 'POST_RUN_FAIL: authoritative baseline is ${baseline.status}';
+  END IF;
+  v_observed := ${fingerprintExpr};
+  IF v_observed IS DISTINCT FROM v_expected THEN
+    RAISE EXCEPTION 'POST_RUN_FAIL: BASELINE_MISMATCH after the matrix run';
+  END IF;
+  RAISE NOTICE 'POST_RUN_BASELINE_MATCH';
+END
+$fp$;
+`;
+}
+
+function renderMaster(count: number): string {
+  const includes: string[] = [];
+  for (let i = 1; i <= count; i += 1) {
+    includes.push(`\\ir cases/case-${String(i).padStart(4, "0")}.sql`);
+  }
+  return `-- GENERATED master script (G9). ONE psql process executes the whole run.
+-- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
+-- ON_ERROR_STOP aborts the entire run at the first failure. No COMMIT anywhere.
+\\set ON_ERROR_STOP on
+\\timing off
+\\set QUIET on
+\\pset pager off
+
+\\echo === B1 NEGATIVE RPC MATRIX: PREFLIGHT ===
+\\ir ../00-preflight.sql
+
+\\echo === B1 NEGATIVE RPC MATRIX: ${count} NEGATIVE CASES ===
+${includes.join("\n")}
+
+\\echo === B1 NEGATIVE RPC MATRIX: POST-RUN BASELINE CHECK ===
+\\ir fingerprint-check.sql
+
+\\echo B1_NEGATIVE_RPC_MATRIX_COMPLETE
+`;
+}
+
+export function main(): void {
+  const matrixRaw = readFileSync(MATRIX_PATH, "utf8");
+  const actual = sha256Lf(matrixRaw);
+  if (actual !== MATRIX_SHA256_LF) {
+    throw new Error(`MATRIX_SHA256_DRIFT: expected ${MATRIX_SHA256_LF}, got ${actual}`);
+  }
+  const matrix = JSON.parse(matrixRaw);
+  if (matrix.production_ref !== APPROVED_PROJECT_REF) throw new Error("MATRIX_REF_MISMATCH");
+
+  const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+  if (manifest.endpoint.project_ref !== APPROVED_PROJECT_REF) throw new Error("MANIFEST_REF_MISMATCH");
+  if (manifest.migration.version !== matrix.installed_migration.version) {
+    throw new Error("MANIFEST_MIGRATION_MISMATCH");
+  }
+
+  const fingerprintExpr = extractFingerprintExpr(readFileSync(FINGERPRINT_PATH, "utf8"));
+
+  const positives: PositiveCase[] = matrix.positive_cases;
+  const byStep = new Map<string, PositiveCase>();
+  for (const p of positives) byStep.set(`${p.request_number}|${p.step_key}`, p);
+
+  const negatives: NegativeCase[] = [
+    ...matrix.negative_cases,
+    ...matrix.illegal_action_cases,
+    ...matrix.supplemental_department_scope_cases,
+  ];
+  if (negatives.length !== EXPECTED_NEGATIVE_TOTAL) {
+    throw new Error(`MATRIX_COUNT_DRIFT: ${negatives.length}`);
+  }
+
+  rmSync(OUT, { recursive: true, force: true });
+  mkdirSync(CASES, { recursive: true });
+
+  const files: string[] = [];
+  negatives.forEach((nc, index) => {
+    const pc = byStep.get(`${nc.request_number}|${nc.step_key}`);
+    if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
+    const ordinal = index + 1;
+    const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
+    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr), "utf8");
+    files.push(`cases/${name}`);
   });
+
+  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr), "utf8");
+  writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
+  writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(negatives.length), "utf8");
   writeFileSync(
-    join(here, "generated", "MANIFEST.json"),
-    JSON.stringify(
+    join(OUT, "MANIFEST.json"),
+    `${JSON.stringify(
       {
-        matrix_sha256: MATRIX_SHA256,
-        total: manifest.length,
-        split: EXPECTED_SPLIT,
-        cases: manifest,
+        rendered_at_utc: new Date().toISOString(),
+        matrix_sha256_lf: MATRIX_SHA256_LF,
+        negative_total: negatives.length,
+        positive_rendered: 0,
+        commits: 0,
+        files: ["pins.sql", "fingerprint-check.sql", "master-negative-matrix.sql", ...files],
       },
       null,
       2,
-    ),
+    )}\n`,
     "utf8",
   );
-  console.log(`rendered ${manifest.length} rollback-only negative cases -> ${out}`);
+
+  process.stdout.write(`rendered ${negatives.length} negative cases + master into ${OUT}\n`);
 }
 
-if (import.meta.main) main();
+if (import.meta.main) {
+  if (!existsSync(MATRIX_PATH)) throw new Error("MATRIX_NOT_FOUND");
+  main();
+}
