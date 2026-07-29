@@ -6080,6 +6080,16 @@ export type Database = {
         Args: { p_course_section_id: string; p_student_profile_id: string }
         Returns: undefined
       }
+      assert_b1_runtime_step_assignee_effective: {
+        Args: { p_step_id: string }
+        Returns: undefined
+      }
+      assert_b1_runtime_step_row_assignee_effective: {
+        Args: {
+          p_step: Database["public"]["Tables"]["student_request_workflow_steps"]["Row"]
+        }
+        Returns: undefined
+      }
       assert_b1_target_program_department: {
         Args: { p_department_id: string; p_program_id: string }
         Returns: undefined
@@ -6139,6 +6149,7 @@ export type Database = {
         Args: { p_form: Json; p_key: string }
         Returns: undefined
       }
+      b1_assignment_identity_lock_key: { Args: never; Returns: number }
       b1_attachment_meta_json: {
         Args: {
           a: Database["public"]["Tables"]["student_request_attachment_uploads"]["Row"]
@@ -6176,6 +6187,7 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      b1_lock_assignment_identity_boundary: { Args: never; Returns: undefined }
       b1_map_request_status: { Args: { p_status: string }; Returns: string }
       b1_map_ui_staff_action: {
         Args: { p_action_type: string }
