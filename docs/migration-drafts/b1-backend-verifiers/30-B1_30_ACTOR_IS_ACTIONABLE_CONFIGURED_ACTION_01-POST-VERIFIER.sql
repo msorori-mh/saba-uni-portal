@@ -178,3 +178,11 @@ select
   (select count(*) from public.enrollment_certificate_document_details) as ec_document_details;
 
 ROLLBACK;
+
+-- OPTIONAL / SEPARATE — migration ledger attestation (privileged operator only).
+-- Detached on purpose: a permission error here must never invalidate V2..V12a.
+-- BEGIN READ ONLY;
+-- select count(*) as migrations, max(version) as latest_version
+-- from supabase_migrations.schema_migrations;
+-- expected latest_version = 20260729173359
+-- ROLLBACK;
