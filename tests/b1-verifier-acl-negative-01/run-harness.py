@@ -68,48 +68,47 @@ def wrap(body: str) -> str:
     )
 
 
+SANDBOX_UID = 1000  # postgres refuses to run as root; drop privileges when needed
+PORT = 55447
+
+
+def run_pg(cmd):
+    if os.geteuid() == 0:
+        cmd = [
+            "setpriv", "--reuid", str(SANDBOX_UID), "--regid", str(SANDBOX_UID),
+            "--clear-groups", "env", "HOME=/tmp",
+        ] + cmd
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+
 class Cluster:
     def __init__(self) -> None:
         self.dir = Path(tempfile.mkdtemp(prefix="b1-acl-neg-"))
         self.data = self.dir / "data"
-        self.sock = self.dir / "sock"
-        self.sock.mkdir()
 
     def start(self) -> None:
-        subprocess.run(
-            ["initdb", "-D", str(self.data), "-U", "postgres", "--auth=trust"],
-            check=True,
-            capture_output=True,
-        )
-        subprocess.run(
-            [
-                "pg_ctl",
-                "-D",
-                str(self.data),
-                "-o",
-                f"-k {self.sock} -c listen_addresses=",
-                "-w",
-                "start",
-            ],
-            check=True,
-            capture_output=True,
-        )
+        if os.geteuid() == 0:
+            os.chown(self.dir, SANDBOX_UID, SANDBOX_UID)
+        r = run_pg(["initdb", "-D", str(self.data), "-U", "postgres", "-A", "trust"])
+        if r.returncode != 0:
+            raise SystemExit("initdb failed: " + r.stderr.strip())
+        r = run_pg([
+            "pg_ctl", "-D", str(self.data),
+            "-o", f"-p {PORT} -k {self.dir} -c listen_addresses=127.0.0.1",
+            "-l", str(self.dir / "log"), "-w", "start",
+        ])
+        if r.returncode != 0:
+            raise SystemExit("pg_ctl start failed: " + r.stdout + r.stderr)
 
     def stop(self) -> None:
-        subprocess.run(
-            ["pg_ctl", "-D", str(self.data), "-m", "immediate", "-w", "stop"],
-            capture_output=True,
-        )
+        run_pg(["pg_ctl", "-D", str(self.data), "-m", "immediate", "-w", "stop"])
         shutil.rmtree(self.dir, ignore_errors=True)
 
-    def psql(self, sql: str) -> subprocess.CompletedProcess:
-        env = dict(os.environ, PGHOST=str(self.sock), PGUSER="postgres", PGDATABASE="postgres")
+    def psql(self, sql: str, db: str = "postgres") -> subprocess.CompletedProcess:
         return subprocess.run(
-            ["psql", "-v", "ON_ERROR_STOP=1", "-X", "-q", "-f", "-"],
-            input=sql,
-            text=True,
-            capture_output=True,
-            env=env,
+            ["psql", "-h", "127.0.0.1", "-p", str(PORT), "-U", "postgres", "-d", db,
+             "-v", "ON_ERROR_STOP=1", "-X", "-q", "-f", "-"],
+            input=sql, text=True, capture_output=True,
         )
 
 
@@ -202,16 +201,7 @@ def main() -> int:
                     failures.append(f"{name} {cid}: create db failed: {r.stderr.strip()}")
                     continue
                 env_sql = FIXTURE + "\n" + setup + "\n" + body
-                env = dict(
-                    os.environ, PGHOST=str(cluster.sock), PGUSER="postgres", PGDATABASE=db
-                )
-                r = subprocess.run(
-                    ["psql", "-v", "ON_ERROR_STOP=1", "-X", "-q", "-f", "-"],
-                    input=env_sql,
-                    text=True,
-                    capture_output=True,
-                    env=env,
-                )
+                r = cluster.psql(env_sql, db=db)
                 passed = r.returncode == 0
                 if passed != expect_pass:
                     failures.append(
