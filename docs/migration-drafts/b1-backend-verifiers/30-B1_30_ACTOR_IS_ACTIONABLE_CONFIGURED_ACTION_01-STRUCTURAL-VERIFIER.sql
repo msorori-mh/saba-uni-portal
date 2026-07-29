@@ -24,10 +24,11 @@ select case
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.proname = 'workflow_runtime_step_configured_action';
 
-\echo == S3: helper execute is revoked from PUBLIC and anon
+\echo == S3: helper execute is revoked from PUBLIC, anon and authenticated
 select case
   when coalesce(p.proacl::text, '') ~ '(^|,)=X/' then 'FAIL_PUBLIC_EXECUTE'
   when coalesce(p.proacl::text, '') ~ 'anon=X' then 'FAIL_ANON_EXECUTE'
+  when coalesce(p.proacl::text, '') ~ 'authenticated=X' then 'FAIL_AUTHENTICATED_EXECUTE'
   else 'PASS' end as check
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public' and p.proname = 'workflow_runtime_step_configured_action';
