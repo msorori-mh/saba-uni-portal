@@ -1,0 +1,78 @@
+-- PORTAL-B1-FIVE-SERVICES-RPC-AUTHORIZATION-MATRIX-PRODUCTION-READONLY-PREFLIGHT-01
+-- POSITIVE (OPERATIONAL) HARNESS — HELD_BACK. DO NOT EXECUTE.
+--
+-- STATUS: HELD_BACK_PENDING_SEPARATE_WRITE_APPROVAL
+--
+-- This file is deliberately NOT runnable as-is: the guard below aborts before
+-- any RPC is reached. Executing the positive matrix performs real workflow
+-- transitions on the five TEST_ONLY requests and therefore belongs to
+-- "operational workflow execution", not to the authorization-only matrix.
+--
+-- Separation of concerns enforced by this package:
+--   01-negative-rollback-harness.sql  -> authorization only, ROLLBACK only.
+--   02-positive-harness.HELD_BACK.sql -> operational execution, COMMIT, held.
+
+DO $$
+BEGIN
+  RAISE EXCEPTION
+    'B1_POSITIVE_HARNESS_HELD_BACK: operational execution requires a separate explicit write approval';
+END $$;
+
+-- ---------------------------------------------------------------------------
+-- Intended contract once approved (24 positive cases, one per step):
+--
+--  P1  Only the exact direct runtime assignee (exact unit + exact role +
+--      exact active assignment) may execute the configured action_type.
+--  P2  Every execution advances EXACTLY ONE step:
+--        before: 1 active step  -> after: 1 active step (the successor) and
+--        the executed step becomes 'completed'.
+--  P3  No duplicate active steps for the request at any point:
+--        select count(*) from student_request_workflow_steps
+--         where student_request_id = :req and status='active'  ==> 1
+--        (0 only for the terminal step of the service).
+--  P4  No duplicate workflow events: exactly one new row in
+--      student_request_workflow_events per executed action, and no event for
+--      any step other than the executed one.
+--  P5  No fee assessment, no payment row, no document artifact is created by
+--      any non-payment step.
+--  P6  Idempotency/replay: re-invoking the same RPC on the now-'completed'
+--      step must DENY and mutate nothing.
+--
+-- Ordered execution plan (per service, strictly sequential):
+--
+--  enrollment_suspension  SR-20260727-50BEDCE2
+--    1 initial_review                  review           هيثم الشبلي
+--    2 manager_approval                approve          ياسمين الولص
+--    3 registrar_apply                 apply_decision   عبدالله طعيمان
+--
+--  excused_absence        SR-20260727-695EC35B
+--    1 student_affairs_intake          review           هيثم الشبلي
+--    2 manager_review                  approve          ياسمين الولص
+--    3 record_apply                    apply_decision   هيثم الشبلي
+--
+--  final_chance           SR-20260727-3C550070
+--    1 student_affairs_intake          review           هيثم الشبلي
+--    2 manager_review                  approve          ياسمين الولص
+--    3 dean_decision                   approve          أ.م.د. مقبول الكامل
+--    4 payment_confirmation            confirm_payment  فارس اليوسفي   [BLOCKED: no fee assessment]
+--    5 registrar_apply                 apply_decision   عبدالله طعيمان
+--
+--  department_transfer    SR-20260727-88D885F0
+--    1 student_affairs_intake          review           هيثم الشبلي
+--    2 source_department_head_approval approve          د. خالد البراحي (قسم تكنولوجيا المعلومات)
+--    3 target_department_head_approval approve          د. رمزي الجابري (قسم نظم المعلومات الحاسوبية)
+--    4 dean_approval                   approve          أ.م.د. مقبول الكامل
+--    5 payment_confirmation            confirm_payment  فارس اليوسفي   [BLOCKED: no fee assessment]
+--    6 registrar_apply                 apply_decision   عبدالله طعيمان
+--
+--  file_withdrawal        SR-20260727-42393846
+--    1 student_affairs_intake          review           هيثم الشبلي
+--    2 library_clearance               clear            ناجي الروقي
+--    3 labs_clearance                  clear            محمد حيدر
+--    4 activities_clearance            clear            ياسمين الولص
+--    5 finance_clearance               clear            فارس اليوسفي
+--    6 registrar_apply                 apply_decision   عبدالله طعيمان
+--    7 archive                         archive          محمد امين
+--
+-- Runtime step ids are pinned in MATRIX.json (positive_cases[].runtime_step_id).
+-- ---------------------------------------------------------------------------
