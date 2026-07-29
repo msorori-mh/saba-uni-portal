@@ -725,7 +725,7 @@ ROLLBACK;
 `;
 }
 
-function renderPins(manifest: any, fingerprintExpr: string): string {
+function renderPins(manifest: any, fingerprintExpr: string, blockedTotal: number, executableTotal: number): string {
   const fn = manifest.function_graph.functions as any[];
   const trg = manifest.migration_29_triggers as any[];
   const m29 = new Set<string>(manifest.migration_29_functions);
@@ -769,7 +769,10 @@ INSERT INTO b1_pin_scalar(key, value) VALUES
   ('migration_name', ${sqlText(manifest.migration.name)}),
   ('probe_sub', ${sqlText(manifest.probe_sub)}),
   ('baseline_status', ${sqlText(manifest.authoritative_baseline.status)}),
-  ('baseline_fingerprint', ${sqlText(manifest.authoritative_baseline.fingerprint)});
+  ('baseline_fingerprint', ${sqlText(manifest.authoritative_baseline.fingerprint)}),
+  ('blocked_case_total', ${sqlText(String(blockedTotal))}),
+  ('executable_case_total', ${sqlText(String(executableTotal))}),
+  ('blocked_hold_token', ${sqlText(BLOCKED_HOLD_TOKEN)});
 
 CREATE TEMP TABLE b1_pin_function(
   signature text primary key,
@@ -932,6 +935,7 @@ export function main(): void {
   const files: string[] = [];
   const executable: string[] = [];
   const blocked: string[] = [];
+  const blockedByClass: Record<string, number> = {};
   negatives.forEach((nc, index) => {
     const key = `${nc.request_number}|${nc.step_key}`;
     const pc = byStep.get(key);
@@ -941,14 +945,15 @@ export function main(): void {
     const pin = stepPins[key];
     if (!pin) throw new Error(`MATRIX_VALIDATION_FAIL: no step state pin for ${key}`);
     const ordinal = index + 1;
-    if (isBlockedScopeCase(nc, pin)) {
-      if (nc.execution_status !== TRANSFER_SCOPE_BLOCKED_TOKEN) {
-        throw new Error(`MATRIX_VALIDATION_FAIL: blocked scope case ${key} must be marked ${TRANSFER_SCOPE_BLOCKED_TOKEN}`);
+    if (isBlockedCase(nc, pin)) {
+      if (nc.execution_status !== BLOCKED_TOKEN) {
+        throw new Error(`MATRIX_VALIDATION_FAIL: blocked case ${key} must be marked ${BLOCKED_TOKEN}`);
       }
       const name = `case-${String(ordinal).padStart(4, "0")}.BLOCKED.sql`;
       writeFileSync(join(CASES, name), renderBlockedCase(ordinal, nc), "utf8");
       files.push(`cases/${name}`);
       blocked.push(`cases/${name}`);
+      blockedByClass[nc.case] = (blockedByClass[nc.case] ?? 0) + 1;
       return;
     }
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
@@ -960,8 +965,14 @@ export function main(): void {
   if (executable.length !== EXPECTED_EXECUTABLE_TOTAL) {
     throw new Error(`MATRIX_EXECUTABLE_COUNT_DRIFT: ${executable.length}`);
   }
+  if (blocked.length !== EXPECTED_BLOCKED_TOTAL) {
+    throw new Error(`MATRIX_BLOCKED_COUNT_DRIFT: ${blocked.length}`);
+  }
+  if (executable.length + blocked.length !== EXPECTED_NEGATIVE_TOTAL) {
+    throw new Error("MATRIX_PARTITION_DRIFT");
+  }
 
-  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr), "utf8");
+  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr, blocked.length, executable.length), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(executable, negatives.length), "utf8");
   writeFileSync(
@@ -973,8 +984,11 @@ export function main(): void {
         negative_total: negatives.length,
         executable_negative_total: executable.length,
         blocked_negative_total: blocked.length,
-        blocked_reason: blocked.length ? TRANSFER_SCOPE_BLOCKED_TOKEN : null,
+        blocked_reason: blocked.length ? BLOCKED_TOKEN : null,
         blocked_files: blocked,
+        blocked_by_class: blockedByClass,
+        final_pass_allowed: blocked.length === 0,
+        hold_token_when_blocked: BLOCKED_HOLD_TOKEN,
         positive_rendered: 0,
         commits: 0,
         files: ["pins.sql", "fingerprint-check.sql", "master-negative-matrix.sql", ...files],
