@@ -53,7 +53,7 @@ def extract(path: Path) -> str:
     text = path.read_text().replace("\r\n", "\n")
     if BEGIN not in text or END not in text:
         raise SystemExit(f"ACL contract markers missing in {path.name}")
-    body = text.split(BEGIN, 1)[1].split(END, 1)[0]
+    body = text.split(BEGIN, 1)[1].split("\n", 1)[1].split(END, 1)[0]
     # drop the trailing marker comment lines of the BEGIN marker itself
     lines = [ln for ln in body.split("\n") if not ln.strip().startswith("-- tests/")]
     return "\n".join(lines)

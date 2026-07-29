@@ -7,10 +7,20 @@
 -- Bodies are stubs on purpose: this fixture proves the ACL/catalog contract,
 -- not the lock semantics (those are proven by the concurrency harness).
 
-CREATE ROLE anon NOLOGIN;
-CREATE ROLE authenticated NOLOGIN;
-CREATE ROLE other_owner NOLOGIN;
-CREATE ROLE acl_holder NOLOGIN;
+-- Roles are cluster-wide, so create them idempotently: each case runs in its
+-- own database on one throwaway cluster.
+DO $roles$
+DECLARE r text;
+BEGIN
+  FOREACH r IN ARRAY ARRAY['anon','authenticated','other_owner','acl_holder'] LOOP
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
+      EXECUTE format('CREATE ROLE %I NOLOGIN', r);
+    END IF;
+  END LOOP;
+END
+$roles$;
+-- Role memberships are cluster-wide too; reset the N8 fixture each time.
+REVOKE acl_holder FROM anon;
 
 CREATE TABLE public.request_processing_assignments (id uuid PRIMARY KEY);
 CREATE TABLE public.student_request_workflow_steps (id uuid PRIMARY KEY);
