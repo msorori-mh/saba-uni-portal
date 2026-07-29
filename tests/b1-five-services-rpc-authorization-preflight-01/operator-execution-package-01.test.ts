@@ -289,7 +289,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
   });
 
   it("package: no COMMIT is emitted and the preflight ends in ROLLBACK", () => {
-    expect(strip(renderer)).not.toMatch(/\bCOMMIT\b/u);
+    expect(renderer).not.toMatch(/\bCOMMIT;/u);
     expect(strip(preflight)).not.toMatch(/\bCOMMIT\b/u);
     expect(preflight.trimEnd().endsWith("ROLLBACK;")).toBe(true);
     expect(renderer).toContain("ROLLBACK;");

@@ -105,7 +105,11 @@ export function extractFingerprintExpr(sql: string): string {
   }
   const expr = sql.slice(start + "-- BEGIN_FINGERPRINT_EXPR".length, end).trim();
   if (!expr.startsWith("(") || !expr.endsWith(")")) throw new Error("FINGERPRINT_EXPR_MALFORMED");
-  if (/\bLIMIT\b/iu.test(expr)) throw new Error("FINGERPRINT_EXPR_HAS_LIMIT");
+  const withoutComments = expr
+    .split("\n")
+    .map((line) => line.replace(/--.*$/u, ""))
+    .join("\n");
+  if (/\bLIMIT\b/iu.test(withoutComments)) throw new Error("FINGERPRINT_EXPR_HAS_LIMIT");
   return expr;
 }
 
