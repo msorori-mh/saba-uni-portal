@@ -33,31 +33,33 @@ describe("PR227 final unified backend stack independent review", () => {
     const appliedOutOfManifest = promotion.filter(
       ({ order, apply_status }) => order >= 28 && apply_status !== "NOT_APPLIED",
     );
-    expect(appliedOutOfManifest.map(({ order }) => order)).toEqual([28, 29]);
+    expect(appliedOutOfManifest.map(({ order }) => order)).toEqual([28, 29, 30]);
     for (const entry of appliedOutOfManifest) {
       expect(entry.migration).toBeTruthy();
       expect(sha256Lf(entry.migration)).toBe(entry.migration_sha_lf);
       expect(sha256Lf(`docs/migration-drafts/${entry.draft}`)).toBe(entry.draft_sha_lf);
     }
-    // Orders 28 and 29 are applied in production; order 30 is the current
-    // source-only draft (PORTAL-B1-ACTOR-IS-ACTIONABLE-CONFIGURED-ACTION-01),
-    // deliberately NOT promoted and NOT applied.
+    // RECONCILIATION-38: orders 28, 29 and 30 are all applied in production.
+    // Order 30 was applied as version 20260729173359; no NOT_APPLIED entry remains.
     const notApplied = promotion.filter(({ apply_status }) => apply_status === "NOT_APPLIED");
-    expect(notApplied.map(({ order }) => order)).toEqual([30]);
-    const draft30 = notApplied[0] as unknown as {
+    expect(notApplied.map(({ order }) => order)).toEqual([]);
+    const entry30 = promotion.find(({ order }) => order === 30) as unknown as {
       draft: string;
       draft_sha_lf: string;
-      migration: string | null;
-      preflight: string;
-      structural_verifier: string;
-      post_verifier: string;
-      proposed_migration_filename: string;
+      migration: string;
+      apply_status: string;
+      production_version: string;
+      applied_exactly_once: boolean;
+      proposed_migration_filename?: string;
     };
-    expect(draft30.migration).toBeNull();
-    expect(draft30.proposed_migration_filename).toBe(
-      "20260730000000_b1_30_actor_is_actionable_configured_action_01.sql",
+    expect(entry30.apply_status).toBe("APPLIED");
+    expect(entry30.production_version).toBe("20260729173359");
+    expect(entry30.applied_exactly_once).toBe(true);
+    expect(entry30.proposed_migration_filename).toBeUndefined();
+    expect(entry30.migration).toBe(
+      "supabase/migrations/20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql",
     );
-    expect(sha256Lf(`docs/migration-drafts/${draft30.draft}`)).toBe(draft30.draft_sha_lf);
+    expect(sha256Lf(`docs/migration-drafts/${entry30.draft}`)).toBe(entry30.draft_sha_lf);
     for (const companion of [
       draft30.preflight,
       draft30.structural_verifier,
