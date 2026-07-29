@@ -377,41 +377,21 @@
     "previous_step_assignee_replay"
   ],
   "denial_class_contract": {
-    "version": 1,
+    "version": 3,
     "fail_closed": true,
-    "note": "A negative case is PASS only when the RPC is denied by the authorization layer itself. Any other error class is CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL -> ROLLBACK + immediate stop.",
-    "authorization_sqlstates": [
-      "P0001"
+    "note": "REMEDIATION-07 G4. A negative case is PASS only when the observed (SQLSTATE, message family) pair matches the resolved authorization-denial rule EXACTLY. The pair is compared FIRST; only if it does not match is the outcome classified as CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL. SQLSTATE 42501 is an authorization SQLSTATE for this contract because the production RPCs raise their direct-assignee denials with ERRCODE 42501; a 42501 whose message is not in the resolved family is still a HOLD.",
+    "contract_source": [
+      "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql (public.act_on_b1_student_request_step_atomic)",
+      "supabase/migrations/20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql (public.record_external_university_payment_confirmation)"
     ],
-    "expected_by_expect_error": {
-      "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED": {
-        "sqlstate": "P0001",
-        "message_family": [
-          "UNAUTHORIZED_STEP_ACTION",
-          "STEP_ACTION_NOT_ALLOWED"
-        ]
-      },
-      "B1 action gate: action != configured action_type": {
-        "sqlstate": "P0001",
-        "message_family": [
-          "STEP_ACTION_NOT_ALLOWED",
-          "ACTION_NOT_ALLOWED",
-          "INVALID_STEP_ACTION",
-          "UNAUTHORIZED_STEP_ACTION"
-        ]
-      },
-      "transfer department scope mismatch": {
-        "sqlstate": "P0001",
-        "message_family": [
-          "UNAUTHORIZED_STEP_ACTION",
-          "STEP_ACTION_NOT_ALLOWED",
-          "DEPARTMENT_SCOPE"
-        ]
-      }
-    },
+    "authorization_sqlstates": [
+      "28000",
+      "42501",
+      "P0001",
+      "22023"
+    ],
     "infrastructure_sqlstates": [
       "25006",
-      "42501",
       "42883",
       "42P01",
       "42P02",
@@ -429,7 +409,10 @@
       "53300",
       "3D000",
       "3F000",
-      "0A000"
+      "0A000",
+      "P0002",
+      "23505",
+      "23514"
     ],
     "infrastructure_message_tokens": [
       "read-only sql transaction",
@@ -444,9 +427,92 @@
       "could not obtain lock",
       "canceling statement",
       "statement timeout",
-      "connection",
       "server closed",
-      "syntax error"
+      "syntax error",
+      "PAYMENT_CONFIRMATION_STEP_NOT_FOUND",
+      "PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND"
+    ],
+    "resolution_rules": [
+      {
+        "id": "anon_atomic",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "case_class": "anonymous_no_jwt"
+        },
+        "sqlstate": "28000",
+        "message_family": [
+          "AUTHENTICATION_REQUIRED"
+        ]
+      },
+      {
+        "id": "anon_payment",
+        "match": {
+          "rpc": "record_external_university_payment_confirmation",
+          "case_class": "anonymous_no_jwt"
+        },
+        "sqlstate": "28000",
+        "message_family": [
+          "AUTH_REQUIRED"
+        ]
+      },
+      {
+        "id": "payment_step_not_active",
+        "match": {
+          "rpc": "record_external_university_payment_confirmation",
+          "runtime_status": "pending"
+        },
+        "sqlstate": "22023",
+        "message_family": [
+          "INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP"
+        ]
+      },
+      {
+        "id": "atomic_step_not_active",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "pending"
+        },
+        "sqlstate": "P0001",
+        "message_family": [
+          "B1_ACTIVE_STEP_REQUIRED"
+        ]
+      },
+      {
+        "id": "atomic_illegal_action_by_exact_assignee",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "active",
+          "case_class": "illegal_action_by_exact_assignee"
+        },
+        "sqlstate": "P0001",
+        "message_family": [
+          "B1_ACTION_TYPE_MISMATCH"
+        ]
+      },
+      {
+        "id": "atomic_direct_assignee_required",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "active"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"
+        ]
+      },
+      {
+        "id": "payment_direct_assignee_required",
+        "match": {
+          "rpc": "record_external_university_payment_confirmation",
+          "runtime_status": "active"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "DIRECT_PAYMENT_ASSIGNEE_REQUIRED",
+          "EXACTLY_ONE_DIRECT_PAYMENT_ASSIGNEE_REQUIRED",
+          "EXACT_FINANCE_PROCESSING_BINDING_REQUIRED"
+        ]
+      }
     ]
   },
   "negative_cases": [
@@ -3100,7 +3166,9 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "transfer department scope mismatch",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "actor_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+      "actor_department_scope": "source_department"
     },
     {
       "case": "department_scope_swap_target_head_on_source_step",
@@ -3110,7 +3178,9 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "transfer department scope mismatch",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "actor_department_id": "22222222-2222-4222-8222-222222222222",
+      "actor_department_scope": "target_department"
     },
     {
       "case": "third_department_head_unrelated",
@@ -3120,7 +3190,9 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "transfer department scope mismatch",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "actor_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+      "actor_department_scope": "source_department"
     }
   ],
   "illegal_action_cases": [
@@ -3371,5 +3443,67 @@
     "illegal_action": 24,
     "supplemental_department_scope": 3,
     "negative_total": 267
+  },
+  "production_readonly_attestation": {
+    "obtained_by": "Lovable read-only channel (SELECT only). ZERO_RPC_CALLS, NO_PRODUCTION_WRITE.",
+    "obtained_at_utc": "2026-07-29T04:55:00Z",
+    "requests": {
+      "SR-20260727-3C550070": {
+        "request_type": "final_chance",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "39931cd9-c0ca-4a0c-bdba-16dde7ae1145",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-42393846": {
+        "request_type": "file_withdrawal",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-50BEDCE2": {
+        "request_type": "enrollment_suspension",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "6e7855cb-ed60-4c24-8f82-7fe9c69b4216",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-695EC35B": {
+        "request_type": "excused_absence",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "44b1d694-2015-412e-86e3-235116a710b2",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-88D885F0": {
+        "request_type": "department_transfer",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+        "fee_assessment_rows": 0,
+        "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+        "target_department_id": "22222222-2222-4222-8222-222222222222"
+      }
+    },
+    "step_invariants": {
+      "direct_assignment_slots": 1,
+      "active_unit_role_assignments": 1,
+      "assigned_user_id_is_null": true,
+      "note": "Every runtime step binds exactly one direct assignee slot (staff/faculty/position), assigned_user_id itself is NULL, and exactly one active request_processing_assignments row exists for the step unit+role. The effective assignee is resolved through the same four slots the production RPC uses."
+    },
+    "actor_departments": {
+      "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+      "f602b62c-194b-4591-8e9c-956e5cbb347d": "22222222-2222-4222-8222-222222222222",
+      "97acbe02-c59c-409c-8d51-7d4ef72e6db7": "ce485c67-5f7c-498d-b120-4b1130a86ae8"
+    }
   }
 }
