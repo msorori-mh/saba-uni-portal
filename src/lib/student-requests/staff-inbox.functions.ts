@@ -921,7 +921,9 @@ export type ReviewStepExecutableAction = (typeof REVIEW_STEP_EXECUTABLE_ACTIONS)
 const executeReviewActionSchema = z
   .object({
     requestId: z.string().uuid(),
-    requestTypeCode: z.string().trim().min(1).optional().nullable(),
+    // REQUIRED + non-null + non-empty. This is only a first line of defence:
+    // the authoritative decision is taken server-side against the DB value.
+    requestTypeCode: z.string().trim().min(1),
     workflowStepRuntimeId: z.string().uuid(),
     action: z.enum(REVIEW_STEP_EXECUTABLE_ACTIONS),
     comment: z.string().trim().max(4000).optional().nullable(),
@@ -936,6 +938,7 @@ const executeReviewActionSchema = z
       });
     }
   });
+
 
 export type ExecuteStudentRequestStaffActionResult = {
   success: boolean;
