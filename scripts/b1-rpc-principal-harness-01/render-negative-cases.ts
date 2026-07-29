@@ -576,12 +576,16 @@ BEGIN
   END IF;
   ${assigneePin}
 
+  ${statePin}
+
+  ${illegalActionPin}
+
   IF ${lit(pc.runtime_status)} = 'active' THEN
     SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
      WHERE w.student_request_id = v_req
        AND w.step_order < v_order
        AND w.status NOT IN ('completed','skipped');
-    IF v_n <> 0 THEN
+    IF v_n <> ${pin.predecessor_incomplete_expected ?? 0} THEN
       RAISE EXCEPTION 'CASE_STATE_DRIFT: % unsatisfied predecessor steps', v_n;
     END IF;
   END IF;
