@@ -333,6 +333,53 @@ export function isBlockedCase(nc: NegativeCase, pin: StepStatePin): boolean {
 export const isBlockedScopeCase = isBlockedCase;
 
 export function renderBlockedCase(ordinal: number, nc: NegativeCase): string {
+  // ---- REMEDIATION-12 G6: exact predecessor SET + STATUS pin ---------------
+  // Not a count of "unsatisfied" rows: every predecessor runtime step id and its
+  // exact status are compared, so a silently completed/reset predecessor can
+  // never let a negative case pass.
+  const predRows = pin.predecessor_set ?? [];
+  if (predRows.length !== (pin.predecessor_total_expected ?? 0)) {
+    throw new Error("MATRIX_VALIDATION_FAIL: predecessor set size drift");
+  }
+  const predIncomplete = predRows.filter((r) => !["completed", "skipped"].includes(r.runtime_status)).length;
+  if (predIncomplete !== (pin.predecessor_incomplete_expected ?? 0)) {
+    throw new Error("MATRIX_VALIDATION_FAIL: predecessor incomplete pin drift");
+  }
+  const predecessorPin = `SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
+   WHERE w.student_request_id = v_req AND w.step_order < v_order;
+  IF v_n <> ${predRows.length} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % predecessor steps (want ${predRows.length})', v_n;
+  END IF;
+${
+    predRows.length === 0
+      ? "  -- no predecessor rows for this step"
+      : predRows
+          .map(
+            (r) => `  SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
+   WHERE w.id = ${lit(assertUuid("predecessor_step_id", r.runtime_step_id))}::uuid
+     AND w.student_request_id = v_req
+     AND w.step_order = ${r.step_order}
+     AND w.status = ${lit(assertSafeScalar("predecessor_status", r.runtime_status))};
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: predecessor ${r.step_key} is not ${r.runtime_status}';
+  END IF;`,
+          )
+          .join("\n")
+  }
+  SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
+   WHERE w.student_request_id = v_req
+     AND w.step_order < v_order
+     AND w.status NOT IN ('completed','skipped');
+  IF v_n <> ${predIncomplete} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % unsatisfied predecessor steps (want ${predIncomplete})', v_n;
+  END IF;`;
+
+  // ---- REMEDIATION-12 G6: department scope pin -----------------------------
+  const expectedScope = pc.request_type === "department_transfer" ? "transfer_department_scope" : "not_applicable";
+  if (pin.department_scope !== expectedScope) {
+    throw new Error("MATRIX_VALIDATION_FAIL: department scope pin drift");
+  }
+
   const id = String(ordinal).padStart(4, "0");
   return `-- ============================================================================
 -- case-${id} — NOT EXECUTED
@@ -604,15 +651,7 @@ BEGIN
 
   ${illegalActionPin}
 
-  IF ${lit(pc.runtime_status)} = 'active' THEN
-    SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
-     WHERE w.student_request_id = v_req
-       AND w.step_order < v_order
-       AND w.status NOT IN ('completed','skipped');
-    IF v_n <> ${pin.predecessor_incomplete_expected ?? 0} THEN
-      RAISE EXCEPTION 'CASE_STATE_DRIFT: % unsatisfied predecessor steps', v_n;
-    END IF;
-  END IF;
+  ${predecessorPin}
 
   -- ---- G7: complete-content fingerprint BEFORE the RPC --------------------
   v_before := ${fingerprintExpr};
