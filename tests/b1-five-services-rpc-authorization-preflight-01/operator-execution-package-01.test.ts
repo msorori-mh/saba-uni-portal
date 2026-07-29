@@ -391,7 +391,14 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
     );
     expect(held).toMatch(/HELD_BACK/);
     expect(ps).not.toContain("positive-harness");
-    expect(read(join(pkg, "positive-harness.sql"))).toMatch(/HELD_BACK/);
+    const localPositive = read(join(pkg, "positive-harness.sql"));
+    expect(localPositive).toMatch(/DO NOT RUN|HELD_BACK|held back/);
+    // the whole executable body is commented out
+    expect(
+      localPositive
+        .split("\n")
+        .filter((l) => l.trim() && !l.trimStart().startsWith("--") && !l.startsWith("\\set")),
+    ).toHaveLength(0);
   });
 
   it("19. tracks no secrets, no generated files and no pycache", () => {
