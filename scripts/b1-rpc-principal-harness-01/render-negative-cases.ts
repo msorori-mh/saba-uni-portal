@@ -327,9 +327,17 @@ DECLARE
   v_after    text;
   v_allowed  boolean := false;
   v_err      text;
+  v_sqlstate text;
   v_status2  text;
   v_assign2  uuid;
 BEGIN
+  -- ---- G1: the case must run in a genuinely read-write transaction --------
+  -- default_transaction_read_only must NEVER be the layer that blocks a write,
+  -- otherwise an authorization bypass would be masked as a denial.
+  IF current_setting('transaction_read_only') = 'on' THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id}: transaction is read-only';
+  END IF;
+
   -- ---- G6: real row locks, fixed order: request -> steps -> assignments ----
   SELECT r.id, r.request_type, r.status
     INTO v_req, v_type, v_status
