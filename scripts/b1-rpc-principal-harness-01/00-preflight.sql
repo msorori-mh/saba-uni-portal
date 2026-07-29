@@ -47,6 +47,7 @@ DECLARE
   v_ref  text := (SELECT value FROM b1_pin_scalar WHERE key = 'project_ref');
   v_db   text := (SELECT value FROM b1_pin_scalar WHERE key = 'approved_pgdatabase');
   v_user text := (SELECT value FROM b1_pin_scalar WHERE key = 'approved_pguser_regex');
+  v_ssl  boolean;
 BEGIN
   IF v_ref IS DISTINCT FROM 'wpmicqriltrowwonknox' THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_PRODUCTION_REF_MISMATCH: %', v_ref;
@@ -57,7 +58,16 @@ BEGIN
   IF session_user !~ v_user THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_SESSION_USER_SHAPE_MISMATCH';
   END IF;
+
+  -- G5: the user shape alone never attests the target. The launcher pins host,
+  -- port and sslmode=verify-full from TARGET-MANIFEST.json; here we prove the
+  -- backend actually terminated a TLS connection.
+  SELECT s.ssl INTO v_ssl FROM pg_stat_ssl s WHERE s.pid = pg_backend_pid();
+  IF v_ssl IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_NEEDS_VERIFIED_TLS_ENDPOINT: backend connection is not TLS';
+  END IF;
 END $$;
+
 
 -- ============================================================================
 -- 3. session_user contract — runs BEFORE any SET ROLE
