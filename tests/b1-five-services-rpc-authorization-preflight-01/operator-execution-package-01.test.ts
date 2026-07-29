@@ -567,7 +567,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
       "supabase_migrations.schema_migrations",
     );
     expect(manifest.operator_privilege_contract.required).toContain(
-      "no INSERT/UPDATE/DELETE on supabase_migrations.schema_migrations",
+      "no table-level INSERT/UPDATE/DELETE/TRUNCATE on supabase_migrations.schema_migrations",
     );
   });
 
