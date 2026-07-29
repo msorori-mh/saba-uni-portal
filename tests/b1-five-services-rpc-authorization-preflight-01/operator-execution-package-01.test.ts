@@ -211,7 +211,12 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
       );
     }
     expect(ps).toContain("no retry by contract");
-    expect(ps).not.toMatch(/retry|Retry/);
+    // every "retry" mention is a comment or the explicit no-retry failure text
+    for (const line of ps.split("\n")) {
+      if (/retry/i.test(line)) {
+        expect(/^\s*#|no retry by contract/.test(line)).toBe(true);
+      }
+    }
   });
 
   // ------------------------------------------------- G6 matrix / generator --
