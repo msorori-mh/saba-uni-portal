@@ -431,8 +431,10 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
       .split("\n")
       .filter((l) => !l.trimStart().startsWith("--"))
       .join("\n");
-    // no role/privilege changes and no persistent-object DDL or writes
-    expect(executable).not.toMatch(
+    // no role/privilege changes and no persistent-object DDL
+    // (string literals such as has_table_privilege(..., 'TRUNCATE') are probes)
+    const bare = executable.replace(/'[^']*'/g, "''");
+    expect(bare).not.toMatch(
       /\b(CREATE ROLE|ALTER ROLE|GRANT|REVOKE|DROP TABLE|DROP FUNCTION|TRUNCATE)\b/,
     );
     expect(executable).not.toMatch(
