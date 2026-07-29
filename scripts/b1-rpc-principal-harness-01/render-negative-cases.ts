@@ -784,10 +784,10 @@ $fp$;
 `;
 }
 
-function renderMaster(count: number): string {
-  const includes: string[] = [];
-  for (let i = 1; i <= count; i += 1) {
-    includes.push(`\\ir cases/case-${String(i).padStart(4, "0")}.sql`);
+function renderMaster(executable: string[], total: number): string {
+  const includes: string[] = executable.map((f) => `\\ir ${f}`);
+  const count = executable.length;
+  {
   }
   return `-- GENERATED master script (G9). ONE psql process executes the whole run.
 -- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
