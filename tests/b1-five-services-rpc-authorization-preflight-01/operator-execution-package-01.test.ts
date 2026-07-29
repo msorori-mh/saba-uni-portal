@@ -1080,9 +1080,15 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     }
     expect(matrix.positive_cases.every((p: { request_type: string }) => p.request_type !== "enrollment_certificate"))
       .toBe(true);
-    for (const s of manifest.b1_services as Array<{ code: string; student_visible: boolean }>) {
-      expect(s.student_visible).toBe(false);
-      expect(s.code).not.toBe("enrollment_certificate");
-    }
+    expect(manifest.b1_services as string[]).toEqual([
+      "enrollment_suspension",
+      "excused_absence",
+      "department_transfer",
+      "final_chance",
+      "file_withdrawal",
+    ]);
+    expect(manifest.b1_services as string[]).not.toContain("enrollment_certificate");
+    // The five services stay hidden: the preflight asserts student_visible = false.
+    expect(preflight).toMatch(/student_visible/u);
   });
 });
