@@ -51,6 +51,9 @@ $function$;
 revoke all on function public.workflow_runtime_step_configured_action(uuid)
   from public, anon, authenticated;
 
+-- Pin the owner explicitly (fail-closed against ownership drift).
+alter function public.workflow_runtime_step_configured_action(uuid) owner to postgres;
+
 -- ---------------------------------------------------------------------------
 -- 2. Actor inbox — configured-action probe
 -- ---------------------------------------------------------------------------
@@ -58,7 +61,7 @@ CREATE OR REPLACE FUNCTION public.get_my_request_actor_inbox(p_filters jsonb DEF
  RETURNS TABLE(workflow_step_runtime_id uuid, student_request_id uuid, request_type_code text, request_type_name_ar text, student_id uuid, student_name text, department_id uuid, department_name_ar text, step_key text, step_name_ar text, step_status text, processing_unit_id uuid, processing_unit_name_ar text, processing_role_id uuid, processing_role_name_ar text, submitted_at timestamp with time zone, is_actionable boolean)
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_uid uuid := auth.uid();
@@ -137,7 +140,7 @@ CREATE OR REPLACE FUNCTION public.get_student_request_detail_for_actor(p_request
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_uid uuid := auth.uid();
@@ -256,7 +259,7 @@ CREATE OR REPLACE FUNCTION public.get_student_request_fee_processing_context(p_r
  RETURNS jsonb
  LANGUAGE plpgsql
  STABLE SECURITY DEFINER
- SET search_path TO 'public'
+ SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE
   v_uid uuid := auth.uid();
@@ -301,5 +304,12 @@ BEGIN
     ) END);
 END;
 $function$;
+
+-- ---------------------------------------------------------------------------
+-- 5. Ownership pins for the three replaced RPCs (no privilege change)
+-- ---------------------------------------------------------------------------
+alter function public.get_my_request_actor_inbox(jsonb, integer, integer) owner to postgres;
+alter function public.get_student_request_detail_for_actor(uuid) owner to postgres;
+alter function public.get_student_request_fee_processing_context(uuid) owner to postgres;
 
 commit;
