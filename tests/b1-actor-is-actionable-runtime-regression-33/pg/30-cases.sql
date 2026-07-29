@@ -36,10 +36,6 @@ DECLARE
   v_detail jsonb;
   v_count integer;
 
-  procedure_note text;
-
-  -- local assert helper
-  FUNCTION_PLACEHOLDER text;
 BEGIN
   -- ---------------- fixture ------------------------------------------------
   insert into public.departments(name_ar) values ('قسم الاختبار') returning id into v_dept;
