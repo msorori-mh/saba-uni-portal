@@ -31,6 +31,14 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
     labelAr: "مراجعة",
     buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
   },
+  apply_decision: {
+    labelAr: "تطبيق القرار",
+    buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
+  },
+  clear: {
+    labelAr: "إخلاء طرف",
+    buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
+  },
   return: {
     labelAr: "إرجاع للاستكمال",
     buttonClass: "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100",
@@ -40,14 +48,6 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
     buttonClass: "bg-destructive text-destructive-foreground hover:opacity-90",
   },
 };
-
-function approveLabelAr(stepKey?: string): string {
-  if (!stepKey) return "اعتماد";
-  if (stepKey.includes("clearance") || stepKey.endsWith("_clear")) return "إخلاء";
-  if (stepKey === "registrar_apply" || stepKey === "record_apply") return "تطبيق القرار";
-  if (stepKey === "archive") return "أرشفة";
-  return "اعتماد";
-}
 
 function ActionIcon({ action }: { action: ExecutableAction }) {
   const cls = "h-4 w-4";
@@ -100,8 +100,8 @@ export function B1EmployeeActionPanel({
   const commentRequired =
     requireComment ?? B1_STAFF_ACTIONS_REQUIRING_COMMENT.includes(allowedAction);
   const meta = ACTION_META[allowedAction];
-  const labelAr =
-    allowedAction === "approve" ? approveLabelAr(stepKey) : meta.labelAr;
+  // Label is derived literally from the configured action — never aliased.
+  const labelAr = meta.labelAr;
   const controlsDisabled = busy || acting;
 
   const handleAct = async () => {
