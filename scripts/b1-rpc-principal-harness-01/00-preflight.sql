@@ -37,16 +37,33 @@ BEGIN
   END IF;
 END $$;
 
--- 2. session_user is NOT the sandbox executor ---------------------------------
+-- 2. session_user is NOT the sandbox executor, not superuser, not BYPASSRLS ---
 DO $$
+DECLARE
+  v_super  boolean;
+  v_bypass boolean;
 BEGIN
   IF session_user IN ('sandbox_exec', 'service_role', 'supabase_admin') THEN
-    RAISE EXCEPTION 'B1_PREFLIGHT_FORBIDDEN_SESSION_USER: %', session_user;
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_FORBIDDEN_SESSION_USER: %', session_user;
   END IF;
-  IF (SELECT rolbypassrls FROM pg_roles WHERE rolname = session_user) THEN
-    RAISE EXCEPTION 'B1_PREFLIGHT_SESSION_USER_HAS_BYPASSRLS: %', session_user;
+
+  SELECT rolsuper, rolbypassrls INTO v_super, v_bypass
+  FROM pg_roles WHERE rolname = session_user;
+
+  -- fail closed: never pass silently when the role row cannot be resolved
+  IF NOT FOUND OR v_super IS NULL OR v_bypass IS NULL THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_SESSION_USER_NOT_FOUND_IN_PG_ROLES: %', session_user;
+  END IF;
+
+  IF v_super THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: session_user must not be superuser (B1_PREFLIGHT_SESSION_USER_IS_SUPERUSER: %)', session_user;
+  END IF;
+
+  IF v_bypass THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_SESSION_USER_HAS_BYPASSRLS: %', session_user;
   END IF;
 END $$;
+
 
 -- 3-5. SET LOCAL ROLE authenticated must succeed and stick --------------------
 SET LOCAL ROLE authenticated;

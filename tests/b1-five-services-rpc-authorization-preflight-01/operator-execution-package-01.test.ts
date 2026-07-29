@@ -77,6 +77,96 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-EXECUTION-PACKAGE-01", () => {
     );
   });
 
+  describe("G1 session_user guard — offline simulation of the SQL guard block", () => {
+    const pf = read(join(pkg, "00-preflight.sql"));
+    const guard = pf.slice(
+      pf.indexOf("-- 2. session_user"),
+      pf.indexOf("-- 3-5."),
+    );
+
+    // Faithful offline model of the guard block above; each branch is pinned to
+    // the exact RAISE text present in the SQL so drift breaks the test.
+    const reason = (name: string, tag: string) => {
+      const m = guard.match(
+        new RegExp(`RAISE EXCEPTION\\s+'(PREFLIGHT_FAIL:[^']*${tag}[^']*)'`),
+      );
+      if (!m) throw new Error(`guard branch missing: ${tag}`);
+      return m[1].replace("%", name);
+    };
+
+    const evaluate = (
+      sessionUser: string,
+      pgRoles: Record<string, { rolsuper: boolean; rolbypassrls: boolean }>,
+      canSetRoleAuthenticated = true,
+    ) => {
+      if (["sandbox_exec", "service_role", "supabase_admin"].includes(sessionUser)) {
+        return { ok: false, reason: reason(sessionUser, "FORBIDDEN_SESSION_USER") };
+      }
+      const row = pgRoles[sessionUser];
+      if (!row) return { ok: false, reason: reason(sessionUser, "NOT_FOUND_IN_PG_ROLES") };
+      if (row.rolsuper) return { ok: false, reason: reason(sessionUser, "must not be superuser") };
+      if (row.rolbypassrls) {
+        return { ok: false, reason: reason(sessionUser, "SESSION_USER_HAS_BYPASSRLS") };
+      }
+      if (!canSetRoleAuthenticated) {
+        return { ok: false, reason: "B1_PREFLIGHT_SET_ROLE_AUTHENTICATED_FAILED" };
+      }
+      return { ok: true, reason: "" };
+    };
+
+    const roles = {
+      op_super: { rolsuper: true, rolbypassrls: false },
+      op_bypass: { rolsuper: false, rolbypassrls: true },
+      op_normal: { rolsuper: false, rolbypassrls: false },
+    };
+
+    it("the SQL guard runs before SET LOCAL ROLE authenticated", () => {
+      expect(pf.indexOf("-- 2. session_user")).toBeLessThan(
+        pf.indexOf("SET LOCAL ROLE authenticated;"),
+      );
+      expect(guard).toContain("rolsuper");
+      expect(guard).toContain("rolbypassrls");
+      expect(guard).toContain("NOT FOUND");
+      expect(guard).toContain("session_user must not be superuser");
+    });
+
+    it("1. session_user superuser => FAIL with the superuser reason", () => {
+      const r = evaluate("op_super", roles);
+      expect(r.ok).toBe(false);
+      expect(r.reason).toContain("session_user must not be superuser");
+      expect(r.reason).toContain("PREFLIGHT_FAIL");
+    });
+
+    it("2. session_user BYPASSRLS => FAIL with the bypassrls reason", () => {
+      const r = evaluate("op_bypass", roles);
+      expect(r.ok).toBe(false);
+      expect(r.reason).toContain("B1_PREFLIGHT_SESSION_USER_HAS_BYPASSRLS");
+    });
+
+    it("3. forbidden session_user names => FAIL with the forbidden reason", () => {
+      for (const name of ["sandbox_exec", "service_role", "supabase_admin"]) {
+        const r = evaluate(name, { ...roles, [name]: { rolsuper: false, rolbypassrls: false } });
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("B1_PREFLIGHT_FORBIDDEN_SESSION_USER");
+        expect(r.reason).toContain(name);
+      }
+    });
+
+    it("4. session_user absent from pg_roles => FAIL, never silent pass", () => {
+      const r = evaluate("ghost_operator", roles);
+      expect(r.ok).toBe(false);
+      expect(r.reason).toContain("B1_PREFLIGHT_SESSION_USER_NOT_FOUND_IN_PG_ROLES");
+    });
+
+    it("5. ordinary operator with SET ROLE authenticated => PASS", () => {
+      expect(evaluate("op_normal", roles)).toEqual({ ok: true, reason: "" });
+      expect(evaluate("op_normal", roles, false).reason).toBe(
+        "B1_PREFLIGHT_SET_ROLE_AUTHENTICATED_FAILED",
+      );
+    });
+  });
+
+
   it("the launcher keeps credentials out of git, logs and reports", () => {
     const ps = read(join(pkg, "run-negative-matrix.ps1"));
     expect(ps).toContain("$env:DATABASE_URL");
