@@ -41,10 +41,13 @@ describe("assertStaffInboxAccess", () => {
     expect(gateBlock).toMatch(/roles\.includes\(["']system_admin["']\)/);
   });
 
-  it("allows any user with an ACTIVE request_processing_assignments row", () => {
-    expect(gateBlock).toMatch(/from\(\s*["']request_processing_assignments["']\s*\)/);
-    expect(gateBlock).toMatch(/\.eq\(\s*["']user_id["']\s*,\s*userId\s*\)/);
-    expect(gateBlock).toMatch(/\.eq\(\s*["']is_active["']\s*,\s*true\s*\)/);
+  it("allows any user with an ACTIVE assignment via the shared identity closure", () => {
+    expect(gateBlock).toMatch(/hasActiveProcessingAssignmentForUser\(\s*userId\s*\)/);
+    expect(SOURCE).toMatch(
+      /from\s+["']@\/lib\/student-requests\/processing-assignment-identity\.server["']/,
+    );
+    // no user_id-only lookup left inline in the gate
+    expect(gateBlock).not.toMatch(/\.eq\(\s*["']user_id["']\s*,\s*userId\s*\)/);
   });
 
   it("throws the localized unauthorized message when the user has no assignment and is not admin", () => {
