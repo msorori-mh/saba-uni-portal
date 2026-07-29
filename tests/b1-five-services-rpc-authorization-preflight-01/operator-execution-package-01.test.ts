@@ -753,10 +753,19 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", (
     expect(sigs).toContain("public.protect_student_sensitive_fields()");
   });
 
-  it("G5: the student_profiles trigger closure is transitively declared and side-effect scanned", () => {
-    const pending = manifest.function_graph.trigger_aware_closure.pending_attestation;
-    expect(pending.status).toBe("PENDING_PRODUCTION_ATTESTATION");
+  it("G5: the student_profiles trigger closure is attested, pinned and side-effect scanned", () => {
+    const closure = manifest.function_graph.trigger_aware_closure;
+    const pending = closure.production_attestation;
+    expect(pending.status).toBe("PRODUCTION_ATTESTED_AND_PINNED");
+    expect(pending.attestation_mode).toBe("PRODUCTION_READ_ONLY_ATTESTATION_ONLY");
     expect(pending.verdict_when_unpinned).toBe("FUNCTION_GRAPH_DRIFT");
+    expect(pending.trigger_bindings_verified.trg_student_profiles_updated_at).toBe(
+      "public.update_updated_at_column()",
+    );
+    expect(pending.trigger_bindings_verified.trg_protect_student_sensitive).toBe(
+      "public.protect_student_sensitive_fields()",
+    );
+    const pinnedSigs = new Set((manifest.function_graph.functions as any[]).map((f) => f.signature));
     const bySig = new Map<string, any>(pending.functions.map((f: any) => [f.signature, f]));
     for (const sig of [
       "public.update_updated_at_column()",
@@ -769,7 +778,10 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", (
       expect(f.owner).toBe("postgres");
       expect(f.search_path).toBe("search_path=public");
       expect(f.external_side_effects_source_scan).toBe("none");
-      expect(Object.hasOwn(f, "definition_sha256")).toBe(true);
+      expect(f.definition_sha256).toMatch(/^[0-9a-f]{64}$/u);
+      // every closure member is pinned in the function graph with a real SHA
+      expect(pinnedSigs.has(sig)).toBe(true);
+      expect(closure.pinned_trigger_functions).toContain(sig);
     }
     // the transitive callee discovered from protect_student_sensitive_fields
     expect(bySig.get("public.protect_student_sensitive_fields()").source_derived_calls).toContain(
@@ -778,6 +790,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", (
     // unpinned (SHA-less) closure members must keep the run fail-closed
     expect(preflight).toContain("FUNCTION_GRAPH_DRIFT: unpinned reachable function");
   });
+
 
   // ---- G6: exact state pinning ---------------------------------------------
   it("G6: every step pin carries action, unit, role, assignee, predecessor set and scope", () => {
