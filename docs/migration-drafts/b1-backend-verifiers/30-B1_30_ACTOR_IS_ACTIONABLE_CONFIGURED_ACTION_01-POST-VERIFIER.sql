@@ -4,10 +4,14 @@
 -- Executed inside an explicit READ ONLY transaction; ends with ROLLBACK.
 BEGIN READ ONLY;
 
-\echo == V1: migration history advanced by exactly one and nothing was rewritten
-select count(*) as migrations,
-       max(version) as latest_version
-from supabase_migrations.schema_migrations;
+-- DEFECT-3 FIX: supabase_migrations.schema_migrations is not readable by the
+-- roles available to this verifier, so V1 no longer depends on it. The applied
+-- version is attested from the source-of-truth migration file under
+-- supabase/migrations (20260729173359_9a749214-c28e-489b-95ec-038f290a5c3c.sql)
+-- and by PROMOTION-MAP.json. The optional ledger read is at the end of this
+-- file, fully detached, and may only be run by a privileged operator.
+\echo == V1: migration ledger read intentionally detached (see optional block at EOF)
+select 'SKIPPED_BY_DESIGN_SEE_PROMOTION_MAP' as check;
 
 \echo == V2: helper installed
 select p.proname, pg_get_function_identity_arguments(p.oid) as args,
