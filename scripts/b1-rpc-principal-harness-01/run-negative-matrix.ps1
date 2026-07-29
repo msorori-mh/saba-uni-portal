@@ -114,15 +114,28 @@ $allCases = Get-ChildItem -Path (Join-Path $generated 'cases') -Filter 'case-*.s
 $blockedCases = @($allCases | Where-Object { $_.Name -like '*.BLOCKED.sql' })
 $caseCount = $allCases.Count
 if ($caseCount -ne 267) { throw "CASE_COUNT_DRIFT: $caseCount" }
-# REMEDIATION-09 G2: blocked scope cases are rendered but never executed.
-if ($blockedCases.Count -ne 3) { throw "BLOCKED_CASE_COUNT_DRIFT: $($blockedCases.Count)" }
+# REMEDIATION-12 G1: 19 illegal-action cases on pending steps + 3 transfer-scope
+# cases are rendered but never executed.
+if ($blockedCases.Count -ne 22) { throw "BLOCKED_CASE_COUNT_DRIFT: $($blockedCases.Count)" }
 $executableCount = $caseCount - $blockedCases.Count
-if ($executableCount -ne 264) { throw "EXECUTABLE_CASE_COUNT_DRIFT: $executableCount" }
+if ($executableCount -ne 245) { throw "EXECUTABLE_CASE_COUNT_DRIFT: $executableCount" }
 $masterIncludes = (Select-String -Path (Join-Path $generated 'master-negative-matrix.sql') -Pattern '\\ir cases/').Count
-if ($masterIncludes -ne 264) { throw "MASTER_INCLUDE_COUNT_DRIFT: $masterIncludes" }
+if ($masterIncludes -ne 245) { throw "MASTER_INCLUDE_COUNT_DRIFT: $masterIncludes" }
 if (Select-String -Path (Join-Path $generated 'master-negative-matrix.sql') -Pattern 'BLOCKED\.sql') {
   throw 'BLOCKED_CASE_INCLUDED_IN_MASTER'
 }
+
+# ---------------------------------------------------------------------------
+# 2b. REMEDIATION-12 G3 - ACTIVE FIXTURE GATE
+#     The matrix must not start, and PASS must never be printed, while any case
+#     is BLOCKED_PENDING_ACTIVE_FIXTURE. This is checked BEFORE psql is invoked.
+# ---------------------------------------------------------------------------
+if ($blockedCases.Count -gt 0) {
+  Write-Host "blocked cases: $($blockedCases.Count) (BLOCKED_PENDING_ACTIVE_FIXTURE)"
+  Write-Host 'RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE'
+  exit 2
+}
+
 
 $commitHits = Select-String -Path (Join-Path $generated 'cases\*.sql') -Pattern '(?im)^\s*COMMIT\b'
 if ($commitHits) { throw 'FORBIDDEN_COMMIT_IN_RENDERED_CASES' }
