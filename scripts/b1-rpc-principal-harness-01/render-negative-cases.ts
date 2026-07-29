@@ -413,20 +413,32 @@ BEGIN
     RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id}: transaction is read-only';
   END IF;
 
-  -- ---- G6: real row locks, fixed order: request -> steps -> assignments ----
+  -- ---- G6: NO ROW LOCKS. FOR SHARE / FOR UPDATE require UPDATE privilege and
+  -- would contradict the pure-observer contract. Isolation is SERIALIZABLE +
+  -- ROLLBACK-only, and mutation is proven impossible by the before/after
+  -- complete-content fingerprint below.
   SELECT r.id, r.request_type, r.status
     INTO v_req, v_type, v_status
     FROM public.student_requests r
-   WHERE r.request_number = ${lit(nc.request_number)}
-   FOR SHARE;
+   WHERE r.request_number = ${lit(nc.request_number)};
   IF v_req IS NULL THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: request ${nc.request_number} not visible';
   END IF;
+  IF v_status IS DISTINCT FROM ${lit(attest.request_status)} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: request status % (want ${attest.request_status})', v_status;
+  END IF;
 
-  PERFORM 1 FROM public.student_request_workflow_steps w
-   WHERE w.student_request_id = v_req ORDER BY w.id FOR SHARE;
+  SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
+   WHERE w.student_request_id = v_req AND w.status = 'active';
+  IF v_n <> ${attest.active_step_count} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % active steps (want ${attest.active_step_count})', v_n;
+  END IF;
 
-  PERFORM 1 FROM public.request_processing_assignments a ORDER BY a.id FOR SHARE;
+  SELECT count(*) INTO v_n FROM public.student_request_fee_assessments f
+   WHERE f.request_id = v_req;
+  IF v_n <> ${attest.fee_assessment_rows} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % fee assessments (want ${attest.fee_assessment_rows})', v_n;
+  END IF;
 
   ${transferScopePin}
 
@@ -434,6 +446,7 @@ BEGIN
   IF v_type IS DISTINCT FROM ${lit(pc.request_type)} THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: request_type %', v_type;
   END IF;
+
 
   SELECT w.status, w.assigned_user_id, w.step_order
     INTO v_status2, v_assignee, v_order
