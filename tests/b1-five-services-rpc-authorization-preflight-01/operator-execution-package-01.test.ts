@@ -525,10 +525,10 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
     expect(scope.length).toBe(3);
     for (const c of scope) {
       expect(c.requires_active_transfer_scope_fixture).toBe(true);
-      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
       expect(matrix.step_state_pins[`${c.request_number}|${c.step_key}`].runtime_status).not.toBe("active");
     }
-    expect(matrix.transfer_scope_execution.status).toBe("BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+    expect(matrix.transfer_scope_execution.status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
     expect(matrix.counts.execution_blocked_transfer_scope).toBe(3);
 
     const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
