@@ -479,10 +479,10 @@
     "path": "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json",
     "sha256_lf": "fd2621877d4db1df5927f0583d6de5a269c9e50b258578592c299f373459739d",
     "negative_total": 267,
-    "decomposition": "240 core + 24 illegal-action + 3 transfer-scope (3 blocked, 264 executable)",
+    "decomposition": "240 core + 24 illegal-action + 3 transfer-scope = 267 defined; 245 executable; 22 blocked (19 illegal-action on pending steps + 3 transfer-scope)",
     "executable_negative_total": 245,
     "blocked_negative_total": 22,
-    "blocked_reason": "BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE (transfer department scope requires an ACTIVE head step)",
+    "blocked_reason": "BLOCKED_PENDING_ACTIVE_FIXTURE (the contract sits behind the active-step gate; the target runtime step is pending)",
     "blocked_token": "BLOCKED_PENDING_ACTIVE_FIXTURE"
   },
   "operator_privilege_contract": {
