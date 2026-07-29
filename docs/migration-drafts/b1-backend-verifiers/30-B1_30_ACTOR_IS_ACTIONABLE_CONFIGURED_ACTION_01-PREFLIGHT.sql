@@ -93,6 +93,16 @@ select
 
 ROLLBACK;
 
+-- OPTIONAL / SEPARATE — migration ledger attestation.
+-- Run ONLY as an operator whose role can read supabase_migrations. It is
+-- deliberately detached from P8 so that a permission error here can never
+-- invalidate the baseline invariants above.
+-- BEGIN READ ONLY;
+-- select count(*) as migrations, max(version) as latest_version
+-- from supabase_migrations.schema_migrations;
+-- ROLLBACK;
+
+
 -- ###########################################################################
 -- REMEDIATION-33 ADDENDUM (G1/G2/G3) — authoritative baseline capture.
 -- Read-only. Run inside the same READ ONLY transaction as the block above.
