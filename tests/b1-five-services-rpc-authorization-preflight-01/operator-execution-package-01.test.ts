@@ -105,7 +105,8 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-OPERATOR-PACKAGE-CODEX-COMPREHENSIVE-HAR
     expect(ps).toContain('$PgHost -like "*$ExpectedRef*"');
     expect(ps).toContain('$PgUser -like "*$ExpectedRef*"');
     expect(ps).toContain("wpmicqriltrowwonknox");
-    expect(ps).toContain("-MigrationVersion");
+    expect(ps).toContain("$MigrationVersion = '20260729014519'");
+    expect(ps).toContain("migration_version=$MigrationVersion");
     expect(pf).toContain("B1_PREFLIGHT_PRODUCTION_REF_MISMATCH");
     expect(pf).toContain("supabase_migrations.schema_migrations");
     expect(pf).toContain("B1_PREFLIGHT_MIGRATION_29_NAME_MISSING");
