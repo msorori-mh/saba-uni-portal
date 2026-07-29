@@ -31,7 +31,18 @@ const postVerifier = normalize(readFileSync(
   ),
   "utf8",
 ));
+const structuralVerifier = normalize(readFileSync(
+  join(
+    root,
+    "docs",
+    "migration-drafts",
+    "b1-backend-verifiers",
+    "29-B1_29_RUNTIME_ASSIGNEE_PROPAGATION_01-POST-VERIFIER-STRUCTURAL-0-4.sql",
+  ),
+  "utf8",
+));
 const negativeHarness = normalize(readFileSync(
+
   join(root, "scripts", "b1-rpc-principal-harness-01", "negative-harness.sql"),
   "utf8",
 ));
