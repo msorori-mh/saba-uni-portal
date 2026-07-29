@@ -613,6 +613,7 @@ export function main(): void {
     throw new Error(`MATRIX_SHA256_DRIFT: expected ${MATRIX_SHA256_LF}, got ${actual}`);
   }
   const matrix = JSON.parse(matrixRaw);
+  const contract = assertDenialContract(matrix.denial_class_contract);
   if (matrix.production_ref !== APPROVED_PROJECT_REF) throw new Error("MATRIX_REF_MISMATCH");
 
   const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
