@@ -28,12 +28,18 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "c5e63b6a067a6deb812016cbd7e376460da711be2162aff59c8266b2f242282c";
+export const MATRIX_SHA256_LF = "fd2621877d4db1df5927f0583d6de5a269c9e50b258578592c299f373459739d";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
-/** REMEDIATION-09 G2: the three transfer-scope cases are blocked until an
- *  ACTIVE transfer head fixture exists; they are rendered non-executing. */
-export const EXPECTED_EXECUTABLE_TOTAL = 264;
-export const TRANSFER_SCOPE_BLOCKED_TOKEN = "BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE";
+/** REMEDIATION-12 G1: a case may only execute against an ACTIVE runtime step
+ *  when its contract depends on reaching a gate that sits behind the
+ *  active-step gate. 19 illegal-action cases (pending steps) and 3
+ *  transfer-scope cases are therefore blocked and rendered non-executing. */
+export const EXPECTED_EXECUTABLE_TOTAL = 245;
+export const EXPECTED_BLOCKED_TOTAL = 22;
+export const BLOCKED_TOKEN = "BLOCKED_PENDING_ACTIVE_FIXTURE";
+/** Backwards-compatible alias: the single canonical blocked token. */
+export const TRANSFER_SCOPE_BLOCKED_TOKEN = BLOCKED_TOKEN;
+export const BLOCKED_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE";
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
 /** G1 — forbidden characters / tokens in ANY MATRIX-derived value. */
@@ -275,6 +281,7 @@ type NegativeCase = {
   assignee_is_exact_direct_assignee?: boolean;
   only_negative_variable?: string;
   requires_active_transfer_scope_fixture?: boolean;
+  requires_active_step_fixture?: boolean;
   execution_status?: string;
   blocked_reason?: string | null;
 };
@@ -290,6 +297,9 @@ export type StepStatePin = {
   configured_action_type: string;
   direct_assignee_user_id: string;
   predecessor_incomplete_expected: number | null;
+  predecessor_total_expected: number;
+  predecessor_set: Array<{ step_key: string; step_order: number; runtime_step_id: string; runtime_status: string }>;
+  department_scope: string;
   rpc: string;
 };
 
@@ -303,11 +313,24 @@ export type AttestedRequestState = {
   target_department_id: string | null;
 };
 
-/** G2 — a scope case may only execute against an ACTIVE step; otherwise the
- *  RPC denies with B1_ACTIVE_STEP_REQUIRED, which never proves scope. */
-export function isBlockedScopeCase(nc: NegativeCase, pin: StepStatePin): boolean {
-  return nc.requires_active_transfer_scope_fixture === true && pin.runtime_status !== "active";
+/** REMEDIATION-12 G1 — a case whose contract lives BEHIND the active-step gate
+ *  may only execute against an ACTIVE step; otherwise the RPC denies with
+ *  B1_ACTIVE_STEP_REQUIRED, which proves neither scope nor the illegal-action
+ *  contract. Such a case is blocked, never executed and never counted PASS. */
+export function requiresActiveFixture(nc: NegativeCase): boolean {
+  return (
+    nc.requires_active_transfer_scope_fixture === true ||
+    nc.requires_active_step_fixture === true ||
+    nc.case === "illegal_action_by_exact_assignee"
+  );
 }
+
+export function isBlockedCase(nc: NegativeCase, pin: StepStatePin): boolean {
+  return requiresActiveFixture(nc) && pin.runtime_status !== "active";
+}
+
+/** Deprecated name kept for compatibility with earlier remediation rounds. */
+export const isBlockedScopeCase = isBlockedCase;
 
 export function renderBlockedCase(ordinal: number, nc: NegativeCase): string {
   const id = String(ordinal).padStart(4, "0");
@@ -316,13 +339,14 @@ export function renderBlockedCase(ordinal: number, nc: NegativeCase): string {
 ${comment("class", nc.case)}
 ${comment("request_number", nc.request_number)}
 ${comment("step_key", nc.step_key)}
-${comment("execution_status", TRANSFER_SCOPE_BLOCKED_TOKEN)}
+${comment("execution_status", BLOCKED_TOKEN)}
 ${comment("blocked_reason", nc.blocked_reason ?? "target step is not active")}
+-- This case can NEVER be reported as PASS while it is blocked.
 -- This file is excluded from master-negative-matrix.sql. Running it raises.
 -- ============================================================================
 DO $blocked$
 BEGIN
-  RAISE EXCEPTION 'TRANSFER_SCOPE_CASE_${TRANSFER_SCOPE_BLOCKED_TOKEN} case-${id} ${nc.case}';
+  RAISE EXCEPTION 'CASE_${BLOCKED_TOKEN} case-${id} ${nc.case}: ${BLOCKED_HOLD_TOKEN}';
 END
 $blocked$;
 `;
