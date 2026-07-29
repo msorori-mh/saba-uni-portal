@@ -423,6 +423,69 @@ function renderCase(
   END IF;`
       : `-- no department scope pin for this service`;
 
+  // ---- REMEDIATION-09 G3: full per-step state pin -------------------------
+  // Unit, role, configured action_type and the resolved direct assignee are all
+  // pinned from MATRIX.json, so a negative case can never pass because the step
+  // silently changed owner, unit, role or configured action.
+  if (pin.runtime_step_id !== stepId) throw new Error("MATRIX_VALIDATION_FAIL: step pin id drift");
+  if (pin.runtime_status !== pc.runtime_status) throw new Error("MATRIX_VALIDATION_FAIL: step pin status drift");
+  const pinnedAssignee = assertUuid("direct_assignee_user_id", pin.direct_assignee_user_id);
+  const statePin = `SELECT count(*) INTO v_n
+    FROM public.student_request_workflow_steps w
+    JOIN public.request_processing_units u ON u.id = w.processing_unit_id
+    JOIN public.request_processing_roles ro ON ro.id = w.processing_role_id
+    JOIN public.request_type_workflow_steps c ON c.id = w.workflow_step_id
+   WHERE w.id = v_step
+     AND u.code = ${lit(assertSafeScalar("unit", pin.processing_unit_code))}
+     AND ro.code = ${lit(assertSafeScalar("role", pin.processing_role_code))}
+     AND c.action_type = ${lit(assertSafeScalar("configured_action_type", pin.configured_action_type))};
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: unit/role/action_type pin failed on step %', v_step;
+  END IF;
+
+  SELECT count(*) INTO v_n
+    FROM public.student_request_workflow_steps w
+   WHERE w.id = v_step
+     AND ${lit(pinnedAssignee)}::uuid IN (
+       coalesce((SELECT sp.user_id FROM public.staff_profiles sp
+                  WHERE sp.id = w.assigned_staff_profile_id), '00000000-0000-0000-0000-000000000000'::uuid),
+       coalesce((SELECT fp.user_id FROM public.faculty_profiles fp
+                  WHERE fp.id = w.assigned_faculty_profile_id), '00000000-0000-0000-0000-000000000000'::uuid),
+       coalesce((SELECT pa.user_id FROM public.position_assignments pa
+                  WHERE pa.id = w.assigned_position_assignment_id), '00000000-0000-0000-0000-000000000000'::uuid));
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee pin failed on step %', v_step;
+  END IF;`;
+
+  // G1: an illegal-action case is only meaningful when the actor IS the exact
+  // direct assignee and the ONLY negative variable is the action itself.
+  const illegalActionPin =
+    nc.case === "illegal_action_by_exact_assignee"
+      ? (() => {
+          if (nc.assignee_is_exact_direct_assignee !== true) {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} actor is not the exact direct assignee`);
+          }
+          if (nc.only_negative_variable !== "action") {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} negative variable must be the action`);
+          }
+          if (actor !== pinnedAssignee) {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} actor != pinned direct assignee`);
+          }
+          if (nc.action === pin.configured_action_type) {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} action equals the configured action_type`);
+          }
+          return `-- G1: exact direct assignee, illegal action only.
+  -- The authorization gate runs BEFORE the action_type gate in
+  -- act_on_b1_student_request_step_atomic, so the expected denial is
+  -- 42501 / B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED, never B1_ACTION_TYPE_MISMATCH.
+  IF ${lit(action)} = ${lit(pin.configured_action_type)} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: illegal action equals configured action_type';
+  END IF;`;
+        })()
+      : `-- not an illegal-action case`;
+
+
+
 
   const id = String(ordinal).padStart(4, "0");
   return `-- ============================================================================
