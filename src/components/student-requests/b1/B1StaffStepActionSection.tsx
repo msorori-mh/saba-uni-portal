@@ -28,8 +28,8 @@ type Props = {
  *
  * Renders EXACTLY ONE action, literally equal to the configured `action_type`
  * of the active step, and executes it exclusively through the B1 adapter, which
- * calls `act_on_b1_student_request_step_atomic`. The generic executor
- * (`act_on_student_request_step`) is never reachable from this path.
+ * calls `act_on_b1_student_request_step_atomic`. The generic staff executor is
+ * never reachable from this path.
  */
 export function B1StaffStepActionSection({
   requestId,
