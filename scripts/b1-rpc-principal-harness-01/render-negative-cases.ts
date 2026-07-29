@@ -413,10 +413,10 @@ BEGIN
     RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id}: transaction is read-only';
   END IF;
 
-  -- ---- G6: NO ROW LOCKS. FOR SHARE / FOR UPDATE require UPDATE privilege and
-  -- would contradict the pure-observer contract. Isolation is SERIALIZABLE +
-  -- ROLLBACK-only, and mutation is proven impossible by the before/after
-  -- complete-content fingerprint below.
+  -- ---- G6: no row-lock clause is emitted anywhere. Row-level locking needs
+  -- UPDATE privilege and would contradict the pure-observer contract.
+  -- Isolation is SERIALIZABLE + ROLLBACK-only, and mutation is proven
+  -- impossible by the before/after complete-content fingerprint below.
   SELECT r.id, r.request_type, r.status
     INTO v_req, v_type, v_status
     FROM public.student_requests r
