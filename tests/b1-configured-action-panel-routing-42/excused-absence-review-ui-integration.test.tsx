@@ -1,7 +1,7 @@
 /**
  * PORTAL-B1 — single local UI integration test for `excused_absence`.
  *
- * Remediation 46: contains NO `mock.module`. The real
+ * Remediation 46: contains no module-registry mocking at all. The real
  * `B1StaffStepActionSection` and the real `B1EmployeeActionPanel` are
  * rendered, and the B1 adapter is supplied through the component's explicit
  * dependency-injection prop, so nothing leaks into the module cache of any
@@ -141,8 +141,9 @@ describe("excused_absence — configured action_type=review UI integration", () 
     expect(() => assertGenericStaffExecutorAllowed("enrollment_certificate")).not.toThrow();
   });
 
-  it("leaves no module mocks behind (no mock.module in this file)", async () => {
+  it("leaves no module mocks behind — this file registers none", async () => {
     const src = await Bun.file(import.meta.path).text();
-    expect(src.includes("mock.module")).toBe(false);
+    const needle = ["mock", "module"].join(".");
+    expect(src.includes(needle)).toBe(false);
   });
 });
