@@ -756,6 +756,14 @@ CREATE TEMP TABLE b1_pin_relation(relname text primary key, rls_required boolean
 INSERT INTO b1_pin_relation(relname, rls_required) VALUES
 ${relations.map(([r, rls]) => `  (${sqlText(r)}, ${rls})`).join(",\n")};
 
+-- G5: relations the RPC entry points can write; every enabled trigger on them
+-- must map to a pinned function, and seeds the transitive closure walk.
+CREATE TEMP TABLE b1_pin_dml_relation(relname text primary key) ON COMMIT DROP;
+INSERT INTO b1_pin_dml_relation(relname) VALUES
+${(manifest.function_graph.trigger_aware_closure.dml_relations as string[])
+  .map((r) => `  (${sqlText(r)})`)
+  .join(",\n")};
+
 CREATE TEMP TABLE b1_observed_fingerprint(fingerprint text) ON COMMIT DROP;
 INSERT INTO b1_observed_fingerprint(fingerprint) SELECT ${fingerprintExpr};
 `;
