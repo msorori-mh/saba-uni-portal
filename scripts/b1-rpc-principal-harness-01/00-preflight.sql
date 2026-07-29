@@ -154,24 +154,39 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 5. G6 — row-lock capability probe (FOR SHARE is used by every case)
---    Postgres requires UPDATE/DELETE privilege for row-level locking, which
---    contradicts the pure-observer privilege contract above. This probe makes
---    the contradiction explicit and FAIL-CLOSED: it never grants anything.
+-- 5. G6 — pure-observer probe. NO row locks anywhere in this package.
+--    PostgreSQL requires UPDATE privilege for FOR SHARE / FOR UPDATE, which
+--    directly contradicts the observer privilege contract above, so row locking
+--    was removed entirely: isolation comes from SERIALIZABLE + ROLLBACK-only
+--    cases and from the before/after complete-content fingerprint in each case.
+--    Column-level write privileges are checked here because table-level checks
+--    alone can miss a column grant.
 -- ============================================================================
 DO $$
-DECLARE v_id uuid;
+DECLARE
+  r    record;
+  v_id uuid;
 BEGIN
-  BEGIN
-    SELECT r.id INTO v_id FROM public.student_requests r
-     WHERE r.request_number = 'SR-20260727-42393846' FOR SHARE;
-  EXCEPTION WHEN insufficient_privilege THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_ROW_LOCK_CAPABILITY_NOT_PROVEN: the operator role cannot take FOR SHARE on public.student_requests; a DBA must provision a role that can take row share locks while holding no INSERT/UPDATE/DELETE/TRUNCATE, outside this package';
-  END;
+  FOR r IN
+    SELECT DISTINCT g.table_name, g.privilege_type
+      FROM information_schema.column_privileges g
+      JOIN b1_pin_relation f ON f.relname = g.table_name
+     WHERE g.table_schema = 'public'
+       AND g.grantee IN (SELECT rolname FROM pg_roles
+                          WHERE pg_has_role(session_user, oid, 'USAGE'))
+       AND g.privilege_type IN ('INSERT', 'UPDATE')
+  LOOP
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE: % %',
+      r.table_name, r.privilege_type;
+  END LOOP;
+
+  SELECT r2.id INTO v_id FROM public.student_requests r2
+   WHERE r2.request_number = 'SR-20260727-42393846';
   IF v_id IS NULL THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: locked probe row invisible';
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: probe row invisible';
   END IF;
 END $$;
+
 
 -- ============================================================================
 -- 6. G5 — AUTHORITATIVE BASELINE: complete-content equality, not row counts
