@@ -629,10 +629,10 @@ ${trg
   )
   .join(",\n")};
 
-CREATE TEMP TABLE b1_pin_forbidden_token(token text primary key) ON COMMIT DROP;
-INSERT INTO b1_pin_forbidden_token(token) VALUES
-${(manifest.function_graph.forbidden_definition_tokens as string[])
-  .map((t) => `  (${sqlText(t.toLowerCase())})`)
+CREATE TEMP TABLE b1_pin_forbidden_pattern(id text primary key, regex text not null) ON COMMIT DROP;
+INSERT INTO b1_pin_forbidden_pattern(id, regex) VALUES
+${(manifest.function_graph.forbidden_definition_patterns as Array<{ id: string; regex: string }>)
+  .map((p) => `  (${sqlText(p.id)}, ${sqlText(p.regex)})`)
   .join(",\n")};
 
 CREATE TEMP TABLE b1_pin_relation(relname text primary key, rls_required boolean not null) ON COMMIT DROP;
