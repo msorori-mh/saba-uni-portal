@@ -399,14 +399,41 @@ BEGIN
   EXCEPTION WHEN OTHERS THEN
     v_allowed := false;
     v_err := SQLERRM;
+    GET STACKED DIAGNOSTICS v_sqlstate = RETURNED_SQLSTATE;
   END;
 
   PERFORM set_config('request.jwt.claims', NULL, true);
   EXECUTE 'RESET ROLE';
 
-  -- ---- DENY proof ---------------------------------------------------------
+  -- ---- G1: DENIAL CLASS GATE (fail-closed) --------------------------------
   IF v_allowed THEN
     RAISE EXCEPTION 'CASE_FAIL_ALLOWED case-${id} ${nc.case}: RPC succeeded but DENY was required';
+  END IF;
+
+  IF v_sqlstate = ANY (${sqlTextArray(contract.infrastructure_sqlstates)}) THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: infrastructure sqlstate % : %',
+      v_sqlstate, left(coalesce(v_err, ''), 160);
+  END IF;
+
+  IF EXISTS (
+    SELECT 1 FROM unnest(${sqlTextArray(contract.infrastructure_message_tokens)}) AS t(tok)
+     WHERE position(lower(t.tok) in lower(coalesce(v_err, ''))) > 0
+  ) THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: infrastructure message % : %',
+      v_sqlstate, left(coalesce(v_err, ''), 160);
+  END IF;
+
+  IF v_sqlstate IS DISTINCT FROM ${lit(expected.sqlstate)} THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: sqlstate % expected ${expected.sqlstate} : %',
+      v_sqlstate, left(coalesce(v_err, ''), 160);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM unnest(${sqlTextArray(expected.message_family)}) AS t(tok)
+     WHERE position(upper(t.tok) in upper(coalesce(v_err, ''))) > 0
+  ) THEN
+    RAISE EXCEPTION 'CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL case-${id} ${nc.case}: message outside expected family : %',
+      left(coalesce(v_err, ''), 160);
   END IF;
 
   -- ---- zero-mutation proof ------------------------------------------------
@@ -414,6 +441,7 @@ BEGIN
   IF v_after IS DISTINCT FROM v_before THEN
     RAISE EXCEPTION 'CASE_FAIL_MUTATION case-${id} ${nc.case}: fingerprint changed';
   END IF;
+
 
   SELECT w.status, w.assigned_user_id INTO v_status2, v_assign2
     FROM public.student_request_workflow_steps w WHERE w.id = v_step;
