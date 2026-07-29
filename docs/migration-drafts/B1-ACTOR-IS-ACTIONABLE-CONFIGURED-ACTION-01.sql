@@ -49,7 +49,7 @@ as $function$
 $function$;
 
 revoke all on function public.workflow_runtime_step_configured_action(uuid)
-  from public, anon;
+  from public, anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 2. Actor inbox — configured-action probe

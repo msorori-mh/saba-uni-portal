@@ -79,9 +79,9 @@ describe("B1 actor is_actionable — configured-action source contract", () => {
     expect(helper!).not.toMatch(/coalesce\s*\([^)]*'[a-z_]+'\s*\)/i);
   });
 
-  it("revokes helper execute from PUBLIC and anon and grants nothing extra", () => {
+  it("revokes helper execute from PUBLIC, anon and authenticated and grants nothing extra", () => {
     expect(sql).toMatch(
-      /revoke all on function public\.workflow_runtime_step_configured_action\(uuid\)\s*\n?\s*from public, anon;/i,
+      /revoke all on function public\.workflow_runtime_step_configured_action\(uuid\)\s*\n?\s*from public, anon, authenticated;/i,
     );
     expect(sql).not.toMatch(/grant\s+execute\s+on\s+function[\s\S]*?workflow_runtime_step_configured_action/i);
   });
