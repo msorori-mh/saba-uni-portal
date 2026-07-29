@@ -287,6 +287,25 @@ BEGIN
   END IF;
 END $$;
 
+-- G4 (REMEDIATION-09): the migration ledger is part of the operator privilege
+-- contract. It must be readable (the contract above depends on it) and it must
+-- never be writable by the operator session.
+DO $$
+BEGIN
+  IF to_regclass('supabase_migrations.schema_migrations') IS NULL THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_MIGRATION_LEDGER_MISSING';
+  END IF;
+  IF NOT has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'SELECT') THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: no SELECT on supabase_migrations.schema_migrations';
+  END IF;
+  IF has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'INSERT')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'UPDATE')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'DELETE')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'TRUNCATE') THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE: supabase_migrations.schema_migrations';
+  END IF;
+END $$;
+
 -- the six Migration-29 functions, by EXACT signature
 DO $$
 DECLARE r record;
