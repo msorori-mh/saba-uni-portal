@@ -14,6 +14,9 @@ import {
 import { StudentRequestFormDataView } from "@/components/student-requests/StudentRequestFormDataView";
 import { StaffRequestWorkflowTimeline } from "@/components/student-requests/StaffRequestWorkflowTimeline";
 import { StaffRequestActionPanel } from "@/components/student-requests/StaffRequestActionPanel";
+import { B1StaffStepActionSection } from "@/components/student-requests/b1/B1StaffStepActionSection";
+import { isB1StaffRoutedRequestType } from "@/lib/student-requests/b1-staff-action-routing";
+import { B1_STEP_LABELS_AR } from "@/lib/student-requests/b1-ui/service-config";
 import { StaffRequestSignaturePanel } from "@/components/student-requests/StaffRequestSignaturePanel";
 import { EnrollmentCertificateIssueButton } from "@/components/student-requests/EnrollmentCertificateIssueButton";
 import { StaffRequestFinanceClearancePanel } from "@/components/student-requests/StaffRequestFinanceClearancePanel";
@@ -302,6 +305,7 @@ export function StaffRequestDetailPanel({
           const showEcIssueButton = activeType === "issue_document";
           const showSignPanel = activeType === "sign";
           const isReviewStep = activeType === "review";
+          const isB1Service = isB1StaffRoutedRequestType(detail.requestTypeCode);
 
           return (
             <>
@@ -354,7 +358,24 @@ export function StaffRequestDetailPanel({
                 />
               )}
 
-              {!showSignPanel && !showArchivePanel && (
+              {isB1Service && !showSignPanel && !showArchivePanel && (
+                <B1StaffStepActionSection
+                  requestId={detail.id}
+                  requestTypeCode={detail.requestTypeCode}
+                  stepId={active?.id ?? null}
+                  stepKey={active?.stepKey ?? null}
+                  stepLabelAr={
+                    (active?.stepKey && B1_STEP_LABELS_AR[active.stepKey]) ||
+                    active?.stepKey ||
+                    "المرحلة النشطة"
+                  }
+                  configuredActionType={activeType}
+                  allowedAction={activeType}
+                  isActionable={active?.isActionable ?? false}
+                />
+              )}
+
+              {!isB1Service && !showSignPanel && !showArchivePanel && (
                 <StaffRequestActionPanel
                   requestId={detail.id}
                   requestTypeCode={detail.requestTypeCode}
