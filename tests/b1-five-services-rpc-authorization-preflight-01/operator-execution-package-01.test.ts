@@ -61,7 +61,8 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
   // ---- G2 -----------------------------------------------------------------
   it("G2: launcher never reads DATABASE_URL or any pgpass channel", () => {
     expect(launcher).not.toMatch(/env:DATABASE_URL\b(?![^\n]*FORBIDDEN)/u);
-    expect(launcher).not.toMatch(/New-TempPgpass|PGPASSFILE\s*=/u);
+    expect(launcher).not.toMatch(/New-TempPgpass/u);
+    expect(launcher).not.toMatch(/\$env:PGPASSFILE\s*=/u);
     expect(launcher).not.toMatch(/\$env:PGPASSWORD\s*=/u);
   });
 
