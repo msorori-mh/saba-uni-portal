@@ -954,7 +954,8 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
   // ---- 8. no row locks, operator stays a read-only observer -----------------
   it("8: no FOR SHARE / FOR UPDATE anywhere in the package", () => {
     for (const sql of [preflight, fingerprint, ...executableSql.map((c) => c.sql)]) {
-      expect(sql).not.toMatch(/\bFOR\s+(SHARE|UPDATE|KEY\s+SHARE|NO\s+KEY\s+UPDATE)\b/iu);
+      // Comments may describe why row locking was removed; executable SQL may not use it.
+      expect(strip(sql)).not.toMatch(/\bFOR\s+(SHARE|UPDATE|KEY\s+SHARE|NO\s+KEY\s+UPDATE)\b/iu);
     }
     expect(manifest.operator_privilege_contract).toBeDefined();
   });
