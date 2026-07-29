@@ -63,7 +63,7 @@ const KEY_RE = /^[a-z][a-z0-9_]{2,63}$/u;
 const ACTION_RE = /^[a-z][a-z0-9_]{2,63}$/u;
 
 export function sha256Lf(text: string): string {
-  return createHash("sha256").update(text.replace(/\r\n/gu, "\n"), "utf8").digest("hex");
+  return createHash("sha256").update(toLf(text), "utf8").digest("hex");
 }
 
 export function assertSafeScalar(label: string, value: string): string {
@@ -899,7 +899,7 @@ ${includes.join("\n")}
 }
 
 export function main(): void {
-  const matrixRaw = readFileSync(MATRIX_PATH, "utf8");
+  const matrixRaw = readLf(MATRIX_PATH);
   const actual = sha256Lf(matrixRaw);
   if (actual !== MATRIX_SHA256_LF) {
     throw new Error(`MATRIX_SHA256_DRIFT: expected ${MATRIX_SHA256_LF}, got ${actual}`);
@@ -908,7 +908,7 @@ export function main(): void {
   const contract = assertDenialContract(matrix.denial_class_contract);
   if (matrix.production_ref !== APPROVED_PROJECT_REF) throw new Error("MATRIX_REF_MISMATCH");
 
-  const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+  const manifest = JSON.parse(readLf(MANIFEST_PATH));
   if (manifest.endpoint.project_ref !== APPROVED_PROJECT_REF) throw new Error("MANIFEST_REF_MISMATCH");
   if (manifest.migration.version !== matrix.installed_migration.version) {
     throw new Error("MANIFEST_MIGRATION_MISMATCH");
@@ -921,7 +921,7 @@ export function main(): void {
     }
   }
 
-  const fingerprintExpr = extractFingerprintExpr(readFileSync(FINGERPRINT_PATH, "utf8"));
+  const fingerprintExpr = extractFingerprintExpr(readLf(FINGERPRINT_PATH));
 
   const attestation = matrix.production_readonly_attestation?.requests as
     | Record<string, AttestedRequestState>
