@@ -471,3 +471,122 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
     expect(readme).toContain("`DATABASE_URL` is **not read and not supported**");
   });
 });
+
+describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", () => {
+  const illegalRule = contract.resolution_rules.find(
+    (r) => r.id === "atomic_illegal_action_by_exact_assignee",
+  )!;
+  const illegalCtx = {
+    rpc: "act_on_b1_student_request_step_atomic",
+    case_class: "illegal_action_by_exact_assignee",
+    runtime_status: "active",
+  };
+
+  it("G1: an illegal action by the exact assignee expects 42501 / B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED", () => {
+    expect(illegalRule.sqlstate).toBe("42501");
+    expect(illegalRule.message_family).toEqual(["B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"]);
+    expect(expectationFor(contract, illegalCtx).id).toBe(illegalRule.id);
+    expect(
+      classifyDenialOutcome(
+        { allowed: false, sqlstate: "42501", message: "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED" },
+        contract,
+        illegalCtx,
+      ).verdict,
+    ).toBe("PASS");
+  });
+
+  it("G1: B1_ACTION_TYPE_MISMATCH is unreachable and can never be accepted as proof", () => {
+    const verdict = classifyDenialOutcome(
+      { allowed: false, sqlstate: "P0001", message: "B1_ACTION_TYPE_MISMATCH" },
+      contract,
+      illegalCtx,
+    );
+    expect(verdict.verdict).toBe("HOLD");
+    expect(JSON.stringify(contract.resolution_rules)).not.toContain("B1_ACTION_TYPE_MISMATCH\"");
+  });
+
+  it("G1: every illegal-action case is the exact assignee changing ONLY the action", () => {
+    for (const c of matrix.illegal_action_cases as any[]) {
+      const pin = matrix.step_state_pins[`${c.request_number}|${c.step_key}`];
+      expect(pin).toBeTruthy();
+      expect(c.assignee_is_exact_direct_assignee).toBe(true);
+      expect(c.actor_user_id).toBe(pin.direct_assignee_user_id);
+      expect(c.only_negative_variable).toBe("action");
+      expect(c.action).not.toBe(pin.configured_action_type);
+    }
+  });
+
+  it("G2: the three transfer-scope cases are blocked, not rendered as executable", () => {
+    const scope = matrix.supplemental_department_scope_cases as any[];
+    expect(scope.length).toBe(3);
+    for (const c of scope) {
+      expect(c.requires_active_transfer_scope_fixture).toBe(true);
+      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+      expect(matrix.step_state_pins[`${c.request_number}|${c.step_key}`].runtime_status).not.toBe("active");
+    }
+    expect(matrix.transfer_scope_execution.status).toBe("BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+    expect(matrix.counts.execution_blocked).toBe(3);
+    expect(matrix.counts.executable_negative_total).toBe(EXPECTED_NEGATIVE_TOTAL - 3);
+
+    const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
+    expect((master.match(/\\ir cases\//gu) ?? []).length).toBe(EXPECTED_NEGATIVE_TOTAL - 3);
+    expect(master).not.toContain("BLOCKED.sql");
+    for (const n of [265, 266, 267]) {
+      const blocked = read(join(pkg, "generated", "cases", `case-0${n}.BLOCKED.sql`));
+      expect(blocked).toContain("TRANSFER_SCOPE_CASE_BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+      expect(blocked).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
+    }
+  });
+
+  it("G3: every executable case pins unit, role, configured action_type and the direct assignee", () => {
+    for (const n of [1, 100, 264]) {
+      const sql = read(join(pkg, "generated", "cases", `case-${String(n).padStart(4, "0")}.sql`));
+      expect(sql).toContain("unit/role/action_type pin failed");
+      expect(sql).toContain("direct assignee pin failed");
+      expect(sql).toContain("request_processing_units");
+      expect(sql).toContain("request_processing_roles");
+      expect(sql).toContain("request_type_workflow_steps");
+      expect(sql).toContain("unsatisfied predecessor steps");
+    }
+    for (const [key, pin] of Object.entries(matrix.step_state_pins as Record<string, any>)) {
+      expect(key).toMatch(/^SR-\d{8}-[0-9A-F]{8}\|[a-z][a-z0-9_]+$/u);
+      assertSafeScalar("unit", pin.processing_unit_code);
+      assertSafeScalar("role", pin.processing_role_code);
+      assertSafeScalar("action_type", pin.configured_action_type);
+      expect(pin.direct_assignee_user_id).toMatch(/^[0-9a-f-]{36}$/u);
+    }
+  });
+
+  it("G4: the migration ledger is part of the operator privilege contract", () => {
+    expect(preflight).toContain("supabase_migrations.schema_migrations");
+    expect(preflight).toContain("B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE: supabase_migrations.schema_migrations");
+    expect(manifest.operator_privilege_contract.migration_ledger.relation).toBe(
+      "supabase_migrations.schema_migrations",
+    );
+    expect(manifest.operator_privilege_contract.required).toContain(
+      "no INSERT/UPDATE/DELETE on supabase_migrations.schema_migrations",
+    );
+  });
+
+  it("G5: trigger-aware closure — unpinned trigger functions are FUNCTION_GRAPH_DRIFT", () => {
+    const closure = manifest.function_graph.trigger_aware_closure;
+    expect(closure.unpinned_trigger_function_verdict).toBe("FUNCTION_GRAPH_DRIFT");
+    expect(closure.dml_relations).toContain("student_request_workflow_steps");
+    expect(closure.dml_relations.length).toBeGreaterThanOrEqual(10);
+    expect(preflight).toContain("unpinned trigger function");
+    expect(preflight).toContain("b1_pin_dml_relation");
+    const pins = read(join(pkg, "generated", "pins.sql"));
+    expect(pins).toContain("CREATE TEMP TABLE b1_pin_dml_relation");
+    for (const rel of closure.dml_relations as string[]) expect(pins).toContain(`'${rel}'`);
+    const pinnedSigs = new Set((manifest.function_graph.functions as any[]).map((f) => f.signature));
+    for (const sig of closure.pinned_trigger_functions as string[]) expect(pinnedSigs.has(sig)).toBe(true);
+  });
+
+  it("G6: matrix SHA and manifest stay consistent after remediation", () => {
+    expect(sha256Lf(matrixRaw)).toBe(MATRIX_SHA256_LF);
+    expect(manifest.matrix.sha256_lf).toBe(MATRIX_SHA256_LF);
+    expect(manifest.matrix.executable_negative_total).toBe(264);
+    expect(manifest.matrix.blocked_negative_total).toBe(3);
+    expect(matrix.production_ref).toBe(APPROVED_PROJECT_REF);
+  });
+});

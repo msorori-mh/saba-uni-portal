@@ -28,8 +28,12 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "1f246d358e2f58a400b374f09c1b1873d3088a9c2b8a095a27b9ff0df83cacae";
+export const MATRIX_SHA256_LF = "c5e63b6a067a6deb812016cbd7e376460da711be2162aff59c8266b2f242282c";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
+/** REMEDIATION-09 G2: the three transfer-scope cases are blocked until an
+ *  ACTIVE transfer head fixture exists; they are rendered non-executing. */
+export const EXPECTED_EXECUTABLE_TOTAL = 264;
+export const TRANSFER_SCOPE_BLOCKED_TOKEN = "BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE";
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
 /** G1 — forbidden characters / tokens in ANY MATRIX-derived value. */
@@ -267,6 +271,26 @@ type NegativeCase = {
   expect: string;
   expect_error: string;
   zero_mutation: boolean;
+  configured_action_type?: string;
+  assignee_is_exact_direct_assignee?: boolean;
+  only_negative_variable?: string;
+  requires_active_transfer_scope_fixture?: boolean;
+  execution_status?: string;
+  blocked_reason?: string | null;
+};
+
+/** REMEDIATION-09 G3 — per-step production state pinned in MATRIX.json. */
+export type StepStatePin = {
+  request_type: string;
+  step_order: number;
+  runtime_step_id: string;
+  runtime_status: string;
+  processing_unit_code: string;
+  processing_role_code: string;
+  configured_action_type: string;
+  direct_assignee_user_id: string;
+  predecessor_incomplete_expected: number | null;
+  rpc: string;
 };
 
 export type AttestedRequestState = {
@@ -279,6 +303,31 @@ export type AttestedRequestState = {
   target_department_id: string | null;
 };
 
+/** G2 — a scope case may only execute against an ACTIVE step; otherwise the
+ *  RPC denies with B1_ACTIVE_STEP_REQUIRED, which never proves scope. */
+export function isBlockedScopeCase(nc: NegativeCase, pin: StepStatePin): boolean {
+  return nc.requires_active_transfer_scope_fixture === true && pin.runtime_status !== "active";
+}
+
+export function renderBlockedCase(ordinal: number, nc: NegativeCase): string {
+  const id = String(ordinal).padStart(4, "0");
+  return `-- ============================================================================
+-- case-${id} — NOT EXECUTED
+${comment("class", nc.case)}
+${comment("request_number", nc.request_number)}
+${comment("step_key", nc.step_key)}
+${comment("execution_status", TRANSFER_SCOPE_BLOCKED_TOKEN)}
+${comment("blocked_reason", nc.blocked_reason ?? "target step is not active")}
+-- This file is excluded from master-negative-matrix.sql. Running it raises.
+-- ============================================================================
+DO $blocked$
+BEGIN
+  RAISE EXCEPTION 'TRANSFER_SCOPE_CASE_${TRANSFER_SCOPE_BLOCKED_TOKEN} case-${id} ${nc.case}';
+END
+$blocked$;
+`;
+}
+
 function renderCase(
   ordinal: number,
   nc: NegativeCase,
@@ -286,6 +335,7 @@ function renderCase(
   fingerprintExpr: string,
   contract: DenialContract,
   attest: AttestedRequestState,
+  pin: StepStatePin,
 ): string {
   const isAnon = nc.actor_user_id === null;
   const actor = isAnon ? null : assertUuid("actor_user_id", nc.actor_user_id as string);
@@ -372,6 +422,69 @@ function renderCase(
     RAISE EXCEPTION 'CASE_STATE_DRIFT: transfer department scope';
   END IF;`
       : `-- no department scope pin for this service`;
+
+  // ---- REMEDIATION-09 G3: full per-step state pin -------------------------
+  // Unit, role, configured action_type and the resolved direct assignee are all
+  // pinned from MATRIX.json, so a negative case can never pass because the step
+  // silently changed owner, unit, role or configured action.
+  if (pin.runtime_step_id !== stepId) throw new Error("MATRIX_VALIDATION_FAIL: step pin id drift");
+  if (pin.runtime_status !== pc.runtime_status) throw new Error("MATRIX_VALIDATION_FAIL: step pin status drift");
+  const pinnedAssignee = assertUuid("direct_assignee_user_id", pin.direct_assignee_user_id);
+  const statePin = `SELECT count(*) INTO v_n
+    FROM public.student_request_workflow_steps w
+    JOIN public.request_processing_units u ON u.id = w.processing_unit_id
+    JOIN public.request_processing_roles ro ON ro.id = w.processing_role_id
+    JOIN public.request_type_workflow_steps c ON c.id = w.workflow_step_id
+   WHERE w.id = v_step
+     AND u.code = ${lit(assertSafeScalar("unit", pin.processing_unit_code))}
+     AND ro.code = ${lit(assertSafeScalar("role", pin.processing_role_code))}
+     AND c.action_type = ${lit(assertSafeScalar("configured_action_type", pin.configured_action_type))};
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: unit/role/action_type pin failed on step %', v_step;
+  END IF;
+
+  SELECT count(*) INTO v_n
+    FROM public.student_request_workflow_steps w
+   WHERE w.id = v_step
+     AND ${lit(pinnedAssignee)}::uuid IN (
+       coalesce((SELECT sp.user_id FROM public.staff_profiles sp
+                  WHERE sp.id = w.assigned_staff_profile_id), '00000000-0000-0000-0000-000000000000'::uuid),
+       coalesce((SELECT fp.user_id FROM public.faculty_profiles fp
+                  WHERE fp.id = w.assigned_faculty_profile_id), '00000000-0000-0000-0000-000000000000'::uuid),
+       coalesce((SELECT pa.user_id FROM public.position_assignments pa
+                  WHERE pa.id = w.assigned_position_assignment_id), '00000000-0000-0000-0000-000000000000'::uuid));
+  IF v_n <> 1 THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: direct assignee pin failed on step %', v_step;
+  END IF;`;
+
+  // G1: an illegal-action case is only meaningful when the actor IS the exact
+  // direct assignee and the ONLY negative variable is the action itself.
+  const illegalActionPin =
+    nc.case === "illegal_action_by_exact_assignee"
+      ? (() => {
+          if (nc.assignee_is_exact_direct_assignee !== true) {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} actor is not the exact direct assignee`);
+          }
+          if (nc.only_negative_variable !== "action") {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} negative variable must be the action`);
+          }
+          if (actor !== pinnedAssignee) {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} actor != pinned direct assignee`);
+          }
+          if (nc.action === pin.configured_action_type) {
+            throw new Error(`MATRIX_VALIDATION_FAIL: ${nc.case} action equals the configured action_type`);
+          }
+          return `-- G1: exact direct assignee, illegal action only.
+  -- The authorization gate runs BEFORE the action_type gate in
+  -- act_on_b1_student_request_step_atomic, so the expected denial is
+  -- 42501 / B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED, never B1_ACTION_TYPE_MISMATCH.
+  IF ${lit(action)} = ${lit(pin.configured_action_type)} THEN
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: illegal action equals configured action_type';
+  END IF;`;
+        })()
+      : `-- not an illegal-action case`;
+
+
 
 
   const id = String(ordinal).padStart(4, "0");
@@ -463,12 +576,16 @@ BEGIN
   END IF;
   ${assigneePin}
 
+  ${statePin}
+
+  ${illegalActionPin}
+
   IF ${lit(pc.runtime_status)} = 'active' THEN
     SELECT count(*) INTO v_n FROM public.student_request_workflow_steps w
      WHERE w.student_request_id = v_req
        AND w.step_order < v_order
        AND w.status NOT IN ('completed','skipped');
-    IF v_n <> 0 THEN
+    IF v_n <> ${pin.predecessor_incomplete_expected ?? 0} THEN
       RAISE EXCEPTION 'CASE_STATE_DRIFT: % unsatisfied predecessor steps', v_n;
     END IF;
   END IF;
@@ -639,6 +756,14 @@ CREATE TEMP TABLE b1_pin_relation(relname text primary key, rls_required boolean
 INSERT INTO b1_pin_relation(relname, rls_required) VALUES
 ${relations.map(([r, rls]) => `  (${sqlText(r)}, ${rls})`).join(",\n")};
 
+-- G5: relations the RPC entry points can write; every enabled trigger on them
+-- must map to a pinned function, and seeds the transitive closure walk.
+CREATE TEMP TABLE b1_pin_dml_relation(relname text primary key) ON COMMIT DROP;
+INSERT INTO b1_pin_dml_relation(relname) VALUES
+${(manifest.function_graph.trigger_aware_closure.dml_relations as string[])
+  .map((r) => `  (${sqlText(r)})`)
+  .join(",\n")};
+
 CREATE TEMP TABLE b1_observed_fingerprint(fingerprint text) ON COMMIT DROP;
 INSERT INTO b1_observed_fingerprint(fingerprint) SELECT ${fingerprintExpr};
 `;
@@ -667,13 +792,12 @@ $fp$;
 `;
 }
 
-function renderMaster(count: number): string {
-  const includes: string[] = [];
-  for (let i = 1; i <= count; i += 1) {
-    includes.push(`\\ir cases/case-${String(i).padStart(4, "0")}.sql`);
-  }
+function renderMaster(executable: string[], total: number): string {
+  const includes: string[] = executable.map((f) => `\\ir ${f}`);
+  const count = executable.length;
   return `-- GENERATED master script (G9). ONE psql process executes the whole run.
 -- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
+-- MATRIX total = ${total}; blocked and excluded = ${total - count} (${TRANSFER_SCOPE_BLOCKED_TOKEN}).
 -- ON_ERROR_STOP aborts the entire run at the first failure. No COMMIT anywhere.
 \\set ON_ERROR_STOP on
 \\timing off
@@ -739,22 +863,44 @@ export function main(): void {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(CASES, { recursive: true });
 
+  const stepPins = matrix.step_state_pins as Record<string, StepStatePin> | undefined;
+  if (!stepPins) throw new Error("MATRIX_MISSING_STEP_STATE_PINS");
+
   const files: string[] = [];
+  const executable: string[] = [];
+  const blocked: string[] = [];
   negatives.forEach((nc, index) => {
-    const pc = byStep.get(`${nc.request_number}|${nc.step_key}`);
+    const key = `${nc.request_number}|${nc.step_key}`;
+    const pc = byStep.get(key);
     if (!pc) throw new Error(`MATRIX_VALIDATION_FAIL: no step expectation for ${nc.step_key}`);
     const attest = attestation[nc.request_number];
     if (!attest) throw new Error(`MATRIX_VALIDATION_FAIL: no attested state for ${nc.request_number}`);
+    const pin = stepPins[key];
+    if (!pin) throw new Error(`MATRIX_VALIDATION_FAIL: no step state pin for ${key}`);
     const ordinal = index + 1;
+    if (isBlockedScopeCase(nc, pin)) {
+      if (nc.execution_status !== TRANSFER_SCOPE_BLOCKED_TOKEN) {
+        throw new Error(`MATRIX_VALIDATION_FAIL: blocked scope case ${key} must be marked ${TRANSFER_SCOPE_BLOCKED_TOKEN}`);
+      }
+      const name = `case-${String(ordinal).padStart(4, "0")}.BLOCKED.sql`;
+      writeFileSync(join(CASES, name), renderBlockedCase(ordinal, nc), "utf8");
+      files.push(`cases/${name}`);
+      blocked.push(`cases/${name}`);
+      return;
+    }
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
-    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest), "utf8");
+    writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest, pin), "utf8");
     files.push(`cases/${name}`);
+    executable.push(`cases/${name}`);
   });
 
+  if (executable.length !== EXPECTED_EXECUTABLE_TOTAL) {
+    throw new Error(`MATRIX_EXECUTABLE_COUNT_DRIFT: ${executable.length}`);
+  }
 
   writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
-  writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(negatives.length), "utf8");
+  writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(executable, negatives.length), "utf8");
   writeFileSync(
     join(OUT, "MANIFEST.json"),
     `${JSON.stringify(
@@ -762,6 +908,10 @@ export function main(): void {
         rendered_at_utc: new Date().toISOString(),
         matrix_sha256_lf: MATRIX_SHA256_LF,
         negative_total: negatives.length,
+        executable_negative_total: executable.length,
+        blocked_negative_total: blocked.length,
+        blocked_reason: blocked.length ? TRANSFER_SCOPE_BLOCKED_TOKEN : null,
+        blocked_files: blocked,
         positive_rendered: 0,
         commits: 0,
         files: ["pins.sql", "fingerprint-check.sql", "master-negative-matrix.sql", ...files],

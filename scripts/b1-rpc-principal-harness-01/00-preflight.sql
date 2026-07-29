@@ -287,6 +287,25 @@ BEGIN
   END IF;
 END $$;
 
+-- G4 (REMEDIATION-09): the migration ledger is part of the operator privilege
+-- contract. It must be readable (the contract above depends on it) and it must
+-- never be writable by the operator session.
+DO $$
+BEGIN
+  IF to_regclass('supabase_migrations.schema_migrations') IS NULL THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_MIGRATION_LEDGER_MISSING';
+  END IF;
+  IF NOT has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'SELECT') THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: no SELECT on supabase_migrations.schema_migrations';
+  END IF;
+  IF has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'INSERT')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'UPDATE')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'DELETE')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'TRUNCATE') THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE: supabase_migrations.schema_migrations';
+  END IF;
+END $$;
+
 -- the six Migration-29 functions, by EXACT signature
 DO $$
 DECLARE r record;
@@ -416,7 +435,34 @@ BEGIN
   END LOOP;
 END $$;
 
--- (b) discovered closure ⊆ pinned closure
+-- (a2) G5 REMEDIATION-09 — TRIGGER-AWARE CLOSURE.
+-- Every enabled, non-internal trigger on any relation the RPC entry points can
+-- write must map to a pinned function. An unpinned trigger function is drift.
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT d.relname,
+           t.tgname,
+           t.tgfoid::regprocedure::text AS fsig
+      FROM b1_pin_dml_relation d
+      JOIN pg_class c ON c.relname = d.relname
+      JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+      JOIN pg_trigger t ON t.tgrelid = c.oid
+     WHERE NOT t.tgisinternal AND t.tgenabled <> 'D'
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM b1_pin_function f
+       WHERE to_regprocedure(f.signature) = r.fsig::regprocedure
+    ) THEN
+      RAISE EXCEPTION 'PREFLIGHT_FAIL: FUNCTION_GRAPH_DRIFT: unpinned trigger function % (trigger % on %)',
+        r.fsig, r.tgname, r.relname;
+    END IF;
+  END LOOP;
+END $$;
+
+-- (b) discovered closure ⊆ pinned closure. Entry points AND every enabled
+-- trigger function on a write-reachable relation seed the walk (G5).
 DO $$
 DECLARE
   v_pinned oid[];
@@ -429,6 +475,14 @@ BEGIN
   SELECT array_agg(to_regprocedure(signature)::oid) INTO v_pinned FROM b1_pin_function;
   SELECT array_agg(to_regprocedure(signature)::oid) INTO v_queue
     FROM b1_pin_function WHERE entry_point;
+
+  SELECT coalesce(v_queue, '{}') || coalesce(array_agg(DISTINCT t.tgfoid), '{}') INTO v_queue
+    FROM b1_pin_dml_relation d
+    JOIN pg_class c ON c.relname = d.relname
+    JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+    JOIN pg_trigger t ON t.tgrelid = c.oid
+   WHERE NOT t.tgisinternal AND t.tgenabled <> 'D';
+
 
   WHILE array_length(v_queue, 1) IS NOT NULL LOOP
     v_cur := v_queue[1];

@@ -17,7 +17,8 @@
 
   G9 EXECUTION CONTRACT
     * Exactly ONE psql process runs generated/master-negative-matrix.sql:
-      preflight -> 267 rollback-only cases -> outside-transaction baseline check.
+      preflight -> 264 executable rollback-only cases -> outside-transaction baseline check.
+      (3 transfer-scope cases are BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE and excluded.)
 #>
 
 [CmdletBinding()]
@@ -109,8 +110,19 @@ Write-Host 'rendering cases offline (always; there is no skip path)...'
 if ($LASTEXITCODE -ne 0) { throw 'RENDER_FAILED' }
 if (-not (Test-Path $master)) { throw 'MASTER_SCRIPT_MISSING' }
 
-$caseCount = (Get-ChildItem -Path (Join-Path $generated 'cases') -Filter 'case-*.sql').Count
+$allCases = Get-ChildItem -Path (Join-Path $generated 'cases') -Filter 'case-*.sql'
+$blockedCases = @($allCases | Where-Object { $_.Name -like '*.BLOCKED.sql' })
+$caseCount = $allCases.Count
 if ($caseCount -ne 267) { throw "CASE_COUNT_DRIFT: $caseCount" }
+# REMEDIATION-09 G2: blocked scope cases are rendered but never executed.
+if ($blockedCases.Count -ne 3) { throw "BLOCKED_CASE_COUNT_DRIFT: $($blockedCases.Count)" }
+$executableCount = $caseCount - $blockedCases.Count
+if ($executableCount -ne 264) { throw "EXECUTABLE_CASE_COUNT_DRIFT: $executableCount" }
+$masterIncludes = (Select-String -Path (Join-Path $generated 'master-negative-matrix.sql') -Pattern '\\ir cases/').Count
+if ($masterIncludes -ne 264) { throw "MASTER_INCLUDE_COUNT_DRIFT: $masterIncludes" }
+if (Select-String -Path (Join-Path $generated 'master-negative-matrix.sql') -Pattern 'BLOCKED\.sql') {
+  throw 'BLOCKED_CASE_INCLUDED_IN_MASTER'
+}
 
 $commitHits = Select-String -Path (Join-Path $generated 'cases\*.sql') -Pattern '(?im)^\s*COMMIT\b'
 if ($commitHits) { throw 'FORBIDDEN_COMMIT_IN_RENDERED_CASES' }
@@ -150,14 +162,14 @@ Set-Content -Path $logPath -Value $redacted -Encoding UTF8
 $pass = ([regex]::Matches($redacted, 'CASE_PASS')).Count
 $fail = ([regex]::Matches($redacted, 'CASE_FAIL|PREFLIGHT_FAIL|POST_RUN_FAIL|CASE_STATE_DRIFT')).Count
 
-Write-Host "cases passed: $pass / 267"
+Write-Host "cases passed: $pass / 264 executable (3 blocked: BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE)"
 Write-Host "failures    : $fail"
 Write-Host "report      : $logPath"
 
-if ($exit -ne 0 -or $fail -gt 0 -or $pass -ne 267) {
+if ($exit -ne 0 -or $fail -gt 0 -or $pass -ne 264) {
   Write-Host 'RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX'
   exit 1
 }
 
-Write-Host 'RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_267_DENY_ZERO_MUTATION'
+Write-Host 'RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_264_DENY_ZERO_MUTATION_3_BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE'
 exit 0
