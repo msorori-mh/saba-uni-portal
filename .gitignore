@@ -56,3 +56,6 @@ tests/security/.env.setup.local
 # Python cache
 __pycache__/
 *.py[cod]
+
+# B1 operator harness rendered artifacts (never committed)
+scripts/b1-rpc-principal-harness-01/generated/
