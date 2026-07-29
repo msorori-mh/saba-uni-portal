@@ -109,6 +109,7 @@ class Cluster:
             ["psql", "-h", "127.0.0.1", "-p", str(PORT), "-U", "postgres", "-d", db,
              "-v", "ON_ERROR_STOP=1", "-X", "-q", "-f", "-"],
             input=sql, text=True, capture_output=True,
+            env=dict(os.environ, PGSSLMODE="disable", PGPASSWORD=""),
         )
 
 
