@@ -242,6 +242,7 @@ function renderCase(
   nc: NegativeCase,
   pc: PositiveCase,
   fingerprintExpr: string,
+  contract: DenialContract,
 ): string {
   const isAnon = nc.actor_user_id === null;
   const actor = isAnon ? null : assertUuid("actor_user_id", nc.actor_user_id as string);
