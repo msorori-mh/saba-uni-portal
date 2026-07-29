@@ -32,7 +32,14 @@ export function toB1CanonicalCode(code: string | null | undefined): B1CanonicalC
 }
 
 /** Actions the B1 employee panel is able to execute through the atomic RPC path. */
-export const B1_PANEL_EXECUTABLE_ACTIONS = ["review", "approve", "return", "reject"] as const;
+export const B1_PANEL_EXECUTABLE_ACTIONS = [
+  "review",
+  "approve",
+  "apply_decision",
+  "clear",
+  "return",
+  "reject",
+] as const;
 export type B1PanelExecutableAction = (typeof B1_PANEL_EXECUTABLE_ACTIONS)[number];
 
 /**
@@ -55,13 +62,13 @@ export const B1_SPECIALIZED_ACTION_TYPES = [
   "issue_document",
   "sign",
   "archive",
-  "clear",
-  "apply_decision",
 ] as const;
 
 export const B1_PANEL_ACTION_LABELS_AR: Readonly<Record<B1PanelExecutableAction, string>> = {
   review: "مراجعة",
   approve: "اعتماد",
+  apply_decision: "تطبيق القرار",
+  clear: "إخلاء طرف",
   return: "إرجاع للاستكمال",
   reject: "رفض",
 };

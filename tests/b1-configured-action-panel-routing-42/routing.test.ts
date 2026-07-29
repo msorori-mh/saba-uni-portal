@@ -49,7 +49,9 @@ describe("G2 — five services route to the B1 panel", () => {
 
   test("detail panel mounts the B1 section for B1 and the generic panel otherwise", () => {
     expect(DETAIL_PANEL).toContain("isB1StaffRoutedRequestType(detail.requestTypeCode)");
-    expect(DETAIL_PANEL).toContain("{isB1Service && !showSignPanel && !showArchivePanel && (");
+    expect(DETAIL_PANEL).toContain(
+      "{isB1Service && !showSignPanel && !showArchivePanel && !showFee && !showEcIssueButton && (",
+    );
     expect(DETAIL_PANEL).toContain("{!isB1Service && !showSignPanel && !showArchivePanel && (");
     expect(DETAIL_PANEL).toContain("<B1StaffStepActionSection");
   });

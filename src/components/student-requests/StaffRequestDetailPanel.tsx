@@ -358,7 +358,7 @@ export function StaffRequestDetailPanel({
                 />
               )}
 
-              {isB1Service && !showSignPanel && !showArchivePanel && (
+              {isB1Service && !showSignPanel && !showArchivePanel && !showFee && !showEcIssueButton && (
                 <B1StaffStepActionSection
                   requestId={detail.id}
                   requestTypeCode={detail.requestTypeCode}

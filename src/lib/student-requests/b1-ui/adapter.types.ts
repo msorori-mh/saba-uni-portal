@@ -198,7 +198,14 @@ export type B1SubmitResult = {
 // Staff side
 // ---------------------------------------------------------------------------
 
-export type B1StaffAction = "approve" | "review" | "return" | "reject" | "confirm_payment";
+export type B1StaffAction =
+  | "approve"
+  | "review"
+  | "apply_decision"
+  | "clear"
+  | "return"
+  | "reject"
+  | "confirm_payment";
 
 export const B1_STAFF_ACTIONS_REQUIRING_COMMENT: readonly B1StaffAction[] = ["return", "reject"];
 
