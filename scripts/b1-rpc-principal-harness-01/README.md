@@ -20,6 +20,18 @@ Case source of truth: `tests/b1-five-services-rpc-authorization-preflight-01/MAT
 (240 core + 24 illegal-action + 3 transfer-scope = **267**, positives rendered **0**,
 `COMMIT` statements **0**).
 
+## G1 — value sanitation and denial-class fail-closed gate
+
+A negative case counts as PASS **only** when the RPC was denied by the
+authorization layer itself: the returned `SQLSTATE` and the error message family
+must both match `denial_class_contract` in `MATRIX.json`. Any other outcome —
+unexpected success, read-only transaction, table/sequence permission denied, RLS
+visibility failure, missing function/table, serialization failure, deadlock,
+lock timeout, connection failure or syntax error — raises
+`CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL`, rolls the case back and stops the
+whole run (`ON_ERROR_STOP`). Each case also asserts
+`transaction_read_only = 'off'` so a read-only session can never mask a bypass.
+
 ## G1 — value sanitation
 
 Every MATRIX-derived value is validated for shape (UUID, `SR-YYYYMMDD-XXXXXXXX`,
