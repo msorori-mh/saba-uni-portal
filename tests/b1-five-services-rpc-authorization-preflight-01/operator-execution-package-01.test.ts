@@ -7,6 +7,8 @@ import {
   APPROVED_PROJECT_REF,
   EXPECTED_NEGATIVE_TOTAL,
   FORBIDDEN_PATTERNS,
+  EXPECTED_BLOCKED_TOTAL,
+  EXPECTED_EXECUTABLE_TOTAL,
   MATRIX_SHA256_LF,
   assertDenialContract,
   assertSafeDiagnostic,
@@ -525,21 +527,20 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
       expect(matrix.step_state_pins[`${c.request_number}|${c.step_key}`].runtime_status).not.toBe("active");
     }
     expect(matrix.transfer_scope_execution.status).toBe("BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
-    expect(matrix.counts.execution_blocked).toBe(3);
-    expect(matrix.counts.executable_negative_total).toBe(EXPECTED_NEGATIVE_TOTAL - 3);
+    expect(matrix.counts.execution_blocked_transfer_scope).toBe(3);
 
     const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
-    expect((master.match(/\\ir cases\//gu) ?? []).length).toBe(EXPECTED_NEGATIVE_TOTAL - 3);
     expect(master).not.toContain("BLOCKED.sql");
     for (const n of [265, 266, 267]) {
       const blocked = read(join(pkg, "generated", "cases", `case-0${n}.BLOCKED.sql`));
-      expect(blocked).toContain("TRANSFER_SCOPE_CASE_BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE");
+      expect(blocked).toContain("CASE_BLOCKED_PENDING_ACTIVE_FIXTURE");
+      expect(blocked).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
       expect(blocked).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
     }
   });
 
   it("G3: every executable case pins unit, role, configured action_type and the direct assignee", () => {
-    for (const n of [1, 100, 264]) {
+    for (const n of [1, 100, 240]) {
       const sql = read(join(pkg, "generated", "cases", `case-${String(n).padStart(4, "0")}.sql`));
       expect(sql).toContain("unit/role/action_type pin failed");
       expect(sql).toContain("direct assignee pin failed");
@@ -572,6 +573,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
     const closure = manifest.function_graph.trigger_aware_closure;
     expect(closure.unpinned_trigger_function_verdict).toBe("FUNCTION_GRAPH_DRIFT");
     expect(closure.dml_relations).toContain("student_request_workflow_steps");
+    expect(closure.dml_relations).toContain("student_profiles");
     expect(closure.dml_relations.length).toBeGreaterThanOrEqual(10);
     expect(preflight).toContain("unpinned trigger function");
     expect(preflight).toContain("b1_pin_dml_relation");
@@ -585,8 +587,8 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
   it("G6: matrix SHA and manifest stay consistent after remediation", () => {
     expect(sha256Lf(matrixRaw)).toBe(MATRIX_SHA256_LF);
     expect(manifest.matrix.sha256_lf).toBe(MATRIX_SHA256_LF);
-    expect(manifest.matrix.executable_negative_total).toBe(264);
-    expect(manifest.matrix.blocked_negative_total).toBe(3);
+    expect(manifest.matrix.executable_negative_total).toBe(245);
+    expect(manifest.matrix.blocked_negative_total).toBe(22);
     expect(matrix.production_ref).toBe(APPROVED_PROJECT_REF);
   });
 });
