@@ -31,9 +31,13 @@ const renderer = read(join(pkg, "render-negative-cases.ts"));
 const readme = read(join(pkg, "README.md"));
 const renderedCase = read(join(pkg, "generated", "cases", "case-0001.sql"));
 const contract = assertDenialContract(matrix.denial_class_contract);
-const EXPECT_ERROR = "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED";
+const CTX = {
+  rpc: "act_on_b1_student_request_step_atomic",
+  case_class: "unassigned_admin",
+  runtime_status: "active",
+};
 const classify = (o: { allowed: boolean; sqlstate?: string | null; message?: string | null }) =>
-  classifyDenialOutcome(o, contract, EXPECT_ERROR);
+  classifyDenialOutcome(o, contract, CTX);
 
 /** SQL with `--` line comments and block comments stripped. */
 const strip = (sql: string) =>
@@ -43,7 +47,7 @@ const strip = (sql: string) =>
     .map((l) => l.replace(/--.*$/u, ""))
     .join("\n");
 
-describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05", () => {
+describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07", () => {
   // ---- G1 -----------------------------------------------------------------
   it("G1: control-character pattern uses the unicode flag and full C0+DEL range", () => {
     const control = FORBIDDEN_PATTERNS.find(([n]) => n === "control_char")?.[1];
@@ -75,9 +79,10 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
   });
 
   it("G2: launcher aborts when a credential channel is present in the environment", () => {
-    for (const name of ["DATABASE_URL", "PGPASSWORD", "PGPASSFILE", "PGSERVICE", "PGSERVICEFILE"]) {
-      expect(launcher).toContain(`'${name}'`);
+    for (const name of ["DATABASE_URL", "PGPASSWORD", "PGPASSFILE", "PGSERVICE", "PGSERVICEFILE", "PGHOSTADDR", "PGOPTIONS", "PGREQUIRESSL"]) {
+      expect(manifest.endpoint.forbidden_environment_channels).toContain(name);
     }
+    expect(launcher).toContain("forbidden_environment_channels");
     expect(launcher).toContain("FORBIDDEN_CREDENTIAL_CHANNEL");
   });
 
@@ -90,7 +95,10 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
   it("G3: the manifest pins the approved project ref, host, database and sslmode", () => {
     expect(manifest.endpoint.project_ref).toBe(APPROVED_PROJECT_REF);
     expect(manifest.endpoint.approved_pgdatabase).toBe("postgres");
-    expect(manifest.endpoint.approved_pgsslmode).toBe("require");
+    expect(manifest.endpoint.approved_pgsslmode).toBe("verify-full");
+    expect(manifest.endpoint.approved_pgsslrootcert_path).toContain("tls/");
+    expect(launcher).toContain("HOLD_NEEDS_VERIFIED_TLS_ENDPOINT");
+    expect(preflight).toContain("HOLD_NEEDS_VERIFIED_TLS_ENDPOINT");
     expect(manifest.endpoint.approved_pguser_regex).toContain(APPROVED_PROJECT_REF);
   });
 
@@ -170,19 +178,24 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
     expect(renderer).not.toContain("pg_advisory_xact_lock");
   });
 
-  it("G6: rendered cases use SERIALIZABLE plus fixed-order FOR SHARE locking", () => {
+  it("G6: rendered cases are SERIALIZABLE and take NO row locks at all", () => {
     expect(renderer).toContain("BEGIN ISOLATION LEVEL SERIALIZABLE");
-    expect(renderer).toMatch(/student_requests r[\s\S]{0,200}FOR SHARE/u);
-    expect(renderer).toMatch(/student_request_workflow_steps w[\s\S]{0,120}ORDER BY w\.id FOR SHARE/u);
-    expect(renderer).toMatch(/request_processing_assignments a ORDER BY a\.id FOR SHARE/u);
-    expect(preflight).toContain("OPERATOR_ROW_LOCK_CAPABILITY_NOT_PROVEN");
+    expect(strip(renderedCase)).not.toMatch(/\bFOR\s+(SHARE|UPDATE|KEY\s+SHARE|NO\s+KEY\s+UPDATE)\b/iu);
+    expect(strip(preflight)).not.toMatch(/\bFOR\s+(SHARE|UPDATE)\b/iu);
+    expect(preflight).not.toContain("OPERATOR_ROW_LOCK_CAPABILITY_NOT_PROVEN");
+    expect(launcher).toContain("FORBIDDEN_ROW_LOCK_IN_RENDERED_CASES");
+    expect(preflight).toContain("B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE");
   });
 
   it("G6: cases pin request type, step id, order, status, assignee and predecessors", () => {
     expect(renderer).toContain("CASE_STATE_DRIFT: request_type");
     expect(renderer).toContain("CASE_STATE_DRIFT: step status");
     expect(renderer).toContain("CASE_STATE_DRIFT: step_order");
-    expect(renderer).toContain("CASE_STATE_DRIFT: direct assignee changed");
+    expect(renderer).toContain("CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step");
+    expect(renderer).toContain("direct assignee slots on step");
+    expect(renderer).toContain("active unit+role assignments for step");
+    expect(renderedCase).toContain("CASE_STATE_DRIFT: request status % (want submitted)");
+    expect(renderedCase).toContain("fee assessments (want 0)");
     expect(renderer).toContain("unsatisfied predecessor steps");
     expect(renderer).toContain("CASE_STATE_DRIFT: transfer department scope");
   });
@@ -233,9 +246,10 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
   });
 
   // ---- G8 -----------------------------------------------------------------
-  it("G8: at least 14 functions are pinned, including both entry points", () => {
+  it("G8: the full discovered closure (>= 19 functions) is pinned, including both entry points", () => {
     const fns = manifest.function_graph.functions;
-    expect(fns.length).toBeGreaterThanOrEqual(14);
+    expect(fns.length).toBeGreaterThanOrEqual(19);
+    for (const f of fns) expect(f.definition_sha256).toMatch(/^[0-9a-f]{64}$/u);
     const entries = fns.filter((f: any) => f.entry_point).map((f: any) => f.signature);
     expect(entries).toContain("public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)");
     expect(entries).toContain("public.record_external_university_payment_confirmation(uuid,text)");
@@ -248,10 +262,26 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
   });
 
   it("G8: external-call tokens are rejected anywhere in the closure", () => {
-    const tokens = manifest.function_graph.forbidden_definition_tokens;
-    for (const t of ["pg_net.", "net.http_", "dblink", "http_post", "http_get", "lo_export", "lo_import", "copy program"]) {
-      expect(tokens).toContain(t);
+    const ids = (manifest.function_graph.forbidden_definition_patterns as Array<{ id: string; regex: string }>).map(
+      (p) => p.id,
+    );
+    for (const t of [
+      "nextval",
+      "setval",
+      "pg_net",
+      "http",
+      "dblink",
+      "pg_notify",
+      "large_object",
+      "copy_program",
+      "dynamic_execute",
+      "dynamic_call",
+    ]) {
+      expect(ids).toContain(t);
     }
+    expect(preflight).toContain("b1_pin_forbidden_pattern");
+    // comments must be stripped before the scan, both in SQL and in the pins
+    expect(preflight).toContain("regexp_replace(v_def, '/\\*.*?\\*/', ' ', 'gs')");
     expect(preflight).toContain("B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION");
   });
 
@@ -276,21 +306,35 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
   describe("G1: denial class gate is fail-closed", () => {
     it("contract is pinned in MATRIX.json and covers every expect_error", () => {
       expect(contract.fail_closed).toBe(true);
-      expect(contract.authorization_sqlstates).toEqual(["P0001"]);
+      expect(contract.version).toBeGreaterThanOrEqual(3);
+      expect(contract.authorization_sqlstates).toEqual(["28000", "42501", "P0001", "22023"]);
+      const positives = new Map<string, any>(
+        matrix.positive_cases.map((p: any) => [`${p.request_number}|${p.step_key}`, p]),
+      );
       const all = [
         ...matrix.negative_cases,
         ...matrix.illegal_action_cases,
         ...matrix.supplemental_department_scope_cases,
       ];
-      for (const c of all) expect(() => expectationFor(contract, c.expect_error)).not.toThrow();
-      for (const s of ["25006", "42501", "42883", "42P01", "40001", "40P01", "55P03", "57014", "08006", "42601"]) {
+      for (const c of all) {
+        const pc = positives.get(`${c.request_number}|${c.step_key}`);
+        expect(pc).toBeDefined();
+        expect(() =>
+          expectationFor(contract, { rpc: pc.rpc, case_class: c.case, runtime_status: pc.runtime_status }),
+        ).not.toThrow();
+      }
+      for (const s of ["25006", "42883", "42P01", "40001", "40P01", "55P03", "57014", "08006", "42601"]) {
         expect(contract.infrastructure_sqlstates).toContain(s);
       }
     });
 
     it("1. correct authorization denial => PASS", () => {
       expect(
-        classify({ allowed: false, sqlstate: "P0001", message: "UNAUTHORIZED_STEP_ACTION: principal is not assigned" }),
+        classify({
+          allowed: false,
+          sqlstate: "42501",
+          message: "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED: principal is not the direct assignee",
+        }),
       ).toEqual({ verdict: "PASS", reason: expect.any(String) });
     });
 
@@ -339,13 +383,13 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
     });
 
     it("7. correct message with wrong SQLSTATE => HOLD", () => {
-      const v = classify({ allowed: false, sqlstate: "P0002", message: "UNAUTHORIZED_STEP_ACTION" });
+      const v = classify({ allowed: false, sqlstate: "P0002", message: "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED" });
       expect(v.verdict).toBe("HOLD");
       expect(v.reason).toContain("sqlstate");
     });
 
     it("8. correct SQLSTATE with wrong message => HOLD", () => {
-      const v = classify({ allowed: false, sqlstate: "P0001", message: "SOME_OTHER_GUARD tripped" });
+      const v = classify({ allowed: false, sqlstate: "42501", message: "SOME_OTHER_GUARD tripped" });
       expect(v.verdict).toBe("HOLD");
       expect(v.reason).toContain("message outside the expected family");
     });
@@ -355,7 +399,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
       expect(renderedCase).toContain("CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL");
       expect(renderedCase).toContain("CASE_FAIL_ALLOWED");
       expect(renderedCase).toContain("current_setting('transaction_read_only') = 'on'");
-      expect(renderedCase).toContain("'UNAUTHORIZED_STEP_ACTION'");
+      expect(renderedCase).toContain("'AUTHENTICATION_REQUIRED'");
       expect((renderedCase.match(/BEGIN ISOLATION LEVEL SERIALIZABLE;/gu) ?? []).length).toBe(1);
       expect((renderedCase.match(/^ROLLBACK;$/gmu) ?? []).length).toBe(1);
       expect(strip(renderedCase)).not.toMatch(/\bCOMMIT\b/u);
@@ -367,7 +411,11 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
       expect(() =>
         assertDenialContract({ ...contract, infrastructure_sqlstates: [...contract.infrastructure_sqlstates, "P0001"] }),
       ).toThrow(/SQLSTATE_OVERLAP/u);
-      expect(() => expectationFor(contract, "no such family")).toThrow(/MISSING_EXPECTATION/u);
+      expect(() =>
+        expectationFor(contract, { rpc: "no_such_rpc", case_class: "x", runtime_status: "y" }),
+      ).toThrow(/MISSING_EXPECTATION/u);
+      expect(() => assertDenialContract({ ...contract, version: 2 })).toThrow(/VERSION_TOO_OLD/u);
+      expect(() => assertDenialContract({ ...contract, resolution_rules: [] })).toThrow(/NO_RESOLUTION_RULES/u);
     });
   });
 
@@ -394,6 +442,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05",
     expect(total).toBe(EXPECTED_NEGATIVE_TOTAL);
     expect(total).toBe(267);
     expect(matrix.counts.negative_total).toBe(267);
+    expect(Object.keys(matrix.production_readonly_attestation.requests)).toHaveLength(5);
     expect(renderer).toContain("positive_rendered: 0");
   });
 
