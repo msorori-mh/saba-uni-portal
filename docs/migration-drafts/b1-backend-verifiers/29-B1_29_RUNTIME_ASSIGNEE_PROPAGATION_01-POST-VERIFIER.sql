@@ -117,6 +117,8 @@ BEGIN
   --    effective privilege is probed directly with has_function_privilege,
   --    so inherited or role-membership paths cannot slip through.
   -- ------------------------------------------------------------------
+  -- >>> B1_ACL_CONTRACT_BEGIN (extracted verbatim by
+  -- tests/b1-verifier-acl-negative-01; do not reformat the markers)
   SELECT c.relowner INTO v_owner FROM pg_class c
    WHERE c.oid = 'public.request_processing_assignments'::regclass;
 
@@ -173,6 +175,7 @@ BEGIN
         RAISE EXCEPTION 'POSTVERIFY_FAIL: % is EXECUTE-able by %', v_fn.sig, v_role;
       END IF;
     END LOOP;
+  -- <<< B1_ACL_CONTRACT_END
     -- Belt and braces: no explicit EXECUTE ACE for PUBLIC/anon/authenticated.
     IF EXISTS (
       SELECT 1 FROM aclexplode(v_fn.proacl) a
