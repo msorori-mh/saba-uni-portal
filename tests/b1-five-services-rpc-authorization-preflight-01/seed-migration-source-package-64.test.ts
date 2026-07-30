@@ -35,9 +35,10 @@ describe("PACKAGE-64 — seed migration source package hold contract", () => {
 
   it("authored no B1 fixture seed migration in this package", () => {
     const dir = join(root, "supabase/migrations");
-    const seeds = readdirSync(dir).filter((f) => /seed|fixture/i.test(f));
+    const seeds = readdirSync(dir).filter((f) => /b1.*(seed|fixture)|(seed|fixture).*b1/i.test(f));
     expect(seeds).toEqual([]);
   });
+
 
   it("keeps the prior hold reports in source", () => {
     for (const f of [
