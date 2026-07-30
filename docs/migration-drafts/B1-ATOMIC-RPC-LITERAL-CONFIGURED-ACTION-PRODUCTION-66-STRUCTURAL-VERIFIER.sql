@@ -36,6 +36,8 @@
 
 \set ON_ERROR_STOP on
 
+SELECT set_config('b1_66.migration_path', :'migration_path', false);
+
 DO $structural$
 DECLARE
   raw text;
