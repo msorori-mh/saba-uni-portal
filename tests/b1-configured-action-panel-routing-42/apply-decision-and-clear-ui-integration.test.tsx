@@ -73,7 +73,7 @@ const CASES = [
     requestTypeCode: "enrollment_suspension",
     stepId: "step-archive-1",
     stepKey: "archive",
-    stepLabelAr: "مرحلة الأرشفة",
+    stepLabelAr: "المرحلة الختامية",
   },
 ];
 
