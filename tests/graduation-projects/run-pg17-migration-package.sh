@@ -84,4 +84,18 @@ verify "$GP/postgres-files-notifications-verifier.sql"
 step "admin settings verifier"
 verify "$GP/postgres-admin-settings-verifier.sql"
 
+step "M7 20260730100006 evaluation completeness guard"
+sql "$GP/pg17/preflight-07-evaluation-completeness.sql"
+sql "$MIG/20260730100006_b953bddf-de2d-43f6-9d3d-10755d8a9da6.sql"
+
+step "post-M7 regression: all verifiers re-run"
+verify "$GP/postgres-foundation-verifier.sql"
+verify "$GP/postgres-lifecycle-verifier.sql"
+verify "$GP/postgres-hardening-verifier.sql"
+verify "$GP/postgres-files-notifications-verifier.sql"
+verify "$GP/postgres-admin-settings-verifier.sql"
+
+step "GP-07 authorization closure matrix (final schema)"
+verify "$GP/postgres-authorization-matrix-verifier.sql"
+
 echo "MIGRATION PACKAGE PG17 VERIFICATION PASS"

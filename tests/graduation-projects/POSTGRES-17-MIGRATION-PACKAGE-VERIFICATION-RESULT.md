@@ -23,6 +23,9 @@
 == M6 20260730100005 admin settings & rubrics  preflight ✓ apply ✓
 == post-M6 regression                          foundation ✓ lifecycle ✓ hardening ✓ files-notifications ✓
 == admin settings verifier                     postgres-admin-settings-verifier ✓
+== M7 20260730100006 evaluation completeness   preflight ✓ apply ✓
+== post-M7 regression                          all five verifiers ✓
+== GP-07 authorization matrix (final schema)   68 rows, fail_rows=0 ✓
 MIGRATION PACKAGE PG17 VERIFICATION PASS
 ```
 
@@ -37,6 +40,7 @@ Coverage of the hardening verifier:
 - Notification log: dedupe unique key 23505 on exact duplicate; `authenticated` insert denied (42501).
 - Attachment policy (M5): MIME allowlist denial, 50 MiB cap denial, invalid kind denial, stage-binding denial (milestone_submission without submission, final_manuscript off final milestone), `file_kind` persisted + in event payload, 8-arg legacy call form still resolves.
 - Notifications (M5): unmapped events stay silent; `milestone_set` fan-out = student+supervisor minus actor; duplicate insert absorbed (23505 on direct duplicate, ON CONFLICT no-op in trigger); own-notifications read scoped (`auth.uid()`), outsider sees zero; orphan review flags 31-day pending-scan file and is not executable by `authenticated`.
+- Authorization closure (M7 + matrix): 68-row matrix PASS (fail_rows=0) covering read/proposal/team/milestone/files/discussion/evaluation/result/cross-dept/settings/visibility areas, exact denial messages, idempotent replays, archived-project mutation denials, and 42501 grant walls executed as the `authenticated` role. GP-07 High finding fixed: result conclusion previously skipped panel members with no recorded evaluation; the guard now requires every panel member of the held discussion to be finalized (`evaluations not finalized`).
 - Admin/settings (M6): settings write denied for non-authority, invalid values rejected, upsert idempotent on (department, null year); team_max reached → `team size limit reached`; team_min shortfall → `team below minimum size`; closed window → `proposal window closed` then reopens successfully; `co-supervisor not allowed by settings`; `supervisor capacity reached` on a second project; rubric create/read/update-criteria/replace + `rubric payload invalid` + `rubric not found`; defense report payload well-formed.
 
 Migrations applied to any shared/persistent environment: **0**. Production operations: **0**.

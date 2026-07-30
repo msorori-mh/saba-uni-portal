@@ -175,3 +175,30 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Remaining scope: GP-07 … GP-10.
 - Active blockers: none.
 - Next automatic phase: **GP-07 — AUTHORIZATION CLOSURE**
+
+---
+
+## GP-07 — AUTHORIZATION CLOSURE
+
+- Current phase: GP-07
+- Phase decision: **PASS_GRADUATION_PROJECTS_GP07_AUTHORIZATION_FULLY_CLOSED**
+- Base SHA: `4cea9b7cf525a94846218793d2c55e2a27b870ec`
+- Phase commit SHA: (recorded below after commit)
+- Changed files:
+  - `supabase/migrations/20260730100006_b953bddf-de2d-43f6-9d3d-10755d8a9da6.sql` (new, M7 — GP-07-HIGH-1 fix)
+  - `tests/graduation-projects/postgres-authorization-matrix-verifier.sql` (new, 68 rows)
+  - `tests/graduation-projects/pg17/preflight-07-evaluation-completeness.sql` (new)
+  - `tests/graduation-projects/graduation-projects-authorization-closure.test.ts` (new, 9 tests)
+  - `tests/graduation-projects/run-pg17-migration-package.sh` (M7 + matrix legs)
+  - `docs/GRADUATION-PROJECTS-GP07-RPC-AUTHORIZATION-INVENTORY.md` (new)
+  - `docs/GRADUATION-PROJECTS-GP07-AUTHORIZATION-CLOSURE-REPORT.md` (new)
+  - `docs/migration-drafts/GRADUATION-PROJECTS-MIGRATION-PACKAGE-01.md`, `tests/graduation-projects/POSTGRES-17-MIGRATION-PACKAGE-VERIFICATION-RESULT.md` (updated)
+- Tests: PG17 package PASS — authorization matrix 68 rows, fail_rows=0; GP suites 144/144 (1333 expects); tsc clean; diff-check clean.
+- Migrations created: 1 (total 7) — Migrations applied: 0 — Production operations: 0
+- Completed scope:
+  - Positive matrix ✓ Negative matrix ✓ Direct RPC matrix ✓ fail_rows=0 ✓
+  - Critical/High findings = 0 (GP-07-HIGH-1 missing-evaluation bypass fixed in M7).
+  - Full RPC/server-function authorization inventory with 100% coverage test.
+- Remaining scope: GP-08 … GP-10.
+- Active blockers: none.
+- Next automatic phase: **GP-08 — ISOLATED OPERATIONAL E2E**
