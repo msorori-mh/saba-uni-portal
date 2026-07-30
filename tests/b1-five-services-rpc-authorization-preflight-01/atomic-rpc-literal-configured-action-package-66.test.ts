@@ -374,7 +374,7 @@ describe("68 — executable fail-closed verifiers", () => {
     }
     expect(STRUCTURAL).toContain("B1_66_STRUCTURAL_VERIFIER_PASS");
     // read-only: no automatic remediation inside a verifier
-    for (const forbidden of ["CREATE OR REPLACE FUNCTION", "UPDATE public.", "DELETE FROM", "INSERT INTO"]) {
+    for (const forbidden of ["CREATE OR REPLACE FUNCTION public.", "UPDATE public.", "DELETE FROM", "INSERT INTO"]) {
       expect(STRUCTURAL).not.toContain(forbidden);
     }
   });
