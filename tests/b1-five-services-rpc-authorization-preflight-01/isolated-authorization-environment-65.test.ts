@@ -1,24 +1,23 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isStoredAsLf, toCrlf, toLf } from "./eol";
 
 const root = process.cwd();
 
-/** Central EOL normalization (68): assertions must hold on LF and CRLF checkouts. */
-const toLf = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-const toCrlf = (value: string) => toLf(value).replace(/\n/g, "\r\n");
+/** Central EOL normalization (70): assertions must hold on LF and CRLF checkouts. */
+const CASES_REL = "scripts/b1-isolated-authorization-env-65/41-negative-cases.sql";
+const RENDERER_REL = "scripts/b1-isolated-authorization-env-65/40-generate-iso-matrix.py";
 const matrix = JSON.parse(
-  readFileSync(join(root, "scripts/b1-isolated-authorization-env-65/ISO-MATRIX.json"), "utf8"),
+  toLf(readFileSync(join(root, "scripts/b1-isolated-authorization-env-65/ISO-MATRIX.json"), "utf8")),
 );
-const casesRaw = readFileSync(
-  join(root, "scripts/b1-isolated-authorization-env-65/41-negative-cases.sql"),
-  "utf8",
-);
-const cases = toLf(casesRaw);
+const cases = toLf(readFileSync(join(root, CASES_REL), "utf8"));
+const renderer = toLf(readFileSync(join(root, RENDERER_REL), "utf8"));
 const report = toLf(readFileSync(
   join(root, "docs/PORTAL-B1-ISOLATED-NONPRODUCTION-AUTHORIZATION-ENVIRONMENT-65-REPORT.md"),
   "utf8",
 ));
+
 
 describe("PORTAL-65 — isolated non-production authorization environment", () => {
   it("targets an isolated TEST_ONLY environment, never production or staging", () => {
