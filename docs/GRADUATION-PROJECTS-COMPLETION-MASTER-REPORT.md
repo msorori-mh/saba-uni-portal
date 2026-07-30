@@ -117,3 +117,31 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Remaining scope: GP-05 … GP-10.
 - Active blockers: none.
 - Next automatic phase: **GP-05 — FILES, ATTACHMENTS, AND NOTIFICATIONS**
+
+---
+
+## GP-05 — FILES, ATTACHMENTS, AND NOTIFICATIONS
+
+- Current phase: GP-05
+- Phase decision: **PASS_GRADUATION_PROJECTS_GP05_FILES_AND_NOTIFICATIONS_COMPLETE**
+- Base SHA: `83f145d976c2f84fe462fcb703b7fbef735f2d61`
+- Phase commit SHA: (recorded below after commit)
+- Changed files:
+  - `supabase/migrations/20260730100004_ff96c58a-8c93-4abe-9d0f-f0f44fe25a11.sql` (new, M5)
+  - `tests/graduation-projects/pg17/preflight-05-files-notifications.sql` (new)
+  - `tests/graduation-projects/postgres-files-notifications-verifier.sql` (new)
+  - `tests/graduation-projects/run-pg17-migration-package.sh` (M5 leg)
+  - `tests/graduation-projects/graduation-projects-files-notifications.test.ts` (new, 9 tests)
+  - `src/lib/graduation-projects/{rpc,lifecycle,portal.functions}.ts` (file_kind, notifications read, labels)
+  - `src/components/graduation-projects/{MilestonesPanel,GraduationProjectPortalWorkspace}.tsx` (kind selector)
+  - `docs/migration-drafts/GRADUATION-PROJECTS-MIGRATION-PACKAGE-01.md`, `tests/graduation-projects/POSTGRES-17-MIGRATION-PACKAGE-VERIFICATION-RESULT.md` (updated)
+  - `docs/GRADUATION-PROJECTS-GP05-FILES-NOTIFICATIONS-REPORT.md` (new)
+- Tests: GP suites 126/126 (1043 expects); PG17 package PASS (5 migrations sequential + regression re-runs); tsc clean; diff-check clean.
+- Migrations created: 1 (total 5) — Migrations applied: 0 — Production operations: 0
+- Completed scope:
+  - Attachment policy (MIME allowlist, 50 MiB cap, 10-kind stage binding, final-manuscript binding);
+    notification fan-out with unique-key dedupe and actor exclusion; own-notifications read RPC;
+    orphan-file review RPC (service-only); scan/signed-URL/cleanup contracts documented.
+- Remaining scope: GP-06 … GP-10.
+- Active blockers: none.
+- Next automatic phase: **GP-06 — ADMINISTRATION, SETTINGS, AND REPORTS**

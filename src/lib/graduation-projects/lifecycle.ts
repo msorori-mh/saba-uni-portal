@@ -458,9 +458,39 @@ export interface ProjectFileRow {
   byte_size: number;
   scan_state: string;
   scan_decided_at?: string | null;
+  file_kind?: ProjectFileKind;
   object_key: string | null;
   uploaded_by_assignment_id: string;
   created_at: string;
+}
+
+export const PROJECT_FILE_KINDS = [
+  "attachment", "proposal", "milestone_submission", "supervisor_feedback",
+  "final_manuscript", "presentation", "source_archive", "defense_minutes",
+  "correction_version", "archived_final",
+] as const;
+
+export type ProjectFileKind = (typeof PROJECT_FILE_KINDS)[number];
+
+export const FILE_KIND_LABELS: Record<ProjectFileKind, string> = {
+  attachment: "مرفق",
+  proposal: "وثيقة المقترح",
+  milestone_submission: "تسليم مرحلة",
+  supervisor_feedback: "مرفق ملاحظات المشرف",
+  final_manuscript: "النسخة النهائية",
+  presentation: "عرض المناقشة",
+  source_archive: "أرشيف الشيفرة المصدرية",
+  defense_minutes: "محضر المناقشة",
+  correction_version: "نسخة تصحيح",
+  archived_final: "النسخة المؤرشفة",
+};
+
+export interface ProjectNotificationRow {
+  project_id: string;
+  notification_type: string;
+  entity_type: string;
+  entity_id: string;
+  occurred_at: string;
 }
 
 export interface SupervisorNoteRow {

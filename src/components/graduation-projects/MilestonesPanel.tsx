@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { MilestoneKind, SubmissionReviewAction } from "../../lib/graduation-projects/rpc";
+import { FILE_KIND_LABELS, PROJECT_FILE_KINDS } from "../../lib/graduation-projects/lifecycle";
 import type {
   LifecycleAction,
   MilestoneRow,
+  ProjectFileKind,
   ProjectFileRow,
   SubmissionRow,
   SupervisorNoteRow,
@@ -21,6 +23,7 @@ export interface RegisterFileFormInput {
   mediaType: string;
   byteSize: number;
   sha256: string;
+  fileKind: ProjectFileKind;
 }
 
 export interface MilestonesPanelProps {
@@ -75,6 +78,7 @@ export function MilestonesPanel({
   const [mediaType, setMediaType] = useState("application/pdf");
   const [byteSize, setByteSize] = useState("");
   const [sha256, setSha256] = useState("");
+  const [fileKind, setFileKind] = useState<ProjectFileKind>("attachment");
   const [targetSubmission, setTargetSubmission] = useState<string>("");
   const canDeliver = actions.includes("submit_deliverable");
   const canSetMilestone = actions.includes("set_milestone");
@@ -374,6 +378,18 @@ export function MilestonesPanel({
                 aria-label="بصمة SHA-256"
               />
               <select
+                value={fileKind}
+                onChange={(event) => setFileKind(event.target.value as ProjectFileKind)}
+                aria-label="نوع الملف"
+                className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              >
+                {PROJECT_FILE_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>
+                    {FILE_KIND_LABELS[kind]}
+                  </option>
+                ))}
+              </select>
+              <select
                 value={targetSubmission}
                 onChange={(event) => setTargetSubmission(event.target.value)}
                 aria-label="ربط الملف بتسليم (اختياري)"
@@ -401,6 +417,7 @@ export function MilestonesPanel({
                     mediaType: mediaType.trim(),
                     byteSize: Number(byteSize),
                     sha256,
+                    fileKind,
                   })
                 }
               >

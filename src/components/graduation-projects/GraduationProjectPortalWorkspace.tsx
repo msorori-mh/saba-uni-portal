@@ -229,6 +229,7 @@ export function GraduationProjectPortalWorkspace({
                   mediaType: input.mediaType,
                   byteSize: input.byteSize,
                   sha256: input.sha256,
+                  fileKind: input.fileKind,
                 },
               }),
             ),

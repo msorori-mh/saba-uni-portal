@@ -6,6 +6,8 @@ import type {
   GraduationProjectEvaluationsReport,
   GraduationProjectStatesReport,
   MyProjectRow,
+  ProjectFileKind,
+  ProjectNotificationRow,
 } from "./lifecycle";
 
 /**
@@ -79,6 +81,11 @@ export const ERROR_LABELS: Record<string, string> = {
   "file registration state denied": "حالة المشروع لا تسمح بتسجيل الملفات",
   "file object key outside project scope": "مفتاح الملف خارج نطاق المشروع",
   "file metadata invalid": "بيانات الملف الوصفية غير مكتملة أو غير صالحة",
+  "file media type not allowed": "نوع الملف غير مسموح",
+  "file size exceeds limit": "حجم الملف يتجاوز الحد المسموح (50 ميغابايت)",
+  "file kind invalid": "نوع الملف المرحلي غير صالح",
+  "file stage binding invalid": "هذا النوع من الملفات يجب أن يرتبط بتسليم",
+  "final manuscript must attach to a final milestone submission": "النسخة النهائية يجب أن ترتبط بتسليم المرحلة النهائية",
   "discussion scheduling precondition failed": "لا يمكن جدولة المناقشة في الحالة الحالية",
   "discussion schedule details invalid": "موعد المناقشة ومكانها مطلوبان",
   "discussion rejection precondition failed": "لا يمكن رفض طلب المناقشة في الحالة الحالية",
@@ -317,6 +324,7 @@ export class GraduationProjectsRpcClient {
     mediaType: string;
     byteSize: number;
     sha256: string;
+    fileKind?: ProjectFileKind;
     correlationId?: string;
   }): Promise<string> {
     return this.call<string>("register_graduation_project_file", {
@@ -327,8 +335,17 @@ export class GraduationProjectsRpcClient {
       p_media_type: input.mediaType,
       p_byte_size: input.byteSize,
       p_sha256: input.sha256,
+      p_file_kind: input.fileKind ?? "attachment",
       p_correlation_id: input.correlationId ?? newCorrelationId(),
     });
+  }
+
+  async listMyNotifications(): Promise<ProjectNotificationRow[]> {
+    const rows = await this.call<ProjectNotificationRow[] | null>(
+      "list_my_graduation_project_notifications",
+      {},
+    );
+    return rows ?? [];
   }
 
   async scheduleDiscussion(input: {

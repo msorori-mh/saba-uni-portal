@@ -28,6 +28,7 @@ import type {
   MyProjectRow,
   AssignmentCandidates,
   EvaluationScoreRow,
+  ProjectNotificationRow,
 } from "./lifecycle";
 import type { DiscussionReadiness } from "./domain";
 import { buildPrivateObjectKey } from "./lifecycle";
@@ -351,6 +352,13 @@ export const registerGraduationProjectFile = createServerFn({ method: "POST" })
           .positive()
           .max(50 * 1024 * 1024),
         sha256: z.string().regex(/^[0-9a-f]{64}$/i),
+        fileKind: z
+          .enum([
+            "attachment", "proposal", "milestone_submission", "supervisor_feedback",
+            "final_manuscript", "presentation", "source_archive", "defense_minutes",
+            "correction_version", "archived_final",
+          ])
+          .optional(),
       })
       .strict()
       .parse(input),
@@ -372,7 +380,20 @@ export const registerGraduationProjectFile = createServerFn({ method: "POST" })
         mediaType: data.mediaType,
         byteSize: data.byteSize,
         sha256: data.sha256.toLowerCase(),
+        fileKind: data.fileKind ?? "attachment",
       });
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const listMyGraduationProjectNotifications = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(emptyInput)
+  .handler(async ({ context }): Promise<ProjectNotificationRow[]> => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).listMyNotifications();
     } catch (error) {
       mapThrown(error);
     }

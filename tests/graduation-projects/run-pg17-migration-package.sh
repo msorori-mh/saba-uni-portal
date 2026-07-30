@@ -59,4 +59,16 @@ verify "$GP/postgres-lifecycle-verifier.sql"
 step "hardening verifier"
 verify "$GP/postgres-hardening-verifier.sql"
 
+step "M5 20260730100004 files & notifications"
+sql "$GP/pg17/preflight-05-files-notifications.sql"
+sql "$MIG/20260730100004_ff96c58a-8c93-4abe-9d0f-f0f44fe25a11.sql"
+
+step "post-M5 regression: foundation + lifecycle + hardening verifiers re-run"
+verify "$GP/postgres-foundation-verifier.sql"
+verify "$GP/postgres-lifecycle-verifier.sql"
+verify "$GP/postgres-hardening-verifier.sql"
+
+step "files & notifications verifier"
+verify "$GP/postgres-files-notifications-verifier.sql"
+
 echo "MIGRATION PACKAGE PG17 VERIFICATION PASS"
