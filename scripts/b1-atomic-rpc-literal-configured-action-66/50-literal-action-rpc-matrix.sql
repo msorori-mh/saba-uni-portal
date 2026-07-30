@@ -9,13 +9,17 @@
 --   A. configured action_type: review | approve | clear | apply_decision | archive
 --   B. submitted action      : the literal configured one, plus every other one
 --   C. principal             : exact direct assignee | wrong assignee | admin |
---                              registrar | dean | department_head | student owner | anon
--- Expected after the 66 migration:
+--                              system_admin | registrar | dean | department_head |
+--                              student owner | anon
+-- Expected after the 66/68 migration (AUTHORIZATION BEFORE ACTION ORACLE):
 --   PASS  <=> principal = exact direct assignee AND submitted action = configured action
 --   FAIL  otherwise, with:
---     B1_ACTION_TYPE_MISMATCH (42501)                    — wrong action, any principal
---     B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)  — right action, wrong principal
---     AUTHENTICATION_REQUIRED (28000)                    — anon
+--     AUTHENTICATION_REQUIRED (28000)                    — anon, evaluated first
+--     B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)  — ANY non-assignee principal,
+--                                                          regardless of submitted action
+--                                                          (no action oracle leak)
+--     B1_ACTION_TYPE_MISMATCH (42501)                    — exact assignee only, wrong action
+
 --   The pre-migration regression case (configured clear/apply_decision/archive +
 --   submitted 'approve' + exact assignee) MUST now raise B1_ACTION_TYPE_MISMATCH.
 
@@ -77,6 +81,7 @@ BEGIN
         SELECT 'exact_assignee' AS principal, r.assigned_user_id AS uid
         UNION ALL SELECT 'wrong_assignee', u.user_id FROM public.iso_test_principals u WHERE u.label='wrong_assignee'
         UNION ALL SELECT 'admin',           u.user_id FROM public.iso_test_principals u WHERE u.label='admin'
+        UNION ALL SELECT 'system_admin',    u.user_id FROM public.iso_test_principals u WHERE u.label='system_admin'
         UNION ALL SELECT 'registrar',       u.user_id FROM public.iso_test_principals u WHERE u.label='registrar'
         UNION ALL SELECT 'dean',            u.user_id FROM public.iso_test_principals u WHERE u.label='dean'
         UNION ALL SELECT 'department_head', u.user_id FROM public.iso_test_principals u WHERE u.label='department_head'
@@ -84,12 +89,16 @@ BEGIN
         UNION ALL SELECT 'anon', NULL::uuid
       LOOP
         v_case := v_case + 1;
+        -- ORDER MATTERS: authentication -> authorization -> literal action.
+        -- A non-assignee NEVER receives B1_ACTION_TYPE_MISMATCH, so the denial
+        -- message cannot be used as an oracle for the configured action.
         v_expected := CASE
           WHEN p.principal = 'anon' THEN 'AUTHENTICATION_REQUIRED'
+          WHEN p.principal <> 'exact_assignee' THEN 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'
           WHEN a IS DISTINCT FROM r.configured THEN 'B1_ACTION_TYPE_MISMATCH'
-          WHEN p.principal = 'exact_assignee' THEN 'PASS'
-          ELSE 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'
+          ELSE 'PASS'
         END;
+
         PERFORM pg_temp.run_case(
           format('C%04s', v_case), r.step_id, r.configured, a, p.principal,
           CASE WHEN p.uid IS NULL THEN NULL
@@ -115,4 +124,25 @@ SELECT 'SUMMARY' AS id, count(*) AS total, count(*) FILTER (WHERE ok) AS passed,
 
 SELECT * FROM t_result WHERE NOT ok ORDER BY case_id;
 
+-- NO ACTION ORACLE: no unauthenticated/unauthorized principal may ever observe
+-- B1_ACTION_TYPE_MISMATCH; that message is reserved for the exact assignee.
+SELECT 'NO_ACTION_ORACLE' AS id,
+       count(*) FILTER (WHERE principal <> 'exact_assignee'
+                          AND observed LIKE '%B1_ACTION_TYPE_MISMATCH%') AS leaked_cases
+FROM t_result;
+
+-- Fail closed: raise if any case failed or any oracle leak was observed.
+DO $assert$
+DECLARE v_failed int; v_leaked int;
+BEGIN
+  SELECT count(*) FILTER (WHERE NOT ok),
+         count(*) FILTER (WHERE principal <> 'exact_assignee'
+                            AND observed LIKE '%B1_ACTION_TYPE_MISMATCH%')
+    INTO v_failed, v_leaked FROM t_result;
+  IF v_failed > 0 THEN RAISE EXCEPTION 'B1_66_MATRIX_FAILED_CASES:%', v_failed; END IF;
+  IF v_leaked > 0 THEN RAISE EXCEPTION 'B1_66_ACTION_ORACLE_LEAK:%', v_leaked; END IF;
+END
+$assert$;
+
 ROLLBACK;
+

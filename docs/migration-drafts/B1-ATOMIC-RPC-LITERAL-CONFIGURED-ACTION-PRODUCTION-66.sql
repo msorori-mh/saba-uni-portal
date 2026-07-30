@@ -110,17 +110,24 @@ BEGIN
   -- (b1_map_ui_staff_action(action_type) = p_action) allowed a generic 'approve'
   -- to stand in for clear / apply_decision / archive and is removed. No alias,
   -- no fallback, no exception.
+  --
+  -- AUTHORIZATION BEFORE ACTION ORACLE (68): the literal-action comparison is
+  -- evaluated ONLY after the caller has fully passed authorization for this
+  -- runtime step. Authorization is probed with the CONFIGURED action_type — never
+  -- with the caller-supplied p_action — so an unauthorized principal can neither
+  -- learn the configured action from the error text nor reach the mismatch branch.
   v_action := p_action;
-  IF v_config.action_type IS NULL OR p_action IS DISTINCT FROM v_config.action_type THEN
-    RAISE EXCEPTION 'B1_ACTION_TYPE_MISMATCH' USING ERRCODE='42501';
-  END IF;
-  IF NOT public.can_current_user_act_on_step(p_step_id,v_action) THEN
+  IF NOT public.can_current_user_act_on_step(p_step_id, COALESCE(v_config.action_type,'')) THEN
     RAISE EXCEPTION 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED' USING ERRCODE='42501'; END IF;
-  IF v_config.action_type IS DISTINCT FROM v_action THEN RAISE EXCEPTION 'B1_ACTION_TYPE_MISMATCH' USING ERRCODE='42501'; END IF;
   IF EXISTS (SELECT 1 FROM public.student_request_workflow_steps prior
     WHERE prior.student_request_id=v_step.student_request_id AND prior.step_order<v_step.step_order
       AND prior.status NOT IN ('completed','skipped')) THEN RAISE EXCEPTION 'B1_PREDECESSOR_INCOMPLETE'; END IF;
+  -- authorized assignee only from here on: literal configured-action enforcement
+  IF v_config.action_type IS NULL OR p_action IS DISTINCT FROM v_config.action_type THEN
+    RAISE EXCEPTION 'B1_ACTION_TYPE_MISMATCH' USING ERRCODE='42501';
+  END IF;
   IF v_action IN ('confirm_payment','issue_document','sign') THEN RAISE EXCEPTION 'B1_SPECIALIZED_ACTION_RPC_REQUIRED'; END IF;
+
   IF COALESCE(p_payload,'{}'::jsonb)<>'{}'::jsonb THEN RAISE EXCEPTION 'B1_CLIENT_ACTION_PAYLOAD_FORBIDDEN'; END IF;
   v_result:=CASE v_action WHEN 'review' THEN 'reviewed' WHEN 'approve' THEN 'approved'
     WHEN 'clear' THEN 'cleared' WHEN 'apply_decision' THEN 'applied' WHEN 'archive' THEN 'archived'
