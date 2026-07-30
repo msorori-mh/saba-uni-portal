@@ -86,6 +86,11 @@ BEGIN
         'TEST_ONLY isolated authorization fixture', 'submitted', now(), v_request_number,
         jsonb_build_object('test_only', true, 'fixture_target_step_order', v_target));
 
+      IF v_service.canonical_code = 'file_withdrawal' THEN
+        INSERT INTO public.file_withdrawal_details(request_id, withdrawal_reason, impact_ack)
+        VALUES (v_request_id, 'TEST_ONLY isolated authorization fixture', true);
+      END IF;
+
       IF v_service.canonical_code = 'department_transfer' THEN
         INSERT INTO public.transfer_request_details(request_id, current_department_id, requested_department_id)
         VALUES (v_request_id,
