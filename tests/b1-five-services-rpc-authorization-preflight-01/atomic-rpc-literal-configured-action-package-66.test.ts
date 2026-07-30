@@ -356,12 +356,14 @@ describe("68 — complete principal coverage in the matrix", () => {
   });
 
   it("expects the authorization denial first for every non-assignee, mismatch only for the assignee", () => {
-    expect(MATRIX).toContain("WHEN p.principal = 'anon' THEN 'AUTHENTICATION_REQUIRED'");
+    // The oracle compares IDENTITIES, not labels: registrar / dean / department_head
+    // are the exact direct assignee of their own step in the isolated fixtures.
+    expect(MATRIX).toContain("WHEN p.uid IS NULL THEN 'AUTHENTICATION_REQUIRED'");
     expect(MATRIX).toContain(
-      "WHEN p.principal <> 'exact_assignee' THEN 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'",
+      "WHEN p.uid IS DISTINCT FROM r.assigned_user_id THEN 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'",
     );
     expect(MATRIX).toContain("WHEN a IS DISTINCT FROM r.configured THEN 'B1_ACTION_TYPE_MISMATCH'");
-    const nonAssignee = MATRIX.indexOf("WHEN p.principal <> 'exact_assignee'");
+    const nonAssignee = MATRIX.indexOf("WHEN p.uid IS DISTINCT FROM r.assigned_user_id");
     const mismatch = MATRIX.indexOf("WHEN a IS DISTINCT FROM r.configured");
     expect(nonAssignee).toBeLessThan(mismatch);
   });
