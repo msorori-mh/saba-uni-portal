@@ -81,6 +81,7 @@ BEGIN
         SELECT 'exact_assignee' AS principal, r.assigned_user_id AS uid
         UNION ALL SELECT 'wrong_assignee', u.user_id FROM public.iso_test_principals u WHERE u.label='wrong_assignee'
         UNION ALL SELECT 'admin',           u.user_id FROM public.iso_test_principals u WHERE u.label='admin'
+        UNION ALL SELECT 'system_admin',    u.user_id FROM public.iso_test_principals u WHERE u.label='system_admin'
         UNION ALL SELECT 'registrar',       u.user_id FROM public.iso_test_principals u WHERE u.label='registrar'
         UNION ALL SELECT 'dean',            u.user_id FROM public.iso_test_principals u WHERE u.label='dean'
         UNION ALL SELECT 'department_head', u.user_id FROM public.iso_test_principals u WHERE u.label='department_head'
@@ -88,12 +89,16 @@ BEGIN
         UNION ALL SELECT 'anon', NULL::uuid
       LOOP
         v_case := v_case + 1;
+        -- ORDER MATTERS: authentication -> authorization -> literal action.
+        -- A non-assignee NEVER receives B1_ACTION_TYPE_MISMATCH, so the denial
+        -- message cannot be used as an oracle for the configured action.
         v_expected := CASE
           WHEN p.principal = 'anon' THEN 'AUTHENTICATION_REQUIRED'
+          WHEN p.principal <> 'exact_assignee' THEN 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'
           WHEN a IS DISTINCT FROM r.configured THEN 'B1_ACTION_TYPE_MISMATCH'
-          WHEN p.principal = 'exact_assignee' THEN 'PASS'
-          ELSE 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'
+          ELSE 'PASS'
         END;
+
         PERFORM pg_temp.run_case(
           format('C%04s', v_case), r.step_id, r.configured, a, p.principal,
           CASE WHEN p.uid IS NULL THEN NULL
