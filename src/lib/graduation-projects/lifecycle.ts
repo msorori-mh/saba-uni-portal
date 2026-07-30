@@ -41,6 +41,7 @@ export const PROJECT_STATE_LABELS: Record<ProjectState, string> = {
 export const ROLE_LABELS: Record<ProjectRole, string> = {
   student: "طالب",
   supervisor: "مشرف",
+  co_supervisor: "مشرف مشارك",
   coordinator: "منسق",
   department_head: "رئيس القسم",
   dean: "عميد",
@@ -181,6 +182,8 @@ export function availableProjectActions(
     switch (role) {
       case "student": push(studentActions(state)); break;
       case "supervisor": push(supervisorActions(state)); break;
+      // co_supervisor is read-only by contract: no write RPC whitelists the role.
+      case "co_supervisor": break;
       case "coordinator": push(managerActions(state, false)); break;
       case "department_head": push(managerActions(state, true)); break;
       case "dean": push(deanActions(state)); break;
@@ -221,7 +224,7 @@ export interface EvaluationViewer {
   ownPanelMemberIds: readonly string[];
 }
 
-const STAFF_ROLES = new Set(["supervisor", "coordinator", "department_head", "dean"]);
+const STAFF_ROLES = new Set(["supervisor", "co_supervisor", "coordinator", "department_head", "dean"]);
 
 /**
  * Students never see an evaluation before it is finalized; panel members see
@@ -442,6 +445,7 @@ export interface ProjectFileRow {
   media_type: string;
   byte_size: number;
   scan_state: string;
+  scan_decided_at?: string | null;
   object_key: string | null;
   uploaded_by_assignment_id: string;
   created_at: string;

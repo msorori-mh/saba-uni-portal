@@ -53,6 +53,12 @@ export const ERROR_LABELS: Record<string, string> = {
   "faculty assignment role denied": "لا يمكن تعيين هذا الدور عبر هذه الخدمة",
   "faculty assignment state denied": "حالة المشروع لا تسمح بالتعيين",
   "faculty assignment already exists": "لدى هذا المستخدم تعيين نشط بنفس الدور على هذا المشروع",
+  "project supervisor slot already filled": "يوجد مشرف نشط لهذا الدور على المشروع مسبقاً",
+  "discussion request already pending": "يوجد طلب مناقشة معلَّق لهذا المشروع مسبقاً",
+  "panel chair already assigned": "رئيس اللجنة معيَّن لهذه المناقشة مسبقاً",
+  "scan state invalid": "حالة الفحص غير صالحة",
+  "file not found": "الملف غير موجود",
+  "file scan state already decided": "حالة فحص الملف محسومة مسبقاً",
   "panel member already assigned": "عضو اللجنة معيَّن لهذه المناقشة مسبقاً",
   "file object key already registered": "مفتاح الملف مسجَّل مسبقاً",
   "assignment end state denied": "لا يمكن إنهاء التعيينات في حالة نهائية",
@@ -126,7 +132,8 @@ export function newCorrelationId(): string {
 
 export type ProposalReviewAction = "start_review" | "approve" | "reject" | "require_revision";
 export type SubmissionReviewAction = "accept" | "require_revision";
-export type AssignableFacultyRole = "supervisor" | "coordinator" | "panel_member";
+export type AssignableFacultyRole = "supervisor" | "co_supervisor" | "coordinator" | "panel_member";
+export type MilestoneKind = "progress" | "final";
 export type DiscussionOutcome = "held" | "postponed" | "cancelled";
 export type ResultOutcome = "completed" | "corrections_required";
 
@@ -426,6 +433,84 @@ export class GraduationProjectsRpcClient {
     return this.call<string>("accept_graduation_project_correction", {
       p_project_id: input.projectId,
       p_correction_id: input.correctionId,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async submitProposal(input: {
+    projectId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("submit_graduation_project_proposal", {
+      p_project_id: input.projectId,
+      p_expected_version: input.expectedVersion,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async addTeamMember(input: {
+    projectId: string;
+    studentProfileId: string;
+    studentUserId: string;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("add_graduation_project_team_member", {
+      p_project_id: input.projectId,
+      p_student_profile_id: input.studentProfileId,
+      p_student_user_id: input.studentUserId,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async setMilestone(input: {
+    projectId: string;
+    title: string;
+    kind: MilestoneKind;
+    sequence: number;
+    weight: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("set_graduation_project_milestone", {
+      p_project_id: input.projectId,
+      p_title: input.title,
+      p_kind: input.kind,
+      p_sequence: input.sequence,
+      p_weight: input.weight,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async requestDiscussion(input: {
+    projectId: string;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("request_graduation_project_discussion", {
+      p_project_id: input.projectId,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async finalizeEvaluation(input: {
+    evaluationId: string;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("finalize_graduation_project_evaluation", {
+      p_evaluation_id: input.evaluationId,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async archiveProject(input: {
+    projectId: string;
+    finalFileId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("archive_graduation_project", {
+      p_project_id: input.projectId,
+      p_final_file_id: input.finalFileId,
+      p_expected_version: input.expectedVersion,
       p_correlation_id: input.correlationId ?? newCorrelationId(),
     });
   }

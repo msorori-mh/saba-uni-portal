@@ -33,3 +33,35 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 ---
 
 (Phases GP-02..GP-10 will be appended here as they complete.)
+
+---
+
+## GP-02 — DATABASE AND MIGRATION PACKAGE
+
+- Current phase: GP-02
+- Phase decision: **PASS_GRADUATION_PROJECTS_GP02_DATABASE_PACKAGE_READY_NOT_APPLIED**
+- Base SHA: `bbb177fd0f31703c1984be1b42ff7132f2df7828`
+- Phase commit SHA: (recorded below after commit)
+- Changed files:
+  - `supabase/migrations/20260730100000_b1b476e7-0c92-42cf-80e3-925d7941d780.sql` (new, foundation packaged)
+  - `supabase/migrations/20260730100001_96beebe1-d809-4302-a782-c2f6483e102a.sql` (new, lifecycle packaged)
+  - `supabase/migrations/20260730100002_c8f89b6d-6521-4597-97bc-aae0b837023f.sql` (new, co_supervisor enum)
+  - `supabase/migrations/20260730100003_1811ed11-afad-4cbc-8f8a-287ba5b13a19.sql` (new, completion hardening)
+  - `src/lib/graduation-projects/rpc.ts`, `domain.ts`, `lifecycle.ts` (co_supervisor + 6 wrappers + labels)
+  - `tests/graduation-projects/graduation-projects-hardening.test.ts` (new, 20 tests)
+  - `tests/graduation-projects/postgres-hardening-verifier.sql` (new)
+  - `tests/graduation-projects/pg17/preflight-0{1..4}-*.sql` (new)
+  - `tests/graduation-projects/run-pg17-migration-package.sh` (new)
+  - `tests/graduation-projects/POSTGRES-17-MIGRATION-PACKAGE-VERIFICATION-RESULT.md` (new, PASS)
+  - `docs/migration-drafts/GRADUATION-PROJECTS-MIGRATION-PACKAGE-01.md` (new manifest)
+  - `docs/GRADUATION-PROJECTS-GP02-DATABASE-MIGRATION-PACKAGE-REPORT.md` (new)
+- Tests: bun 62/62 pass (499 expects); tsc clean; PG17 package PASS; git diff --check clean.
+- Migrations created: 4 — Migrations applied: 0 (disposable local PG17 only) — Production operations: 0
+- Completed scope:
+  - Drafts packaged verbatim as forward-only migrations; co-supervisor contract; exactly-one
+    supervisor/co-supervisor, pending discussion request, panel chair; scan-state service RPC with
+    audit columns; rubric definition tables; notification dedupe log; 6 missing TS RPC wrappers;
+    per-migration preflight + verifier + stop conditions; sequential PG17 evidence.
+- Remaining scope: GP-03 … GP-10.
+- Active blockers: none.
+- Next automatic phase: **GP-03 — ROUTES, NAVIGATION, AND ROLE ENTRY POINTS**
