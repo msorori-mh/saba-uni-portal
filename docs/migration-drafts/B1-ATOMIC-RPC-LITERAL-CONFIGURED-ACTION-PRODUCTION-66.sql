@@ -107,7 +107,7 @@ BEGIN
   SELECT c.* INTO v_config FROM public.request_type_workflow_steps c WHERE c.id=v_step.workflow_step_id FOR SHARE;
   -- B1 LITERAL ACTION CONTRACT (66): the caller MUST send the configured
   -- action_type verbatim. The former UI-compatibility translation
-  -- (b1_map_ui_staff_action(action_type) = p_action) allowed a generic 'approve'
+  -- (the legacy UI-action mapper folded action_type onto p_action) allowed 'approve'
   -- to stand in for clear / apply_decision / archive and is removed. No alias,
   -- no fallback, no exception.
   --
