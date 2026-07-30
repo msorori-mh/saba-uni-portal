@@ -202,3 +202,31 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Remaining scope: GP-08 … GP-10.
 - Active blockers: none.
 - Next automatic phase: **GP-08 — ISOLATED OPERATIONAL E2E**
+
+---
+
+## GP-08 — ISOLATED OPERATIONAL E2E
+
+- Current phase: GP-08
+- Phase decision: **PASS_GRADUATION_PROJECTS_GP08_ISOLATED_OPERATIONAL_E2E**
+- Base SHA: `3069e401292cc916caedcfc427570169661a1496`
+- Phase commit SHA: (recorded below after commit)
+- Changed files:
+  - `supabase/migrations/20260730100007_4f682b52-7e51-486d-ad02-4d886d2331ec.sql` (new, M8 — panel completeness at held)
+  - `tests/graduation-projects/pg17/preflight-08-panel-completeness.sql` (new)
+  - `tests/graduation-projects/postgres-e2e-journeys-verifier.sql` (new, 53 steps)
+  - `tests/graduation-projects/graduation-projects-e2e-portal-journeys.test.ts` (new, 6 tests)
+  - `tests/graduation-projects/E2E-TEST-ONLY-DATASET-CLEANUP.md` (new)
+  - `tests/graduation-projects/postgres-lifecycle-verifier.sql` (p3 chair=true fixture)
+  - `tests/graduation-projects/run-pg17-migration-package.sh` (M8 + E2E legs)
+  - `src/lib/graduation-projects/rpc.ts` (label)
+  - `docs/GRADUATION-PROJECTS-GP08-ISOLATED-E2E-REPORT.md` (new)
+  - `docs/migration-drafts/GRADUATION-PROJECTS-MIGRATION-PACKAGE-01.md`, `tests/graduation-projects/POSTGRES-17-MIGRATION-PACKAGE-VERIFICATION-RESULT.md` (updated)
+- Tests: PG17 package PASS — E2E 53 steps fail=0, matrix 68 rows fail_rows=0; GP suites 150/150 (1386 expects); tsc clean; diff-check clean.
+- Migrations created: 1 (total 8) — Migrations applied: 0 — Production operations: 0
+- Completed scope:
+  - All 22 mission journeys on a 100% TEST_ONLY isolated dataset; cleanup manifest;
+    M8 panel-completeness contract; direct-route/session/responsive guards asserted.
+- Remaining scope: GP-09, GP-10.
+- Active blockers: none.
+- Next automatic phase: **GP-09 — ADVERSARIAL FINAL AUDIT AND REMEDIATION**

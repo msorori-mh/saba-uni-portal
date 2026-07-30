@@ -317,7 +317,7 @@ select set_config('request.jwt.claim.sub',current_setting('gp.student_user_id'),
 insert into gp_ids select 'r3b',public.request_graduation_project_discussion((select v from gp_ids where k='p3'),gen_random_uuid());
 select set_config('request.jwt.claim.sub',current_setting('gp.faculty_user_id'),true);
 insert into gp_ids select 'd3',public.schedule_graduation_project_discussion((select v from gp_ids where k='p3'),(select v from gp_ids where k='r3b'),now()+interval '5 days','Hall B',gen_random_uuid());
-insert into gp_ids select 'panel3',public.assign_graduation_project_panel_member((select v from gp_ids where k='p3'),(select v from gp_ids where k='d3'),(select v from gp_ids where k='panelasg3'),false,gen_random_uuid());
+insert into gp_ids select 'panel3',public.assign_graduation_project_panel_member((select v from gp_ids where k='p3'),(select v from gp_ids where k='d3'),(select v from gp_ids where k='panelasg3'),true,gen_random_uuid());
 insert into gp_ids select 'out3',public.record_graduation_project_discussion_outcome((select v from gp_ids where k='p3'),(select v from gp_ids where k='d3'),'postponed',gen_random_uuid());
 insert into gp_ids select 'out3b',public.record_graduation_project_discussion_outcome((select v from gp_ids where k='p3'),(select v from gp_ids where k='d3'),'held',gen_random_uuid());
 insert into gp_ids select 'e3',public.save_graduation_project_evaluation((select v from gp_ids where k='p3'),(select v from gp_ids where k='d3'),'v1',

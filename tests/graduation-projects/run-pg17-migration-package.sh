@@ -98,4 +98,19 @@ verify "$GP/postgres-admin-settings-verifier.sql"
 step "GP-07 authorization closure matrix (final schema)"
 verify "$GP/postgres-authorization-matrix-verifier.sql"
 
+step "M8 20260730100007 panel completeness at held"
+sql "$GP/pg17/preflight-08-panel-completeness.sql"
+sql "$MIG/20260730100007_4f682b52-7e51-486d-ad02-4d886d2331ec.sql"
+
+step "post-M8 regression: all verifiers re-run"
+verify "$GP/postgres-foundation-verifier.sql"
+verify "$GP/postgres-lifecycle-verifier.sql"
+verify "$GP/postgres-hardening-verifier.sql"
+verify "$GP/postgres-files-notifications-verifier.sql"
+verify "$GP/postgres-admin-settings-verifier.sql"
+verify "$GP/postgres-authorization-matrix-verifier.sql"
+
+step "GP-08 isolated operational E2E journeys"
+verify "$GP/postgres-e2e-journeys-verifier.sql"
+
 echo "MIGRATION PACKAGE PG17 VERIFICATION PASS"

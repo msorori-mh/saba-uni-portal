@@ -96,6 +96,7 @@ export const ERROR_LABELS: Record<string, string> = {
   "discussion not found": "المناقشة غير موجودة",
   "panel assignment precondition failed": "تعيين اللجنة يتطلب مناقشة مجدولة وعضو لجنة نشطاً",
   "discussion outcome unknown": "نتيجة المناقشة غير معروفة",
+  "panel incomplete for defense": "لا يمكن انعقاد المناقشة بلجنة غير مكتملة (عضو ورئيس مطلوبان)",
   "discussion outcome precondition failed": "لا يمكن تسجيل نتيجة المناقشة في الحالة الحالية",
   "evaluation write precondition failed": "التقييم يتطلب مناقشة منعقدة وعضوية في اللجنة",
   "evaluation scores invalid": "درجات التقييم غير صالحة",
