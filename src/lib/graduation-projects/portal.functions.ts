@@ -742,6 +742,11 @@ export const listGraduationProjectAssignmentCandidates = createServerFn({ method
     try {
       await ensureAvailable(context.supabase);
       const detail = await clientOf(context.supabase).getProjectDetail(data.projectId);
+      // Picker data exposes department member names — management roles only.
+      const MANAGER_ROLES = new Set(["coordinator", "department_head", "dean"]);
+      if (!detail.viewer_roles.some((role) => MANAGER_ROLES.has(role))) {
+        throw new GraduationProjectsRpcError("لا تملك تعييناً مباشراً نشطاً يسمح بهذا الإجراء");
+      }
       const departmentId = detail.project.department_id;
       const [{ data: students, error: studentsError }, { data: faculty, error: facultyError }] =
         await Promise.all([

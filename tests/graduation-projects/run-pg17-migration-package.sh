@@ -113,4 +113,7 @@ verify "$GP/postgres-authorization-matrix-verifier.sql"
 step "GP-08 isolated operational E2E journeys"
 verify "$GP/postgres-e2e-journeys-verifier.sql"
 
+step "GP-09 adversarial security audit (catalog invariants)"
+verify "$GP/postgres-security-audit-verifier.sql"
+
 echo "MIGRATION PACKAGE PG17 VERIFICATION PASS"

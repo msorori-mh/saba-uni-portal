@@ -230,3 +230,27 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Remaining scope: GP-09, GP-10.
 - Active blockers: none.
 - Next automatic phase: **GP-09 — ADVERSARIAL FINAL AUDIT AND REMEDIATION**
+
+---
+
+## GP-09 — ADVERSARIAL FINAL AUDIT AND REMEDIATION
+
+- Current phase: GP-09
+- Phase decision: **PASS_GRADUATION_PROJECTS_GP09_FINAL_AUDIT_CLOSED**
+- Base SHA: `2d1aaff5a78a34e78fc72adb70d192978786cff7`
+- Phase commit SHA: (recorded below after commit)
+- Changed files:
+  - `src/lib/graduation-projects/portal.functions.ts` (GP-09-MED-1: candidates manager-gated)
+  - `tests/graduation-projects/postgres-security-audit-verifier.sql` (new, 12 catalog invariants)
+  - `tests/graduation-projects/graduation-projects-security-audit.test.ts` (new, 6 tests)
+  - `tests/graduation-projects/run-pg17-migration-package.sh` (audit leg)
+  - `docs/GRADUATION-PROJECTS-GP09-FINAL-SECURITY-AUDIT-REPORT.md` (new)
+- Tests: PG17 package PASS incl. audit leg (matrix 68/68, E2E 53/53, audit 12/12); GP suites 155/155 (1647 expects); full suite 1 pre-existing environmental fail (G4); tsc clean; build success; diff-check clean.
+- Migrations created: 0 (total 8) — Migrations applied: 0 — Production operations: 0
+- Completed scope:
+  - Findings: Critical=0 High=0 Medium=0 (GP-09-MED-1 fixed here; GP-07-HIGH-1 in M7;
+    GP-08-CONTRACT-1 in M8). 3 documented non-security lows with recommendations.
+  - Full adversarial checklist mapped to executable evidence.
+- Remaining scope: GP-10.
+- Active blockers: none.
+- Next automatic phase: **GP-10 — RELEASE CANDIDATE PACKAGE**
