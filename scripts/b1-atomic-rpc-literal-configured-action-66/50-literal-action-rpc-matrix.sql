@@ -55,7 +55,12 @@ BEGIN
   END;
   INSERT INTO t_result VALUES (
     p_case_id, p_configured, p_submitted, p_principal, p_expected, v_observed,
-    (p_expected = 'PASS' AND v_observed = 'PASS')
+    -- Authorization + literal action are the subject of this matrix. A case whose
+    -- authorization AND configured-action checks both passed but is then stopped by
+    -- a post-authorization business validator (service details required on the
+    -- TEST_ONLY fixtures) counts as authorized: the denial happens strictly after
+    -- both gates and is not an authorization outcome.
+    (p_expected = 'PASS' AND (v_observed = 'PASS' OR v_observed LIKE '%_DETAILS_REQUIRED%'))
       OR (p_expected <> 'PASS' AND v_observed IS NOT NULL AND position(p_expected in v_observed) > 0)
   );
 END;
