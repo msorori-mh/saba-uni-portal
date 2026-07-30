@@ -14,35 +14,42 @@ import {
   type CorrectionRow,
   type LifecycleAction,
   type ProjectDetailProject,
+  type ProjectFileRow,
 } from "../../lib/graduation-projects/lifecycle";
 
 export interface ResultCorrectionsArchivePanelProps {
   project: ProjectDetailProject;
   actions: LifecycleAction[];
   corrections: CorrectionRow[];
+  files: ProjectFileRow[];
   archive: ArchiveRow | null;
   busy?: boolean;
   onConclude(outcome: ResultOutcome, corrections: CorrectionInput[]): void;
   onCompleteCorrection(correctionId: string): void;
   onAcceptCorrection(correctionId: string): void;
+  onArchive(finalFileId: string): void;
 }
 
 export function ResultCorrectionsArchivePanel({
   project,
   actions,
   corrections,
+  files,
   archive,
   busy = false,
   onConclude,
   onCompleteCorrection,
   onAcceptCorrection,
+  onArchive,
 }: ResultCorrectionsArchivePanelProps) {
   const [correctionText, setCorrectionText] = useState("");
   const [correctionDue, setCorrectionDue] = useState("");
+  const [finalFileId, setFinalFileId] = useState("");
   const canConclude = actions.includes("conclude_result");
   const canComplete = actions.includes("complete_correction");
   const canAccept = actions.includes("accept_correction");
   const canArchive = actions.includes("archive");
+  const cleanFinalFiles = files.filter((file) => file.scan_state === "clean");
   return (
     <div dir="rtl" className="space-y-4">
       {canConclude ? (
@@ -151,11 +158,38 @@ export function ResultCorrectionsArchivePanel({
               <p>الملف النهائي: {archive.final_file_name}</p>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {canArchive
-                ? "الأرشفة متاحة عند اكتمال المشروع مع ملف نهائي سليم الفحص وتصحيحات مقبولة."
-                : "لم تتم الأرشفة بعد."}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {canArchive
+                  ? "الأرشفة متاحة عند اكتمال المشروع مع ملف نهائي سليم الفحص وتصحيحات مقبولة."
+                  : "لم تتم الأرشفة بعد."}
+              </p>
+              {canArchive ? (
+                <div className="space-y-2">
+                  <select
+                    value={finalFileId}
+                    onChange={(event) => setFinalFileId(event.target.value)}
+                    aria-label="الملف النهائي للأرشفة"
+                    className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                  >
+                    <option value="">اختر الملف النهائي سليم الفحص…</option>
+                    {cleanFinalFiles.map((file) => (
+                      <option key={file.id} value={file.id}>
+                        {file.original_name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    type="button"
+                    disabled={busy || finalFileId === ""}
+                    data-testid="gp-archive-project"
+                    onClick={() => onArchive(finalFileId)}
+                  >
+                    أرشفة المشروع
+                  </Button>
+                </div>
+              ) : null}
+            </div>
           )}
         </CardContent>
       </Card>

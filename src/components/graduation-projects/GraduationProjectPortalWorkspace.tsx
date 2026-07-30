@@ -17,10 +17,16 @@ import {
 import {
   acceptGraduationProjectCorrection,
   addGraduationProjectSupervisorNote,
+  addGraduationProjectTeamMember,
+  archiveGraduationProject,
+  assignGraduationProjectFaculty,
   assignGraduationProjectPanelMember,
   completeGraduationProjectCorrection,
   concludeGraduationProjectResult,
+  endGraduationProjectAssignment,
+  finalizeGraduationProjectEvaluation,
   getGraduationProjectDetailView,
+  listGraduationProjectAssignmentCandidates,
   recordGraduationProjectDiscussionOutcome,
   registerGraduationProjectFile,
   rejectGraduationProjectDiscussionRequest,
@@ -31,13 +37,16 @@ import {
   reviewGraduationProjectSubmission,
   saveGraduationProjectEvaluation,
   scheduleGraduationProjectDiscussion,
+  setGraduationProjectMilestone,
   submitGraduationProjectDeliverable,
   submitGraduationProjectProposal,
 } from "@/lib/graduation-projects/portal.functions";
 import type { RegisterFileFormInput } from "./MilestonesPanel";
 import type {
+  AssignableFacultyRole,
   CorrectionInput,
   DiscussionOutcome,
+  MilestoneKind,
   ProposalReviewAction,
   ResultOutcome,
   SubmissionReviewAction,
@@ -73,6 +82,13 @@ export function GraduationProjectPortalWorkspace({
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
   const detailFn = useServerFn(getGraduationProjectDetailView);
+  const candidatesFn = useServerFn(listGraduationProjectAssignmentCandidates);
+  const addTeamMemberFn = useServerFn(addGraduationProjectTeamMember);
+  const assignFacultyFn = useServerFn(assignGraduationProjectFaculty);
+  const endAssignmentFn = useServerFn(endGraduationProjectAssignment);
+  const setMilestoneFn = useServerFn(setGraduationProjectMilestone);
+  const finalizeEvaluationFn = useServerFn(finalizeGraduationProjectEvaluation);
+  const archiveProjectFn = useServerFn(archiveGraduationProject);
   const submitProposalFn = useServerFn(submitGraduationProjectProposal);
   const resubmitProposalFn = useServerFn(resubmitGraduationProjectProposal);
   const reviewProposalFn = useServerFn(reviewGraduationProjectProposal);
@@ -94,6 +110,13 @@ export function GraduationProjectPortalWorkspace({
   const detailQuery = useQuery({
     queryKey: [queryKeyPrefix, "detail", projectId],
     queryFn: () => detailFn({ data: { projectId } }),
+    retry: 1,
+  });
+
+  const candidatesQuery = useQuery({
+    queryKey: [queryKeyPrefix, "candidates", projectId],
+    queryFn: () => candidatesFn({ data: { projectId } }),
+    enabled: detailQuery.isSuccess,
     retry: 1,
   });
 
@@ -147,8 +170,25 @@ export function GraduationProjectPortalWorkspace({
         detail={detail}
         readiness={readiness}
         viewerUserId={viewerUserId}
+        candidates={candidatesQuery.data ?? null}
         busy={busy}
         handlers={{
+          onAddTeamMember: (studentProfileId: string) =>
+            action.mutate(() => addTeamMemberFn({ data: { projectId, studentProfileId } })),
+          onAssignFaculty: (role: AssignableFacultyRole, facultyProfileId: string) =>
+            action.mutate(() => assignFacultyFn({ data: { projectId, role, facultyProfileId } })),
+          onEndAssignment: (assignmentId: string) =>
+            action.mutate(() => endAssignmentFn({ data: { projectId, assignmentId } })),
+          onSetMilestone: (title: string, kind: MilestoneKind, sequence: number, weight: number) =>
+            action.mutate(() =>
+              setMilestoneFn({ data: { projectId, title, kind, sequence, weight } }),
+            ),
+          onFinalizeEvaluation: (evaluationId: string) =>
+            action.mutate(() => finalizeEvaluationFn({ data: { evaluationId } })),
+          onArchive: (finalFileId: string) =>
+            action.mutate(() =>
+              archiveProjectFn({ data: { projectId, finalFileId, expectedVersion: version } }),
+            ),
           onSubmitProposal: () =>
             action.mutate(() =>
               submitProposalFn({ data: { projectId, expectedVersion: version } }),

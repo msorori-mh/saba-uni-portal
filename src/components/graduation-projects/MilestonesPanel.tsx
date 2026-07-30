@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { SubmissionReviewAction } from "../../lib/graduation-projects/rpc";
+import type { MilestoneKind, SubmissionReviewAction } from "../../lib/graduation-projects/rpc";
 import type {
   LifecycleAction,
   MilestoneRow,
@@ -30,6 +30,7 @@ export interface MilestonesPanelProps {
   notes: SupervisorNoteRow[];
   files: ProjectFileRow[];
   busy?: boolean;
+  onSetMilestone(title: string, kind: MilestoneKind, sequence: number, weight: number): void;
   onSubmitDeliverable(milestoneId: string, summary: string): void;
   onReviewSubmission(
     submissionId: string,
@@ -56,6 +57,7 @@ export function MilestonesPanel({
   notes,
   files,
   busy = false,
+  onSetMilestone,
   onSubmitDeliverable,
   onReviewSubmission,
   onAddNote,
@@ -65,12 +67,17 @@ export function MilestonesPanel({
   const [summary, setSummary] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [noteText, setNoteText] = useState("");
+  const [msTitle, setMsTitle] = useState("");
+  const [msKind, setMsKind] = useState<MilestoneKind>("progress");
+  const [msSequence, setMsSequence] = useState("");
+  const [msWeight, setMsWeight] = useState("");
   const [fileName, setFileName] = useState("");
   const [mediaType, setMediaType] = useState("application/pdf");
   const [byteSize, setByteSize] = useState("");
   const [sha256, setSha256] = useState("");
   const [targetSubmission, setTargetSubmission] = useState<string>("");
   const canDeliver = actions.includes("submit_deliverable");
+  const canSetMilestone = actions.includes("set_milestone");
   const canReview = actions.includes("review_submission");
   const canNote = actions.includes("add_note");
   const canResolve = actions.includes("resolve_note");
@@ -83,6 +90,18 @@ export function MilestonesPanel({
   const shaValid = /^[0-9a-f]{64}$/.test(sha256);
   const fileValid =
     fileName.trim() !== "" && mediaType.trim() !== "" && Number(byteSize) > 0 && shaValid;
+  const usedSequences = new Set(milestones.map((milestone) => milestone.sequence_no));
+  const totalWeight = milestones.reduce((sum, milestone) => sum + Number(milestone.weight), 0);
+  const msSequenceNum = Number(msSequence);
+  const msWeightNum = Number(msWeight);
+  const milestoneValid =
+    msTitle.trim() !== "" &&
+    Number.isInteger(msSequenceNum) &&
+    msSequenceNum > 0 &&
+    !usedSequences.has(msSequenceNum) &&
+    msWeightNum > 0 &&
+    msWeightNum <= 100 &&
+    totalWeight + msWeightNum <= 100;
   return (
     <div dir="rtl" className="space-y-4">
       <Card>
@@ -107,6 +126,73 @@ export function MilestonesPanel({
             ))}
             {milestones.length === 0 ? <li>لا توجد مراحل بعد.</li> : null}
           </ul>
+          {canSetMilestone ? (
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <p className="text-sm font-medium">
+                إضافة مرحلة — مجموع الأوزان الحالي: {totalWeight} / 100
+              </p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  value={msTitle}
+                  onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                    setMsTitle(event.target.value)
+                  }
+                  placeholder="عنوان المرحلة"
+                  aria-label="عنوان المرحلة"
+                />
+                <select
+                  value={msKind}
+                  onChange={(event) => setMsKind(event.target.value as MilestoneKind)}
+                  aria-label="نوع المرحلة"
+                  className="min-h-11 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                >
+                  <option value="progress">مرحلة متابعة</option>
+                  <option value="final">مرحلة نهائية</option>
+                </select>
+                <Input
+                  value={msSequence}
+                  onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                    setMsSequence(event.target.value)
+                  }
+                  placeholder="الترتيب (رقم صحيح)"
+                  inputMode="numeric"
+                  aria-label="ترتيب المرحلة"
+                />
+                <Input
+                  value={msWeight}
+                  onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                    setMsWeight(event.target.value)
+                  }
+                  placeholder="الوزن (1-100)"
+                  inputMode="numeric"
+                  aria-label="وزن المرحلة"
+                />
+              </div>
+              {msSequence !== "" && usedSequences.has(msSequenceNum) ? (
+                <p className="text-sm text-destructive" role="alert">
+                  الترتيب مستخدم لمرحلة أخرى.
+                </p>
+              ) : null}
+              {msWeight !== "" && totalWeight + msWeightNum > 100 ? (
+                <p className="text-sm text-destructive" role="alert">
+                  مجموع الأوزان يتجاوز 100.
+                </p>
+              ) : null}
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy || !milestoneValid}
+                onClick={() => {
+                  onSetMilestone(msTitle.trim(), msKind, msSequenceNum, msWeightNum);
+                  setMsTitle("");
+                  setMsSequence("");
+                  setMsWeight("");
+                }}
+              >
+                تحديد المرحلة
+              </Button>
+            </div>
+          ) : null}
           {canDeliver && openMilestones.length > 0 ? (
             <div className="space-y-2">
               <Label htmlFor="gp-summary">ملخص التسليم</Label>

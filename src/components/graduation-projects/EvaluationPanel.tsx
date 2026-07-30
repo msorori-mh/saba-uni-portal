@@ -26,6 +26,7 @@ export interface EvaluationPanelProps {
     comments: string | null,
     submit: boolean,
   ): void;
+  onFinalize(evaluationId: string): void;
 }
 
 const EVALUATION_STATE_LABELS: Record<EvaluationRow["state"], string> = {
@@ -51,6 +52,7 @@ export function EvaluationPanel({
   ownEvaluation,
   busy = false,
   onSave,
+  onFinalize,
 }: EvaluationPanelProps) {
   const [scores, setScores] = useState<EvaluationScoreRow[]>([emptyScore(1)]);
   const [comments, setComments] = useState("");
@@ -87,6 +89,21 @@ export function EvaluationPanel({
             ))}
             {evaluations.length === 0 ? <li>لا توجد تقييمات ظاهرة.</li> : null}
           </ul>
+          {actions.includes("finalize_evaluation") && ownEvaluation?.state === "submitted" ? (
+            <div className="mt-3">
+              <Button
+                type="button"
+                disabled={busy}
+                data-testid="gp-finalize-evaluation"
+                onClick={() => onFinalize(ownEvaluation.id)}
+              >
+                اعتماد تقييمي نهائياً
+              </Button>
+              <p className="mt-1 text-xs text-muted-foreground">
+                بعد الاعتماد لا يمكن تعديل التقييم.
+              </p>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
       {canEdit && discussionId ? (

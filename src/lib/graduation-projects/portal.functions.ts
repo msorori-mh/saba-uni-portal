@@ -26,6 +26,7 @@ import type {
   GraduationProjectEvaluationsReport,
   GraduationProjectStatesReport,
   MyProjectRow,
+  AssignmentCandidates,
   EvaluationScoreRow,
 } from "./lifecycle";
 import type { DiscussionReadiness } from "./domain";
@@ -575,6 +576,171 @@ export const acceptGraduationProjectCorrection = createServerFn({ method: "POST"
     try {
       await ensureAvailable(context.supabase);
       return await clientOf(context.supabase).acceptCorrection(data);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const addGraduationProjectTeamMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ projectId: uuid, studentProfileId: uuid }).strict().parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      // Derive the user id server-side from the profile — never trust the client.
+      const { data: profile, error: profileError } = await context.supabase
+        .from("student_profiles")
+        .select("id, user_id")
+        .eq("id", data.studentProfileId)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile?.user_id) throw new GraduationProjectsRpcError("الطالب غير موجود");
+      return await clientOf(context.supabase).addTeamMember({
+        projectId: data.projectId,
+        studentProfileId: data.studentProfileId,
+        studentUserId: profile.user_id,
+      });
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const assignGraduationProjectFaculty = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        projectId: uuid,
+        role: z.enum(["supervisor", "co_supervisor", "coordinator", "panel_member"]),
+        facultyProfileId: uuid,
+      })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      const { data: profile, error: profileError } = await context.supabase
+        .from("faculty_profiles")
+        .select("id, user_id")
+        .eq("id", data.facultyProfileId)
+        .maybeSingle();
+      if (profileError) throw profileError;
+      if (!profile?.user_id) throw new GraduationProjectsRpcError("عضو هيئة التدريس غير موجود");
+      return await clientOf(context.supabase).assignFaculty({
+        projectId: data.projectId,
+        role: data.role,
+        facultyProfileId: data.facultyProfileId,
+        userId: profile.user_id,
+      });
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const endGraduationProjectAssignment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ projectId: uuid, assignmentId: uuid }).strict().parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).endAssignment(data);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const setGraduationProjectMilestone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        projectId: uuid,
+        title: z.string().trim().min(1).max(300),
+        kind: z.enum(["progress", "final"]),
+        sequence: z.number().int().positive(),
+        weight: z.number().positive().max(100),
+      })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).setMilestone(data);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const finalizeGraduationProjectEvaluation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ evaluationId: uuid }).strict().parse(input))
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).finalizeEvaluation(data);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const archiveGraduationProject = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({ projectId: uuid, finalFileId: uuid, expectedVersion: z.number().int().nonnegative() })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).archiveProject(data);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+/**
+ * Department-scoped picker candidates for team/faculty assignment forms. The
+ * project detail RPC remains the authorization gate: only a viewer with an
+ * active assignment on the project receives candidates for its department.
+ */
+export const listGraduationProjectAssignmentCandidates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ projectId: uuid }).strict().parse(input))
+  .handler(async ({ data, context }): Promise<AssignmentCandidates> => {
+    try {
+      await ensureAvailable(context.supabase);
+      const detail = await clientOf(context.supabase).getProjectDetail(data.projectId);
+      const departmentId = detail.project.department_id;
+      const [{ data: students, error: studentsError }, { data: faculty, error: facultyError }] =
+        await Promise.all([
+          context.supabase
+            .from("student_profiles")
+            .select("id, user_id, full_name_ar")
+            .eq("department_id", departmentId),
+          context.supabase
+            .from("faculty_profiles")
+            .select("id, user_id, full_name_ar")
+            .eq("department_id", departmentId),
+        ]);
+      if (studentsError) throw studentsError;
+      if (facultyError) throw facultyError;
+      const mapRow = (row: { id: string; user_id: string | null; full_name_ar: string }) => ({
+        profile_id: row.id,
+        user_id: row.user_id ?? "",
+        full_name: row.full_name_ar,
+      });
+      return {
+        students: (students ?? []).filter((row) => row.user_id).map(mapRow),
+        faculty: (faculty ?? []).filter((row) => row.user_id).map(mapRow),
+      };
     } catch (error) {
       mapThrown(error);
     }

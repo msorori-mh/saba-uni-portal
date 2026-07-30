@@ -8,8 +8,10 @@ import {
   type DiscussionReadiness,
 } from "../../lib/graduation-projects/domain";
 import type {
+  AssignableFacultyRole,
   CorrectionInput,
   DiscussionOutcome,
+  MilestoneKind,
   ProposalReviewAction,
   ResultOutcome,
   SubmissionReviewAction,
@@ -18,12 +20,14 @@ import {
   EVENT_LABELS,
   availableProjectActions,
   resolveViewerEvaluation,
+  type AssignmentCandidates,
   type EvaluationScoreRow,
   type GraduationProjectDetail,
 } from "../../lib/graduation-projects/lifecycle";
 import { GraduationProjectStateBadge } from "./GraduationProjectStateBadge";
 import { ProposalWorkflowPanel } from "./ProposalWorkflowPanel";
 import { MilestonesPanel, type RegisterFileFormInput } from "./MilestonesPanel";
+import { AssignmentsPanel } from "./AssignmentsPanel";
 import { DiscussionPanel } from "./DiscussionPanel";
 import { EvaluationPanel } from "./EvaluationPanel";
 import { ResultCorrectionsArchivePanel } from "./ResultCorrectionsArchivePanel";
@@ -33,6 +37,10 @@ export interface GraduationProjectWorkspaceHandlers {
   onSubmitProposal(): void;
   onResubmitProposal(): void;
   onReviewProposal(action: ProposalReviewAction, reason: string | null): void;
+  onAddTeamMember(studentProfileId: string): void;
+  onAssignFaculty(role: AssignableFacultyRole, facultyProfileId: string): void;
+  onEndAssignment(assignmentId: string): void;
+  onSetMilestone(title: string, kind: MilestoneKind, sequence: number, weight: number): void;
   onSubmitDeliverable(milestoneId: string, summary: string): void;
   onReviewSubmission(
     submissionId: string,
@@ -53,9 +61,11 @@ export interface GraduationProjectWorkspaceHandlers {
     comments: string | null,
     submit: boolean,
   ): void;
+  onFinalizeEvaluation(evaluationId: string): void;
   onConcludeResult(outcome: ResultOutcome, corrections: CorrectionInput[]): void;
   onCompleteCorrection(correctionId: string): void;
   onAcceptCorrection(correctionId: string): void;
+  onArchive(finalFileId: string): void;
 }
 
 export interface GraduationProjectWorkspaceProps {
@@ -66,6 +76,7 @@ export interface GraduationProjectWorkspaceProps {
    * evaluation derivation is scoped to this viewer's assignments only.
    */
   viewerUserId: string;
+  candidates?: AssignmentCandidates | null;
   busy?: boolean;
   handlers: GraduationProjectWorkspaceHandlers;
 }
@@ -74,6 +85,7 @@ export function GraduationProjectWorkspace({
   detail,
   readiness,
   viewerUserId,
+  candidates = null,
   busy = false,
   handlers,
 }: GraduationProjectWorkspaceProps) {
@@ -120,6 +132,7 @@ export function GraduationProjectWorkspace({
       <Tabs defaultValue="milestones">
         <TabsList>
           <TabsTrigger value="milestones">المراحل</TabsTrigger>
+          <TabsTrigger value="team">الفريق والتعيينات</TabsTrigger>
           <TabsTrigger value="discussion">المناقشة</TabsTrigger>
           <TabsTrigger value="evaluation">التقييم</TabsTrigger>
           <TabsTrigger value="result">النتيجة والأرشيف</TabsTrigger>
@@ -133,11 +146,23 @@ export function GraduationProjectWorkspace({
             notes={detail.notes}
             files={detail.files}
             busy={busy}
+            onSetMilestone={handlers.onSetMilestone}
             onSubmitDeliverable={handlers.onSubmitDeliverable}
             onReviewSubmission={handlers.onReviewSubmission}
             onAddNote={handlers.onAddNote}
             onResolveNote={handlers.onResolveNote}
             onRegisterFile={handlers.onRegisterFile}
+          />
+        </TabsContent>
+        <TabsContent value="team">
+          <AssignmentsPanel
+            actions={actions}
+            assignments={detail.assignments}
+            candidates={candidates}
+            busy={busy}
+            onAddTeamMember={handlers.onAddTeamMember}
+            onAssignFaculty={handlers.onAssignFaculty}
+            onEndAssignment={handlers.onEndAssignment}
           />
         </TabsContent>
         <TabsContent value="discussion">
@@ -164,6 +189,7 @@ export function GraduationProjectWorkspace({
             ownEvaluation={ownEvaluation}
             busy={busy}
             onSave={handlers.onSaveEvaluation}
+            onFinalize={handlers.onFinalizeEvaluation}
           />
         </TabsContent>
         <TabsContent value="result">
@@ -171,11 +197,13 @@ export function GraduationProjectWorkspace({
             project={project}
             actions={actions}
             corrections={detail.corrections}
+            files={detail.files}
             archive={detail.archive}
             busy={busy}
             onConclude={handlers.onConcludeResult}
             onCompleteCorrection={handlers.onCompleteCorrection}
             onAcceptCorrection={handlers.onAcceptCorrection}
+            onArchive={handlers.onArchive}
           />
         </TabsContent>
         <TabsContent value="events">

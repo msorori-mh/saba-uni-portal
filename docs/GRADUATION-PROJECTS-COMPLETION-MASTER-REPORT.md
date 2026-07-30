@@ -91,3 +91,29 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Active blockers: none (G4 wrangler PDF spike is a pre-existing environmental failure, documented).
 - Notes: Base moved — `origin/main` advanced c9beca3e → 5356b322 during the phase; synced.
 - Next automatic phase: **GP-04 — FULL LIFECYCLE UI AND SERVER OPERATIONS**
+
+---
+
+## GP-04 — FULL LIFECYCLE UI AND SERVER OPERATIONS
+
+- Current phase: GP-04
+- Phase decision: **PASS_GRADUATION_PROJECTS_GP04_FULL_LIFECYCLE_COMPLETE**
+- Base SHA: `2508f03dce0d9bfa6551f11143e496de135999de`
+- Phase commit SHA: (recorded below after commit)
+- Changed files:
+  - `src/lib/graduation-projects/lifecycle.ts` (add_team_member/set_milestone/finalize_evaluation + candidate types)
+  - `src/lib/graduation-projects/portal.functions.ts` (7 server functions, server-side user-id derivation)
+  - `src/components/graduation-projects/AssignmentsPanel.tsx` (new)
+  - `src/components/graduation-projects/{GraduationProjectWorkspace,GraduationProjectPortalWorkspace,MilestonesPanel,EvaluationPanel,ResultCorrectionsArchivePanel}.tsx`
+  - `tests/graduation-projects/graduation-projects-lifecycle-completion-ui.test.ts` (new, 13 tests)
+  - `tests/graduation-projects/graduation-projects-{lifecycle,portal-integration-01,visual-ux-qa-01}.test.ts` (expectation updates)
+  - `docs/GRADUATION-PROJECTS-GP04-FULL-LIFECYCLE-REPORT.md` (new)
+- Tests: GP suites 117/117 (992 expects); tsc clean; build success; full suite 1 pre-existing environmental fail (G4); diff-check clean.
+- Migrations created: 0 — Migrations applied: 0 — Production operations: 0
+- Completed scope:
+  - 30-step lifecycle executable from the portal: team add, faculty assignment
+    (incl. co_supervisor), assignment end, milestone plan, evaluation finalize,
+    archive — all literal actions, single-flight UI, RPC idempotency unchanged.
+- Remaining scope: GP-05 … GP-10.
+- Active blockers: none.
+- Next automatic phase: **GP-05 — FILES, ATTACHMENTS, AND NOTIFICATIONS**

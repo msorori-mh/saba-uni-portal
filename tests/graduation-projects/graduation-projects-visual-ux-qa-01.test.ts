@@ -215,6 +215,7 @@ describe("hidden committee evaluations and role-specific actions", () => {
         evaluations: [],
         ownEvaluation: null,
         onSave: () => {},
+        onFinalize: () => {},
       }),
     );
     expect(html).toContain("لا توجد تقييمات ظاهرة.");
@@ -261,6 +262,7 @@ describe("result/corrections/archive panel privacy and dates", () => {
         project: projectFixture,
         actions: [],
         corrections: [],
+        files: [],
         archive: {
           id: "ar-1",
           project_id: projectFixture.id,
@@ -271,6 +273,7 @@ describe("result/corrections/archive panel privacy and dates", () => {
         onConclude: () => {},
         onCompleteCorrection: () => {},
         onAcceptCorrection: () => {},
+        onArchive: () => {},
       }),
     );
     expect(html).toContain("final.pdf");
@@ -299,6 +302,7 @@ describe("result/corrections/archive panel privacy and dates", () => {
             created_at: "2026-01-01T00:00:00Z",
           },
         ],
+        onSetMilestone: () => {},
         onSubmitDeliverable: () => {},
         onReviewSubmission: () => {},
         onAddNote: () => {},

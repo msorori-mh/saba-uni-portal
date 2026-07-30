@@ -15,10 +15,11 @@ import {
 export type LifecycleAction =
   | "submit_proposal" | "resubmit_proposal" | "start_review" | "approve_proposal"
   | "reject_proposal" | "require_revision" | "create_project" | "activate_project"
-  | "assign_faculty" | "end_assignment" | "submit_deliverable" | "review_submission"
+  | "assign_faculty" | "end_assignment" | "add_team_member" | "set_milestone"
+  | "submit_deliverable" | "review_submission"
   | "add_note" | "resolve_note" | "register_file" | "request_discussion"
   | "schedule_discussion" | "reject_discussion_request" | "assign_panel_member"
-  | "record_discussion_outcome" | "save_evaluation" | "conclude_result"
+  | "record_discussion_outcome" | "save_evaluation" | "finalize_evaluation" | "conclude_result"
   | "complete_correction" | "accept_correction" | "archive" | "view_reports";
 
 export const PROJECT_STATE_LABELS: Record<ProjectState, string> = {
@@ -59,6 +60,8 @@ export const ACTION_LABELS: Record<LifecycleAction, string> = {
   activate_project: "تفعيل المشروع",
   assign_faculty: "تعيين عضو هيئة تدريس",
   end_assignment: "إنهاء تعيين",
+  add_team_member: "إضافة عضو فريق",
+  set_milestone: "تحديد مرحلة",
   submit_deliverable: "تسليم مخرج",
   review_submission: "مراجعة التسليم",
   add_note: "إضافة ملاحظة",
@@ -70,6 +73,7 @@ export const ACTION_LABELS: Record<LifecycleAction, string> = {
   assign_panel_member: "تعيين عضو لجنة",
   record_discussion_outcome: "تسجيل نتيجة المناقشة",
   save_evaluation: "حفظ التقييم",
+  finalize_evaluation: "اعتماد التقييم",
   conclude_result: "اعتماد النتيجة",
   complete_correction: "إتمام تصحيح",
   accept_correction: "قبول تصحيح",
@@ -128,7 +132,8 @@ function studentActions(state: ProjectState): LifecycleAction[] {
 
 function supervisorActions(state: ProjectState): LifecycleAction[] {
   switch (state) {
-    case "active": return ["review_submission", "add_note", "register_file", "request_discussion"];
+    case "approved": return ["set_milestone"];
+    case "active": return ["review_submission", "add_note", "register_file", "request_discussion", "set_milestone"];
     case "discussion_requested":
     case "discussion_scheduled":
     case "evaluating":
@@ -142,12 +147,19 @@ function managerActions(state: ProjectState, head: boolean): LifecycleAction[] {
   const actions: LifecycleAction[] = ["create_project", "view_reports"];
   if (!TERMINAL_STATES.has(state)) actions.push("end_assignment");
   switch (state) {
-    case "draft": actions.push("assign_faculty"); break;
+    case "draft": actions.push("assign_faculty", "add_team_member"); break;
     case "submitted": actions.push("start_review", "require_revision", "reject_proposal"); break;
     case "under_review": actions.push("approve_proposal", "require_revision", "reject_proposal"); break;
-    case "revision_required": actions.push("assign_faculty"); break;
-    case "approved": actions.push("activate_project", "assign_faculty"); break;
-    case "active": actions.push("assign_faculty"); break;
+    case "revision_required": actions.push("assign_faculty", "add_team_member"); break;
+    case "approved":
+      actions.push("activate_project", "assign_faculty");
+      // set_graduation_project_milestone whitelists supervisor/coordinator only.
+      if (!head) actions.push("set_milestone");
+      break;
+    case "active":
+      actions.push("assign_faculty");
+      if (!head) actions.push("set_milestone");
+      break;
     case "discussion_requested": actions.push("schedule_discussion", "reject_discussion_request"); break;
     case "discussion_scheduled": actions.push("assign_panel_member", "record_discussion_outcome"); break;
     case "evaluating": if (head) actions.push("conclude_result"); break;
@@ -187,7 +199,7 @@ export function availableProjectActions(
       case "coordinator": push(managerActions(state, false)); break;
       case "department_head": push(managerActions(state, true)); break;
       case "dean": push(deanActions(state)); break;
-      case "panel_member": if (state === "evaluating") push(["save_evaluation"]); break;
+      case "panel_member": if (state === "evaluating") push(["save_evaluation", "finalize_evaluation"]); break;
     }
   }
   return result;
@@ -652,4 +664,17 @@ export interface ArchiveReportRow {
 export interface GraduationProjectArchiveReport {
   department_id: string;
   archives: ArchiveReportRow[];
+}
+
+/* ---------- assignment candidates (department pickers, GP-04) ---------- */
+
+export interface AssignmentCandidate {
+  profile_id: string;
+  user_id: string;
+  full_name: string;
+}
+
+export interface AssignmentCandidates {
+  students: AssignmentCandidate[];
+  faculty: AssignmentCandidate[];
 }

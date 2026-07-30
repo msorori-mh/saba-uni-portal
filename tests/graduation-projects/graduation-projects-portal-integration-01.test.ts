@@ -235,7 +235,7 @@ describe("graduation-projects authorization & privacy portal layer", () => {
   });
 
   test("7 — panel/evaluation actions remain role+state gated", () => {
-    expect(availableProjectActions(["panel_member"], "evaluating")).toEqual(["save_evaluation"]);
+    expect(availableProjectActions(["panel_member"], "evaluating").sort()).toEqual(["finalize_evaluation", "save_evaluation"].sort());
     expect(availableProjectActions(["panel_member"], "active")).toEqual([]);
     expect(availableProjectActions(["student"], "evaluating")).toEqual([]);
   });
