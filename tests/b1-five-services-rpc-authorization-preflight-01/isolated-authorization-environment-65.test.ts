@@ -3,17 +3,22 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
+
+/** Central EOL normalization (68): assertions must hold on LF and CRLF checkouts. */
+const toLf = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+const toCrlf = (value: string) => toLf(value).replace(/\n/g, "\r\n");
 const matrix = JSON.parse(
   readFileSync(join(root, "scripts/b1-isolated-authorization-env-65/ISO-MATRIX.json"), "utf8"),
 );
-const cases = readFileSync(
+const casesRaw = readFileSync(
   join(root, "scripts/b1-isolated-authorization-env-65/41-negative-cases.sql"),
   "utf8",
 );
-const report = readFileSync(
+const cases = toLf(casesRaw);
+const report = toLf(readFileSync(
   join(root, "docs/PORTAL-B1-ISOLATED-NONPRODUCTION-AUTHORIZATION-ENVIRONMENT-65-REPORT.md"),
   "utf8",
-);
+));
 
 describe("PORTAL-65 — isolated non-production authorization environment", () => {
   it("targets an isolated TEST_ONLY environment, never production or staging", () => {
@@ -53,8 +58,15 @@ describe("PORTAL-65 — isolated non-production authorization environment", () =
   });
 
   it("renders one generated SQL case per matrix row with LF endings", () => {
-    expect(cases.includes("\r")).toBe(false);
+    expect(casesRaw.includes("\r")).toBe(false);
     expect(cases.match(/pg_temp\.iso_neg_case\(/g) ?? []).toHaveLength(267);
+  });
+
+  it("is EOL portable: a CRLF twin yields the identical case set and no semantic diff", () => {
+    const crlf = toCrlf(cases);
+    expect(toLf(crlf)).toBe(cases);
+    expect(toLf(crlf).match(/pg_temp\.iso_neg_case\(/g) ?? []).toHaveLength(267);
+    expect(crlf.replace(/\s+/g, " ").trim()).toBe(cases.replace(/\s+/g, " ").trim());
   });
 
   it("records the PASS decision and zero production impact", () => {
