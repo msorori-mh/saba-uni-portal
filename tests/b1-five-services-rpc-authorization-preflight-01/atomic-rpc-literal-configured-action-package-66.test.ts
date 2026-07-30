@@ -1,14 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { isStoredAsLf, toCrlf, toLf } from "./eol";
 
 const DIR = join(process.cwd(), "docs", "migration-drafts");
 /** Central EOL normalization: every textual assertion below runs on LF text,
  *  so an LF and a CRLF checkout of the same file yield identical verdicts. */
-export const toLf = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+export { toLf };
 
 const readRaw = (f: string) => readFileSync(join(DIR, f), "utf8");
 const read = (f: string) => toLf(readRaw(f));
+
 
 const MIGRATION = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66.sql");
 const PREFLIGHT = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-PREFLIGHT.sql");
