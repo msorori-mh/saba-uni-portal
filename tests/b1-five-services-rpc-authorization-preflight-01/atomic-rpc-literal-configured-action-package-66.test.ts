@@ -32,12 +32,16 @@ describe("66 — migration is a single forward-only transaction", () => {
     expect(count(MIGRATION, "CREATE OR REPLACE FUNCTION")).toBe(4);
     for (const forbidden of [
       "DROP FUNCTION", "DROP TABLE", "ALTER TABLE", "ALTER FUNCTION",
-      "CREATE TABLE", "GRANT ", "REVOKE ", "TRUNCATE",
-      "INSERT INTO public.", "DELETE FROM ",
+      "CREATE TABLE", "GRANT ", "REVOKE ", "TRUNCATE", "DELETE FROM ",
     ]) {
       expect(MIGRATION).not.toContain(forbidden);
     }
+    // the only INSERT is the pre-existing runtime event emission inside the
+    // executor body — the migration itself writes no rows.
+    expect(count(MIGRATION, "INSERT INTO public.")).toBe(1);
+    expect(MIGRATION).toContain("INSERT INTO public.student_request_workflow_events");
     expect(MIGRATION).not.toMatch(/^\s*UPDATE public\.request_types/m);
+
   });
 });
 
