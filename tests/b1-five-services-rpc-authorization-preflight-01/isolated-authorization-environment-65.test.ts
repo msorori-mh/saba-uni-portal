@@ -69,18 +69,18 @@ describe("PORTAL-65 — isolated non-production authorization environment", () =
   });
 
   it("forces deterministic LF writes in the generator, independent of the host OS", () => {
-    // every generated artifact is opened with an explicit newline="\n"
-    const writes = renderer.match(/open\([^)]*"w"[^)]*\)/g) ?? [];
-    expect(writes.length).toBeGreaterThan(0);
-    for (const w of writes) {
-      expect([w, w.includes('newline="\\n"')]).toEqual([w, true]);
-    }
-    // and every read is explicit UTF-8, so a CRLF input still parses to LF text
-    const reads = renderer.match(/open\((?![^)]*"w")[^)]*\)/g) ?? [];
-    for (const r of reads) {
-      expect([r, r.includes('encoding="utf-8"')]).toEqual([r, true]);
+    const openLines = renderer.split("\n").filter((l) => l.includes("open("));
+    expect(openLines.length).toBeGreaterThan(0);
+    for (const line of openLines) {
+      // explicit UTF-8 on every handle: a CRLF input still decodes to LF text
+      expect([line, line.includes('encoding="utf-8"')]).toEqual([line, true]);
+      // and every write handle pins newline="\n" so output never becomes CRLF
+      if (line.includes('"w"')) {
+        expect([line, line.includes('newline="\\n"')]).toEqual([line, true]);
+      }
     }
   });
+
 
   it("is EOL portable: a CRLF twin yields the identical case set and no semantic diff", () => {
     const crlf = toCrlf(cases);
