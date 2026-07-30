@@ -56,9 +56,30 @@ describe("PORTAL-65 — isolated non-production authorization environment", () =
     }
   });
 
-  it("renders one generated SQL case per matrix row with LF endings", () => {
-    expect(casesRaw.includes("\r")).toBe(false);
+  it("renders one generated SQL case per matrix row and is stored as LF", () => {
     expect(cases.match(/pg_temp\.iso_neg_case\(/g) ?? []).toHaveLength(267);
+    for (const rel of [
+      CASES_REL,
+      RENDERER_REL,
+      "scripts/b1-isolated-authorization-env-65/ISO-MATRIX.json",
+      "scripts/b1-isolated-authorization-env-65/42-negative-harness.sql",
+    ]) {
+      expect([rel, isStoredAsLf(rel)]).toEqual([rel, true]);
+    }
+  });
+
+  it("forces deterministic LF writes in the generator, independent of the host OS", () => {
+    // every generated artifact is opened with an explicit newline="\n"
+    const writes = renderer.match(/open\([^)]*"w"[^)]*\)/g) ?? [];
+    expect(writes.length).toBeGreaterThan(0);
+    for (const w of writes) {
+      expect([w, w.includes('newline="\\n"')]).toEqual([w, true]);
+    }
+    // and every read is explicit UTF-8, so a CRLF input still parses to LF text
+    const reads = renderer.match(/open\((?![^)]*"w")[^)]*\)/g) ?? [];
+    for (const r of reads) {
+      expect([r, r.includes('encoding="utf-8"')]).toEqual([r, true]);
+    }
   });
 
   it("is EOL portable: a CRLF twin yields the identical case set and no semantic diff", () => {
@@ -67,6 +88,7 @@ describe("PORTAL-65 — isolated non-production authorization environment", () =
     expect(toLf(crlf).match(/pg_temp\.iso_neg_case\(/g) ?? []).toHaveLength(267);
     expect(crlf.replace(/\s+/g, " ").trim()).toBe(cases.replace(/\s+/g, " ").trim());
   });
+
 
   it("records the PASS decision and zero production impact", () => {
     expect(report).toContain("PASS_B1_ISOLATED_AUTHORIZATION_ENVIRONMENT_267_EXECUTABLE_0_BLOCKED");
