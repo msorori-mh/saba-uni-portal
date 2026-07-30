@@ -236,18 +236,27 @@ const SQL_SOURCES: Array<[string, string]> = [
   ["matrix", MATRIX],
 ];
 
-describe("68 — EOL portability (LF / CRLF)", () => {
-  it("stores every package 66 SQL source with LF endings", () => {
-    for (const f of [
-      "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66.sql",
-      "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-PREFLIGHT.sql",
-      "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-POST-VERIFIER.sql",
-      "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-STRUCTURAL-VERIFIER.sql",
-      "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-ROLLBACK-BY-FORWARD.sql",
+describe("70 — EOL portability (LF / CRLF)", () => {
+  it("stores every package 66 SQL source as LF in the repository itself", () => {
+    for (const rel of [
+      ...[
+        "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66.sql",
+        "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-PREFLIGHT.sql",
+        "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-POST-VERIFIER.sql",
+        "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-STRUCTURAL-VERIFIER.sql",
+        "B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-ROLLBACK-BY-FORWARD.sql",
+      ].map((f) => `docs/migration-drafts/${f}`),
+      "scripts/b1-atomic-rpc-literal-configured-action-66/50-literal-action-rpc-matrix.sql",
+      "tests/b1-five-services-rpc-authorization-preflight-01/atomic-rpc-literal-configured-action-package-66.test.ts",
     ]) {
-      expect(readRaw(f).includes("\r")).toBe(false);
+      expect([rel, isStoredAsLf(rel)]).toEqual([rel, true]);
     }
-    expect(readFileSync(MATRIX_PATH, "utf8").includes("\r")).toBe(false);
+  });
+
+  it("reads every source through LF normalization, so a CRLF checkout is inert", () => {
+    for (const [name, src] of SQL_SOURCES) {
+      expect([name, src.includes("\r")]).toEqual([name, false]);
+    }
   });
 
   it("normalizes an LF and a CRLF twin of the same file to identical text", () => {
@@ -279,13 +288,18 @@ describe("68 — EOL portability (LF / CRLF)", () => {
       "docs/migration-drafts/B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66*.sql text eol=lf",
       "scripts/b1-atomic-rpc-literal-configured-action-66/*.sql text eol=lf",
       "scripts/b1-isolated-authorization-env-65/*.sql text eol=lf",
+      "scripts/b1-isolated-authorization-env-65/*.json text eol=lf",
+      "scripts/b1-isolated-authorization-env-65/*.py text eol=lf",
       "tests/b1-five-services-rpc-authorization-preflight-01/*.ts text eol=lf",
+      "tests/b1-five-services-rpc-authorization-preflight-01/*.sql text eol=lf",
+      "tests/b1-five-services-rpc-authorization-preflight-01/*.json text eol=lf",
     ]) {
       expect(attrs).toContain(line);
     }
     expect(attrs).not.toContain("* text=auto");
   });
 });
+
 
 describe("68 — authorization before action oracle", () => {
   const exec = MIGRATION.slice(
