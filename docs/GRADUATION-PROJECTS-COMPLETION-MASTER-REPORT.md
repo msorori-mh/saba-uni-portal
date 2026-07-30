@@ -262,7 +262,9 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Current phase: GP-10
 - Phase decision: **PASS_GRADUATION_PROJECTS_COMPLETE_SOURCE_RELEASE_CANDIDATE_READY**
 - Base SHA (origin/main at start): `c9beca3ec1fa3a7d259311319d8d7795e359875d` (advanced to `5356b322` mid-program; synced at GP-03)
-- Phase commit SHA: (recorded below after commit)
+- Phase commit SHA: `b2e1fa580a445c12cd59d6a60758af79b248c658`
+- Final SHA: `b2e1fa580a445c12cd59d6a60758af79b248c658`
+- Draft PR: https://github.com/msorori-mh/saba-uni-portal/pull/269 (draft, not merged)
 - Phase SHAs: GP-01 `bbb177fd` — GP-02 `9b19a71c` — GP-03 `2508f03d` — GP-04 `83f145d9` — GP-05 `a28f579b` — GP-06 `4cea9b7c` — GP-07 `3069e401` — GP-08 `2d1aaff5` — GP-09 `b6fe1795`
 - Changed files:
   - `docs/GRADUATION-PROJECTS-RELEASE-CANDIDATE/FINAL-SYSTEM-REPORT.md` (new)
