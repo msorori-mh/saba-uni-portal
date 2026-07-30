@@ -136,10 +136,17 @@ FROM (VALUES
 WHERE NOT EXISTS (SELECT 1 FROM public.faculty_profiles p WHERE p.id = v.id::uuid);
 
 -- ---------------------------------------------------------------------------
--- 7. Processing assignments (exactly one active assignment per unit/role).
+-- 7. Processing assignments (exactly one active direct assignee per unit/role).
+--    Contract: exactly one non-null actor column per assignment, and
+--    department-scoped steps accept ONLY position_assignment actors.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.request_processing_assignments(unit_id,role_id,assignment_type,user_id,staff_profile_id,is_active)
-SELECT u.id, r.id, 'staff_profile', v.user_id::uuid, v.user_id::uuid, true
+DELETE FROM public.request_processing_assignments a
+WHERE a.user_id::text LIKE 'e5520000-%' OR a.staff_profile_id::text LIKE 'e5520000-%'
+   OR a.faculty_profile_id::text LIKE 'e5540000-%'
+   OR a.department_id::text LIKE 'e5100000-%';
+
+INSERT INTO public.request_processing_assignments(unit_id,role_id,assignment_type,staff_profile_id,is_active)
+SELECT u.id, r.id, 'staff_profile', v.user_id::uuid, true
 FROM (VALUES
   ('student_affairs','student_affairs_specialist','e5520000-0000-4000-8000-000000000001'),
   ('student_affairs','student_affairs_manager','e5520000-0000-4000-8000-000000000002'),
@@ -151,23 +158,36 @@ FROM (VALUES
   ('dean','dean','e5520000-0000-4000-8000-000000000008')
 ) AS v(unit_code,role_code,user_id)
 JOIN public.request_processing_units u ON u.code=v.unit_code
-JOIN public.request_processing_roles r ON r.unit_id=u.id AND r.code=v.role_code
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.request_processing_assignments a
-  WHERE a.unit_id=u.id AND a.role_id=r.id AND a.user_id=v.user_id::uuid);
+JOIN public.request_processing_roles r ON r.unit_id=u.id AND r.code=v.role_code;
 
-INSERT INTO public.request_processing_assignments(unit_id,role_id,assignment_type,user_id,faculty_profile_id,department_id,is_active)
-SELECT u.id, r.id, 'faculty_profile', v.user_id::uuid, v.faculty_profile_id::uuid, v.dept::uuid, true
+INSERT INTO public.organizational_positions(id,code,name_ar,unit_type,is_active,sort_order)
+SELECT v.id::uuid, v.code, v.name_ar, 'department', true, 900
 FROM (VALUES
-  ('e5520000-0000-4000-8000-000000000009','e5540000-0000-4000-8000-000000000009','e5100000-0000-4000-8000-000000000001'),
-  ('e5520000-0000-4000-8000-000000000010','e5540000-0000-4000-8000-000000000010','e5100000-0000-4000-8000-000000000002'),
-  ('e5520000-0000-4000-8000-000000000011','e5540000-0000-4000-8000-000000000011','e5100000-0000-4000-8000-000000000003')
-) AS v(user_id,faculty_profile_id,dept)
+  ('e5560000-0000-4000-8000-000000000009','TEST_ONLY_HEAD_SRC','رئيس القسم المصدر TEST_ONLY'),
+  ('e5560000-0000-4000-8000-000000000010','TEST_ONLY_HEAD_TGT','رئيس القسم الهدف TEST_ONLY'),
+  ('e5560000-0000-4000-8000-000000000011','TEST_ONLY_HEAD_3RD','رئيس القسم الثالث TEST_ONLY')
+) AS v(id,code,name_ar)
+WHERE NOT EXISTS (SELECT 1 FROM public.organizational_positions p WHERE p.id=v.id::uuid);
+
+INSERT INTO public.position_assignments(id,position_id,user_id,assigned_from,is_active)
+SELECT v.id::uuid, v.position_id::uuid, v.user_id::uuid, CURRENT_DATE - 1, true
+FROM (VALUES
+  ('e5570000-0000-4000-8000-000000000009','e5560000-0000-4000-8000-000000000009','e5520000-0000-4000-8000-000000000009'),
+  ('e5570000-0000-4000-8000-000000000010','e5560000-0000-4000-8000-000000000010','e5520000-0000-4000-8000-000000000010'),
+  ('e5570000-0000-4000-8000-000000000011','e5560000-0000-4000-8000-000000000011','e5520000-0000-4000-8000-000000000011')
+) AS v(id,position_id,user_id)
+WHERE NOT EXISTS (SELECT 1 FROM public.position_assignments p WHERE p.id=v.id::uuid);
+
+INSERT INTO public.request_processing_assignments(unit_id,role_id,assignment_type,position_assignment_id,department_id,is_active)
+SELECT u.id, r.id, 'position_assignment', v.position_assignment_id::uuid, v.dept::uuid, true
+FROM (VALUES
+  ('e5570000-0000-4000-8000-000000000009','e5100000-0000-4000-8000-000000000001'),
+  ('e5570000-0000-4000-8000-000000000010','e5100000-0000-4000-8000-000000000002'),
+  ('e5570000-0000-4000-8000-000000000011','e5100000-0000-4000-8000-000000000003')
+) AS v(position_assignment_id,dept)
 JOIN public.request_processing_units u ON u.code='department'
-JOIN public.request_processing_roles r ON r.unit_id=u.id AND r.code='department_head'
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.request_processing_assignments a
-  WHERE a.unit_id=u.id AND a.role_id=r.id AND a.faculty_profile_id=v.faculty_profile_id::uuid);
+JOIN public.request_processing_roles r ON r.unit_id=u.id AND r.code='department_head';
+
 
 -- ---------------------------------------------------------------------------
 -- 8. TEST_ONLY owner student.
