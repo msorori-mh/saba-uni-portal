@@ -3,16 +3,26 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const DIR = join(process.cwd(), "docs", "migration-drafts");
-const read = (f: string) => readFileSync(join(DIR, f), "utf8");
+/** Central EOL normalization: every textual assertion below runs on LF text,
+ *  so an LF and a CRLF checkout of the same file yield identical verdicts. */
+export const toLf = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+const readRaw = (f: string) => readFileSync(join(DIR, f), "utf8");
+const read = (f: string) => toLf(readRaw(f));
 
 const MIGRATION = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66.sql");
 const PREFLIGHT = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-PREFLIGHT.sql");
 const POST = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-POST-VERIFIER.sql");
 const ROLLBACK = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-ROLLBACK-BY-FORWARD.sql");
-const MATRIX = readFileSync(
-  join(process.cwd(), "scripts", "b1-atomic-rpc-literal-configured-action-66", "50-literal-action-rpc-matrix.sql"),
-  "utf8",
+const MATRIX_PATH = join(
+  process.cwd(), "scripts", "b1-atomic-rpc-literal-configured-action-66", "50-literal-action-rpc-matrix.sql",
 );
+const MATRIX = toLf(readFileSync(MATRIX_PATH, "utf8"));
+
+const STRUCTURAL = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-STRUCTURAL-VERIFIER.sql");
+
+/** CRLF twin of a source file — used to prove EOL portability. */
+const toCrlf = (value: string) => toLf(value).replace(/\n/g, "\r\n");
 
 const count = (hay: string, needle: string) => hay.split(needle).length - 1;
 
@@ -123,7 +133,7 @@ describe("66 — identity, owner, search_path and ACL preservation", () => {
     );
     expect(MIGRATION).toContain("RETURNS jsonb");
     expect(count(MIGRATION, "SECURITY DEFINER")).toBeGreaterThanOrEqual(4);
-    expect(MIGRATION).toContain("SET search_path TO 'public'\n");
+    expect(MIGRATION).toMatch(/SET search_path TO 'public'\r?\n/);
     expect(count(MIGRATION, "SET search_path TO 'public', 'pg_temp'")).toBe(3);
   });
 
