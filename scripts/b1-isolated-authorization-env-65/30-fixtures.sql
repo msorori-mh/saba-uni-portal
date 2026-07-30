@@ -94,12 +94,13 @@ BEGIN
       IF v_service.canonical_code = 'department_transfer' THEN
         INSERT INTO public.transfer_request_details(
           request_id, current_department_id, requested_department_id,
-          current_program_id, requested_program_id)
+          current_program_id, requested_program_id, transfer_reason)
         VALUES (v_request_id,
           'e5100000-0000-4000-8000-000000000001'::uuid,
           'e5100000-0000-4000-8000-000000000002'::uuid,
           'e5110000-0000-4000-8000-000000000001'::uuid,
-          'e5110000-0000-4000-8000-000000000002'::uuid);
+          'e5110000-0000-4000-8000-000000000002'::uuid,
+          'TEST_ONLY isolated authorization fixture');
       END IF;
 
       PERFORM public.initialize_b1_request_workflow_strict(v_request_id, v_service.canonical_code);
