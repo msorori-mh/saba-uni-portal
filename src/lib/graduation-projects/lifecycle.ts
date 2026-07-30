@@ -708,3 +708,65 @@ export interface AssignmentCandidates {
   students: AssignmentCandidate[];
   faculty: AssignmentCandidate[];
 }
+
+/* ---------- administration & settings payloads (GP-06) ---------- */
+
+export interface GraduationProjectSettingsRow {
+  id: string;
+  department_id: string;
+  academic_year_id: string | null;
+  team_min: number;
+  team_max: number;
+  supervisor_capacity: number | null;
+  co_supervisor_allowed: boolean;
+  correction_window_days: number;
+  defense_notice_days: number;
+  proposal_window_opens_at: string | null;
+  proposal_window_closes_at: string | null;
+  active: boolean;
+  updated_at: string;
+}
+
+export interface RubricCriterionInput {
+  criterion_code: string;
+  criterion_label: string;
+  maximum_score: number;
+  weight?: number;
+  sequence_no: number;
+}
+
+export interface GraduationProjectRubricRow {
+  id: string;
+  code: string;
+  version_label: string;
+  title: string;
+  passing_threshold: number | null;
+  active: boolean;
+  criteria: (RubricCriterionInput & { weight: number })[];
+}
+
+export interface ScheduledDefenseRow {
+  project_id: string;
+  title: string;
+  discussion_id: string;
+  starts_at: string;
+  venue: string;
+  panel_size: number;
+  has_chair: boolean;
+}
+
+export interface MissingEvaluationsRow {
+  project_id: string;
+  title: string;
+  discussion_id: string;
+  panel_size: number;
+  finalized: number;
+  pending: number;
+}
+
+export interface GraduationProjectDefenseReport {
+  department_id: string;
+  scheduled_defenses: ScheduledDefenseRow[];
+  missing_evaluations: MissingEvaluationsRow[];
+  results_distribution: Record<string, number>;
+}

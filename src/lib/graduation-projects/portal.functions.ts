@@ -22,8 +22,11 @@ import {
 import type {
   GraduationProjectArchiveReport,
   GraduationProjectAssignmentsReport,
+  GraduationProjectDefenseReport,
   GraduationProjectDetail,
   GraduationProjectEvaluationsReport,
+  GraduationProjectRubricRow,
+  GraduationProjectSettingsRow,
   GraduationProjectStatesReport,
   MyProjectRow,
   AssignmentCandidates,
@@ -767,10 +770,95 @@ export const listGraduationProjectAssignmentCandidates = createServerFn({ method
     }
   });
 
+export const getGraduationProjectSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ departmentId: uuid }).strict().parse(input))
+  .handler(async ({ data, context }): Promise<GraduationProjectSettingsRow[]> => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).getSettings(data.departmentId);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+const settingsSchema = z
+  .object({
+    departmentId: uuid,
+    academicYearId: uuid.nullable().optional(),
+    teamMin: z.number().int().min(1).max(20),
+    teamMax: z.number().int().min(1).max(20),
+    supervisorCapacity: z.number().int().positive().nullable().optional(),
+    coSupervisorAllowed: z.boolean(),
+    correctionWindowDays: z.number().int().positive().max(365),
+    defenseNoticeDays: z.number().int().min(0).max(90),
+  })
+  .strict()
+  .refine((value) => value.teamMax >= value.teamMin, { message: "teamMax must be >= teamMin" });
+
+export const upsertGraduationProjectSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => settingsSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).upsertSettings(data);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+export const listGraduationProjectRubrics = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ departmentId: uuid }).strict().parse(input))
+  .handler(async ({ data, context }): Promise<GraduationProjectRubricRow[]> => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).listRubrics(data.departmentId);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
+const rubricSchema = z
+  .object({
+    departmentId: uuid,
+    rubricId: uuid.nullable().optional(),
+    code: z.string().trim().min(2).max(60),
+    versionLabel: z.string().trim().min(1).max(60),
+    title: z.string().trim().min(3).max(300),
+    passingThreshold: z.number().positive().nullable().optional(),
+    criteria: z
+      .array(
+        z.object({
+          criterion_code: z.string().trim().min(1).max(60),
+          criterion_label: z.string().trim().min(1).max(300),
+          maximum_score: z.number().positive().max(99999.99),
+          weight: z.number().positive().max(1000).optional(),
+          sequence_no: z.number().int().positive(),
+        }),
+      )
+      .min(1)
+      .max(50),
+  })
+  .strict();
+
+export const upsertGraduationProjectRubric = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => rubricSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    try {
+      await ensureAvailable(context.supabase);
+      return await clientOf(context.supabase).upsertRubric(data);
+    } catch (error) {
+      mapThrown(error);
+    }
+  });
+
 const reportKindSchema = z
   .object({
     departmentId: uuid,
-    kind: z.enum(["states", "assignments", "evaluations", "archive"]),
+    kind: z.enum(["states", "assignments", "evaluations", "archive", "defense"]),
   })
   .strict();
 
@@ -786,6 +874,7 @@ export const loadGraduationProjectReport = createServerFn({ method: "POST" })
       | GraduationProjectAssignmentsReport
       | GraduationProjectEvaluationsReport
       | GraduationProjectArchiveReport
+      | GraduationProjectDefenseReport
     > => {
       try {
         await ensureAvailable(context.supabase);
@@ -799,6 +888,8 @@ export const loadGraduationProjectReport = createServerFn({ method: "POST" })
             return await rpc.getEvaluationsReport(data.departmentId);
           case "archive":
             return await rpc.getArchiveReport(data.departmentId);
+          case "defense":
+            return await rpc.getDefenseReport(data.departmentId);
         }
       } catch (error) {
         mapThrown(error);

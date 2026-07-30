@@ -71,4 +71,17 @@ verify "$GP/postgres-hardening-verifier.sql"
 step "files & notifications verifier"
 verify "$GP/postgres-files-notifications-verifier.sql"
 
+step "M6 20260730100005 admin settings & rubrics"
+sql "$GP/pg17/preflight-06-admin-settings.sql"
+sql "$MIG/20260730100005_a69a1dc9-8b9f-4dfc-a5e8-69a335909c8b.sql"
+
+step "post-M6 regression: all prior verifiers re-run"
+verify "$GP/postgres-foundation-verifier.sql"
+verify "$GP/postgres-lifecycle-verifier.sql"
+verify "$GP/postgres-hardening-verifier.sql"
+verify "$GP/postgres-files-notifications-verifier.sql"
+
+step "admin settings verifier"
+verify "$GP/postgres-admin-settings-verifier.sql"
+
 echo "MIGRATION PACKAGE PG17 VERIFICATION PASS"

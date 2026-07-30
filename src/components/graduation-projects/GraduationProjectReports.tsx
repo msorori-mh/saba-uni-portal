@@ -10,16 +10,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { exportCsv } from "../../lib/reports/export";
 import { formatGpDateTimeAr, formatGpFileSizeAr } from "./gp-datetime";
 import { PROJECT_STATE_LABELS } from "../../lib/graduation-projects/lifecycle";
 import type {
   GraduationProjectArchiveReport,
   GraduationProjectAssignmentsReport,
+  GraduationProjectDefenseReport,
   GraduationProjectEvaluationsReport,
   GraduationProjectStatesReport,
 } from "../../lib/graduation-projects/lifecycle";
 
-export type GraduationProjectReportKind = "states" | "assignments" | "evaluations" | "archive";
+export type GraduationProjectReportKind = "states" | "assignments" | "evaluations" | "archive" | "defense";
 
 export interface GraduationProjectReportsProps {
   departmentId: string;
@@ -27,6 +29,7 @@ export interface GraduationProjectReportsProps {
   assignmentsReport: GraduationProjectAssignmentsReport | null;
   evaluationsReport: GraduationProjectEvaluationsReport | null;
   archiveReport: GraduationProjectArchiveReport | null;
+  defenseReport?: GraduationProjectDefenseReport | null;
   busy?: boolean;
   onLoad(kind: GraduationProjectReportKind): void;
 }
@@ -37,6 +40,7 @@ export function GraduationProjectReports({
   assignmentsReport,
   evaluationsReport,
   archiveReport,
+  defenseReport = null,
   busy = false,
   onLoad,
 }: GraduationProjectReportsProps) {
@@ -56,11 +60,12 @@ export function GraduationProjectReports({
             <TabsTrigger value="assignments">التعيينات</TabsTrigger>
             <TabsTrigger value="evaluations">التقييمات</TabsTrigger>
             <TabsTrigger value="archive">الأرشيف</TabsTrigger>
+            <TabsTrigger value="defense">المناقشات</TabsTrigger>
           </TabsList>
           <TabsContent value="states">
             {statesReport ? (
               <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">الإجمالي: {statesReport.summary.total}</Badge>
                   <Badge variant="destructive">متعثر: {statesReport.summary.at_risk}</Badge>
                   <Badge variant="secondary">
@@ -69,6 +74,25 @@ export function GraduationProjectReports({
                   <Badge variant="secondary">
                     جاهز للمناقشة: {statesReport.summary.discussion_ready}
                   </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      void exportCsv(
+                        "مشاريع التخرج — الحالات",
+                        statesReport.projects.map((project) => ({
+                          العنوان: project.title,
+                          الحالة: PROJECT_STATE_LABELS[project.state],
+                          "التقدم %": project.progress_percent,
+                          "مراحل متأخرة": project.overdue_milestones,
+                          "جاهز للمناقشة": project.discussion_ready ? "نعم" : "لا",
+                        })),
+                      )
+                    }
+                  >
+                    تصدير CSV
+                  </Button>
                 </div>
                 <Table>
                   <TableHeader>
@@ -127,9 +151,29 @@ export function GraduationProjectReports({
                     ))}
                   </TableBody>
                 </Table>
-                <p className="text-sm text-muted-foreground">
-                  مشاريع بلا مشرف نشط: {assignmentsReport.unassigned_projects.length}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    مشاريع بلا مشرف نشط: {assignmentsReport.unassigned_projects.length}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      void exportCsv(
+                        "مشاريع التخرج — أعباء الإشراف",
+                        assignmentsReport.supervisors.map((supervisor, index) => ({
+                          المشرف: `مشرف ${index + 1}`,
+                          "مشاريع نشطة": supervisor.active_projects,
+                          متعثرة: supervisor.at_risk_projects,
+                          "متوسط التقدم %": supervisor.avg_progress,
+                        })),
+                      )
+                    }
+                  >
+                    تصدير CSV
+                  </Button>
+                </div>
               </div>
             ) : (
               <Button
@@ -144,6 +188,29 @@ export function GraduationProjectReports({
           </TabsContent>
           <TabsContent value="evaluations">
             {evaluationsReport ? (
+              <div className="space-y-3">
+                <div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      void exportCsv(
+                        "مشاريع التخرج — التقييمات",
+                        evaluationsReport.projects.map((project) => ({
+                          العنوان: project.title,
+                          "تقييمات معتمدة": project.finalized_evaluations,
+                          المتوسط: project.avg_total,
+                          أدنى: project.min_total,
+                          أعلى: project.max_total,
+                          "تصحيحات معلقة": project.pending_corrections,
+                        })),
+                      )
+                    }
+                  >
+                    تصدير CSV
+                  </Button>
+                </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -168,6 +235,7 @@ export function GraduationProjectReports({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <Button
                 type="button"
@@ -181,6 +249,27 @@ export function GraduationProjectReports({
           </TabsContent>
           <TabsContent value="archive">
             {archiveReport ? (
+              <div className="space-y-3">
+                <div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      void exportCsv(
+                        "مشاريع التخرج — الأرشيف",
+                        archiveReport.archives.map((row) => ({
+                          العنوان: row.title,
+                          "تاريخ الأرشفة": formatGpDateTimeAr(row.archived_at),
+                          "الملف النهائي": row.final_file.original_name,
+                          الحجم: formatGpFileSizeAr(row.final_file.byte_size),
+                        })),
+                      )
+                    }
+                  >
+                    تصدير CSV
+                  </Button>
+                </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -205,6 +294,7 @@ export function GraduationProjectReports({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <Button
                 type="button"
@@ -213,6 +303,113 @@ export function GraduationProjectReports({
                 onClick={() => onLoad("archive")}
               >
                 تحميل تقرير الأرشيف
+              </Button>
+            )}
+          </TabsContent>
+          <TabsContent value="defense">
+            {defenseReport ? (
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium">المناقشات المجدولة</p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        void exportCsv(
+                          "مشاريع التخرج — المناقشات المجدولة",
+                          defenseReport.scheduled_defenses.map((row) => ({
+                            العنوان: row.title,
+                            الموعد: formatGpDateTimeAr(row.starts_at),
+                            المكان: row.venue,
+                            "أعضاء اللجنة": row.panel_size,
+                            "رئيس اللجنة": row.has_chair ? "معيَّن" : "غير معيَّن",
+                          })),
+                        )
+                      }
+                    >
+                      تصدير CSV
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>العنوان</TableHead>
+                        <TableHead>الموعد</TableHead>
+                        <TableHead>المكان</TableHead>
+                        <TableHead>أعضاء اللجنة</TableHead>
+                        <TableHead>رئيس اللجنة</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {defenseReport.scheduled_defenses.map((row) => (
+                        <TableRow key={row.discussion_id}>
+                          <TableCell>{row.title}</TableCell>
+                          <TableCell>{formatGpDateTimeAr(row.starts_at)}</TableCell>
+                          <TableCell>{row.venue}</TableCell>
+                          <TableCell>{row.panel_size}</TableCell>
+                          <TableCell>{row.has_chair ? "معيَّن" : "غير معيَّن"}</TableCell>
+                        </TableRow>
+                      ))}
+                      {defenseReport.scheduled_defenses.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5}>لا توجد مناقشات مجدولة.</TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium">تقييمات ناقصة</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>العنوان</TableHead>
+                        <TableHead>أعضاء اللجنة</TableHead>
+                        <TableHead>معتمدة</TableHead>
+                        <TableHead>متبقية</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {defenseReport.missing_evaluations.map((row) => (
+                        <TableRow key={row.discussion_id}>
+                          <TableCell>{row.title}</TableCell>
+                          <TableCell>{row.panel_size}</TableCell>
+                          <TableCell>{row.finalized}</TableCell>
+                          <TableCell>{row.pending}</TableCell>
+                        </TableRow>
+                      ))}
+                      {defenseReport.missing_evaluations.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4}>لا توجد تقييمات ناقصة.</TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium">توزيع النتائج</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(defenseReport.results_distribution).map(([bucket, count]) => (
+                      <Badge key={bucket} variant="secondary">
+                        {bucket}: {count}
+                      </Badge>
+                    ))}
+                    {Object.keys(defenseReport.results_distribution).length === 0 ? (
+                      <span className="text-sm text-muted-foreground">لا توجد نتائج معتمدة بعد.</span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => onLoad("defense")}
+              >
+                تحميل تقرير المناقشات
               </Button>
             )}
           </TabsContent>

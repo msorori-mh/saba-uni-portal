@@ -145,3 +145,33 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Remaining scope: GP-06 … GP-10.
 - Active blockers: none.
 - Next automatic phase: **GP-06 — ADMINISTRATION, SETTINGS, AND REPORTS**
+
+---
+
+## GP-06 — ADMINISTRATION, SETTINGS, AND REPORTS
+
+- Current phase: GP-06
+- Phase decision: **PASS_GRADUATION_PROJECTS_GP06_ADMIN_AND_REPORTING_COMPLETE**
+- Base SHA: `a28f579b68cc129ff175c94498aaf220a7e3ac17`
+- Phase commit SHA: (recorded below after commit)
+- Changed files:
+  - `supabase/migrations/20260730100005_a69a1dc9-8b9f-4dfc-a5e8-69a335909c8b.sql` (new, M6)
+  - `tests/graduation-projects/pg17/preflight-06-admin-settings.sql` (new)
+  - `tests/graduation-projects/postgres-admin-settings-verifier.sql` (new)
+  - `tests/graduation-projects/graduation-projects-admin-settings.test.ts` (new, 9 tests)
+  - `tests/graduation-projects/run-pg17-migration-package.sh` (M6 leg)
+  - `src/lib/graduation-projects/{rpc,lifecycle,portal.functions}.ts` (settings/rubric/defense wrappers + types + labels)
+  - `src/components/graduation-projects/GraduationProjectAdmin.tsx` (new), `GraduationProjectReports.tsx` (defense tab + CSV)
+  - `src/routes/admin/graduation-projects.index.tsx` (settings/rubric wiring)
+  - `docs/migration-drafts/GRADUATION-PROJECTS-MIGRATION-PACKAGE-01.md`, `tests/graduation-projects/POSTGRES-17-MIGRATION-PACKAGE-VERIFICATION-RESULT.md` (updated)
+  - `docs/GRADUATION-PROJECTS-GP06-ADMIN-REPORTING-REPORT.md` (new)
+- Tests: GP suites 135/135 (1109 expects); PG17 package PASS (6 migrations sequential + regression re-runs); tsc clean; build success; diff-check clean.
+- Migrations created: 1 (total 6) — Migrations applied: 0 — Production operations: 0
+- Completed scope:
+  - Per-department settings with in-RPC enforcement (team size, supervisor capacity,
+    co-supervisor rule, proposal window); rubric management; defense report
+    (schedule/missing evaluations/distribution); CSV export on all five reports;
+    admin settings + rubric UI.
+- Remaining scope: GP-07 … GP-10.
+- Active blockers: none.
+- Next automatic phase: **GP-07 — AUTHORIZATION CLOSURE**

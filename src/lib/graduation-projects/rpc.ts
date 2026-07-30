@@ -2,12 +2,16 @@ import type {
   EvaluationScoreRow,
   GraduationProjectArchiveReport,
   GraduationProjectAssignmentsReport,
+  GraduationProjectDefenseReport,
   GraduationProjectDetail,
   GraduationProjectEvaluationsReport,
+  GraduationProjectRubricRow,
+  GraduationProjectSettingsRow,
   GraduationProjectStatesReport,
   MyProjectRow,
   ProjectFileKind,
   ProjectNotificationRow,
+  RubricCriterionInput,
 } from "./lifecycle";
 
 /**
@@ -115,6 +119,16 @@ export const ERROR_LABELS: Record<string, string> = {
   "evaluation lifecycle precondition failed": "لا يمكن اعتماد التقييم في الحالة الحالية",
   "evaluation finalization precondition failed": "لا يمكن اعتماد التقييم في الحالة الحالية",
   "graduation project events are append-only": "سجل الأحداث للإضافة فقط",
+  "settings administration assignment required": "إدارة الإعدادات تتطلب تعييناً برئاسة القسم أو العمادة",
+  "settings invalid": "قيم الإعدادات غير صالحة",
+  "team size limit reached": "تم بلوغ الحد الأقصى لأعضاء الفريق",
+  "team below minimum size": "عدد أعضاء الفريق دون الحد الأدنى",
+  "proposal window closed": "نافذة تقديم المقترحات مغلقة",
+  "supervisor capacity reached": "المشرف بلغ الحد الأقصى للإشراف",
+  "co-supervisor not allowed by settings": "المشرف المشارك غير مسموح وفق إعدادات القسم",
+  "rubric administration assignment required": "إدارة سلالم التقييم تتطلب تعييناً برئاسة القسم أو العمادة",
+  "rubric payload invalid": "بيانات سلم التقييم غير صالحة",
+  "rubric not found": "سلم التقييم غير موجود",
 };
 
 export function isGraduationProjectsRpcUnavailable(
@@ -583,6 +597,74 @@ export class GraduationProjectsRpcClient {
 
   async getArchiveReport(departmentId: string): Promise<GraduationProjectArchiveReport> {
     return this.call<GraduationProjectArchiveReport>("get_graduation_project_archive_report", {
+      p_department_id: departmentId,
+    });
+  }
+
+  async getSettings(departmentId: string): Promise<GraduationProjectSettingsRow[]> {
+    const rows = await this.call<GraduationProjectSettingsRow[] | null>(
+      "get_graduation_project_settings",
+      { p_department_id: departmentId },
+    );
+    return rows ?? [];
+  }
+
+  async upsertSettings(input: {
+    departmentId: string;
+    academicYearId?: string | null;
+    teamMin: number;
+    teamMax: number;
+    supervisorCapacity?: number | null;
+    coSupervisorAllowed: boolean;
+    correctionWindowDays: number;
+    defenseNoticeDays: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("upsert_graduation_project_settings", {
+      p_department_id: input.departmentId,
+      p_academic_year_id: input.academicYearId ?? null,
+      p_team_min: input.teamMin,
+      p_team_max: input.teamMax,
+      p_supervisor_capacity: input.supervisorCapacity ?? null,
+      p_co_supervisor_allowed: input.coSupervisorAllowed,
+      p_correction_window_days: input.correctionWindowDays,
+      p_defense_notice_days: input.defenseNoticeDays,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async upsertRubric(input: {
+    departmentId: string;
+    rubricId?: string | null;
+    code: string;
+    versionLabel: string;
+    title: string;
+    passingThreshold?: number | null;
+    criteria: RubricCriterionInput[];
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("upsert_graduation_project_rubric", {
+      p_department_id: input.departmentId,
+      p_rubric_id: input.rubricId ?? null,
+      p_code: input.code,
+      p_version_label: input.versionLabel,
+      p_title: input.title,
+      p_passing_threshold: input.passingThreshold ?? null,
+      p_criteria: input.criteria,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async listRubrics(departmentId: string): Promise<GraduationProjectRubricRow[]> {
+    const rows = await this.call<GraduationProjectRubricRow[] | null>(
+      "list_graduation_project_rubrics",
+      { p_department_id: departmentId },
+    );
+    return rows ?? [];
+  }
+
+  async getDefenseReport(departmentId: string): Promise<GraduationProjectDefenseReport> {
+    return this.call<GraduationProjectDefenseReport>("get_graduation_project_defense_report", {
       p_department_id: departmentId,
     });
   }

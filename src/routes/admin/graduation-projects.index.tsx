@@ -16,10 +16,14 @@ import {
 } from "@/components/graduation-projects/PortalRuntimeStates";
 import {
   createGraduationProject,
+  getGraduationProjectSettings,
   getGraduationProjectsCreateContext,
+  listGraduationProjectRubrics,
   listMyGraduationProjects,
   loadGraduationProjectReport,
   probeGraduationProjectsAvailability,
+  upsertGraduationProjectRubric,
+  upsertGraduationProjectSettings,
 } from "@/lib/graduation-projects/portal.functions";
 import {
   GRADUATION_PROJECTS_SERVICE_UPDATING_MSG,
@@ -29,10 +33,13 @@ import {
   ROLE_LABELS,
   type GraduationProjectArchiveReport,
   type GraduationProjectAssignmentsReport,
+  type GraduationProjectDefenseReport,
   type GraduationProjectEvaluationsReport,
   type GraduationProjectStatesReport,
   type ProjectListFilter,
+  type RubricCriterionInput,
 } from "@/lib/graduation-projects/lifecycle";
+import { GraduationProjectAdmin } from "@/components/graduation-projects/GraduationProjectAdmin";
 import type { ProjectRole } from "@/lib/graduation-projects/domain";
 
 export const Route = createFileRoute("/admin/graduation-projects/")({
@@ -51,13 +58,19 @@ function AdminGraduationProjectsIndexPage() {
   const [evaluationsReport, setEvaluationsReport] =
     useState<GraduationProjectEvaluationsReport | null>(null);
   const [archiveReport, setArchiveReport] = useState<GraduationProjectArchiveReport | null>(null);
+  const [defenseReport, setDefenseReport] = useState<GraduationProjectDefenseReport | null>(null);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [adminError, setAdminError] = useState<string | null>(null);
 
   const probeFn = useServerFn(probeGraduationProjectsAvailability);
   const listFn = useServerFn(listMyGraduationProjects);
   const createCtxFn = useServerFn(getGraduationProjectsCreateContext);
   const createFn = useServerFn(createGraduationProject);
   const reportFn = useServerFn(loadGraduationProjectReport);
+  const settingsFn = useServerFn(getGraduationProjectSettings);
+  const saveSettingsFn = useServerFn(upsertGraduationProjectSettings);
+  const rubricsFn = useServerFn(listGraduationProjectRubrics);
+  const saveRubricFn = useServerFn(upsertGraduationProjectRubric);
 
   const probe = useQuery({
     queryKey: ["graduation-projects", "admin", "probe"],
@@ -124,13 +137,70 @@ function AdminGraduationProjectsIndexPage() {
       if (kind === "states") setStatesReport(report as GraduationProjectStatesReport);
       if (kind === "assignments")
         setAssignmentsReport(report as GraduationProjectAssignmentsReport);
-      if (kind === "evaluations")
-        setEvaluationsReport(report as GraduationProjectEvaluationsReport);
+      if (kind === "evaluations") setEvaluationsReport(report as GraduationProjectEvaluationsReport);
       if (kind === "archive") setArchiveReport(report as GraduationProjectArchiveReport);
+      if (kind === "defense") setDefenseReport(report as GraduationProjectDefenseReport);
     },
     onError: (error) => {
       setReportError(error instanceof Error ? error.message : "تعذّر تحميل التقرير");
     },
+  });
+
+  const departmentId =
+    createCtx.data?.departmentId ??
+    list.data?.find((row) => row.department_id)?.department_id ??
+    "";
+
+  const settingsQuery = useQuery({
+    queryKey: ["graduation-projects", "admin", "settings", departmentId],
+    queryFn: () => settingsFn({ data: { departmentId } }),
+    enabled: probe.data?.available === true && departmentId !== "",
+    retry: 1,
+  });
+
+  const rubricsQuery = useQuery({
+    queryKey: ["graduation-projects", "admin", "rubrics", departmentId],
+    queryFn: () => rubricsFn({ data: { departmentId } }),
+    enabled: probe.data?.available === true && departmentId !== "",
+    retry: 1,
+  });
+
+  const settingsMutation = useMutation({
+    mutationFn: (input: {
+      teamMin: number;
+      teamMax: number;
+      supervisorCapacity: number | null;
+      coSupervisorAllowed: boolean;
+      correctionWindowDays: number;
+      defenseNoticeDays: number;
+    }) =>
+      saveSettingsFn({ data: { departmentId, ...input } }),
+    onMutate: () => setAdminError(null),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["graduation-projects", "admin", "settings", departmentId],
+      });
+    },
+    onError: (error) =>
+      setAdminError(error instanceof Error ? error.message : "تعذّر حفظ الإعدادات"),
+  });
+
+  const rubricMutation = useMutation({
+    mutationFn: (input: {
+      code: string;
+      versionLabel: string;
+      title: string;
+      passingThreshold: number | null;
+      criteria: RubricCriterionInput[];
+    }) => saveRubricFn({ data: { departmentId, ...input } }),
+    onMutate: () => setAdminError(null),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["graduation-projects", "admin", "rubrics", departmentId],
+      });
+    },
+    onError: (error) =>
+      setAdminError(error instanceof Error ? error.message : "تعذّر حفظ سلم التقييم"),
   });
 
   if (probe.isLoading || (probe.data?.available && list.isLoading)) {
@@ -163,11 +233,6 @@ function AdminGraduationProjectsIndexPage() {
       ...row,
       roles: row.roles.map((role) => ROLE_LABELS[role as ProjectRole] ?? role),
     }));
-
-  const departmentId =
-    createCtx.data?.departmentId ??
-    list.data?.find((row) => row.department_id)?.department_id ??
-    "";
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -219,8 +284,21 @@ function AdminGraduationProjectsIndexPage() {
             assignmentsReport={assignmentsReport}
             evaluationsReport={evaluationsReport}
             archiveReport={archiveReport}
+            defenseReport={defenseReport}
             busy={reportMutation.isPending}
             onLoad={(kind) => reportMutation.mutate(kind)}
+          />
+          {adminError ? (
+            <div className="text-sm text-destructive" role="alert">
+              {adminError}
+            </div>
+          ) : null}
+          <GraduationProjectAdmin
+            settings={settingsQuery.data ?? []}
+            rubrics={rubricsQuery.data ?? []}
+            busy={settingsMutation.isPending || rubricMutation.isPending}
+            onSaveSettings={(input) => settingsMutation.mutate(input)}
+            onSaveRubric={(input) => rubricMutation.mutate(input)}
           />
         </div>
       ) : null}
