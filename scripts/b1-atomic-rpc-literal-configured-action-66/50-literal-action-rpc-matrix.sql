@@ -9,13 +9,17 @@
 --   A. configured action_type: review | approve | clear | apply_decision | archive
 --   B. submitted action      : the literal configured one, plus every other one
 --   C. principal             : exact direct assignee | wrong assignee | admin |
---                              registrar | dean | department_head | student owner | anon
--- Expected after the 66 migration:
+--                              system_admin | registrar | dean | department_head |
+--                              student owner | anon
+-- Expected after the 66/68 migration (AUTHORIZATION BEFORE ACTION ORACLE):
 --   PASS  <=> principal = exact direct assignee AND submitted action = configured action
 --   FAIL  otherwise, with:
---     B1_ACTION_TYPE_MISMATCH (42501)                    — wrong action, any principal
---     B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)  — right action, wrong principal
---     AUTHENTICATION_REQUIRED (28000)                    — anon
+--     AUTHENTICATION_REQUIRED (28000)                    — anon, evaluated first
+--     B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)  — ANY non-assignee principal,
+--                                                          regardless of submitted action
+--                                                          (no action oracle leak)
+--     B1_ACTION_TYPE_MISMATCH (42501)                    — exact assignee only, wrong action
+
 --   The pre-migration regression case (configured clear/apply_decision/archive +
 --   submitted 'approve' + exact assignee) MUST now raise B1_ACTION_TYPE_MISMATCH.
 
