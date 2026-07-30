@@ -42,13 +42,16 @@ export class GraduationProjectsRpcError extends Error {
 /** Exact SQL draft messages mapped to Arabic user-facing labels. */
 export const ERROR_LABELS: Record<string, string> = {
   "project not found": "المشروع غير موجود",
-  "project creation assignment required": "إنشاء المشاريع يتطلب تعييناً نشطاً كمنسق أو رئيس قسم في القسم",
+  "project creation assignment required":
+    "إنشاء المشاريع يتطلب تعييناً نشطاً كمنسق أو رئيس قسم في القسم",
   "project title invalid": "عنوان المشروع يجب أن يكون بين 3 و300 حرف",
   "exact direct processing assignment required": "لا تملك تعييناً مباشراً نشطاً يسمح بهذا الإجراء",
   "proposal review action unknown": "إجراء المراجعة غير معروف",
-  "proposal review precondition failed": "لا يمكن تنفيذ إجراء المراجعة في الحالة الحالية أو برقم النسخة الحالي",
+  "proposal review precondition failed":
+    "لا يمكن تنفيذ إجراء المراجعة في الحالة الحالية أو برقم النسخة الحالي",
   "review reason required": "السبب مطلوب لهذا القرار",
-  "proposal resubmission precondition failed": "إعادة التقديم تتطلب حالة «يتطلب تعديلاً» ورقم النسخة الصحيح",
+  "proposal resubmission precondition failed":
+    "إعادة التقديم تتطلب حالة «يتطلب تعديلاً» ورقم النسخة الصحيح",
   "project activation precondition failed": "التفعيل يتطلب مشروعاً معتمداً ورقم النسخة الصحيح",
   "faculty assignment role denied": "لا يمكن تعيين هذا الدور عبر هذه الخدمة",
   "faculty assignment state denied": "حالة المشروع لا تسمح بالتعيين",
@@ -87,7 +90,8 @@ export const ERROR_LABELS: Record<string, string> = {
   "evaluation scores invalid": "درجات التقييم غير صالحة",
   "evaluation already submitted": "التقييم أُرسل مسبقاً ولا يمكن تعديله",
   "result outcome unknown": "نتيجة المشروع غير معروفة",
-  "result conclusion precondition failed": "اعتماد النتيجة يتطلب حالة «قيد التقييم» ورقم النسخة الصحيح",
+  "result conclusion precondition failed":
+    "اعتماد النتيجة يتطلب حالة «قيد التقييم» ورقم النسخة الصحيح",
   "evaluations not finalized": "يجب اعتماد جميع التقييمات قبل إنهاء النتيجة",
   "corrections payload invalid": "قائمة التصحيحات غير صالحة",
   "correction completion precondition failed": "لا يمكن إتمام هذا التصحيح في الحالة الحالية",
@@ -95,7 +99,8 @@ export const ERROR_LABELS: Record<string, string> = {
   "department report assignment required": "تقارير القسم تتطلب تعييناً إدارياً نشطاً في القسم",
   "direct archive assignment required": "الأرشفة تتطلب تعييناً مباشراً بصلاحية الأرشفة",
   "project not archive-ready": "المشروع ليس جاهزاً للأرشفة",
-  "clean accepted final evidence and accepted corrections required": "الأرشفة تتطلب ملفاً نهائياً سليم الفحص ومقبولاً وتصحيحات مقبولة",
+  "clean accepted final evidence and accepted corrections required":
+    "الأرشفة تتطلب ملفاً نهائياً سليم الفحص ومقبولاً وتصحيحات مقبولة",
   "proposal transition precondition failed": "لا يمكن تقديم المقترح في الحالة الحالية",
   "team mutation state denied": "حالة المشروع لا تسمح بتعديل الفريق",
   "milestone mutation state denied": "حالة المشروع لا تسمح بتعديل المراحل",
@@ -105,24 +110,33 @@ export const ERROR_LABELS: Record<string, string> = {
   "graduation project events are append-only": "سجل الأحداث للإضافة فقط",
 };
 
-export function isGraduationProjectsRpcUnavailable(error: RpcErrorLike | null | undefined): boolean {
+export function isGraduationProjectsRpcUnavailable(
+  error: RpcErrorLike | null | undefined,
+): boolean {
   if (!error) return false;
   const msg = error.message ?? "";
   const code = error.code ?? "";
   return (
-    code === "42883"
-    || /function .* does not exist/i.test(msg)
-    || /could not find the function/i.test(msg)
-    || /schema cache/i.test(msg)
+    code === "42883" ||
+    /function .* does not exist/i.test(msg) ||
+    /could not find the function/i.test(msg) ||
+    /schema cache/i.test(msg)
   );
 }
 
 export function mapGraduationProjectRpcError(error: RpcErrorLike): GraduationProjectsRpcError {
   if (isGraduationProjectsRpcUnavailable(error)) {
-    return new GraduationProjectsRpcError(GRADUATION_PROJECTS_SERVICE_UPDATING_MSG, error.code ?? "", true);
+    return new GraduationProjectsRpcError(
+      GRADUATION_PROJECTS_SERVICE_UPDATING_MSG,
+      error.code ?? "",
+      true,
+    );
   }
   const msg = error.message ?? "";
-  return new GraduationProjectsRpcError(ERROR_LABELS[msg] ?? msg ?? "حدث خطأ غير متوقع", error.code ?? "");
+  return new GraduationProjectsRpcError(
+    ERROR_LABELS[msg] ?? msg ?? "حدث خطأ غير متوقع",
+    error.code ?? "",
+  );
 }
 
 /** Idempotency correlation id for one logical user action (safe retries). */
@@ -533,15 +547,21 @@ export class GraduationProjectsRpcClient {
   }
 
   async getAssignmentsReport(departmentId: string): Promise<GraduationProjectAssignmentsReport> {
-    return this.call<GraduationProjectAssignmentsReport>("get_graduation_project_assignments_report", {
-      p_department_id: departmentId,
-    });
+    return this.call<GraduationProjectAssignmentsReport>(
+      "get_graduation_project_assignments_report",
+      {
+        p_department_id: departmentId,
+      },
+    );
   }
 
   async getEvaluationsReport(departmentId: string): Promise<GraduationProjectEvaluationsReport> {
-    return this.call<GraduationProjectEvaluationsReport>("get_graduation_project_evaluations_report", {
-      p_department_id: departmentId,
-    });
+    return this.call<GraduationProjectEvaluationsReport>(
+      "get_graduation_project_evaluations_report",
+      {
+        p_department_id: departmentId,
+      },
+    );
   }
 
   async getArchiveReport(departmentId: string): Promise<GraduationProjectArchiveReport> {

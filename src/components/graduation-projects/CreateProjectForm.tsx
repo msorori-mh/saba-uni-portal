@@ -16,7 +16,11 @@ export interface CreateProjectFormProps {
   onSubmit(input: CreateProjectFormInput): void;
 }
 
-export function CreateProjectForm({ departmentId, busy = false, onSubmit }: CreateProjectFormProps) {
+export function CreateProjectForm({
+  departmentId,
+  busy = false,
+  onSubmit,
+}: CreateProjectFormProps) {
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
   const trimmed = title.trim();
@@ -26,7 +30,7 @@ export function CreateProjectForm({ departmentId, busy = false, onSubmit }: Crea
       <CardHeader>
         <CardTitle>إنشاء مشروع تخرج</CardTitle>
         <CardDescription>
-          الإنشاء مفوَّض للمنسقين ورؤساء الأقسام المعيَّنين في القسم ({departmentId}).
+          الإنشاء مفوَّض للمنسقين ورؤساء الأقسام المعيَّنين في القسم.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -35,7 +39,9 @@ export function CreateProjectForm({ departmentId, busy = false, onSubmit }: Crea
           <Input
             id="gp-title"
             value={title}
-            onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setTitle(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+              setTitle(event.target.value)
+            }
             placeholder="عنوان مشروع التخرج"
           />
           {!valid && trimmed.length > 0 ? (
@@ -47,7 +53,9 @@ export function CreateProjectForm({ departmentId, busy = false, onSubmit }: Crea
           <Textarea
             id="gp-abstract"
             value={abstract}
-            onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setAbstract(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+              setAbstract(event.target.value)
+            }
             placeholder="ملخص فكرة المشروع وأهدافه"
             rows={5}
           />
