@@ -201,7 +201,11 @@ WHERE NOT EXISTS (SELECT 1 FROM public.student_profiles p WHERE p.id='e5550000-0
 -- ---------------------------------------------------------------------------
 -- 9. Academic status for the TEST_ONLY student (service validators require it).
 -- ---------------------------------------------------------------------------
-INSERT INTO public.student_academic_status(id,student_profile_id,enrollment_status)
-SELECT 'e5580000-0000-4000-8000-000000000001'::uuid,'e5550000-0000-4000-8000-000000000001'::uuid,'active'
+INSERT INTO public.student_academic_status(id,student_profile_id,academic_year_id,semester_id,level_id,enrollment_status)
+SELECT 'e5580000-0000-4000-8000-000000000001'::uuid,'e5550000-0000-4000-8000-000000000001'::uuid,
+       (SELECT id FROM public.academic_years ORDER BY is_current DESC, start_date DESC LIMIT 1),
+       (SELECT id FROM public.semesters ORDER BY is_current DESC, start_date DESC LIMIT 1),
+       (SELECT id FROM public.academic_levels ORDER BY level_number LIMIT 1),
+       'active'
 WHERE NOT EXISTS (SELECT 1 FROM public.student_academic_status s
                   WHERE s.id='e5580000-0000-4000-8000-000000000001'::uuid);
