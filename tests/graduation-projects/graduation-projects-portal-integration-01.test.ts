@@ -375,6 +375,18 @@ describe("graduation-projects portal privacy helpers", () => {
     expect(staff.files[0]?.object_key).not.toBeNull();
   });
 
+  test("co_supervisor is staff-classified: no student-only redaction applies", () => {
+    const coSupervisor = applyPortalPrivacy(
+      baseDetail({ viewer_roles: ["co_supervisor"] }),
+      "staff-user",
+    );
+    expect(coSupervisor.evaluations).toHaveLength(1);
+    expect(coSupervisor.files[0]?.object_key).not.toBeNull();
+    expect(coSupervisor.events[0]?.actor_user_id).not.toBeNull();
+    expect(isStudentOnlyViewer(["co_supervisor"])).toBe(false);
+    expect(isStudentOnlyViewer(["student", "co_supervisor"])).toBe(false);
+  });
+
   test("readiness derivation and status banners", () => {
     const readiness = deriveDiscussionReadiness(
       baseDetail({
