@@ -23,8 +23,8 @@ const MATRIX = toLf(readFileSync(MATRIX_PATH, "utf8"));
 
 const STRUCTURAL = read("B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66-STRUCTURAL-VERIFIER.sql");
 
-/** CRLF twin of a source file — used to prove EOL portability. */
-const toCrlf = (value: string) => toLf(value).replace(/\n/g, "\r\n");
+/** CRLF twin of a source file — used to prove EOL portability (see ./eol). */
+
 
 const count = (hay: string, needle: string) => hay.split(needle).length - 1;
 
