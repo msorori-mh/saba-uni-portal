@@ -67,18 +67,22 @@ const CASES = [
     stepKey: "library_clear",
     stepLabelAr: "مرحلة المكتبة",
   },
+  {
+    action: "archive" as const,
+    labelAr: "أرشفة",
+    requestTypeCode: "enrollment_suspension",
+    stepId: "step-archive-1",
+    stepKey: "archive",
+    stepLabelAr: "مرحلة الأرشفة",
+  },
 ];
 
 describe("B1 apply_decision / clear — contract", () => {
   it("no longer classifies apply_decision or clear as specialized", () => {
-    expect(B1_SPECIALIZED_ACTION_TYPES).toEqual([
-      "confirm_payment",
-      "issue_document",
-      "sign",
-      "archive",
-    ]);
+    expect(B1_SPECIALIZED_ACTION_TYPES).toEqual(["confirm_payment", "issue_document", "sign"]);
     expect(B1_PANEL_EXECUTABLE_ACTIONS).toContain("apply_decision");
     expect(B1_PANEL_EXECUTABLE_ACTIONS).toContain("clear");
+    expect(B1_PANEL_EXECUTABLE_ACTIONS).toContain("archive");
   });
 
   it("keeps both actions supported by the atomic RPC action set", () => {
@@ -89,6 +93,7 @@ describe("B1 apply_decision / clear — contract", () => {
   it("labels them literally, never as approve", () => {
     expect(B1_PANEL_ACTION_LABELS_AR.apply_decision).toBe("تطبيق القرار");
     expect(B1_PANEL_ACTION_LABELS_AR.clear).toBe("إخلاء طرف");
+    expect(B1_PANEL_ACTION_LABELS_AR.archive).toBe("أرشفة");
     expect(B1_PANEL_ACTION_LABELS_AR.approve).toBe("اعتماد");
   });
 
