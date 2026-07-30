@@ -88,3 +88,50 @@ END IF;
   سيفشل بعد التطبيق — وهو الهدف المقصود؛ الواجهة الحالية ترسل الإجراء الحرفي.
 - **منخفض:** دوال القراءة تُستبدل أيضًا؛ خُفِّف بتثبيت `search_path` وSECURITY DEFINER
   والتحقق منهما بعد التطبيق.
+
+---
+
+## 9. المعالجة 68 — PORTAL-B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PACKAGE66-REMEDIATION-68
+
+نتيجة المراجعتين المستقلتين عولجت بالكامل، دون تطبيق Migration ودون أي اتصال بالإنتاج.
+
+### G1 — EOL PORTABILITY
+- كل قراءة نصية في اختبارات الحزمتين 66 و65 تمرّ عبر `toLf` قبل أي تأكيد،
+  وأضيف تأكيد «توأم CRLF» يثبت أن النص المطبَّع متطابق وأن الفرق الدلالي = صفر.
+- التأكيد على `SET search_path TO 'public'` صار عبر `/SET search_path TO 'public'\r?\n/`.
+- المدقق البنيوي يطبّع `CRLF -> LF` مرة واحدة (S12) فيصدر الحكم نفسه على أي checkout.
+- `.gitattributes` وسِّع بحدود ضيقة فقط: ملفات SQL للحزمتين 65/66 واختبارات
+  `tests/b1-five-services-rpc-authorization-preflight-01/*.ts` بـ `text eol=lf`
+  (لا `* text=auto`، ولا إعادة تنسيق للمستودع).
+
+### G2 — AUTHORIZATION BEFORE ACTION ORACLE
+- في المنفّذ: المصادقة ← قفل الخطوة ← `B1_ACTIVE_STEP_REQUIRED` ← تفويض المُسنَد
+  المباشر ← حارس السلف ← **ثم** مقارنة الإجراء الحرفي.
+- الفحص التفويضي يستدعى بالإجراء **المُهيّأ**
+  (`can_current_user_act_on_step(p_step_id, COALESCE(v_config.action_type,''))`)
+  لا بالإجراء القادم من العميل، فلا يستطيع غير المُسنَد استنتاج الإجراء المهيّأ
+  من نص الخطأ (لا Action Oracle).
+- غير المُسنَد يحصل دائمًا على `B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)`
+  أيًا كان الإجراء المرسل؛ و`B1_ACTION_TYPE_MISMATCH (42501)` مقصور على المُسنَد الصحيح.
+
+### G3 — COMPLETE PRINCIPAL COVERAGE
+- مصفوفة الحزمة 66 تغطي صراحة: `exact_assignee`, `wrong_assignee`, `admin`,
+  `system_admin`, `registrar`, `dean`, `department_head`, `student_owner`, `anon`
+  × خمسة إجراءات مهيّأة × خمسة إجراءات مرسلة.
+- كتلة `NO_ACTION_ORACLE` ترفع `B1_66_ACTION_ORACLE_LEAK` إذا لاحظ أي مبدأ غير مُسنَد
+  رسالة `B1_ACTION_TYPE_MISMATCH`، وكتلة أخرى ترفع `B1_66_MATRIX_FAILED_CASES`
+  عند أي حالة فاشلة. لا bypass لـadmin/system_admin/registrar/dean.
+
+### G4 — EXECUTABLE FAIL-CLOSED VERIFIERS
+- **STRUCTURAL VERIFIER**: صار سكربتًا تنفيذيًا (`\set ON_ERROR_STOP on` + `DO`)
+  يقرأ ملف الـMigration ويرفع استثناءات S1..S12 المسمّاة، وينتهي بـ
+  `B1_66_STRUCTURAL_VERIFIER_PASS`. للقراءة فقط: لا DDL ولا DML ولا معالجة تلقائية.
+- **POST-VERIFIER**: كتلة `DO` للقراءة فقط ترفع `V_FAIL_*` عند أي انحراف في
+  التوقيع/المالك/SECURITY DEFINER/`search_path`/ACL، أو بقاء alias، أو غياب الحارس
+  الحرفي، أو اختلال ترتيب التفويض، أو delta Migrations ≠ 1، أو أي delta بيانات ≠ 0،
+  أو انحراف `student_visible`، أو تأثر `enrollment_certificate`.
+- لم يعد أي verifier يُخرج `ok=false` بصمت؛ الفشل يوقف التنفيذ.
+
+### التحقق
+- `bun test tests/b1-five-services-rpc-authorization-preflight-01` → **144 pass / 0 fail**.
+- لا Migration مطبقة، لا Deploy، لا كتابة إنتاجية، لا تشغيل Operator أو أي حالة RPC.
