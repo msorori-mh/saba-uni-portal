@@ -254,3 +254,32 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Remaining scope: GP-10.
 - Active blockers: none.
 - Next automatic phase: **GP-10 — RELEASE CANDIDATE PACKAGE**
+
+---
+
+## GP-10 — RELEASE CANDIDATE PACKAGE
+
+- Current phase: GP-10
+- Phase decision: **PASS_GRADUATION_PROJECTS_COMPLETE_SOURCE_RELEASE_CANDIDATE_READY**
+- Base SHA (origin/main at start): `c9beca3ec1fa3a7d259311319d8d7795e359875d` (advanced to `5356b322` mid-program; synced at GP-03)
+- Phase commit SHA: (recorded below after commit)
+- Phase SHAs: GP-01 `bbb177fd` — GP-02 `9b19a71c` — GP-03 `2508f03d` — GP-04 `83f145d9` — GP-05 `a28f579b` — GP-06 `4cea9b7c` — GP-07 `3069e401` — GP-08 `2d1aaff5` — GP-09 `b6fe1795`
+- Changed files:
+  - `docs/GRADUATION-PROJECTS-RELEASE-CANDIDATE/FINAL-SYSTEM-REPORT.md` (new)
+  - `docs/GRADUATION-PROJECTS-RELEASE-CANDIDATE/ARCHITECTURE-AND-LIFECYCLE.md` (new)
+  - `docs/GRADUATION-PROJECTS-RELEASE-CANDIDATE/DATABASE-AND-MIGRATION-PROMOTION.md` (new)
+  - `docs/GRADUATION-PROJECTS-RELEASE-CANDIDATE/UI-AND-TEST-INVENTORY.md` (new)
+  - `docs/GRADUATION-PROJECTS-RELEASE-CANDIDATE/FILE-STORAGE-AND-NOTIFICATION-CONTRACTS.md` (new)
+  - `docs/GRADUATION-PROJECTS-RELEASE-CANDIDATE/USER-GUIDES.md` (new)
+- Tests (final sweep): GP suites 155/155 (1647 expects); full bun test — 1 pre-existing environmental fail (G4 wrangler spike); tsc clean; build success; git diff --check clean.
+- Migrations created: 8 (M1–M8) — Migrations applied: **0** — Production operations: **0** — Staging operations: **0** — Deploy: **0** — Merge to main: **0**
+- Completed scope:
+  - Release-candidate documentation set (final system report, architecture,
+    lifecycle map, role matrix, RPC inventory, DB inventory, promotion map,
+    apply instructions, preflight/verifier inventory, UI inventory, test
+    inventory, file/notification contracts, six user guides, cleanup manifest,
+    known lows, rollout checklist, rollback conditions, NOT_APPLIED statement).
+  - B1 separation verified by path diff (zero B1-track files).
+- Remaining scope: none — Draft PR follows as the final step.
+- Active blockers: none.
+- Next automatic phase: DONE (Draft PR creation).
