@@ -23,6 +23,8 @@ DECLARE
   v_actor uuid;
   v_action text;
   v_active_key text;
+  v_student_user_id uuid;
+  v_student_profile_id uuid;
 BEGIN
   FOR v_service IN SELECT * FROM (VALUES
     ('excused_absence'::text, 3),
@@ -39,12 +41,48 @@ BEGIN
 
       CONTINUE WHEN EXISTS (SELECT 1 FROM public.student_requests r WHERE r.id = v_request_id);
 
+      -- One isolated TEST_ONLY student per fixture: service validators forbid
+      -- more than one open request of the same type per student.
+      v_student_user_id := ('e5510000-0000-4000-8000-' || lpad(v_seq::text, 12, '0'))::uuid;
+      v_student_profile_id := ('e5550000-0000-4000-8000-' || lpad(v_seq::text, 12, '0'))::uuid;
+
+      INSERT INTO auth.users(id, email, email_confirmed_at, raw_user_meta_data)
+      SELECT v_student_user_id,
+             'student.fixture' || lpad(v_seq::text, 4, '0') || '@test-only.invalid',
+             now(), jsonb_build_object('test_only', true)
+      WHERE NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = v_student_user_id);
+
+      INSERT INTO public.user_roles(user_id, role)
+      SELECT v_student_user_id, 'student'::public.app_role
+      WHERE NOT EXISTS (SELECT 1 FROM public.user_roles r
+                        WHERE r.user_id = v_student_user_id AND r.role='student'::public.app_role);
+
+      INSERT INTO public.student_profiles(
+        id,user_id,academic_number,full_name_ar,email,department_id,program_id,status,must_change_password)
+      SELECT v_student_profile_id, v_student_user_id,
+             'TO-STU-' || lpad(v_seq::text, 4, '0'),
+             'طالب اختباري معزول TEST_ONLY ' || v_seq,
+             'student.fixture' || lpad(v_seq::text, 4, '0') || '@test-only.invalid',
+             'e5100000-0000-4000-8000-000000000001'::uuid,
+             'e5110000-0000-4000-8000-000000000001'::uuid, 'active', false
+      WHERE NOT EXISTS (SELECT 1 FROM public.student_profiles p WHERE p.id = v_student_profile_id);
+
+      INSERT INTO public.student_academic_status(
+        student_profile_id, academic_year_id, semester_id, level_id, enrollment_status)
+      SELECT v_student_profile_id,
+             (SELECT id FROM public.academic_years ORDER BY is_current DESC, start_date DESC LIMIT 1),
+             (SELECT id FROM public.semesters ORDER BY is_current DESC, start_date DESC LIMIT 1),
+             (SELECT id FROM public.academic_levels ORDER BY level_number LIMIT 1),
+             'active'
+      WHERE NOT EXISTS (SELECT 1 FROM public.student_academic_status s
+                        WHERE s.student_profile_id = v_student_profile_id);
+
       PERFORM set_config('b1.atomic_init', '1', true);
 
       INSERT INTO public.student_requests(
         id, student_profile_id, request_type, title, status, submitted_at, request_number, form_data)
       VALUES (
-        v_request_id, 'e5550000-0000-4000-8000-000000000001'::uuid, v_service.canonical_code,
+        v_request_id, v_student_profile_id, v_service.canonical_code,
         'TEST_ONLY isolated authorization fixture', 'submitted', now(), v_request_number,
         jsonb_build_object('test_only', true, 'fixture_target_step_order', v_target));
 
