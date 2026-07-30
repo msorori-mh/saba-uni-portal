@@ -301,11 +301,14 @@ export function StaffRequestDetailPanel({
 
           const showFee = activeType === "assess_fee" || activeType === "confirm_payment";
           const showFinanceClearance = activeType === "clearance" || activeType === "finance_clearance";
-          const showArchivePanel = activeType === "archive";
+          const isB1ServiceForGating = isB1StaffRoutedRequestType(detail.requestTypeCode);
+          // B1 five services execute `archive` literally through the B1 atomic
+          // panel; only non-B1 services use the generic archive panel.
+          const showArchivePanel = activeType === "archive" && !isB1ServiceForGating;
           const showEcIssueButton = activeType === "issue_document";
           const showSignPanel = activeType === "sign";
           const isReviewStep = activeType === "review";
-          const isB1Service = isB1StaffRoutedRequestType(detail.requestTypeCode);
+          const isB1Service = isB1ServiceForGating;
 
           return (
             <>

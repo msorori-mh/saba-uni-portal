@@ -39,6 +39,10 @@ const ACTION_META: Record<ExecutableAction, { labelAr: string; buttonClass: stri
     labelAr: "إخلاء طرف",
     buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
   },
+  archive: {
+    labelAr: "أرشفة",
+    buttonClass: "bg-primary text-primary-foreground hover:opacity-90",
+  },
   return: {
     labelAr: "إرجاع للاستكمال",
     buttonClass: "border border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100",

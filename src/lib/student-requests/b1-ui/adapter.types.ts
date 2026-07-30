@@ -203,6 +203,7 @@ export type B1StaffAction =
   | "review"
   | "apply_decision"
   | "clear"
+  | "archive"
   | "return"
   | "reject"
   | "confirm_payment";
