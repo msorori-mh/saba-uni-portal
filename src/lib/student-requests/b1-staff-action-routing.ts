@@ -37,6 +37,7 @@ export const B1_PANEL_EXECUTABLE_ACTIONS = [
   "approve",
   "apply_decision",
   "clear",
+  "archive",
   "return",
   "reject",
 ] as const;
@@ -61,7 +62,6 @@ export const B1_SPECIALIZED_ACTION_TYPES = [
   "confirm_payment",
   "issue_document",
   "sign",
-  "archive",
 ] as const;
 
 export const B1_PANEL_ACTION_LABELS_AR: Readonly<Record<B1PanelExecutableAction, string>> = {
@@ -69,6 +69,7 @@ export const B1_PANEL_ACTION_LABELS_AR: Readonly<Record<B1PanelExecutableAction,
   approve: "اعتماد",
   apply_decision: "تطبيق القرار",
   clear: "إخلاء طرف",
+  archive: "أرشفة",
   return: "إرجاع للاستكمال",
   reject: "رفض",
 };
