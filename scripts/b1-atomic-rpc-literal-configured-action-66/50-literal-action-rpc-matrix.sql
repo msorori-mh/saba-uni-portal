@@ -68,7 +68,16 @@ DECLARE
   r record; a text; p record; v_expected text; v_case int := 0;
 BEGIN
   FOR r IN
-    SELECT s.id AS step_id, cfg.action_type AS configured, s.assigned_user_id
+    -- The exact direct assignee is resolved through ALL FOUR runtime assignment
+    -- shapes (user, staff profile, faculty profile, position assignment), exactly
+    -- like scripts/b1-isolated-authorization-env-65/30-fixtures.sql does.
+    SELECT s.id AS step_id, cfg.action_type AS configured,
+           COALESCE(
+             s.assigned_user_id,
+             (SELECT sp.user_id FROM public.staff_profiles sp WHERE sp.id = s.assigned_staff_profile_id),
+             (SELECT fp.user_id FROM public.faculty_profiles fp WHERE fp.id = s.assigned_faculty_profile_id),
+             (SELECT pa.user_id FROM public.position_assignments pa WHERE pa.id = s.assigned_position_assignment_id)
+           ) AS assigned_user_id
     FROM public.student_request_workflow_steps s
     JOIN public.request_type_workflow_steps cfg ON cfg.id = s.workflow_step_id
     JOIN public.student_requests sr ON sr.id = s.student_request_id
@@ -76,6 +85,10 @@ BEGIN
       AND public.b1_is_five_service_type(sr.request_type)
       AND cfg.action_type IN ('review','approve','clear','apply_decision','archive')
   LOOP
+    IF r.assigned_user_id IS NULL THEN
+      RAISE EXCEPTION 'B1_66_MATRIX_STEP_HAS_NO_RESOLVABLE_DIRECT_ASSIGNEE:%', r.step_id;
+    END IF;
+
     FOREACH a IN ARRAY ARRAY['review','approve','clear','apply_decision','archive'] LOOP
       FOR p IN
         SELECT 'exact_assignee' AS principal, r.assigned_user_id AS uid
@@ -92,12 +105,16 @@ BEGIN
         -- ORDER MATTERS: authentication -> authorization -> literal action.
         -- A non-assignee NEVER receives B1_ACTION_TYPE_MISMATCH, so the denial
         -- message cannot be used as an oracle for the configured action.
+        -- Some labelled principals (registrar, dean, department_head) ARE the
+        -- exact assignee of their own step, so the oracle compares identities,
+        -- never labels.
         v_expected := CASE
-          WHEN p.principal = 'anon' THEN 'AUTHENTICATION_REQUIRED'
-          WHEN p.principal <> 'exact_assignee' THEN 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'
+          WHEN p.uid IS NULL THEN 'AUTHENTICATION_REQUIRED'
+          WHEN p.uid IS DISTINCT FROM r.assigned_user_id THEN 'B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED'
           WHEN a IS DISTINCT FROM r.configured THEN 'B1_ACTION_TYPE_MISMATCH'
           ELSE 'PASS'
         END;
+
 
         PERFORM pg_temp.run_case(
           format('C%04s', v_case), r.step_id, r.configured, a, p.principal,
