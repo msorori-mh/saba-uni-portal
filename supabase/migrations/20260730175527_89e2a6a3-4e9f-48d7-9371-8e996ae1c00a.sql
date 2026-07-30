@@ -1,62 +1,6 @@
 -- PORTAL-B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-MIGRATION-PACKAGE-66
--- FORWARD-ONLY PRODUCTION MIGRATION — PREPARED, **NOT APPLIED** IN THIS TASK.
--- Apply only after independent review and a separate explicit authorization.
---
--- PURPOSE
---   Close HOLD_B1_PRODUCTION_ATOMIC_RPC_LITERAL_CONFIGURED_ACTION_ENFORCEMENT_REQUIRED.
---   Production `public.act_on_b1_student_request_step_atomic` currently rewrites a
---   generic 'approve' into the configured action through
---   `public.b1_map_ui_staff_action(...)`, so the exact direct assignee of a step
---   configured as clear / apply_decision / archive can execute it by sending
---   'approve'. This migration removes that alias path: p_action MUST equal the
---   configured `request_type_workflow_steps.action_type` literally.
---
--- NO ALIAS EXCEPTION EXISTS
---   The B1 action vocabulary is closed: review, approve, clear, apply_decision,
---   archive, return, reject (+ specialized confirm_payment / issue_document / sign,
---   which are rejected here and executed by their dedicated RPCs). There is no
---   'skip' action in the source contract — 'skipped' is a runtime STEP STATUS only
---   (predecessor tolerance), never a caller-supplied action. Therefore this
---   migration introduces NO alias exception whatsoever.
---
--- READER CONSISTENCY (same migration, mandatory)
---   `get_b1_step_allowed_actions`, `get_b1_assigned_request_details_for_actor` and
---   `get_b1_assigned_inbox_for_actor` currently PUBLISH the aliased 'approve' for
---   clear / apply_decision / archive steps. Enforcing literal input without
---   correcting the published action would make legitimate assignees unable to act.
---   They are updated to publish the literal configured action_type.
---
--- PRESERVED, UNCHANGED
---   * signature  public.act_on_b1_student_request_step_atomic(uuid, text, text, jsonb) -> jsonb
---   * owner      postgres (CREATE OR REPLACE preserves owner)
---   * SECURITY DEFINER, LANGUAGE plpgsql, SET search_path
---       - act_on_b1_student_request_step_atomic : search_path = public
---       - the three reader functions             : search_path = public, pg_temp
---   * grants/ACL {postgres=X, authenticated=X, service_role=X, sandbox_exec=X}
---     (CREATE OR REPLACE does not reset ACL; asserted below)
---   * every existing correct contract: auth requirement, FOR UPDATE locking,
---     transition SHARE lock, direct-assignee authorization, predecessor guard,
---     specialized-action rejection, payload rejection, comment requirement,
---     unique transition resolution, active-step invariant, academic effects,
---     event emission, request status transitions.
---
--- EXPECTED DELTA
---   migration count delta = 1 (this file)     data delta = 0 rows
---   request_types.student_visible : UNCHANGED (five B1 services remain false)
---   enrollment_certificate        : UNTOUCHED (not a B1 canonical service)
---   no workflow RPC executed, no deploy, no DML.
---
--- STOP / ROLLBACK
---   Single transaction. Any assertion failure aborts the whole migration; a
---   partial apply is impossible. If the transaction aborts, nothing changed —
---   re-run after remediation. Recovery from a bad apply is forward-only
---   (re-CREATE OR REPLACE from the captured pre-image in the preflight output).
-
 BEGIN;
 
--- ---------------------------------------------------------------------------
--- 0. Pre-conditions (fail closed before any DDL)
--- ---------------------------------------------------------------------------
 DO $pre$
 DECLARE v_acl text; v_owner text; v_cfg text[];
 BEGIN
@@ -79,9 +23,6 @@ BEGIN
 END
 $pre$;
 
--- ---------------------------------------------------------------------------
--- 1. Atomic executor — literal configured action enforcement
--- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.act_on_b1_student_request_step_atomic(p_step_id uuid, p_action text, p_comment text DEFAULT NULL::text, p_payload jsonb DEFAULT '{}'::jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -180,9 +121,6 @@ BEGIN
 END;
 $function$;
 
--- ---------------------------------------------------------------------------
--- 2. Reader: single-step allowed actions — publish the LITERAL configured action
--- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_b1_step_allowed_actions(p_step_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -242,9 +180,6 @@ begin
 end;
 $function$;
 
--- ---------------------------------------------------------------------------
--- 3. Reader: assigned request details — publish the LITERAL configured action
--- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_b1_assigned_request_details_for_actor(p_request_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -349,9 +284,6 @@ begin
 end;
 $function$;
 
--- ---------------------------------------------------------------------------
--- 4. Reader: assigned inbox — publish the LITERAL configured action
--- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.get_b1_assigned_inbox_for_actor(p_limit integer DEFAULT 50, p_offset integer DEFAULT 0)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -424,9 +356,6 @@ begin
 end;
 $function$;
 
--- ---------------------------------------------------------------------------
--- 5. Post-conditions inside the same transaction (abort => zero change)
--- ---------------------------------------------------------------------------
 DO $post$
 DECLARE v_src text; v_owner text; v_acl text; v_cfg text[]; v_secdef boolean; v_name text;
 BEGIN
@@ -455,7 +384,6 @@ BEGIN
       RAISE EXCEPTION 'B1_66_READER_SEARCH_PATH_CHANGED:%:%', v_name, v_cfg; END IF;
   END LOOP;
 
-  -- protected surfaces untouched
   IF EXISTS (SELECT 1 FROM public.request_types
     WHERE code IN ('enrollment_suspension','excused_absence','absence_excuse','department_transfer',
                    'transfer','final_chance','extra_chance','file_withdrawal')
