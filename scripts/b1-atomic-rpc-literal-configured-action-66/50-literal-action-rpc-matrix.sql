@@ -124,4 +124,25 @@ SELECT 'SUMMARY' AS id, count(*) AS total, count(*) FILTER (WHERE ok) AS passed,
 
 SELECT * FROM t_result WHERE NOT ok ORDER BY case_id;
 
+-- NO ACTION ORACLE: no unauthenticated/unauthorized principal may ever observe
+-- B1_ACTION_TYPE_MISMATCH; that message is reserved for the exact assignee.
+SELECT 'NO_ACTION_ORACLE' AS id,
+       count(*) FILTER (WHERE principal <> 'exact_assignee'
+                          AND observed LIKE '%B1_ACTION_TYPE_MISMATCH%') AS leaked_cases
+FROM t_result;
+
+-- Fail closed: raise if any case failed or any oracle leak was observed.
+DO $assert$
+DECLARE v_failed int; v_leaked int;
+BEGIN
+  SELECT count(*) FILTER (WHERE NOT ok),
+         count(*) FILTER (WHERE principal <> 'exact_assignee'
+                            AND observed LIKE '%B1_ACTION_TYPE_MISMATCH%')
+    INTO v_failed, v_leaked FROM t_result;
+  IF v_failed > 0 THEN RAISE EXCEPTION 'B1_66_MATRIX_FAILED_CASES:%', v_failed; END IF;
+  IF v_leaked > 0 THEN RAISE EXCEPTION 'B1_66_ACTION_ORACLE_LEAK:%', v_leaked; END IF;
+END
+$assert$;
+
 ROLLBACK;
+
