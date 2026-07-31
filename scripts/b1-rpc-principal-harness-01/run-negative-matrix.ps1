@@ -108,6 +108,58 @@ $env:PGOPTIONS = '-c default_transaction_read_only=off'
 Write-Host "target: ref=$projectRef host=$pgHost port=$pgPort db=$pgDatabase sslmode=$pgSslMode"
 
 # ---------------------------------------------------------------------------
+# 1b. INVALIDATION-09 - AUTHORITATIVE BASELINE FAIL-CLOSED GATE
+#     Execution is refused unless the CANONICAL ACTIVE baseline is PINNED,
+#     explicitly authorized, unexpired, and attests the required migration head.
+#     Archived baselines are never selectable: the path is hard-coded here and
+#     any artifact under baseline/archive/ is rejected.
+# ---------------------------------------------------------------------------
+$canonicalBaselineRelative = 'scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json'
+$requiredMigrationHead = '20260731203030'
+$baselineHold = 'HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE'
+$bl = $manifest.authoritative_baseline
+
+function Deny-Baseline([string]$why) {
+  Write-Host "baseline gate: $why"
+  Write-Host "RESULT: $baselineHold"
+  exit 3
+}
+
+if ($bl.artifact_path -ne $canonicalBaselineRelative) { Deny-Baseline "baseline path is not the canonical active path: $($bl.artifact_path)" }
+if ($bl.artifact_path -like '*baseline/archive/*') { Deny-Baseline 'archived baseline is not selectable' }
+
+$baselinePath = Join-Path (Split-Path -Parent (Split-Path -Parent $here)) $bl.artifact_path
+if (-not (Test-Path $baselinePath)) { Deny-Baseline 'active baseline artifact missing' }
+$baselineRaw = (Get-Content -Raw -Path $baselinePath) -replace "`r`n", "`n"
+$baseline = $baselineRaw | ConvertFrom-Json
+
+$baselineSha = [BitConverter]::ToString(
+  [System.Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($baselineRaw))
+).Replace('-', '').ToLowerInvariant()
+if ($baselineSha -ne $bl.artifact_sha256) { Deny-Baseline 'baseline artifact sha256 differs from the manifest pin' }
+
+if ($bl.status -ne 'PINNED' -or $baseline.status -ne 'PINNED') { Deny-Baseline "status is $($baseline.status)" }
+if ($bl.execution_authorized -ne $true -or $baseline.execution_authorized -ne $true) { Deny-Baseline 'execution_authorized is not true' }
+if ([string]::IsNullOrWhiteSpace([string]$baseline.fingerprint) -or [string]::IsNullOrWhiteSpace([string]$bl.fingerprint)) { Deny-Baseline 'fingerprint is null' }
+if ($baseline.fingerprint -ne $bl.fingerprint) { Deny-Baseline 'fingerprint mismatch between manifest and artifact' }
+if ($bl.expected_migration_head -ne $requiredMigrationHead) { Deny-Baseline "expected migration head is not $requiredMigrationHead" }
+if ($baseline.migration_head -ne $requiredMigrationHead -or $bl.migration_head -ne $requiredMigrationHead) { Deny-Baseline "migration head is not $requiredMigrationHead" }
+if ([string]::IsNullOrWhiteSpace([string]$baseline.reviewed_package_sha)) { Deny-Baseline 'reviewed_package_sha is null' }
+if ($baseline.reviewed_package_sha -ne $bl.reviewed_package_sha) { Deny-Baseline 'reviewed_package_sha mismatch' }
+$executionSha = (& git -C (Split-Path -Parent (Split-Path -Parent $here)) rev-parse HEAD).Trim()
+if ($baseline.reviewed_package_sha -ne $executionSha) { Deny-Baseline 'reviewed_package_sha differs from the exact execution SHA' }
+if ($null -eq $baseline.scope -or @($baseline.scope).Count -eq 0) { Deny-Baseline 'request scope is empty' }
+$manifestScope = @($bl.scope) -join ','
+if ((@($baseline.scope) -join ',') -ne $manifestScope) { Deny-Baseline 'request scope differs from the manifest scope' }
+if ($baseline.operator_preflight_executed -eq $true) { Deny-Baseline 'baseline already records an executed operator preflight' }
+if ([string]::IsNullOrWhiteSpace([string]$baseline.captured_at_utc) -or $null -eq $baseline.valid_for_minutes) { Deny-Baseline 'baseline capture window is missing' }
+$capturedAt = [DateTime]::Parse($baseline.captured_at_utc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal -bor [Globalization.DateTimeStyles]::AssumeUniversal)
+if ((Get-Date).ToUniversalTime() -gt $capturedAt.AddMinutes([double]$baseline.valid_for_minutes)) { Deny-Baseline 'baseline is expired' }
+
+Write-Host 'baseline gate: PINNED, authorized, unexpired'
+
+
+# ---------------------------------------------------------------------------
 # 2. offline render (no connection)
 # ---------------------------------------------------------------------------
 Write-Host 'rendering cases offline (always; there is no skip path)...'
