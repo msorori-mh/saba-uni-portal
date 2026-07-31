@@ -374,6 +374,74 @@ BEGIN
 END $$;
 
 
+-- ============================================================================
+-- 8c. REMEDIATION-15 G5 — FIXTURE-13 STATE GATE (fail-closed)
+--     Every previously blocked case is now bound to a deterministic ACTIVE
+--     TEST_ONLY fixture step. If the fixture package is not applied, or drifted,
+--     the run halts here instead of "passing" against a non-existent step.
+-- ============================================================================
+DO $$
+DECLARE
+  k_marker  CONSTANT text := 'TEST_ONLY_B1_FIXTURE_13';
+  k_hold    CONSTANT text := 'HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED';
+  v_req     int;
+  v_steps   int;
+  v_active  int;
+  v_detail  int;
+  v_bad     int;
+BEGIN
+  SELECT count(*) INTO v_req FROM public.student_requests
+   WHERE internal_notes = k_marker AND request_number LIKE 'SR-20260801-13%';
+  IF v_req <> 19 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture requests (expected 19)', k_hold, v_req;
+  END IF;
+
+  SELECT count(*) INTO v_steps
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker;
+  IF v_steps <> 104 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture runtime steps (expected 104)', k_hold, v_steps;
+  END IF;
+
+  SELECT count(*) INTO v_active
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker AND w.status = 'active';
+  IF v_active <> 19 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % ACTIVE fixture steps (expected 19)', k_hold, v_active;
+  END IF;
+
+  SELECT count(*) INTO v_detail
+    FROM public.transfer_request_details d
+    JOIN public.student_requests r ON r.id = d.request_id
+   WHERE r.internal_notes = k_marker
+     AND d.current_department_id <> d.requested_department_id;
+  IF v_detail <> 5 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % transfer scope rows (expected 5)', k_hold, v_detail;
+  END IF;
+
+  -- singular identity + provenance on every fixture runtime step
+  SELECT count(*) INTO v_bad
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker
+     AND (num_nonnulls(w.assigned_user_id, w.assigned_staff_profile_id,
+                       w.assigned_faculty_profile_id, w.assigned_position_assignment_id) <> 1
+       OR (w.metadata ->> 'direct_assignment_id') IS NULL);
+  IF v_bad <> 0 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture steps violate the singular-identity contract', k_hold, v_bad;
+  END IF;
+
+  -- no fixture may have been advanced past its parked boundary
+  SELECT count(*) INTO v_bad FROM public.student_requests
+   WHERE internal_notes = k_marker AND status <> 'in_review';
+  IF v_bad <> 0 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture requests left the in_review boundary', k_hold, v_bad;
+  END IF;
+END $$;
+
+
 -- the six Migration-29 functions, by EXACT signature
 DO $$
 DECLARE r record;
