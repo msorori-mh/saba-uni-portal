@@ -287,3 +287,32 @@ before any apply approval.
 - NO_VISIBILITY_CHANGE
 - NO_DEPLOY
 - NO_PUBLISH
+
+---
+
+## Addendum §134 — D1/D2 remediated, decision superseded
+
+Mission `PORTAL-B1-STAGE3-CLEANUP-MIGRATION-D1-D2-SOURCE-REMEDIATION-134`, source-only.
+
+- **D1 fixed.** `hold_request_number.n` renamed to `.request_number`; no block declares `n`;
+  all references qualified and aliased. The old pattern was empirically reproduced on a local
+  PostgreSQL 17.9 (`column reference "n" is ambiguous`) and the new pattern verified clean; all
+  three DO bodies compile with `check_function_bodies = on`.
+- **D2 fixed.** All 15 DELETEs now carry their own immediate
+  `GET DIAGNOSTICS … ROW_COUNT` + exact-count `RAISE EXCEPTION`
+  (`*_DELETE_COUNT_MISMATCH`, `expected=… actual=…`). No grouped assertions.
+- **D3 fixed.** The `enrollment_certificate` postcondition is now a hard assertion (requests 4,
+  document_details 2, official_documents 2, timestamp `2026-07-16 04:44:29.338193+00`); the dead
+  `vars.storage_export_ack` stub was removed. The draft also gained one explicit `BEGIN;`/`COMMIT;`.
+- **Figure corrections.** Total expected deleted rows is **444**, not 433 (the 15 per-table
+  counts in export-132 `MANIFEST.md` sum to 444; the printed total was an arithmetic slip).
+  Expected remaining `b1_draft_mutation_idempotency` is **0**; 8 is the remaining
+  `student_request_attachment_uploads` count.
+- **Preflight re-run** at `2026-07-31 20:10:11.663047+00`: every G1/G2/G3/G5/G6 predicate
+  re-measured identical, export-132 SHA256 15/15 match, migration head `20260730175527`
+  unchanged, zero drift.
+
+Decision of this report is **superseded** by
+`docs/B1-STAGE3-CLEANUP-MIGRATION-D1-D2-SOURCE-REMEDIATION-134-REPORT.md`:
+`PASS_B1_STAGE3_CLEANUP_MIGRATION_D1_D2_FIXED_AND_FINAL_PREFLIGHT_READY_FOR_EXPLICIT_APPLY_APPROVAL`.
+Migration 128 remains `NOT_APPLIED` and outside `supabase/migrations/`.
