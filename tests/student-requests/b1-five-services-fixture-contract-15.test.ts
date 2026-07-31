@@ -96,13 +96,26 @@ describe("fixture-13 remediation 15 — migration draft contract", () => {
     );
   });
 
-  it("uses deterministic ids and never gen_random_uuid", () => {
-    expect(fixtureSql).not.toMatch(/gen_random_uuid\(\)/u);
+  it("uses deterministic ids and never generates random ones in a write", () => {
+    const writes = fixtureSql
+      .split("\n")
+      .filter((l) => /INSERT INTO|VALUES \(|::uuid\)/u.test(l))
+      .join("\n");
+    expect(writes).not.toMatch(/gen_random_uuid/u);
     expect(fixtureSql).toContain("f1300001-0000-4000-8000-");
+    expect(fixtureSql).toContain("f1300002-0000-4000-8000-");
   });
 
-  it("forbids visibility, auth, storage and grant changes", () => {
-    for (const forbidden of [/student_visible\s*=\s*true/iu, /\bGRANT\b/u, /auth\.users\s+SET/iu, /storage\./u]) {
+  it("forbids visibility, auth, storage, grant and update statements", () => {
+    for (const forbidden of [
+      /\bUPDATE\s+public\./iu,
+      /\bDELETE\s+FROM\b/iu,
+      /\bGRANT\b/u,
+      /\bALTER\s+TABLE\b/iu,
+      /\bauth\.users\b/u,
+      /\bstorage\.objects\b/u,
+      /supabase_migrations\.schema_migrations\s+(SET|VALUES)/iu,
+    ]) {
       expect(fixtureSql).not.toMatch(forbidden);
     }
   });
