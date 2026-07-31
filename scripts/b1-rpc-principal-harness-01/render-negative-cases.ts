@@ -783,6 +783,13 @@ INSERT INTO b1_pin_scalar(key, value) VALUES
   ('probe_sub', ${sqlText(manifest.probe_sub)}),
   ('baseline_status', ${sqlText(manifest.authoritative_baseline.status)}),
   ('baseline_fingerprint', ${sqlText(manifest.authoritative_baseline.fingerprint)}),
+  ('baseline_execution_authorized', ${sqlText(
+    manifest.authoritative_baseline.execution_authorized === true ? "true" : "false",
+  )}),
+  ('baseline_expected_migration_head', ${sqlText(manifest.authoritative_baseline.expected_migration_head)}),
+  ('baseline_migration_head', ${sqlText(manifest.authoritative_baseline.migration_head)}),
+  ('baseline_reviewed_package_sha', ${sqlText(manifest.authoritative_baseline.reviewed_package_sha)}),
+  ('baseline_artifact_path', ${sqlText(manifest.authoritative_baseline.artifact_path)}),
   ('blocked_case_total', ${sqlText(String(blockedTotal))}),
   ('executable_case_total', ${sqlText(String(executableTotal))}),
   ('blocked_hold_token', ${sqlText(BLOCKED_HOLD_TOKEN)});
