@@ -93,6 +93,37 @@ function fixtureFor(service: string, stepKey: string) {
 
 const matrix = JSON.parse(readFileSync(MATRIX_PATH, "utf8"));
 
+/** Legacy production pins are the source of truth for each service's
+ *  unit / role / configured action_type / rpc / direct assignee per step. */
+type LegacyPin = {
+  request_type: string;
+  step_order: number;
+  processing_unit_code: string;
+  processing_role_code: string;
+  configured_action_type: string;
+  direct_assignee_user_id: string;
+  rpc: string;
+};
+const serviceStepModel = new Map<string, Map<number, LegacyPin & { step_key: string }>>();
+for (const [key, pin] of Object.entries(matrix.step_state_pins as Record<string, LegacyPin>)) {
+  if (!pin.processing_unit_code) continue; // already-rebound fixture pin
+  const stepKey = key.split("|")[1];
+  const perService = serviceStepModel.get(pin.request_type) ?? new Map();
+  perService.set(pin.step_order, { ...pin, step_key: stepKey });
+  serviceStepModel.set(pin.request_type, perService);
+}
+function stepModel(service: string, order: number) {
+  const m = serviceStepModel.get(service)?.get(order);
+  if (!m) throw new Error(`no legacy step model for ${service} step ${order}`);
+  return m;
+}
+/** G3 — the target department head is now the CS head, not the CIS head. */
+function assigneeFor(service: string, order: number): string {
+  const m = stepModel(service, order);
+  if (m.step_key === "target_department_head_approval") return HEAD_CS;
+  return m.direct_assignee_user_id;
+}
+
 /** G3 — department actor model: source=IT, target=CS, unrelated=CIS. */
 matrix.principals["department/department_head@source"] = HEAD_IT;
 matrix.principals["department/department_head@target"] = HEAD_CS;
@@ -135,10 +166,11 @@ let rebound = 0;
 
 /** ---- illegal-action cases: rebind every pending-step case onto a fixture ---- */
 for (const c of matrix.illegal_action_cases as Array<Record<string, unknown>>) {
-  if (c.execution_status !== "BLOCKED_PENDING_ACTIVE_FIXTURE") continue;
-  const service = matrix.step_state_pins[`${c.request_number}|${c.step_key}`]?.request_type as string;
+  const legacyNumber = (c.legacy_request_number as string) ?? (c.request_number as string);
+  if (c.execution_status === "EXECUTABLE") continue;
+  const service = matrix.step_state_pins[`${legacyNumber}|${c.step_key}`]?.request_type as string;
   const f = fixtureFor(service, c.step_key as string);
-  c.legacy_request_number = c.request_number;
+  c.legacy_request_number = legacyNumber;
   c.request_number = reqNumber(f.ord);
   c.request_id = reqId(f.ord);
   c.runtime_step_id = stepId(f.ord, f.activeOrder);
@@ -178,7 +210,7 @@ const scopeBind: Record<string, { f: typeof src; actor: string; dept: string; sc
 for (const c of matrix.supplemental_department_scope_cases as Array<Record<string, unknown>>) {
   const bind = scopeBind[c.case as string];
   if (!bind) throw new Error(`unmapped scope case ${String(c.case)}`);
-  c.legacy_request_number = c.request_number;
+  c.legacy_request_number = (c.legacy_request_number as string) ?? (c.request_number as string);
   c.request_number = reqNumber(bind.f.ord);
   c.request_id = reqId(bind.f.ord);
   c.runtime_step_id = stepId(bind.f.ord, bind.f.activeOrder);
@@ -194,22 +226,77 @@ for (const c of matrix.supplemental_department_scope_cases as Array<Record<strin
   rebound += 1;
 }
 
-/** ---- fixture step-state pins (deterministic, one per fixture) ---- */
+/** ---- fixture step-state pins, positive step expectations, attestation ---- */
+matrix.positive_cases = (matrix.positive_cases as Array<Record<string, unknown>>).filter(
+  (p) => !String(p.request_number).startsWith("SR-20260801-13"),
+);
 for (const f of FIXTURES) {
-  const key = `${reqNumber(f.ord)}|${STEP_KEYS[f.service][f.activeOrder]}`;
+  const model = stepModel(f.service, f.activeOrder);
+  const assignee = assigneeFor(f.service, f.activeOrder);
+  const number = reqNumber(f.ord);
+  const key = `${number}|${model.step_key}`;
+
+  const predecessorSet = [];
+  for (let order = 1; order < f.activeOrder; order += 1) {
+    predecessorSet.push({
+      step_key: stepModel(f.service, order).step_key,
+      step_order: order,
+      runtime_step_id: stepId(f.ord, order),
+      runtime_status: "completed",
+    });
+  }
+
   matrix.step_state_pins[key] = {
     request_type: f.service,
     request_id: reqId(f.ord),
     step_order: f.activeOrder,
     runtime_step_id: stepId(f.ord, f.activeOrder),
     runtime_status: "active",
+    processing_unit_code: model.processing_unit_code,
+    processing_role_code: model.processing_role_code,
+    configured_action_type: model.configured_action_type,
+    direct_assignee_user_id: assignee,
+    predecessor_incomplete_expected: 0,
+    predecessor_total_expected: predecessorSet.length,
+    predecessor_set: predecessorSet,
+    rpc: model.rpc,
+    department_scope:
+      f.service === "department_transfer" ? "transfer_department_scope" : "not_applicable",
     fixture_ordinal: f.ord,
     fixture_package: "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
-    predecessor_total_expected: f.activeOrder - 1,
-    predecessor_incomplete_expected: 0,
-    rpc: "act_on_b1_student_request_step_atomic",
-    department_scope:
-      f.service === "department_transfer" ? "transfer_department_scope" : null,
+    department_scope_department_id:
+      model.step_key === "source_department_head_approval"
+        ? DEPT_IT
+        : model.step_key === "target_department_head_approval"
+          ? DEPT_CS
+          : null,
+  };
+
+  matrix.positive_cases.push({
+    request_type: f.service,
+    request_number: number,
+    step_order: f.activeOrder,
+    step_key: model.step_key,
+    runtime_step_id: stepId(f.ord, f.activeOrder),
+    runtime_status: "active",
+    unit: model.processing_unit_code,
+    role: model.processing_role_code,
+    legal_action: model.configured_action_type,
+    rpc: model.rpc,
+    principal_user_id: assignee,
+    fixture_only_step_expectation: true,
+    note: "Step expectation only: rendered positive cases remain 0.",
+  });
+
+  matrix.production_readonly_attestation.requests[number] = {
+    request_type: f.service,
+    request_status: "in_review",
+    active_step_count: 1,
+    active_step_id: stepId(f.ord, f.activeOrder),
+    fee_assessment_rows: 0,
+    source_department_id: f.service === "department_transfer" ? DEPT_IT : null,
+    target_department_id: f.service === "department_transfer" ? DEPT_CS : null,
+    fixture_package: "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
   };
 }
 
