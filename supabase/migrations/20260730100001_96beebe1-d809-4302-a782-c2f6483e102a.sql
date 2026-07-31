@@ -478,6 +478,8 @@ begin
     update public.graduation_project_evaluations set rubric_version=trim(p_rubric_version),total_score=v_total,comments=p_comments,
       state=case when coalesce(p_submit,false) then 'submitted' else 'draft' end,
       submitted_at=case when coalesce(p_submit,false) then now() else submitted_at end where id=v_id;
+    -- migration-review allowlist: SECURITY DEFINER child-row replacement only.
+    -- Replaces draft evaluation scores after FOR UPDATE + draft-state guard; not bulk cleanup.
     delete from public.graduation_project_evaluation_scores where evaluation_id=v_id;
   end if;
   insert into public.graduation_project_evaluation_scores(evaluation_id,criterion_code,criterion_label,maximum_score,awarded_score,comment)

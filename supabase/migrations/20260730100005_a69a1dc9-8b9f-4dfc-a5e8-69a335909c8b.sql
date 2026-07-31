@@ -242,6 +242,8 @@ begin
     update public.graduation_project_rubrics set title=trim(p_title),passing_threshold=p_passing_threshold
       where id=p_rubric_id and department_id=p_department_id returning id into v_id;
     if v_id is null then raise exception 'rubric not found'; end if;
+    -- migration-review allowlist: SECURITY DEFINER child-row replacement only.
+    -- Replaces department-scoped rubric criteria after admin-assignment + payload guards; not bulk cleanup.
     delete from public.graduation_project_rubric_criteria where rubric_id=v_id and department_id=p_department_id;
   end if;
   insert into public.graduation_project_rubric_criteria(rubric_id,department_id,criterion_code,criterion_label,maximum_score,weight,sequence_no)
