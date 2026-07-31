@@ -179,8 +179,9 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   it("G5: visibility is proven by baseline fingerprint equality, not row counts", () => {
-    expect(manifest.authoritative_baseline.status).toBe("PINNED");
-    expect(manifest.authoritative_baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
+    // INVALIDATION-09: the active baseline is PENDING and fails closed.
+    expect(manifest.authoritative_baseline.status).toBe("PENDING");
+    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
     expect(preflight).toContain("OPERATOR_VISIBILITY_NOT_PROVEN");
     expect(preflight).toMatch(/baseline_fingerprint/u);
   });
@@ -433,12 +434,12 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   // ---- G2 package state ---------------------------------------------------
-  it("G2: 267 = 240 + 24 + 3 and the baseline is PINNED to a captured fingerprint", () => {
+  it("G2: 267 = 240 + 24 + 3 and the baseline is PENDING (fail-closed)", () => {
     expect(matrix.counts.negative_core).toBe(240);
     expect(matrix.counts.illegal_action).toBe(24);
     expect(matrix.counts.supplemental_department_scope).toBe(3);
-    expect(manifest.authoritative_baseline.status).toBe("PINNED");
-    expect(manifest.authoritative_baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
+    expect(manifest.authoritative_baseline.status).toBe("PENDING");
+    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
   });
 
   // ---- matrix / package invariants ---------------------------------------
@@ -1013,46 +1014,33 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     expect(expr.startsWith("(")).toBe(true);
   });
 
-  // ---- 13. authoritative baseline is captured and pinned -------------------
-  it("13: the authoritative baseline is PINNED to the captured production fingerprint", () => {
+  // ---- 13. authoritative baseline is PENDING (INVALIDATION-09) -------------
+  it("13: the authoritative baseline is PENDING and blocks execution", () => {
     const baseline = manifest.authoritative_baseline;
-    expect(baseline.status).toBe("PINNED");
-    expect(baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
-    expect(baseline.artifact_sha256).toMatch(/^[0-9a-f]{64}$/u);
-    expect(baseline.captured_at_utc).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
+    expect(baseline.status).toBe("PENDING");
+    expect(baseline.execution_authorized).toBe(false);
+    expect(baseline.fingerprint).toBeNull();
+    expect(baseline.captured_at_utc).toBeNull();
+    expect(baseline.valid_for_minutes).toBeNull();
+    expect(baseline.reviewed_package_sha).toBeNull();
+    expect(baseline.migration_head).toBeNull();
+    expect(baseline.expected_migration_head).toBe("20260731203030");
+    expect(baseline.scope).toEqual([]);
     expect(baseline.contains_secrets).toBe(false);
+    expect(baseline.artifact_sha256).toMatch(/^[0-9a-f]{64}$/u);
 
     const artifactRaw = read(join(root, baseline.artifact_path));
     const artifact = JSON.parse(artifactRaw) as Record<string, any>;
     expect(createHash("sha256").update(artifactRaw.replace(/\r\n/gu, "\n")).digest("hex"))
       .toBe(baseline.artifact_sha256);
-    expect(artifact.status).toBe("PINNED");
-    expect(artifact.fingerprint).toBe(baseline.fingerprint);
-    expect(artifact.capture_transaction.isolation_level).toBe("SERIALIZABLE");
-    expect(artifact.capture_transaction.access_mode).toBe("READ ONLY");
-    expect(artifact.capture_transaction.fingerprint_first)
-      .toBe(artifact.capture_transaction.fingerprint_second);
-    expect(artifact.capture_transaction.drift).toBe("NONE");
-    expect(artifact.capture_transaction.production_writes).toBe(0);
-    expect(artifact.capture_transaction.workflow_rpc_calls).toBe(0);
-    expect(artifact.endpoint_attestation.tls.sslmode).toBe("verify-full");
-    expect(artifact.endpoint_attestation.tls.verdict).toBe("VERIFIED");
-    expect(artifact.endpoint_attestation.tls.root_ca_stored_in_git).toBe(false);
-    expect(artifact.catalog_attestation.migration_head).toBe("20260729173359");
-    expect(artifact.function_graph_attestation.verified).toBe(28);
-    expect(artifact.function_graph_attestation.mismatched).toBe(0);
-    for (const code of ["enrollment_suspension", "excused_absence", "department_transfer", "final_chance", "file_withdrawal"]) {
-      expect(artifact.visibility_attestation[code]).toEqual({ is_active: true, student_visible: false });
-    }
-    expect(artifact.visibility_attestation.enrollment_certificate)
-      .toEqual({ is_active: true, student_visible: true });
-    expect(artifact.held_back.positive_harness).toBe("HELD_BACK");
-    expect(artifact.held_back.negative_cases_executed).toBe(0);
-    expect(artifact.held_back.operator_preflight_executed).toBe(false);
+    expect(artifact.status).toBe("PENDING");
+    expect(artifact.fingerprint).toBeNull();
+    expect(artifact.operator_preflight_executed).toBe(false);
+    expect(artifact.negative_cases_executed).toBe(0);
 
     const check = read(join(pkg, "generated", "fingerprint-check.sql"));
-    expect(check).toContain(`'${baseline.fingerprint}'`);
-    expect(check).not.toContain("v_expected text := NULL");
+    expect(check).toContain("v_expected text := NULL");
+    expect(check).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
   });
 
   // ---- 14. positive harness held back --------------------------------------
