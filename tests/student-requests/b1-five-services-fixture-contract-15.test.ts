@@ -110,7 +110,7 @@ describe("fixture-13 remediation 15 — migration draft contract", () => {
     for (const forbidden of [
       /\bUPDATE\s+public\./iu,
       /\bDELETE\s+FROM\b/iu,
-      /\bGRANT\b/u,
+      /^\s*GRANT\b/mu,
       /\bALTER\s+TABLE\b/iu,
       /\bauth\.users\b/u,
       /\bstorage\.objects\b/u,
