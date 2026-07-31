@@ -288,9 +288,9 @@ Deletion must be by **explicit ID list only** — no `LIKE` mass delete, no `TRU
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | SR-20260727-695EC35B is a completed request with a real effect row but is absent from the owner's do-not-delete list | Excluded from all batches in this manifest; owner must confirm classification before it is ever deleted |
-| R2 | Batch B row 38 (SR-20260727-F67CF366) is an open `submitted` request | Flag explicitly at approval; drop from the list if a live fixture is wanted |
-| R3 | Storage bytes are not recoverable | Export the 20 listed object paths before execution |
+| R1 | SR-20260727-695EC35B is a completed request with a real effect row but is absent from the owner's do-not-delete list | **RESOLVED (Mission 124):** classified evidence-to-keep; permanently excluded from all batches |
+| R2 | Batch B row 38 (SR-20260727-F67CF366) is an open `submitted` request | **RESOLVED to HOLD (Mission 124):** removed from executable Batch B; needs an explicit cancel-then-cleanup decision |
+| R3 | Storage bytes are not recoverable | **RESOLVED to HOLD (Mission 124):** 20 exact paths exported to docs; Batch A blocked until a byte-level export exists |
 | R4 | Manifest IDs could drift if new TEST_ONLY activity occurs | Re-verify the full ID list immediately before execution; fail closed on any mismatch |
 | R5 | FK cascade could reach evidence if profiles are deleted first | Enforce the §10 order; never cascade from `student_profiles` |
 
@@ -299,3 +299,4 @@ No technical blocker prevents preparing this manifest.
 ---
 
 **FINAL DECISION: PASS_B1_STAGE3_CLEANUP_ID_MANIFEST_READY_FOR_OWNER_DECISION**
+(risks resolved in `docs/B1-STAGE3-CLEANUP-RISK-RESOLUTION-124.md` — Mission 124)
