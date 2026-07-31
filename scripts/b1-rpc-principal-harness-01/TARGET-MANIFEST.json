@@ -483,33 +483,52 @@
     }
   },
   "authoritative_baseline": {
-    "status": "PINNED",
+    "status": "PENDING",
+    "execution_authorized": false,
     "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
-    "artifact_sha256": "71b0ddf9cad59c22ed5281aa8729140106240cdaf46a40f57a4d784a7f32f510",
-    "fingerprint": "be5040a4fd34fc1fbab235e118c509d0",
+    "artifact_sha256": "242d1080cbc10e08b62dc7a83f45b71bb09a530c9d1e236b6d5254bd6addef28",
+    "fingerprint": null,
     "generated_by": "Lovable read-only channel, immediately before the operator run",
-    "valid_for_minutes": 120,
-    "scope": [
-      "SR-20260727-42393846",
-      "SR-20260727-50BEDCE2",
-      "SR-20260727-3C550070",
-      "SR-20260727-88D885F0",
-      "SR-20260727-695EC35B",
-      "SR-20260713-2DE64041",
-      "SR-20260715-FEDCB3E1",
-      "SR-20260716-26BAD4C8"
-    ],
+    "valid_for_minutes": null,
+    "reviewed_package_sha": null,
+    "migration_head": null,
+    "expected_migration_head": "20260731203030",
+    "scope": [],
+    "operator_preflight_executed": false,
+    "negative_cases_executed": 0,
     "contains_secrets": false,
-    "on_mismatch": "PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN",
-    "captured_at_utc": "2026-07-29T23:20:07Z",
-    "captured_from_source_sha": "a1c86ea42b600e67f38c69a1cd610a916a33c312",
-    "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-AUTHORITATIVE-BASELINE-CAPTURE-60",
-    "capture_isolation": "SERIALIZABLE READ ONLY, single transaction, recomputed in-transaction, drift NONE",
-    "endpoint_tls_verdict": "verify-full VERIFIED (CA + hostname), Supabase Root 2021 CA sha256 700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7, not stored in git",
-    "migration_head_attested": "20260729173359",
-    "function_graph_attested": "28/28",
-    "visibility_attested": "five B1 services active=true student_visible=false; enrollment_certificate active=true student_visible=true"
+    "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
+    "captured_at_utc": null,
+    "invalidation_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-STALE-BASELINE-INVALIDATION-09",
+    "fail_closed_rules": [
+      "status != PINNED",
+      "execution_authorized != true",
+      "fingerprint is null",
+      "baseline expired (captured_at_utc + valid_for_minutes in the past)",
+      "reviewed_package_sha differs from the exact execution SHA",
+      "migration head differs from expected_migration_head",
+      "matrix SHA differs",
+      "package-source hash differs",
+      "function graph differs",
+      "request scope differs",
+      "service visibility differs",
+      "enrollment_certificate protected baseline differs",
+      "current production fingerprint differs",
+      "baseline path is not the canonical active path"
+    ],
+    "archived_stale_baselines": [
+      {
+        "path": "scripts/b1-rpc-principal-harness-01/baseline/archive/AUTHORITATIVE-BASELINE-20260729-STALE.json",
+        "sha256": "01b55cd4322d2bb9ecc2c058e4a5ff99919ee3f1308bbbdacaac6ca7936099d4",
+        "status": "STALE",
+        "execution_authorized": false,
+        "selectable_by_launcher": false,
+        "invalidated_after_migration": "20260731203030",
+        "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-AUTHORITATIVE-BASELINE-CAPTURE-60"
+      }
+    ]
   },
+
   "protected_records": [
     "SR-20260713-2DE64041",
     "SR-20260715-FEDCB3E1",
