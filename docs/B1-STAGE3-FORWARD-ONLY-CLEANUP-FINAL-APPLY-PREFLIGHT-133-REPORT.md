@@ -174,7 +174,13 @@ Manifest SHA256 re-verified: **15/15 files match** the hashes recorded in
 | `student_profiles` | 1 | 1 | PASS | 0 | 0 |
 | `student_academic_status` | 1 | 1 | PASS | 0 | 0 |
 | `student_enrollments` | 1 | 1 | PASS | 0 | 0 |
-| **Total** | **433** | **433** | **PASS** | 0 | 0 |
+| **Total** | **444** | **444** | **PASS** | 0 | 0 |
+
+> **Correction (reconciliation 135).** This total row previously printed `433 / 433`. The
+> 15 per-table rows above are unchanged and sum to **444**; `433` was an arithmetic error in
+> the total row only. `PREVIOUS_TOTAL_433 = ARITHMETIC_REPORTING_ERROR`;
+> `AUTHORITATIVE_EXPORTED_AND_DELETE_TOTAL = 444`.
+
 
 ID-level cross-check: the 37 `id` values in `01_student_requests.csv` are exactly the 37
 `INSERT INTO cand_request` UUIDs (0 missing, 0 extra); every `student_request_id` in the

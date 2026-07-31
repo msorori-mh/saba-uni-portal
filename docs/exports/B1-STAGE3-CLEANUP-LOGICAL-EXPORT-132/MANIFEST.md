@@ -52,9 +52,20 @@ Input plan: `docs/B1-STAGE3-CLEANUP-MIGRATION-128-PRE-APPLY-RISK-CLOSURE-131.md`
 | 14 | `14_student_academic_status.csv` | `student_academic_status` | `id = 'f864d89a-0017-4051-b627-61e587e946af'` | 1 | 1 | `8a8283a396da0ff4fd9ae22d70fbf8e92060dfab0022d9fafdb834224b25c0f9` |
 | 15 | `15_student_enrollments.csv` | `student_enrollments` | `id = 'fb71eb0c-2f44-4deb-99ee-ac79ffdcbc2b'` | 1 | 1 | `246a6bc97813367db6e3a6bb6691c12441ac4b77b1445ab92a27dc5623edcdfc` |
 
-Total: 15 files, 433 rows, ~196 KB. Every file includes a CSV header row; row
+Total: 15 files, **444 rows**, ~196 KB. Every file includes a CSV header row; row
 counts are the `COPY n` counts reported by the server, not line counts (some
 text columns contain embedded newlines).
+
+> **Correction (reconciliation 135, `2026-07-31 20:17:12+00`).** This line
+> previously printed `433 rows`. That figure was an **arithmetic/reporting error
+> in this summary line only**: the 15 per-file counts in the table above sum to
+> `37+20+135+157+53+1+1+10+6+6+9+6+1+1+1 = 444`. The per-file counts, the CSV
+> bytes, and all 15 SHA256 values are unchanged and re-verified. Physical CSV
+> data rows (header excluded, RFC-4180 parsed) = 444, production read-only
+> counts = 444, and migration-128 per-delete assertions = 444.
+> `PREVIOUS_TOTAL_433 = ARITHMETIC_REPORTING_ERROR`;
+> `AUTHORITATIVE_EXPORTED_AND_DELETE_TOTAL = 444`.
+
 
 ## Not exported (by mission scope)
 
