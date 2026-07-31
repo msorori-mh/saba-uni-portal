@@ -138,6 +138,9 @@ function mapLiveError(
     if (/B1_STALE_REQUEST_VERSION/i.test(message) || error.code === "40001") {
       throw new B1AdapterError("STALE_VERSION", message);
     }
+    if (isB1BusinessRuleError(message)) {
+      throw new B1AdapterError("BUSINESS_RULE_BLOCKED", message);
+    }
     if (/B1_READ_ACCESS_DENIED|B1_DRAFT_ACCESS_DENIED|42501|PERMISSION/i.test(message)) {
       throw new B1AdapterError("PERMISSION_DENIED", message);
     }
