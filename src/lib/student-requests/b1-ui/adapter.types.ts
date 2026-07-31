@@ -25,6 +25,7 @@
  * - getB1RuntimeCapability()
  */
 
+import { b1BusinessRuleMessageAr } from "@/lib/student-requests/b1-ui/b1-business-error-mapping";
 import type {
   B1CanonicalCode,
   B1FeePolicy,
@@ -46,6 +47,7 @@ export const B1_ADAPTER_ERROR_CODES = [
   "NOT_FOUND",
   "ACTIVATION_BLOCKED",
   "ELIGIBILITY_BLOCKED",
+  "BUSINESS_RULE_BLOCKED",
   "BACKEND_CONTRACT_PENDING",
 ] as const;
 
@@ -91,6 +93,8 @@ export function b1AdapterErrorMessageAr(error: unknown): string {
         return "هذه الخدمة غير مفعّلة حالياً.";
       case "ELIGIBILITY_BLOCKED":
         return error.message || "لا تستوفي حالياً شروط تقديم هذه الخدمة.";
+      case "BUSINESS_RULE_BLOCKED":
+        return b1BusinessRuleMessageAr(error.message);
       case "BACKEND_CONTRACT_PENDING":
         return "هذه العملية بانتظار اكتمال الربط الخلفي.";
     }
