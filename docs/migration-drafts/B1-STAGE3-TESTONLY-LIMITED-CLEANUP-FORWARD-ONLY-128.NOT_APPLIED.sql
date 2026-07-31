@@ -51,8 +51,10 @@
 --
 -- EXPECTED DELETED ROWS: 444 across 15 statements (see the table in
 --   docs/B1-STAGE3-CLEANUP-MIGRATION-D1-D2-SOURCE-REMEDIATION-134-REPORT.md;
---   the "433" printed in export-132 MANIFEST.md is an arithmetic slip in that
---   manifest — the 15 per-table counts themselves are identical and correct).
+--   the "433" formerly printed in export-132 MANIFEST.md was an arithmetic slip
+--   in that manifest's total line only; it was corrected to 444 by
+--   reconciliation 135 and the 15 per-table counts were always identical and
+--   correct. Authoritative total: 444).
 --
 -- Sources: docs/B1-STAGE3-CLEANUP-DRY-RUN-SQL-125.sql
 --          docs/B1-STAGE3-CLEANUP-EXECUTION-PREFLIGHT-125.md

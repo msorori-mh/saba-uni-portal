@@ -88,7 +88,10 @@ No assertion covers more than one DELETE.
 
 ### Note on the "433" figure
 
-The mission brief and `MANIFEST.md` (export 132) both print a total of **433**, but the 15
+> **Status update (reconciliation 135):** `MANIFEST.md` and report 133 have since been
+> corrected to **444**; the paragraph below records why. No CSV byte changed.
+
+The mission brief and `MANIFEST.md` (export 132) both printed a total of **433**, but the 15
 per-table counts they list sum to **444**
 (`20+1+1+10+6+6+9+6+157+135+53+37+1+1+1 = 444`). The per-table counts are authoritative and
 unchanged; **433 is an arithmetic slip in the manifest total**, not a data discrepancy — the
