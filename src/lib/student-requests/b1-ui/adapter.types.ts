@@ -92,6 +92,8 @@ export function b1AdapterErrorMessageAr(error: unknown): string {
         return "هذه الخدمة غير مفعّلة حالياً.";
       case "ELIGIBILITY_BLOCKED":
         return error.message || "لا تستوفي حالياً شروط تقديم هذه الخدمة.";
+      case "BUSINESS_RULE_BLOCKED":
+        return b1BusinessRuleMessageAr(error.message);
       case "BACKEND_CONTRACT_PENDING":
         return "هذه العملية بانتظار اكتمال الربط الخلفي.";
     }
