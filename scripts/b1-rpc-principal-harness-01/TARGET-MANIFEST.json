@@ -528,7 +528,6 @@
       }
     ]
   },
-
   "protected_records": [
     "SR-20260713-2DE64041",
     "SR-20260715-FEDCB3E1",
@@ -546,7 +545,7 @@
   "probe_sub": "3a279561-f8e6-41d9-b8ca-ce60682c9eab",
   "matrix": {
     "path": "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json",
-    "sha256_lf": "fd2621877d4db1df5927f0583d6de5a269c9e50b258578592c299f373459739d",
+    "sha256_lf": "fd4e35057cb507924f71e1f71c6326653744b0cc26b7055f77d358080868e115",
     "negative_total": 267,
     "decomposition": "240 core + 24 illegal-action + 3 transfer-scope = 267 defined; 245 executable; 22 blocked (19 illegal-action on pending steps + 3 transfer-scope)",
     "executable_negative_total": 245,
