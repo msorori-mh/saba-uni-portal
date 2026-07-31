@@ -195,11 +195,16 @@ DO $$
 DECLARE
   v_status   text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_status');
   v_expected text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_fingerprint');
+  v_authorized text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_execution_authorized');
   v_observed text := (SELECT fingerprint FROM b1_observed_fingerprint);
 BEGIN
   IF v_status IS DISTINCT FROM 'PINNED' OR v_expected IS NULL OR v_expected = '' THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: authoritative baseline is % (observed %)',
       coalesce(v_status, 'MISSING'), v_observed;
+  END IF;
+  IF v_authorized IS DISTINCT FROM 'true' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: execution_authorized is %',
+      coalesce(v_authorized, 'MISSING');
   END IF;
   IF v_observed IS NULL THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint is NULL';

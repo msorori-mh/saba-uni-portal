@@ -85,6 +85,17 @@ read-only channel. Status `PENDING` (the current state) fails closed with
 `PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN` — the baseline must be generated
 and pinned in the manifest immediately before the run.
 
+INVALIDATION-09: the 20260729 baseline (fingerprint `be5040a4…`, migration head
+`20260729173359`) is archived as STALE at
+`baseline/archive/AUTHORITATIVE-BASELINE-20260729-STALE.json` after production
+migration head `20260731203030` and the Stage 3 TEST_ONLY cleanup. Archived
+files are never selectable or executable; only the canonical
+`baseline/AUTHORITATIVE-BASELINE.json` may be selected, and only when it is
+`PINNED` with `execution_authorized: true`
+(`HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE`, see
+`validate-authoritative-baseline.ts`). The preflight additionally requires the
+inlined `baseline_execution_authorized` pin to be `true`.
+
 ## G6 — real locking and state pinning
 
 Advisory locks are gone. Every case takes genuine `SELECT … FOR SHARE` locks in a

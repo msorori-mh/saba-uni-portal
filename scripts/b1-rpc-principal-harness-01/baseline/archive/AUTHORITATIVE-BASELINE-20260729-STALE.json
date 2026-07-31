@@ -1,0 +1,119 @@
+{
+  "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-AUTHORITATIVE-BASELINE-CAPTURE-60",
+  "mode": "PRODUCTION_READ_ONLY_BASELINE_CAPTURE",
+  "status": "STALE",
+  "execution_authorized": false,
+  "archived_at_utc": "2026-07-31T21:42:06Z",
+  "archived_by_mission": "PORTAL-B1-NEGATIVE-RPC-MATRIX-STALE-BASELINE-INVALIDATION-09",
+  "invalidated_after_migration": "20260731203030",
+  "invalidated_reason": [
+    "EXPIRED: captured_at_utc 2026-07-29T23:20:07Z with valid_for_minutes 120 expired at 2026-07-30T01:20:07Z, before any matrix execution was authorized",
+    "PACKAGE_SHA_MISMATCH: reviewed_package_sha a1c86ea42b600e67f38c69a1cd610a916a33c312 no longer matches the current execution package SHA a1a5985c063c9ebe4e58b1e4cb9b9a785ba898f1",
+    "MIGRATION_HEAD_MISMATCH: catalog_attestation.migration_head 20260729173359 is superseded by production migration head 20260731203030 (Stage 3 test cleanup)",
+    "REQUEST_SCOPE_CHANGE: Stage 3 cleanup changed the request scope; the pinned scope no longer reflects production",
+    "DELETED_TEST_ONLY_REQUESTS: 37 TEST_ONLY requests (444 persistent rows) were deleted, including the five SR-20260727-* scope members pinned below; the fingerprint can never match again"
+  ],
+  "selectable": false,
+  "executable": false,
+  "note": "HISTORICAL EVIDENCE ONLY. This file is archived, never executable and never selectable as the authoritative baseline. The only selectable baseline is the canonical scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json.",
+  "fingerprint": "be5040a4fd34fc1fbab235e118c509d0",
+  "captured_at_utc": "2026-07-29T23:20:07Z",
+  "valid_for_minutes": 120,
+  "reviewed_package_sha": "a1c86ea42b600e67f38c69a1cd610a916a33c312",
+  "package_source_equivalence": {
+    "checked_paths": [
+      "scripts/b1-rpc-principal-harness-01",
+      "tests/b1-five-services-rpc-authorization-preflight-01"
+    ],
+    "diff_vs_reviewed_sha": "EMPTY",
+    "verdict": "SOURCE_MATCHES_REVIEWED_PACKAGE"
+  },
+  "fingerprint_expression": {
+    "source_file": "scripts/b1-rpc-principal-harness-01/fingerprint.sql",
+    "delimiters": ["-- BEGIN_FINGERPRINT_EXPR", "-- END_FINGERPRINT_EXPR"],
+    "modified": false,
+    "abbreviated": false
+  },
+  "capture_transaction": {
+    "count": 1,
+    "isolation_level": "SERIALIZABLE",
+    "access_mode": "READ ONLY",
+    "recomputed_in_transaction": true,
+    "fingerprint_first": "be5040a4fd34fc1fbab235e118c509d0",
+    "fingerprint_second": "be5040a4fd34fc1fbab235e118c509d0",
+    "drift": "NONE",
+    "dml": 0,
+    "ddl": 0,
+    "role_changes": 0,
+    "workflow_rpc_calls": 0,
+    "production_writes": 0
+  },
+  "endpoint_attestation": {
+    "project_ref": "wpmicqriltrowwonknox",
+    "approved_pghost": "aws-1-eu-north-1.pooler.supabase.com",
+    "approved_pgport": "5432",
+    "approved_pgdatabase": "postgres",
+    "tls": {
+      "sslmode": "verify-full",
+      "verdict": "VERIFIED",
+      "server_leaf_cn": "*.pooler.supabase.com",
+      "server_leaf_san": ["*.pooler.supabase.com", "*.pooler.supabase.co"],
+      "issuer": "C=US, ST=Delware, L=New Castle, O=Supabase Inc, CN=Supabase Intermediate 2021 CA",
+      "root_ca_subject": "C=US, ST=Delware, L=New Castle, O=Supabase Inc, CN=Supabase Root 2021 CA",
+      "root_ca_sha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+      "root_ca_obtained_from": "https://supabase-downloads.s3.amazonaws.com/prod/ssl/prod-ca-2021.crt (out-of-band vendor origin over public-CA HTTPS)",
+      "root_ca_stored_in_git": false,
+      "root_ca_local_path_untracked": "/tmp/b1tls/prod-ca-2021.crt",
+      "hostname_verification": "PASS",
+      "ca_chain_verification": "PASS",
+      "proof": "psql sslmode=verify-full sslrootcert=<local untracked CA> returned TLS_VERIFY_FULL_OK on PostgreSQL 17.6"
+    },
+    "fingerprint_channel": {
+      "channel": "Lovable Cloud read-only SQL channel (manifest authoritative_baseline.generated_by)",
+      "database_principal": "supabase_read_only_user",
+      "reason": "The sandbox psql principal (sandbox_exec) has no SELECT on supabase_migrations.schema_migrations, so the unmodified fingerprint expression cannot be evaluated there; the contract designates the Lovable read-only channel as the baseline generator.",
+      "transport": "HTTPS, public-CA verified"
+    }
+  },
+  "catalog_attestation": {
+    "migration_head": "20260729173359",
+    "expected_migration_head": "20260729173359",
+    "verdict": "MATCH"
+  },
+  "function_graph_attestation": {
+    "closure_size": 28,
+    "verified": 28,
+    "mismatched": 0,
+    "null_hashes": 0,
+    "hash_rule": "sha256(pg_get_functiondef() with runs of whitespace collapsed to one space and trimmed)",
+    "verdict": "28/28 MATCH"
+  },
+  "visibility_attestation": {
+    "enrollment_suspension": { "is_active": true, "student_visible": false },
+    "excused_absence": { "is_active": true, "student_visible": false },
+    "department_transfer": { "is_active": true, "student_visible": false },
+    "final_chance": { "is_active": true, "student_visible": false },
+    "file_withdrawal": { "is_active": true, "student_visible": false },
+    "enrollment_certificate": { "is_active": true, "student_visible": true },
+    "verdict": "MATCH"
+  },
+  "scope": [
+    "SR-20260727-42393846",
+    "SR-20260727-50BEDCE2",
+    "SR-20260727-3C550070",
+    "SR-20260727-88D885F0",
+    "SR-20260727-695EC35B",
+    "SR-20260713-2DE64041",
+    "SR-20260715-FEDCB3E1",
+    "SR-20260716-26BAD4C8"
+  ],
+  "contains_secrets": false,
+  "held_back": {
+    "negative_cases_executed": 0,
+    "operator_preflight_executed": false,
+    "positive_harness": "HELD_BACK",
+    "blocked_22_cases": "NOT_ADDRESSED_IN_THIS_MISSION",
+    "deploy": false
+  },
+  "on_mismatch": "PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN"
+}
