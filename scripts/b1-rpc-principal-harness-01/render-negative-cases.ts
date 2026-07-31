@@ -866,11 +866,11 @@ DECLARE
   v_observed text;
 BEGIN
   IF v_expected IS NULL THEN
-    RAISE EXCEPTION 'POST_RUN_FAIL: authoritative baseline is ${baseline.status}';
+    RAISE EXCEPTION 'POST_RUN_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: authoritative baseline is ${baseline.status}';
   END IF;
   v_observed := ${fingerprintExpr};
   IF v_observed IS DISTINCT FROM v_expected THEN
-    RAISE EXCEPTION 'POST_RUN_FAIL: BASELINE_MISMATCH after the matrix run';
+    RAISE EXCEPTION 'POST_RUN_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: BASELINE_MISMATCH after the matrix run';
   END IF;
   RAISE NOTICE 'POST_RUN_BASELINE_MATCH';
 END
