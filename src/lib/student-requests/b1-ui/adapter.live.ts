@@ -179,6 +179,11 @@ function mapLiveError(
   ) {
     throw new B1AdapterError("ACTIVATION_BLOCKED", message);
   }
+  // Business precondition rejections are classified BEFORE authorization so a
+  // backend rule failure is never rendered as "permission denied".
+  if (isB1BusinessRuleError(message)) {
+    throw new B1AdapterError("BUSINESS_RULE_BLOCKED", message);
+  }
   if (
     /PERMISSION|AUTH|ASSIGNEE|ACCESS_DENIED|42501|B1_DIRECT_ASSIGNEE|B1_OWNED|B1_SPECIALIZED|B1_DRAFT_ACCESS/i.test(
       message,
