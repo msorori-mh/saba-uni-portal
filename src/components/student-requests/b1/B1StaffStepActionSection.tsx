@@ -8,9 +8,11 @@ import {
 import type { B1UiAdapter } from "@/lib/student-requests/b1-ui/adapter.types";
 import {
   resolveB1StaffActionContract,
+  toB1CanonicalCode,
   type B1StaffActionContract,
 } from "@/lib/student-requests/b1-staff-action-routing";
 import { B1EmployeeActionPanel } from "./B1EmployeeActionPanel";
+import { B1RevenueReceiptCard } from "./B1RevenueReceiptCard";
 
 type Props = {
   requestId: string;
@@ -31,7 +33,44 @@ type Props = {
 };
 
 /** Minimal executor surface this section needs from the B1 adapter. */
-export type B1StaffStepActionExecutor = Pick<B1UiAdapter, "actOnB1RequestStep">;
+export type B1StaffStepActionExecutor = Pick<B1UiAdapter, "actOnB1RequestStep"> &
+  Partial<Pick<B1UiAdapter, "confirmB1RevenueReceipt">>;
+
+/** Literal configured action_type that MUST be executed by the revenue card. */
+export const B1_CONFIRM_PAYMENT_ACTION_TYPE = "confirm_payment";
+
+export const B1_CONFIRM_PAYMENT_EXECUTOR_MISSING_ERROR =
+  "B1_CONFIRM_PAYMENT_EXECUTOR_MISSING: مسار تأكيد الإيراد غير متاح.";
+
+/**
+ * Guarded confirm handler for `confirm_payment` steps. It NEVER routes through
+ * `actOnB1RequestStep`, so approve/review/apply_decision can not be sent.
+ */
+export function createB1ConfirmPaymentHandler(params: {
+  adapter: B1StaffStepActionExecutor;
+  stepId: string;
+  inFlightRef: { current: boolean };
+  onActingChange?: (acting: boolean) => void;
+  onSettled?: () => Promise<void> | void;
+}) {
+  return async (stepId: string, optionalNote?: string): Promise<void> => {
+    if (params.inFlightRef.current) return;
+    if (stepId !== params.stepId) throw new Error("B1_STEP_ID_MISMATCH");
+    const confirmFn = params.adapter.confirmB1RevenueReceipt;
+    if (typeof confirmFn !== "function") {
+      throw new Error(B1_CONFIRM_PAYMENT_EXECUTOR_MISSING_ERROR);
+    }
+    params.inFlightRef.current = true;
+    params.onActingChange?.(true);
+    try {
+      await confirmFn.call(params.adapter, params.stepId, optionalNote);
+      await params.onSettled?.();
+    } finally {
+      params.inFlightRef.current = false;
+      params.onActingChange?.(false);
+    }
+  };
+}
 
 /**
  * Builds the guarded act handler used by the section. Exported so the
@@ -90,6 +129,82 @@ export function B1StaffStepActionSection({
   const [acting, setActing] = useState(false);
   const inFlightRef = useRef(false);
 
+  const invalidate = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["staff-inbox-detail", requestId] }),
+      queryClient.invalidateQueries({ queryKey: ["staff-inbox"] }),
+      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      queryClient.invalidateQueries({ queryKey: ["student-request-fee-context", requestId] }),
+    ]);
+  };
+
+  // ---------------------------------------------------------------------
+  // Specialized literal action: confirm_payment -> revenue receipt card.
+  // Routed exclusively through `confirmB1RevenueReceipt`.
+  // ---------------------------------------------------------------------
+  const configuredRaw = (configuredActionType ?? "").trim();
+  if (
+    toB1CanonicalCode(requestTypeCode) &&
+    configuredRaw === B1_CONFIRM_PAYMENT_ACTION_TYPE
+  ) {
+    const paymentStepId = (stepId ?? "").trim();
+    const allowedRaw = (allowedAction ?? "").trim();
+    const failureCode = !paymentStepId
+      ? "STEP_ID_MISSING"
+      : allowedRaw && allowedRaw !== B1_CONFIRM_PAYMENT_ACTION_TYPE
+        ? "ALLOWED_ACTION_MISMATCH"
+        : !isActionable
+          ? "NOT_ACTIONABLE"
+          : null;
+
+    if (failureCode) {
+      const blocked = resolveB1StaffActionContract({
+        requestTypeCode,
+        stepId,
+        configuredActionType: "review",
+        allowedAction: null,
+        isActionable: failureCode !== "NOT_ACTIONABLE",
+      });
+      const messageAr =
+        failureCode === "NOT_ACTIONABLE"
+          ? "لست الفاعل المُسنَد للخطوة النشطة — لا يمكن تنفيذ الإجراء."
+          : !blocked.ok
+            ? blocked.messageAr
+            : "الإجراء المسموح لا يطابق الإجراء المُهيّأ للخطوة — تم إيقاف التنفيذ.";
+      return (
+        <section
+          dir="rtl"
+          data-testid="b1-staff-action-blocked"
+          data-failure-code={failureCode}
+          className="rounded-lg border border-amber-200 bg-amber-50 p-3"
+        >
+          <div className="mb-1 text-xs font-bold text-primary">إجراء المرحلة</div>
+          <div className="flex items-start gap-2 text-xs text-amber-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{messageAr}</span>
+          </div>
+        </section>
+      );
+    }
+
+    const handleConfirm = createB1ConfirmPaymentHandler({
+      adapter,
+      stepId: paymentStepId,
+      inFlightRef,
+      onActingChange: setActing,
+      onSettled: invalidate,
+    });
+
+    return (
+      <div
+        data-testid="b1-staff-action-section"
+        data-b1-action={B1_CONFIRM_PAYMENT_ACTION_TYPE}
+      >
+        <B1RevenueReceiptCard stepId={paymentStepId} acting={acting} onConfirm={handleConfirm} />
+      </div>
+    );
+  }
+
   const contract: B1StaffActionContract = resolveB1StaffActionContract({
     requestTypeCode,
     stepId,
@@ -121,13 +236,7 @@ export function B1StaffStepActionSection({
     contractAction: contract.action,
     inFlightRef,
     onActingChange: setActing,
-    onSettled: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["staff-inbox-detail", requestId] }),
-        queryClient.invalidateQueries({ queryKey: ["staff-inbox"] }),
-        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
-      ]);
-    },
+    onSettled: invalidate,
   });
 
   return (

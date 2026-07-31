@@ -70,7 +70,7 @@ function asSessionRpc(supabase: unknown): SessionRpc {
 /** Resolve RPC p_action from UI action + authoritative step action_type. */
 export async function resolveB1ActOnRpcAction(
   stepId: string,
-  clientAction: "approve" | "review" | "apply_decision" | "clear" | "return" | "reject",
+  clientAction: "approve" | "review" | "apply_decision" | "clear" | "archive" | "return" | "reject",
 ): Promise<B1ActOnStepAction> {
   if (clientAction === "return" || clientAction === "reject") return clientAction;
 
@@ -176,7 +176,7 @@ export const submitB1UiRequestFn = createServerFn({ method: "POST" })
 const actSchema = z
   .object({
     stepId: z.string().uuid(),
-    action: z.enum(["approve", "review", "apply_decision", "clear", "return", "reject"]),
+    action: z.enum(["approve", "review", "apply_decision", "clear", "archive", "return", "reject"]),
     comment: z.string().trim().max(2000).optional().nullable(),
   })
   .strict();

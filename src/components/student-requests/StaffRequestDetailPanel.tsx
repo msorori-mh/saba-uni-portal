@@ -299,13 +299,23 @@ export function StaffRequestDetailPanel({
           const active = detail.activeStep;
           const activeType = active?.actionType ?? null;
 
-          const showFee = activeType === "assess_fee" || activeType === "confirm_payment";
+          const isB1ServiceForGating = isB1StaffRoutedRequestType(detail.requestTypeCode);
+          // B1 five services confirm external payment through the dedicated B1
+          // revenue receipt card, never through the generic fee section (which
+          // renders nothing without an in-portal fee assessment).
+          const isB1PaymentConfirmation =
+            isB1ServiceForGating && activeType === "confirm_payment";
+          const showFee =
+            !isB1PaymentConfirmation &&
+            (activeType === "assess_fee" || activeType === "confirm_payment");
           const showFinanceClearance = activeType === "clearance" || activeType === "finance_clearance";
-          const showArchivePanel = activeType === "archive";
+          // B1 five services execute `archive` literally through the B1 atomic
+          // panel; only non-B1 services use the generic archive panel.
+          const showArchivePanel = activeType === "archive" && !isB1ServiceForGating;
           const showEcIssueButton = activeType === "issue_document";
           const showSignPanel = activeType === "sign";
           const isReviewStep = activeType === "review";
-          const isB1Service = isB1StaffRoutedRequestType(detail.requestTypeCode);
+          const isB1Service = isB1ServiceForGating;
 
           return (
             <>
