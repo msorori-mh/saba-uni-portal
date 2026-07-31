@@ -28,18 +28,22 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "fd2621877d4db1df5927f0583d6de5a269c9e50b258578592c299f373459739d";
+export const MATRIX_SHA256_LF = "fd4e35057cb507924f71e1f71c6326653744b0cc26b7055f77d358080868e115";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
-/** REMEDIATION-12 G1: a case may only execute against an ACTIVE runtime step
- *  when its contract depends on reaching a gate that sits behind the
- *  active-step gate. 19 illegal-action cases (pending steps) and 3
- *  transfer-scope cases are therefore blocked and rendered non-executing. */
-export const EXPECTED_EXECUTABLE_TOTAL = 245;
-export const EXPECTED_BLOCKED_TOTAL = 22;
+/** REMEDIATION-15 G5: every case whose contract sits behind the active-step
+ *  gate is now bound to a deterministic ACTIVE Fixture-13 runtime step, so the
+ *  blocked partition is empty by contract. A blocked case is no longer a legal
+ *  render output: it aborts the render instead of producing a .BLOCKED.sql. */
+export const EXPECTED_EXECUTABLE_TOTAL = 267;
+export const EXPECTED_BLOCKED_TOTAL = 0;
 export const BLOCKED_TOKEN = "BLOCKED_PENDING_ACTIVE_FIXTURE";
 /** Backwards-compatible alias: the single canonical blocked token. */
 export const TRANSFER_SCOPE_BLOCKED_TOKEN = BLOCKED_TOKEN;
 export const BLOCKED_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE";
+/** Fixture package that supplies the 19 ACTIVE TEST_ONLY steps. */
+export const FIXTURE_PACKAGE_ID = "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13";
+export const FIXTURE_MARKER = "TEST_ONLY_B1_FIXTURE_13";
+export const FIXTURE_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED";
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
 
 /** G1 — forbidden characters / tokens in ANY MATRIX-derived value. */
@@ -427,6 +431,15 @@ function renderCase(
   // G7: assigned_user_id is NULL in production; the effective assignee is bound
   // through exactly one direct slot (staff / faculty / position assignment) plus
   // exactly one active unit+role processing assignment. Both are pinned.
+  // REMEDIATION-15 G3: department-head steps resolve within ONE department, so
+  // the unit+role assignment pin must be department-scoped or it would count
+  // the source, target and unrelated heads together.
+  const scopeDepartmentId = (pin as StepStatePin & { department_scope_department_id?: string | null })
+    .department_scope_department_id;
+  const scopeDepartmentLiteral = scopeDepartmentId
+    ? `${lit(assertUuid("department_scope_department_id", scopeDepartmentId))}`
+    : "NULL::text";
+
   const assigneePin = `IF v_assignee IS NOT NULL THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step %', v_step;
   END IF;
@@ -441,11 +454,14 @@ function renderCase(
   SELECT count(*) INTO v_n
     FROM public.request_processing_assignments a
     JOIN public.student_request_workflow_steps w ON w.id = v_step
-   WHERE a.processing_unit_id = w.processing_unit_id
-     AND a.processing_role_id = w.processing_role_id
-     AND a.is_active;
+   WHERE a.unit_id = w.processing_unit_id
+     AND a.role_id = w.processing_role_id
+     AND a.is_active
+     AND (a.starts_at IS NULL OR a.starts_at <= now())
+     AND (a.ends_at IS NULL OR a.ends_at > now())
+     AND (${scopeDepartmentLiteral} IS NULL OR a.department_id = ${scopeDepartmentLiteral}::uuid);
   IF v_n <> 1 THEN
-    RAISE EXCEPTION 'CASE_STATE_DRIFT: % active unit+role assignments for step % (want 1)', v_n, v_step;
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % effective unit+role assignments for step % (want 1)', v_n, v_step;
   END IF;`;
 
   const transferScopePin =
@@ -883,9 +899,9 @@ function renderMaster(executable: string[], total: number): string {
   const count = executable.length;
   return `-- GENERATED master script (G9). ONE psql process executes the whole run.
 -- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
--- MATRIX total = ${total}; blocked and excluded = ${total - count} (${BLOCKED_TOKEN}).
--- Blocked cases can never be counted as PASS: while any exists the run halts with
--- ${BLOCKED_HOLD_TOKEN}.
+-- MATRIX total = ${total}; blocked and excluded = ${total - count} (must be 0).
+-- Blocked rendering is abolished: an unbound case aborts the render with
+-- ${FIXTURE_HOLD_TOKEN}, and the preflight halts the run with ${BLOCKED_HOLD_TOKEN}.
 -- ON_ERROR_STOP aborts the entire run at the first failure. No COMMIT anywhere.
 \\set ON_ERROR_STOP on
 \\timing off
@@ -968,15 +984,11 @@ export function main(): void {
     if (!pin) throw new Error(`MATRIX_VALIDATION_FAIL: no step state pin for ${key}`);
     const ordinal = index + 1;
     if (isBlockedCase(nc, pin)) {
-      if (nc.execution_status !== BLOCKED_TOKEN) {
-        throw new Error(`MATRIX_VALIDATION_FAIL: blocked case ${key} must be marked ${BLOCKED_TOKEN}`);
-      }
-      const name = `case-${String(ordinal).padStart(4, "0")}.BLOCKED.sql`;
-      writeFileSync(join(CASES, name), renderBlockedCase(ordinal, nc), "utf8");
-      files.push(`cases/${name}`);
-      blocked.push(`cases/${name}`);
-      blockedByClass[nc.case] = (blockedByClass[nc.case] ?? 0) + 1;
-      return;
+      // REMEDIATION-15 G5: blocked rendering is abolished. A case that is not
+      // bound to an ACTIVE runtime step is a package defect, not an output.
+      throw new Error(
+        `${FIXTURE_HOLD_TOKEN}: ${key} is not bound to an ACTIVE step; apply ${FIXTURE_PACKAGE_ID}`,
+      );
     }
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
     writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest, pin), "utf8");

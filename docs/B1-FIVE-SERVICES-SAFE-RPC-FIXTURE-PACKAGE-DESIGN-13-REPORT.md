@@ -1,5 +1,12 @@
 # PORTAL-B1-FIVE-SERVICES-SAFE-RPC-FIXTURE-PACKAGE-DESIGN-13
 
+> **SUPERSEDED (2026-08-01) by Remediation-15.** The identity model, transfer-detail
+> rows, department actor model (source IT / target CS / unrelated CIS) and deterministic
+> ids described below were corrected in
+> `docs/B1-FIVE-SERVICES-SAFE-RPC-FIXTURE-PACKAGE-RUNTIME-CONTRACT-REMEDIATION-15-REPORT.md`.
+> Read that report for the authoritative package contract; this document is kept for
+> discovery provenance only.
+
 **MODE:** PRODUCTION READ-ONLY DISCOVERY + SOURCE-ONLY FIXTURE MIGRATION DESIGN
 **Production writes performed this mission:** NONE (read-only channel only)
 **Migration head at discovery:** `20260731203030`
