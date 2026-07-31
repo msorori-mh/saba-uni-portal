@@ -139,9 +139,13 @@ Reason eligible for every row: belongs to a TEST_ONLY profile, is not in §2.1/�
 |---|---|---|---|---|---|---|---|---|
 | 36 | SR-20260727-03DDF561 | `40ccc66a-d638-4c49-8ac6-ac771caea131` | TEST_ONLY_B1_0002 | department_transfer | draft | 0 | 0 | 3 |
 | 37 | SR-20260727-85E124BE | `7fce2743-1940-488d-b434-aba98967985d` | TEST_ONLY_B1_0002 | file_withdrawal | draft | 0 | 0 | 0 |
-| 38 | SR-20260727-F67CF366 | `d70cef24-2f2e-4bac-9125-47c22e8ab8d8` | TEST_ONLY_B1_0002 | enrollment_suspension | submitted | 3 | 1 | 0 |
+| 38 | SR-20260727-F67CF366 | `d70cef24-2f2e-4bac-9125-47c22e8ab8d8` | TEST_ONLY_B1_0002 | enrollment_suspension | submitted | 3 | 1 | 0 | **HOLD — NOT EXECUTABLE** |
 
-> Row 38 is an open (`submitted`) request. If the owner wants a live in-flight fixture retained, exclude row 38 explicitly.
+> **HOLD (Mission 124):** row 38 is an open `submitted` request with an `active` `initial_review` step and no effect. Classified as an abandoned in-flight fixture requiring an explicit cancel-then-cleanup decision. It is **removed from the executable Batch B** (executable count 37) and must not be deleted under the current approval. See `docs/B1-STAGE3-CLEANUP-RISK-RESOLUTION-124.md` §2.
+>
+> **HOLD (Mission 124) — Batch A:** all 20 attachment rows and their 20 storage objects stay non-executable until a byte-level export of the exact paths listed in `docs/B1-STAGE3-CLEANUP-RISK-RESOLUTION-124.md` §3 is produced and stored outside the bucket.
+>
+> **Executable counts after HOLD:** B 37 requests, C 135 steps / 157 events, D 37 detail rows + 2 effect rows, E 53 idempotency rows, F unchanged, A 0 until export.
 
 ---
 
@@ -284,9 +288,9 @@ Deletion must be by **explicit ID list only** — no `LIKE` mass delete, no `TRU
 
 | # | Risk | Mitigation |
 |---|---|---|
-| R1 | SR-20260727-695EC35B is a completed request with a real effect row but is absent from the owner's do-not-delete list | Excluded from all batches in this manifest; owner must confirm classification before it is ever deleted |
-| R2 | Batch B row 38 (SR-20260727-F67CF366) is an open `submitted` request | Flag explicitly at approval; drop from the list if a live fixture is wanted |
-| R3 | Storage bytes are not recoverable | Export the 20 listed object paths before execution |
+| R1 | SR-20260727-695EC35B is a completed request with a real effect row but is absent from the owner's do-not-delete list | **RESOLVED (Mission 124):** classified evidence-to-keep; permanently excluded from all batches |
+| R2 | Batch B row 38 (SR-20260727-F67CF366) is an open `submitted` request | **RESOLVED to HOLD (Mission 124):** removed from executable Batch B; needs an explicit cancel-then-cleanup decision |
+| R3 | Storage bytes are not recoverable | **RESOLVED to HOLD (Mission 124):** 20 exact paths exported to docs; Batch A blocked until a byte-level export exists |
 | R4 | Manifest IDs could drift if new TEST_ONLY activity occurs | Re-verify the full ID list immediately before execution; fail closed on any mismatch |
 | R5 | FK cascade could reach evidence if profiles are deleted first | Enforce the §10 order; never cascade from `student_profiles` |
 
@@ -295,3 +299,4 @@ No technical blocker prevents preparing this manifest.
 ---
 
 **FINAL DECISION: PASS_B1_STAGE3_CLEANUP_ID_MANIFEST_READY_FOR_OWNER_DECISION**
+(risks resolved in `docs/B1-STAGE3-CLEANUP-RISK-RESOLUTION-124.md` — Mission 124)
