@@ -1,5 +1,12 @@
 # GRADUATION-PROJECTS COMPLETION — MASTER REPORT
 
+> SOURCE-ONLY RELOCATION (2026-08-01): the `supabase/migrations/2026073010000*.sql`
+> files referenced below were ported to this branch as source-only drafts
+> `docs/migration-drafts/GRADUATION-PROJECTS-M1-FOUNDATION.NOT_APPLIED.sql` …
+> `GRADUATION-PROJECTS-M8-PANEL-COMPLETENESS.NOT_APPLIED.sql` (see
+> `docs/migration-drafts/GRADUATION-PROJECTS-MIGRATION-PACKAGE-01.md`). They are
+> NOT_APPLIED and must not be placed under `supabase/migrations/` from this branch.
+
 Mission: PORTAL-GRADUATION-PROJECTS-COMPLETE-SOURCE-RELEASE-CANDIDATE-01
 Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 

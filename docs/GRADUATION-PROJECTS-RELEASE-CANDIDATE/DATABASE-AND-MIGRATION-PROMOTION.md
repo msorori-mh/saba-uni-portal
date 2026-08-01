@@ -1,5 +1,13 @@
 # GRADUATION-PROJECTS — DATABASE OBJECTS AND MIGRATION PROMOTION
 
+> SOURCE-ONLY RELOCATION (2026-08-01): the M1–M8 migrations listed below were
+> ported from the k3 branch's `supabase/migrations/2026073010000*.sql` into
+> source-only drafts `docs/migration-drafts/GRADUATION-PROJECTS-M1-FOUNDATION.NOT_APPLIED.sql`
+> … `GRADUATION-PROJECTS-M8-PANEL-COMPLETENESS.NOT_APPLIED.sql`. They are
+> NOT_APPLIED and must not be placed under `supabase/migrations/` from this
+> branch; promotion renames them back to timestamped migration files at apply
+> time (operator decision, see the manifest).
+
 ## 1. Database object inventory (post-M8, NOT_APPLIED)
 
 - **Enums (2)**: `graduation_project_state` (14 values),
@@ -24,14 +32,17 @@
 
 | Order | File | Gate before apply | Gate after apply |
 |---|---|---|---|
-| M1 | `20260730100000_b1b476e7-…sql` | `pg17/preflight-01-foundation.sql` | `postgres-foundation-verifier.sql` |
-| M2 | `20260730100001_96beebe1-…sql` | `pg17/preflight-02-lifecycle.sql` | `postgres-lifecycle-verifier.sql` |
-| M3 | `20260730100002_c8f89b6d-…sql` | `pg17/preflight-03-co-supervisor-enum.sql` | (covered by M4 verifier) |
-| M4 | `20260730100003_1811ed11-…sql` | `pg17/preflight-04-hardening.sql` | `postgres-hardening-verifier.sql` |
-| M5 | `20260730100004_ff96c58a-…sql` | `pg17/preflight-05-files-notifications.sql` | `postgres-files-notifications-verifier.sql` |
-| M6 | `20260730100005_a69a1dc9-…sql` | `pg17/preflight-06-admin-settings.sql` | `postgres-admin-settings-verifier.sql` |
-| M7 | `20260730100006_b953bddf-…sql` | `pg17/preflight-07-evaluation-completeness.sql` | matrix + full regression re-run |
-| M8 | `20260730100007_4f682b52-…sql` | `pg17/preflight-08-panel-completeness.sql` | E2E + audit + full regression re-run |
+| M1 | `GRADUATION-PROJECTS-M1-FOUNDATION.NOT_APPLIED.sql` (k3: `20260730100000_b1b476e7-…sql`) | `pg17/preflight-01-foundation.sql` | `postgres-foundation-verifier.sql` |
+| M2 | `GRADUATION-PROJECTS-M2-LIFECYCLE-COMPLETION.NOT_APPLIED.sql` (k3: `20260730100001_96beebe1-…sql`) | `pg17/preflight-02-lifecycle.sql` | `postgres-lifecycle-verifier.sql` |
+| M3 | `GRADUATION-PROJECTS-M3-CO-SUPERVISOR-ENUM.NOT_APPLIED.sql` (k3: `20260730100002_c8f89b6d-…sql`) | `pg17/preflight-03-co-supervisor-enum.sql` | (covered by M4 verifier) |
+| M4 | `GRADUATION-PROJECTS-M4-COMPLETION-HARDENING.NOT_APPLIED.sql` (k3: `20260730100003_1811ed11-…sql`) | `pg17/preflight-04-hardening.sql` | `postgres-hardening-verifier.sql` |
+| M5 | `GRADUATION-PROJECTS-M5-FILES-AND-NOTIFICATIONS.NOT_APPLIED.sql` (k3: `20260730100004_ff96c58a-…sql`) | `pg17/preflight-05-files-notifications.sql` | `postgres-files-notifications-verifier.sql` |
+| M6 | `GRADUATION-PROJECTS-M6-ADMIN-SETTINGS.NOT_APPLIED.sql` (k3: `20260730100005_a69a1dc9-…sql`) | `pg17/preflight-06-admin-settings.sql` | `postgres-admin-settings-verifier.sql` |
+| M7 | `GRADUATION-PROJECTS-M7-EVALUATION-COMPLETENESS.NOT_APPLIED.sql` (k3: `20260730100006_b953bddf-…sql`) | `pg17/preflight-07-evaluation-completeness.sql` | matrix + full regression re-run |
+| M8 | `GRADUATION-PROJECTS-M8-PANEL-COMPLETENESS.NOT_APPLIED.sql` (k3: `20260730100007_4f682b52-…sql`) | `pg17/preflight-08-panel-completeness.sql` | E2E + audit + full regression re-run |
+
+(Draft files live in `docs/migration-drafts/`; preflights/verifiers in
+`tests/graduation-projects/`.)
 
 Full details (expected deltas, stop conditions):
 `docs/migration-drafts/GRADUATION-PROJECTS-MIGRATION-PACKAGE-01.md`.

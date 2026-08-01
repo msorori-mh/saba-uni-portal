@@ -5,6 +5,16 @@ Every migration is forward-only, guarded against ambiguous retries, and has a
 read-only preflight plus a disposable-PG17 verifier. **No migration in this
 package has been applied to production or staging (MIGRATIONS_APPLIED=0).**
 
+> SOURCE-ONLY RELOCATION (2026-08-01): the 8 packaged migrations live as
+> source-only drafts `docs/migration-drafts/GRADUATION-PROJECTS-M1-FOUNDATION.NOT_APPLIED.sql`
+> through `GRADUATION-PROJECTS-M8-PANEL-COMPLETENESS.NOT_APPLIED.sql`
+> (original k3 timestamps 20260730100000..20260730100007 are kept in each
+> file's header for ordering). They MUST NOT be placed under
+> `supabase/migrations/` or applied from this branch. **M1–M8 supersede the
+> earlier drafts `GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql` and
+> `GRADUATION-PROJECTS-LIFECYCLE-COMPLETION-01.sql`** (kept for history; do
+> not promote them separately).
+
 Local evidence: `tests/graduation-projects/run-pg17-migration-package.sh`
 (docker postgres:17, ON_ERROR_STOP, one migration at a time, verifiers end in
 ROLLBACK) → `tests/graduation-projects/POSTGRES-17-MIGRATION-PACKAGE-VERIFICATION-RESULT.md`.
@@ -13,14 +23,14 @@ ROLLBACK) → `tests/graduation-projects/POSTGRES-17-MIGRATION-PACKAGE-VERIFICAT
 
 | # | Migration | Contents | Preflight (read-only) | Verifier(s) |
 |---|---|---|---|---|
-| M1 | `supabase/migrations/20260730100000_b1b476e7-0c92-42cf-80e3-925d7941d780.sql` | Foundation: 2 enums, 15 tables, RLS deny-by-default, triggers, readiness predicate, reporting view, 6 RPCs | `tests/graduation-projects/pg17/preflight-01-foundation.sql` | `tests/graduation-projects/postgres-foundation-verifier.sql` |
-| M2 | `supabase/migrations/20260730100001_96beebe1-d809-4302-a782-c2f6483e102a.sql` | Lifecycle completion: 19 write RPCs + 6 read/report RPCs, literal actions, optimistic concurrency | `tests/graduation-projects/pg17/preflight-02-lifecycle.sql` | `tests/graduation-projects/postgres-lifecycle-verifier.sql` |
-| M3 | `supabase/migrations/20260730100002_c8f89b6d-6521-4597-97bc-aae0b837023f.sql` | `co_supervisor` enum value (isolated: a new enum label cannot be used inside its own transaction) | `tests/graduation-projects/pg17/preflight-03-co-supervisor-enum.sql` | covered by M4 verifier + post-verifier checks |
-| M4 | `supabase/migrations/20260730100003_1811ed11-afad-4cbc-8f8a-287ba5b13a19.sql` | Completion hardening: co-supervisor activation, exactly-one indexes, guarded messages, scan-state RPC + audit columns, rubric tables, notification dedupe log | `tests/graduation-projects/pg17/preflight-04-hardening.sql` | `tests/graduation-projects/postgres-hardening-verifier.sql` + foundation/lifecycle re-run |
-| M5 | `supabase/migrations/20260730100004_ff96c58a-8c93-4abe-9d0f-f0f44fe25a11.sql` | Files & notifications: attachment policy (MIME allowlist, 50 MiB cap, `file_kind` stage binding), notification fan-out trigger with dedupe, own-notifications read RPC, orphan-file review RPC | `tests/graduation-projects/pg17/preflight-05-files-notifications.sql` | `tests/graduation-projects/postgres-files-notifications-verifier.sql` + all prior verifiers re-run |
-| M6 | `supabase/migrations/20260730100005_a69a1dc9-8b9f-4dfc-a5e8-69a335909c8b.sql` | Admin settings (team size, supervisor capacity, co-supervisor rule, windows) with in-RPC enforcement, rubric management RPCs, defense report RPC | `tests/graduation-projects/pg17/preflight-06-admin-settings.sql` | `tests/graduation-projects/postgres-admin-settings-verifier.sql` + all prior verifiers re-run |
-| M7 | `supabase/migrations/20260730100006_b953bddf-de2d-43f6-9d3d-10755d8a9da6.sql` | Evaluation completeness: result conclusion requires every panel member of the held discussion finalized (GP-07 High finding) | `tests/graduation-projects/pg17/preflight-07-evaluation-completeness.sql` | `tests/graduation-projects/postgres-authorization-matrix-verifier.sql` (68 rows) + all prior verifiers re-run |
-| M8 | `supabase/migrations/20260730100007_4f682b52-7e51-486d-ad02-4d886d2331ec.sql` | Panel completeness: the `held` outcome requires ≥1 panel member and an assigned chair (GP-08 journey 11) | `tests/graduation-projects/pg17/preflight-08-panel-completeness.sql` | `tests/graduation-projects/postgres-e2e-journeys-verifier.sql` (53 steps) + all prior verifiers re-run |
+| M1 | `docs/migration-drafts/GRADUATION-PROJECTS-M1-FOUNDATION.NOT_APPLIED.sql` (k3: `20260730100000_b1b476e7-0c92-42cf-80e3-925d7941d780.sql`) | Foundation: 2 enums, 15 tables, RLS deny-by-default, triggers, readiness predicate, reporting view, 6 RPCs | `tests/graduation-projects/pg17/preflight-01-foundation.sql` | `tests/graduation-projects/postgres-foundation-verifier.sql` |
+| M2 | `docs/migration-drafts/GRADUATION-PROJECTS-M2-LIFECYCLE-COMPLETION.NOT_APPLIED.sql` (k3: `20260730100001_96beebe1-d809-4302-a782-c2f6483e102a.sql`) | Lifecycle completion: 19 write RPCs + 6 read/report RPCs, literal actions, optimistic concurrency | `tests/graduation-projects/pg17/preflight-02-lifecycle.sql` | `tests/graduation-projects/postgres-lifecycle-verifier.sql` |
+| M3 | `docs/migration-drafts/GRADUATION-PROJECTS-M3-CO-SUPERVISOR-ENUM.NOT_APPLIED.sql` (k3: `20260730100002_c8f89b6d-6521-4597-97bc-aae0b837023f.sql`) | `co_supervisor` enum value (isolated: a new enum label cannot be used inside its own transaction) | `tests/graduation-projects/pg17/preflight-03-co-supervisor-enum.sql` | covered by M4 verifier + post-verifier checks |
+| M4 | `docs/migration-drafts/GRADUATION-PROJECTS-M4-COMPLETION-HARDENING.NOT_APPLIED.sql` (k3: `20260730100003_1811ed11-afad-4cbc-8f8a-287ba5b13a19.sql`) | Completion hardening: co-supervisor activation, exactly-one indexes, guarded messages, scan-state RPC + audit columns, rubric tables, notification dedupe log | `tests/graduation-projects/pg17/preflight-04-hardening.sql` | `tests/graduation-projects/postgres-hardening-verifier.sql` + foundation/lifecycle re-run |
+| M5 | `docs/migration-drafts/GRADUATION-PROJECTS-M5-FILES-AND-NOTIFICATIONS.NOT_APPLIED.sql` (k3: `20260730100004_ff96c58a-8c93-4abe-9d0f-f0f44fe25a11.sql`) | Files & notifications: attachment policy (MIME allowlist, 50 MiB cap, `file_kind` stage binding), notification fan-out trigger with dedupe, own-notifications read RPC, orphan-file review RPC | `tests/graduation-projects/pg17/preflight-05-files-notifications.sql` | `tests/graduation-projects/postgres-files-notifications-verifier.sql` + all prior verifiers re-run |
+| M6 | `docs/migration-drafts/GRADUATION-PROJECTS-M6-ADMIN-SETTINGS.NOT_APPLIED.sql` (k3: `20260730100005_a69a1dc9-8b9f-4dfc-a5e8-69a335909c8b.sql`) | Admin settings (team size, supervisor capacity, co-supervisor rule, windows) with in-RPC enforcement, rubric management RPCs, defense report RPC | `tests/graduation-projects/pg17/preflight-06-admin-settings.sql` | `tests/graduation-projects/postgres-admin-settings-verifier.sql` + all prior verifiers re-run |
+| M7 | `docs/migration-drafts/GRADUATION-PROJECTS-M7-EVALUATION-COMPLETENESS.NOT_APPLIED.sql` (k3: `20260730100006_b953bddf-de2d-43f6-9d3d-10755d8a9da6.sql`) | Evaluation completeness: result conclusion requires every panel member of the held discussion finalized (GP-07 High finding) | `tests/graduation-projects/pg17/preflight-07-evaluation-completeness.sql` | `tests/graduation-projects/postgres-authorization-matrix-verifier.sql` (68 rows) + all prior verifiers re-run |
+| M8 | `docs/migration-drafts/GRADUATION-PROJECTS-M8-PANEL-COMPLETENESS.NOT_APPLIED.sql` (k3: `20260730100007_4f682b52-7e51-486d-ad02-4d886d2331ec.sql`) | Panel completeness: the `held` outcome requires ≥1 panel member and an assigned chair (GP-08 journey 11) | `tests/graduation-projects/pg17/preflight-08-panel-completeness.sql` | `tests/graduation-projects/postgres-e2e-journeys-verifier.sql` (53 steps) + all prior verifiers re-run |
 
 ## Expected object/data deltas
 
