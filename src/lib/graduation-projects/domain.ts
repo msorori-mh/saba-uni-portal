@@ -47,7 +47,11 @@ export function authorizeProjectAction(
   if (authority.projectId !== project.id) return false;
   if (authority.departmentId !== project.departmentId) return false;
   if (!actionsByRole[authority.role].has(action)) return false;
-  if (immutableStates.has(project.state) && !["read", "read_report"].includes(action)) return false;
+  if (immutableStates.has(project.state) && !["read", "read_report"].includes(action)) {
+    // Sole legal write out of a frozen state: archive from completed
+    // (transitions map, lifecycle matrix, archive RPC precondition agree).
+    if (!(project.state === "completed" && action === "archive")) return false;
+  }
   return true;
 }
 

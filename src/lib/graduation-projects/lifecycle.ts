@@ -591,7 +591,7 @@ export function resolveViewerPanelMemberIds(
 ): string[] {
   const viewerAssignmentIds = new Set(
     detail.assignments
-      .filter((assignment) => assignment.role === "panel_member" && assignment.active && assignment.user_id === viewerUserId)
+      .filter((assignment) => assignment.role === "panel_member" && assignment.active && assignment.ended_at == null && assignment.user_id === viewerUserId)
       .map((assignment) => assignment.id),
   );
   return detail.panel_members

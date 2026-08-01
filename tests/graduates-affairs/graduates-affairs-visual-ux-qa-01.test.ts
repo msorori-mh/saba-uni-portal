@@ -377,6 +377,63 @@ describe("aggregate reports and suppression", () => {
   });
 });
 
+describe("mobile collapse", () => {
+  test("every aggregate results table sits inside a horizontally scrollable container", () => {
+    const report = aggregateSurveyResponses(
+      surveyFixture.version.questions,
+      Array.from({ length: 6 }, () => ({ overall_satisfaction_machine_key: "ممتاز" })),
+      5,
+    );
+    const html = renderToStaticMarkup(
+      createElement(GraduateReportsPanel, {
+        cohortReports: [],
+        surveyReports: [{ title: "استبيان تجريبي", report }],
+      }),
+    );
+    const tables = html.match(/<table/g)?.length ?? 0;
+    const scrollContainers = html.match(/overflow-x-auto/g)?.length ?? 0;
+    expect(tables).toBeGreaterThan(0);
+    // A table outside a scroll container overflows small screens.
+    expect(scrollContainers).toBe(tables);
+  });
+
+  test("single-choice options wrap instead of overflowing narrow screens", () => {
+    const html = renderToStaticMarkup(
+      createElement(GraduateSurveyCard, {
+        survey: surveyFixture.survey,
+        version: {
+          ...surveyFixture.version,
+          questions: [
+            {
+              key: "long_options_machine_key",
+              kind: "single_choice" as const,
+              required: true,
+              options: [
+                "الخيار الأول بوصف عربي طويل نسبياً",
+                "الخيار الثاني بوصف عربي طويل نسبياً",
+                "الخيار الثالث بوصف عربي طويل نسبياً",
+              ],
+            },
+          ],
+        },
+        consents: [
+          {
+            purposeCode: "surveys",
+            noticeVersion: "v1",
+            state: "granted",
+            grantedAt: "2026-01-01T00:00:00Z",
+            withdrawnAt: null,
+          },
+        ],
+        alreadyResponded: false,
+      }),
+    );
+    expect(html).toContain('role="radiogroup"');
+    // The radiogroup row must wrap long Arabic options on mobile widths.
+    expect(html).toMatch(/role="radiogroup"[^>]*class="[^"]*flex-wrap/);
+  });
+});
+
 describe("privacy and RTL guards", () => {
   test("no component renders raw identifiers or storage internals", () => {
     for (const [path, source] of Object.entries(componentSources)) {

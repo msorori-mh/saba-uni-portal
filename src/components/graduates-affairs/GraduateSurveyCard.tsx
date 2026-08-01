@@ -85,7 +85,11 @@ export function GraduateSurveyCard(props: {
                 {question.required ? <span className="sr-only"> (إلزامي)</span> : null}
               </p>
               {question.kind === "single_choice" ? (
-                <div role="radiogroup" aria-label={questionLabel} className="mt-1 flex gap-4">
+                <div
+                  role="radiogroup"
+                  aria-label={questionLabel}
+                  className="mt-1 flex flex-wrap gap-x-4 gap-y-2"
+                >
                   {(question.options ?? []).map((option) => (
                     <label key={option} className="flex items-center gap-1 text-sm">
                       <input
