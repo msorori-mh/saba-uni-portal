@@ -2,7 +2,7 @@
 
 **MODE:** PRODUCTION READ-ONLY ATTESTATION + SOURCE-ONLY MANIFEST REPIN
 **Repository:** msorori-mh/saba-uni-portal
-**Authoritative main SHA (входной):** `993ce0ec5cb45524759831de488940a4f25d00b0`
+**Authoritative main SHA:** `993ce0ec5cb45524759831de488940a4f25d00b0`
 **Production project:** `wpmicqriltrowwonknox`
 **Production migration head:** `20260801021541`
 **Read-only capture timestamp (UTC):** `2026-08-01T21:51:30Z`
