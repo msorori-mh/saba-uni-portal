@@ -355,30 +355,20 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 8b. REMEDIATION-12 G3 — ACTIVE FIXTURE GATE (fail-closed)
---     The matrix may not run and may not be declared PASS while any case is
---     BLOCKED_PENDING_ACTIVE_FIXTURE. This gate is inside the master script so
---     a direct psql invocation cannot bypass the launcher check.
+-- 8b. RECONCILIATION-17 — BLOCKED-CASE GATE ABOLISHED
+--     The 245+22 model is gone: all 267 cases render as executable SQL bound to
+--     deterministic ACTIVE fixture steps. Readiness is enforced by the
+--     fixture-state gate below (8c), never by blocked-case counts.
 -- ============================================================================
-DO $$
-DECLARE
-  v_blocked int  := (SELECT value::int FROM b1_pin_scalar WHERE key = 'blocked_case_total');
-  v_hold    text := (SELECT value FROM b1_pin_scalar WHERE key = 'blocked_hold_token');
-BEGIN
-  IF v_blocked IS NULL OR v_hold IS NULL THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_BLOCKED_CASE_PIN_MISSING';
-  END IF;
-  IF v_blocked > 0 THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % negative cases are BLOCKED_PENDING_ACTIVE_FIXTURE', v_hold, v_blocked;
-  END IF;
-END $$;
-
 
 -- ============================================================================
 -- 8c. REMEDIATION-15 G5 — FIXTURE-13 STATE GATE (fail-closed)
 --     Every previously blocked case is now bound to a deterministic ACTIVE
 --     TEST_ONLY fixture step. If the fixture package is not applied, or drifted,
 --     the run halts here instead of "passing" against a non-existent step.
+--     RECONCILIATION-17: the migration-head contract after apply is enforced by
+--     the fixture migration itself (precondition k_head = 20260731203030); the
+--     post-apply head is pinned when the migration is reviewed and applied.
 -- ============================================================================
 DO $$
 DECLARE
@@ -390,6 +380,15 @@ DECLARE
   v_detail  int;
   v_bad     int;
 BEGIN
+  -- RECONCILIATION-17: the rendered pins must carry the fixture contract.
+  IF (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_package_id')
+       IS DISTINCT FROM 'B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13'
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_marker') IS DISTINCT FROM k_marker
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_hold_token') IS DISTINCT FROM k_hold
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'executable_case_total') IS DISTINCT FROM '267' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : fixture contract pins missing or drifted', k_hold;
+  END IF;
+
   SELECT count(*) INTO v_req FROM public.student_requests
    WHERE internal_notes = k_marker AND request_number LIKE 'SR-20260801-13%';
   IF v_req <> 19 THEN

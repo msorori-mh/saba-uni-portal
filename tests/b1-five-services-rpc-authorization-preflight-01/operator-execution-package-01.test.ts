@@ -207,7 +207,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
     expect(renderer).toContain("CASE_STATE_DRIFT: step_order");
     expect(renderer).toContain("CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step");
     expect(renderer).toContain("direct assignee slots on step");
-    expect(renderer).toContain("active unit+role assignments for step");
+    expect(renderer).toContain("effective unit+role assignments for step");
     expect(renderedCase).toContain("CASE_STATE_DRIFT: request status % (want submitted)");
     expect(renderedCase).toContain("fee assessments (want 0)");
     expect(renderer).toContain("unsatisfied predecessor steps");
@@ -456,7 +456,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
     expect(total).toBe(EXPECTED_NEGATIVE_TOTAL);
     expect(total).toBe(267);
     expect(matrix.counts.negative_total).toBe(267);
-    expect(Object.keys(matrix.production_readonly_attestation.requests)).toHaveLength(5);
+    expect(Object.keys(matrix.production_readonly_attestation.requests)).toHaveLength(24);
     expect(renderer).toContain("positive_rendered: 0");
   });
 
@@ -530,24 +530,37 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
     }
   });
 
-  it("G2: the three transfer-scope cases are blocked, not rendered as executable", () => {
+  it("G2: the three transfer-scope cases are executable against ACTIVE transfer fixtures", () => {
     const scope = matrix.supplemental_department_scope_cases as any[];
     expect(scope.length).toBe(3);
     for (const c of scope) {
       expect(c.requires_active_transfer_scope_fixture).toBe(true);
-      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
-      expect(matrix.step_state_pins[`${c.request_number}|${c.step_key}`].runtime_status).not.toBe("active");
+      expect(c.execution_status).toBe("EXECUTABLE_PENDING_FIXTURE_APPLY");
+      expect(c.blocked_reason).toBeNull();
+      expect(c.requires_fixture_package).toBe("B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13");
+      expect(matrix.step_state_pins[`${c.request_number}|${c.step_key}`].runtime_status).toBe("active");
     }
-    expect(matrix.transfer_scope_execution.status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
-    expect(matrix.counts.execution_blocked_transfer_scope).toBe(3);
+    // IT source head on the target step, CS target head on the source step,
+    // and an unrelated CIS third-department head.
+    expect(scope.map((c) => c.actor_department_scope).sort()).toEqual([
+      "source_department",
+      "target_department",
+      "unrelated_department",
+    ]);
+    const model = matrix.fixture_package.department_model;
+    for (const c of scope) {
+      expect(c.actor_department_id).toBe(model[`${c.actor_department_scope}_id`]);
+    }
+    expect(matrix.transfer_scope_execution.status).toBe("EXECUTABLE_PENDING_FIXTURE_APPLY");
+    expect(matrix.transfer_scope_execution.bound_fixture_package).toContain("FIXTURES-13");
+    expect(matrix.counts.execution_blocked_transfer_scope).toBe(0);
 
     const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
     expect(master).not.toContain("BLOCKED.sql");
     for (const n of [265, 266, 267]) {
-      const blocked = read(join(pkg, "generated", "cases", `case-0${n}.BLOCKED.sql`));
-      expect(blocked).toContain("CASE_BLOCKED_PENDING_ACTIVE_FIXTURE");
-      expect(blocked).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
-      expect(blocked).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
+      const sql = read(join(pkg, "generated", "cases", `case-0${n}.sql`));
+      expect(sql).toContain("BEGIN ISOLATION LEVEL SERIALIZABLE");
+      expect(sql).toContain("CASE_STATE_DRIFT: transfer department scope");
     }
   });
 
@@ -599,8 +612,11 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-CODEX-FINAL-FINDINGS-REMEDIATION-09", ()
   it("G6: matrix SHA and manifest stay consistent after remediation", () => {
     expect(sha256Lf(matrixRaw)).toBe(MATRIX_SHA256_LF);
     expect(manifest.matrix.sha256_lf).toBe(MATRIX_SHA256_LF);
-    expect(manifest.matrix.executable_negative_total).toBe(245);
-    expect(manifest.matrix.blocked_negative_total).toBe(22);
+    expect(manifest.matrix.negative_total).toBe(267);
+    expect(manifest.matrix.executable_negative_total).toBe(267);
+    expect(manifest.matrix.blocked_negative_total).toBe(0);
+    expect(manifest.matrix.fixture_rebind.rebound_cases).toBe(22);
+    expect(matrix.fixture_rebind.rebound_cases).toBe(22);
     expect(matrix.production_ref).toBe(APPROVED_PROJECT_REF);
   });
 });
@@ -612,109 +628,120 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", (
     ...matrix.supplemental_department_scope_cases,
   ] as any[];
   const pins = matrix.step_state_pins as Record<string, any>;
-  const isBlocked = (c: any) => c.execution_status === "BLOCKED_PENDING_ACTIVE_FIXTURE";
+  const isRebound = (c: any) => c.execution_status === "EXECUTABLE_PENDING_FIXTURE_APPLY";
   const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
   const generatedManifest = JSON.parse(read(join(pkg, "generated", "MANIFEST.json")));
   const pinsSql = read(join(pkg, "generated", "pins.sql"));
 
-  // ---- G1 / G7: 267 = 245 executable + 22 blocked --------------------------
-  it("G1: 267 defined = 245 executable + 22 blocked, 0 positives", () => {
+  // ---- G1 / G7: 267 = 267 executable + 0 blocked (22 rebound) ---------------
+  it("G1: 267 defined = 267 executable + 0 blocked, 0 positives", () => {
     expect(allCases).toHaveLength(267);
-    expect(EXPECTED_EXECUTABLE_TOTAL).toBe(245);
-    expect(EXPECTED_BLOCKED_TOTAL).toBe(22);
+    expect(EXPECTED_EXECUTABLE_TOTAL).toBe(267);
+    expect(EXPECTED_BLOCKED_TOTAL).toBe(0);
     expect(matrix.counts.negative_total).toBe(267);
-    expect(matrix.counts.executable_negative_total).toBe(245);
-    expect(matrix.counts.execution_blocked).toBe(22);
+    expect(matrix.counts.executable_negative_total).toBe(267);
+    expect(matrix.counts.execution_blocked).toBe(0);
     expect(matrix.counts.positive).toBe(0);
     expect(matrix.counts.positive_rendered).toBe(0);
-    expect(allCases.filter(isBlocked)).toHaveLength(22);
-    expect(allCases.filter((c) => !isBlocked(c))).toHaveLength(245);
+    expect(allCases.filter(isRebound)).toHaveLength(22);
+    expect(allCases.filter((c) => c.execution_status === "EXECUTABLE")).toHaveLength(245);
     expect(generatedManifest.negative_total).toBe(267);
-    expect(generatedManifest.executable_negative_total).toBe(245);
-    expect(generatedManifest.blocked_negative_total).toBe(22);
+    expect(generatedManifest.executable_negative_total).toBe(267);
+    expect(generatedManifest.blocked_negative_total).toBe(0);
+    expect(generatedManifest.rebound_cases).toBe(22);
+    expect(generatedManifest.fixture_readiness).toBe("FIXTURE_PACKAGE_NOT_APPLIED");
+    expect(generatedManifest.readiness_hold_token).toBe(
+      "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED",
+    );
     expect(generatedManifest.positive_rendered).toBe(0);
     expect(generatedManifest.commits).toBe(0);
   });
 
-  it("G1: exactly the 5 illegal-action cases on ACTIVE steps stay executable", () => {
+  it("G1: all 24 illegal-action cases are bound to ACTIVE steps; 19 are rebound to fixtures", () => {
     const ia = matrix.illegal_action_cases as any[];
     const active = ia.filter((c) => pins[`${c.request_number}|${c.step_key}`].runtime_status === "active");
-    const pending = ia.filter((c) => pins[`${c.request_number}|${c.step_key}`].runtime_status !== "active");
-    expect(active).toHaveLength(5);
-    expect(pending).toHaveLength(19);
-    for (const c of active) expect(c.execution_status).toBe("EXECUTABLE");
-    for (const c of pending) {
-      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
-      expect(c.blocked_reason).toContain("B1_ACTIVE_STEP_REQUIRED");
+    expect(active).toHaveLength(24);
+    const rebound = ia.filter(isRebound);
+    expect(rebound).toHaveLength(19);
+    for (const c of rebound) {
+      expect(c.request_number).toMatch(/^SR-20260801-13/u);
+      expect(c.requires_fixture_package).toBe("B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13");
+      expect(c.blocked_reason).toBeNull();
+    }
+    for (const c of ia.filter((c) => !isRebound(c))) expect(c.execution_status).toBe("EXECUTABLE");
+  });
+
+  it("G1: the 19 rebound illegal-action cases halt fail-closed without the fixture package", () => {
+    const rebound = (matrix.illegal_action_cases as any[]).filter(isRebound);
+    expect(rebound).toHaveLength(19);
+    for (const c of rebound) {
+      const pin = pins[`${c.request_number}|${c.step_key}`];
+      // Bound to an ACTIVE fixture step now, so nothing renders as blocked…
+      expect(isBlockedCase(c, pin)).toBe(false);
+      // …but the contract still sits behind the active-step gate: without the
+      // fixture the case is unbound and the render/preflight aborts.
+      expect(requiresActiveFixture(c)).toBe(true);
+      expect(isBlockedCase(c, { ...pin, runtime_status: "pending" })).toBe(true);
     }
   });
 
-  it("G1: the 19 pending illegal-action cases can never PASS", () => {
-    const pending = (matrix.illegal_action_cases as any[]).filter(
-      (c) => pins[`${c.request_number}|${c.step_key}`].runtime_status !== "active",
-    );
-    expect(pending).toHaveLength(19);
-    for (const c of pending) {
-      const pin = pins[`${c.request_number}|${c.step_key}`];
-      expect(isBlockedCase(c, pin)).toBe(true);
+  it("G1: the 3 transfer-scope cases halt fail-closed without the fixture package", () => {
+    const scope = matrix.supplemental_department_scope_cases as any[];
+    expect(scope).toHaveLength(3);
+    for (const c of scope) {
+      expect(isRebound(c)).toBe(true);
+      expect(isBlockedCase(c, pins[`${c.request_number}|${c.step_key}`])).toBe(false);
       expect(requiresActiveFixture(c)).toBe(true);
     }
   });
 
-  it("G1: the 3 transfer-scope cases can never PASS", () => {
-    const scope = matrix.supplemental_department_scope_cases as any[];
-    expect(scope).toHaveLength(3);
-    for (const c of scope) {
-      expect(c.execution_status).toBe("BLOCKED_PENDING_ACTIVE_FIXTURE");
-      expect(isBlockedCase(c, pins[`${c.request_number}|${c.step_key}`])).toBe(true);
-    }
-  });
-
-  // ---- G2: blocked cases are outside master, non-executable, never PASS ----
-  it("G2: master contains exactly the 245 executable cases and no blocked file", () => {
-    expect((master.match(/\\ir cases\//gu) ?? []).length).toBe(245);
+  // ---- G2: master contains all 267 cases; zero blocked files ----------------
+  it("G2: master contains exactly the 267 executable cases and zero blocked files", () => {
+    expect((master.match(/\\ir cases\//gu) ?? []).length).toBe(267);
     expect(master).not.toContain("BLOCKED.sql");
-    expect(master).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
-    for (const f of generatedManifest.blocked_files as string[]) {
-      expect(master).not.toContain(f);
-      const sql = read(join(pkg, "generated", f));
-      expect(sql).toContain("RAISE EXCEPTION 'CASE_BLOCKED_PENDING_ACTIVE_FIXTURE");
-      expect(sql).toContain("NOT EXECUTED");
-      expect(sql).toContain("can NEVER be reported as PASS");
-      expect(sql).not.toContain("CASE_PASS");
-      expect(sql).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
+    expect(master).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
+    expect(generatedManifest.blocked_files).toHaveLength(0);
+    expect(generatedManifest.blocked_by_class).toEqual({});
+    expect(generatedManifest.blocked_reason).toBeNull();
+    const caseFiles = readdirSync(join(pkg, "generated", "cases"));
+    expect(caseFiles.filter((f) => f.endsWith(".BLOCKED.sql"))).toHaveLength(0);
+    expect(caseFiles.filter((f) => /^case-\d{4}\.sql$/u.test(f))).toHaveLength(267);
+    // case IDs 0242–0267 (the rebound partition) are all present and executable
+    for (let n = 242; n <= 267; n++) {
+      const name = `case-${String(n).padStart(4, "0")}.sql`;
+      expect(caseFiles).toContain(name);
+      expect(master).toContain(`\\ir cases/${name}`);
     }
-    expect(generatedManifest.blocked_files).toHaveLength(22);
-    expect(generatedManifest.final_pass_allowed).toBe(false);
-    expect(generatedManifest.hold_token_when_blocked).toBe(
-      "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE",
-    );
-    expect(generatedManifest.blocked_by_class["illegal_action_by_exact_assignee"]).toBe(19);
-    expect(generatedManifest.blocked_by_class["department_scope_swap_source_head_on_target_step"]).toBeGreaterThan(0);
   });
 
-  // ---- G3: launcher + preflight refuse to run while blocked_cases > 0 ------
-  it("G3: the launcher refuses to start and never prints PASS while blocked > 0", () => {
-    expect(launcher).toMatch(/if \(\$blockedCases\.Count -gt 0\) \{/u);
-    expect(launcher).toContain("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
+  // ---- G3: launcher + preflight stop before execution while not ready ------
+  it("G3: the launcher stops on the fixture readiness gate before psql", () => {
+    expect(launcher).toContain("FIXTURE_PACKAGE_NOT_APPLIED");
+    expect(launcher).toContain("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
     expect(launcher).toContain("exit 2");
-    expect(launcher).toContain("$blockedCases.Count -gt 0)");
-    expect(launcher).toContain("RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_245_DENY_ZERO_MUTATION_0_BLOCKED");
-    const gateIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
+    expect(launcher).toContain("RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_267_DENY_ZERO_MUTATION_0_BLOCKED");
+    const gateIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
     expect(gateIdx).toBeGreaterThan(-1);
     expect(gateIdx).toBeLessThan(launcher.indexOf("& psql "));
-    expect(launcher).toContain("if ($blockedCases.Count -ne 22)");
-    expect(launcher).toContain("if ($executableCount -ne 245)");
-    expect(launcher).toContain("if ($masterIncludes -ne 245)");
+    expect(launcher).toContain("if ($blockedCases.Count -ne 0)");
+    expect(launcher).toContain("if ($executableCount -ne 267)");
+    expect(launcher).toContain("if ($masterIncludes -ne 267)");
+    // the baseline and authorization gates also stop before psql
+    expect(launcher.indexOf("Deny-Baseline \"status is")).toBeLessThan(launcher.indexOf("& psql "));
+    expect(launcher).toContain("execution_authorized is not true");
   });
 
-  it("G3: the preflight itself halts on blocked cases, so psql cannot bypass the launcher", () => {
-    expect(pinsSql).toContain("('blocked_case_total', '22')");
-    expect(pinsSql).toContain("('executable_case_total', '245')");
-    expect(pinsSql).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE");
-    expect(preflight).toContain("B1_PREFLIGHT_BLOCKED_CASE_PIN_MISSING");
-    expect(preflight).toContain("blocked_case_total");
-    expect(preflight).toContain("BLOCKED_PENDING_ACTIVE_FIXTURE");
+  it("G3: the preflight halts on the fixture-state gate, so psql cannot bypass the launcher", () => {
+    expect(pinsSql).toContain("('executable_case_total', '267')");
+    expect(pinsSql).toContain("('fixture_package_id', 'B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13')");
+    expect(pinsSql).toContain("('fixture_marker', 'TEST_ONLY_B1_FIXTURE_13')");
+    expect(pinsSql).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
+    expect(preflight).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
+    expect(preflight).toContain("fixture requests (expected 19)");
+    expect(preflight).toContain("fixture runtime steps (expected 104)");
+    expect(preflight).toContain("ACTIVE fixture steps (expected 19)");
+    expect(preflight).toContain("transfer scope rows (expected 5)");
+    expect(preflight).not.toContain("blocked_case_total");
   });
 
   // ---- G4: complete migration-ledger contract ------------------------------
@@ -815,7 +842,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", (
         pin.predecessor_incomplete_expected,
       );
       expect(pin.department_scope).toBe(
-        key.startsWith("SR-20260727-88D885F0") ? "transfer_department_scope" : "not_applicable",
+        pin.request_type === "department_transfer" ? "transfer_department_scope" : "not_applicable",
       );
     }
   });
@@ -1056,7 +1083,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
   });
 
   // ---- 15. counts + transaction shape --------------------------------------
-  it("15: 267 = 240 + 24 + 3, partitioned into 245 executable + 22 blocked", () => {
+  it("15: 267 = 240 + 24 + 3, partitioned into 267 executable + 0 blocked", () => {
     expect(matrix.negative_cases.length).toBe(240);
     expect(matrix.illegal_action_cases.length).toBe(24);
     expect(matrix.supplemental_department_scope_cases.length).toBe(3);
@@ -1076,13 +1103,11 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     }
   });
 
-  it("15: blocked cases raise instead of running and are excluded from the master script", () => {
+  it("15: zero blocked files exist and the master includes every rendered case exactly once", () => {
     const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
-    for (const f of caseFiles.filter((n) => n.endsWith(".BLOCKED.sql"))) {
-      const sql = read(join(caseDir, f));
-      expect(sql).toContain("BLOCKED_PENDING_ACTIVE_FIXTURE");
-      expect(sql).not.toMatch(/\bBEGIN ISOLATION LEVEL\b/u);
-      expect(master).not.toContain(f);
+    expect(caseFiles.filter((n) => n.endsWith(".BLOCKED.sql"))).toHaveLength(0);
+    for (const f of executableFiles) {
+      expect((master.match(new RegExp(`\\\\ir cases/${f}`, "gu")) ?? []).length).toBe(1);
     }
   });
 
@@ -1111,5 +1136,122 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     expect(manifest.b1_services as string[]).not.toContain("enrollment_certificate");
     // The five services stay hidden: the preflight asserts student_visible = false.
     expect(preflight).toMatch(/student_visible/u);
+  });
+});
+
+// ===========================================================================
+// PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-17
+// Reconciles the obsolete 245 executable / 22 blocked model to the reviewed
+// 267 executable / 0 blocked model while keeping every gate fail-closed.
+// Source-only. No case is executed, no RPC is called, no connection is opened.
+// ===========================================================================
+describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-17", () => {
+  const generatedManifest = JSON.parse(read(join(pkg, "generated", "MANIFEST.json")));
+  const master = read(join(pkg, "generated", "master-negative-matrix.sql"));
+  const caseDir = join(pkg, "generated", "cases");
+  const caseFiles = readdirSync(caseDir).filter((f) => f.startsWith("case-")).sort();
+
+  it("source contract: 267 cases, 267 executable, 0 blocked, 22 rebound", () => {
+    expect(manifest.matrix.negative_total).toBe(267);
+    expect(manifest.matrix.executable_negative_total).toBe(267);
+    expect(manifest.matrix.blocked_negative_total).toBe(0);
+    expect(manifest.matrix.blocked_reason).toBeNull();
+    expect(manifest.matrix.blocked_token).toBeNull();
+    expect(manifest.matrix.fixture_rebind.package_id).toBe("B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13");
+    expect(manifest.matrix.fixture_rebind.marker).toBe("TEST_ONLY_B1_FIXTURE_13");
+    expect(manifest.matrix.fixture_rebind.rebound_cases).toBe(22);
+    expect(matrix.counts.executable_negative_total).toBe(267);
+    expect(matrix.counts.execution_blocked).toBe(0);
+    expect(matrix.fixture_rebind.rebound_cases).toBe(22);
+    expect(generatedManifest.negative_total).toBe(267);
+    expect(generatedManifest.executable_negative_total).toBe(267);
+    expect(generatedManifest.blocked_negative_total).toBe(0);
+    expect(generatedManifest.rebound_cases).toBe(22);
+  });
+
+  it("generated output: 267 case files, 0 BLOCKED files, master includes 267 exactly once", () => {
+    expect(caseFiles).toHaveLength(267);
+    expect(caseFiles.filter((f) => f.endsWith(".BLOCKED.sql"))).toHaveLength(0);
+    const includes = master.match(/\\ir cases\/case-\d{4}\.sql/gu) ?? [];
+    expect(includes).toHaveLength(267);
+    expect(new Set(includes).size).toBe(267);
+    for (const f of caseFiles) expect(master).toContain(`\\ir cases/${f}`);
+  });
+
+  it("readiness: FIXTURE_PACKAGE_NOT_APPLIED is separate from the executable count", () => {
+    expect(manifest.matrix.readiness.status).toBe("FIXTURE_PACKAGE_NOT_APPLIED");
+    expect(manifest.matrix.readiness.hold_token).toBe(
+      "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED",
+    );
+    expect(manifest.matrix.readiness.note).toContain("execution_authorized");
+    const readiness = manifest.operator_privilege_contract.execution_readiness;
+    expect(readiness.status).toBe("FIXTURE_PACKAGE_NOT_APPLIED");
+    expect(readiness.current_blocked_total).toBe(0);
+    expect(readiness.rule).toContain("fixture package is applied and verified");
+    expect(readiness.rule).toContain("baseline");
+    expect(readiness.rule).toContain("execution_authorized");
+    // readiness never reduces the executable case count
+    expect(manifest.matrix.executable_negative_total).toBe(267);
+  });
+
+  it("fixture contract pins: deterministic identities and exact counts", () => {
+    const fp = matrix.fixture_package;
+    expect(fp.package_id).toContain("B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13");
+    expect(fp.status).toBe("NOT_APPLIED");
+    expect(fp.marker).toBe("TEST_ONLY_B1_FIXTURE_13");
+    expect(fp.requests).toBe(19);
+    expect(fp.runtime_steps).toBe(104);
+    expect(fp.active_steps).toBe(19);
+    expect(fp.transfer_detail_rows).toBe(5);
+    expect(fp.fixtures).toHaveLength(19);
+    for (const f of fp.fixtures as any[]) {
+      const ord = String(f.ordinal);
+      expect(f.request_id).toBe(`f1300000-0000-4000-8000-${ord.padStart(12, "0")}`);
+      expect(f.request_number).toBe(`SR-20260801-13${ord.padStart(6, "0")}`);
+      expect(f.active_step_id).toMatch(
+        new RegExp(`^f1300001-0000-4000-8000-${ord.padStart(6, "0")}\\d{6}$`, "u"),
+      );
+      expect(f.active_step_id).toBe(
+        `f1300001-0000-4000-8000-${ord.padStart(6, "0")}${String(f.active_step_order).padStart(6, "0")}`,
+      );
+    }
+    // the preflight asserts the same contract
+    expect(preflight).toContain("TEST_ONLY_B1_FIXTURE_13");
+    expect(preflight).toContain("SR-20260801-13%");
+  });
+
+  it("department model: IT source, CS target, CIS unrelated are three distinct departments", () => {
+    const model = matrix.fixture_package.department_model;
+    const ids = [model.source_department_id, model.target_department_id, model.unrelated_department_id];
+    expect(new Set(ids).size).toBe(3);
+    const heads = [model.source_head_user_id, model.target_head_user_id, model.unrelated_head_user_id];
+    expect(new Set(heads).size).toBe(3);
+    for (const id of [...ids, ...heads]) expect(id).toMatch(/^[0-9a-f-]{36}$/u);
+  });
+
+  it("renderer fails closed when fixture pins are absent or manifest and MATRIX disagree", () => {
+    expect(renderer).toContain("FIXTURE_REBIND_PIN_MISSING");
+    expect(renderer).toContain("FIXTURE_READINESS_STATUS_MISSING");
+    expect(renderer).toContain("MANIFEST_EXECUTABLE_COUNT_MISMATCH");
+    expect(renderer).toContain("MANIFEST_BLOCKED_COUNT_MISMATCH");
+    expect(renderer).toContain("MATRIX_EXECUTABLE_TOTAL_FIELD_MISMATCH");
+    expect(renderer).toContain("MATRIX_BLOCKED_FIELD_MISMATCH");
+  });
+
+  it("execution stays prohibited: fixture gate, baseline PENDING and execution_authorized=false all stop first", () => {
+    // launcher order: baseline gate -> render -> fixture readiness gate -> psql
+    const baselineIdx = launcher.indexOf("baseline gate: PINNED, authorized, unexpired");
+    const fixtureIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
+    const psqlIdx = launcher.indexOf("& psql ");
+    expect(baselineIdx).toBeGreaterThan(-1);
+    expect(fixtureIdx).toBeGreaterThan(-1);
+    expect(psqlIdx).toBeGreaterThan(-1);
+    expect(baselineIdx).toBeLessThan(psqlIdx);
+    expect(fixtureIdx).toBeLessThan(psqlIdx);
+    expect(manifest.authoritative_baseline.status).toBe("PENDING");
+    expect(manifest.authoritative_baseline.execution_authorized).toBe(false);
+    // the SQL preflight carries the same fail-closed gates
+    expect(preflight).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
+    expect(preflight).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
   });
 });

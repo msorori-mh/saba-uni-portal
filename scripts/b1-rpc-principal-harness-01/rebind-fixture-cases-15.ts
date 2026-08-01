@@ -315,7 +315,7 @@ matrix.transfer_scope_execution = {
 };
 
 matrix.blocked_execution = {
-  token: "BLOCKED_PENDING_ACTIVE_FIXTURE",
+  token: null, // RECONCILIATION-17: the blocked partition and its token are abolished
   total: 0,
   classes: {},
   required_fixture: "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13 (19 active TEST_ONLY steps)",
