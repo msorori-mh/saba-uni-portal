@@ -299,4 +299,6 @@ do $$ begin
     execute 'grant execute on function public.list_graduation_project_orphan_files() to service_role';
   end if;
 end $$;
+-- Notification fan-out is trigger-only; strip the default PUBLIC EXECUTE.
+revoke all on function public.graduation_project_notify_from_event() from public, anon, authenticated;
 commit;
