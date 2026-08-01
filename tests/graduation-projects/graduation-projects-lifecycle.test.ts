@@ -262,4 +262,19 @@ describe("resolveViewerEvaluation — MEDIUM-1 viewer scoping (review 4982)", ()
     };
     expect(resolveViewerPanelMemberIds(detail, "u-viewer")).toEqual(["pm-viewer"]);
   });
+
+  test("member-id resolution ignores ended assignments even when still flagged active", () => {
+    // The module's active-assignment invariant is `active && ended_at == null`
+    // (portal-privacy.ts ownPanelMemberIds, deriveDiscussionReadiness). An
+    // assignment with ended_at set must never resolve as the viewer's panel
+    // membership, even if the active flag was left stale.
+    const ended = { ...asg("a-viewer-ended", "u-viewer"), ended_at: "2026-01-01T00:00:00.000Z" };
+    const detail = {
+      assignments: [ended, asg("a-other", "u-other")],
+      panel_members: [pm("pm-ended", "a-viewer-ended"), pm("pm-other", "a-other")],
+      evaluations: [ev("e-ended", "pm-ended", "submitted")],
+    };
+    expect(resolveViewerPanelMemberIds(detail, "u-viewer")).toEqual([]);
+    expect(resolveViewerEvaluation(detail, "u-viewer")).toBeNull();
+  });
 });
