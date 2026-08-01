@@ -18,7 +18,7 @@ const pkg = join(root, "scripts/b1-rpc-principal-harness-01");
 const ACTIVE_REL = "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json";
 const ARCHIVE_REL =
   "scripts/b1-rpc-principal-harness-01/baseline/archive/AUTHORITATIVE-BASELINE-20260729-STALE.json";
-const REQUIRED_HEAD = "20260731203030";
+const REQUIRED_HEAD = "20260801021541";
 const HOLD = "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE";
 
 const read = (p: string) => readFileSync(p, "utf8").replace(/\r\n/gu, "\n");
@@ -78,7 +78,7 @@ function evaluateBaselineGate(input: {
     return deny("reviewed_package_sha differs from the exact execution SHA");
   }
   if (input.expected_migration_head !== REQUIRED_HEAD || input.migration_head !== REQUIRED_HEAD) {
-    return deny("migration head differs from 20260731203030");
+    return deny("migration head differs from 20260801021541");
   }
   if (input.matrix_sha !== input.expected_matrix_sha) return deny("matrix SHA differs");
   if (input.package_source_hash !== input.expected_package_source_hash) return deny("package-source hash differs");
@@ -200,7 +200,7 @@ describe("G2/G3: the active baseline is a fail-closed PENDING placeholder", () =
     expect(baselineBlock.on_mismatch).toBe(HOLD);
   });
 
-  it("G3: the next valid baseline must attest exactly 20260731203030, not already captured", () => {
+  it("G3: the next valid baseline must attest exactly 20260801021541, not already captured", () => {
     expect(active.expected_migration_head).toBe(REQUIRED_HEAD);
     expect(baselineBlock.expected_migration_head).toBe(REQUIRED_HEAD);
     expect(active.migration_head).toBeNull();
