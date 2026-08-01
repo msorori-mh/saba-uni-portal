@@ -297,8 +297,11 @@ describe("G5: no execution occurred in this mission", () => {
   it("production RPC count remains zero in both baselines", () => {
     expect(archive.historical_record.capture_transaction.workflow_rpc_calls).toBe(0);
     expect(archive.historical_record.capture_transaction.production_writes).toBe(0);
-    expect(active.capture_requirements.join(" | ")).toContain("no production write, no workflow RPC");
+    expect(active.capture_session.workflow_rpc_calls).toBe(0);
+    expect(active.capture_session.production_writes).toBe(0);
+    expect(active.capture_session.isolation).toBe("SERIALIZABLE READ ONLY");
   });
+
 
   it("neither baseline artifact contains secrets", () => {
     expect(active.contains_secrets).toBe(false);
