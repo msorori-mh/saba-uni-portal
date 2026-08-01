@@ -16,6 +16,13 @@ not suppressed, documented here per mission rules.
 
 ## 2. Final (this branch, after all mission changes)
 
+> **UPDATE 2026-08-01 (reconciliation-02):** after merging origin/main `c17a866f` (merge commit
+> `e6cdba5f`), the current results are: `bun test tests/b1-five-services-rpc-authorization-preflight-01`
+> **183/0**, `bun test tests/student-requests` **1060/0**, `bun test tests/graduation-projects`
+> **155/0**, `bun test tests/graduates-affairs` **44/0**, full `bun test` **2513 pass / 0 fail**,
+> `bunx tsc --noEmit` clean, `bun run build` pass, `git diff --check` clean. The "10 fail" row
+> below reflects the pre-merge baseline and no longer applies.
+
 | Command | Result |
 |---|---|
 | `bun test tests/student-requests` | **1060 pass / 0 fail** |
@@ -60,9 +67,16 @@ and DB-free except the docker chains above.
 
 ## 5. Known pre-existing defects (documented, not hidden)
 
-1. `tests/b1-five-services-rpc-authorization-preflight-01/operator-execution-package-01.test.ts`
+> **UPDATE 2026-08-01 (reconciliation-02, merge with origin/main c17a866f):** item 1 below is
+> **RESOLVED on current main** — the B1 track's "Applied B1-Five-Services RPC fix" reconciled the
+> matrix to the 267-executable contract. After the merge, the full suite is **2513 pass / 0 fail**
+> and `bun test tests/b1-five-services-rpc-authorization-preflight-01` is **183 pass / 0 fail**.
+> The claim that these 10 failures remain present is obsolete and retained below for history only.
+
+1. ~~`tests/b1-five-services-rpc-authorization-preflight-01/operator-execution-package-01.test.ts`
    — 10 failing assertions (G1/G2/G3/G6 pins vs fixture drift: 245 vs 267 executable cases,
    BLOCKED vs EXECUTABLE fixture statuses). Pre-existing on main; B1 isolation boundary;
-   belongs to the active B1 track.
+   belongs to the active B1 track.~~ **FIXED on main c17a866f; verified green after merge
+   e6cdba5f (183/183 in that package).**
 2. `tests/imports/import-templates.test.ts` — 2 tests exceed the 5s timeout under machine load
    (observed once in the baseline run, absent in the final run). Environmental.

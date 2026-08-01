@@ -107,7 +107,11 @@ PII boundaries tested, G4 staff matrix documented as blocked.
 
 - SQL unapplied: portal shows fail-closed service-updating state until promotion; storage/signed
   URLs unexercised.
-- 10 pre-existing B1 test failures (B1 track owns them; isolation boundary respected).
+- ~~10 pre-existing B1 test failures (B1 track owns them; isolation boundary respected).~~
+  **RESOLVED 2026-08-01:** origin/main `c17a866f` ("Applied B1-Five-Services RPC fix") reconciled
+  the B1 matrix to the 267-executable contract; after merge commit `e6cdba5f` the full suite is
+  2513 pass / 0 fail and the B1 preflight package is 183/0. See
+  PORTAL-GRADUATION-PROJECTS-GRADUATES-AFFAIRS-PR271-RECONCILIATION-02-REPORT.md.
 - k3's remote CI never ran (historical infra HOLD recorded on that track); local evidence is
   complete.
 

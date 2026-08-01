@@ -101,9 +101,10 @@ append (33 event types, append-only trigger), idempotency via `p_correlation_id`
   because the SQL no longer lives in supabase/migrations; it is deferred with the promotion
   package (see SCOPE-01 §6). This keeps the current stricter gate intact.
 - Pre-existing main failures unrelated to this mission:
-  `tests/b1-five-services-rpc-authorization-preflight-01/operator-execution-package-01.test.ts`
-  (B1 isolation boundary — untouched) and environmental `tests/imports/import-templates.test.ts`
-  timeouts. Documented in TEST-RESULTS-01.
+  ~~`tests/b1-five-services-rpc-authorization-preflight-01/operator-execution-package-01.test.ts`
+  (B1 isolation boundary — untouched)~~ **RESOLVED on main c17a866f (2026-08-01); after merge
+  e6cdba5f the package is 183/183 green** — and environmental
+  `tests/imports/import-templates.test.ts` timeouts. Documented in TEST-RESULTS-01.
 
 ## 6. Residual risks
 
