@@ -213,7 +213,7 @@ BEGIN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline path is not the canonical active path (%)',
       coalesce(v_path, 'MISSING');
   END IF;
-  IF v_expected_head IS DISTINCT FROM '20260731203030'
+  IF v_expected_head IS DISTINCT FROM '20260801021541'
      OR v_baseline_head IS DISTINCT FROM v_expected_head THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: migration head % is not the required %',
       coalesce(v_baseline_head, 'MISSING'), coalesce(v_expected_head, 'MISSING');

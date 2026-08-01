@@ -179,12 +179,13 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   it("G5: visibility is proven by baseline fingerprint equality, not row counts", () => {
-    // INVALIDATION-09: the active baseline is PENDING and fails closed.
-    expect(manifest.authoritative_baseline.status).toBe("PENDING");
-    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
+    // CAPTURE-25: the active baseline is PINNED with a real production fingerprint.
+    expect(manifest.authoritative_baseline.status).toBe("PINNED");
+    expect(manifest.authoritative_baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
     expect(preflight).toContain("OPERATOR_VISIBILITY_NOT_PROVEN");
     expect(preflight).toMatch(/baseline_fingerprint/u);
   });
+
 
   // ---- G6 -----------------------------------------------------------------
   it("G6: advisory locks are gone from the package", () => {
@@ -434,13 +435,14 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
   });
 
   // ---- G2 package state ---------------------------------------------------
-  it("G2: 267 = 240 + 24 + 3 and the baseline is PENDING (fail-closed)", () => {
+  it("G2: 267 = 240 + 24 + 3 and the baseline is PINNED (fresh capture)", () => {
     expect(matrix.counts.negative_core).toBe(240);
     expect(matrix.counts.illegal_action).toBe(24);
     expect(matrix.counts.supplemental_department_scope).toBe(3);
-    expect(manifest.authoritative_baseline.status).toBe("PENDING");
-    expect(manifest.authoritative_baseline.fingerprint).toBeNull();
+    expect(manifest.authoritative_baseline.status).toBe("PINNED");
+    expect(manifest.authoritative_baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
   });
+
 
   // ---- matrix / package invariants ---------------------------------------
   it("matrix: pinned LF SHA256 still matches", () => {
@@ -1041,18 +1043,18 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     expect(expr.startsWith("(")).toBe(true);
   });
 
-  // ---- 13. authoritative baseline is PENDING (INVALIDATION-09) -------------
-  it("13: the authoritative baseline is PENDING and blocks execution", () => {
+  // ---- 13. authoritative baseline is PINNED (CAPTURE-25) -------------------
+  it("13: the authoritative baseline is PINNED against the current production head", () => {
     const baseline = manifest.authoritative_baseline;
-    expect(baseline.status).toBe("PENDING");
-    expect(baseline.execution_authorized).toBe(false);
-    expect(baseline.fingerprint).toBeNull();
-    expect(baseline.captured_at_utc).toBeNull();
-    expect(baseline.valid_for_minutes).toBeNull();
-    expect(baseline.reviewed_package_sha).toBeNull();
-    expect(baseline.migration_head).toBeNull();
-    expect(baseline.expected_migration_head).toBe("20260731203030");
-    expect(baseline.scope).toEqual([]);
+    expect(baseline.status).toBe("PINNED");
+    expect(baseline.execution_authorized).toBe(true);
+    expect(baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
+    expect(baseline.captured_at_utc).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
+    expect(baseline.valid_for_minutes).toBe(120);
+    expect(baseline.reviewed_package_sha).toMatch(/^[0-9a-f]{40}$/u);
+    expect(baseline.migration_head).toBe("20260801021541");
+    expect(baseline.expected_migration_head).toBe("20260801021541");
+    expect(baseline.scope).toHaveLength(8);
     expect(baseline.contains_secrets).toBe(false);
     expect(baseline.artifact_sha256).toMatch(/^[0-9a-f]{64}$/u);
 
@@ -1060,15 +1062,18 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
     const artifact = JSON.parse(artifactRaw) as Record<string, any>;
     expect(createHash("sha256").update(artifactRaw.replace(/\r\n/gu, "\n")).digest("hex"))
       .toBe(baseline.artifact_sha256);
-    expect(artifact.status).toBe("PENDING");
-    expect(artifact.fingerprint).toBeNull();
+    expect(artifact.status).toBe("PINNED");
+    expect(artifact.fingerprint).toBe(baseline.fingerprint);
+    expect(artifact.fingerprint_recomputed_in_transaction).toBe(artifact.fingerprint);
+    expect(artifact.drift).toBe("NONE");
     expect(artifact.operator_preflight_executed).toBe(false);
     expect(artifact.negative_cases_executed).toBe(0);
 
     const check = read(join(pkg, "generated", "fingerprint-check.sql"));
-    expect(check).toContain("v_expected text := NULL");
+    expect(check).toContain(`v_expected text := '${baseline.fingerprint}'`);
     expect(check).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
   });
+
 
   // ---- 14. positive harness held back --------------------------------------
   it("14: the positive harness stays HELD_BACK and is never rendered or included", () => {
@@ -1238,7 +1243,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-1
     expect(renderer).toContain("MATRIX_BLOCKED_FIELD_MISMATCH");
   });
 
-  it("execution stays prohibited: fixture gate, baseline PENDING and execution_authorized=false all stop first", () => {
+  it("execution stays gated: baseline gate and fixture gate both run before psql", () => {
     // launcher order: baseline gate -> render -> fixture readiness gate -> psql
     const baselineIdx = launcher.indexOf("baseline gate: PINNED, authorized, unexpired");
     const fixtureIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
@@ -1248,10 +1253,11 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-1
     expect(psqlIdx).toBeGreaterThan(-1);
     expect(baselineIdx).toBeLessThan(psqlIdx);
     expect(fixtureIdx).toBeLessThan(psqlIdx);
-    expect(manifest.authoritative_baseline.status).toBe("PENDING");
-    expect(manifest.authoritative_baseline.execution_authorized).toBe(false);
+    expect(manifest.authoritative_baseline.status).toBe("PINNED");
+    expect(manifest.authoritative_baseline.execution_authorized).toBe(true);
     // the SQL preflight carries the same fail-closed gates
     expect(preflight).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
     expect(preflight).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
   });
+
 });

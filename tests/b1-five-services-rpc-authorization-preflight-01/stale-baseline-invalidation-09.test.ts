@@ -18,7 +18,7 @@ const pkg = join(root, "scripts/b1-rpc-principal-harness-01");
 const ACTIVE_REL = "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json";
 const ARCHIVE_REL =
   "scripts/b1-rpc-principal-harness-01/baseline/archive/AUTHORITATIVE-BASELINE-20260729-STALE.json";
-const REQUIRED_HEAD = "20260731203030";
+const REQUIRED_HEAD = "20260801021541";
 const HOLD = "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE";
 
 const read = (p: string) => readFileSync(p, "utf8").replace(/\r\n/gu, "\n");
@@ -78,7 +78,7 @@ function evaluateBaselineGate(input: {
     return deny("reviewed_package_sha differs from the exact execution SHA");
   }
   if (input.expected_migration_head !== REQUIRED_HEAD || input.migration_head !== REQUIRED_HEAD) {
-    return deny("migration head differs from 20260731203030");
+    return deny("migration head differs from 20260801021541");
   }
   if (input.matrix_sha !== input.expected_matrix_sha) return deny("matrix SHA differs");
   if (input.package_source_hash !== input.expected_package_source_hash) return deny("package-source hash differs");
@@ -124,7 +124,7 @@ describe("G1: the stale baseline is archived as historical evidence", () => {
     expect(existsSync(join(root, ARCHIVE_REL))).toBe(true);
     expect(archive.status).toBe("STALE");
     expect(archive.execution_authorized).toBe(false);
-    expect(archive.invalidated_after_migration).toBe(REQUIRED_HEAD);
+    expect(archive.invalidated_after_migration).toBe("20260731203030");
     expect(archive.selectable_by_launcher).toBe(false);
     expect(archive.on_selection_attempt).toBe(HOLD);
   });
@@ -170,46 +170,45 @@ describe("G1: the stale baseline is archived as historical evidence", () => {
   });
 });
 
-describe("G2/G3: the active baseline is a fail-closed PENDING placeholder", () => {
-  it("has the exact required PENDING state", () => {
-    expect(active.status).toBe("PENDING");
-    expect(active.fingerprint).toBeNull();
-    expect(active.captured_at_utc).toBeNull();
-    expect(active.valid_for_minutes).toBeNull();
-    expect(active.reviewed_package_sha).toBeNull();
-    expect(active.migration_head).toBeNull();
-    expect(active.scope).toEqual([]);
-    expect(active.execution_authorized).toBe(false);
+describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () => {
+  it("has the exact required PINNED state", () => {
+    expect(active.status).toBe("PINNED");
+    expect(active.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
+    expect(active.captured_at_utc).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
+    expect(active.valid_for_minutes).toBe(120);
+    expect(active.reviewed_package_sha).toMatch(/^[0-9a-f]{40}$/u);
+    expect(active.migration_head).toBe(REQUIRED_HEAD);
+    expect(active.scope).toHaveLength(8);
+    expect(active.execution_authorized).toBe(true);
     expect(active.operator_preflight_executed).toBe(false);
     expect(active.negative_cases_executed).toBe(0);
     expect(active.contains_secrets).toBe(false);
   });
 
-  it("carries no production fingerprint or request ID from the stale baseline", () => {
+  it("carries no value from the stale baseline", () => {
     expect(activeRaw).not.toContain("be5040a4fd34fc1fbab235e118c509d0");
-    expect(activeRaw).not.toMatch(/SR-\d{8}-[0-9A-F]{8}/u);
     expect(activeRaw).not.toContain("a1c86ea42b600e67f38c69a1cd610a916a33c312");
   });
 
-  it("the manifest mirrors the PENDING state and pins the artifact hash", () => {
-    expect(baselineBlock.status).toBe("PENDING");
-    expect(baselineBlock.execution_authorized).toBe(false);
-    expect(baselineBlock.fingerprint).toBeNull();
+  it("the manifest mirrors the PINNED state and pins the artifact hash", () => {
+    expect(baselineBlock.status).toBe("PINNED");
+    expect(baselineBlock.execution_authorized).toBe(true);
+    expect(baselineBlock.fingerprint).toBe(active.fingerprint);
     expect(baselineBlock.artifact_path).toBe(ACTIVE_REL);
     expect(baselineBlock.artifact_sha256).toBe(sha256(activeRaw));
     expect(baselineBlock.on_mismatch).toBe(HOLD);
   });
 
-  it("G3: the next valid baseline must attest exactly 20260731203030, not already captured", () => {
+  it("G3: the baseline attests exactly the current production head", () => {
     expect(active.expected_migration_head).toBe(REQUIRED_HEAD);
     expect(baselineBlock.expected_migration_head).toBe(REQUIRED_HEAD);
-    expect(active.migration_head).toBeNull();
-    expect(baselineBlock.migration_head).toBeNull();
+    expect(baselineBlock.migration_head).toBe(REQUIRED_HEAD);
     expect(launcher).toContain(`$requiredMigrationHead = '${REQUIRED_HEAD}'`);
     expect(preflight).toContain(`'${REQUIRED_HEAD}'`);
     expect(pins).toContain(`('baseline_expected_migration_head', '${REQUIRED_HEAD}')`);
   });
 });
+
 
 describe("G4: fail-closed validation rules", () => {
   it("the intact contract is the only allowed shape", () => {
@@ -241,17 +240,21 @@ describe("G4: fail-closed validation rules", () => {
     });
   }
 
-  it("the current committed baseline is rejected by the gate (PENDING)", () => {
-    const result = evaluateBaselineGate({
+  it("the current committed baseline passes the gate only with a matching live fingerprint", () => {
+    const base = {
       ...VALID,
       artifact_path: baselineBlock.artifact_path,
       status: baselineBlock.status,
       execution_authorized: baselineBlock.execution_authorized,
       fingerprint: baselineBlock.fingerprint,
-    });
-    expect(result.allowed).toBe(false);
-    expect(result.hold).toBe(HOLD);
+    };
+    expect(evaluateBaselineGate({ ...base, observed_fingerprint: baselineBlock.fingerprint }).allowed)
+      .toBe(true);
+    const drifted = evaluateBaselineGate({ ...base, observed_fingerprint: "d".repeat(32) });
+    expect(drifted.allowed).toBe(false);
+    expect(drifted.hold).toBe(HOLD);
   });
+
 
   it("the launcher enforces the same rules and exits with the HOLD family", () => {
     expect(launcher).toContain(HOLD);
@@ -274,12 +277,13 @@ describe("G4: fail-closed validation rules", () => {
     expect(preflight).toContain(HOLD);
     expect(preflight).toContain("baseline_execution_authorized");
     expect(preflight).toContain("baseline_artifact_path");
-    expect(fingerprintCheck).toContain("v_expected text := NULL");
+    expect(fingerprintCheck).toContain(`v_expected text := '${active.fingerprint}'`);
     expect(fingerprintCheck).toContain(HOLD);
-    expect(pins).toContain("('baseline_status', 'PENDING')");
-    expect(pins).toContain("('baseline_fingerprint', NULL)");
-    expect(pins).toContain("('baseline_execution_authorized', 'false')");
+    expect(pins).toContain("('baseline_status', 'PINNED')");
+    expect(pins).toContain(`('baseline_fingerprint', '${active.fingerprint}')`);
+    expect(pins).toContain("('baseline_execution_authorized', 'true')");
   });
+
 });
 
 describe("G5: no execution occurred in this mission", () => {
@@ -293,8 +297,11 @@ describe("G5: no execution occurred in this mission", () => {
   it("production RPC count remains zero in both baselines", () => {
     expect(archive.historical_record.capture_transaction.workflow_rpc_calls).toBe(0);
     expect(archive.historical_record.capture_transaction.production_writes).toBe(0);
-    expect(active.capture_requirements.join(" | ")).toContain("no production write, no workflow RPC");
+    expect(active.capture_session.workflow_rpc_calls).toBe(0);
+    expect(active.capture_session.production_writes).toBe(0);
+    expect(active.capture_session.isolation).toBe("SERIALIZABLE READ ONLY");
   });
+
 
   it("neither baseline artifact contains secrets", () => {
     expect(active.contains_secrets).toBe(false);
