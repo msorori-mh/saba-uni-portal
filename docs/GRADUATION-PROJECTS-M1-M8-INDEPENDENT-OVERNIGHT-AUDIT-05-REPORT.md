@@ -177,3 +177,11 @@ all runtime evidence remain valid. The new head was merged into this branch
 Decision: **PASS_GRADUATION_PROJECTS_M1_M8_INDEPENDENT_MIGRATION_PACKAGE_READY_FOR_REVIEW**
 with findings F-1..F-10 tracked. Promotion gate: human review of the draft PR
 + runbook preconditions 0.1–0.6.
+
+> **Update (remediation-06, same branch):** F-1, F-2, F-6, F-7, F-9 are
+> remediated forward by the new draft
+> `docs/migration-drafts/GRADUATION-PROJECTS-M9-AUDIT-REMEDIATION-06.NOT_APPLIED.sql`
+> (M1..M8 byte-unchanged) and verified by the audit-06 runtime matrices
+> (`AUDIT-06 RUNTIME: PASS (106 checks, 0 unexpected)`). F-3/F-4/F-5 remain
+> product decisions, left fail-closed. See
+> `docs/GRADUATION-PROJECTS-M1-M8-AUDIT-FINDINGS-REMEDIATION-06-REPORT.md`.

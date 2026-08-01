@@ -180,83 +180,87 @@ conclude, M6 settings). Compliant with the no-bypass rule.
   `PASS (158 checks, 0 unexpected)`, package harness
   `MIGRATION PACKAGE PG17 VERIFICATION PASS`, bun 155/155, tsc clean.
 
-- **F-1 MEDIUM — peer revocation of higher roles in
-  `end_graduation_project_assignment` (M2).** Whitelist is
-  coordinator/department_head; the only exclusion is self
-  (`cannot end own assignment`). A coordinator can end the assignment of the
-  project's department_head or dean (or the sole supervisor) in any
-  non-terminal state — no rank check, no last-accountable-assignment guard.
-  Runtime evidence (verbatim): `T3.e.coord-ends-dept-head|INFO|RECORD:
-  completed without error`; post-state `active=false, ended_at set`; controls
-  held — self-end denied, ended head's next write RPC denied
-  (`exact direct processing assignment required`). This weakens the
-  "direct assignment has absolute priority" accountability model: the
-  oversight role can be stripped by a lower peer before conclude/archive,
-  which then become un-runnable until a privileged re-assignment.
-  Recommendation: restrict ending dept-head/dean assignments to
-  same-or-higher rank, or guard the last active accountable assignment.
-  **Disposition: documented, not fixed in this audit (changing M2 would
-  invalidate the packaged verifier chain; flagged for the next package
-  revision).**
+- **F-1 MEDIUM — REMEDIATED IN M9 (remediation-06).** Was: a coordinator
+  could end the assignment of the project's department_head or dean (only
+  self-end was excluded). Runtime evidence pre-fix (verbatim):
+  `T3.e.coord-ends-dept-head|INFO|RECORD: completed without error`, post-state
+  `active=false, ended_at set`. Fix (M9, `end_graduation_project_assignment`
+  CREATE OR REPLACE): an authority rank derived from existing assignment-role
+  semantics (dean 60 > department_head 50 > coordinator 40 >
+  supervisor/co_supervisor 30 > panel_member 20 > student 10; unknown → 0
+  fail-closed) with a strictly-greater requirement —
+  `assignment termination authority denied`. The actor whitelist is unchanged
+  (coordinator/department_head; dean NOT added — no bypass). Rank is checked
+  before the already-ended no-op return, so stale higher/same-rank attempts
+  also deny. Verified by the audit-06 F-1 rank matrix (21 cases incl.
+  same-rank cross-actor, wrong-department, unrelated, anonymous, stale,
+  replay, zero-mutation-on-rejection).
 
-- **F-2 MEDIUM — settings/rubric mutations have no audit trail.**
-  `upsert_graduation_project_settings` accepts `p_correlation_id` but never
-  references it and writes no event (settings are department-scoped; events
-  are project-scoped); only latest `updated_by` is kept.
-  `upsert_graduation_project_rubric` delete+recreates criteria with no
-  `updated_by` and no event — a dept head can silently rewrite the rubric
-  evaluations are scored against. **Disposition: documented; recommend an
-  append-only settings/rubric audit table in a follow-up migration.**
+- **F-2 MEDIUM — REMEDIATED IN M9 (remediation-06).** Was: settings/rubric
+  mutations wrote no audit event and `p_correlation_id` was unused. Runtime
+  evidence pre-fix (verbatim, disposable PG17): both upserts succeeded and
+  `events_after_settings_rubric_upserts=0`,
+  `events_with_correlation_c1=0`. Fix (M9): the canonical mechanism
+  (`graduation_project_events`) was extended — not duplicated — with a
+  nullable `department_id` scope, an exactly-one-scope CHECK and a partial
+  unique dedupe key `(department_id, correlation_id, event_type) where
+  project_id is null`. Both upserts now require a non-null correlation id,
+  replay faithfully (return the recorded entity id, no duplicate write), and
+  append exactly one department-scoped event per successful mutation with
+  actor, operation, target, before/after non-PII scalars and correlation id.
+  Rejections raise before any write: zero mutation, zero event. Append-only
+  enforcement covers the new rows (audit-06 F-2 matrix, 21 cases).
 
-- **F-3 LOW — `set_graduation_project_file_scan_state` has zero in-body
-  authorization (M4).** Protection rests entirely on the EXECUTE ACL. Any
-  future erroneous GRANT instantly exposes a one-way scan-state oracle (mark
-  anything clean → object keys become visible). Same pattern in
-  `list_graduation_project_orphan_files` (read-only). Recommend a defense-in-
-  depth service-JWT claim check in-body.
+- **F-3 LOW — product-decision-dependent; intentionally unchanged (left
+  fail-closed).** `set_graduation_project_file_scan_state` has zero in-body
+  authorization; protection rests entirely on the EXECUTE ACL (service_role
+  only; 42501 proven for `authenticated`). How the future scanner
+  authenticates (JWT claim shape) is an integration decision not yet made;
+  hard-coding a claim check now could conflict with it. Current state is
+  fail-closed at the ACL layer and re-verified in audit-06.
 
-- **F-4 LOW — evaluation scores not bound to administered rubrics.**
+- **F-4 LOW — product-decision-dependent; intentionally unchanged.**
   `save_graduation_project_evaluation` validates only shape/magnitude of
   client-supplied criterion codes and maximums; `rubric_version` is free text
-  with no FK to `graduation_project_rubrics`. A panel member can submit
-  arbitrary criteria, skewing totals and the results-distribution report.
-  Integrity, not confidentiality.
+  with no FK to `graduation_project_rubrics`. Binding scores to administered
+  rubrics changes the panel scoring contract (which rubric version is
+  authoritative per discussion is a product decision). Shape/magnitude
+  validation stays as the fail-closed floor.
 
-- **F-5 LOW — over-broad read exposure in `get_graduation_project_detail`
-  (M5).** Any assigned role (incl. students and panel members) receives the
-  full event log with actor UUIDs and payloads, all supervisor notes, all
-  assignment user_ids, and all *finalized* evaluations of every panel member
-  incl. per-criterion scores and comments. Only non-finalized evaluations are
-  role-filtered. `v_student` is computed but unused (dead variable). Wider
-  than need-to-know, though authenticated-participant-only.
+- **F-5 LOW — product-decision-dependent; intentionally unchanged.**
+  `get_graduation_project_detail` exposes the full event log, supervisor
+  notes, assignment user_ids and finalized evaluations to every assigned
+  role. Minimizing the payload changes the authenticated read contract the UI
+  consumes; which fields are need-to-know per role is a product decision.
+  Surface stays authenticated-participant-only (assignment-gated).
 
-- **F-6 LOW — `create_graduation_project` replay not scopeable (M2).** The
-  correlation replay lookup has no project/department filter (the new id is
-  unknowable pre-insert); a correlation-id collision across calls returns the
-  other call's project id, leaking existence. Client-generated UUIDs make
-  collision unlikely.
+- **F-6 LOW — REMEDIATED IN M9.** `create_graduation_project`'s replay
+  lookup is now department-scoped (joins `graduation_projects` and filters
+  `p.department_id = p_department_id`): a correlation-id collision can no
+  longer return another department's project id; the caller's own faithful
+  replay still returns its recorded id. Verified in audit-06 part 5.
 
-- **F-7 LOW — replay/state-gate ordering inconsistency.**
-  `assign_graduation_project_faculty` deliberately replays before state gates,
-  but `add_graduation_project_team_member` and
-  `submit_graduation_project_proposal` run state/version gates first — a
-  faithful retry after a concurrent transition raises instead of returning the
-  recorded id. Availability nit, not an authorization hole.
+- **F-7 LOW — REMEDIATED IN M9.** `add_graduation_project_team_member` now
+  replays before state gates (same ordering as the documented
+  `assign_graduation_project_faculty` LOW-3 fix): a faithful retry returns
+  the recorded assignment id even after the project moved on; genuinely new
+  calls in the wrong state still raise `team mutation state denied`.
+  (`submit_graduation_project_proposal` was already replay-first since M6.)
+  Verified in audit-06 part 5.
 
 - **F-8 INFO — dead/unverified surface.** `graduation_project_reporting` view
   is revoked from everyone despite `security_invoker=true`; the pre-existing
   catalog verifier asserted only that the view exists, not the invoker option.
   Audit-05 C2.9 confirms `reloptions` does contain `security_invoker=true`.
 
-- **F-9 LOW — any active supervisor can resolve another supervisor's note.**
-  `resolve_graduation_project_supervisor_note` checks only role=supervisor on
-  the project, never `note.supervisor_assignment_id = actor`. Runtime evidence
-  (verbatim): `T3.f.resolve-other-supervisor|INFO|RECORD: completed without
-  error` (replacement supervisor resolved a note authored by the previous
-  supervisor; `resolved_at` set). Owning-supervisor resolution and student
-  denial both behave correctly. Recommend comparing the note's supervisor
-  assignment to the actor (or documenting cross-supervisor resolution as
-  intended handover semantics).
+- **F-9 LOW — REMEDIATED IN M9.** `resolve_graduation_project_supervisor_note`
+  now requires the authoring supervisor assignment
+  (`note ownership required`). Pre-fix evidence (verbatim):
+  `T3.f.resolve-other-supervisor|INFO|RECORD: completed without error`.
+  Post-fix: cross-supervisor resolution denied with zero mutation;
+  owning-supervisor resolution and student denial unchanged (audit-06
+  part 5). Supervisor handover now requires the new supervisor to author
+  their own notes — fail-closed.
 
 - **F-10 INFO — M7/M8 (and preflights 07/08) tolerate replay by design.**
   Both are single idempotent CREATE OR REPLACE bodies with predecessor-only
@@ -299,11 +303,15 @@ exercises them at runtime (results in
 - direct table access as `authenticated` (permission denied proof)
 - optimistic concurrency: stale-version submit must fail
 
-## 10. Disposition
+## 10. Disposition (updated by remediation-06)
 
-No HIGH findings. F-0 (LOW) was found at runtime and fixed in the drafts by
-this audit with full re-verification. F-1 and F-2 are MEDIUM and documented
-with verbatim runtime evidence; both require package-owner decisions and are
-recommended for the next migration revision rather than retro-editing M2/M6
-(which would invalidate the verified chain). F-3..F-7, F-9 LOW; F-8, F-10
-INFO. The package is security-ready for review with these findings tracked.
+No HIGH findings. F-0 (LOW) was fixed in the drafts during audit-05.
+**F-1 and F-2 (MEDIUM) and F-6, F-7, F-9 (LOW) are remediated by the new
+forward-only draft
+`docs/migration-drafts/GRADUATION-PROJECTS-M9-AUDIT-REMEDIATION-06.NOT_APPLIED.sql`
+and verified by the audit-06 runtime matrices.**
+F-3, F-4, F-5 (LOW) are product-decision-dependent and intentionally
+unchanged — each is fail-closed at its current layer (ACL-only service path /
+shape-validated scoring / assignment-gated authenticated read) and needs a
+product decision before any contract change. F-8, F-10 INFO.
+See `docs/GRADUATION-PROJECTS-M1-M8-AUDIT-FINDINGS-REMEDIATION-06-REPORT.md`.

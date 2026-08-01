@@ -21,8 +21,9 @@ all drafts remain NOT_APPLIED.**
    `service_role` (Supabase default; optional — M4/M5 grants to it are
    conditional).
 5. Findings F-1..F-10 from `docs/GRADUATION-PROJECTS-M1-M8-SECURITY-AUDIT-05.md`
-   acknowledged by the package owner (no HIGH; F-0 fixed during the audit;
-   F-1/F-2 tracked for next revision).
+   acknowledged by the package owner (no HIGH; F-0 fixed in audit-05; F-1,
+   F-2, F-6, F-7, F-9 remediated by M9; F-3/F-4/F-5 product decisions; F-8,
+   F-10 informational).
 6. A restorable backup/snapshot of the target database taken immediately before step 2.
 
 ## 1. Apply order and expected deltas
@@ -41,6 +42,7 @@ migrations in one transaction (M3's enum label must commit before M4 starts).
 | 6 | M6 ADMIN-SETTINGS (20260730100005) | +1 table, +1 index, +6 functions, 3 replaced functions |
 | 7 | M7 EVALUATION-COMPLETENESS (20260730100006) | 1 replaced function |
 | 8 | M8 PANEL-COMPLETENESS (20260730100007) | 1 replaced function |
+| 9 | M9 AUDIT-REMEDIATION-06 (20260730100008) | events +department_id/scope CHECK/dedupe index, +1 internal rank function, 6 replaced functions (F-1, F-2, F-6, F-7, F-9) |
 
 Per-step procedure:
 
@@ -58,6 +60,9 @@ Per-step procedure:
    - after M7: re-run all prior, then `postgres-authorization-matrix-verifier.sql`
    - after M8: re-run all prior, then `postgres-e2e-journeys-verifier.sql` and
      `postgres-security-audit-verifier.sql`
+   - after M9: re-run all prior verifiers, then the audit-06 suite
+     (`tests/graduation-projects/audit-06/run-audit-06.sh` — F-1 rank matrix,
+     F-2 audit/correlation matrix, low-finding regressions)
    The full reference sequence is executable locally via
    `tests/graduation-projects/run-pg17-migration-package.sh` (disposable
    docker postgres:17) — run it against the exact promoted SHAs before touching
@@ -98,14 +103,15 @@ by editing applied history. Remediation paths, in order of preference:
    it requires declaring the applied package void.
 
 Known forward-fix queue already identified by the audit (not blockers):
-F-1 end-assignment rank guard, F-2 settings/rubric audit trail, F-3 in-body
-service-claim check, F-4 rubric binding for scores, F-5 detail-payload
-minimization, F-8 dead reporting view, F-9 supervisor-note ownership check.
+F-3 scanner in-body claim check (product decision), F-4 rubric binding for
+scores (product decision), F-5 detail-payload minimization (product
+decision), F-8 dead reporting view. F-1, F-2, F-6, F-7, F-9 were remediated
+forward by M9 (audit-remediation-06) — do not retro-edit M1..M8.
 
 Note on steps 7–8 (F-10): M7/M8 are single idempotent CREATE OR REPLACE
 migrations; a duplicate apply exits 0 instead of raising an ambiguous-retry
-error. Scripts built around the "preflight raises → STOP" signal must
-special-case these two steps.
+error. M9 hard-fails on replay like M1–M6. Scripts built around the
+"preflight raises → STOP" signal must special-case steps 7–8.
 
 ## 4. Post-promotion verification checklist
 
@@ -118,6 +124,11 @@ special-case these two steps.
 - [ ] 3 partial unique indexes (M4) + settings dept/year index (M6) present.
 - [ ] Trigger `graduation_project_events_notify` enabled on events;
       `graduation_project_events_append_only` rejects UPDATE/DELETE.
+- [ ] M9: `graduation_project_events.department_id` present with scope CHECK;
+      `graduation_project_events_department_correlation_key` unique index
+      present; `graduation_project_assignment_rank` revoked from
+      public/anon/authenticated; rank boundary denies coordinator→department_head
+      (`assignment termination authority denied`).
 - [ ] No storage buckets/objects referencing `graduation-projects/`.
 - [ ] Smoke: one full lifecycle journey through the RPCs as fixture actors in
       a transaction, then ROLLBACK (mirror of `postgres-e2e-journeys-verifier.sql`).
