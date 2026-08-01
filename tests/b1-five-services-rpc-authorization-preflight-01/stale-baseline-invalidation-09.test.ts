@@ -170,46 +170,45 @@ describe("G1: the stale baseline is archived as historical evidence", () => {
   });
 });
 
-describe("G2/G3: the active baseline is a fail-closed PENDING placeholder", () => {
-  it("has the exact required PENDING state", () => {
-    expect(active.status).toBe("PENDING");
-    expect(active.fingerprint).toBeNull();
-    expect(active.captured_at_utc).toBeNull();
-    expect(active.valid_for_minutes).toBeNull();
-    expect(active.reviewed_package_sha).toBeNull();
-    expect(active.migration_head).toBeNull();
-    expect(active.scope).toEqual([]);
-    expect(active.execution_authorized).toBe(false);
+describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () => {
+  it("has the exact required PINNED state", () => {
+    expect(active.status).toBe("PINNED");
+    expect(active.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
+    expect(active.captured_at_utc).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
+    expect(active.valid_for_minutes).toBe(120);
+    expect(active.reviewed_package_sha).toMatch(/^[0-9a-f]{40}$/u);
+    expect(active.migration_head).toBe(REQUIRED_HEAD);
+    expect(active.scope).toHaveLength(8);
+    expect(active.execution_authorized).toBe(true);
     expect(active.operator_preflight_executed).toBe(false);
     expect(active.negative_cases_executed).toBe(0);
     expect(active.contains_secrets).toBe(false);
   });
 
-  it("carries no production fingerprint or request ID from the stale baseline", () => {
+  it("carries no value from the stale baseline", () => {
     expect(activeRaw).not.toContain("be5040a4fd34fc1fbab235e118c509d0");
-    expect(activeRaw).not.toMatch(/SR-\d{8}-[0-9A-F]{8}/u);
     expect(activeRaw).not.toContain("a1c86ea42b600e67f38c69a1cd610a916a33c312");
   });
 
-  it("the manifest mirrors the PENDING state and pins the artifact hash", () => {
-    expect(baselineBlock.status).toBe("PENDING");
-    expect(baselineBlock.execution_authorized).toBe(false);
-    expect(baselineBlock.fingerprint).toBeNull();
+  it("the manifest mirrors the PINNED state and pins the artifact hash", () => {
+    expect(baselineBlock.status).toBe("PINNED");
+    expect(baselineBlock.execution_authorized).toBe(true);
+    expect(baselineBlock.fingerprint).toBe(active.fingerprint);
     expect(baselineBlock.artifact_path).toBe(ACTIVE_REL);
     expect(baselineBlock.artifact_sha256).toBe(sha256(activeRaw));
     expect(baselineBlock.on_mismatch).toBe(HOLD);
   });
 
-  it("G3: the next valid baseline must attest exactly 20260801021541, not already captured", () => {
+  it("G3: the baseline attests exactly the current production head", () => {
     expect(active.expected_migration_head).toBe(REQUIRED_HEAD);
     expect(baselineBlock.expected_migration_head).toBe(REQUIRED_HEAD);
-    expect(active.migration_head).toBeNull();
-    expect(baselineBlock.migration_head).toBeNull();
+    expect(baselineBlock.migration_head).toBe(REQUIRED_HEAD);
     expect(launcher).toContain(`$requiredMigrationHead = '${REQUIRED_HEAD}'`);
     expect(preflight).toContain(`'${REQUIRED_HEAD}'`);
     expect(pins).toContain(`('baseline_expected_migration_head', '${REQUIRED_HEAD}')`);
   });
 });
+
 
 describe("G4: fail-closed validation rules", () => {
   it("the intact contract is the only allowed shape", () => {
