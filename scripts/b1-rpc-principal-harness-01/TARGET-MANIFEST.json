@@ -120,13 +120,22 @@
   ],
   "function_graph": {
     "note": "REMEDIATION-07 G8. Complete transitive closure discovered by a production READ-ONLY attestation (SELECT on pg_proc/pg_get_functiondef only) plus the Migration-29 trigger-function closure. definition_sha256 is SHA256 of pg_get_functiondef() with runs of whitespace collapsed to one space and trimmed. No entry may be null.",
-    "attested_at_utc": "2026-07-29T22:45:00Z",
+    "attested_at_utc": "2026-08-01T21:51:30Z",
     "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY",
+    "reattestation": {
+      "mission_id": "PORTAL-B1-FUNCTION-GRAPH-ENTRYPOINT-READONLY-REATTESTATION-AND-SOURCE-REPIN-23",
+      "production_migration_head": "20260801021541",
+      "repinned_entries": 1,
+      "graph_verdict": "28_total/28_resolved/28_matching/0_mismatched"
+    },
     "closure_size": 28,
     "functions": [
       {
         "signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
-        "definition_sha256": "109033a026b765266eb33ae5bd993118c9c6a69a3250520304b0c6ab9fedf791",
+        "definition_sha256": "07d793b4bb4831dc3187c05b3971c2ab683637d0d2afefc57be4f5a40beaab9b",
+        "definition_sha256_superseded": "109033a026b765266eb33ae5bd993118c9c6a69a3250520304b0c6ab9fedf791",
+        "definition_source_migration": "20260730175527",
+        "source_production_hash_equal": true,
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public",
