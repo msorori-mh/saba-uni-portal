@@ -7,7 +7,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 GP="$ROOT/tests/graduation-projects"
-MIG="$ROOT/supabase/migrations"
+MIG="$ROOT/docs/migration-drafts"
 CONTAINER="gp-pg17-verify-$$"
 
 docker run --rm -d --name "$CONTAINER" -e POSTGRES_PASSWORD=postgres postgres:17 >/dev/null
@@ -36,21 +36,21 @@ sql "$GP/postgres-minimal-schema.sql"
 
 step "M1 20260730100000 foundation"
 sql "$GP/pg17/preflight-01-foundation.sql"
-sql "$MIG/20260730100000_b1b476e7-0c92-42cf-80e3-925d7941d780.sql"
+sql "$MIG/GRADUATION-PROJECTS-M1-FOUNDATION.NOT_APPLIED.sql"
 verify "$GP/postgres-foundation-verifier.sql"
 
 step "M2 20260730100001 lifecycle completion"
 sql "$GP/pg17/preflight-02-lifecycle.sql"
-sql "$MIG/20260730100001_96beebe1-d809-4302-a782-c2f6483e102a.sql"
+sql "$MIG/GRADUATION-PROJECTS-M2-LIFECYCLE-COMPLETION.NOT_APPLIED.sql"
 verify "$GP/postgres-lifecycle-verifier.sql"
 
 step "M3 20260730100002 co_supervisor enum"
 sql "$GP/pg17/preflight-03-co-supervisor-enum.sql"
-sql "$MIG/20260730100002_c8f89b6d-6521-4597-97bc-aae0b837023f.sql"
+sql "$MIG/GRADUATION-PROJECTS-M3-CO-SUPERVISOR-ENUM.NOT_APPLIED.sql"
 
 step "M4 20260730100003 completion hardening"
 sql "$GP/pg17/preflight-04-hardening.sql"
-sql "$MIG/20260730100003_1811ed11-afad-4cbc-8f8a-287ba5b13a19.sql"
+sql "$MIG/GRADUATION-PROJECTS-M4-COMPLETION-HARDENING.NOT_APPLIED.sql"
 
 step "post-hardening regression: foundation + lifecycle verifiers re-run"
 verify "$GP/postgres-foundation-verifier.sql"
@@ -61,7 +61,7 @@ verify "$GP/postgres-hardening-verifier.sql"
 
 step "M5 20260730100004 files & notifications"
 sql "$GP/pg17/preflight-05-files-notifications.sql"
-sql "$MIG/20260730100004_ff96c58a-8c93-4abe-9d0f-f0f44fe25a11.sql"
+sql "$MIG/GRADUATION-PROJECTS-M5-FILES-AND-NOTIFICATIONS.NOT_APPLIED.sql"
 
 step "post-M5 regression: foundation + lifecycle + hardening verifiers re-run"
 verify "$GP/postgres-foundation-verifier.sql"
@@ -73,7 +73,7 @@ verify "$GP/postgres-files-notifications-verifier.sql"
 
 step "M6 20260730100005 admin settings & rubrics"
 sql "$GP/pg17/preflight-06-admin-settings.sql"
-sql "$MIG/20260730100005_a69a1dc9-8b9f-4dfc-a5e8-69a335909c8b.sql"
+sql "$MIG/GRADUATION-PROJECTS-M6-ADMIN-SETTINGS.NOT_APPLIED.sql"
 
 step "post-M6 regression: all prior verifiers re-run"
 verify "$GP/postgres-foundation-verifier.sql"
@@ -86,7 +86,7 @@ verify "$GP/postgres-admin-settings-verifier.sql"
 
 step "M7 20260730100006 evaluation completeness guard"
 sql "$GP/pg17/preflight-07-evaluation-completeness.sql"
-sql "$MIG/20260730100006_b953bddf-de2d-43f6-9d3d-10755d8a9da6.sql"
+sql "$MIG/GRADUATION-PROJECTS-M7-EVALUATION-COMPLETENESS.NOT_APPLIED.sql"
 
 step "post-M7 regression: all verifiers re-run"
 verify "$GP/postgres-foundation-verifier.sql"
@@ -100,7 +100,7 @@ verify "$GP/postgres-authorization-matrix-verifier.sql"
 
 step "M8 20260730100007 panel completeness at held"
 sql "$GP/pg17/preflight-08-panel-completeness.sql"
-sql "$MIG/20260730100007_4f682b52-7e51-486d-ad02-4d886d2331ec.sql"
+sql "$MIG/GRADUATION-PROJECTS-M8-PANEL-COMPLETENESS.NOT_APPLIED.sql"
 
 step "post-M8 regression: all verifiers re-run"
 verify "$GP/postgres-foundation-verifier.sql"

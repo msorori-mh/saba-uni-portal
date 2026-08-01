@@ -1,5 +1,12 @@
 # POSTGRES-17 MIGRATION PACKAGE VERIFICATION RESULT
 
+> SOURCE-ONLY RELOCATION (2026-08-01): the `supabase/migrations/2026073010000*.sql`
+> files referenced below were ported to this branch as source-only drafts
+> `docs/migration-drafts/GRADUATION-PROJECTS-M1-FOUNDATION.NOT_APPLIED.sql` …
+> `GRADUATION-PROJECTS-M8-PANEL-COMPLETENESS.NOT_APPLIED.sql`; the runner
+> `run-pg17-migration-package.sh` now reads the drafts from
+> `docs/migration-drafts/`. The verification result itself is unchanged.
+
 - Date: 2026-07-30
 - Branch: `k3/graduation-projects-completion`
 - Environment: Docker `postgres:17` (server 17.x), disposable container, destroyed on exit.

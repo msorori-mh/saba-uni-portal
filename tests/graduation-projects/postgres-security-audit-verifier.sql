@@ -1,5 +1,6 @@
 -- GRADUATION-PROJECTS ADVERSARIAL SECURITY AUDIT — catalog verifier (psql).
 -- NEVER run on production. Prerequisite: migrations 20260730100000..20260730100007
+-- (drafts GRADUATION-PROJECTS-M1..M8-*.NOT_APPLIED.sql in docs/migration-drafts/)
 -- applied. Read-only catalog assertions; ends in ROLLBACK.
 \set ON_ERROR_STOP on
 begin;

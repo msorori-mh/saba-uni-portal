@@ -6,7 +6,7 @@ const portalFunctions = readFileSync("src/lib/graduation-projects/portal.functio
 const client = readFileSync("src/lib/graduation-projects/rpc.ts", "utf8");
 const matrix = readFileSync("tests/graduation-projects/postgres-authorization-matrix-verifier.sql", "utf8");
 const m7 = readFileSync(
-  "supabase/migrations/20260730100006_b953bddf-de2d-43f6-9d3d-10755d8a9da6.sql",
+  "docs/migration-drafts/GRADUATION-PROJECTS-M7-EVALUATION-COMPLETENESS.NOT_APPLIED.sql",
   "utf8",
 );
 

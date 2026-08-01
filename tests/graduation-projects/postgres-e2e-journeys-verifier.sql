@@ -1,6 +1,7 @@
 -- GRADUATION-PROJECTS ISOLATED OPERATIONAL E2E — disposable PG17 (psql).
 -- NEVER run on production. Prerequisite: minimal schema + migrations
--- 20260730100000..20260730100007 applied.
+-- 20260730100000..20260730100007 (drafts GRADUATION-PROJECTS-M1..M8-*.NOT_APPLIED.sql
+-- in docs/migration-drafts/) applied.
 -- Dataset is 100% synthetic TEST_ONLY (7e57-prefixed ids, TEST_ONLY names);
 -- every journey ends inside one rolled-back transaction.
 \set ON_ERROR_STOP on

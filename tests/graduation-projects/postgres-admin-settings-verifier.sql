@@ -1,6 +1,7 @@
 -- Executable disposable-PostgreSQL admin/settings verifier (psql).
 -- NEVER run on production. Prerequisite: minimal schema + migrations
--- 20260730100000..20260730100005 applied, plus synthetic fixtures.
+-- 20260730100000..20260730100005 (drafts GRADUATION-PROJECTS-M1..M6-*.NOT_APPLIED.sql
+-- in docs/migration-drafts/) applied, plus synthetic fixtures.
 \set ON_ERROR_STOP on
 \if :{?department_id}
 \else

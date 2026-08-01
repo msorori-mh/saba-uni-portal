@@ -1,6 +1,7 @@
 -- GRADUATION-PROJECTS AUTHORIZATION CLOSURE MATRIX — disposable PG17 (psql).
 -- NEVER run on production. Prerequisite: minimal schema + migrations
--- 20260730100000..20260730100005 applied, plus synthetic fixtures.
+-- 20260730100000..20260730100005 (drafts GRADUATION-PROJECTS-M1..M6-*.NOT_APPLIED.sql
+-- in docs/migration-drafts/) applied, plus synthetic fixtures.
 -- Every row is a positive (must succeed) or negative (exact denial) case.
 -- The script raises unless fail_rows = 0. Everything rolls back.
 \set ON_ERROR_STOP on

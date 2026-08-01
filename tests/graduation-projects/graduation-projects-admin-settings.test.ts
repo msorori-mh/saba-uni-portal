@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { ERROR_LABELS } from "../../src/lib/graduation-projects/rpc";
 
 const migration = readFileSync(
-  "supabase/migrations/20260730100005_a69a1dc9-8b9f-4dfc-a5e8-69a335909c8b.sql",
+  "docs/migration-drafts/GRADUATION-PROJECTS-M6-ADMIN-SETTINGS.NOT_APPLIED.sql",
   "utf8",
 );
 const portalFunctions = readFileSync("src/lib/graduation-projects/portal.functions.ts", "utf8");

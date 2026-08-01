@@ -7,7 +7,7 @@ import {
 import { ERROR_LABELS } from "../../src/lib/graduation-projects/rpc";
 
 const migration = readFileSync(
-  "supabase/migrations/20260730100004_ff96c58a-8c93-4abe-9d0f-f0f44fe25a11.sql",
+  "docs/migration-drafts/GRADUATION-PROJECTS-M5-FILES-AND-NOTIFICATIONS.NOT_APPLIED.sql",
   "utf8",
 );
 const client = readFileSync("src/lib/graduation-projects/rpc.ts", "utf8");

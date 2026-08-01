@@ -1,6 +1,7 @@
 -- Executable disposable-PostgreSQL hardening verifier (psql). NEVER run on production.
 -- Prerequisite: minimal schema + the four packaged migrations applied
--- (20260730100000..20260730100003) to an isolated clone, plus synthetic fixtures:
+-- (20260730100000..20260730100003, drafts GRADUATION-PROJECTS-M1..M4-*.NOT_APPLIED.sql
+-- in docs/migration-drafts/) to an isolated clone, plus synthetic fixtures:
 -- psql -v department_id=... -v student_profile_id=... -v student_user_id=... \
 --   -v faculty_profile_id=... -v faculty_user_id=... -f this-file
 \set ON_ERROR_STOP on

@@ -14,11 +14,11 @@ import {
 } from "../../src/lib/graduation-projects/rpc";
 
 const enumMigration = readFileSync(
-  "supabase/migrations/20260730100002_c8f89b6d-6521-4597-97bc-aae0b837023f.sql",
+  "docs/migration-drafts/GRADUATION-PROJECTS-M3-CO-SUPERVISOR-ENUM.NOT_APPLIED.sql",
   "utf8",
 );
 const hardeningMigration = readFileSync(
-  "supabase/migrations/20260730100003_1811ed11-afad-4cbc-8f8a-287ba5b13a19.sql",
+  "docs/migration-drafts/GRADUATION-PROJECTS-M4-COMPLETION-HARDENING.NOT_APPLIED.sql",
   "utf8",
 );
 
