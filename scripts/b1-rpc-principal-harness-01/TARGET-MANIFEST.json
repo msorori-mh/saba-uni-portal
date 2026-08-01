@@ -545,13 +545,24 @@
   "probe_sub": "3a279561-f8e6-41d9-b8ca-ce60682c9eab",
   "matrix": {
     "path": "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json",
-    "sha256_lf": "fd4e35057cb507924f71e1f71c6326653744b0cc26b7055f77d358080868e115",
+    "sha256_lf": "5c76faffd33ccd9ed57ffc7d5a93f3217feea48cf33170414a4f06b07c5c7e46",
     "negative_total": 267,
-    "decomposition": "240 core + 24 illegal-action + 3 transfer-scope = 267 defined; 245 executable; 22 blocked (19 illegal-action on pending steps + 3 transfer-scope)",
-    "executable_negative_total": 245,
-    "blocked_negative_total": 22,
-    "blocked_reason": "BLOCKED_PENDING_ACTIVE_FIXTURE (the contract sits behind the active-step gate; the target runtime step is pending)",
-    "blocked_token": "BLOCKED_PENDING_ACTIVE_FIXTURE"
+    "decomposition": "240 core + 24 illegal-action + 3 transfer-scope = 267 defined; 267 executable; 0 blocked (the 22 previously blocked cases are rebound to deterministic ACTIVE TEST_ONLY fixture steps)",
+    "executable_negative_total": 267,
+    "blocked_negative_total": 0,
+    "blocked_reason": null,
+    "blocked_token": null,
+    "fixture_rebind": {
+      "package_id": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "marker": "TEST_ONLY_B1_FIXTURE_13",
+      "rebound_cases": 22,
+      "note": "19 illegal-action cases + 3 transfer-scope cases are bound to deterministic ACTIVE fixture steps (IT source / CS target / CIS unrelated). Blocked case files are abolished: all 267 cases render as executable SQL."
+    },
+    "readiness": {
+      "status": "FIXTURE_PACKAGE_NOT_APPLIED",
+      "hold_token": "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED",
+      "note": "Runtime readiness is separate from the source contract. Execution stays prohibited until: (1) the fixture migration is applied and verified, (2) the fixture-state preflight succeeds, (3) a fresh authoritative baseline is captured and reviewed, (4) execution_authorized is granted through the separate approved gate. This gate stops the launcher before psql/RPC without reducing the executable case count."
+    }
   },
   "operator_privilege_contract": {
     "row_locks": "FORBIDDEN. No FOR SHARE / FOR UPDATE / FOR KEY SHARE anywhere in the package: PostgreSQL requires UPDATE privilege for row-level lock clauses, which contradicts a pure read-only observer.",
@@ -576,10 +587,12 @@
       "table_level_write": "FORBIDDEN — INSERT/UPDATE/DELETE/TRUNCATE all fail the preflight with B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE",
       "column_level_write": "FORBIDDEN — any applicable column-level INSERT/UPDATE grant fails the preflight with B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE"
     },
-    "blocked_cases": {
-      "rule": "The matrix may not start and may not be declared PASS while blocked_cases > 0.",
-      "hold_token": "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE",
-      "current_blocked_total": 22
+    "execution_readiness": {
+      "rule": "The matrix may not start and may not be declared PASS until the fixture package is applied and verified, the fixture-state preflight succeeds, a fresh authoritative baseline is captured and reviewed, and execution_authorized is granted through the separate approved gate.",
+      "status": "FIXTURE_PACKAGE_NOT_APPLIED",
+      "hold_token": "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED",
+      "current_blocked_total": 0,
+      "blocked_case_files": "ABOLISHED — no case may be rendered as BLOCKED; a case not bound to an ACTIVE step aborts the render instead"
     }
   }
 }

@@ -5954,7 +5954,7 @@
     "note": "Bound to deterministic ACTIVE transfer fixtures (IT source, CS target, CIS unrelated). Cases execute only after the fixture package is applied; until then the harness fails closed on the fixture-state preflight."
   },
   "blocked_execution": {
-    "token": "BLOCKED_PENDING_ACTIVE_FIXTURE",
+    "token": null,
     "total": 0,
     "classes": {},
     "required_fixture": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13 (19 active TEST_ONLY steps)",
