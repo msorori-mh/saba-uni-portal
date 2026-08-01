@@ -11,3 +11,14 @@ tests/b1-five-services-rpc-authorization-preflight-01/*.ts text eol=lf
 scripts/b1-isolated-authorization-env-65/*.py text eol=lf
 tests/b1-five-services-rpc-authorization-preflight-01/*.sql text eol=lf
 tests/b1-five-services-rpc-authorization-preflight-01/*.json text eol=lf
+
+# GRADUATION-PROJECTS M1-M8 package (audit-05): same EOL normalization — the
+# offline structural tests assert multi-line SQL substrings, so the migration
+# drafts and PG17 verifiers must check out as LF on every platform.
+docs/migration-drafts/GRADUATION-PROJECTS-*.sql text eol=lf
+tests/graduation-projects/*.sql text eol=lf
+tests/graduation-projects/pg17/*.sql text eol=lf
+tests/graduation-projects/audit-05/*.sql text eol=lf
+tests/graduation-projects/audit-05/*.sh text eol=lf
+tests/graduation-projects/audit-06/*.sql text eol=lf
+tests/graduation-projects/audit-06/*.sh text eol=lf

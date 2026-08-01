@@ -365,6 +365,9 @@ grant execute on function public.submit_graduation_project_proposal(uuid,bigint,
  public.finalize_graduation_project_evaluation(uuid,uuid) to authenticated;
 revoke all on function public.graduation_project_is_discussion_ready(uuid) from public, anon, authenticated;
 revoke all on public.graduation_project_reporting from public, anon, authenticated;
+-- Trigger functions are trigger-only surfaces; strip the default PUBLIC EXECUTE.
+revoke all on function public.guard_graduation_project_assignment() from public, anon, authenticated;
+revoke all on function public.reject_graduation_project_event_mutation() from public, anon, authenticated;
 -- Do not create a bucket here. A later separately authorized draft must create a private
 -- bucket and storage policies after file-type/size/scanning/retention decisions are approved.
 commit;
