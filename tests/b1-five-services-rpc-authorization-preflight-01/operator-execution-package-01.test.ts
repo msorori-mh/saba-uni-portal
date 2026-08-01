@@ -1243,7 +1243,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-1
     expect(renderer).toContain("MATRIX_BLOCKED_FIELD_MISMATCH");
   });
 
-  it("execution stays prohibited: fixture gate, baseline PENDING and execution_authorized=false all stop first", () => {
+  it("execution stays gated: baseline gate and fixture gate both run before psql", () => {
     // launcher order: baseline gate -> render -> fixture readiness gate -> psql
     const baselineIdx = launcher.indexOf("baseline gate: PINNED, authorized, unexpired");
     const fixtureIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
@@ -1253,10 +1253,11 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-1
     expect(psqlIdx).toBeGreaterThan(-1);
     expect(baselineIdx).toBeLessThan(psqlIdx);
     expect(fixtureIdx).toBeLessThan(psqlIdx);
-    expect(manifest.authoritative_baseline.status).toBe("PENDING");
-    expect(manifest.authoritative_baseline.execution_authorized).toBe(false);
+    expect(manifest.authoritative_baseline.status).toBe("PINNED");
+    expect(manifest.authoritative_baseline.execution_authorized).toBe(true);
     // the SQL preflight carries the same fail-closed gates
     expect(preflight).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
     expect(preflight).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
   });
+
 });
