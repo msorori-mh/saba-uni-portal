@@ -240,17 +240,21 @@ describe("G4: fail-closed validation rules", () => {
     });
   }
 
-  it("the current committed baseline is rejected by the gate (PENDING)", () => {
-    const result = evaluateBaselineGate({
+  it("the current committed baseline passes the gate only with a matching live fingerprint", () => {
+    const base = {
       ...VALID,
       artifact_path: baselineBlock.artifact_path,
       status: baselineBlock.status,
       execution_authorized: baselineBlock.execution_authorized,
       fingerprint: baselineBlock.fingerprint,
-    });
-    expect(result.allowed).toBe(false);
-    expect(result.hold).toBe(HOLD);
+    };
+    expect(evaluateBaselineGate({ ...base, observed_fingerprint: baselineBlock.fingerprint }).allowed)
+      .toBe(true);
+    const drifted = evaluateBaselineGate({ ...base, observed_fingerprint: "d".repeat(32) });
+    expect(drifted.allowed).toBe(false);
+    expect(drifted.hold).toBe(HOLD);
   });
+
 
   it("the launcher enforces the same rules and exits with the HOLD family", () => {
     expect(launcher).toContain(HOLD);
