@@ -166,6 +166,30 @@ BEGIN
 END;
 $$;
 
+-- Canonical current-self gate: self AND the record is in the approved
+-- lifecycle state. Every graduate-facing listing RPC uses this gate so RPC
+-- visibility can never exceed RLS policy visibility — the policies resolve
+-- through graduate_self_matches_audience, which requires
+-- record_state = 'approved' (PR273 REMEDIATION-06).
+CREATE OR REPLACE FUNCTION public.graduate_is_current_self(p_graduate_record_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.graduate_records r
+    JOIN public.student_profiles sp ON sp.id = r.student_profile_id
+    WHERE r.id = p_graduate_record_id
+      AND sp.user_id = auth.uid()
+      AND r.record_state = 'approved'
+  );
+END;
+$$;
+
 -- Record read access: self OR manager OR specialist-in-scope OR active
 -- direct follow-up assignee. Missing record = false.
 CREATE OR REPLACE FUNCTION public.graduate_affairs_can_access_record(p_graduate_record_id uuid)
@@ -777,6 +801,11 @@ BEGIN
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
+  -- Approved-lifecycle gate (REMEDIATION-06): a corrected/revoked record
+  -- loses listing visibility exactly as it loses RLS policy visibility.
+  IF NOT public.graduate_is_current_self(p_graduate_record_id) THEN
+    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_CURRENT';
+  END IF;
   RETURN QUERY
   SELECT o.id, o.opportunity_type, o.title, o.description, o.published_at, o.closes_at,
          CASE WHEN e.verification_state = 'verified' THEN e.legal_name ELSE NULL END
@@ -809,6 +838,11 @@ BEGIN
   END IF;
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
+  END IF;
+  -- Approved-lifecycle gate (REMEDIATION-06): identical to the opportunity
+  -- listing gate; both paths stay in lockstep with the RLS policies.
+  IF NOT public.graduate_is_current_self(p_graduate_record_id) THEN
+    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_CURRENT';
   END IF;
   RETURN QUERY
   SELECT e.id, e.title, e.event_type, e.starts_at, e.ends_at
@@ -1279,6 +1313,7 @@ REVOKE ALL ON FUNCTION public.graduate_affairs_is_manager() FROM PUBLIC, anon, a
 REVOKE ALL ON FUNCTION public.graduate_affairs_is_specialist() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_specialist_department_ids() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_can_access_record(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_is_current_self(uuid) FROM PUBLIC, anon, authenticated;
 
 -- graduate_is_self, graduate_audience_matches and
 -- graduate_self_matches_audience are referenced by RLS policy expressions

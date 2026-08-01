@@ -66,7 +66,10 @@ GRANT SELECT ON auth.users TO authenticated;
 -- Fixture users (prefix 10000000-0000-4000-8000-00000000000X):
 --   a = graduateA, b = graduateB, c = managerU, d = specialistU,
 --   e = unrelatedStaffU, f = unrelatedUserU, 1 = inactiveStaffU,
---   2 = expiredStaffU (graduate_affairs assignment already ended).
+--   2 = expiredStaffU (graduate_affairs assignment already ended),
+--   3 = registrarLikeU, 4 = deanLikeU, 5 = adminLikeU (privileged-role
+--   analogues: this domain never consults app_role, so a privileged role
+--   holder is exactly an unassigned authenticated user here).
 -- ---------------------------------------------------------------------
 INSERT INTO auth.users VALUES
   ('10000000-0000-4000-8000-00000000000a'),
@@ -76,7 +79,10 @@ INSERT INTO auth.users VALUES
   ('10000000-0000-4000-8000-00000000000e'),
   ('10000000-0000-4000-8000-00000000000f'),
   ('10000000-0000-4000-8000-000000000001'),
-  ('10000000-0000-4000-8000-000000000002');
+  ('10000000-0000-4000-8000-000000000002'),
+  ('10000000-0000-4000-8000-000000000003'),
+  ('10000000-0000-4000-8000-000000000004'),
+  ('10000000-0000-4000-8000-000000000005');
 
 -- Student profiles (prefix 20000000): graduateA/graduateB only.
 INSERT INTO public.student_profiles VALUES

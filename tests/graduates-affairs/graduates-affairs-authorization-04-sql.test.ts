@@ -56,6 +56,7 @@ const HELPERS = [
   "graduate_affairs_is_specialist",
   "graduate_affairs_specialist_department_ids",
   "graduate_is_self",
+  "graduate_is_current_self",
   "graduate_affairs_can_access_record",
   "graduate_audience_matches",
   "graduate_self_matches_audience",
@@ -101,7 +102,7 @@ describe("function inventory and privileges", () => {
     const functions = sql.match(/CREATE OR REPLACE FUNCTION/g) ?? [];
     const definer = sql.match(/SECURITY DEFINER/g) ?? [];
     const searchPath = sql.match(/SET search_path = public, pg_temp/g) ?? [];
-    expect(functions).toHaveLength(28);
+    expect(functions).toHaveLength(29);
     expect(definer).toHaveLength(functions.length);
     expect(searchPath).toHaveLength(functions.length);
   });
@@ -142,6 +143,30 @@ describe("function inventory and privileges", () => {
     // No table privileges are granted anywhere in the bundle.
     expect(code).not.toMatch(/GRANT\s+(?!EXECUTE\b)\w/i);
     expect(code).not.toMatch(/TO\s+anon\b/i);
+  });
+});
+
+describe("approved-lifecycle gate parity (REMEDIATION-06)", () => {
+  test("both graduate-facing list RPCs gate on the canonical current-self helper", () => {
+    for (const name of ["graduate_list_visible_opportunities", "graduate_list_visible_events"]) {
+      const body = bodyOf(name);
+      expect(body).toContain("graduate_is_current_self(p_graduate_record_id)");
+      expect(body).toContain("GRADUATE_RECORD_NOT_CURRENT");
+    }
+  });
+
+  test("the current-self helper reproduces the RLS approved predicate", () => {
+    const helper = bodyOf("graduate_is_current_self");
+    expect(helper).toContain("r.record_state = 'approved'");
+    const policyHelper = bodyOf("graduate_self_matches_audience");
+    expect(policyHelper).toContain("r.record_state = 'approved'");
+  });
+
+  test("list RPCs keep their publication and audience predicates", () => {
+    expect(bodyOf("graduate_list_visible_opportunities")).toContain("o.state = 'published'");
+    expect(bodyOf("graduate_list_visible_opportunities")).toContain("graduate_audience_matches(");
+    expect(bodyOf("graduate_list_visible_events")).toContain("e.state = 'published'");
+    expect(bodyOf("graduate_list_visible_events")).toContain("graduate_audience_matches(");
   });
 });
 

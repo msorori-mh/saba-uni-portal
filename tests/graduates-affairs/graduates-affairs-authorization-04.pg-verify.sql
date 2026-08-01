@@ -650,7 +650,352 @@ RESET ROLE;
 SELECT set_config('request.jwt.claims', '', false);
 
 -- =====================================================================
--- J. Privilege, policy-count, audit and append-only assertions (superuser).
+-- J. Approved-gate regression (PR273 REMEDIATION-06): graduate-facing list
+--    RPC visibility must equal direct RLS visibility across every lifecycle
+--    transition. A corrected/revoked record must see NOTHING through either
+--    path, immediately.
+-- =====================================================================
+
+-- J1. Baseline parity for the approved record A: both paths expose exactly
+--     the audience-matching published rows, each exactly once.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '10000000-0000-4000-8000-00000000000a', 'role', 'authenticated')::text, false);
+
+DO $$
+DECLARE
+  v_record_a uuid := (SELECT id FROM verify_ids WHERE key = 'record_a');
+  v_rpc integer;
+  v_rls integer;
+  v_distinct integer;
+BEGIN
+  SELECT count(*) INTO v_rpc FROM public.graduate_list_visible_opportunities(v_record_a);
+  SELECT count(*) INTO v_rls FROM public.graduate_opportunities;
+  SELECT count(DISTINCT t.id) INTO v_distinct FROM public.graduate_list_visible_opportunities(v_record_a) t;
+  IF v_rpc <> 1 OR v_rls <> 1 OR v_distinct <> 1 THEN
+    RAISE EXCEPTION 'baseline opportunity parity broken: rpc=% rls=% distinct=%', v_rpc, v_rls, v_distinct;
+  END IF;
+  SELECT count(*) INTO v_rpc FROM public.graduate_list_visible_events(v_record_a);
+  SELECT count(*) INTO v_rls FROM public.graduate_events;
+  SELECT count(DISTINCT t.id) INTO v_distinct FROM public.graduate_list_visible_events(v_record_a) t;
+  IF v_rpc <> 1 OR v_rls <> 1 OR v_distinct <> 1 THEN
+    RAISE EXCEPTION 'baseline event parity broken: rpc=% rls=% distinct=%', v_rpc, v_rls, v_distinct;
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claims', '', false);
+
+-- J2. Negative-visibility fixtures (superuser): draft, malformed-audience,
+--     empty-array-audience and wrong-department published engagements.
+INSERT INTO public.graduate_opportunities (
+  id, opportunity_type, title, description, audience_scope, state
+) VALUES
+  ('94000000-0000-4000-8000-000000000011', 'job', 'Draft job', 'never visible',
+   '{"all_graduates": true}'::jsonb, 'draft'),
+  ('94000000-0000-4000-8000-000000000012', 'job', 'Malformed-audience job', 'never visible',
+   '"not-an-object"'::jsonb, 'draft'),
+  ('94000000-0000-4000-8000-000000000013', 'job', 'Empty-array job', 'never visible',
+   '{"program_ids": []}'::jsonb, 'draft'),
+  ('94000000-0000-4000-8000-000000000014', 'job', 'D2-only job', 'never visible to A',
+   '{"department_ids": ["30000000-0000-4000-8000-000000000002"]}'::jsonb, 'draft');
+UPDATE public.graduate_opportunities
+SET state = 'published', published_at = now(), moderated_by = '10000000-0000-4000-8000-00000000000c'
+WHERE id IN ('94000000-0000-4000-8000-000000000012',
+             '94000000-0000-4000-8000-000000000013',
+             '94000000-0000-4000-8000-000000000014');
+
+INSERT INTO public.graduate_events (
+  id, title, event_type, purpose_code, notice_version, starts_at, ends_at, audience_scope, state
+) VALUES
+  ('93000000-0000-4000-8000-000000000011', 'Draft event', 'career', 'events', 'v1',
+   now() + interval '1 day', now() + interval '2 days', '{"all_graduates": true}'::jsonb, 'draft'),
+  ('93000000-0000-4000-8000-000000000012', 'Malformed event', 'career', 'events', 'v1',
+   now() + interval '1 day', now() + interval '2 days', '42'::jsonb, 'published');
+
+-- J3. The approved record A must see none of J2's rows on either path.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '10000000-0000-4000-8000-00000000000a', 'role', 'authenticated')::text, false);
+
+DO $$
+DECLARE
+  v_record_a uuid := (SELECT id FROM verify_ids WHERE key = 'record_a');
+  v_rpc integer;
+  v_rls integer;
+BEGIN
+  SELECT count(*) INTO v_rpc FROM public.graduate_list_visible_opportunities(v_record_a);
+  SELECT count(*) INTO v_rls FROM public.graduate_opportunities;
+  IF v_rpc <> 1 OR v_rls <> 1 THEN
+    RAISE EXCEPTION 'draft/malformed/empty/wrong-department opportunities leaked: rpc=% rls=%', v_rpc, v_rls;
+  END IF;
+  SELECT count(*) INTO v_rpc FROM public.graduate_list_visible_events(v_record_a);
+  SELECT count(*) INTO v_rls FROM public.graduate_events;
+  IF v_rpc <> 1 OR v_rls <> 1 THEN
+    RAISE EXCEPTION 'draft/malformed events leaked: rpc=% rls=%', v_rpc, v_rls;
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claims', '', false);
+
+-- J4. approved -> corrected (record A): immediate invisibility on both
+--     paths while a published audience-matching row still exists;
+--     corrected -> approved is explicitly denied with zero mutation.
+DO $$
+BEGIN
+  UPDATE public.graduate_official_decisions
+  SET decision_state = 'corrected'
+  WHERE id = 'd0000000-0000-4000-8000-00000000000a';
+  IF (SELECT r.record_state FROM public.graduate_records r
+      JOIN verify_ids v ON v.key = 'record_a' AND v.id = r.id) <> 'corrected' THEN
+    RAISE EXCEPTION 'correction did not propagate to record A';
+  END IF;
+END;
+$$;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '10000000-0000-4000-8000-00000000000a', 'role', 'authenticated')::text, false);
+
+DO $$
+DECLARE
+  v_record_a uuid := (SELECT id FROM verify_ids WHERE key = 'record_a');
+  v_count integer;
+BEGIN
+  -- RPC path must fail closed for a non-approved self record. On the
+  -- unfixed draft this PERFORM returns the still-published all-graduates
+  -- opportunity instead of raising: the visibility bypass.
+  BEGIN
+    PERFORM public.graduate_list_visible_opportunities(v_record_a);
+    RAISE EXCEPTION 'VISIBILITY BYPASS: opportunity list RPC still serves a corrected record';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_RECORD_NOT_CURRENT%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_list_visible_events(v_record_a);
+    RAISE EXCEPTION 'VISIBILITY BYPASS: event list RPC still serves a corrected record';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_RECORD_NOT_CURRENT%' THEN RAISE; END IF;
+  END;
+  -- Direct RLS path: the corrected record sees zero rows.
+  SELECT count(*) INTO v_count FROM public.graduate_opportunities;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'corrected record sees opportunities via RLS: %', v_count; END IF;
+  SELECT count(*) INTO v_count FROM public.graduate_events;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'corrected record sees events via RLS: %', v_count; END IF;
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claims', '', false);
+
+DO $$
+DECLARE
+  v_events bigint := (SELECT count(*) FROM public.graduate_domain_events);
+BEGIN
+  BEGIN
+    UPDATE public.graduate_official_decisions
+    SET decision_state = 'approved'
+    WHERE id = 'd0000000-0000-4000-8000-00000000000a';
+    RAISE EXCEPTION 'expected corrected->approved transition denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%INVALID_OFFICIAL_GRADUATION_DECISION_TRANSITION%' THEN RAISE; END IF;
+  END;
+  IF (SELECT d.decision_state FROM public.graduate_official_decisions d
+      WHERE d.id = 'd0000000-0000-4000-8000-00000000000a') <> 'corrected' THEN
+    RAISE EXCEPTION 'rejected corrected->approved transition mutated the decision';
+  END IF;
+  IF (SELECT count(*) FROM public.graduate_domain_events) <> v_events THEN
+    RAISE EXCEPTION 'rejected corrected->approved transition mutated domain events';
+  END IF;
+END;
+$$;
+
+-- J5. approved -> unpublished (record B is still approved): closing the
+--     all-graduates opportunity and cancelling the event must remove
+--     visibility immediately on both paths; B keeps exactly its in-audience
+--     rows (the P2 opportunity and the D2-department opportunity).
+DO $$
+BEGIN
+  PERFORM set_config('request.jwt.claims',
+    json_build_object('sub', '10000000-0000-4000-8000-00000000000c', 'role', 'authenticated')::text, true);
+  PERFORM public.graduate_affairs_moderate_opportunity('94000000-0000-4000-8000-000000000001', 'closed');
+  PERFORM set_config('request.jwt.claims', '', true);
+END;
+$$;
+UPDATE public.graduate_events
+SET state = 'cancelled'
+WHERE id = '93000000-0000-4000-8000-000000000001';
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '10000000-0000-4000-8000-00000000000b', 'role', 'authenticated')::text, false);
+
+DO $$
+DECLARE
+  v_record_b uuid := (SELECT id FROM verify_ids WHERE key = 'record_b');
+  v_rpc integer;
+  v_rls integer;
+  v_distinct integer;
+BEGIN
+  -- B (department D2) keeps exactly its two in-audience rows: the P2
+  -- opportunity and the D2-department opportunity from J2. The closed
+  -- all-graduates opportunity must be gone from both paths.
+  SELECT count(*) INTO v_rpc FROM public.graduate_list_visible_opportunities(v_record_b);
+  SELECT count(*) INTO v_rls FROM public.graduate_opportunities;
+  SELECT count(DISTINCT t.id) INTO v_distinct FROM public.graduate_list_visible_opportunities(v_record_b) t;
+  IF v_rpc <> 2 OR v_rls <> 2 OR v_distinct <> 2 THEN
+    RAISE EXCEPTION 'post-close parity broken for B: rpc=% rls=% distinct=%',
+      v_rpc, v_rls, v_distinct;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.graduate_list_visible_opportunities(v_record_b) t
+    WHERE t.id = '94000000-0000-4000-8000-000000000001'
+  ) THEN
+    RAISE EXCEPTION 'closed opportunity still returned by the list RPC';
+  END IF;
+  SELECT count(*) INTO v_rpc FROM public.graduate_list_visible_events(v_record_b);
+  SELECT count(*) INTO v_rls FROM public.graduate_events;
+  IF v_rpc <> 0 OR v_rls <> 0 THEN
+    RAISE EXCEPTION 'cancelled event still visible: rpc=% rls=%', v_rpc, v_rls;
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claims', '', false);
+
+-- J6. approved -> revoked (record B): same invisibility; revoked -> approved
+--     explicitly denied with zero mutation.
+DO $$
+BEGIN
+  UPDATE public.graduate_official_decisions
+  SET decision_state = 'revoked'
+  WHERE id = 'd0000000-0000-4000-8000-00000000000b';
+  IF (SELECT r.record_state FROM public.graduate_records r
+      JOIN verify_ids v ON v.key = 'record_b' AND v.id = r.id) <> 'revoked' THEN
+    RAISE EXCEPTION 'revocation did not propagate to record B';
+  END IF;
+END;
+$$;
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims',
+  json_build_object('sub', '10000000-0000-4000-8000-00000000000b', 'role', 'authenticated')::text, false);
+
+DO $$
+DECLARE
+  v_record_b uuid := (SELECT id FROM verify_ids WHERE key = 'record_b');
+  v_count integer;
+BEGIN
+  BEGIN
+    PERFORM public.graduate_list_visible_opportunities(v_record_b);
+    RAISE EXCEPTION 'VISIBILITY BYPASS: opportunity list RPC still serves a revoked record';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_RECORD_NOT_CURRENT%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM public.graduate_list_visible_events(v_record_b);
+    RAISE EXCEPTION 'VISIBILITY BYPASS: event list RPC still serves a revoked record';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%GRADUATE_RECORD_NOT_CURRENT%' THEN RAISE; END IF;
+  END;
+  SELECT count(*) INTO v_count FROM public.graduate_opportunities;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'revoked record sees opportunities via RLS: %', v_count; END IF;
+  SELECT count(*) INTO v_count FROM public.graduate_events;
+  IF v_count <> 0 THEN RAISE EXCEPTION 'revoked record sees events via RLS: %', v_count; END IF;
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claims', '', false);
+
+DO $$
+DECLARE
+  v_events bigint := (SELECT count(*) FROM public.graduate_domain_events);
+BEGIN
+  BEGIN
+    UPDATE public.graduate_official_decisions
+    SET decision_state = 'approved'
+    WHERE id = 'd0000000-0000-4000-8000-00000000000b';
+    RAISE EXCEPTION 'expected revoked->approved transition denial';
+  EXCEPTION WHEN others THEN
+    IF SQLERRM NOT LIKE '%INVALID_OFFICIAL_GRADUATION_DECISION_TRANSITION%' THEN RAISE; END IF;
+  END;
+  IF (SELECT d.decision_state FROM public.graduate_official_decisions d
+      WHERE d.id = 'd0000000-0000-4000-8000-00000000000b') <> 'revoked' THEN
+    RAISE EXCEPTION 'rejected revoked->approved transition mutated the decision';
+  END IF;
+  IF (SELECT count(*) FROM public.graduate_domain_events) <> v_events THEN
+    RAISE EXCEPTION 'rejected revoked->approved transition mutated domain events';
+  END IF;
+END;
+$$;
+
+-- J7. Privileged-role analogues (registrar/dean/admin): the domain never
+--     consults app_role, so these are exactly unassigned authenticated users.
+--     Every staff RPC and every graduate-facing list RPC must deny them.
+DO $$
+DECLARE
+  v_record_a uuid := (SELECT id FROM verify_ids WHERE key = 'record_a');
+  v_user text;
+  v_opps bigint := (SELECT count(*) FROM public.graduate_opportunities);
+  v_events bigint := (SELECT count(*) FROM public.graduate_domain_events);
+BEGIN
+  FOREACH v_user IN ARRAY ARRAY[
+    '10000000-0000-4000-8000-000000000003',
+    '10000000-0000-4000-8000-000000000004',
+    '10000000-0000-4000-8000-000000000005'
+  ] LOOP
+    PERFORM set_config('request.jwt.claims',
+      json_build_object('sub', v_user, 'role', 'authenticated')::text, true);
+
+    BEGIN
+      PERFORM public.graduate_affairs_get_graduate_file(v_record_a);
+      RAISE EXCEPTION 'privileged-role analogue % read a graduate file', v_user;
+    EXCEPTION WHEN others THEN
+      IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+    END;
+    BEGIN
+      PERFORM public.graduate_affairs_search_records();
+      RAISE EXCEPTION 'privileged-role analogue % searched records', v_user;
+    EXCEPTION WHEN others THEN
+      IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+    END;
+    BEGIN
+      PERFORM public.graduate_affairs_moderate_opportunity(
+        '94000000-0000-4000-8000-000000000002', 'closed');
+      RAISE EXCEPTION 'privileged-role analogue % moderated an opportunity', v_user;
+    EXCEPTION WHEN others THEN
+      IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+    END;
+    BEGIN
+      PERFORM public.graduate_affairs_cohort_employment_report(
+        '40000000-0000-4000-8000-000000000001', 2026, 3);
+      RAISE EXCEPTION 'privileged-role analogue % read a cohort report', v_user;
+    EXCEPTION WHEN others THEN
+      IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+    END;
+    BEGIN
+      PERFORM public.graduate_list_visible_opportunities(v_record_a);
+      RAISE EXCEPTION 'privileged-role analogue % listed opportunities', v_user;
+    EXCEPTION WHEN others THEN
+      IF SQLERRM NOT LIKE '%GRADUATE_AFFAIRS_ACCESS_DENIED%' THEN RAISE; END IF;
+    END;
+  END LOOP;
+  PERFORM set_config('request.jwt.claims', '', true);
+
+  IF (SELECT count(*) FROM public.graduate_opportunities) <> v_opps
+     OR (SELECT count(*) FROM public.graduate_domain_events) <> v_events THEN
+    RAISE EXCEPTION 'privileged-role analogue denials mutated state';
+  END IF;
+END;
+$$;
+
+-- =====================================================================
+-- K. Privilege, policy-count, audit and append-only assertions (superuser).
 -- =====================================================================
 
 DO $$
@@ -682,7 +1027,8 @@ DECLARE
     'graduate_affairs_is_manager()',
     'graduate_affairs_is_specialist()',
     'graduate_affairs_specialist_department_ids()',
-    'graduate_affairs_can_access_record(uuid)'
+    'graduate_affairs_can_access_record(uuid)',
+    'graduate_is_current_self(uuid)'
   ];
   v_policy_helpers text[] := ARRAY[
     'graduate_is_self(uuid)',
