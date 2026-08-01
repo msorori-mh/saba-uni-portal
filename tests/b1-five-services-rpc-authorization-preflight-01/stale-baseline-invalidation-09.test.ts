@@ -124,7 +124,7 @@ describe("G1: the stale baseline is archived as historical evidence", () => {
     expect(existsSync(join(root, ARCHIVE_REL))).toBe(true);
     expect(archive.status).toBe("STALE");
     expect(archive.execution_authorized).toBe(false);
-    expect(archive.invalidated_after_migration).toBe(REQUIRED_HEAD);
+    expect(archive.invalidated_after_migration).toBe("20260731203030");
     expect(archive.selectable_by_launcher).toBe(false);
     expect(archive.on_selection_attempt).toBe(HOLD);
   });
