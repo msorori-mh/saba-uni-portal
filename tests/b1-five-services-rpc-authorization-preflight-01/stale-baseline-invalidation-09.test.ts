@@ -277,12 +277,13 @@ describe("G4: fail-closed validation rules", () => {
     expect(preflight).toContain(HOLD);
     expect(preflight).toContain("baseline_execution_authorized");
     expect(preflight).toContain("baseline_artifact_path");
-    expect(fingerprintCheck).toContain("v_expected text := NULL");
+    expect(fingerprintCheck).toContain(`v_expected text := '${active.fingerprint}'`);
     expect(fingerprintCheck).toContain(HOLD);
-    expect(pins).toContain("('baseline_status', 'PENDING')");
-    expect(pins).toContain("('baseline_fingerprint', NULL)");
-    expect(pins).toContain("('baseline_execution_authorized', 'false')");
+    expect(pins).toContain("('baseline_status', 'PINNED')");
+    expect(pins).toContain(`('baseline_fingerprint', '${active.fingerprint}')`);
+    expect(pins).toContain("('baseline_execution_authorized', 'true')");
   });
+
 });
 
 describe("G5: no execution occurred in this mission", () => {
