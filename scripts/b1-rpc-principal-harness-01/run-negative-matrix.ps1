@@ -17,13 +17,14 @@
 
   G9 EXECUTION CONTRACT
     * Exactly ONE psql process runs generated/master-negative-matrix.sql:
-      preflight -> 245 executable rollback-only cases -> outside-transaction baseline check.
-      (22 cases are BLOCKED_PENDING_ACTIVE_FIXTURE and excluded: 19 illegal-action
-       cases on pending steps + 3 transfer-scope cases.)
+      preflight -> 267 executable rollback-only cases -> outside-transaction baseline check.
+      (Blocked case files are abolished: all 267 cases render as executable SQL
+       bound to deterministic ACTIVE TEST_ONLY fixture steps.)
 
-  G3 ACTIVE FIXTURE GATE
-    * While blocked_cases > 0 the launcher refuses to start the matrix and exits
-      with HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE.
+  G3 FIXTURE READINESS GATE
+    * While the fixture package is not applied and verified the launcher refuses
+      to start the matrix and exits with
+      HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED — before psql.
 #>
 
 [CmdletBinding()]
@@ -171,25 +172,32 @@ $allCases = Get-ChildItem -Path (Join-Path $generated 'cases') -Filter 'case-*.s
 $blockedCases = @($allCases | Where-Object { $_.Name -like '*.BLOCKED.sql' })
 $caseCount = $allCases.Count
 if ($caseCount -ne 267) { throw "CASE_COUNT_DRIFT: $caseCount" }
-# REMEDIATION-12 G1: 19 illegal-action cases on pending steps + 3 transfer-scope
-# cases are rendered but never executed.
-if ($blockedCases.Count -ne 22) { throw "BLOCKED_CASE_COUNT_DRIFT: $($blockedCases.Count)" }
+# RECONCILIATION-17: blocked rendering is abolished. Every one of the 267 cases
+# is an executable SQL case bound to a deterministic ACTIVE fixture step; a
+# rendered BLOCKED file is package drift, not a case class.
+if ($blockedCases.Count -ne 0) { throw "BLOCKED_CASE_FILES_RENDERED: $($blockedCases.Count)" }
 $executableCount = $caseCount - $blockedCases.Count
-if ($executableCount -ne 245) { throw "EXECUTABLE_CASE_COUNT_DRIFT: $executableCount" }
+if ($executableCount -ne 267) { throw "EXECUTABLE_CASE_COUNT_DRIFT: $executableCount" }
 $masterIncludes = (Select-String -Path (Join-Path $generated 'master-negative-matrix.sql') -Pattern '\\ir cases/').Count
-if ($masterIncludes -ne 245) { throw "MASTER_INCLUDE_COUNT_DRIFT: $masterIncludes" }
+if ($masterIncludes -ne 267) { throw "MASTER_INCLUDE_COUNT_DRIFT: $masterIncludes" }
 if (Select-String -Path (Join-Path $generated 'master-negative-matrix.sql') -Pattern 'BLOCKED\.sql') {
   throw 'BLOCKED_CASE_INCLUDED_IN_MASTER'
 }
 
 # ---------------------------------------------------------------------------
-# 2b. REMEDIATION-12 G3 - ACTIVE FIXTURE GATE
-#     The matrix must not start, and PASS must never be printed, while any case
-#     is BLOCKED_PENDING_ACTIVE_FIXTURE. This is checked BEFORE psql is invoked.
+# 2b. RECONCILIATION-17 - FIXTURE READINESS GATE (fail-closed, before psql)
+#     Source contract and runtime readiness are separate: all 267 cases are
+#     executable SQL, but the matrix may not start until the fixture package is
+#     applied and verified. FIXTURE_PACKAGE_NOT_APPLIED stops the run here —
+#     without reducing the executable case count.
 # ---------------------------------------------------------------------------
-if ($blockedCases.Count -gt 0) {
-  Write-Host "blocked cases: $($blockedCases.Count) (BLOCKED_PENDING_ACTIVE_FIXTURE)"
-  Write-Host 'RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE'
+$readiness = $manifest.matrix.readiness
+if ($null -eq $readiness -or [string]::IsNullOrWhiteSpace([string]$readiness.status)) {
+  throw 'FIXTURE_READINESS_STATUS_MISSING'
+}
+if ($readiness.status -ne 'FIXTURE_PACKAGE_APPLIED_AND_VERIFIED') {
+  Write-Host "fixture readiness: $($readiness.status) (267/267 executable source contract unchanged)"
+  Write-Host 'RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED'
   exit 2
 }
 
@@ -232,14 +240,14 @@ Set-Content -Path $logPath -Value $redacted -Encoding UTF8
 $pass = ([regex]::Matches($redacted, 'CASE_PASS')).Count
 $fail = ([regex]::Matches($redacted, 'CASE_FAIL|PREFLIGHT_FAIL|POST_RUN_FAIL|CASE_STATE_DRIFT')).Count
 
-Write-Host "cases passed: $pass / 245 executable (0 blocked required for PASS)"
+Write-Host "cases passed: $pass / 267 executable (0 blocked; fixture gate passed)"
 Write-Host "failures    : $fail"
 Write-Host "report      : $logPath"
 
-if ($exit -ne 0 -or $fail -gt 0 -or $pass -ne 245 -or $blockedCases.Count -gt 0) {
+if ($exit -ne 0 -or $fail -gt 0 -or $pass -ne 267 -or $blockedCases.Count -gt 0) {
   Write-Host 'RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX'
   exit 1
 }
 
-Write-Host 'RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_245_DENY_ZERO_MUTATION_0_BLOCKED'
+Write-Host 'RESULT: PASS_B1_NEGATIVE_RPC_MATRIX_267_DENY_ZERO_MUTATION_0_BLOCKED'
 exit 0

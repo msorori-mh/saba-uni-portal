@@ -28,7 +28,7 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "fd4e35057cb507924f71e1f71c6326653744b0cc26b7055f77d358080868e115";
+export const MATRIX_SHA256_LF = "5c76faffd33ccd9ed57ffc7d5a93f3217feea48cf33170414a4f06b07c5c7e46";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
 /** REMEDIATION-15 G5: every case whose contract sits behind the active-step
  *  gate is now bound to a deterministic ACTIVE Fixture-13 runtime step, so the
@@ -36,10 +36,6 @@ export const EXPECTED_NEGATIVE_TOTAL = 267;
  *  render output: it aborts the render instead of producing a .BLOCKED.sql. */
 export const EXPECTED_EXECUTABLE_TOTAL = 267;
 export const EXPECTED_BLOCKED_TOTAL = 0;
-export const BLOCKED_TOKEN = "BLOCKED_PENDING_ACTIVE_FIXTURE";
-/** Backwards-compatible alias: the single canonical blocked token. */
-export const TRANSFER_SCOPE_BLOCKED_TOKEN = BLOCKED_TOKEN;
-export const BLOCKED_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE";
 /** Fixture package that supplies the 19 ACTIVE TEST_ONLY steps. */
 export const FIXTURE_PACKAGE_ID = "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13";
 export const FIXTURE_MARKER = "TEST_ONLY_B1_FIXTURE_13";
@@ -344,29 +340,6 @@ export function requiresActiveFixture(nc: NegativeCase): boolean {
 
 export function isBlockedCase(nc: NegativeCase, pin: StepStatePin): boolean {
   return requiresActiveFixture(nc) && pin.runtime_status !== "active";
-}
-
-/** Deprecated name kept for compatibility with earlier remediation rounds. */
-export const isBlockedScopeCase = isBlockedCase;
-
-export function renderBlockedCase(ordinal: number, nc: NegativeCase): string {
-  const id = String(ordinal).padStart(4, "0");
-  return `-- ============================================================================
--- case-${id} — NOT EXECUTED
-${comment("class", nc.case)}
-${comment("request_number", nc.request_number)}
-${comment("step_key", nc.step_key)}
-${comment("execution_status", BLOCKED_TOKEN)}
-${comment("blocked_reason", nc.blocked_reason ?? "target step is not active")}
--- This case can NEVER be reported as PASS while it is blocked.
--- This file is excluded from master-negative-matrix.sql. Running it raises.
--- ============================================================================
-DO $blocked$
-BEGIN
-  RAISE EXCEPTION 'CASE_${BLOCKED_TOKEN} case-${id} ${nc.case}: ${BLOCKED_HOLD_TOKEN}';
-END
-$blocked$;
-`;
 }
 
 function renderCase(
@@ -754,7 +727,7 @@ ROLLBACK;
 `;
 }
 
-function renderPins(manifest: any, fingerprintExpr: string, blockedTotal: number, executableTotal: number): string {
+function renderPins(manifest: any, fingerprintExpr: string, executableTotal: number): string {
   const fn = manifest.function_graph.functions as any[];
   const trg = manifest.migration_29_triggers as any[];
   const m29 = new Set<string>(manifest.migration_29_functions);
@@ -806,9 +779,11 @@ INSERT INTO b1_pin_scalar(key, value) VALUES
   ('baseline_migration_head', ${sqlText(manifest.authoritative_baseline.migration_head)}),
   ('baseline_reviewed_package_sha', ${sqlText(manifest.authoritative_baseline.reviewed_package_sha)}),
   ('baseline_artifact_path', ${sqlText(manifest.authoritative_baseline.artifact_path)}),
-  ('blocked_case_total', ${sqlText(String(blockedTotal))}),
   ('executable_case_total', ${sqlText(String(executableTotal))}),
-  ('blocked_hold_token', ${sqlText(BLOCKED_HOLD_TOKEN)});
+  ('fixture_package_id', ${sqlText(FIXTURE_PACKAGE_ID)}),
+  ('fixture_marker', ${sqlText(FIXTURE_MARKER)}),
+  ('fixture_hold_token', ${sqlText(FIXTURE_HOLD_TOKEN)}),
+  ('fixture_readiness_status', ${sqlText(manifest.matrix?.readiness?.status ?? "FIXTURE_PACKAGE_NOT_APPLIED")});
 
 CREATE TEMP TABLE b1_pin_function(
   signature text primary key,
@@ -900,8 +875,9 @@ function renderMaster(executable: string[], total: number): string {
   return `-- GENERATED master script (G9). ONE psql process executes the whole run.
 -- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
 -- MATRIX total = ${total}; blocked and excluded = ${total - count} (must be 0).
--- Blocked rendering is abolished: an unbound case aborts the render with
--- ${FIXTURE_HOLD_TOKEN}, and the preflight halts the run with ${BLOCKED_HOLD_TOKEN}.
+-- Blocked rendering is abolished: an unbound case aborts the render, and a
+-- fixture package that is not applied halts the run inside the preflight with
+-- ${FIXTURE_HOLD_TOKEN} before any case executes.
 -- ON_ERROR_STOP aborts the entire run at the first failure. No COMMIT anywhere.
 \\set ON_ERROR_STOP on
 \\timing off
@@ -938,6 +914,27 @@ export function main(): void {
   }
 
   if (manifest.matrix?.sha256_lf !== MATRIX_SHA256_LF) throw new Error("MANIFEST_MATRIX_SHA_MISMATCH");
+  // RECONCILIATION-17: the manifest must carry the reconciled 267/267/0 source
+  // contract, the fixture rebind pin and the readiness status, and must agree
+  // with MATRIX.json. Absent or disagreeing pins abort the render fail-closed.
+  if (manifest.matrix?.negative_total !== EXPECTED_NEGATIVE_TOTAL) throw new Error("MANIFEST_MATRIX_COUNT_MISMATCH");
+  if (manifest.matrix?.executable_negative_total !== EXPECTED_EXECUTABLE_TOTAL) {
+    throw new Error("MANIFEST_EXECUTABLE_COUNT_MISMATCH");
+  }
+  if (manifest.matrix?.blocked_negative_total !== EXPECTED_BLOCKED_TOTAL) {
+    throw new Error("MANIFEST_BLOCKED_COUNT_MISMATCH");
+  }
+  if (manifest.matrix?.fixture_rebind?.rebound_cases !== 22 || matrix.fixture_rebind?.rebound_cases !== 22) {
+    throw new Error("FIXTURE_REBIND_PIN_MISSING");
+  }
+  const readinessStatus = manifest.matrix?.readiness?.status;
+  if (readinessStatus !== "FIXTURE_PACKAGE_NOT_APPLIED" && readinessStatus !== "FIXTURE_PACKAGE_APPLIED_AND_VERIFIED") {
+    throw new Error("FIXTURE_READINESS_STATUS_MISSING");
+  }
+  if (matrix.counts?.executable_negative_total !== EXPECTED_EXECUTABLE_TOTAL) {
+    throw new Error("MATRIX_EXECUTABLE_TOTAL_FIELD_MISMATCH");
+  }
+  if (matrix.counts?.execution_blocked !== EXPECTED_BLOCKED_TOTAL) throw new Error("MATRIX_BLOCKED_FIELD_MISMATCH");
   for (const f of manifest.function_graph.functions as Array<{ signature: string; definition_sha256: string }>) {
     if (!/^[0-9a-f]{64}$/u.test(f.definition_sha256 ?? "")) {
       throw new Error(`FUNCTION_GRAPH_UNPINNED: ${f.signature}`);
@@ -1006,7 +1003,7 @@ export function main(): void {
     throw new Error("MATRIX_PARTITION_DRIFT");
   }
 
-  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr, blocked.length, executable.length), "utf8");
+  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr, executable.length), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(executable, negatives.length), "utf8");
   writeFileSync(
@@ -1018,11 +1015,13 @@ export function main(): void {
         negative_total: negatives.length,
         executable_negative_total: executable.length,
         blocked_negative_total: blocked.length,
-        blocked_reason: blocked.length ? BLOCKED_TOKEN : null,
+        blocked_reason: null,
         blocked_files: blocked,
         blocked_by_class: blockedByClass,
-        final_pass_allowed: blocked.length === 0,
-        hold_token_when_blocked: BLOCKED_HOLD_TOKEN,
+        rebound_cases: 22,
+        fixture_package_id: FIXTURE_PACKAGE_ID,
+        fixture_readiness: readinessStatus,
+        readiness_hold_token: FIXTURE_HOLD_TOKEN,
         positive_rendered: 0,
         commits: 0,
         files: ["pins.sql", "fingerprint-check.sql", "master-negative-matrix.sql", ...files],
