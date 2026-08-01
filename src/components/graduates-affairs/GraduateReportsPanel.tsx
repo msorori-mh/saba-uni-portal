@@ -73,7 +73,8 @@ export function GraduateReportsPanel(props: {
             إجمالي الردود:{" "}
             {report.totalResponses.suppressed ? "محجوب" : report.totalResponses.total}
           </p>
-          <table className="mt-1 w-full text-sm" aria-label={`نتائج مجمعة — ${title}`}>
+          <div className="overflow-x-auto">
+            <table className="mt-1 w-full text-sm" aria-label={`نتائج مجمعة — ${title}`}>
             <thead>
               <tr>
                 <th scope="col">السؤال</th>
@@ -101,6 +102,7 @@ export function GraduateReportsPanel(props: {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
     </section>
