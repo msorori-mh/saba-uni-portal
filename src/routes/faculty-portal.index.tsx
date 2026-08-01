@@ -243,6 +243,24 @@ function FacultyDashboard() {
             </Link>
 
             <Link
+              to="/faculty-portal/graduation-projects"
+              className="mt-3 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+              data-testid="faculty-graduation-projects-card"
+            >
+              <div className="flex items-center gap-3">
+                <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+                  <GraduationCap className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-primary">مشاريع التخرج</div>
+                  <div className="text-xs text-muted-foreground">
+                    المشاريع المسندة إليك للإشراف أو عضوية اللجنة أو التنسيق.
+                  </div>
+                </div>
+              </div>
+            </Link>
+
+            <Link
               to="/faculty-portal/academic-councils"
               className="mt-3 block rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >

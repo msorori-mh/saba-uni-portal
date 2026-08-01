@@ -41,7 +41,7 @@ describe("lifecycle action matrix mirrors SQL preconditions", () => {
     expect(availableProjectActions(["supervisor"], "under_review")).toEqual([]);
     expect(availableProjectActions(["supervisor"], "evaluating")).toEqual(["add_note"]);
     expect(availableProjectActions(["coordinator"], "evaluating").sort()).toEqual(["create_project", "end_assignment", "view_reports"].sort());
-    expect(availableProjectActions(["panel_member"], "evaluating")).toEqual(["save_evaluation"]);
+    expect(availableProjectActions(["panel_member"], "evaluating").sort()).toEqual(["finalize_evaluation", "save_evaluation"].sort());
     expect(availableProjectActions(["panel_member"], "active")).toEqual([]);
   });
 
