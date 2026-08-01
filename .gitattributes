@@ -20,3 +20,5 @@ tests/graduation-projects/*.sql text eol=lf
 tests/graduation-projects/pg17/*.sql text eol=lf
 tests/graduation-projects/audit-05/*.sql text eol=lf
 tests/graduation-projects/audit-05/*.sh text eol=lf
+tests/graduation-projects/audit-06/*.sql text eol=lf
+tests/graduation-projects/audit-06/*.sh text eol=lf

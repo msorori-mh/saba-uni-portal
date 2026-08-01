@@ -37,9 +37,11 @@ select pg_temp.chk('definer-search-path',
   'definer function without pinned search_path');
 
 -- 4. No SECURITY DEFINER GP function outside the documented inventory.
+-- Cap history: 45 = M1..M8; 46 = M9 audit-remediation-06 adds the internal
+-- (SECURITY INVOKER, revoked) graduation_project_assignment_rank helper.
 select pg_temp.chk('function-inventory',
   (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-    where n.nspname='public' and p.proname like '%graduation_project%') <= 45,
+    where n.nspname='public' and p.proname like '%graduation_project%') <= 46,
   'unexpected function count');
 
 -- 5. Grant surface: anon has zero GP function executes; authenticated only the documented set.
@@ -118,10 +120,12 @@ select pg_temp.chk('role-enum-shape',
   'role enum drift');
 
 -- 10. Co-supervisor carries no write whitelist (read-only by contract).
+-- Cap history: 6 = M1..M8; 7 = M9's end_graduation_project_assignment
+-- replacement mentions supervisor/co_supervisor in its F-1 rank comment.
 select pg_temp.chk('co-supervisor-read-only',
   (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and p.proname like '%graduation_project%' and p.prosecdef
-      and p.prosrc like '%co_supervisor%') <= 6,
+      and p.prosrc like '%co_supervisor%') <= 7,
   'co_supervisor whitelist drift');
 
 table gp_audit order by 1;
