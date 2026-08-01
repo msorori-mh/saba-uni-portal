@@ -492,22 +492,31 @@
     }
   },
   "authoritative_baseline": {
-    "status": "PENDING",
-    "execution_authorized": false,
+    "status": "PINNED",
+    "execution_authorized": true,
     "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
-    "artifact_sha256": "242d1080cbc10e08b62dc7a83f45b71bb09a530c9d1e236b6d5254bd6addef28",
-    "fingerprint": null,
+    "artifact_sha256": "2e52a3edf5b6f11091df023e6468fea3b5517408a9cf86a1a677243575a9328e",
+    "fingerprint": "4c95c6a344cee2f52ade4a5312bd8240",
     "generated_by": "Lovable read-only channel, immediately before the operator run",
-    "valid_for_minutes": null,
-    "reviewed_package_sha": null,
-    "migration_head": null,
-    "expected_migration_head": "20260731203030",
-    "scope": [],
+    "valid_for_minutes": 120,
+    "reviewed_package_sha": "0bc2e27f8c3985b8a35c2f1a19ed39955cb5007e",
+    "migration_head": "20260801021541",
+    "expected_migration_head": "20260801021541",
+    "scope": [
+      "SR-20260713-2DE64041",
+      "SR-20260715-FEDCB3E1",
+      "SR-20260716-26BAD4C8",
+      "SR-20260727-3C550070",
+      "SR-20260727-42393846",
+      "SR-20260727-50BEDCE2",
+      "SR-20260727-695EC35B",
+      "SR-20260727-88D885F0"
+    ],
     "operator_preflight_executed": false,
     "negative_cases_executed": 0,
     "contains_secrets": false,
     "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
-    "captured_at_utc": null,
+    "captured_at_utc": "2026-08-01T23:33:44Z",
     "invalidation_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-STALE-BASELINE-INVALIDATION-09",
     "fail_closed_rules": [
       "status != PINNED",
@@ -535,7 +544,8 @@
         "invalidated_after_migration": "20260731203030",
         "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-AUTHORITATIVE-BASELINE-CAPTURE-60"
       }
-    ]
+    ],
+    "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-POST-FIXTURE-AUTHORITATIVE-BASELINE-CAPTURE-22-RERUN-25"
   },
   "protected_records": [
     "SR-20260713-2DE64041",
