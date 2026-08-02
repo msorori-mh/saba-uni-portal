@@ -1,8 +1,9 @@
 # B1 First Delivery Enrollment Certificate Regression Package 27
 
-> **Mode**: SOURCE-ONLY Protected Regression Harness  
-> **Baseline Commit**: `87449f85b95d927436e7607ae3c2b6a73245eb0d`  
-> **Protected Service**: `enrollment_certificate` (إثبات قيد)  
+> **Mode**: SOURCE-ONLY Protected Regression Harness
+> **Baseline Commit**: `d35612906b2d3ad4d059623b02e5862aa42ab9db`
+> **Migration Head**: `20260801021541`
+> **Protected Service**: `enrollment_certificate` (إثبات قيد)
 > **Regression Status**: PASS_ENROLLMENT_CERTIFICATE_REGRESSION_READY
 
 ---
@@ -49,9 +50,9 @@ The following 5 specific records are pinned and continuously audited against bas
 ```sql
 -- Read-Only Regression Audit Proof Snippet
 BEGIN READ ONLY;
-SELECT 
-  (SELECT count(*) FROM student_request_types WHERE code = 'enrollment_certificate' AND student_visible = true) = 1 AS is_visible,
-  (SELECT count(*) FROM student_requests WHERE request_type_id = (SELECT id FROM student_request_types WHERE code = 'enrollment_certificate')) = 4 AS requests_count,
+SELECT
+  (SELECT count(*) FROM request_types WHERE code = 'enrollment_certificate' AND student_visible = true) = 1 AS is_visible,
+  (SELECT count(*) FROM student_requests WHERE request_type_id = (SELECT id FROM request_types WHERE code = 'enrollment_certificate')) = 4 AS requests_count,
   (SELECT count(*) FROM official_documents WHERE service_code = 'enrollment_certificate') = 2 AS documents_count;
 ROLLBACK;
 ```

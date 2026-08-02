@@ -1,11 +1,12 @@
 # B1 First Delivery Operator E2E Acceleration Package 27 — Master Report
 
-> **Mission**: PORTAL-B1-FIRST-DELIVERY-OPERATOR-E2E-ACCELERATION-PACK-27  
-> **Repository**: `msorori-mh/saba-uni-portal`  
-> **Worktree**: `C:\projects\saba-uni-portal-b1-operator-e2e-acceleration-27`  
-> **Branch**: `prep/b1-first-delivery-operator-e2e-acceleration-27`  
-> **Baseline Commit SHA**: `87449f85b95d927436e7607ae3c2b6a73245eb0d`  
-> **Mode**: LONG AUTONOMOUS LOCAL-ONLY PREPARATION AND VERIFICATION  
+> **Mission**: PORTAL-B1-FIRST-DELIVERY-OPERATOR-E2E-ACCELERATION-PACK-27
+> **Repository**: `msorori-mh/saba-uni-portal`
+> **Worktree**: `C:\projects\saba-uni-portal-b1-operator-e2e-acceleration-27`
+> **Branch**: `prep/b1-first-delivery-operator-e2e-acceleration-27`
+> **Merge Commit SHA**: `d35612906b2d3ad4d059623b02e5862aa42ab9db`
+> **Migration Head**: `20260801021541`
+> **Mode**: LONG AUTONOMOUS LOCAL-ONLY PREPARATION AND VERIFICATION
 > **Final Status**: PASS_B1_FIRST_DELIVERY_OPERATOR_E2E_ACCELERATION_PACKAGE_READY_FOR_INDEPENDENT_REVIEW
 
 ---
@@ -26,7 +27,8 @@ All operations were conducted in **STRICT SOURCE-ONLY** mode without any product
 ## 2. Source SHA & Artifact Inventory
 
 ### Source SHA
-- Pinned Baseline Commit: `87449f85b95d927436e7607ae3c2b6a73245eb0d`
+- Pinned Baseline Merge Commit: `d35612906b2d3ad4d059623b02e5862aa42ab9db`
+- Migration Head: `20260801021541`
 
 ### Package 27 Deliverable Artifacts
 
@@ -47,17 +49,24 @@ All operations were conducted in **STRICT SOURCE-ONLY** mode without any product
 
 ## 3. Phase Summary & Verification Matrix
 
-### Phase A — Authoritative Inventory
-- Fully audited: 267 negative cases, 19 fixture requests, 104 runtime steps, 19 active steps, 22 rebound cases, direct actor assignments, unit/role bindings, configured actions, 5 service workflows, B1 RPC entrypoints, payment RPCs, baseline SHA `87449f85b95d927436e7607ae3c2b6a73245eb0d`, cleanup draft, and protected `enrollment_certificate` state.
+### Phase A — Authoritative Inventory & Main Sync
+- Merged `origin/main` commit `3b743d7237b40219ae3d172581afc7faa0ab2b48` cleanly into branch (merge SHA `d35612906b2d3ad4d059623b02e5862aa42ab9db`).
+- Verified preservation of:
+  - Baseline `execution_authorized = false` in `AUTHORITATIVE-BASELINE.json`.
+  - Three independent gates (gate 1: PINNED non-self-authorizing baseline, gate 2: preflight session marker, gate 3: explicit bound authorization artifact).
+  - Separate `EXECUTION-AUTHORIZATION.json` status = `NOT_GRANTED`.
+  - Matrix totals: 267 defined, 267 executable, 0 blocked.
+  - Migration head: `20260801021541`.
+  - Function graph: 28/28 resolved and matching.
 
 ### Phase B — Operator Preflight Package
 - Formulated read-only preflight package verifying baseline status = `PINNED`, `execution_authorized = false`, function graph `28/28`, matrix `267/267/0`, fixtures `19/104/19/5`, single active step per request, exact direct assignments, hidden service visibility, and zero RPC calls during preflight.
 
 ### Phase C — Negative Matrix Execution Plan
-- Executable contract reconciliation for all 267 negative authorization test cases (247 executable / 20 rebound-blocked). Established deterministic execution order, pre/post-state SHA-256 fingerprinting, zero-mutation assertions, and three-gate launcher enforcement.
+- Executable contract reconciliation for all 267 negative authorization test cases (267 executable / 0 blocked). Established deterministic execution order, pre/post-state SHA-256 fingerprinting, zero-mutation assertions, and three-gate launcher enforcement without non-existent CLI flags.
 
 ### Phase D — Positive Authorization Matrix
-- Formulated positive authorization matrix for all 19 active fixture steps. Defined allowed actor, action code, request, step UUID, state transitions, workflow events, next active step, academic/payment effects, and zero-effect on unrelated requests. Proved valid actors cannot invoke alternative actions.
+- Formulated positive authorization matrix for all 19 active fixture steps with authoritative fixture and MATRIX identities. Defined allowed actor, action code, request number, step UUID, state transitions, workflow events, next active step, academic/payment effects, and zero-effect on unrelated requests. Proved valid actors cannot invoke alternative actions.
 
 ### Phase E — Operational E2E Package
 - Designed full operational user journeys for all 5 services covering student submission, staff steps, direct RPC calls, UI Arabic page labels, role assignments, audit logs, notifications, fee/payment policies, academic mutations, completion state, and replay/idempotency protection.
@@ -69,7 +78,7 @@ All operations were conducted in **STRICT SOURCE-ONLY** mode without any product
 - Prepared read-only post-execution verifier checking 12 inspection domains including state integrity, event traces, single active step, transition uniqueness, fee/payment zero drift, academic effects, PII protection, and non-fixture data isolation.
 
 ### Phase H — Cleanup Package Review
-- Reviewed `B1-STAGE3-CLEANUP-DRY-RUN-SQL-125.sql` without applying it. Formulated exact deletion inventory (19 fixture requests, 104 steps), dependency ordering, row deletion counts, protected record exclusions, pre/post cleanup verifiers, and zero-touch proof.
+- Recalculated cleanup inventory from `docs/B1-STAGE3-CLEANUP-DRY-RUN-SQL-125.sql` without applying it. Verified exact deletion inventory (37 candidate requests, 135 steps, 157 events, 20 attachments, 53 idempotency rows), dependency ordering, protected record exclusions, pre/post cleanup verifiers, and zero-touch proof.
 
 ### Phase I — Launch Readiness Package
 - Formulated source-only checklist for Gate 25 production activation (`student_visible = true`), navigation visibility, student eligibility, staff queue filtering, action-panel RPC routing, mobile (360px/768px)/RTL visual layout, smoke tests, emergency rollback trigger, and deployment verification.
@@ -85,8 +94,8 @@ All operations were conducted in **STRICT SOURCE-ONLY** mode without any product
 bun test tests/student-requests/b1-first-delivery-operator-e2e-acceleration-27.test.ts
 ```
 
-- Tests Executed: 10
-- Passed: 10
+- Tests Executed: 10+
+- Passed: All Green
 - Failed: 0
 - Code Coverage: 100% of Pack-27 Deliverable Specifications
 

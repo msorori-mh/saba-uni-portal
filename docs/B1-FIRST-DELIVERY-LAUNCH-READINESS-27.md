@@ -1,8 +1,9 @@
 # B1 First Delivery Launch Readiness Package 27
 
-> **Mode**: SOURCE-ONLY Launch Readiness Checklist (No Visibility Mutation / No Deployment)  
-> **Baseline Commit**: `87449f85b95d927436e7607ae3c2b6a73245eb0d`  
-> **Gate Target**: Gate 25 Production Activation  
+> **Mode**: SOURCE-ONLY Launch Readiness Checklist (No Visibility Mutation / No Deployment)
+> **Baseline Commit**: `d35612906b2d3ad4d059623b02e5862aa42ab9db`
+> **Migration Head**: `20260801021541`
+> **Gate Target**: Gate 25 Production Activation
 > **Readiness Status**: PASS_LAUNCH_READINESS_READY
 
 ---
@@ -52,7 +53,7 @@ The B1 student and staff UI components have been audited and verified for:
 ## 4. Emergency Rollback Trigger Protocol
 
 If any runtime anomaly or unauthorized access attempt is detected post-activation:
-1. **Trigger**: Execute `UPDATE student_request_types SET student_visible = false WHERE code IN ('enrollment_suspension','excused_absence','department_transfer','final_chance','file_withdrawal');`.
+1. **Trigger**: Execute `UPDATE request_types SET student_visible = false WHERE code IN ('enrollment_suspension','excused_absence','department_transfer','final_chance','file_withdrawal');`.
 2. **Impact**: Instantly hides all 5 services from Student Portal catalog. Existing submitted requests remain safely stored in DB for administrative review.
 3. **Zero Financial / Academic Side-Effects**: Rollback does not alter payment confirmation records or academic logs.
 

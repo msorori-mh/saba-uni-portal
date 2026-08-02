@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
@@ -56,8 +56,9 @@ describe("PORTAL-B1-FIRST-DELIVERY-OPERATOR-E2E-ACCELERATION-PACK-27 verificatio
     expect(content).toContain("19");
     expect(content).toContain("104");
     expect(content).toContain("28/28");
+    expect(content).toContain("20260801021541");
     expect(content).toContain("PINNED");
-    expect(content).toContain("execution_authorized");
+    expect(content).toContain("execution_authorized = false");
     expect(content).toContain("enrollment_certificate");
     expect(content).toContain("PASS_OPERATOR_PREFLIGHT_PACK_READY");
   });
@@ -67,28 +68,36 @@ describe("PORTAL-B1-FIRST-DELIVERY-OPERATOR-E2E-ACCELERATION-PACK-27 verificatio
       join(root, "docs/B1-FIRST-DELIVERY-NEGATIVE-MATRIX-EXECUTION-PLAN-27.md"),
       "utf8",
     );
-    expect(content).toContain("267");
+    expect(content).toContain("267 Executable");
+    expect(content).toContain("0 Blocked");
     expect(content).toContain("UNAUTHORIZED_STEP_ACTION");
     expect(content).toContain("STEP_ACTION_NOT_ALLOWED");
     expect(content).toContain("fingerprint");
+    expect(content).toContain("20260801021541");
     expect(content.toLowerCase()).toContain("zero-mutation");
     expect(content).toContain("PASS_NEGATIVE_MATRIX_EXECUTION_PLAN_READY");
   });
 
-  it("validates positive authorization matrix specifications", () => {
+  it("validates positive authorization matrix specifications with authoritative identities", () => {
     const content = readFileSync(
       join(root, "docs/B1-FIRST-DELIVERY-POSITIVE-AUTHORIZATION-MATRIX-27.md"),
       "utf8",
     );
     expect(content).toContain("19");
-    expect(content).toContain("head_dept_src");
-    expect(content).toContain("head_dept_tgt");
-    expect(content).toContain("dean_faculty");
-    expect(content).toContain("manager_student_affairs");
-    expect(content).toContain("officer_library");
-    expect(content).toContain("officer_labs");
-    expect(content).toContain("officer_activities");
-    expect(content).toContain("central_registrar");
+    expect(content).toContain("SR-20260727-88D885F0");
+    expect(content).toContain("SR-20260727-50BEDCE2");
+    expect(content).toContain("SR-20260727-695EC35B");
+    expect(content).toContain("SR-20260727-42393846");
+    expect(content).toContain("SR-20260727-3C550070");
+    expect(content).toContain("department_head");
+    expect(content).toContain("dean");
+    expect(content).toContain("student_affairs_manager");
+    expect(content).toContain("student_affairs_specialist");
+    expect(content).toContain("library_officer");
+    expect(content).toContain("labs_manager");
+    expect(content).toContain("revenue_finance_officer");
+    expect(content).toContain("registrar_general");
+    expect(content).toContain("archive_officer");
     expect(content).toContain("PASS_POSITIVE_AUTHORIZATION_MATRIX_READY");
   });
 
@@ -125,9 +134,15 @@ describe("PORTAL-B1-FIRST-DELIVERY-OPERATOR-E2E-ACCELERATION-PACK-27 verificatio
     expect(content).toContain("PASS_ENROLLMENT_CERTIFICATE_REGRESSION_READY");
   });
 
-  it("validates cleanup verification specifications", () => {
+  it("validates cleanup verification specifications matching Stage-3 SQL", () => {
     const content = readFileSync(join(root, "docs/B1-FIRST-DELIVERY-CLEANUP-VERIFICATION-27.md"), "utf8");
     expect(content).toContain("B1-STAGE3-CLEANUP-DRY-RUN-SQL-125.sql");
+    expect(content).toContain("37");
+    expect(content).toContain("135");
+    expect(content).toContain("157");
+    expect(content).toContain("20");
+    expect(content).toContain("848");
+    expect(content).toContain("33");
     expect(content).toContain("protected");
     expect(content).toContain("PASS_CLEANUP_VERIFICATION_READY");
   });
@@ -149,7 +164,83 @@ describe("PORTAL-B1-FIRST-DELIVERY-OPERATOR-E2E-ACCELERATION-PACK-27 verificatio
     expect(content).toContain(
       "PASS_B1_FIRST_DELIVERY_OPERATOR_E2E_ACCELERATION_PACKAGE_READY_FOR_INDEPENDENT_REVIEW",
     );
-    expect(content).toContain("87449f85b95d927436e7607ae3c2b6a73245eb0d");
+    expect(content).toContain("d35612906b2d3ad4d059623b02e5862aa42ab9db");
+    expect(content).toContain("20260801021541");
     expect(content).toContain("SOURCE-ONLY");
+  });
+
+  describe("Phase C Contract Drift Guards", () => {
+    it("asserts matrix totals in manifest match 267 defined / 267 executable / 0 blocked", () => {
+      const manifest = JSON.parse(
+        readFileSync(join(root, "scripts/b1-rpc-principal-harness-01/TARGET-MANIFEST.json"), "utf8"),
+      );
+      expect(manifest.matrix.negative_total).toBe(267);
+      expect(manifest.matrix.executable_negative_total).toBe(267);
+      expect(manifest.matrix.blocked_negative_total).toBe(0);
+    });
+
+    it("asserts migration head in manifest and baseline is 20260801021541", () => {
+      const manifest = JSON.parse(
+        readFileSync(join(root, "scripts/b1-rpc-principal-harness-01/TARGET-MANIFEST.json"), "utf8"),
+      );
+      const baseline = JSON.parse(
+        readFileSync(
+          join(root, "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json"),
+          "utf8",
+        ),
+      );
+      expect(manifest.authoritative_baseline.migration_head).toBe("20260801021541");
+      expect(baseline.migration_head).toBe("20260801021541");
+    });
+
+    it("asserts baseline authorization is strictly false in baseline artifact and manifest", () => {
+      const manifest = JSON.parse(
+        readFileSync(join(root, "scripts/b1-rpc-principal-harness-01/TARGET-MANIFEST.json"), "utf8"),
+      );
+      const baseline = JSON.parse(
+        readFileSync(
+          join(root, "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json"),
+          "utf8",
+        ),
+      );
+      expect(baseline.execution_authorized).toBe(false);
+      expect(manifest.authoritative_baseline.execution_authorized).toBe(false);
+    });
+
+    it("asserts execution authorization artifact is status NOT_GRANTED and false", () => {
+      const auth = JSON.parse(
+        readFileSync(
+          join(root, "scripts/b1-rpc-principal-harness-01/authorization/EXECUTION-AUTHORIZATION.json"),
+          "utf8",
+        ),
+      );
+      expect(auth.status).toBe("NOT_GRANTED");
+      expect(auth.execution_authorized).toBe(false);
+    });
+
+    it("fails if any synthetic positive identity or imaginary CLI flag appears in docs", () => {
+      const FORBIDDEN_TOKENS = [
+        "STEP-TRANSFER-01-SRC",
+        "head_dept_src",
+        "approve_source_dept",
+        "--authorize-execution",
+      ];
+      for (const docRel of DELIVERABLE_DOCS) {
+        const content = readFileSync(join(root, docRel), "utf8");
+        for (const token of FORBIDDEN_TOKENS) {
+          expect(content).not.toContain(token);
+        }
+      }
+    });
+
+    it("asserts cleanup SQL inventory matches Stage-3 SQL script", () => {
+      const cleanupSql = readFileSync(join(root, "docs/B1-STAGE3-CLEANUP-DRY-RUN-SQL-125.sql"), "utf8");
+      expect(cleanupSql).toContain("PRECHECK_CANDIDATE_COUNT % <> 37");
+      expect(cleanupSql).toContain("PRECHECK_STEPS % <> 135");
+      expect(cleanupSql).toContain("PRECHECK_EVENTS % <> 157");
+      expect(cleanupSql).toContain("PRECHECK_ATTACHMENTS % <> 20");
+      expect(cleanupSql).toContain("POSTCHECK_TOTAL_PROFILES % <> 848");
+      expect(cleanupSql).toContain("POSTCHECK_TOTAL_REQUESTS % <> 33");
+    });
   });
 });
