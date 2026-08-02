@@ -81,7 +81,8 @@ describe("B1-34 five-services terminal visibility minimal fix", () => {
     expect(fix).toBeTruthy();
     expect(fix!.localeCompare(`${PREDECESSOR_HEAD}_`) > 0).toBe(true);
     expect(files.filter((f) => f.startsWith(FIX_PREFIX))).toHaveLength(1);
-    expect(files[files.length - 1].startsWith(FIX_PREFIX)).toBe(true);
+    // Later forward-only migrations may exist (prod re-apply / fixture repairs).
+    // The contract is "no later true re-exposure", not "this file remains tip".
     expect(existsSync(fixMigrationPath())).toBe(true);
   });
 
@@ -139,7 +140,11 @@ describe("B1-34 five-services terminal visibility minimal fix", () => {
 
     const last = writes[writes.length - 1];
     expect(last.polarity).toBe("false");
-    expect(last.file.startsWith(FIX_PREFIX)).toBe(true);
+    // B1-34 must appear as a false writer; later false-only writers (e.g. the
+    // prod-applied 20260802225131 twin) are allowed as long as polarity stays false.
+    expect(
+      writes.some((w) => w.file.startsWith(FIX_PREFIX) && w.polarity === "false"),
+    ).toBe(true);
 
     // No migration after the fix may terminally re-expose the five.
     const fixIndex = files.findIndex((f) => f.startsWith(FIX_PREFIX));

@@ -7,7 +7,7 @@ const root = process.cwd();
 const migRel =
   "supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql";
 const migPath = join(root, migRel);
-const runPs1 = join(root, "scripts/b1-fixture-15-reissue-44-pg17/04-run.ps1");
+const runMjs = join(root, "scripts/b1-fixture-15-reissue-44-pg17/04-run.mjs");
 const matrixPath = join(
   root,
   "tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json"
@@ -85,16 +85,14 @@ describe("B1 Fixture-15 forward-only reissue 44 â€” source contract", () =>
 
 describe("B1 Fixture-15 forward-only reissue 44 â€” disposable PostgreSQL 17", () => {
   it("restores 19/19, preserves other fixtures/EC, idempotent, fail-closed", () => {
-    const res = spawnSync(
-      "powershell",
-      ["-NoProfile", "-File", runPs1],
-      {
-        cwd: root,
-        encoding: "utf8",
-        maxBuffer: 20 * 1024 * 1024,
-      }
-    );
-    const out = `${res.stdout || ""}\n${res.stderr || ""}`;
+    // Cross-platform Node harness (Web CI is Linux; PowerShell is Windows-only).
+    expect(existsSync(runMjs)).toBe(true);
+    const res = spawnSync(process.execPath, [runMjs], {
+      cwd: root,
+      encoding: "utf8",
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    const out = `${res.stdout || ""}\n${res.stderr || ""}${res.error ? `\n${res.error}` : ""}`;
     if (res.status !== 0) {
       throw new Error(`PG17 harness failed (status=${res.status}):\n${out}`);
     }
