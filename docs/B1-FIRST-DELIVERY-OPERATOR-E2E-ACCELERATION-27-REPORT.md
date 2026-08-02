@@ -96,7 +96,7 @@ bun test tests/student-requests/b1-first-delivery-operator-e2e-acceleration-27.t
 
 - **Git Status**: Clean working tree.
 - **Local/Remote Sync**: Pushed to remote branch `prep/b1-first-delivery-operator-e2e-acceleration-27`.
-- **Draft PR**: Opened Draft PR against `main`.
+- **Draft PR**: Opened Draft PR [#274](https://github.com/msorori-mh/saba-uni-portal/pull/274) against `main`.
 - **Production Impact**: **ABSOLUTELY ZERO (0)**. No production SQL applied, no credentials used, no RPCs executed, no deployment performed.
 
 ---
