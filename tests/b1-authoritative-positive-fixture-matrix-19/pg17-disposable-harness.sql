@@ -10,11 +10,12 @@
 --   5. Require wrong action to fail (raise exception)
 --   6. Verify workflow transition (executed step completed, next step active or terminal approved/completed)
 --   7. Verify workflow event added to student_request_workflow_events
---   8. Verify expected business effect (student profile department / academic status update on terminal steps)
---   9. Verify zero unrelated mutation
---  10. Prove exactly 19 RPC executions occurred
---  11. Prove enrollment_certificate remains untouched (4 requests, 2 details, 2 docs)
---  12. Transactional safety with BEGIN ... ROLLBACK
+--   8. Stale/replayed RPC is rejected (or documented idempotent) with no second event/effect/successor
+--   9. Verify expected business effect (student profile department / academic status update on terminal steps)
+--  10. Verify zero unrelated mutation (row identity + content fingerprints)
+--  11. Prove exactly 19 RPC executions occurred
+--  12. Prove enrollment_certificate fingerprint remains unchanged
+--  13. Transactional safety with BEGIN ... ROLLBACK
 -- ============================================================================
 
 BEGIN;
@@ -28,16 +29,126 @@ CREATE TEMP TABLE pg_temp.harness_results (
   wrong_action_failed boolean NOT NULL,
   exact_rpc_passed boolean NOT NULL,
   transition_verified boolean NOT NULL,
+  stale_replay_rejected boolean NOT NULL,
   business_effect_verified boolean NOT NULL,
   zero_unrelated_mutation boolean NOT NULL,
   overall_pass boolean NOT NULL
 );
 
+-- Content fingerprint of unrelated state (excludes the case request; academic
+-- fingerprint excludes the shared fixture student who may receive intentional effects).
+CREATE OR REPLACE FUNCTION pg_temp.unrelated_state_fingerprint(p_exclude_req uuid)
+RETURNS text
+LANGUAGE sql
+STABLE
+AS $fp$
+  SELECT md5(string_agg(rel || '=' || h, '|' ORDER BY rel))
+  FROM (
+    SELECT 'student_requests' AS rel,
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-') AS h
+      FROM (SELECT r.* FROM public.student_requests r WHERE r.id IS DISTINCT FROM p_exclude_req) t
+    UNION ALL
+    SELECT 'student_request_workflow_steps',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (
+        SELECT w.* FROM public.student_request_workflow_steps w
+         WHERE w.student_request_id IS DISTINCT FROM p_exclude_req
+      ) t
+    UNION ALL
+    SELECT 'student_request_workflow_events',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (
+        SELECT e.* FROM public.student_request_workflow_events e
+         WHERE e.student_request_id IS DISTINCT FROM p_exclude_req
+      ) t
+    UNION ALL
+    SELECT 'student_request_fee_assessments',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (SELECT f.* FROM public.student_request_fee_assessments f) t
+    UNION ALL
+    SELECT 'payment_receipts',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (SELECT p.* FROM public.payment_receipts p) t
+    UNION ALL
+    SELECT 'student_academic_status',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (
+        SELECT s.* FROM public.student_academic_status s
+         WHERE s.student_profile_id IS DISTINCT FROM 'b1e20002-0000-4000-8000-000000000002'::uuid
+      ) t
+    UNION ALL
+    SELECT 'student_enrollments',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (
+        SELECT en.* FROM public.student_enrollments en
+         WHERE en.student_profile_id IS DISTINCT FROM 'b1e20002-0000-4000-8000-000000000002'::uuid
+      ) t
+    UNION ALL
+    SELECT 'student_profiles_unrelated',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (
+        SELECT sp.* FROM public.student_profiles sp
+         WHERE sp.id IS DISTINCT FROM 'b1e20002-0000-4000-8000-000000000002'::uuid
+      ) t
+    UNION ALL
+    SELECT 'student_excused_absences_unrelated',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (
+        SELECT ea.* FROM public.student_excused_absences ea
+         WHERE ea.student_profile_id IS DISTINCT FROM 'b1e20002-0000-4000-8000-000000000002'::uuid
+      ) t
+    UNION ALL
+    SELECT 'student_extra_chances_unrelated',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (
+        SELECT xc.* FROM public.student_extra_chances xc
+         WHERE xc.student_profile_id IS DISTINCT FROM 'b1e20002-0000-4000-8000-000000000002'::uuid
+      ) t
+    UNION ALL
+    SELECT 'official_documents',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (SELECT d.* FROM public.official_documents d) t
+    UNION ALL
+    SELECT 'enrollment_certificate_document_details',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (SELECT ed.* FROM public.enrollment_certificate_document_details ed) t
+    UNION ALL
+    SELECT 'notifications',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (SELECT n.* FROM public.notifications n) t
+  ) s;
+$fp$;
+
+CREATE OR REPLACE FUNCTION pg_temp.enrollment_certificate_fingerprint()
+RETURNS text
+LANGUAGE sql
+STABLE
+AS $ec$
+  SELECT md5(string_agg(rel || '=' || h, '|' ORDER BY rel))
+  FROM (
+    SELECT 'ec_requests' AS rel,
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-') AS h
+      FROM (
+        SELECT r.* FROM public.student_requests r
+         WHERE r.request_type = 'enrollment_certificate'
+      ) t
+    UNION ALL
+    SELECT 'ec_details',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (SELECT ed.* FROM public.enrollment_certificate_document_details ed) t
+    UNION ALL
+    SELECT 'ec_docs',
+           count(*)::text || ':' || coalesce(md5(string_agg(t::text, '|' ORDER BY t::text)), '-')
+      FROM (SELECT d.* FROM public.official_documents d) t
+  ) s;
+$ec$;
+
 DO $disposable_real_rpc_harness$
 DECLARE
   v_wrong_actor CONSTANT uuid := '00000000-0000-4000-8000-0000000000ff';
   v_wrong_action CONSTANT text := 'invalid_alternative_action';
-  
+  v_fixture_student CONSTANT uuid := 'b1e20002-0000-4000-8000-000000000002';
+
   v_case record;
   v_req_id uuid;
   v_step_id uuid;
@@ -48,35 +159,41 @@ DECLARE
   v_terminal boolean;
 
   v_rpc_execution_count integer := 0;
-  v_unrelated_req_count integer;
-  v_unrelated_step_count integer;
   v_events_before integer;
   v_events_after integer;
-  
-  v_step_status_before text;
+  v_events_after_replay integer;
+  v_active_successor_before_replay integer;
+  v_active_successor_after_replay integer;
+
   v_step_status_after text;
-  v_req_status_before text;
   v_req_status_after text;
   v_next_step_ok boolean;
-  
+
   v_wrong_actor_ok boolean;
   v_wrong_action_ok boolean;
   v_exact_rpc_ok boolean;
   v_transition_ok boolean;
+  v_stale_replay_ok boolean;
   v_business_effect_ok boolean;
   v_zero_mutation_ok boolean;
   v_res jsonb;
+  v_res_replay jsonb;
+  v_replay_raised boolean;
+  v_replay_idempotent boolean;
 
   v_student_dept uuid;
+  v_student_dept_after_replay uuid;
   v_student_status text;
+  v_student_status_after_replay text;
+  v_fp_before text;
+  v_fp_after text;
+  v_ec_fp_baseline text;
+  v_ec_fp_after text;
   v_ec_req_count integer;
   v_ec_detail_count integer;
   v_ec_doc_count integer;
 BEGIN
-  -- 0. Baseline verification
-  SELECT count(*) INTO v_unrelated_req_count
-    FROM public.student_requests
-   WHERE request_number NOT LIKE 'SR-20260801-13%';
+  v_ec_fp_baseline := pg_temp.enrollment_certificate_fingerprint();
 
   FOR v_case IN
     SELECT * FROM (VALUES
@@ -108,6 +225,9 @@ BEGIN
     v_rpc := v_case.rpc;
     v_next_step := v_case.next_step;
     v_terminal := v_case.terminal;
+
+    -- Capture unrelated content fingerprint BEFORE any case mutations
+    v_fp_before := pg_temp.unrelated_state_fingerprint(v_req_id);
 
     -- ------------------------------------------------------------------------
     -- TEST 1: WRONG ACTOR MUST FAIL
@@ -191,49 +311,119 @@ BEGIN
     -- ------------------------------------------------------------------------
     v_business_effect_ok := true;
     IF v_case.idx = 5 THEN
-      SELECT department_id INTO v_student_dept FROM public.student_profiles WHERE id = 'b1e20002-0000-4000-8000-000000000002';
+      SELECT department_id INTO v_student_dept FROM public.student_profiles WHERE id = v_fixture_student;
       v_business_effect_ok := (v_student_dept = '11111111-1111-4111-8111-111111111111'::uuid);
     ELSIF v_case.idx = 7 THEN
-      SELECT enrollment_status INTO v_student_status FROM public.student_academic_status WHERE student_profile_id = 'b1e20002-0000-4000-8000-000000000002';
+      SELECT enrollment_status INTO v_student_status FROM public.student_academic_status WHERE student_profile_id = v_fixture_student;
       v_business_effect_ok := (v_student_status = 'suspended');
     END IF;
 
     -- ------------------------------------------------------------------------
-    -- TEST 6: ZERO UNRELATED MUTATION
+    -- TEST 6: STALE / REPLAYED RPC MUST NOT MUTATE AGAIN
     -- ------------------------------------------------------------------------
-    SELECT count(*) INTO v_unrelated_step_count
-      FROM public.student_requests
-     WHERE request_number NOT LIKE 'SR-20260801-13%';
-    v_zero_mutation_ok := (v_unrelated_step_count = v_unrelated_req_count);
+    SELECT count(*) INTO v_active_successor_before_replay
+      FROM public.student_request_workflow_steps
+     WHERE student_request_id = v_req_id
+       AND status = 'active';
+
+    IF v_case.idx = 5 THEN
+      SELECT department_id INTO v_student_dept FROM public.student_profiles WHERE id = v_fixture_student;
+    ELSIF v_case.idx = 7 THEN
+      SELECT enrollment_status INTO v_student_status FROM public.student_academic_status WHERE student_profile_id = v_fixture_student;
+    END IF;
+
+    v_replay_raised := false;
+    v_replay_idempotent := false;
+    v_res_replay := NULL;
+    BEGIN
+      IF v_rpc = 'act_on_b1_student_request_step_atomic' THEN
+        v_res_replay := public.act_on_b1_student_request_step_atomic(
+          v_step_id, v_action, 'Automated positive fixture test note', '{}'::jsonb
+        );
+      ELSE
+        v_res_replay := public.record_external_university_payment_confirmation(
+          v_step_id, 'REC-EXT-20260801-' || lpad(v_case.idx::text, 3, '0')
+        );
+      END IF;
+
+      -- Documented idempotent result: success payload without a fresh mutation.
+      -- Unexpected success that mutates is rejected by post-checks below.
+      IF v_res_replay IS NOT NULL
+         AND coalesce((v_res_replay->>'success')::boolean, false) = true
+         AND coalesce((v_res_replay->>'idempotent')::boolean, false) = true THEN
+        v_replay_idempotent := true;
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      v_replay_raised := true;
+    END;
+
+    SELECT count(*) INTO v_events_after_replay
+      FROM public.student_request_workflow_events
+     WHERE student_request_id = v_req_id;
+
+    SELECT count(*) INTO v_active_successor_after_replay
+      FROM public.student_request_workflow_steps
+     WHERE student_request_id = v_req_id
+       AND status = 'active';
+
+    v_stale_replay_ok := (v_replay_raised OR v_replay_idempotent)
+      AND (v_events_after_replay = v_events_after)
+      AND (v_active_successor_after_replay = v_active_successor_before_replay);
+
+    -- Replay must not succeed as a fresh authoritative transition
+    IF v_res_replay IS NOT NULL
+       AND coalesce((v_res_replay->>'success')::boolean, false) = true
+       AND coalesce((v_res_replay->>'idempotent')::boolean, false) IS DISTINCT FROM true THEN
+      v_stale_replay_ok := false;
+    END IF;
+
+    IF v_case.idx = 5 THEN
+      SELECT department_id INTO v_student_dept_after_replay FROM public.student_profiles WHERE id = v_fixture_student;
+      v_stale_replay_ok := v_stale_replay_ok AND (v_student_dept_after_replay IS NOT DISTINCT FROM v_student_dept);
+    ELSIF v_case.idx = 7 THEN
+      SELECT enrollment_status INTO v_student_status_after_replay
+        FROM public.student_academic_status WHERE student_profile_id = v_fixture_student;
+      v_stale_replay_ok := v_stale_replay_ok AND (v_student_status_after_replay IS NOT DISTINCT FROM v_student_status);
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- TEST 7: ZERO UNRELATED MUTATION (identity + content)
+    -- ------------------------------------------------------------------------
+    -- Reset intentional fixture-student business effects before unrelated compare
+    UPDATE public.student_profiles
+       SET department_id = 'ce485c67-5f7c-498d-b120-4b1130a86ae8',
+           status = 'active'
+     WHERE id = v_fixture_student;
+
+    UPDATE public.student_academic_status
+       SET enrollment_status = 'active'
+     WHERE student_profile_id = v_fixture_student;
+
+    v_fp_after := pg_temp.unrelated_state_fingerprint(v_req_id);
+    v_ec_fp_after := pg_temp.enrollment_certificate_fingerprint();
+    v_zero_mutation_ok := (v_fp_after IS NOT DISTINCT FROM v_fp_before)
+      AND (v_ec_fp_after IS NOT DISTINCT FROM v_ec_fp_baseline);
 
     INSERT INTO pg_temp.harness_results (
       case_index, request_number, step_code, rpc_name,
       wrong_actor_failed, wrong_action_failed, exact_rpc_passed,
-      transition_verified, business_effect_verified, zero_unrelated_mutation, overall_pass
+      transition_verified, stale_replay_rejected, business_effect_verified,
+      zero_unrelated_mutation, overall_pass
     ) VALUES (
       v_case.idx, v_case.req_num, v_case.step_code, v_rpc,
       v_wrong_actor_ok, v_wrong_action_ok, v_exact_rpc_ok,
-      v_transition_ok, v_business_effect_ok, v_zero_mutation_ok,
-      (v_wrong_actor_ok AND v_wrong_action_ok AND v_exact_rpc_ok AND v_transition_ok AND v_business_effect_ok AND v_zero_mutation_ok)
+      v_transition_ok, v_stale_replay_ok, v_business_effect_ok, v_zero_mutation_ok,
+      (v_wrong_actor_ok AND v_wrong_action_ok AND v_exact_rpc_ok AND v_transition_ok
+        AND v_stale_replay_ok AND v_business_effect_ok AND v_zero_mutation_ok)
     );
-
-    -- Reset student profile and academic status to active baseline after terminal effect cases
-    UPDATE public.student_profiles
-       SET department_id = 'ce485c67-5f7c-498d-b120-4b1130a86ae8',
-           status = 'active'
-     WHERE id = 'b1e20002-0000-4000-8000-000000000002';
-
-    UPDATE public.student_academic_status
-       SET enrollment_status = 'active'
-     WHERE student_profile_id = 'b1e20002-0000-4000-8000-000000000002';
   END LOOP;
 
-  -- 7. Verify exactly 19 RPC executions occurred
+  -- 8. Verify exactly 19 RPC executions occurred
   IF v_rpc_execution_count <> 19 THEN
     RAISE EXCEPTION 'DISPOSABLE_HARNESS_FAIL: RPC executions count = % (expected exactly 19)', v_rpc_execution_count;
   END IF;
 
-  -- 8. Verify enrollment_certificate remains untouched
+  -- 9. Verify enrollment_certificate remains untouched (counts + fingerprint)
   SELECT count(*) INTO v_ec_req_count FROM public.student_requests WHERE request_type = 'enrollment_certificate';
   SELECT count(*) INTO v_ec_detail_count FROM public.enrollment_certificate_document_details;
   SELECT count(*) INTO v_ec_doc_count FROM public.official_documents;
@@ -241,6 +431,10 @@ BEGIN
   IF v_ec_req_count <> 4 OR v_ec_detail_count <> 2 OR v_ec_doc_count <> 2 THEN
     RAISE EXCEPTION 'DISPOSABLE_HARNESS_FAIL: enrollment_certificate touched (reqs=%, details=%, docs=%)',
       v_ec_req_count, v_ec_detail_count, v_ec_doc_count;
+  END IF;
+
+  IF pg_temp.enrollment_certificate_fingerprint() IS DISTINCT FROM v_ec_fp_baseline THEN
+    RAISE EXCEPTION 'DISPOSABLE_HARNESS_FAIL: enrollment_certificate fingerprint drifted';
   END IF;
 END
 $disposable_real_rpc_harness$;
@@ -253,10 +447,10 @@ DECLARE
   v_rec record;
 BEGIN
   FOR v_rec IN SELECT * FROM pg_temp.harness_results ORDER BY case_index LOOP
-    RAISE NOTICE 'CASE % (%): wrong_actor=% wrong_action=% rpc=% trans=% biz=% zero_mut=% -> PASS=%',
+    RAISE NOTICE 'CASE % (%): wrong_actor=% wrong_action=% rpc=% trans=% stale=% biz=% zero_mut=% -> PASS=%',
       v_rec.case_index, v_rec.step_code, v_rec.wrong_actor_failed, v_rec.wrong_action_failed,
-      v_rec.exact_rpc_passed, v_rec.transition_verified, v_rec.business_effect_verified,
-      v_rec.zero_unrelated_mutation, v_rec.overall_pass;
+      v_rec.exact_rpc_passed, v_rec.transition_verified, v_rec.stale_replay_rejected,
+      v_rec.business_effect_verified, v_rec.zero_unrelated_mutation, v_rec.overall_pass;
   END LOOP;
 
   SELECT count(*), count(*) FILTER (WHERE overall_pass = true)
@@ -267,6 +461,7 @@ BEGIN
     RAISE EXCEPTION 'DISPOSABLE_HARNESS_FAIL: % of % cases passed (expected 19 of 19)', v_passed, v_total;
   ELSE
     RAISE NOTICE 'DISPOSABLE_HARNESS_PASS: All % of 19 authoritative positive fixture cases verified via REAL RPC executions!', v_passed;
+    RAISE NOTICE 'PASS_B1_PR277_REAL_PG17_RPC_HARNESS_19_OF_19';
   END IF;
 END
 $report$;
