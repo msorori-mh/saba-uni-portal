@@ -3,7 +3,8 @@
  *
  * Offline, source-only proofs that the expired authoritative baseline is
  * archived as historical evidence and that the canonical ACTIVE baseline is a
- * fail-closed PENDING placeholder.
+ * fail-closed PINNED capture that never authorizes execution by itself
+ * (REMEDIATION-26: execution_authorized = false).
  *
  * These tests never open a database connection, never call an RPC and never
  * execute a negative-matrix case.
@@ -68,7 +69,10 @@ function evaluateBaselineGate(input: {
   const deny = (reason: string) => ({ allowed: false, hold: HOLD, reason });
   if (input.artifact_path !== ACTIVE_REL) return deny("baseline path is not the canonical active path");
   if (input.status !== "PINNED") return deny("status != PINNED");
-  if (input.execution_authorized !== true) return deny("execution_authorized != true");
+  // REMEDIATION-26: a read-only capture must never authorize execution. A
+  // baseline carrying execution_authorized = true is contract drift and fails
+  // closed; execution authorization is a separate owner-approved gate.
+  if (input.execution_authorized !== false) return deny("baseline self-authorizes execution");
   if (!input.fingerprint) return deny("fingerprint is null");
   if (!input.captured_at_utc || input.valid_for_minutes == null) return deny("capture window missing");
   const now = input.now ?? new Date();
@@ -95,7 +99,7 @@ function evaluateBaselineGate(input: {
 const VALID = {
   artifact_path: ACTIVE_REL,
   status: "PINNED",
-  execution_authorized: true,
+  execution_authorized: false,
   fingerprint: "a".repeat(32),
   observed_fingerprint: "a".repeat(32),
   captured_at_utc: "2026-08-01T00:00:00Z",
@@ -179,7 +183,7 @@ describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () 
     expect(active.reviewed_package_sha).toMatch(/^[0-9a-f]{40}$/u);
     expect(active.migration_head).toBe(REQUIRED_HEAD);
     expect(active.scope).toHaveLength(8);
-    expect(active.execution_authorized).toBe(true);
+    expect(active.execution_authorized).toBe(false);
     expect(active.operator_preflight_executed).toBe(false);
     expect(active.negative_cases_executed).toBe(0);
     expect(active.contains_secrets).toBe(false);
@@ -192,7 +196,7 @@ describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () 
 
   it("the manifest mirrors the PINNED state and pins the artifact hash", () => {
     expect(baselineBlock.status).toBe("PINNED");
-    expect(baselineBlock.execution_authorized).toBe(true);
+    expect(baselineBlock.execution_authorized).toBe(false);
     expect(baselineBlock.fingerprint).toBe(active.fingerprint);
     expect(baselineBlock.artifact_path).toBe(ACTIVE_REL);
     expect(baselineBlock.artifact_sha256).toBe(sha256(activeRaw));
@@ -217,7 +221,7 @@ describe("G4: fail-closed validation rules", () => {
 
   const cases: Array<[string, Record<string, unknown>]> = [
     ["PENDING baseline blocks execution", { status: "PENDING", fingerprint: null }],
-    ["execution_authorized false blocks execution", { execution_authorized: false }],
+    ["a baseline that self-authorizes execution fails closed", { execution_authorized: true }],
     ["null fingerprint blocks execution", { fingerprint: null }],
     ["expired PINNED baseline blocks execution", { now: new Date("2026-08-01T05:00:00Z") }],
     ["wrong reviewed_package_sha blocks execution", { reviewed_package_sha: "c".repeat(40) }],
@@ -260,7 +264,7 @@ describe("G4: fail-closed validation rules", () => {
     expect(launcher).toContain(HOLD);
     for (const rule of [
       "status is",
-      "execution_authorized is not true",
+      "baseline self-authorizes execution",
       "fingerprint is null",
       "baseline is expired",
       "reviewed_package_sha differs from the exact execution SHA",
@@ -281,7 +285,7 @@ describe("G4: fail-closed validation rules", () => {
     expect(fingerprintCheck).toContain(HOLD);
     expect(pins).toContain("('baseline_status', 'PINNED')");
     expect(pins).toContain(`('baseline_fingerprint', '${active.fingerprint}')`);
-    expect(pins).toContain("('baseline_execution_authorized', 'true')");
+    expect(pins).toContain("('baseline_execution_authorized', 'false')");
   });
 
 });

@@ -8,8 +8,11 @@ NO_ROLE_CHANGE, NO_MIGRATION, NO_DEPLOY.**
 
 | File | Purpose | Runs |
 | --- | --- | --- |
-| `TARGET-MANIFEST.json` | the only source of endpoint, migration, trigger, function-graph and baseline pins | data |
-| `00-preflight.sql` | fail-closed session / target / privilege / baseline / catalog / function-graph preflight, read-only, ends in `ROLLBACK` | operator |
+| `TARGET-MANIFEST.json` | the only source of endpoint, migration, trigger, function-graph, baseline and execution-authorization pins | data |
+| `baseline/AUTHORITATIVE-BASELINE.json` | captured read-only production baseline (`PINNED`, fingerprinted, **never** self-authorizing) | data |
+| `authorization/EXECUTION-AUTHORIZATION.json` | separate owner-approved execution authorization (currently **NOT_GRANTED**) | data |
+| `00-preflight.sql` | fail-closed session / target / privilege / baseline / catalog / function-graph preflight, read-only, ends in `ROLLBACK` + gate-2 session marker | operator |
+| `01-execution-gate.sql` | fail-closed execution-authorization gate (gate 3): requires the gate-2 session marker AND the GRANTED, baseline-bound authorization artifact | operator |
 | `fingerprint.sql` | canonical complete-content fingerprint (count + full row content, **no LIMIT**) | operator |
 | `render-negative-cases.ts` | offline renderer: MATRIX.json + manifest → pins, 267 cases, master script | offline |
 | `run-negative-matrix.ps1` | Windows launcher: renders, then runs **one** psql process | operator |
@@ -81,9 +84,33 @@ least one policy on every scope relation — partial RLS fails.
 Row-count checks are not accepted as visibility proof. The preflight computes the
 complete-content fingerprint and compares it to the pinned
 `authoritative_baseline.fingerprint` produced out-of-band through the Lovable
-read-only channel. Status `PENDING` (the current state) fails closed with
+read-only channel. Status `PENDING` fails closed with
 `PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN` — the baseline must be generated
 and pinned in the manifest immediately before the run.
+
+## G5b — REMEDIATION-26: capture ≠ authorization (three fail-closed gates)
+
+A read-only baseline capture **never** authorizes execution. The gates are
+three independent states, and no single flag opens the run:
+
+1. **Baseline (gate 1).** `AUTHORITATIVE-BASELINE.json` is `PINNED` with a
+   non-null fingerprint, `operator_preflight_executed = false`,
+   `negative_cases_executed = 0` and **`execution_authorized = false`**. A
+   baseline (or manifest) carrying `execution_authorized = true` is contract
+   drift: the launcher and the preflight both fail closed on it.
+2. **Operator Preflight (gate 2).** `00-preflight.sql` is read-only, executes
+   no workflow RPC and never sets execution authorization. After its
+   `ROLLBACK` it sets the session marker `b1.operator_preflight_passed` —
+   reviewable evidence that gate 2 passed **in this session**, nothing more.
+3. **Execution authorization (gate 3).** `01-execution-gate.sql` runs in the
+   master script after the preflight and before `case-0001`. It requires the
+   gate-2 marker AND a separate owner-approved artifact
+   (`authorization/EXECUTION-AUTHORIZATION.json`) with `status = GRANTED`,
+   bound to the active baseline fingerprint, baseline artifact sha256 and
+   reviewed package SHA, inside its validity window. The launcher enforces the
+   same artifact before psql. The artifact is currently **NOT_GRANTED**, so
+   the 267 cases stay blocked with
+   `HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED`.
 
 ## G6 — real locking and state pinning
 
@@ -133,16 +160,18 @@ as a notice for review.
 ## G9 — single-psql master execution
 
 `generated/master-negative-matrix.sql` is executed by one `psql -W … -f` process:
-preflight → the 267 executable cases (`case-0001` … `case-0267`) → outside-transaction
-baseline check. Blocked rendering is abolished: every case is bound to a
-deterministic ACTIVE TEST_ONLY fixture step, and a fixture package that is not
-applied halts the run inside the preflight with
+preflight → execution authorization gate → the 267 executable cases
+(`case-0001` … `case-0267`) → outside-transaction baseline check. Blocked
+rendering is abolished: every case is bound to a deterministic ACTIVE TEST_ONLY
+fixture step, and a fixture package that is not applied halts the run inside
+the preflight with
 `HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED`. Each
 case is its own `BEGIN ISOLATION LEVEL SERIALIZABLE … ROLLBACK`. `ON_ERROR_STOP`
-aborts the entire run at the first `PREFLIGHT_FAIL`, `CASE_STATE_DRIFT`,
-`CASE_FAIL_ALLOWED`, `CASE_FAIL_MUTATION` or `POST_RUN_FAIL`. The session runs with
-`default_transaction_read_only=off` on purpose (see G1): read-only sessions must
-never mask an authorization bypass. Isolation comes from the ROLLBACK-only cases.
+aborts the entire run at the first `PREFLIGHT_FAIL`, `EXECUTION_GATE_FAIL`,
+`CASE_STATE_DRIFT`, `CASE_FAIL_ALLOWED`, `CASE_FAIL_MUTATION` or `POST_RUN_FAIL`.
+The session runs with `default_transaction_read_only=off` on purpose (see G1):
+read-only sessions must never mask an authorization bypass. Isolation comes
+from the ROLLBACK-only cases.
 
 ## Usage
 
