@@ -472,10 +472,19 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07",
     expect(all.every((c: any) => c.zero_mutation === true)).toBe(true);
   });
 
-  it("package: no COMMIT is emitted and the preflight ends in ROLLBACK", () => {
+  it("package: no COMMIT is emitted and the preflight ends in ROLLBACK plus the gate-2 session marker", () => {
     expect(renderer).not.toMatch(/\bCOMMIT;/u);
     expect(strip(preflight)).not.toMatch(/\bCOMMIT\b/u);
-    expect(preflight.trimEnd().endsWith("ROLLBACK;")).toBe(true);
+    // REMEDIATION-26: the ROLLBACK is followed by the gate-2 session marker,
+    // set AFTER the rollback so it survives as session state for
+    // 01-execution-gate.sql. The marker proves the preflight passed; it is not
+    // execution authorization.
+    expect(preflight).toContain("ROLLBACK;");
+    expect(
+      preflight
+        .trimEnd()
+        .endsWith("SELECT set_config('b1.operator_preflight_passed', 'true', false) AS operator_preflight_session_marker;"),
+    ).toBe(true);
     expect(renderer).toContain("ROLLBACK;");
     expect(launcher).toContain("FORBIDDEN_COMMIT_IN_RENDERED_CASES");
   });
@@ -730,7 +739,7 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-INDEPENDENT-REVIEW-RECONCILIATION-12", (
     expect(launcher).toContain("if ($masterIncludes -ne 267)");
     // the baseline and authorization gates also stop before psql
     expect(launcher.indexOf("Deny-Baseline \"status is")).toBeLessThan(launcher.indexOf("& psql "));
-    expect(launcher).toContain("execution_authorized is not true");
+    expect(launcher).toContain("baseline self-authorizes execution");
   });
 
   it("G3: the preflight halts on the fixture-state gate, so psql cannot bypass the launcher", () => {
@@ -1047,7 +1056,8 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
   it("13: the authoritative baseline is PINNED against the current production head", () => {
     const baseline = manifest.authoritative_baseline;
     expect(baseline.status).toBe("PINNED");
-    expect(baseline.execution_authorized).toBe(true);
+    // REMEDIATION-26: the PINNED baseline never authorizes execution by itself.
+    expect(baseline.execution_authorized).toBe(false);
     expect(baseline.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
     expect(baseline.captured_at_utc).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
     expect(baseline.valid_for_minutes).toBe(120);
@@ -1244,17 +1254,23 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-267-EXECUTABLE-CONTRACT-RECONCILIATION-1
   });
 
   it("execution stays gated: baseline gate and fixture gate both run before psql", () => {
-    // launcher order: baseline gate -> render -> fixture readiness gate -> psql
-    const baselineIdx = launcher.indexOf("baseline gate: PINNED, authorized, unexpired");
-    const fixtureIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
+    // launcher order: baseline gate -> render -> fixture readiness gate ->
+    // execution authorization gate -> psql
+    const baselineIdx = launcher.indexOf("baseline gate: PINNED, non-self-authorizing, unexpired");
+    const fixtureIdx = launcher.indexOf("RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED", baselineIdx);
+    const authIdx = launcher.indexOf("function Deny-Authorization", fixtureIdx);
     const psqlIdx = launcher.indexOf("& psql ");
     expect(baselineIdx).toBeGreaterThan(-1);
     expect(fixtureIdx).toBeGreaterThan(-1);
+    expect(authIdx).toBeGreaterThan(-1);
     expect(psqlIdx).toBeGreaterThan(-1);
     expect(baselineIdx).toBeLessThan(psqlIdx);
     expect(fixtureIdx).toBeLessThan(psqlIdx);
+    expect(authIdx).toBeLessThan(psqlIdx);
+    expect(launcher).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED");
     expect(manifest.authoritative_baseline.status).toBe("PINNED");
-    expect(manifest.authoritative_baseline.execution_authorized).toBe(true);
+    // REMEDIATION-26: the PINNED baseline never authorizes execution by itself.
+    expect(manifest.authoritative_baseline.execution_authorized).toBe(false);
     // the SQL preflight carries the same fail-closed gates
     expect(preflight).toContain("HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE");
     expect(preflight).toContain("HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED");
