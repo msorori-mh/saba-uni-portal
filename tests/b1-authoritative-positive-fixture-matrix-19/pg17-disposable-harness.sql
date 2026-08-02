@@ -1,32 +1,39 @@
 -- ============================================================================
 -- PORTAL-B1-AUTHORITATIVE-POSITIVE-FIXTURE-MATRIX-19-MINIMAL-36
--- DISPOSABLE POSTGRESQL 17 POSITIVE HARNESS
+-- DISPOSABLE POSTGRESQL 17 REAL RPC HARNESS
 --
 -- Proves for each of the 19 active TEST_ONLY fixture cases:
---   1. Exact assigned actor + exact configured action succeed.
---   2. Wrong actor fails.
---   3. Alternative (unauthorized) action fails.
---   4. Exactly one step transition occurs (active step -> completed; next step -> active or terminal approved).
---   5. Unrelated records do not mutate.
---   6. Transactional isolation via BEGIN; ... ROLLBACK; (zero persistent state change).
+--   1. Establish exact fixture principal / auth context (request.jwt.claim.sub & e_rpcmatrix.uid)
+--   2. Invoke exact declared RPC (act_on_b1_student_request_step_atomic or record_external_university_payment_confirmation)
+--   3. Require correct actor + action to succeed with success=true
+--   4. Require wrong actor to fail (raise exception)
+--   5. Require wrong action to fail (raise exception)
+--   6. Verify workflow transition (executed step completed, next step active or terminal approved/completed)
+--   7. Verify workflow event added to student_request_workflow_events
+--   8. Verify expected business effect (student profile department / academic status update on terminal steps)
+--   9. Verify zero unrelated mutation
+--  10. Prove exactly 19 RPC executions occurred
+--  11. Prove enrollment_certificate remains untouched (4 requests, 2 details, 2 docs)
+--  12. Transactional safety with BEGIN ... ROLLBACK
 -- ============================================================================
 
 BEGIN;
 
--- Setup temporary results collector
 CREATE TEMP TABLE pg_temp.harness_results (
   case_index integer PRIMARY KEY,
   request_number text NOT NULL,
   step_code text NOT NULL,
+  rpc_name text NOT NULL,
   wrong_actor_failed boolean NOT NULL,
   wrong_action_failed boolean NOT NULL,
-  exact_execution_passed boolean NOT NULL,
+  exact_rpc_passed boolean NOT NULL,
   transition_verified boolean NOT NULL,
+  business_effect_verified boolean NOT NULL,
   zero_unrelated_mutation boolean NOT NULL,
   overall_pass boolean NOT NULL
 );
 
-DO $disposable_harness$
+DO $disposable_real_rpc_harness$
 DECLARE
   v_wrong_actor CONSTANT uuid := '00000000-0000-4000-8000-0000000000ff';
   v_wrong_action CONSTANT text := 'invalid_alternative_action';
@@ -40,6 +47,7 @@ DECLARE
   v_next_step text;
   v_terminal boolean;
 
+  v_rpc_execution_count integer := 0;
   v_unrelated_req_count integer;
   v_unrelated_step_count integer;
   v_events_before integer;
@@ -49,15 +57,23 @@ DECLARE
   v_step_status_after text;
   v_req_status_before text;
   v_req_status_after text;
-  v_next_step_status text;
+  v_next_step_ok boolean;
   
   v_wrong_actor_ok boolean;
   v_wrong_action_ok boolean;
-  v_exact_exec_ok boolean;
+  v_exact_rpc_ok boolean;
   v_transition_ok boolean;
+  v_business_effect_ok boolean;
   v_zero_mutation_ok boolean;
+  v_res jsonb;
+
+  v_student_dept uuid;
+  v_student_status text;
+  v_ec_req_count integer;
+  v_ec_detail_count integer;
+  v_ec_doc_count integer;
 BEGIN
-  -- Verify baseline before running harness
+  -- 0. Baseline verification
   SELECT count(*) INTO v_unrelated_req_count
     FROM public.student_requests
    WHERE request_number NOT LIKE 'SR-20260801-13%';
@@ -93,47 +109,156 @@ BEGIN
     v_next_step := v_case.next_step;
     v_terminal := v_case.terminal;
 
-    -- 1. Wrong actor check: can_current_user_act_on_step or direct assertion
-    v_wrong_actor_ok := NOT public.can_user_act_on_step_b1(v_step_id, v_wrong_actor, v_action);
+    -- ------------------------------------------------------------------------
+    -- TEST 1: WRONG ACTOR MUST FAIL
+    -- ------------------------------------------------------------------------
+    v_wrong_actor_ok := false;
+    PERFORM set_config('request.jwt.claim.sub', v_wrong_actor::text, true);
+    PERFORM set_config('e_rpcmatrix.uid', v_wrong_actor::text, true);
+    BEGIN
+      IF v_rpc = 'act_on_b1_student_request_step_atomic' THEN
+        PERFORM public.act_on_b1_student_request_step_atomic(v_step_id, v_action, 'Wrong actor note', '{}'::jsonb);
+      ELSE
+        PERFORM public.record_external_university_payment_confirmation(v_step_id, 'REC-FAIL-WRONG-ACTOR');
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      v_wrong_actor_ok := true;
+    END;
 
-    -- 2. Wrong action check: can_user_act_on_step_b1 with invalid action
-    v_wrong_action_ok := NOT public.can_user_act_on_step_b1(v_step_id, v_actor_id, v_wrong_action);
+    -- ------------------------------------------------------------------------
+    -- TEST 2: WRONG ACTION MUST FAIL
+    -- ------------------------------------------------------------------------
+    v_wrong_action_ok := false;
+    PERFORM set_config('request.jwt.claim.sub', v_actor_id::text, true);
+    PERFORM set_config('e_rpcmatrix.uid', v_actor_id::text, true);
+    BEGIN
+      IF v_rpc = 'act_on_b1_student_request_step_atomic' THEN
+        PERFORM public.act_on_b1_student_request_step_atomic(v_step_id, v_wrong_action, 'Wrong action note', '{}'::jsonb);
+      ELSE
+        PERFORM public.record_external_university_payment_confirmation(v_step_id, 'a' || repeat('x', 2005));
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      v_wrong_action_ok := true;
+    END;
 
-    -- 3. Exact actor authorization check: can_user_act_on_step_b1 with exact actor + action
-    v_exact_exec_ok := public.can_user_act_on_step_b1(v_step_id, v_actor_id, v_action);
+    -- ------------------------------------------------------------------------
+    -- TEST 3: REAL RPC INVOCATION (RIGHT ACTOR + RIGHT ACTION)
+    -- ------------------------------------------------------------------------
+    PERFORM set_config('request.jwt.claim.sub', v_actor_id::text, true);
+    PERFORM set_config('e_rpcmatrix.uid', v_actor_id::text, true);
 
-    -- 4. Transition verification check
-    SELECT status INTO v_step_status_before FROM public.student_request_workflow_steps WHERE id = v_step_id;
-    SELECT status INTO v_req_status_before FROM public.student_requests WHERE id = v_req_id;
+    SELECT count(*) INTO v_events_before
+      FROM public.student_request_workflow_events
+     WHERE student_request_id = v_req_id;
 
-    v_transition_ok := (v_step_status_before = 'active' AND v_req_status_before = 'in_review');
+    v_exact_rpc_ok := false;
+    IF v_rpc = 'act_on_b1_student_request_step_atomic' THEN
+      v_res := public.act_on_b1_student_request_step_atomic(v_step_id, v_action, 'Automated positive fixture test note', '{}'::jsonb);
+      IF (v_res->>'success')::boolean = true THEN
+        v_exact_rpc_ok := true;
+        v_rpc_execution_count := v_rpc_execution_count + 1;
+      END IF;
+    ELSIF v_rpc = 'record_external_university_payment_confirmation' THEN
+      v_res := public.record_external_university_payment_confirmation(v_step_id, 'REC-EXT-20260801-' || lpad(v_case.idx::text, 3, '0'));
+      IF (v_res->>'success')::boolean = true THEN
+        v_exact_rpc_ok := true;
+        v_rpc_execution_count := v_rpc_execution_count + 1;
+      END IF;
+    END IF;
 
-    -- 5. Zero unrelated mutation check
+    -- ------------------------------------------------------------------------
+    -- TEST 4: VERIFY WORKFLOW TRANSITION & WORKFLOW EVENT
+    -- ------------------------------------------------------------------------
+    SELECT status INTO v_step_status_after FROM public.student_request_workflow_steps WHERE id = v_step_id;
+    SELECT status INTO v_req_status_after FROM public.student_requests WHERE id = v_req_id;
+    SELECT count(*) INTO v_events_after FROM public.student_request_workflow_events WHERE student_request_id = v_req_id;
+
+    v_transition_ok := (v_step_status_after = 'completed') AND (v_events_after >= v_events_before + 1);
+
+    IF v_terminal = false THEN
+      SELECT (count(*) = 1) INTO v_next_step_ok
+        FROM public.student_request_workflow_steps
+       WHERE student_request_id = v_req_id
+         AND step_key = v_next_step
+         AND status = 'active';
+      v_transition_ok := v_transition_ok AND v_next_step_ok AND (v_req_status_after = 'in_review');
+    ELSE
+      v_transition_ok := v_transition_ok AND (v_req_status_after IN ('approved', 'completed'));
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- TEST 5: VERIFY EXPECTED BUSINESS EFFECT ON TERMINAL STEPS
+    -- ------------------------------------------------------------------------
+    v_business_effect_ok := true;
+    IF v_case.idx = 5 THEN
+      SELECT department_id INTO v_student_dept FROM public.student_profiles WHERE id = 'b1e20002-0000-4000-8000-000000000002';
+      v_business_effect_ok := (v_student_dept = '11111111-1111-4111-8111-111111111111'::uuid);
+    ELSIF v_case.idx = 7 THEN
+      SELECT enrollment_status INTO v_student_status FROM public.student_academic_status WHERE student_profile_id = 'b1e20002-0000-4000-8000-000000000002';
+      v_business_effect_ok := (v_student_status = 'suspended');
+    END IF;
+
+    -- ------------------------------------------------------------------------
+    -- TEST 6: ZERO UNRELATED MUTATION
+    -- ------------------------------------------------------------------------
     SELECT count(*) INTO v_unrelated_step_count
       FROM public.student_requests
      WHERE request_number NOT LIKE 'SR-20260801-13%';
     v_zero_mutation_ok := (v_unrelated_step_count = v_unrelated_req_count);
 
     INSERT INTO pg_temp.harness_results (
-      case_index, request_number, step_code,
-      wrong_actor_failed, wrong_action_failed, exact_execution_passed,
-      transition_verified, zero_unrelated_mutation, overall_pass
+      case_index, request_number, step_code, rpc_name,
+      wrong_actor_failed, wrong_action_failed, exact_rpc_passed,
+      transition_verified, business_effect_verified, zero_unrelated_mutation, overall_pass
     ) VALUES (
-      v_case.idx, v_case.req_num, v_case.step_code,
-      v_wrong_actor_ok, v_wrong_action_ok, v_exact_exec_ok,
-      v_transition_ok, v_zero_mutation_ok,
-      (v_wrong_actor_ok AND v_wrong_action_ok AND v_exact_exec_ok AND v_transition_ok AND v_zero_mutation_ok)
+      v_case.idx, v_case.req_num, v_case.step_code, v_rpc,
+      v_wrong_actor_ok, v_wrong_action_ok, v_exact_rpc_ok,
+      v_transition_ok, v_business_effect_ok, v_zero_mutation_ok,
+      (v_wrong_actor_ok AND v_wrong_action_ok AND v_exact_rpc_ok AND v_transition_ok AND v_business_effect_ok AND v_zero_mutation_ok)
     );
+
+    -- Reset student profile and academic status to active baseline after terminal effect cases
+    UPDATE public.student_profiles
+       SET department_id = 'ce485c67-5f7c-498d-b120-4b1130a86ae8',
+           status = 'active'
+     WHERE id = 'b1e20002-0000-4000-8000-000000000002';
+
+    UPDATE public.student_academic_status
+       SET enrollment_status = 'active'
+     WHERE student_profile_id = 'b1e20002-0000-4000-8000-000000000002';
   END LOOP;
+
+  -- 7. Verify exactly 19 RPC executions occurred
+  IF v_rpc_execution_count <> 19 THEN
+    RAISE EXCEPTION 'DISPOSABLE_HARNESS_FAIL: RPC executions count = % (expected exactly 19)', v_rpc_execution_count;
+  END IF;
+
+  -- 8. Verify enrollment_certificate remains untouched
+  SELECT count(*) INTO v_ec_req_count FROM public.student_requests WHERE request_type = 'enrollment_certificate';
+  SELECT count(*) INTO v_ec_detail_count FROM public.enrollment_certificate_document_details;
+  SELECT count(*) INTO v_ec_doc_count FROM public.official_documents;
+
+  IF v_ec_req_count <> 4 OR v_ec_detail_count <> 2 OR v_ec_doc_count <> 2 THEN
+    RAISE EXCEPTION 'DISPOSABLE_HARNESS_FAIL: enrollment_certificate touched (reqs=%, details=%, docs=%)',
+      v_ec_req_count, v_ec_detail_count, v_ec_doc_count;
+  END IF;
 END
-$disposable_harness$;
+$disposable_real_rpc_harness$;
 
 -- Verification report: raise notice if all 19 passed
 DO $report$
 DECLARE
   v_total integer;
   v_passed integer;
+  v_rec record;
 BEGIN
+  FOR v_rec IN SELECT * FROM pg_temp.harness_results ORDER BY case_index LOOP
+    RAISE NOTICE 'CASE % (%): wrong_actor=% wrong_action=% rpc=% trans=% biz=% zero_mut=% -> PASS=%',
+      v_rec.case_index, v_rec.step_code, v_rec.wrong_actor_failed, v_rec.wrong_action_failed,
+      v_rec.exact_rpc_passed, v_rec.transition_verified, v_rec.business_effect_verified,
+      v_rec.zero_unrelated_mutation, v_rec.overall_pass;
+  END LOOP;
+
   SELECT count(*), count(*) FILTER (WHERE overall_pass = true)
     INTO v_total, v_passed
     FROM pg_temp.harness_results;
@@ -141,10 +266,9 @@ BEGIN
   IF v_passed <> 19 OR v_total <> 19 THEN
     RAISE EXCEPTION 'DISPOSABLE_HARNESS_FAIL: % of % cases passed (expected 19 of 19)', v_passed, v_total;
   ELSE
-    RAISE NOTICE 'DISPOSABLE_HARNESS_PASS: All % of 19 authoritative positive fixture cases verified!', v_passed;
+    RAISE NOTICE 'DISPOSABLE_HARNESS_PASS: All % of 19 authoritative positive fixture cases verified via REAL RPC executions!', v_passed;
   END IF;
 END
 $report$;
 
--- Always rollback so no persistent changes are made to database!
 ROLLBACK;
