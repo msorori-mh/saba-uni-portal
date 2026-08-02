@@ -60,7 +60,7 @@ or staging apply of the migration, Gate25 activation, deploy, or publish.
 
 ## Phase B — Nine required checks
 
-### 1. Migration after head `20260801021541`
+### 1. Migration after head `20260801021541` — forward-only and NOT_APPLIED
 
 **PASS.** Ordered `supabase/migrations` ends with:
 
@@ -69,6 +69,14 @@ or staging apply of the migration, Gate25 activation, deploy, or publish.
 
 `20260802070000` is lexicographically after `20260801021541`, and the source contract test
 asserts the fix is the sole last migration file.
+
+Forward-only / NOT_APPLIED posture:
+
+- Single new forward migration only (no rewrite/edit of prior applied migration files).
+- Review and PR #276 did **not** apply it to production or staging (`NOT_APPLIED` in every live
+  environment at review time).
+- Disposable PG17 harness applied it only inside an ephemeral Docker `postgres:17` container
+  that was destroyed after the run.
 
 ### 2. Targets exactly the five B1 service codes
 
@@ -164,10 +172,10 @@ Visibility outcome is idempotent; `updated_at` may bump (documented, acceptable)
 
 Local full-suite failures were environmental only and unrelated to PR #276:
 
-1. `template workbook structure` / Wrangler Arabic-PDF worker — timeout under suite load; pass in isolation.
+1. Wrangler Arabic-PDF worker runtime — 60s timeout under suite/host load; unrelated to visibility migration.
 2. PR232 sequence/hash test — `spawnSync git ETIMEDOUT` while hashing apply-order blobs under load; **pass in isolation** (5/5), and does not assert Gate25 activation.
 
-Exact-SHA CI `Bun tests (tests/)` concluded **success**, which is the authoritative full-suite signal for this SHA.
+Exact-SHA CI `Bun tests (tests/)` concluded **success**, which is the authoritative full-suite signal for this SHA. Migration Review + Web CI are both green on `1d0036c2…`.
 
 ---
 
