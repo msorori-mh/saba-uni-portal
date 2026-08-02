@@ -1,0 +1,22 @@
+{
+  "artifact_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTION-AUTHORIZATION",
+  "remediation_mission_id": "PORTAL-B1-PINNED-BASELINE-EXECUTION-AUTHORIZATION-FAIL-CLOSED-REMEDIATION-26",
+  "status": "NOT_GRANTED",
+  "execution_authorized": false,
+  "authorized_by": null,
+  "owner_approval_reference": null,
+  "authorized_at_utc": null,
+  "valid_for_minutes": null,
+  "bound_baseline_fingerprint": null,
+  "bound_baseline_artifact_sha256": null,
+  "bound_reviewed_package_sha": null,
+  "requires_operator_preflight_pass": true,
+  "gate_order": [
+    "1. fresh PINNED non-self-authorizing authoritative baseline",
+    "2. successful read-only Operator Preflight in the same session (session marker b1.operator_preflight_passed)",
+    "3. this explicit owner-approved execution authorization, bound to the active baseline"
+  ],
+  "note": "A read-only baseline capture NEVER authorizes execution. Executing the 267 negative RPC cases requires this artifact to be flipped to status GRANTED by a separate, explicit owner-approved step that binds the then-active baseline fingerprint, baseline artifact sha256 and reviewed package SHA, and sets a fresh validity window. That approval is NOT granted by REMEDIATION-26 and must not be created by any agent mission.",
+  "on_missing_or_ungranted": "HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED",
+  "contains_secrets": false
+}

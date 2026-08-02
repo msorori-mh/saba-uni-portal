@@ -41,6 +41,11 @@ export const FIXTURE_PACKAGE_ID = "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13";
 export const FIXTURE_MARKER = "TEST_ONLY_B1_FIXTURE_13";
 export const FIXTURE_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED";
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
+/** REMEDIATION-26: execution authorization is a separate owner-approved
+ *  artifact, never a flag on the read-only baseline capture. */
+export const EXECUTION_AUTH_REL =
+  "scripts/b1-rpc-principal-harness-01/authorization/EXECUTION-AUTHORIZATION.json";
+export const EXECUTION_AUTH_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED";
 
 /** G1 — forbidden characters / tokens in ANY MATRIX-derived value. */
 export const FORBIDDEN_PATTERNS: Array<[string, RegExp]> = [
@@ -727,7 +732,7 @@ ROLLBACK;
 `;
 }
 
-function renderPins(manifest: any, fingerprintExpr: string, executableTotal: number): string {
+function renderPins(manifest: any, fingerprintExpr: string, executableTotal: number, execAuth: any): string {
   const fn = manifest.function_graph.functions as any[];
   const trg = manifest.migration_29_triggers as any[];
   const m29 = new Set<string>(manifest.migration_29_functions);
@@ -775,10 +780,39 @@ INSERT INTO b1_pin_scalar(key, value) VALUES
   ('baseline_execution_authorized', ${sqlText(
     manifest.authoritative_baseline.execution_authorized === true ? "true" : "false",
   )}),
+  ('baseline_artifact_sha256', ${sqlText(manifest.authoritative_baseline.artifact_sha256)}),
+  ('baseline_operator_preflight_executed', ${sqlText(
+    manifest.authoritative_baseline.operator_preflight_executed === true ? "true" : "false",
+  )}),
+  ('baseline_negative_cases_executed', ${sqlText(
+    String(manifest.authoritative_baseline.negative_cases_executed ?? 0),
+  )}),
   ('baseline_expected_migration_head', ${sqlText(manifest.authoritative_baseline.expected_migration_head)}),
   ('baseline_migration_head', ${sqlText(manifest.authoritative_baseline.migration_head)}),
   ('baseline_reviewed_package_sha', ${sqlText(manifest.authoritative_baseline.reviewed_package_sha)}),
   ('baseline_artifact_path', ${sqlText(manifest.authoritative_baseline.artifact_path)}),
+  ('execution_authorization_artifact_path', ${sqlText(manifest.execution_authorization.artifact_path)}),
+  ('execution_authorization_artifact_sha256', ${sqlText(manifest.execution_authorization.artifact_sha256)}),
+  ('execution_authorization_status', ${sqlText(execAuth.status)}),
+  ('execution_authorization_execution_authorized', ${sqlText(
+    execAuth.execution_authorized === true ? "true" : "false",
+  )}),
+  ('execution_authorization_requires_preflight_pass', ${sqlText(
+    execAuth.requires_operator_preflight_pass === true ? "true" : "false",
+  )}),
+  ('execution_authorization_bound_baseline_fingerprint', ${sqlText(execAuth.bound_baseline_fingerprint ?? null)}),
+  ('execution_authorization_bound_baseline_artifact_sha256', ${sqlText(
+    execAuth.bound_baseline_artifact_sha256 ?? null,
+  )}),
+  ('execution_authorization_bound_reviewed_package_sha', ${sqlText(
+    execAuth.bound_reviewed_package_sha ?? null,
+  )}),
+  ('execution_authorization_authorized_at_utc', ${sqlText(execAuth.authorized_at_utc ?? null)}),
+  ('execution_authorization_valid_for_minutes', ${sqlText(
+    execAuth.valid_for_minutes === null || execAuth.valid_for_minutes === undefined
+      ? null
+      : String(execAuth.valid_for_minutes),
+  )}),
   ('executable_case_total', ${sqlText(String(executableTotal))}),
   ('fixture_package_id', ${sqlText(FIXTURE_PACKAGE_ID)}),
   ('fixture_marker', ${sqlText(FIXTURE_MARKER)}),
@@ -873,7 +907,12 @@ function renderMaster(executable: string[], total: number): string {
   const includes: string[] = executable.map((f) => `\\ir ${f}`);
   const count = executable.length;
   return `-- GENERATED master script (G9). ONE psql process executes the whole run.
--- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
+-- Order: preflight -> execution authorization gate -> ${count} rollback-only negative cases -> outside-transaction baseline check.
+-- REMEDIATION-26: 01-execution-gate.sql runs AFTER the read-only preflight and
+-- BEFORE the first case. It fails closed with
+-- ${EXECUTION_AUTH_HOLD_TOKEN} unless a separate owner-approved
+-- authorization artifact (never the baseline itself) is GRANTED and bound to
+-- the active baseline, and the operator preflight passed in this session.
 -- MATRIX total = ${total}; blocked and excluded = ${total - count} (must be 0).
 -- Blocked rendering is abolished: an unbound case aborts the render, and a
 -- fixture package that is not applied halts the run inside the preflight with
@@ -886,6 +925,9 @@ function renderMaster(executable: string[], total: number): string {
 
 \\echo === B1 NEGATIVE RPC MATRIX: PREFLIGHT ===
 \\ir ../00-preflight.sql
+
+\\echo === B1 NEGATIVE RPC MATRIX: EXECUTION AUTHORIZATION GATE ===
+\\ir ../01-execution-gate.sql
 
 \\echo === B1 NEGATIVE RPC MATRIX: ${count} NEGATIVE CASES ===
 ${includes.join("\n")}
@@ -938,6 +980,51 @@ export function main(): void {
   for (const f of manifest.function_graph.functions as Array<{ signature: string; definition_sha256: string }>) {
     if (!/^[0-9a-f]{64}$/u.test(f.definition_sha256 ?? "")) {
       throw new Error(`FUNCTION_GRAPH_UNPINNED: ${f.signature}`);
+    }
+  }
+
+  // REMEDIATION-26 G1 — the baseline must never self-authorize execution, and
+  // the manifest pin must match the canonical artifact byte-for-byte (LF).
+  const baselineBlock = manifest.authoritative_baseline;
+  if (baselineBlock?.artifact_path !== "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json") {
+    throw new Error("BASELINE_ARTIFACT_PATH_DRIFT");
+  }
+  if (baselineBlock.execution_authorized !== false) throw new Error("BASELINE_SELF_AUTHORIZATION_DRIFT");
+  const baselineRaw = readLf(join(REPO, baselineBlock.artifact_path));
+  if (sha256Lf(baselineRaw) !== baselineBlock.artifact_sha256) {
+    throw new Error("BASELINE_ARTIFACT_SHA_MISMATCH");
+  }
+  const baselineArtifact = JSON.parse(baselineRaw);
+  if (baselineArtifact.execution_authorized !== false) throw new Error("BASELINE_SELF_AUTHORIZATION_DRIFT");
+  if (baselineArtifact.fingerprint !== baselineBlock.fingerprint) throw new Error("BASELINE_FINGERPRINT_DRIFT");
+
+  // REMEDIATION-26 G3 — the separate owner-approved execution authorization
+  // artifact. Absent, drifted or inconsistent blocks abort the render
+  // fail-closed; a GRANTED block must be fully bound to the active baseline.
+  const authBlock = manifest.execution_authorization;
+  if (!authBlock) throw new Error("EXECUTION_AUTHORIZATION_BLOCK_MISSING");
+  if (authBlock.artifact_path !== EXECUTION_AUTH_REL) throw new Error("EXECUTION_AUTHORIZATION_PATH_DRIFT");
+  const authRaw = readLf(join(REPO, authBlock.artifact_path));
+  if (sha256Lf(authRaw) !== authBlock.artifact_sha256) {
+    throw new Error("EXECUTION_AUTHORIZATION_ARTIFACT_SHA_MISMATCH");
+  }
+  const execAuth = JSON.parse(authRaw);
+  if (execAuth.status !== authBlock.status) throw new Error("EXECUTION_AUTHORIZATION_STATUS_DRIFT");
+  if ((execAuth.execution_authorized === true) !== (authBlock.execution_authorized === true)) {
+    throw new Error("EXECUTION_AUTHORIZATION_FLAG_DRIFT");
+  }
+  if (execAuth.status !== "GRANTED" && execAuth.status !== "NOT_GRANTED") {
+    throw new Error("EXECUTION_AUTHORIZATION_STATUS_UNKNOWN");
+  }
+  if (execAuth.status === "GRANTED") {
+    if (execAuth.bound_baseline_fingerprint !== baselineBlock.fingerprint) {
+      throw new Error("EXECUTION_AUTHORIZATION_UNBOUND_FINGERPRINT");
+    }
+    if (execAuth.bound_baseline_artifact_sha256 !== baselineBlock.artifact_sha256) {
+      throw new Error("EXECUTION_AUTHORIZATION_UNBOUND_BASELINE_SHA");
+    }
+    if (execAuth.bound_reviewed_package_sha !== baselineBlock.reviewed_package_sha) {
+      throw new Error("EXECUTION_AUTHORIZATION_UNBOUND_PACKAGE_SHA");
     }
   }
 
@@ -1003,7 +1090,7 @@ export function main(): void {
     throw new Error("MATRIX_PARTITION_DRIFT");
   }
 
-  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr, executable.length), "utf8");
+  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr, executable.length, execAuth), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(executable, negatives.length), "utf8");
   writeFileSync(
@@ -1022,6 +1109,13 @@ export function main(): void {
         fixture_package_id: FIXTURE_PACKAGE_ID,
         fixture_readiness: readinessStatus,
         readiness_hold_token: FIXTURE_HOLD_TOKEN,
+        execution_authorization: {
+          artifact_path: authBlock.artifact_path,
+          artifact_sha256: authBlock.artifact_sha256,
+          status: execAuth.status,
+          execution_authorized: execAuth.execution_authorized === true,
+          hold_token: EXECUTION_AUTH_HOLD_TOKEN,
+        },
         positive_rendered: 0,
         commits: 0,
         files: ["pins.sql", "fingerprint-check.sql", "master-negative-matrix.sql", ...files],

@@ -2,7 +2,7 @@
   "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-POST-FIXTURE-AUTHORITATIVE-BASELINE-CAPTURE-22-RERUN-25",
   "mode": "PRODUCTION_READ_ONLY_BASELINE_CAPTURE",
   "status": "PINNED",
-  "execution_authorized": true,
+  "execution_authorized": false,
   "fingerprint": "4c95c6a344cee2f52ade4a5312bd8240",
   "fingerprint_recomputed_in_transaction": "4c95c6a344cee2f52ade4a5312bd8240",
   "drift": "NONE",
