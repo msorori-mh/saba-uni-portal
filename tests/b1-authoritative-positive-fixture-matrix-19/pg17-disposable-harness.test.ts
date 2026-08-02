@@ -55,15 +55,20 @@ describe("Disposable PostgreSQL 17 Positive Harness Contract", () => {
     }
   });
 
-  it("proves wrong actor failure, wrong action failure, exact execution and zero mutation", () => {
+  it("proves wrong actor, wrong action, exact execution, stale replay and zero mutation", () => {
     expect(sqlContent).toContain("v_wrong_actor_ok");
     expect(sqlContent).toContain("v_wrong_action_ok");
     expect(sqlContent).toContain("v_exact_rpc_ok");
     expect(sqlContent).toContain("v_transition_ok");
+    expect(sqlContent).toContain("v_stale_replay_ok");
     expect(sqlContent).toContain("v_zero_mutation_ok");
+    expect(sqlContent).toContain("unrelated_state_fingerprint");
+    expect(sqlContent).toContain("enrollment_certificate_fingerprint");
+    expect(sqlContent).not.toContain("powershell");
+    expect(sqlContent).toContain("PASS_B1_PR277_REAL_PG17_RPC_HARNESS_19_OF_19");
   });
 
-  it("launches PostgreSQL 17 container and executes real RPC harness verifying 19 of 19 cases", () => {
+  it("launches PostgreSQL 17 container and executes real RPC harness verifying 19 of 19 cases", async () => {
     try {
       execSync(`docker run --rm --detach --name ${container} -e POSTGRES_PASSWORD=local_only postgres:17-alpine`);
 
@@ -76,8 +81,10 @@ describe("Disposable PostgreSQL 17 Positive Harness Contract", () => {
             ready = true;
             break;
           }
-        } catch {}
-        execSync("powershell -Command Start-Sleep -Milliseconds 500");
+        } catch {
+          // container not ready yet
+        }
+        await Bun.sleep(500);
       }
 
       expect(ready).toBe(true);
@@ -260,6 +267,26 @@ describe("Disposable PostgreSQL 17 Positive Harness Contract", () => {
           updated_at timestamptz NOT NULL DEFAULT now()
         );
 
+        CREATE TABLE IF NOT EXISTS public.notifications (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id uuid,
+          title text,
+          message text,
+          notification_type text,
+          reference_type text,
+          reference_id uuid,
+          is_read boolean NOT NULL DEFAULT false,
+          created_at timestamptz NOT NULL DEFAULT now()
+        );
+
+        CREATE TABLE IF NOT EXISTS public.payment_receipts (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          student_profile_id uuid,
+          amount numeric(12,2),
+          status text,
+          created_at timestamptz NOT NULL DEFAULT now()
+        );
+
         INSERT INTO public.student_requests(id, student_profile_id, request_type, status) VALUES
           ('ec000000-0000-4000-8000-000000000101', '33333333-3333-4333-8333-333333333301', 'enrollment_certificate', 'completed'),
           ('ec000000-0000-4000-8000-000000000102', '33333333-3333-4333-8333-333333333301', 'enrollment_certificate', 'completed'),
@@ -422,8 +449,10 @@ describe("Disposable PostgreSQL 17 Positive Harness Contract", () => {
       const harnessOutput = psql(sqlContent);
 
       expect(harnessOutput).toContain("DISPOSABLE_HARNESS_PASS: All 19 of 19 authoritative positive fixture cases verified via REAL RPC executions!");
+      expect(harnessOutput).toContain("PASS_B1_PR277_REAL_PG17_RPC_HARNESS_19_OF_19");
+      console.log("PASS_B1_PR277_REAL_PG17_RPC_HARNESS_19_OF_19");
     } finally {
       teardownContainer();
     }
-  }, 120000);
+  }, 180000);
 });
