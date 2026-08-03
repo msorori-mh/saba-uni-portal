@@ -197,6 +197,8 @@ DECLARE
   v_expected text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_fingerprint');
   v_observed text := (SELECT fingerprint FROM b1_observed_fingerprint);
   v_authorized text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_execution_authorized');
+  v_preflight_done text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_operator_preflight_executed');
+  v_cases_done text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_negative_cases_executed');
   v_expected_head text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_expected_migration_head');
   v_baseline_head text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_migration_head');
   v_path text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_artifact_path');
@@ -205,15 +207,24 @@ BEGIN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: OPERATOR_VISIBILITY_NOT_PROVEN: authoritative baseline is % (observed %)',
       coalesce(v_status, 'MISSING'), v_observed;
   END IF;
-  IF v_authorized IS DISTINCT FROM 'true' THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: execution_authorized is %',
+  -- REMEDIATION-26: a read-only capture must NEVER authorize execution. A
+  -- baseline carrying execution_authorized = true is contract drift and fails
+  -- closed; execution authorization lives only in the separate owner-approved
+  -- artifact enforced by 01-execution-gate.sql.
+  IF v_authorized IS DISTINCT FROM 'false' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline self-authorizes execution (execution_authorized=%); a read-only capture must never authorize execution',
       coalesce(v_authorized, 'MISSING');
+  END IF;
+  -- the baseline must be unused: no recorded operator preflight, no executed case
+  IF v_preflight_done IS DISTINCT FROM 'false' OR v_cases_done IS DISTINCT FROM '0' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline already recorded preflight=% cases=%',
+      coalesce(v_preflight_done, 'MISSING'), coalesce(v_cases_done, 'MISSING');
   END IF;
   IF v_path IS DISTINCT FROM 'scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json' THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline path is not the canonical active path (%)',
       coalesce(v_path, 'MISSING');
   END IF;
-  IF v_expected_head IS DISTINCT FROM '20260731203030'
+  IF v_expected_head IS DISTINCT FROM '20260801021541'
      OR v_baseline_head IS DISTINCT FROM v_expected_head THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: migration head % is not the required %',
       coalesce(v_baseline_head, 'MISSING'), coalesce(v_expected_head, 'MISSING');
@@ -704,3 +715,11 @@ END $$;
 SELECT 'B1_OPERATOR_PREFLIGHT_PASS' AS verdict;
 
 ROLLBACK;
+
+-- REMEDIATION-26 (gate 2 marker): the read-only operator preflight passed in
+-- THIS psql session. Set AFTER the ROLLBACK so it survives as session state
+-- (a SET inside the rolled-back transaction would be discarded). This marker
+-- is NOT execution authorization: it only proves gate 2 to
+-- 01-execution-gate.sql, which additionally requires the separate
+-- owner-approved execution authorization artifact (gate 3).
+SELECT set_config('b1.operator_preflight_passed', 'true', false) AS operator_preflight_session_marker;

@@ -492,26 +492,35 @@
     }
   },
   "authoritative_baseline": {
-    "status": "PENDING",
+    "status": "PINNED",
     "execution_authorized": false,
     "artifact_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
-    "artifact_sha256": "242d1080cbc10e08b62dc7a83f45b71bb09a530c9d1e236b6d5254bd6addef28",
-    "fingerprint": null,
+    "artifact_sha256": "758da22be7c6c46b45c5f2e5f613408b501db27bcbb84286ba909b894ad133a4",
+    "fingerprint": "4c95c6a344cee2f52ade4a5312bd8240",
     "generated_by": "Lovable read-only channel, immediately before the operator run",
-    "valid_for_minutes": null,
-    "reviewed_package_sha": null,
-    "migration_head": null,
-    "expected_migration_head": "20260731203030",
-    "scope": [],
+    "valid_for_minutes": 120,
+    "reviewed_package_sha": "0bc2e27f8c3985b8a35c2f1a19ed39955cb5007e",
+    "migration_head": "20260801021541",
+    "expected_migration_head": "20260801021541",
+    "scope": [
+      "SR-20260713-2DE64041",
+      "SR-20260715-FEDCB3E1",
+      "SR-20260716-26BAD4C8",
+      "SR-20260727-3C550070",
+      "SR-20260727-42393846",
+      "SR-20260727-50BEDCE2",
+      "SR-20260727-695EC35B",
+      "SR-20260727-88D885F0"
+    ],
     "operator_preflight_executed": false,
     "negative_cases_executed": 0,
     "contains_secrets": false,
     "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
-    "captured_at_utc": null,
+    "captured_at_utc": "2026-08-01T23:33:44Z",
     "invalidation_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-STALE-BASELINE-INVALIDATION-09",
     "fail_closed_rules": [
       "status != PINNED",
-      "execution_authorized != true",
+      "baseline self-authorizes execution (execution_authorized != false in the baseline artifact or in this manifest): a read-only capture must never authorize execution",
       "fingerprint is null",
       "baseline expired (captured_at_utc + valid_for_minutes in the past)",
       "reviewed_package_sha differs from the exact execution SHA",
@@ -523,7 +532,9 @@
       "service visibility differs",
       "enrollment_certificate protected baseline differs",
       "current production fingerprint differs",
-      "baseline path is not the canonical active path"
+      "baseline path is not the canonical active path",
+      "operator preflight has not passed in the execution session (session marker b1.operator_preflight_passed)",
+      "execution authorization artifact missing, NOT_GRANTED, unbound from the active baseline or expired"
     ],
     "archived_stale_baselines": [
       {
@@ -535,7 +546,23 @@
         "invalidated_after_migration": "20260731203030",
         "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-AUTHORITATIVE-BASELINE-CAPTURE-60"
       }
-    ]
+    ],
+    "capture_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-POST-FIXTURE-AUTHORITATIVE-BASELINE-CAPTURE-22-RERUN-25"
+  },
+  "execution_authorization": {
+    "remediation_mission_id": "PORTAL-B1-PINNED-BASELINE-EXECUTION-AUTHORIZATION-FAIL-CLOSED-REMEDIATION-26",
+    "status": "NOT_GRANTED",
+    "execution_authorized": false,
+    "artifact_path": "scripts/b1-rpc-principal-harness-01/authorization/EXECUTION-AUTHORIZATION.json",
+    "artifact_sha256": "5aba92d767cf0606c100e359ae7d7a504d326118c17f7a4c3e6dff2d7d820f0b",
+    "hold_token": "HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED",
+    "gate_order": [
+      "1. fresh PINNED non-self-authorizing authoritative baseline",
+      "2. successful read-only Operator Preflight in the same session (session marker b1.operator_preflight_passed)",
+      "3. explicit owner-approved execution authorization artifact (status GRANTED) bound to the active baseline fingerprint, artifact sha256 and reviewed package SHA"
+    ],
+    "separation_contract": "A read-only baseline capture NEVER authorizes execution (authoritative_baseline.execution_authorized stays false; a baseline carrying true is contract drift and fails closed). The Operator Preflight is read-only, executes no workflow RPC and never sets execution authorization; it only proves the session marker for gate 2. Gate 3 is a separate owner-approved artifact; REMEDIATION-26 does NOT grant it, so status remains NOT_GRANTED and the 267 negative cases stay blocked.",
+    "no_single_flag_bypass": "No existing flag alone opens the run: the baseline gate, the operator-preflight session marker and the bound owner-approved authorization artifact are three independent fail-closed gates enforced by both the launcher (before psql) and the SQL package (00-preflight.sql then 01-execution-gate.sql before the first case)."
   },
   "protected_records": [
     "SR-20260713-2DE64041",

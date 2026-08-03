@@ -17,7 +17,8 @@
 
   G9 EXECUTION CONTRACT
     * Exactly ONE psql process runs generated/master-negative-matrix.sql:
-      preflight -> 267 executable rollback-only cases -> outside-transaction baseline check.
+      preflight -> execution authorization gate -> 267 executable rollback-only
+      cases -> outside-transaction baseline check.
       (Blocked case files are abolished: all 267 cases render as executable SQL
        bound to deterministic ACTIVE TEST_ONLY fixture steps.)
 
@@ -25,6 +26,15 @@
     * While the fixture package is not applied and verified the launcher refuses
       to start the matrix and exits with
       HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED — before psql.
+
+  REMEDIATION-26 EXECUTION AUTHORIZATION GATE
+    * A PINNED baseline never authorizes execution by itself: the baseline must
+      carry execution_authorized = false. The 267 cases stay impossible until a
+      separate owner-approved authorization artifact is GRANTED and bound to
+      the active baseline — and a successful read-only operator preflight has
+      passed in the same session. While the artifact is NOT_GRANTED the
+      launcher exits with HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED
+      — before psql.
 #>
 
 [CmdletBinding()]
@@ -111,12 +121,14 @@ Write-Host "target: ref=$projectRef host=$pgHost port=$pgPort db=$pgDatabase ssl
 # ---------------------------------------------------------------------------
 # 1b. INVALIDATION-09 - AUTHORITATIVE BASELINE FAIL-CLOSED GATE
 #     Execution is refused unless the CANONICAL ACTIVE baseline is PINNED,
-#     explicitly authorized, unexpired, and attests the required migration head.
-#     Archived baselines are never selectable: the path is hard-coded here and
-#     any artifact under baseline/archive/ is rejected.
+#     unexpired, and attests the required migration head — AND does NOT
+#     self-authorize execution (REMEDIATION-26: execution_authorized must be
+#     false; a read-only capture is never an authorization). Archived baselines
+#     are never selectable: the path is hard-coded here and any artifact under
+#     baseline/archive/ is rejected.
 # ---------------------------------------------------------------------------
 $canonicalBaselineRelative = 'scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json'
-$requiredMigrationHead = '20260731203030'
+$requiredMigrationHead = '20260801021541'
 $baselineHold = 'HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE'
 $bl = $manifest.authoritative_baseline
 
@@ -140,7 +152,11 @@ $baselineSha = [BitConverter]::ToString(
 if ($baselineSha -ne $bl.artifact_sha256) { Deny-Baseline 'baseline artifact sha256 differs from the manifest pin' }
 
 if ($bl.status -ne 'PINNED' -or $baseline.status -ne 'PINNED') { Deny-Baseline "status is $($baseline.status)" }
-if ($bl.execution_authorized -ne $true -or $baseline.execution_authorized -ne $true) { Deny-Baseline 'execution_authorized is not true' }
+# REMEDIATION-26: a read-only capture must NEVER authorize execution. A
+# baseline (or manifest) carrying execution_authorized = true is contract
+# drift and fails closed; execution authorization lives only in the separate
+# owner-approved artifact checked by the gate in section 2c.
+if ($bl.execution_authorized -eq $true -or $baseline.execution_authorized -eq $true) { Deny-Baseline 'baseline self-authorizes execution (execution_authorized is true); a read-only capture must never authorize execution' }
 if ([string]::IsNullOrWhiteSpace([string]$baseline.fingerprint) -or [string]::IsNullOrWhiteSpace([string]$bl.fingerprint)) { Deny-Baseline 'fingerprint is null' }
 if ($baseline.fingerprint -ne $bl.fingerprint) { Deny-Baseline 'fingerprint mismatch between manifest and artifact' }
 if ($bl.expected_migration_head -ne $requiredMigrationHead) { Deny-Baseline "expected migration head is not $requiredMigrationHead" }
@@ -157,7 +173,7 @@ if ([string]::IsNullOrWhiteSpace([string]$baseline.captured_at_utc) -or $null -e
 $capturedAt = [DateTime]::Parse($baseline.captured_at_utc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal -bor [Globalization.DateTimeStyles]::AssumeUniversal)
 if ((Get-Date).ToUniversalTime() -gt $capturedAt.AddMinutes([double]$baseline.valid_for_minutes)) { Deny-Baseline 'baseline is expired' }
 
-Write-Host 'baseline gate: PINNED, authorized, unexpired'
+Write-Host 'baseline gate: PINNED, non-self-authorizing, unexpired'
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +216,57 @@ if ($readiness.status -ne 'FIXTURE_PACKAGE_APPLIED_AND_VERIFIED') {
   Write-Host 'RESULT: HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED'
   exit 2
 }
+
+# ---------------------------------------------------------------------------
+# 2c. REMEDIATION-26 - EXECUTION AUTHORIZATION GATE (fail-closed, before psql)
+#     Gate 3 of 3. A PINNED baseline (gate 1) and a successful read-only
+#     operator preflight (gate 2, proven in-session by 01-execution-gate.sql)
+#     never authorize execution by themselves. The 267 cases stay impossible
+#     until a SEPARATE owner-approved authorization artifact is GRANTED and
+#     bound to the ACTIVE baseline fingerprint, artifact sha256 and reviewed
+#     package SHA. REMEDIATION-26 does not grant it: the artifact is
+#     NOT_GRANTED and this gate stops the run here. The same pins are
+#     re-checked inside the SQL package by 01-execution-gate.sql, so invoking
+#     psql directly cannot bypass this gate either.
+# ---------------------------------------------------------------------------
+$canonicalAuthRelative = 'scripts/b1-rpc-principal-harness-01/authorization/EXECUTION-AUTHORIZATION.json'
+$authHold = 'HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED'
+$ma = $manifest.execution_authorization
+
+function Deny-Authorization([string]$why) {
+  Write-Host "execution authorization gate: $why"
+  Write-Host "RESULT: $authHold"
+  exit 4
+}
+
+if ($null -eq $ma) { Deny-Authorization 'manifest carries no execution_authorization block' }
+if ($ma.artifact_path -ne $canonicalAuthRelative) { Deny-Authorization "authorization path is not the canonical path: $($ma.artifact_path)" }
+
+$authPath = Join-Path (Split-Path -Parent (Split-Path -Parent $here)) $ma.artifact_path
+if (-not (Test-Path $authPath)) { Deny-Authorization 'execution authorization artifact missing' }
+$authRaw = (Get-Content -Raw -Path $authPath) -replace "`r`n", "`n"
+$auth = $authRaw | ConvertFrom-Json
+
+$authSha = [BitConverter]::ToString(
+  [System.Security.Cryptography.SHA256]::Create().ComputeHash([Text.Encoding]::UTF8.GetBytes($authRaw))
+).Replace('-', '').ToLowerInvariant()
+if ($authSha -ne $ma.artifact_sha256) { Deny-Authorization 'authorization artifact sha256 differs from the manifest pin' }
+if ($auth.status -ne $ma.status) { Deny-Authorization 'authorization status differs from the manifest pin' }
+
+if ($auth.status -ne 'GRANTED' -or $auth.execution_authorized -ne $true) {
+  Deny-Authorization "no explicit owner-approved execution authorization (status $($auth.status))"
+}
+if ($auth.requires_operator_preflight_pass -ne $true) { Deny-Authorization 'authorization must require a successful operator preflight' }
+if ([string]::IsNullOrWhiteSpace([string]$auth.authorized_by)) { Deny-Authorization 'authorized_by is empty' }
+if ([string]::IsNullOrWhiteSpace([string]$auth.owner_approval_reference)) { Deny-Authorization 'owner approval reference is empty' }
+if ($auth.bound_baseline_fingerprint -ne $baseline.fingerprint) { Deny-Authorization 'authorization is not bound to the active baseline fingerprint' }
+if ($auth.bound_baseline_artifact_sha256 -ne $baselineSha) { Deny-Authorization 'authorization is not bound to the active baseline artifact sha256' }
+if ($auth.bound_reviewed_package_sha -ne $executionSha) { Deny-Authorization 'authorization is not bound to the exact execution SHA' }
+if ([string]::IsNullOrWhiteSpace([string]$auth.authorized_at_utc) -or $null -eq $auth.valid_for_minutes) { Deny-Authorization 'authorization validity window is missing' }
+$grantedAt = [DateTime]::Parse($auth.authorized_at_utc, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal -bor [Globalization.DateTimeStyles]::AssumeUniversal)
+if ((Get-Date).ToUniversalTime() -gt $grantedAt.AddMinutes([double]$auth.valid_for_minutes)) { Deny-Authorization 'execution authorization is expired' }
+
+Write-Host 'execution authorization gate: GRANTED, bound to the active baseline, unexpired'
 
 
 $commitHits = Select-String -Path (Join-Path $generated 'cases\*.sql') -Pattern '(?im)^\s*COMMIT\b'

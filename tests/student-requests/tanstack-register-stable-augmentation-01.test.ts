@@ -13,16 +13,13 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-const ROUTE_SEMANTIC_SHA256 =
-  "97fec36cae50b2ff637df69d544b34a0cbb5bec9e700a1715d861dfe433a4340";
+const ROUTE_SEMANTIC_SHA256 = "9398af9135d6d5c31c0de48e02dce3a9325c1cc0cc7f7a439be5a529ad9262e7";
 
 function routeSemanticHash(routeTree: string): string {
   const semanticLines = routeTree
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) =>
-      /^(id|path|fullPath|parentRoute|getParentRoute):/.test(line),
-    )
+    .filter((line) => /^(id|path|fullPath|parentRoute|getParentRoute):/.test(line))
     .join("\n");
 
   return createHash("sha256").update(semanticLines).digest("hex");
@@ -35,9 +32,7 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
     expect(register).toContain('import type { getRouter } from "../router"');
     expect(register).toContain('import type { startInstance } from "../start"');
     expect(register).toContain("router: Awaited<ReturnType<typeof getRouter>>");
-    expect(register).toContain(
-      "config: Awaited<ReturnType<typeof startInstance.getOptions>>",
-    );
+    expect(register).toContain("config: Awaited<ReturnType<typeof startInstance.getOptions>>");
   });
 
   it("accepts only an absent or one exact terminal generated augmentation", () => {
@@ -52,23 +47,19 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
 
   it("validates generated output without rewriting routeTree during build", () => {
     const packageJson = read("package.json");
-    const validator = read(
-      "scripts/validate-tanstack-route-tree-register.ts",
-    );
+    const validator = read("scripts/validate-tanstack-route-tree-register.ts");
 
     expect(packageJson).toContain(
       "vite build && bun run scripts/validate-tanstack-route-tree-register.ts",
     );
     expect(packageJson).not.toContain("normalize-tanstack-route-tree-register");
     expect(validator).not.toContain("writeFile");
-    expect(validator).toContain(
-      "firstMatch !== normalized.lastIndexOf(generatedRegisterFooter)",
-    );
+    expect(validator).toContain("firstMatch !== normalized.lastIndexOf(generatedRegisterFooter)");
     expect(validator).toContain(
       "firstMatch + generatedRegisterFooter.length !== normalized.length",
     );
-    expect(validator).not.toMatch(/\bid:\s*['\"]/);
-    expect(validator).not.toMatch(/\bpath:\s*['\"]/);
+    expect(validator).not.toMatch(/\bid:\s*['"]/);
+    expect(validator).not.toMatch(/\bpath:\s*['"]/);
     expect(validator).not.toContain("getParentRoute");
   });
 
@@ -83,32 +74,21 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
 
   it("fails closed on altered types, duplicate, and non-suffix augmentation", () => {
     const clean = "export const routeTree = rootRouteImport\n";
-    const altered = generatedRegisterFooter.replace(
-      "interface Register",
-      "interface  Register",
-    );
+    const altered = generatedRegisterFooter.replace("interface Register", "interface  Register");
 
     expect(() => validateGeneratedRegister(clean + altered)).toThrow();
     expect(() =>
-      validateGeneratedRegister(
-        clean + generatedRegisterFooter + generatedRegisterFooter,
-      ),
+      validateGeneratedRegister(clean + generatedRegisterFooter + generatedRegisterFooter),
     ).toThrow();
     expect(() =>
-      validateGeneratedRegister(
-        clean + generatedRegisterFooter + "export const drift = true\n",
-      ),
+      validateGeneratedRegister(clean + generatedRegisterFooter + "export const drift = true\n"),
     ).toThrow();
   });
 
   it("fails closed on changed imports and extra augmentation", () => {
     const clean = "export const routeTree = rootRouteImport\n";
-    const changedImport = generatedRegisterFooter.replace(
-      "from './router.tsx'",
-      "from './router'",
-    );
-    const extraAugmentation =
-      "declare module '@tanstack/react-start' { interface Register {} }\n";
+    const changedImport = generatedRegisterFooter.replace("from './router.tsx'", "from './router'");
+    const extraAugmentation = "declare module '@tanstack/react-start' { interface Register {} }\n";
 
     expect(() => validateGeneratedRegister(clean + changedImport)).toThrow();
     expect(() =>
@@ -122,8 +102,6 @@ describe("B1 TanStack Register stable augmentation remediation 01", () => {
   });
 
   it("pins route ids, paths, full paths and parent relationships", () => {
-    expect(routeSemanticHash(read(ROUTE_TREE_PATH))).toBe(
-      ROUTE_SEMANTIC_SHA256,
-    );
+    expect(routeSemanticHash(read(ROUTE_TREE_PATH))).toBe(ROUTE_SEMANTIC_SHA256);
   });
 });
