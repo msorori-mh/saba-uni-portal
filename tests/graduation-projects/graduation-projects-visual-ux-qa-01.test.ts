@@ -307,12 +307,13 @@ describe("result/corrections/archive panel privacy and dates", () => {
         onReviewSubmission: () => {},
         onAddNote: () => {},
         onResolveNote: () => {},
-        onRegisterFile: () => {},
       }),
     );
     expect(html).toContain("doc.pdf");
     expect(html).not.toContain("graduation-projects/secret");
     expect(html).not.toContain("object_key");
+    expect(html).not.toContain("تسجيل ملف (بيانات وصفية)");
+    expect(html).toContain("تجهيز التخزين الخاص بالملفات ما يزال معلقًا");
   });
 });
 

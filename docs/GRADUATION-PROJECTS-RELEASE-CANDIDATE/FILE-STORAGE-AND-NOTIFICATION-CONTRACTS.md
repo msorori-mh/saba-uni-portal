@@ -22,7 +22,14 @@
   listing.** Signed-URL strategy: a separately authorized storage draft must
   create a private bucket and mint short-lived signed URLs server-side per
   clean object key; this package intentionally ships no bucket.
-- **Binary upload**: disabled by design today (metadata registration only).
+- **Binary upload**: unavailable. Private Storage has not been bootstrapped;
+  no bucket was created and no migration was applied for GP file objects.
+- **Metadata registration**: unavailable. `registerGraduationProjectFile` fails
+  closed immediately after auth + module-availability checks — before UUID/token
+  generation, object-key construction, `registerFile` / RPC, DB mutation, or any
+  Storage call. The Milestones UI no longer exposes a metadata-registration
+  action. This is a temporary safe closure until a separately designed and
+  approved private Storage package lands.
 - **Orphan cleanup**: `list_graduation_project_orphan_files()` (service-only,
   review-only) flags `scan_pending_expired` (>30d) and `unlinked_terminal`;
   deletion is a privileged, separately authorized batch — never in-app.

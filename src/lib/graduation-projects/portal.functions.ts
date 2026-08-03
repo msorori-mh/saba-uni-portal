@@ -34,9 +34,12 @@ import type {
   ProjectNotificationRow,
 } from "./lifecycle";
 import type { DiscussionReadiness } from "./domain";
-import { buildPrivateObjectKey } from "./lifecycle";
 
 const uuid = z.string().uuid();
+
+/** Stable Arabic domain error while private Storage remains unbootstrapped. */
+export const GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG =
+  "لم يتم تجهيز التخزين الخاص بملفات مشاريع التخرج بعد، لذلك رفع الملفات وتسجيل بياناتها الوصفية غير متاحين حاليًا.";
 
 type RpcLike = ConstructorParameters<typeof GraduationProjectsRpcClient>[0];
 
@@ -366,25 +369,12 @@ export const registerGraduationProjectFile = createServerFn({ method: "POST" })
       .strict()
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
+  .handler(async ({ context }) => {
     try {
+      // Auth (middleware) + module availability only — then fail closed before any
+      // token, object-key, registerFile, RPC, DB mutation, or Storage call.
       await ensureAvailable(context.supabase);
-      const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16);
-      const objectKey = buildPrivateObjectKey(data.projectId, data.originalName, token);
-      if (!objectKey) {
-        throw new GraduationProjectsRpcError("بيانات الملف الوصفية غير مكتملة أو غير صالحة");
-      }
-      // Server builds the private object key — never trust a client-supplied path.
-      return await clientOf(context.supabase).registerFile({
-        projectId: data.projectId,
-        submissionId: data.submissionId ?? null,
-        objectKey,
-        originalName: data.originalName,
-        mediaType: data.mediaType,
-        byteSize: data.byteSize,
-        sha256: data.sha256.toLowerCase(),
-        fileKind: data.fileKind ?? "attachment",
-      });
+      throw new GraduationProjectsRpcError(GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG);
     } catch (error) {
       mapThrown(error);
     }

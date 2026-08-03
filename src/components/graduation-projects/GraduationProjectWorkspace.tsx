@@ -26,7 +26,7 @@ import {
 } from "../../lib/graduation-projects/lifecycle";
 import { GraduationProjectStateBadge } from "./GraduationProjectStateBadge";
 import { ProposalWorkflowPanel } from "./ProposalWorkflowPanel";
-import { MilestonesPanel, type RegisterFileFormInput } from "./MilestonesPanel";
+import { MilestonesPanel } from "./MilestonesPanel";
 import { AssignmentsPanel } from "./AssignmentsPanel";
 import { DiscussionPanel } from "./DiscussionPanel";
 import { EvaluationPanel } from "./EvaluationPanel";
@@ -49,7 +49,6 @@ export interface GraduationProjectWorkspaceHandlers {
   ): void;
   onAddNote(note: string, submissionId: string | null): void;
   onResolveNote(noteId: string): void;
-  onRegisterFile(input: RegisterFileFormInput): void;
   onRequestDiscussion(): void;
   onScheduleDiscussion(requestId: string, startsAt: string, venue: string): void;
   onRejectDiscussionRequest(requestId: string, reason: string): void;
@@ -151,7 +150,6 @@ export function GraduationProjectWorkspace({
             onReviewSubmission={handlers.onReviewSubmission}
             onAddNote={handlers.onAddNote}
             onResolveNote={handlers.onResolveNote}
-            onRegisterFile={handlers.onRegisterFile}
           />
         </TabsContent>
         <TabsContent value="team">

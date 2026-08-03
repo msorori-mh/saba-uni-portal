@@ -316,8 +316,16 @@ describe("graduation-projects portal security contracts", () => {
       expect(src).not.toContain("publicUrl");
     }
     const register = read("src/lib/graduation-projects/portal.functions.ts");
-    expect(register).toContain("buildPrivateObjectKey");
-    expect(register).toContain("never trust a client-supplied path");
+    // Fail-closed before private Storage bootstrap: no key generation or client path trust.
+    expect(register).toContain("GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG");
+    const registerHandler = register.slice(
+      register.indexOf("export const registerGraduationProjectFile"),
+      register.indexOf("export const listMyGraduationProjectNotifications"),
+    );
+    expect(registerHandler).not.toContain("buildPrivateObjectKey");
+    expect(registerHandler).not.toContain("randomUUID");
+    expect(registerHandler).not.toContain("registerFile(");
+    expect(registerHandler).not.toContain("clientOf(");
   });
 
   test("14 — client never sends actor user ids on mutations", () => {

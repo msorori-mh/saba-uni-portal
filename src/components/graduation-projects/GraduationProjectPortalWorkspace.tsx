@@ -28,7 +28,6 @@ import {
   getGraduationProjectDetailView,
   listGraduationProjectAssignmentCandidates,
   recordGraduationProjectDiscussionOutcome,
-  registerGraduationProjectFile,
   rejectGraduationProjectDiscussionRequest,
   requestGraduationProjectDiscussion,
   resolveGraduationProjectSupervisorNote,
@@ -41,7 +40,6 @@ import {
   submitGraduationProjectDeliverable,
   submitGraduationProjectProposal,
 } from "@/lib/graduation-projects/portal.functions";
-import type { RegisterFileFormInput } from "./MilestonesPanel";
 import type {
   AssignableFacultyRole,
   CorrectionInput,
@@ -96,7 +94,6 @@ export function GraduationProjectPortalWorkspace({
   const reviewSubmissionFn = useServerFn(reviewGraduationProjectSubmission);
   const addNoteFn = useServerFn(addGraduationProjectSupervisorNote);
   const resolveNoteFn = useServerFn(resolveGraduationProjectSupervisorNote);
-  const registerFileFn = useServerFn(registerGraduationProjectFile);
   const requestDiscussionFn = useServerFn(requestGraduationProjectDiscussion);
   const scheduleDiscussionFn = useServerFn(scheduleGraduationProjectDiscussion);
   const rejectDiscussionFn = useServerFn(rejectGraduationProjectDiscussionRequest);
@@ -219,20 +216,6 @@ export function GraduationProjectPortalWorkspace({
             action.mutate(() => addNoteFn({ data: { projectId, note, submissionId } })),
           onResolveNote: (noteId: string) =>
             action.mutate(() => resolveNoteFn({ data: { projectId, noteId } })),
-          onRegisterFile: (input: RegisterFileFormInput) =>
-            action.mutate(() =>
-              registerFileFn({
-                data: {
-                  projectId,
-                  submissionId: input.submissionId,
-                  originalName: input.originalName,
-                  mediaType: input.mediaType,
-                  byteSize: input.byteSize,
-                  sha256: input.sha256,
-                  fileKind: input.fileKind,
-                },
-              }),
-            ),
           onRequestDiscussion: () =>
             action.mutate(() => requestDiscussionFn({ data: { projectId } })),
           onScheduleDiscussion: (requestId: string, startsAt: string, venue: string) =>
