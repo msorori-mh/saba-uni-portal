@@ -63,6 +63,8 @@ Updated disposable harness under `scripts/b1-fixture-15-reissue-44-pg17/`:
 - seed materializes exact file_withdrawal seven-step contract for Fixture 15 (consumed)
 - verify asserts exact restored seven-step bindings
 
+PG17 readiness waits for `PostgreSQL init process complete` then `pg_isready` (same race-safe pattern as matrix-19) so Ubuntu CI does not hit the post-init socket restart.
+
 `tests/b1-fixture-15-forward-only-reissue-44.test.ts` now fail-closes one case for each drift class:
 
 - wrong step UUID

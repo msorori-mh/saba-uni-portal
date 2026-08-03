@@ -392,20 +392,30 @@ describe("B1 Fixture-15 forward-only reissue 44 — disposable PostgreSQL 17", (
         );
       }
 
+      // Match matrix-19 readiness: wait for init completion, then pg_isready.
+      // pg_isready alone can race the post-init server restart on Ubuntu CI.
       let ready = false;
-      for (let i = 0; i < 40; i++) {
-        const check = dockerSpawn([
-          "exec",
-          container,
-          "pg_isready",
-          "-U",
-          "postgres",
-        ]);
-        if (check.status === 0) {
-          ready = true;
-          break;
+      for (let i = 0; i < 60; i++) {
+        try {
+          const logsRes = dockerSpawn(["logs", container]);
+          const logs = `${logsRes.stdout || ""}\n${logsRes.stderr || ""}`;
+          if (logs.includes("PostgreSQL init process complete")) {
+            const check = dockerSpawn([
+              "exec",
+              container,
+              "pg_isready",
+              "-U",
+              "postgres",
+            ]);
+            if (check.status === 0) {
+              ready = true;
+              break;
+            }
+          }
+        } catch {
+          // container not ready yet
         }
-        await Bun.sleep(1000);
+        await Bun.sleep(500);
       }
       if (!ready) throw new Error("PG17_READY_TIMEOUT");
 
