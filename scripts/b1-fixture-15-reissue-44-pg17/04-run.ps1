@@ -3,6 +3,10 @@ $name = "b1-44-fixture15-pg17-$PID"
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $fixRel = 'supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql'
 $scriptDir = 'scripts/b1-fixture-15-reissue-44-pg17'
+$nonemptyPriorPrologueRel = Join-Path $scriptDir 'nonempty-prior-auth-context-prologue.sql'
+$nonemptyPriorEpilogueRel = Join-Path $scriptDir 'nonempty-prior-auth-context-epilogue.sql'
+$PRIOR_JWT_SUB = 'c8a94548-4782-4252-86f9-23559d3b95bd'
+$PRIOR_ATOMIC_ACTION = 'prior-auth-context-marker'
 
 function Invoke-RepoFile([string]$file, [switch]$Transactional) {
   if ($Transactional) {
@@ -28,6 +32,36 @@ function Invoke-RepoFile([string]$file, [switch]$Transactional) {
 function Invoke-Sql([string]$sql) {
   docker exec $name psql -v ON_ERROR_STOP=1 -U postgres -c $sql
   if ($LASTEXITCODE -ne 0) { throw "PG17_SQL_FAILED" }
+}
+
+function Invoke-MigrationWithNonemptyPriorAuthContext {
+  $prologue = Get-Content -Raw -Path (Join-Path $root $nonemptyPriorPrologueRel)
+  $migration = Get-Content -Raw -Path (Join-Path $root $fixRel)
+  $epilogue = Get-Content -Raw -Path (Join-Path $root $nonemptyPriorEpilogueRel)
+  $sql = "BEGIN;`n$prologue`n$migration`n$epilogue`nCOMMIT;"
+  $tmp = Join-Path $env:TEMP ("b1-44-nonempty-" + [guid]::NewGuid().ToString('N') + ".sql")
+  [System.IO.File]::WriteAllText($tmp, $sql)
+  try {
+    $output = Get-Content -Raw $tmp | docker exec -i -w /repo $name psql -v ON_ERROR_STOP=1 -U postgres 2>&1
+    if ($LASTEXITCODE -ne 0) {
+      throw "PG17_NONEMPTY_PRIOR_AUTH_APPLY_FAILED: $($output -join ' ')"
+    }
+    $joined = ($output -join "`n")
+    if ($joined -notmatch [regex]::Escape($PRIOR_JWT_SUB) -or
+        $joined -notmatch [regex]::Escape($PRIOR_ATOMIC_ACTION)) {
+      throw "PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_VALUES_NOT_SURFACED: $joined"
+    }
+  } finally {
+    Remove-Item -Force $tmp -ErrorAction SilentlyContinue
+  }
+}
+
+function Assert-NoCrossSessionAuthContextLeak {
+  $jwtAfter = (docker exec $name psql -X -At -U postgres -c "select coalesce(current_setting('request.jwt.claim.sub', true), '');").Trim()
+  $actionAfter = (docker exec $name psql -X -At -U postgres -c "select coalesce(current_setting('b1.atomic_action', true), '');").Trim()
+  if ($jwtAfter -ne '' -or $actionAfter -ne '') {
+    throw "PG17_AUTH_CONTEXT_LEAKED jwt=$jwtAfter action=$actionAfter"
+  }
 }
 
 function Expect-RepoFileFailure([string]$file, [string]$expected) {
@@ -90,9 +124,12 @@ select md5(string_agg(x, '|' order by x)) from (
 "@).Trim()
 
   Write-Output "PRE_REPAIR_ACTIVE_18_CONFIRMED"
-  Invoke-RepoFile $fixRel -Transactional
+  Invoke-MigrationWithNonemptyPriorAuthContext
   Invoke-RepoFile "$scriptDir/02-verify.sql"
   Write-Output "PG17_REPAIR_APPLIED"
+  Write-Output "PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT"
+  Assert-NoCrossSessionAuthContextLeak
+  Write-Output "PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK"
 
   $fpOthersAfter = (docker exec $name psql -X -At -U postgres -c @"
 select md5(string_agg(t::text, '|' order by t::text))

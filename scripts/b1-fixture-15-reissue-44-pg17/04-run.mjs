@@ -13,6 +13,10 @@ const root = join(__dirname, "..", "..");
 const fixRel =
   "supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql";
 const scriptDir = "scripts/b1-fixture-15-reissue-44-pg17";
+const nonemptyPriorPrologueRel = `${scriptDir}/nonempty-prior-auth-context-prologue.sql`;
+const nonemptyPriorEpilogueRel = `${scriptDir}/nonempty-prior-auth-context-epilogue.sql`;
+const PRIOR_JWT_SUB = "c8a94548-4782-4252-86f9-23559d3b95bd";
+const PRIOR_ATOMIC_ACTION = "prior-auth-context-marker";
 const name = `b1-44-fixture15-pg17-${process.pid}-${Date.now()}`;
 
 function sleepMs(ms) {
@@ -125,6 +129,53 @@ function expectRepoFileFailure(file, expected) {
   }
 }
 
+/**
+ * First successful apply: execute the real migration file inside one psql
+ * session/transaction after setting distinct non-empty prior auth GUCs, then
+ * assert those exact values are restored before COMMIT.
+ */
+function applyMigrationWithNonemptyPriorAuthContext() {
+  const prologue = readFileSync(join(root, nonemptyPriorPrologueRel), "utf8");
+  const migration = readFileSync(join(root, fixRel), "utf8");
+  const epilogue = readFileSync(join(root, nonemptyPriorEpilogueRel), "utf8");
+  const sql = `BEGIN;\n${prologue}\n${migration}\n${epilogue}\nCOMMIT;`;
+  const res = spawnSync(
+    "docker",
+    ["exec", "-i", "-w", "/repo", name, "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres"],
+    {
+      input: sql,
+      encoding: "utf8",
+      maxBuffer: 20 * 1024 * 1024,
+    }
+  );
+  const output = `${res.stdout || ""}\n${res.stderr || ""}`;
+  if (res.status !== 0) {
+    throw new Error(
+      `PG17_NONEMPTY_PRIOR_AUTH_APPLY_FAILED:\n${output}`
+    );
+  }
+  if (!output.includes(PRIOR_JWT_SUB) || !output.includes(PRIOR_ATOMIC_ACTION)) {
+    throw new Error(
+      `PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_VALUES_NOT_SURFACED:\n${output}`
+    );
+  }
+}
+
+/** Fresh psql session must not retain migration impersonation GUCs. */
+function expectNoCrossSessionAuthContextLeak() {
+  const jwtAfter = psqlAt(
+    `select coalesce(current_setting('request.jwt.claim.sub', true), '');`
+  );
+  const actionAfter = psqlAt(
+    `select coalesce(current_setting('b1.atomic_action', true), '');`
+  );
+  if (jwtAfter !== "" || actionAfter !== "") {
+    throw new Error(
+      `PG17_AUTH_CONTEXT_LEAKED jwt=${jwtAfter} action=${actionAfter}`
+    );
+  }
+}
+
 try {
   execFileSync(
     "docker",
@@ -212,10 +263,12 @@ COMMIT;
   }
   console.log("PG17_LEGACY_MANAGED_CHANNEL_UPDATE_DENIED");
 
-  invokeRepoFile(fixRel, { transactional: true });
+  applyMigrationWithNonemptyPriorAuthContext();
   invokeRepoFile(`${scriptDir}/02-verify.sql`);
   console.log("PG17_REPAIR_APPLIED");
-  console.log("PG17_AUTH_CONTEXT_RESTORED_AND_CLEARED");
+  console.log("PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT");
+  expectNoCrossSessionAuthContextLeak();
+  console.log("PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK");
   console.log("PG17_19_OF_19_OFFLINE");
 
   const fpOthersAfter = psqlAt(`

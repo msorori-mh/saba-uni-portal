@@ -90,6 +90,17 @@ const STEP_CONTRACT = [
 const container = `b1-44-fixture15-pg17-${Date.now()}`;
 const F15_REQ = "f1300000-0000-4000-8000-000000000015";
 const ARCHIVE_ACTOR = "aec1303e-de6a-4580-94cf-7205c17b5535";
+/** Distinct non-empty prior JWT (valid UUID ≠ archive actor) for restore proof. */
+const PRIOR_JWT_SUB = "c8a94548-4782-4252-86f9-23559d3b95bd";
+const PRIOR_ATOMIC_ACTION = "prior-auth-context-marker";
+const nonemptyPriorProloguePath = join(
+  scriptDir,
+  "nonempty-prior-auth-context-prologue.sql",
+);
+const nonemptyPriorEpiloguePath = join(
+  scriptDir,
+  "nonempty-prior-auth-context-epilogue.sql",
+);
 
 function dockerSpawn(args: string[], opts: { input?: string } = {}) {
   const res = spawnSync("docker", args, {
@@ -171,6 +182,42 @@ function psqlPath(
   const raw = readFileSync(filePath, "utf8");
   const sql = transactional ? `BEGIN;\n${raw}\nCOMMIT;` : raw;
   return psql(sql, { allowFailure });
+}
+
+/**
+ * First successful apply: same session + same transaction must restore the
+ * exact non-empty prior auth GUCs after executing the real migration file.
+ */
+function applyMigrationWithNonemptyPriorAuthContext() {
+  const prologue = readFileSync(nonemptyPriorProloguePath, "utf8");
+  const migration = readFileSync(migPath, "utf8");
+  const epilogue = readFileSync(nonemptyPriorEpiloguePath, "utf8");
+  const sql = `BEGIN;\n${prologue}\n${migration}\n${epilogue}\nCOMMIT;`;
+  const result = psql(sql);
+  if (
+    !result.out.includes(PRIOR_JWT_SUB) ||
+    !result.out.includes(PRIOR_ATOMIC_ACTION)
+  ) {
+    throw new Error(
+      `PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_VALUES_NOT_SURFACED:\n${result.out}`,
+    );
+  }
+  return result;
+}
+
+/** Fresh psql session must not retain migration impersonation GUCs. */
+function expectNoCrossSessionAuthContextLeak() {
+  const jwtAfter = psqlScalar(
+    `select coalesce(current_setting('request.jwt.claim.sub', true), '');`,
+  );
+  const actionAfter = psqlScalar(
+    `select coalesce(current_setting('b1.atomic_action', true), '');`,
+  );
+  if (jwtAfter !== "" || actionAfter !== "") {
+    throw new Error(
+      `PG17_AUTH_CONTEXT_LEAKED jwt=${jwtAfter} action=${actionAfter}`,
+    );
+  }
 }
 
 /** Harness-only helper: authorize a setup UPDATE through the real trigger contract. */
@@ -848,23 +895,16 @@ COMMIT;
       log.push("PG17_ALL_WRONG_ACTOR_NEGATIVES_FAIL_CLOSED");
 
       // G6 — remediated migration succeeds through real trigger contract.
-      psqlPath(migPath, { transactional: true });
+      // Same-session/same-txn: prove exact non-empty prior GUCs are restored
+      // immediately after the real migration body, before COMMIT.
+      applyMigrationWithNonemptyPriorAuthContext();
       psqlPath(join(scriptDir, "02-verify.sql"));
       log.push("PG17_REPAIR_APPLIED");
+      log.push("PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT");
 
-      // Session outside the migration transaction must not retain impersonation.
-      const jwtAfter = psqlScalar(
-        `select coalesce(current_setting('request.jwt.claim.sub', true), '');`,
-      );
-      const actionAfter = psqlScalar(
-        `select coalesce(current_setting('b1.atomic_action', true), '');`,
-      );
-      if (jwtAfter !== "" || actionAfter !== "") {
-        throw new Error(
-          `PG17_AUTH_CONTEXT_LEAKED jwt=${jwtAfter} action=${actionAfter}`,
-        );
-      }
-      log.push("PG17_AUTH_CONTEXT_RESTORED_AND_CLEARED");
+      // Separate psql session must not retain migration impersonation GUCs.
+      expectNoCrossSessionAuthContextLeak();
+      log.push("PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK");
 
       const activeAfter = psqlScalar(`
 select count(*)::text
@@ -1129,7 +1169,10 @@ where id='f1300001-0000-4000-8000-000015000007';
       expect(combined).toContain("PG17_LEGACY_FULL_ROLLBACK_EVIDENCE_ABSENT");
       expect(combined).toContain("PG17_ALL_WRONG_ACTOR_NEGATIVES_FAIL_CLOSED");
       expect(combined).toContain("PG17_REPAIR_APPLIED");
-      expect(combined).toContain("PG17_AUTH_CONTEXT_RESTORED_AND_CLEARED");
+      expect(combined).toContain(
+        "PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT",
+      );
+      expect(combined).toContain("PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK");
       expect(combined).toContain("PG17_19_OF_19_OFFLINE");
       expect(combined).toContain("PG17_OTHER_18_UNCHANGED");
       expect(combined).toContain("PG17_EC_FINGERPRINT_UNCHANGED");
