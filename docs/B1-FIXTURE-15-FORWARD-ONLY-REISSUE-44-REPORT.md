@@ -1,9 +1,9 @@
 # B1-FIXTURE-15-FORWARD-ONLY-REISSUE-44
 
-Date: 2026-08-03  
-Mode: MINIMAL SOURCE-ONLY REPAIR  
-Repository: `msorori-mh/saba-uni-portal`  
-Branch: `fix/b1-fixture-15-forward-only-reissue-44`  
+Date: 2026-08-03
+Mode: MINIMAL SOURCE-ONLY REPAIR
+Repository: `msorori-mh/saba-uni-portal`
+Branch: `fix/b1-fixture-15-forward-only-reissue-44`
 Base: `origin/main` @ `eee643f17442ed07bbc27feb9f397dc4c138b6bc`
 
 ## Final decision

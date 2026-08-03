@@ -355,8 +355,11 @@ BEGIN
   );
 
   -- Documented consumed shape from the production incident — full contract.
+  -- completed_at must be present; status=completed with NULL completed_at is
+  -- malformed and must never be treated as authoritative consumed prestate.
   v_consumed := (
     v_req.status = 'completed'
+    AND v_req.completed_at IS NOT NULL
     AND v_completed = 7
     AND v_active = 0
     AND v_step7.status = 'completed'
@@ -383,13 +386,29 @@ BEGIN
         DETAIL = format('restored_incomplete_predecessors=%s', v_pred_bad);
     END IF;
     NULL;
+  ELSIF (
+    v_req.status = 'completed'
+    AND v_req.completed_at IS NULL
+    AND v_completed = 7
+    AND v_active = 0
+    AND v_step7.status = 'completed'
+    AND v_step7.completed_by IS NOT DISTINCT FROM k_archive_actor
+    AND v_events = 1
+  ) THEN
+    -- Fail closed before evidence insert / request mutation / archive mutation.
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = 'B1_44_FIXTURE_15_CONSUMED_REQUEST_COMPLETED_AT_MISSING',
+      DETAIL = 'status=completed completed_at=<null>';
   ELSIF NOT v_consumed THEN
     RAISE EXCEPTION USING
       ERRCODE = 'P0001',
       MESSAGE = 'B1_44_FIXTURE_15_UNEXPECTED_PRESTATE',
       DETAIL = format(
-        'status=%s completed_steps=%s active_steps=%s step7=%s events=%s',
-        v_req.status, v_completed, v_active, v_step7.status, v_events
+        'status=%s completed_at=%s completed_steps=%s active_steps=%s step7=%s events=%s',
+        v_req.status,
+        coalesce(v_req.completed_at::text, '<null>'),
+        v_completed, v_active, v_step7.status, v_events
       );
   ELSE
     -- Consumed predecessor/completion: all seven exact steps completed.

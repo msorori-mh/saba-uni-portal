@@ -391,6 +391,10 @@ describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
     expect(sql).toContain("B1_44_FIXTURE_15_PREDECESSOR_STATE_MISMATCH");
     expect(sql).toContain("B1_44_FIXTURE_15_DUPLICATE_STEP");
     expect(sql).toContain("B1_44_FIXTURE_15_WORKFLOW_MISMATCH");
+    expect(sql).toContain("B1_44_FIXTURE_15_CONSUMED_REQUEST_COMPLETED_AT_MISSING");
+    expect(sql).toMatch(
+      /v_consumed\s*:=\s*\([\s\S]*?v_req\.completed_at\s+IS\s+NOT\s+NULL/i,
+    );
     expect(sql).toContain("FOR UPDATE");
     expect(sql).not.toMatch(/DELETE\s+FROM\s+public\.student_request_workflow_events/i);
   });
@@ -626,7 +630,26 @@ COMMIT;
 
       // Drift classes — each resets to authoritative consumed, mutates one binding,
       // proves migration aborts with no evidence insert / no restore mutation.
-      const driftCases: Array<{ name: string; sql: string; expect: string }> = [
+      const driftCases: Array<{
+        name: string;
+        sql: string;
+        expect: string;
+        mutates?: "steps" | "request";
+      }> = [
+        {
+          name: "consumed_request_completed_at_null",
+          expect: "B1_44_FIXTURE_15_CONSUMED_REQUEST_COMPLETED_AT_MISSING",
+          mutates: "request",
+          sql: `
+BEGIN; SELECT set_config('b1.atomic_init','1',true);
+-- Otherwise exact authoritative consumed state, but request completed_at is NULL.
+UPDATE public.student_requests
+   SET completed_at = NULL
+ WHERE id = 'f1300000-0000-4000-8000-000000000015'
+   AND status = 'completed';
+COMMIT;
+`,
+        },
         {
           name: "wrong_step_uuid",
           expect: "B1_44_FIXTURE_15_STEP_UUID_MISMATCH",
@@ -765,17 +788,46 @@ COMMIT;
             `PG17_DRIFT_SETUP_EVIDENCE_NOT_ZERO:${drift.name}=${evidenceBeforeDrift}`,
           );
         }
-        // Capture pre-drift authoritative fingerprint baseline, then mutate.
+        const mutatesRequest = drift.mutates === "request";
         const baselineSteps = fingerprintSevenSteps();
+        const baselineRequest = fingerprintRequest();
+        const baselineEvents = fingerprintEvents();
+        const archiveBefore = psqlScalar(`
+select status||':'||coalesce(completed_at::text,'')||':'||coalesce(completed_by::text,'')
+from student_request_workflow_steps
+where id='f1300001-0000-4000-8000-000015000007';
+`);
         psql(drift.sql);
         const driftedSteps = fingerprintSevenSteps();
-        if (driftedSteps === baselineSteps) {
+        const driftedRequest = fingerprintRequest();
+        if (mutatesRequest) {
+          if (driftedRequest === baselineRequest) {
+            throw new Error(`PG17_DRIFT_DID_NOT_MUTATE_REQUEST:${drift.name}`);
+          }
+          if (driftedSteps !== baselineSteps) {
+            throw new Error(`PG17_DRIFT_UNEXPECTED_STEP_MUTATION:${drift.name}`);
+          }
+        } else if (driftedSteps === baselineSteps) {
           throw new Error(`PG17_DRIFT_DID_NOT_MUTATE:${drift.name}`);
         }
         expectMigrationFailClosed(drift.expect);
-        // Rejected apply must leave the drifted fingerprint unchanged (no repair).
+        // Rejected apply must leave drifted state unchanged (no repair / partial write).
         if (fingerprintSevenSteps() !== driftedSteps) {
           throw new Error(`PG17_PARTIAL_MUTATION_ON_REJECT:${drift.name}`);
+        }
+        if (fingerprintRequest() !== driftedRequest) {
+          throw new Error(`PG17_PARTIAL_REQUEST_MUTATION_ON_REJECT:${drift.name}`);
+        }
+        if (fingerprintEvents() !== baselineEvents) {
+          throw new Error(`PG17_EVENTS_MUTATED_ON_REJECT:${drift.name}`);
+        }
+        const archiveAfter = psqlScalar(`
+select status||':'||coalesce(completed_at::text,'')||':'||coalesce(completed_by::text,'')
+from student_request_workflow_steps
+where id='f1300001-0000-4000-8000-000015000007';
+`);
+        if (archiveAfter !== archiveBefore && mutatesRequest) {
+          throw new Error(`PG17_ARCHIVE_STEP_MUTATED_ON_REJECT:${drift.name}`);
         }
         const evidenceAfter = psqlScalar(
           `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
@@ -788,6 +840,7 @@ COMMIT;
         log.push(`PG17_DRIFT_FAIL_CLOSED:${drift.name}`);
       }
       log.push("PG17_ALL_DRIFT_CLASSES_FAIL_CLOSED");
+      log.push("PG17_CONSUMED_COMPLETED_AT_NULL_FAIL_CLOSED");
       log.push("PASS_B1_44_FIXTURE_15_REISSUE_PG17");
 
       const combined = log.join("\n");
@@ -798,6 +851,7 @@ COMMIT;
       expect(combined).toContain("PG17_SECOND_APPLY_IDEMPOTENT");
       expect(combined).toContain("PG17_UNEXPECTED_PRESTATE_FAIL_CLOSED");
       expect(combined).toContain("PG17_ALL_DRIFT_CLASSES_FAIL_CLOSED");
+      expect(combined).toContain("PG17_CONSUMED_COMPLETED_AT_NULL_FAIL_CLOSED");
       expect(combined).toContain("PASS_B1_44_FIXTURE_15_REISSUE_PG17");
       for (const drift of driftCases) {
         expect(combined).toContain(`PG17_DRIFT_FAIL_CLOSED:${drift.name}`);
