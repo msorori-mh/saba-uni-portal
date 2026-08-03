@@ -129,10 +129,16 @@ select md5(string_agg(x, '|' order by x)) from (
 
   # Unexpected pre-state rolls back (mutate Fixture 15 away from restored/consumed)
   Invoke-Sql @"
+BEGIN;
 SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','aec1303e-de6a-4580-94cf-7205c17b5535',true);
+SELECT set_config('b1.atomic_action','1',true);
 UPDATE public.student_requests
    SET status='cancelled', completed_at=now()
  WHERE id='f1300000-0000-4000-8000-000000000015';
+SELECT set_config('request.jwt.claim.sub','',true);
+SELECT set_config('b1.atomic_action','',true);
+COMMIT;
 "@
   Expect-RepoFileFailure $fixRel 'B1_44_FIXTURE_15_UNEXPECTED_PRESTATE'
   $status = (docker exec $name psql -X -At -U postgres -c "select status from student_requests where id='f1300000-0000-4000-8000-000000000015';").Trim()
@@ -140,6 +146,7 @@ UPDATE public.student_requests
   Write-Output "PG17_UNEXPECTED_PRESTATE_FAIL_CLOSED"
 
   Write-Output "PASS_B1_44_FIXTURE_15_REISSUE_PG17"
+  Write-Output "PASS_B1_FIXTURE_15_MANAGED_CHANNEL_TRIGGER_CONTEXT_56"
 }
 finally {
   docker rm -f $name *> $null

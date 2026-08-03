@@ -155,10 +155,16 @@ All production reads used the trusted read-only channel. No secrets appear in th
 
 ## Unblock options (require a new owner authorization; source-only, forward-only)
 
-1. Extend `public.protect_student_request()` (forward-only migration) to accept the documented transaction-local repair channel — e.g. honour `current_setting('b1.atomic_init', true) = '1'` for a narrowly scoped, marker-gated TEST_ONLY fixture repair — then re-apply Fixture-15 repair unchanged.
-2. Amend the Fixture-15 repair migration to run its request update inside an explicitly authorized security-definer repair function that satisfies the existing trigger contract, without widening role-wide bypass.
+Chosen follow-up (mission 56, source-only — not applied here):
 
-Both options change authorization-relevant surface and therefore require review before any production apply.
+Amend the unapplied Fixture-15 repair migration so the exact `student_requests` UPDATE temporarily satisfies the **existing** `protect_student_request()` B1 contract via transaction-local `request.jwt.claim.sub = archive actor` and `b1.atomic_action = '1'`, then restores prior GUCs. Do **not** weaken `protect_student_request()`, disable triggers, set `session_replication_role`, or honour `b1.atomic_init` inside that trigger.
+
+Rejected for this incident:
+
+1. Extending `protect_student_request()` to honour `b1.atomic_init` (permanent bypass surface).
+2. Admin/service-role exceptions or trigger disablement.
+
+This report records the failed apply only. It does **not** claim the migration was applied or that production reached 19/19.
 
 ---
 

@@ -23,8 +23,18 @@
 --   * Does NOT touch the other 18 fixtures, Auth, Storage, enrollment_certificate,
 --     request_types.student_visible / is_active, or authorization artifacts
 --
--- Boundary: uses transaction-local b1.atomic_init (same documented channel as
--- Fixture-13 seed / Stage-3 cleanup). Not a privilege bypass.
+-- Boundary:
+--   * Runtime-step mutation uses transaction-local b1.atomic_init (same
+--     documented channel as Fixture-13 seed / Stage-3 cleanup).
+--   * student_requests UPDATE additionally satisfies the existing
+--     protect_student_request() B1 contract for one statement only:
+--       current_setting('b1.atomic_action', true) = '1'
+--       AND auth.uid() IS NOT NULL
+--       AND EXISTS (completed/rejected/returned step with completed_by = auth.uid())
+--     via transaction-local request.jwt.claim.sub = archive actor, then restore.
+--   * b1.atomic_init alone does NOT authorize student_requests UPDATE.
+--   * Does NOT alter protect_student_request(), disable triggers, set
+--     session_replication_role, modify RLS/GRANTs, or leave elevated context.
 -- ============================================================================
 
 SELECT set_config('b1.atomic_init', '1', true);
@@ -89,6 +99,8 @@ DECLARE
   v_cfg_id        uuid;
   v_identity_n    integer;
   v_pred_bad      integer;
+  v_prev_jwt_sub  text;
+  v_prev_atomic_action text;
 BEGIN
   -- ------------------------------------------------------------------
   -- Load Fixture 15 identity (exact UUID + request number + marker).
@@ -512,6 +524,17 @@ BEGIN
 
     -- Restore only request terminal fields + archive completion fields.
     -- Do not rewrite bindings or repair drift silently.
+    --
+    -- Managed-channel auth window (transaction-local, exact UPDATE only):
+    -- Capture → set archive actor + b1.atomic_action → UPDATE → restore.
+    -- At this point step 7 is still completed by k_archive_actor, so the
+    -- existing protect_student_request() B1 path authorizes the UPDATE.
+    v_prev_jwt_sub := coalesce(current_setting('request.jwt.claim.sub', true), '');
+    v_prev_atomic_action := coalesce(current_setting('b1.atomic_action', true), '');
+
+    PERFORM set_config('request.jwt.claim.sub', k_archive_actor::text, true);
+    PERFORM set_config('b1.atomic_action', '1', true);
+
     UPDATE public.student_requests r
        SET status = 'in_review',
            completed_at = NULL,
@@ -520,6 +543,26 @@ BEGIN
      WHERE r.id = k_req_id
        AND r.status = 'completed';
     GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+    PERFORM set_config('request.jwt.claim.sub', v_prev_jwt_sub, true);
+    PERFORM set_config('b1.atomic_action', v_prev_atomic_action, true);
+
+    IF coalesce(current_setting('request.jwt.claim.sub', true), '')
+         IS DISTINCT FROM v_prev_jwt_sub
+       OR coalesce(current_setting('b1.atomic_action', true), '')
+         IS DISTINCT FROM v_prev_atomic_action THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_MANAGED_CHANNEL_AUTH_CONTEXT_RESTORE_FAILED',
+        DETAIL = format(
+          'jwt_sub=%s atomic_action=%s expected_jwt=%s expected_action=%s',
+          coalesce(current_setting('request.jwt.claim.sub', true), '<null>'),
+          coalesce(current_setting('b1.atomic_action', true), '<null>'),
+          v_prev_jwt_sub,
+          v_prev_atomic_action
+        );
+    END IF;
+
     IF v_rows IS DISTINCT FROM 1 THEN
       RAISE EXCEPTION USING
         ERRCODE = 'P0001',
@@ -527,6 +570,8 @@ BEGIN
         DETAIL = format('expected=1 actual=%s', v_rows);
     END IF;
 
+    -- Archive runtime-step restore continues under b1.atomic_init only
+    -- (no impersonated auth context required / retained).
     UPDATE public.student_request_workflow_steps s
        SET status = 'active',
            decision = NULL,
