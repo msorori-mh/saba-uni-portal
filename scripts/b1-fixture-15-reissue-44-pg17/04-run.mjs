@@ -13,6 +13,10 @@ const root = join(__dirname, "..", "..");
 const fixRel =
   "supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql";
 const scriptDir = "scripts/b1-fixture-15-reissue-44-pg17";
+const nonemptyPriorPrologueRel = `${scriptDir}/nonempty-prior-auth-context-prologue.sql`;
+const nonemptyPriorEpilogueRel = `${scriptDir}/nonempty-prior-auth-context-epilogue.sql`;
+const PRIOR_JWT_SUB = "c8a94548-4782-4252-86f9-23559d3b95bd";
+const PRIOR_ATOMIC_ACTION = "prior-auth-context-marker";
 const name = `b1-44-fixture15-pg17-${process.pid}-${Date.now()}`;
 
 function sleepMs(ms) {
@@ -125,6 +129,53 @@ function expectRepoFileFailure(file, expected) {
   }
 }
 
+/**
+ * First successful apply: execute the real migration file inside one psql
+ * session/transaction after setting distinct non-empty prior auth GUCs, then
+ * assert those exact values are restored before COMMIT.
+ */
+function applyMigrationWithNonemptyPriorAuthContext() {
+  const prologue = readFileSync(join(root, nonemptyPriorPrologueRel), "utf8");
+  const migration = readFileSync(join(root, fixRel), "utf8");
+  const epilogue = readFileSync(join(root, nonemptyPriorEpilogueRel), "utf8");
+  const sql = `BEGIN;\n${prologue}\n${migration}\n${epilogue}\nCOMMIT;`;
+  const res = spawnSync(
+    "docker",
+    ["exec", "-i", "-w", "/repo", name, "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres"],
+    {
+      input: sql,
+      encoding: "utf8",
+      maxBuffer: 20 * 1024 * 1024,
+    }
+  );
+  const output = `${res.stdout || ""}\n${res.stderr || ""}`;
+  if (res.status !== 0) {
+    throw new Error(
+      `PG17_NONEMPTY_PRIOR_AUTH_APPLY_FAILED:\n${output}`
+    );
+  }
+  if (!output.includes(PRIOR_JWT_SUB) || !output.includes(PRIOR_ATOMIC_ACTION)) {
+    throw new Error(
+      `PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_VALUES_NOT_SURFACED:\n${output}`
+    );
+  }
+}
+
+/** Fresh psql session must not retain migration impersonation GUCs. */
+function expectNoCrossSessionAuthContextLeak() {
+  const jwtAfter = psqlAt(
+    `select coalesce(current_setting('request.jwt.claim.sub', true), '');`
+  );
+  const actionAfter = psqlAt(
+    `select coalesce(current_setting('b1.atomic_action', true), '');`
+  );
+  if (jwtAfter !== "" || actionAfter !== "") {
+    throw new Error(
+      `PG17_AUTH_CONTEXT_LEAKED jwt=${jwtAfter} action=${actionAfter}`
+    );
+  }
+}
+
 try {
   execFileSync(
     "docker",
@@ -184,9 +235,41 @@ select md5(string_agg(x, '|' order by x)) from (
 `);
 
   console.log("PRE_REPAIR_ACTIVE_18_CONFIRMED");
-  invokeRepoFile(fixRel, { transactional: true });
+
+  // Reproduce managed-channel denial: atomic_init alone, auth.uid() NULL.
+  {
+    const res = spawnSync(
+      "docker",
+      ["exec", "-i", name, "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres"],
+      {
+        input: `
+BEGIN;
+SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','',true);
+SELECT set_config('b1.atomic_action','',true);
+UPDATE public.student_requests r
+   SET status = 'in_review', completed_at = NULL, current_step_index = 7, updated_at = now()
+ WHERE r.id = 'f1300000-0000-4000-8000-000000000015' AND r.status = 'completed';
+COMMIT;
+`,
+        encoding: "utf8",
+        maxBuffer: 20 * 1024 * 1024,
+      }
+    );
+    const out = `${res.stdout || ""}\n${res.stderr || ""}`;
+    if (res.status === 0 || !out.includes("Not authorized to modify this request")) {
+      throw new Error(`PG17_LEGACY_MANAGED_CHANNEL_UPDATE_SHOULD_HAVE_FAILED\n${out}`);
+    }
+  }
+  console.log("PG17_LEGACY_MANAGED_CHANNEL_UPDATE_DENIED");
+
+  applyMigrationWithNonemptyPriorAuthContext();
   invokeRepoFile(`${scriptDir}/02-verify.sql`);
   console.log("PG17_REPAIR_APPLIED");
+  console.log("PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT");
+  expectNoCrossSessionAuthContextLeak();
+  console.log("PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK");
+  console.log("PG17_19_OF_19_OFFLINE");
 
   const fpOthersAfter = psqlAt(`
 select md5(string_agg(t::text, '|' order by t::text))
@@ -223,10 +306,16 @@ select md5(string_agg(x, '|' order by x)) from (
   console.log("PG17_SECOND_APPLY_IDEMPOTENT");
 
   psqlC(`
+BEGIN;
 SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','aec1303e-de6a-4580-94cf-7205c17b5535',true);
+SELECT set_config('b1.atomic_action','1',true);
 UPDATE public.student_requests
    SET status='cancelled', completed_at=now()
  WHERE id='f1300000-0000-4000-8000-000000000015';
+SELECT set_config('request.jwt.claim.sub','',true);
+SELECT set_config('b1.atomic_action','',true);
+COMMIT;
 `);
   expectRepoFileFailure(fixRel, "B1_44_FIXTURE_15_UNEXPECTED_PRESTATE");
   const status = psqlAt(
@@ -237,6 +326,7 @@ UPDATE public.student_requests
   }
   console.log("PG17_UNEXPECTED_PRESTATE_FAIL_CLOSED");
   console.log("PASS_B1_44_FIXTURE_15_REISSUE_PG17");
+  console.log("PASS_B1_FIXTURE_15_MANAGED_CHANNEL_TRIGGER_CONTEXT_56");
 } finally {
   try {
     execFileSync("docker", ["rm", "-f", name], {

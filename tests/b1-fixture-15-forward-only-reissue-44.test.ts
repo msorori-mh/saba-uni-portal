@@ -88,6 +88,19 @@ const STEP_CONTRACT = [
 ] as const;
 
 const container = `b1-44-fixture15-pg17-${Date.now()}`;
+const F15_REQ = "f1300000-0000-4000-8000-000000000015";
+const ARCHIVE_ACTOR = "aec1303e-de6a-4580-94cf-7205c17b5535";
+/** Distinct non-empty prior JWT (valid UUID ≠ archive actor) for restore proof. */
+const PRIOR_JWT_SUB = "c8a94548-4782-4252-86f9-23559d3b95bd";
+const PRIOR_ATOMIC_ACTION = "prior-auth-context-marker";
+const nonemptyPriorProloguePath = join(
+  scriptDir,
+  "nonempty-prior-auth-context-prologue.sql",
+);
+const nonemptyPriorEpiloguePath = join(
+  scriptDir,
+  "nonempty-prior-auth-context-epilogue.sql",
+);
 
 function dockerSpawn(args: string[], opts: { input?: string } = {}) {
   const res = spawnSync("docker", args, {
@@ -171,21 +184,96 @@ function psqlPath(
   return psql(sql, { allowFailure });
 }
 
+/**
+ * First successful apply: same session + same transaction must restore the
+ * exact non-empty prior auth GUCs after executing the real migration file.
+ */
+function applyMigrationWithNonemptyPriorAuthContext() {
+  const prologue = readFileSync(nonemptyPriorProloguePath, "utf8");
+  const migration = readFileSync(migPath, "utf8");
+  const epilogue = readFileSync(nonemptyPriorEpiloguePath, "utf8");
+  const sql = `BEGIN;\n${prologue}\n${migration}\n${epilogue}\nCOMMIT;`;
+  const result = psql(sql);
+  if (
+    !result.out.includes(PRIOR_JWT_SUB) ||
+    !result.out.includes(PRIOR_ATOMIC_ACTION)
+  ) {
+    throw new Error(
+      `PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_VALUES_NOT_SURFACED:\n${result.out}`,
+    );
+  }
+  return result;
+}
+
+/** Fresh psql session must not retain migration impersonation GUCs. */
+function expectNoCrossSessionAuthContextLeak() {
+  const jwtAfter = psqlScalar(
+    `select coalesce(current_setting('request.jwt.claim.sub', true), '');`,
+  );
+  const actionAfter = psqlScalar(
+    `select coalesce(current_setting('b1.atomic_action', true), '');`,
+  );
+  if (jwtAfter !== "" || actionAfter !== "") {
+    throw new Error(
+      `PG17_AUTH_CONTEXT_LEAKED jwt=${jwtAfter} action=${actionAfter}`,
+    );
+  }
+}
+
+/** Harness-only helper: authorize a setup UPDATE through the real trigger contract. */
+function beginHarnessRequestUpdateAuth(): string {
+  return `
+SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','${ARCHIVE_ACTOR}',true);
+SELECT set_config('b1.atomic_action','1',true);
+`;
+}
+
+function clearHarnessRequestUpdateAuth(): string {
+  return `
+SELECT set_config('request.jwt.claim.sub','',true);
+SELECT set_config('b1.atomic_action','',true);
+`;
+}
+
+function evidenceCount(): string {
+  const exists = psqlScalar(
+    `select case when to_regclass('public.b1_fixture_15_reissue_44_evidence') is null then 'no' else 'yes' end;`,
+  );
+  if (exists !== "yes") return "absent";
+  return psqlScalar(
+    `select count(*)::text from public.b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}';`,
+  );
+}
+
 function resetFixture15Consumed() {
   psql(`
 BEGIN;
-SELECT set_config('b1.atomic_init','1',true);
-DELETE FROM public.b1_fixture_15_reissue_44_evidence
- WHERE request_id = 'f1300000-0000-4000-8000-000000000015';
--- Keep the attributable archive event; drop/rebuild runtime steps only.
-UPDATE public.student_request_workflow_events
-   SET workflow_step_runtime_id = NULL
- WHERE student_request_id = 'f1300000-0000-4000-8000-000000000015';
-DELETE FROM public.student_request_workflow_steps
- WHERE student_request_id = 'f1300000-0000-4000-8000-000000000015';
+${beginHarnessRequestUpdateAuth()}
+-- Update request while completed steps still exist (trigger contract).
 UPDATE public.student_requests
    SET status='completed', completed_at=now(), current_step_index=7
  WHERE id='f1300000-0000-4000-8000-000000000015';
+${clearHarnessRequestUpdateAuth()}
+SELECT set_config('b1.atomic_init','1',true);
+DO $ev$
+BEGIN
+  IF to_regclass('public.b1_fixture_15_reissue_44_evidence') IS NOT NULL THEN
+    DELETE FROM public.b1_fixture_15_reissue_44_evidence
+     WHERE request_id = 'f1300000-0000-4000-8000-000000000015';
+  END IF;
+END
+$ev$;
+-- Keep the attributable archive event; drop/rebuild runtime steps only.
+-- Always restore the authoritative event actor/action binding.
+UPDATE public.student_request_workflow_events
+   SET workflow_step_runtime_id = NULL,
+       actor_user_id = '${ARCHIVE_ACTOR}',
+       event_type = 'archived',
+       payload = jsonb_build_object('action','archive','action_result','archived')
+ WHERE student_request_id = 'f1300000-0000-4000-8000-000000000015';
+DELETE FROM public.student_request_workflow_steps
+ WHERE student_request_id = 'f1300000-0000-4000-8000-000000000015';
 INSERT INTO public.student_request_workflow_steps(
   id, student_request_id, workflow_id, workflow_step_id, step_key, step_name_ar, step_order,
   processing_unit_id, processing_role_id, assigned_staff_profile_id,
@@ -235,8 +323,6 @@ UPDATE public.student_request_workflow_events
 COMMIT;
 `);
 }
-
-const F15_REQ = "f1300000-0000-4000-8000-000000000015";
 
 function fingerprintSevenSteps(): string {
   return psqlScalar(`
@@ -310,9 +396,7 @@ function expectMigrationFailClosed(expectedMessage: string) {
   const beforeSteps = fingerprintSevenSteps();
   const beforeRequest = fingerprintRequest();
   const beforeEvents = fingerprintEvents();
-  const beforeEvidence = psqlScalar(
-    `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
-  );
+  const beforeEvidence = evidenceCount();
 
   const fail = psqlPath(migPath, { transactional: true, allowFailure: true });
   if (fail.status === 0) {
@@ -327,9 +411,7 @@ function expectMigrationFailClosed(expectedMessage: string) {
   const afterSteps = fingerprintSevenSteps();
   const afterRequest = fingerprintRequest();
   const afterEvents = fingerprintEvents();
-  const afterEvidence = psqlScalar(
-    `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
-  );
+  const afterEvidence = evidenceCount();
 
   if (afterSteps !== beforeSteps) {
     throw new Error(
@@ -350,6 +432,96 @@ function expectMigrationFailClosed(expectedMessage: string) {
     throw new Error(
       `PG17_EVIDENCE_INSERTED_ON_REJECT before=${beforeEvidence} after=${afterEvidence}`,
     );
+  }
+}
+
+/** Reproduce managed-channel UPDATE denied by protect_student_request(). */
+function expectManagedChannelLegacyUpdateDenied() {
+  const beforeSteps = fingerprintSevenSteps();
+  const beforeRequest = fingerprintRequest();
+  const beforeEvents = fingerprintEvents();
+  const beforeEvidence = evidenceCount();
+
+  const fail = psql(
+    `
+BEGIN;
+SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','',true);
+SELECT set_config('b1.atomic_action','',true);
+UPDATE public.student_requests r
+   SET status = 'in_review',
+       completed_at = NULL,
+       current_step_index = 7,
+       updated_at = now()
+ WHERE r.id = '${F15_REQ}'
+   AND r.status = 'completed';
+COMMIT;
+`,
+    { allowFailure: true },
+  );
+  if (fail.status === 0) {
+    throw new Error("PG17_LEGACY_MANAGED_CHANNEL_UPDATE_SHOULD_HAVE_FAILED");
+  }
+  if (!fail.out.includes("Not authorized to modify this request")) {
+    throw new Error(
+      `PG17_LEGACY_WRONG_ERROR: output=${fail.out}`,
+    );
+  }
+  if (fingerprintSevenSteps() !== beforeSteps) {
+    throw new Error("PG17_LEGACY_STEPS_MUTATED");
+  }
+  if (fingerprintRequest() !== beforeRequest) {
+    throw new Error("PG17_LEGACY_REQUEST_MUTATED");
+  }
+  if (fingerprintEvents() !== beforeEvents) {
+    throw new Error("PG17_LEGACY_EVENTS_MUTATED");
+  }
+  const afterEvidence = evidenceCount();
+  if (afterEvidence !== beforeEvidence) {
+    throw new Error(
+      `PG17_LEGACY_EVIDENCE_CHANGED before=${beforeEvidence} after=${afterEvidence}`,
+    );
+  }
+}
+
+function expectTriggerDeniedUpdate(label: string, setupSql: string) {
+  const beforeSteps = fingerprintSevenSteps();
+  const beforeRequest = fingerprintRequest();
+  const beforeEvents = fingerprintEvents();
+  const beforeEvidence = evidenceCount();
+
+  const fail = psql(
+    `
+BEGIN;
+${setupSql}
+UPDATE public.student_requests r
+   SET status = 'in_review',
+       completed_at = NULL,
+       current_step_index = 7,
+       updated_at = now()
+ WHERE r.id = '${F15_REQ}'
+   AND r.status = 'completed';
+COMMIT;
+`,
+    { allowFailure: true },
+  );
+  if (fail.status === 0) {
+    throw new Error(`PG17_TRIGGER_DENY_MISSING:${label}`);
+  }
+  if (!fail.out.includes("Not authorized to modify this request")) {
+    throw new Error(`PG17_TRIGGER_WRONG_ERROR:${label}: ${fail.out}`);
+  }
+  if (fingerprintSevenSteps() !== beforeSteps) {
+    throw new Error(`PG17_TRIGGER_STEPS_MUTATED:${label}`);
+  }
+  if (fingerprintRequest() !== beforeRequest) {
+    throw new Error(`PG17_TRIGGER_REQUEST_MUTATED:${label}`);
+  }
+  if (fingerprintEvents() !== beforeEvents) {
+    throw new Error(`PG17_TRIGGER_EVENTS_MUTATED:${label}`);
+  }
+  if (evidenceCount() !== beforeEvidence) {
+    throw new Error(`PG17_TRIGGER_EVIDENCE_CHANGED:${label}`);
   }
 }
 
@@ -470,6 +642,61 @@ describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
     expect(sql).not.toMatch(
       /\b(UPDATE|INSERT|DELETE)\b[\s\S]{0,80}\benrollment_certificate/i,
     );
+  });
+
+  it("uses transaction-local managed-channel trigger context only for request UPDATE", () => {
+    const sql = readFileSync(migPath, "utf8");
+    expect(sql).toContain("request.jwt.claim.sub");
+    expect(sql).toContain("b1.atomic_action");
+    expect(sql).toContain(ARCHIVE_ACTOR);
+    expect(sql).toContain("B1_44_MANAGED_CHANNEL_AUTH_CONTEXT_RESTORE_FAILED");
+    expect(sql).toMatch(
+      /set_config\(\s*'request\.jwt\.claim\.sub'\s*,\s*k_archive_actor::text\s*,\s*true\s*\)/i,
+    );
+    expect(sql).toMatch(
+      /set_config\(\s*'b1\.atomic_action'\s*,\s*'1'\s*,\s*true\s*\)/i,
+    );
+    expect(sql).toMatch(
+      /set_config\(\s*'request\.jwt\.claim\.sub'\s*,\s*v_prev_jwt_sub\s*,\s*true\s*\)/i,
+    );
+    expect(sql).toMatch(
+      /set_config\(\s*'b1\.atomic_action'\s*,\s*v_prev_atomic_action\s*,\s*true\s*\)/i,
+    );
+    // No permanent bypass / weakening.
+    // Executable SQL must not introduce bypasses (ignore header prose).
+    const executable = sql
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("--"))
+      .join("\n");
+    expect(executable).not.toMatch(
+      /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.protect_student_request/i,
+    );
+    expect(executable).not.toMatch(
+      /set_config\s*\(\s*'session_replication_role'|SET\s+session_replication_role/i,
+    );
+    expect(executable).not.toMatch(/DISABLE\s+TRIGGER\b/i);
+    expect(executable).not.toMatch(
+      /ALTER\s+TABLE[\s\S]{0,80}DISABLE\s+ROW\s+LEVEL\s+SECURITY/i,
+    );
+    expect(executable).not.toMatch(/\bauth\.users\b/i);
+    expect(executable).not.toMatch(/\bservice_role\b/i);
+  });
+
+  it("keeps harness protect_student_request contract aligned with production B1 path", () => {
+    const schema = readFileSync(join(scriptDir, "00-schema.sql"), "utf8");
+    const protectStart = schema.indexOf(
+      "CREATE OR REPLACE FUNCTION public.protect_student_request",
+    );
+    expect(protectStart).toBeGreaterThanOrEqual(0);
+    const protectEnd = schema.indexOf("$function$;", protectStart);
+    const protectBody = schema.slice(protectStart, protectEnd);
+    expect(protectBody).toContain("b1.atomic_action");
+    expect(protectBody).toContain("s.completed_by = v_uid");
+    expect(protectBody).toContain("Not authorized to modify this request");
+    expect(protectBody).not.toContain("b1.atomic_init");
+    expect(schema).toContain("request.jwt.claim.sub");
+    // has_any_role stub must not grant privileged bypass.
+    expect(schema).toMatch(/has_any_role[\s\S]*?SELECT false/i);
   });
 
   it("keeps authoritative positive Fixture 15 bindings", () => {
@@ -595,9 +822,101 @@ select md5(string_agg(x, '|' order by x)) from (
       const fpEcBefore = psqlScalar(fpEcSql);
 
       log.push("PRE_REPAIR_ACTIVE_18_CONFIRMED");
-      psqlPath(migPath, { transactional: true });
+
+      // G5 — previous managed-channel behavior denied by real trigger.
+      expectManagedChannelLegacyUpdateDenied();
+      log.push("PG17_LEGACY_MANAGED_CHANNEL_UPDATE_DENIED");
+      if (evidenceCount() !== "absent") {
+        throw new Error("PG17_LEGACY_EVIDENCE_TABLE_SHOULD_BE_ABSENT");
+      }
+      log.push("PG17_LEGACY_FULL_ROLLBACK_EVIDENCE_ABSENT");
+
+      // G7 — wrong-actor / missing-step / missing atomic_action trigger denials.
+      expectTriggerDeniedUpdate(
+        "wrong_jwt_actor",
+        `
+SELECT set_config('b1.atomic_init','1',true);
+-- Specialist is not completed_by on any Fixture-15 runtime step.
+SELECT set_config('request.jwt.claim.sub','c8a94548-4782-4252-86f9-23559d3b95bd',true);
+SELECT set_config('b1.atomic_action','1',true);
+`,
+      );
+      log.push("PG17_TRIGGER_DENY:wrong_jwt_actor");
+
+      expectTriggerDeniedUpdate(
+        "atomic_action_unset_with_jwt",
+        `
+SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','${ARCHIVE_ACTOR}',true);
+SELECT set_config('b1.atomic_action','',true);
+`,
+      );
+      log.push("PG17_TRIGGER_DENY:atomic_action_unset_with_jwt");
+
+      expectTriggerDeniedUpdate(
+        "no_completed_step_for_actor",
+        `
+SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','${ARCHIVE_ACTOR}',true);
+SELECT set_config('b1.atomic_action','1',true);
+UPDATE public.student_request_workflow_steps
+   SET completed_by = 'c8a94548-4782-4252-86f9-23559d3b95bd'
+ WHERE student_request_id = '${F15_REQ}'
+   AND status = 'completed';
+`,
+      );
+      log.push("PG17_TRIGGER_DENY:no_completed_step_for_actor");
+      resetFixture15Consumed();
+
+      // Migration fail-closed: archive completed_by ≠ k_archive_actor.
+      psql(`
+BEGIN;
+SELECT set_config('b1.atomic_init','1',true);
+UPDATE public.student_request_workflow_steps
+   SET completed_by = 'c8a94548-4782-4252-86f9-23559d3b95bd'
+ WHERE id = 'f1300001-0000-4000-8000-000015000007';
+COMMIT;
+`);
+      expectMigrationFailClosed("B1_44_FIXTURE_15_UNEXPECTED_PRESTATE");
+      log.push("PG17_MIGRATION_DENY:archive_completed_by_mismatch");
+      resetFixture15Consumed();
+
+      // Migration fail-closed: archive event actor differs.
+      psql(`
+BEGIN;
+UPDATE public.student_request_workflow_events
+   SET actor_user_id = 'c8a94548-4782-4252-86f9-23559d3b95bd'
+ WHERE student_request_id = '${F15_REQ}';
+COMMIT;
+`);
+      expectMigrationFailClosed("B1_44_FIXTURE_15_EVENT_ACTOR_MISMATCH");
+      log.push("PG17_MIGRATION_DENY:event_actor_mismatch");
+      resetFixture15Consumed();
+      log.push("PG17_ALL_WRONG_ACTOR_NEGATIVES_FAIL_CLOSED");
+
+      // G6 — remediated migration succeeds through real trigger contract.
+      // Same-session/same-txn: prove exact non-empty prior GUCs are restored
+      // immediately after the real migration body, before COMMIT.
+      applyMigrationWithNonemptyPriorAuthContext();
       psqlPath(join(scriptDir, "02-verify.sql"));
       log.push("PG17_REPAIR_APPLIED");
+      log.push("PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT");
+
+      // Separate psql session must not retain migration impersonation GUCs.
+      expectNoCrossSessionAuthContextLeak();
+      log.push("PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK");
+
+      const activeAfter = psqlScalar(`
+select count(*)::text
+  from student_request_workflow_steps s
+  join student_requests r on r.id = s.student_request_id
+ where r.internal_notes = 'TEST_ONLY_B1_FIXTURE_13'
+   and s.status = 'active';
+`);
+      if (activeAfter !== "19") {
+        throw new Error(`PG17_ACTIVE_NOT_19 got=${activeAfter}`);
+      }
+      log.push("PG17_19_OF_19_OFFLINE");
 
       const fpOthersAfter = psqlScalar(fpOthersSql);
       if (fpOthersBefore !== fpOthersAfter) {
@@ -619,10 +938,12 @@ select md5(string_agg(x, '|' order by x)) from (
 
       // Unexpected request pre-state (not consumed/restored).
       psql(`
-BEGIN; SELECT set_config('b1.atomic_init','1',true);
+BEGIN;
+${beginHarnessRequestUpdateAuth()}
 UPDATE public.student_requests
    SET status='cancelled', completed_at=now()
  WHERE id='f1300000-0000-4000-8000-000000000015';
+${clearHarnessRequestUpdateAuth()}
 COMMIT;
 `);
       expectMigrationFailClosed("B1_44_FIXTURE_15_UNEXPECTED_PRESTATE");
@@ -641,12 +962,14 @@ COMMIT;
           expect: "B1_44_FIXTURE_15_CONSUMED_REQUEST_COMPLETED_AT_MISSING",
           mutates: "request",
           sql: `
-BEGIN; SELECT set_config('b1.atomic_init','1',true);
+BEGIN;
+${beginHarnessRequestUpdateAuth()}
 -- Otherwise exact authoritative consumed state, but request completed_at is NULL.
 UPDATE public.student_requests
    SET completed_at = NULL
  WHERE id = 'f1300000-0000-4000-8000-000000000015'
    AND status = 'completed';
+${clearHarnessRequestUpdateAuth()}
 COMMIT;
 `,
         },
@@ -780,9 +1103,7 @@ COMMIT;
 
       for (const drift of driftCases) {
         resetFixture15Consumed();
-        const evidenceBeforeDrift = psqlScalar(
-          `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
-        );
+        const evidenceBeforeDrift = evidenceCount();
         if (evidenceBeforeDrift !== "0") {
           throw new Error(
             `PG17_DRIFT_SETUP_EVIDENCE_NOT_ZERO:${drift.name}=${evidenceBeforeDrift}`,
@@ -829,9 +1150,7 @@ where id='f1300001-0000-4000-8000-000015000007';
         if (archiveAfter !== archiveBefore && mutatesRequest) {
           throw new Error(`PG17_ARCHIVE_STEP_MUTATED_ON_REJECT:${drift.name}`);
         }
-        const evidenceAfter = psqlScalar(
-          `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
-        );
+        const evidenceAfter = evidenceCount();
         if (evidenceAfter !== "0") {
           throw new Error(
             `PG17_EVIDENCE_INSERTED_ON_DRIFT:${drift.name}=${evidenceAfter}`,
@@ -842,10 +1161,19 @@ where id='f1300001-0000-4000-8000-000015000007';
       log.push("PG17_ALL_DRIFT_CLASSES_FAIL_CLOSED");
       log.push("PG17_CONSUMED_COMPLETED_AT_NULL_FAIL_CLOSED");
       log.push("PASS_B1_44_FIXTURE_15_REISSUE_PG17");
+      log.push("PASS_B1_FIXTURE_15_MANAGED_CHANNEL_TRIGGER_CONTEXT_56");
 
       const combined = log.join("\n");
       expect(combined).toContain("PRE_REPAIR_ACTIVE_18_CONFIRMED");
+      expect(combined).toContain("PG17_LEGACY_MANAGED_CHANNEL_UPDATE_DENIED");
+      expect(combined).toContain("PG17_LEGACY_FULL_ROLLBACK_EVIDENCE_ABSENT");
+      expect(combined).toContain("PG17_ALL_WRONG_ACTOR_NEGATIVES_FAIL_CLOSED");
       expect(combined).toContain("PG17_REPAIR_APPLIED");
+      expect(combined).toContain(
+        "PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT",
+      );
+      expect(combined).toContain("PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK");
+      expect(combined).toContain("PG17_19_OF_19_OFFLINE");
       expect(combined).toContain("PG17_OTHER_18_UNCHANGED");
       expect(combined).toContain("PG17_EC_FINGERPRINT_UNCHANGED");
       expect(combined).toContain("PG17_SECOND_APPLY_IDEMPOTENT");
@@ -853,6 +1181,9 @@ where id='f1300001-0000-4000-8000-000015000007';
       expect(combined).toContain("PG17_ALL_DRIFT_CLASSES_FAIL_CLOSED");
       expect(combined).toContain("PG17_CONSUMED_COMPLETED_AT_NULL_FAIL_CLOSED");
       expect(combined).toContain("PASS_B1_44_FIXTURE_15_REISSUE_PG17");
+      expect(combined).toContain(
+        "PASS_B1_FIXTURE_15_MANAGED_CHANNEL_TRIGGER_CONTEXT_56",
+      );
       for (const drift of driftCases) {
         expect(combined).toContain(`PG17_DRIFT_FAIL_CLOSED:${drift.name}`);
       }

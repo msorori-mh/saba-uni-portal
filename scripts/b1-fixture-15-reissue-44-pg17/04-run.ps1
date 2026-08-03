@@ -3,6 +3,10 @@ $name = "b1-44-fixture15-pg17-$PID"
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $fixRel = 'supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql'
 $scriptDir = 'scripts/b1-fixture-15-reissue-44-pg17'
+$nonemptyPriorPrologueRel = Join-Path $scriptDir 'nonempty-prior-auth-context-prologue.sql'
+$nonemptyPriorEpilogueRel = Join-Path $scriptDir 'nonempty-prior-auth-context-epilogue.sql'
+$PRIOR_JWT_SUB = 'c8a94548-4782-4252-86f9-23559d3b95bd'
+$PRIOR_ATOMIC_ACTION = 'prior-auth-context-marker'
 
 function Invoke-RepoFile([string]$file, [switch]$Transactional) {
   if ($Transactional) {
@@ -28,6 +32,36 @@ function Invoke-RepoFile([string]$file, [switch]$Transactional) {
 function Invoke-Sql([string]$sql) {
   docker exec $name psql -v ON_ERROR_STOP=1 -U postgres -c $sql
   if ($LASTEXITCODE -ne 0) { throw "PG17_SQL_FAILED" }
+}
+
+function Invoke-MigrationWithNonemptyPriorAuthContext {
+  $prologue = Get-Content -Raw -Path (Join-Path $root $nonemptyPriorPrologueRel)
+  $migration = Get-Content -Raw -Path (Join-Path $root $fixRel)
+  $epilogue = Get-Content -Raw -Path (Join-Path $root $nonemptyPriorEpilogueRel)
+  $sql = "BEGIN;`n$prologue`n$migration`n$epilogue`nCOMMIT;"
+  $tmp = Join-Path $env:TEMP ("b1-44-nonempty-" + [guid]::NewGuid().ToString('N') + ".sql")
+  [System.IO.File]::WriteAllText($tmp, $sql)
+  try {
+    $output = Get-Content -Raw $tmp | docker exec -i -w /repo $name psql -v ON_ERROR_STOP=1 -U postgres 2>&1
+    if ($LASTEXITCODE -ne 0) {
+      throw "PG17_NONEMPTY_PRIOR_AUTH_APPLY_FAILED: $($output -join ' ')"
+    }
+    $joined = ($output -join "`n")
+    if ($joined -notmatch [regex]::Escape($PRIOR_JWT_SUB) -or
+        $joined -notmatch [regex]::Escape($PRIOR_ATOMIC_ACTION)) {
+      throw "PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_VALUES_NOT_SURFACED: $joined"
+    }
+  } finally {
+    Remove-Item -Force $tmp -ErrorAction SilentlyContinue
+  }
+}
+
+function Assert-NoCrossSessionAuthContextLeak {
+  $jwtAfter = (docker exec $name psql -X -At -U postgres -c "select coalesce(current_setting('request.jwt.claim.sub', true), '');").Trim()
+  $actionAfter = (docker exec $name psql -X -At -U postgres -c "select coalesce(current_setting('b1.atomic_action', true), '');").Trim()
+  if ($jwtAfter -ne '' -or $actionAfter -ne '') {
+    throw "PG17_AUTH_CONTEXT_LEAKED jwt=$jwtAfter action=$actionAfter"
+  }
 }
 
 function Expect-RepoFileFailure([string]$file, [string]$expected) {
@@ -90,9 +124,12 @@ select md5(string_agg(x, '|' order by x)) from (
 "@).Trim()
 
   Write-Output "PRE_REPAIR_ACTIVE_18_CONFIRMED"
-  Invoke-RepoFile $fixRel -Transactional
+  Invoke-MigrationWithNonemptyPriorAuthContext
   Invoke-RepoFile "$scriptDir/02-verify.sql"
   Write-Output "PG17_REPAIR_APPLIED"
+  Write-Output "PG17_NONEMPTY_PRIOR_AUTH_CONTEXT_RESTORED_EXACT"
+  Assert-NoCrossSessionAuthContextLeak
+  Write-Output "PG17_AUTH_CONTEXT_NO_CROSS_SESSION_LEAK"
 
   $fpOthersAfter = (docker exec $name psql -X -At -U postgres -c @"
 select md5(string_agg(t::text, '|' order by t::text))
@@ -129,10 +166,16 @@ select md5(string_agg(x, '|' order by x)) from (
 
   # Unexpected pre-state rolls back (mutate Fixture 15 away from restored/consumed)
   Invoke-Sql @"
+BEGIN;
 SELECT set_config('b1.atomic_init','1',true);
+SELECT set_config('request.jwt.claim.sub','aec1303e-de6a-4580-94cf-7205c17b5535',true);
+SELECT set_config('b1.atomic_action','1',true);
 UPDATE public.student_requests
    SET status='cancelled', completed_at=now()
  WHERE id='f1300000-0000-4000-8000-000000000015';
+SELECT set_config('request.jwt.claim.sub','',true);
+SELECT set_config('b1.atomic_action','',true);
+COMMIT;
 "@
   Expect-RepoFileFailure $fixRel 'B1_44_FIXTURE_15_UNEXPECTED_PRESTATE'
   $status = (docker exec $name psql -X -At -U postgres -c "select status from student_requests where id='f1300000-0000-4000-8000-000000000015';").Trim()
@@ -140,6 +183,7 @@ UPDATE public.student_requests
   Write-Output "PG17_UNEXPECTED_PRESTATE_FAIL_CLOSED"
 
   Write-Output "PASS_B1_44_FIXTURE_15_REISSUE_PG17"
+  Write-Output "PASS_B1_FIXTURE_15_MANAGED_CHANNEL_TRIGGER_CONTEXT_56"
 }
 finally {
   docker rm -f $name *> $null
