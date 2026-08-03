@@ -55,7 +55,7 @@ BEGIN
 
   FOR v_exp IN
     SELECT * FROM (VALUES
-      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_reception',
+      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_intake',
        'student_affairs', 'student_affairs_specialist', 'review',
        'c8a94548-4782-4252-86f9-23559d3b95bd'::uuid, 'completed'::text),
       (2, 'f1300001-0000-4000-8000-000015000002'::uuid, 'library_clearance',

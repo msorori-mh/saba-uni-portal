@@ -16,12 +16,16 @@ const manifestPath = join(
   root,
   "tests/b1-authoritative-positive-fixture-matrix-19/MANIFEST.json",
 );
+const workflowMigPath = join(
+  root,
+  "supabase/migrations/20260725110900_b1_16_free_service_workflows_08.sql",
+);
 
 const STEP_CONTRACT = [
   {
     order: 1,
     id: "f1300001-0000-4000-8000-000015000001",
-    key: "student_affairs_reception",
+    key: "student_affairs_intake",
     unit: "student_affairs",
     role: "student_affairs_specialist",
     action: "review",
@@ -203,7 +207,7 @@ SELECT
     'action_type', v.action_type
   )
 FROM (VALUES
-  (1,'f1300001-0000-4000-8000-000015000001'::uuid,'student_affairs_reception','cccccccc-0000-4000-8000-000000000001'::uuid,
+  (1,'f1300001-0000-4000-8000-000015000001'::uuid,'student_affairs_intake','cccccccc-0000-4000-8000-000000000001'::uuid,
    'aaaaaaaa-0000-4000-8000-000000000001'::uuid,'bbbbbbbb-0000-4000-8000-000000000001'::uuid,
    'c8a94548-4782-4252-86f9-23559d3b95bd'::uuid,'review'),
   (2,'f1300001-0000-4000-8000-000015000002'::uuid,'library_clearance','cccccccc-0000-4000-8000-000000000002'::uuid,
@@ -232,13 +236,84 @@ COMMIT;
 `);
 }
 
+const F15_REQ = "f1300000-0000-4000-8000-000000000015";
+
+function fingerprintSevenSteps(): string {
+  return psqlScalar(`
+select md5(string_agg(row_text, '|' order by step_order, id))
+from (
+  select
+    step_order,
+    id,
+    (
+      id::text || ':' ||
+      student_request_id::text || ':' ||
+      coalesce(workflow_id::text,'') || ':' ||
+      coalesce(workflow_step_id::text,'') || ':' ||
+      step_key || ':' ||
+      step_order::text || ':' ||
+      status || ':' ||
+      coalesce(processing_unit_id::text,'') || ':' ||
+      coalesce(processing_role_id::text,'') || ':' ||
+      coalesce(metadata->>'action_type','') || ':' ||
+      coalesce(assigned_user_id::text,'') || ':' ||
+      coalesce(assigned_staff_profile_id::text,'') || ':' ||
+      coalesce(assigned_faculty_profile_id::text,'') || ':' ||
+      coalesce(assigned_position_assignment_id::text,'') || ':' ||
+      coalesce(decision,'') || ':' ||
+      coalesce(completed_by::text,'') || ':' ||
+      coalesce(completed_at::text,'') || ':' ||
+      coalesce(entered_at::text,'') || ':' ||
+      coalesce(comment,'')
+    ) as row_text
+  from public.student_request_workflow_steps
+  where student_request_id = '${F15_REQ}'
+) t;
+`);
+}
+
+function fingerprintRequest(): string {
+  return psqlScalar(`
+select md5(
+  id::text || ':' ||
+  status || ':' ||
+  coalesce(current_step_index::text,'') || ':' ||
+  coalesce(completed_at::text,'') || ':' ||
+  coalesce(updated_at::text,'') || ':' ||
+  request_type || ':' ||
+  request_number || ':' ||
+  coalesce(internal_notes,'')
+)
+from public.student_requests
+where id = '${F15_REQ}';
+`);
+}
+
+function fingerprintEvents(): string {
+  return psqlScalar(`
+select coalesce(md5(string_agg(x, '|' order by x)), md5(''))
+from (
+  select
+    id::text || ':' ||
+    coalesce(workflow_step_runtime_id::text,'') || ':' ||
+    event_type || ':' ||
+    coalesce(actor_user_id::text,'') || ':' ||
+    coalesce(payload::text,'') || ':' ||
+    coalesce(created_at::text,'') as x
+  from public.student_request_workflow_events
+  where student_request_id = '${F15_REQ}'
+) q;
+`);
+}
+
 function expectMigrationFailClosed(expectedMessage: string) {
+  const beforeSteps = fingerprintSevenSteps();
+  const beforeRequest = fingerprintRequest();
+  const beforeEvents = fingerprintEvents();
   const beforeEvidence = psqlScalar(
-    "select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='f1300000-0000-4000-8000-000000000015';",
+    `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
   );
-  const beforeStatus = psqlScalar(
-    "select status from student_requests where id='f1300000-0000-4000-8000-000000000015';",
-  );
+
   const fail = psqlPath(migPath, { transactional: true, allowFailure: true });
   if (fail.status === 0) {
     throw new Error(`PG17_EXPECTED_STOP_MISSING: ${expectedMessage}`);
@@ -248,20 +323,32 @@ function expectMigrationFailClosed(expectedMessage: string) {
       `PG17_WRONG_STOP: expected ${expectedMessage}; output=${fail.out}`,
     );
   }
+
+  const afterSteps = fingerprintSevenSteps();
+  const afterRequest = fingerprintRequest();
+  const afterEvents = fingerprintEvents();
   const afterEvidence = psqlScalar(
-    "select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='f1300000-0000-4000-8000-000000000015';",
+    `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
   );
-  const afterStatus = psqlScalar(
-    "select status from student_requests where id='f1300000-0000-4000-8000-000000000015';",
-  );
-  if (afterEvidence !== beforeEvidence) {
+
+  if (afterSteps !== beforeSteps) {
     throw new Error(
-      `PG17_EVIDENCE_INSERTED_ON_DRIFT before=${beforeEvidence} after=${afterEvidence}`,
+      `PG17_STEP_FINGERPRINT_CHANGED before=${beforeSteps} after=${afterSteps}`,
     );
   }
-  if (afterStatus !== beforeStatus) {
+  if (afterRequest !== beforeRequest) {
     throw new Error(
-      `PG17_REQUEST_MUTATED_ON_DRIFT before=${beforeStatus} after=${afterStatus}`,
+      `PG17_REQUEST_FINGERPRINT_CHANGED before=${beforeRequest} after=${afterRequest}`,
+    );
+  }
+  if (afterEvents !== beforeEvents) {
+    throw new Error(
+      `PG17_EVENTS_FINGERPRINT_CHANGED before=${beforeEvents} after=${afterEvents}`,
+    );
+  }
+  if (afterEvidence !== beforeEvidence) {
+    throw new Error(
+      `PG17_EVIDENCE_INSERTED_ON_REJECT before=${beforeEvidence} after=${afterEvidence}`,
     );
   }
 }
@@ -294,6 +381,7 @@ describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
       expect(sql).toContain(`'${step.action}'`);
       expect(sql).toContain(step.principal);
     }
+    expect(sql).not.toContain("student_affairs_reception");
     expect(sql).toContain("B1_44_FIXTURE_15_STEP_UUID_MISMATCH");
     expect(sql).toContain("B1_44_FIXTURE_15_UNIT_MISMATCH");
     expect(sql).toContain("B1_44_FIXTURE_15_ROLE_MISMATCH");
@@ -305,6 +393,65 @@ describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
     expect(sql).toContain("B1_44_FIXTURE_15_WORKFLOW_MISMATCH");
     expect(sql).toContain("FOR UPDATE");
     expect(sql).not.toMatch(/DELETE\s+FROM\s+public\.student_request_workflow_events/i);
+  });
+
+  it("migration step keys match authoritative MATRIX and applied workflow", () => {
+    const matrix = JSON.parse(readFileSync(matrixPath, "utf8"));
+    const pin = matrix.step_state_pins["SR-20260801-13000015|archive"];
+    expect(pin).toBeTruthy();
+    expect(pin.runtime_step_id).toBe("f1300001-0000-4000-8000-000015000007");
+    expect(pin.configured_action_type).toBe("archive");
+
+    const authoritativeKeys = [
+      ...pin.predecessor_set
+        .slice()
+        .sort(
+          (a: { step_order: number }, b: { step_order: number }) =>
+            a.step_order - b.step_order,
+        )
+        .map((p: { step_key: string }) => p.step_key),
+      "archive",
+    ];
+    expect(authoritativeKeys).toEqual([
+      "student_affairs_intake",
+      "library_clearance",
+      "labs_clearance",
+      "activities_clearance",
+      "finance_clearance",
+      "registrar_apply",
+      "archive",
+    ]);
+
+    const workflowSql = readFileSync(workflowMigPath, "utf8");
+    const fwBlock = workflowSql.slice(
+      workflowSql.indexOf("('file_withdrawal'"),
+      workflowSql.indexOf("('file_withdrawal'") + 1200,
+    );
+    for (const key of authoritativeKeys) {
+      expect(fwBlock).toContain(`'key','${key}'`);
+    }
+
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+    const c15 = manifest.cases.find(
+      (c: { case_index: number }) => c.case_index === 15,
+    );
+    expect(c15.step_code).toBe("archive");
+    expect(c15.runtime_step_id).toBe("f1300001-0000-4000-8000-000015000007");
+
+    const migSql = readFileSync(migPath, "utf8");
+    for (let i = 0; i < authoritativeKeys.length; i++) {
+      const step = STEP_CONTRACT[i];
+      expect(step.key).toBe(authoritativeKeys[i]);
+      expect(migSql).toContain(`'${authoritativeKeys[i]}'`);
+      if (step.order < 7) {
+        const pred = pin.predecessor_set.find(
+          (p: { step_order: number }) => p.step_order === step.order,
+        );
+        expect(pred.runtime_step_id).toBe(step.id);
+        expect(pred.step_key).toBe(step.key);
+      }
+    }
+    expect(migSql).not.toContain("student_affairs_reception");
   });
 
   it("targets Fixture 15 exact identity and preserves audit evidence", () => {
@@ -338,21 +485,13 @@ describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
     );
 
     const matrix = JSON.parse(readFileSync(matrixPath, "utf8"));
-    const pin = matrix.fixture_pins?.["SR-20260801-13000015|archive"]
-      ?? matrix.pins?.["SR-20260801-13000015|archive"]
-      ?? matrix["SR-20260801-13000015|archive"];
-    // MATRIX stores pins under fixture_step_pins in this package.
-    const pinObj =
-      pin
-      ?? matrix.fixture_step_pins?.["SR-20260801-13000015|archive"]
-      ?? (() => {
-        const raw = readFileSync(matrixPath, "utf8");
-        expect(raw).toContain("SR-20260801-13000015|archive");
-        expect(raw).toContain("f1300001-0000-4000-8000-000015000001");
-        expect(raw).toContain("f1300001-0000-4000-8000-000015000007");
-        return null;
-      })();
-    void pinObj;
+    const pin = matrix.step_state_pins["SR-20260801-13000015|archive"];
+    expect(pin.request_id).toBe("f1300000-0000-4000-8000-000000000015");
+    expect(pin.runtime_step_id).toBe("f1300001-0000-4000-8000-000015000007");
+    expect(pin.predecessor_set[0].step_key).toBe("student_affairs_intake");
+    expect(pin.predecessor_set[0].runtime_step_id).toBe(
+      "f1300001-0000-4000-8000-000015000001",
+    );
   });
 
   it("keeps negative matrix at 267 / 267 / 0", () => {
@@ -618,8 +757,34 @@ COMMIT;
 
       for (const drift of driftCases) {
         resetFixture15Consumed();
+        const evidenceBeforeDrift = psqlScalar(
+          `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
+        );
+        if (evidenceBeforeDrift !== "0") {
+          throw new Error(
+            `PG17_DRIFT_SETUP_EVIDENCE_NOT_ZERO:${drift.name}=${evidenceBeforeDrift}`,
+          );
+        }
+        // Capture pre-drift authoritative fingerprint baseline, then mutate.
+        const baselineSteps = fingerprintSevenSteps();
         psql(drift.sql);
+        const driftedSteps = fingerprintSevenSteps();
+        if (driftedSteps === baselineSteps) {
+          throw new Error(`PG17_DRIFT_DID_NOT_MUTATE:${drift.name}`);
+        }
         expectMigrationFailClosed(drift.expect);
+        // Rejected apply must leave the drifted fingerprint unchanged (no repair).
+        if (fingerprintSevenSteps() !== driftedSteps) {
+          throw new Error(`PG17_PARTIAL_MUTATION_ON_REJECT:${drift.name}`);
+        }
+        const evidenceAfter = psqlScalar(
+          `select count(*)::text from b1_fixture_15_reissue_44_evidence where request_id='${F15_REQ}'`,
+        );
+        if (evidenceAfter !== "0") {
+          throw new Error(
+            `PG17_EVIDENCE_INSERTED_ON_DRIFT:${drift.name}=${evidenceAfter}`,
+          );
+        }
         log.push(`PG17_DRIFT_FAIL_CLOSED:${drift.name}`);
       }
       log.push("PG17_ALL_DRIFT_CLASSES_FAIL_CLOSED");

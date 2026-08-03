@@ -44,7 +44,7 @@ INSERT INTO public.request_type_workflow_steps(
   id, workflow_id, step_key, step_name_ar, step_order,
   processing_unit_id, processing_role_id, action_type
 ) VALUES
-  ('cccccccc-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-0000000000aa', 'student_affairs_reception', 'استلام', 1,
+  ('cccccccc-0000-4000-8000-000000000001', 'cccccccc-0000-4000-8000-0000000000aa', 'student_affairs_intake', 'استلام', 1,
    'aaaaaaaa-0000-4000-8000-000000000001', 'bbbbbbbb-0000-4000-8000-000000000001', 'review'),
   ('cccccccc-0000-4000-8000-000000000002', 'cccccccc-0000-4000-8000-0000000000aa', 'library_clearance', 'مكتبة', 2,
    'aaaaaaaa-0000-4000-8000-000000000006', 'bbbbbbbb-0000-4000-8000-000000000006', 'clear'),

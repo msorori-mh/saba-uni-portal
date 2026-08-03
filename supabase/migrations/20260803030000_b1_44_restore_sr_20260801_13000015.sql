@@ -177,7 +177,7 @@ BEGIN
   -- ------------------------------------------------------------------
   FOR v_exp IN
     SELECT * FROM (VALUES
-      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_reception',
+      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_intake',
        'student_affairs', 'student_affairs_specialist', 'review',
        'c8a94548-4782-4252-86f9-23559d3b95bd'::uuid),
       (2, 'f1300001-0000-4000-8000-000015000002'::uuid, 'library_clearance',
@@ -555,7 +555,7 @@ BEGIN
   -- Re-prove the full seven-step authoritative bindings after restore.
   FOR v_exp IN
     SELECT * FROM (VALUES
-      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_reception',
+      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_intake',
        'student_affairs', 'student_affairs_specialist', 'review',
        'c8a94548-4782-4252-86f9-23559d3b95bd'::uuid, 'completed'::text),
       (2, 'f1300001-0000-4000-8000-000015000002'::uuid, 'library_clearance',
@@ -595,8 +595,17 @@ BEGIN
       FROM public.request_processing_roles rr WHERE rr.id = v_step.processing_role_id;
     SELECT sp.user_id INTO v_principal
       FROM public.staff_profiles sp WHERE sp.id = v_step.assigned_staff_profile_id;
+    SELECT ws.id INTO v_cfg_id
+      FROM public.request_type_workflow_steps ws
+     WHERE ws.workflow_id = v_wf_id
+       AND ws.step_key = v_exp.step_key
+       AND ws.step_order = v_exp.step_order
+       AND ws.action_type = v_exp.action_type;
 
-    IF v_step.step_key IS DISTINCT FROM v_exp.step_key
+    -- Exact postcondition for every restored step: UUID, key/order, workflow
+    -- identities, unit/role/action, singular assignee, and expected status.
+    IF v_step.id IS DISTINCT FROM v_exp.step_id
+       OR v_step.step_key IS DISTINCT FROM v_exp.step_key
        OR v_step.step_order IS DISTINCT FROM v_exp.step_order
        OR v_step.status IS DISTINCT FROM v_exp.expected_status
        OR v_unit_code IS DISTINCT FROM v_exp.unit_code
@@ -604,14 +613,25 @@ BEGIN
        OR coalesce(v_step.metadata->>'action_type','') IS DISTINCT FROM v_exp.action_type
        OR v_principal IS DISTINCT FROM v_exp.principal_user_id
        OR v_step.workflow_id IS DISTINCT FROM v_wf_id
+       OR v_cfg_id IS NULL
+       OR v_step.workflow_step_id IS DISTINCT FROM v_cfg_id
+       OR v_step.assigned_staff_profile_id IS NULL
+       OR v_step.assigned_user_id IS NOT NULL
+       OR v_step.assigned_faculty_profile_id IS NOT NULL
+       OR v_step.assigned_position_assignment_id IS NOT NULL
        OR num_nonnulls(
             v_step.assigned_user_id, v_step.assigned_staff_profile_id,
             v_step.assigned_faculty_profile_id, v_step.assigned_position_assignment_id
-          ) IS DISTINCT FROM 1 THEN
+          ) IS DISTINCT FROM 1
+       OR (v_exp.expected_status = 'active'
+           AND (v_step.completed_at IS NOT NULL OR v_step.completed_by IS NOT NULL
+                OR v_step.decision IS NOT NULL))
+       OR (v_exp.expected_status = 'completed' AND v_step.completed_at IS NULL) THEN
       RAISE EXCEPTION USING
         ERRCODE = 'P0001',
         MESSAGE = 'B1_44_FIXTURE_15_STEP_CONTRACT_MISMATCH',
-        DETAIL = format('postcheck_order=%s status=%s', v_exp.step_order, v_step.status);
+        DETAIL = format('postcheck_order=%s status=%s cfg=%s',
+          v_exp.step_order, v_step.status, v_cfg_id);
     END IF;
   END LOOP;
 

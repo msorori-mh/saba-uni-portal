@@ -25,7 +25,7 @@ Derived only from:
 
 | Order | Runtime step UUID | step_key | unit | role | action | principal |
 |--:|---|---|---|---|---|---|
-| 1 | `…000015000001` | `student_affairs_reception` | `student_affairs` | `student_affairs_specialist` | `review` | `c8a94548-…` |
+| 1 | `…000015000001` | `student_affairs_intake` | `student_affairs` | `student_affairs_specialist` | `review` | `c8a94548-…` |
 | 2 | `…000015000002` | `library_clearance` | `library` | `library_officer` | `clear` | `e7a93314-…` |
 | 3 | `…000015000003` | `labs_clearance` | `labs` | `labs_manager` | `clear` | `67b39ee4-…` |
 | 4 | `…000015000004` | `activities_clearance` | `student_affairs` | `student_affairs_manager` | `clear` | `aac0e62d-…` |
