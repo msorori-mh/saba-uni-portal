@@ -285,3 +285,28 @@ Mode: LONG-RUNNING SEQUENTIAL AUTONOMOUS SOURCE DEVELOPMENT (K3 HIGH, SWARM OFF)
 - Remaining scope: none — Draft PR follows as the final step.
 - Active blockers: none.
 - Next automatic phase: DONE (Draft PR creation).
+
+---
+
+## K3-72 — MAIN SYNC AND MVP COMPLETION PASS
+
+- Mission: PORTAL-GRADUATION-PROJECTS-MVP-COMPLETION-72
+- Phase decision: **PASS_GRADUATION_PROJECTS_MVP_PR_READY** (Draft, not merged)
+- Previous HEAD: `9ebfcb67a84e375dced2254ecf95436170f82a6c`
+- Final HEAD: `f70a80a5d32d8ea9910bfd9e5a4bc571ad663e96`
+- origin/main synced: `2fd16584bdcb596ee49b43bb89d5391c83dbfd66` (ordinary merge; no rebase, no force push)
+- Changed files this pass:
+  - `src/routeTree.gen.ts` (merge resolution + regeneration by build tooling)
+  - `tests/student-requests/tanstack-register-stable-augmentation-01.test.ts` (route hash pin updated to merged tree `4acc1d042ae74c94f686c4bf2d057cc9dfacac9adfbe7a446f3b989945c1b8a6`)
+  - `tests/graduation-projects/graduation-projects-hardening.test.ts` (EOL-normalized SQL reads; assertions unchanged)
+  - `docs/GRADUATION-PROJECTS-COMPLETION-MASTER-REPORT.md` (this addendum)
+- Tests: GP suites 155/155 (1647 expects); full bun suite 2542 pass / 2 non-blocking
+  (1 pre-existing operator-artifact-only `PORTAL-D02` test that passes only on CI or the
+  operator machine; 1 import-templates timeout flake that passes standalone in 421ms);
+  tsc clean; vite build + register validator pass; PG17 chain PASS (M1–M8 sequential,
+  authorization matrix 68 rows fail_rows=0, E2E 53 steps fail=0, security audit green);
+  git diff --check clean.
+- Lint: local run blocked by environmental CRLF (`core.autocrlf=true` worktree conversion;
+  100% of local errors are prettier `␍` deletes). CI Linux lint is authoritative — see PR #269 checks.
+- Migrations created: 0 — Migrations applied: 0 — Production operations: 0 — Deploy: 0 — Merge to main: 0
+- Draft PR updated: https://github.com/msorori-mh/saba-uni-portal/pull/269 (remains Draft)
