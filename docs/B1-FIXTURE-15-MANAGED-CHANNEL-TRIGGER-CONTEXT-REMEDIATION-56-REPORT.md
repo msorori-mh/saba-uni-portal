@@ -122,7 +122,8 @@ At request-UPDATE time, step 7 is still `completed` by that actor, so the existi
 
 ## Final commit SHA
 
-`7d9d10e1258a80419d070606b88bb80ccf1b6ee2`
+- Remediation: `7d9d10e1258a80419d070606b88bb80ccf1b6ee2`
+- Branch: `fix/b1-fixture15-managed-channel-trigger-56` (tip after docs stamps)
 
 ---
 
