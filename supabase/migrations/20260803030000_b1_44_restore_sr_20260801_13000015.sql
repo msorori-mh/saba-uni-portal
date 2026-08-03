@@ -1,14 +1,23 @@
 -- ============================================================================
 -- PORTAL-B1-FIXTURE-15-FORWARD-ONLY-REISSUE-44
 -- Forward-only repair after source/production head 20260802225131.
+-- Remediation-49: fail-closed on the exact authoritative seven-step contract.
 --
 -- Purpose: restore TEST_ONLY Fixture 15 (SR-20260801-13000015 /
 -- f1300000-0000-4000-8000-000000000015) from the documented consumed archive
 -- state back to the authoritative Fixture-13 seed state with exactly one
 -- active runtime step (archive), so the fixture contract returns to 19/19.
 --
+-- Authoritative seven-step contract sources:
+--   * Fixture-13 package migration 20260801021541
+--   * tests/b1-authoritative-positive-fixture-matrix-19/MANIFEST.json (case 15)
+--   * tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json
+--     pin SR-20260801-13000015|archive (+ predecessor_set)
+--   * applied file_withdrawal_free_workflow (b1_16 free service workflows)
+--
 -- Scope (fail-closed):
---   * Only Fixture 15 request + its step-7 completion fields
+--   * Only Fixture 15 request + its archive-step completion fields
+--   * Does NOT rewrite unit/role/action/assignee/workflow bindings
 --   * Preserves immutable workflow-event audit rows (does NOT delete/rewrite)
 --   * Captures incident evidence into a dedicated TEST_ONLY evidence table
 --   * Does NOT touch the other 18 fixtures, Auth, Storage, enrollment_certificate,
@@ -69,6 +78,17 @@ DECLARE
   v_restored      boolean := false;
   v_consumed      boolean := false;
   v_rows          integer;
+  v_wf_id         uuid;
+  v_wf_count      integer;
+  v_exp           record;
+  v_step          public.student_request_workflow_steps%ROWTYPE;
+  v_unit_code     text;
+  v_role_code     text;
+  v_action        text;
+  v_principal     uuid;
+  v_cfg_id        uuid;
+  v_identity_n    integer;
+  v_pred_bad      integer;
 BEGIN
   -- ------------------------------------------------------------------
   -- Load Fixture 15 identity (exact UUID + request number + marker).
@@ -100,6 +120,33 @@ BEGIN
       MESSAGE = 'B1_44_FIXTURE_15_MARKER_MISMATCH';
   END IF;
 
+  -- Lock all seven runtime rows in deterministic step_order before any
+  -- evidence insert or mutation.
+  PERFORM 1
+    FROM public.student_request_workflow_steps s
+   WHERE s.student_request_id = k_req_id
+   ORDER BY s.step_order, s.id
+   FOR UPDATE;
+
+  -- Duplicate runtime row / order / key detection before count gate.
+  IF EXISTS (
+    SELECT 1 FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id = k_req_id
+     GROUP BY s.step_order HAVING count(*) > 1
+  ) OR EXISTS (
+    SELECT 1 FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id = k_req_id
+     GROUP BY s.step_key HAVING count(*) > 1
+  ) OR EXISTS (
+    SELECT 1 FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id = k_req_id
+     GROUP BY s.id HAVING count(*) > 1
+  ) THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = 'B1_44_FIXTURE_15_DUPLICATE_STEP';
+  END IF;
+
   SELECT count(*) INTO v_n
     FROM public.student_request_workflow_steps s
    WHERE s.student_request_id = k_req_id;
@@ -110,22 +157,168 @@ BEGIN
       DETAIL = format('expected=7 actual=%s', v_n);
   END IF;
 
+  -- Resolve exactly one active file_withdrawal workflow (config identity).
+  SELECT count(*), (array_agg(w.id ORDER BY w.id))[1]
+    INTO v_wf_count, v_wf_id
+    FROM public.request_type_workflows w
+    JOIN public.request_types rt ON rt.id = w.request_type_id
+   WHERE rt.code = 'file_withdrawal'
+     AND w.is_active IS TRUE;
+
+  IF v_wf_count IS DISTINCT FROM 1 OR v_wf_id IS NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = 'B1_44_FIXTURE_15_WORKFLOW_MISMATCH',
+      DETAIL = format('active_file_withdrawal_workflows=%s', coalesce(v_wf_count, 0));
+  END IF;
+
+  -- ------------------------------------------------------------------
+  -- Exact authoritative seven-step contract (bindings never rewritten).
+  -- ------------------------------------------------------------------
+  FOR v_exp IN
+    SELECT * FROM (VALUES
+      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_reception',
+       'student_affairs', 'student_affairs_specialist', 'review',
+       'c8a94548-4782-4252-86f9-23559d3b95bd'::uuid),
+      (2, 'f1300001-0000-4000-8000-000015000002'::uuid, 'library_clearance',
+       'library', 'library_officer', 'clear',
+       'e7a93314-bb06-4525-b412-5315198c668a'::uuid),
+      (3, 'f1300001-0000-4000-8000-000015000003'::uuid, 'labs_clearance',
+       'labs', 'labs_manager', 'clear',
+       '67b39ee4-4918-4b00-b4cc-0d5046ac8a5a'::uuid),
+      (4, 'f1300001-0000-4000-8000-000015000004'::uuid, 'activities_clearance',
+       'student_affairs', 'student_affairs_manager', 'clear',
+       'aac0e62d-4e8b-4440-b649-caa388d34837'::uuid),
+      (5, 'f1300001-0000-4000-8000-000015000005'::uuid, 'finance_clearance',
+       'finance', 'revenue_finance_officer', 'clear',
+       '79783c0f-8d95-4110-8239-0ac504d63a24'::uuid),
+      (6, 'f1300001-0000-4000-8000-000015000006'::uuid, 'registrar_apply',
+       'registrar', 'registrar_general', 'apply_decision',
+       '4c261c1c-97fb-42da-a544-e8a59853ebe3'::uuid),
+      (7, 'f1300001-0000-4000-8000-000015000007'::uuid, 'archive',
+       'archive', 'archive_officer', 'archive',
+       'aec1303e-de6a-4580-94cf-7205c17b5535'::uuid)
+    ) AS e(step_order, step_id, step_key, unit_code, role_code, action_type, principal_user_id)
+  LOOP
+    SELECT * INTO v_step
+      FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id = k_req_id
+       AND s.step_order = v_exp.step_order;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_STEP_CONTRACT_MISMATCH',
+        DETAIL = format('missing_step_order=%s', v_exp.step_order);
+    END IF;
+
+    IF v_step.id IS DISTINCT FROM v_exp.step_id THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_STEP_UUID_MISMATCH',
+        DETAIL = format('order=%s expected=%s actual=%s',
+          v_exp.step_order, v_exp.step_id, v_step.id);
+    END IF;
+
+    IF v_step.student_request_id IS DISTINCT FROM k_req_id
+       OR v_step.step_key IS DISTINCT FROM v_exp.step_key
+       OR v_step.step_order IS DISTINCT FROM v_exp.step_order THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_STEP_CONTRACT_MISMATCH',
+        DETAIL = format('order=%s key=%s', v_exp.step_order, v_step.step_key);
+    END IF;
+
+    IF v_step.workflow_id IS DISTINCT FROM v_wf_id THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_WORKFLOW_MISMATCH',
+        DETAIL = format('order=%s workflow_id=%s', v_exp.step_order, v_step.workflow_id);
+    END IF;
+
+    SELECT ws.id INTO v_cfg_id
+      FROM public.request_type_workflow_steps ws
+     WHERE ws.workflow_id = v_wf_id
+       AND ws.step_key = v_exp.step_key
+       AND ws.step_order = v_exp.step_order
+       AND ws.action_type = v_exp.action_type;
+
+    IF v_cfg_id IS NULL OR v_step.workflow_step_id IS DISTINCT FROM v_cfg_id THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_WORKFLOW_MISMATCH',
+        DETAIL = format('order=%s cfg=%s actual=%s',
+          v_exp.step_order, v_cfg_id, v_step.workflow_step_id);
+    END IF;
+
+    SELECT u.code INTO v_unit_code
+      FROM public.request_processing_units u
+     WHERE u.id = v_step.processing_unit_id;
+    IF v_unit_code IS DISTINCT FROM v_exp.unit_code THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_UNIT_MISMATCH',
+        DETAIL = format('order=%s expected=%s actual=%s',
+          v_exp.step_order, v_exp.unit_code, v_unit_code);
+    END IF;
+
+    SELECT rr.code INTO v_role_code
+      FROM public.request_processing_roles rr
+     WHERE rr.id = v_step.processing_role_id;
+    IF v_role_code IS DISTINCT FROM v_exp.role_code THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_ROLE_MISMATCH',
+        DETAIL = format('order=%s expected=%s actual=%s',
+          v_exp.step_order, v_exp.role_code, v_role_code);
+    END IF;
+
+    v_action := coalesce(v_step.metadata->>'action_type', '');
+    IF v_action IS DISTINCT FROM v_exp.action_type THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_ACTION_MISMATCH',
+        DETAIL = format('order=%s expected=%s actual=%s',
+          v_exp.step_order, v_exp.action_type, v_action);
+    END IF;
+
+    v_identity_n := num_nonnulls(
+      v_step.assigned_user_id,
+      v_step.assigned_staff_profile_id,
+      v_step.assigned_faculty_profile_id,
+      v_step.assigned_position_assignment_id
+    );
+    IF v_identity_n IS DISTINCT FROM 1
+       OR v_step.assigned_staff_profile_id IS NULL
+       OR v_step.assigned_user_id IS NOT NULL
+       OR v_step.assigned_faculty_profile_id IS NOT NULL
+       OR v_step.assigned_position_assignment_id IS NOT NULL THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_IDENTITY_NOT_SINGULAR',
+        DETAIL = format('order=%s identity_n=%s', v_exp.step_order, v_identity_n);
+    END IF;
+
+    SELECT sp.user_id INTO v_principal
+      FROM public.staff_profiles sp
+     WHERE sp.id = v_step.assigned_staff_profile_id;
+    IF v_principal IS DISTINCT FROM v_exp.principal_user_id THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_ASSIGNEE_MISMATCH',
+        DETAIL = format('order=%s expected=%s actual=%s',
+          v_exp.step_order, v_exp.principal_user_id, v_principal);
+    END IF;
+  END LOOP;
+
   SELECT * INTO v_step7
     FROM public.student_request_workflow_steps s
    WHERE s.id = k_step7_id
-     AND s.student_request_id = k_req_id
-   FOR UPDATE;
+     AND s.student_request_id = k_req_id;
   IF NOT FOUND THEN
     RAISE EXCEPTION USING
       ERRCODE = 'P0001',
       MESSAGE = 'B1_44_FIXTURE_15_ARCHIVE_STEP_NOT_FOUND';
-  END IF;
-
-  IF v_step7.step_key IS DISTINCT FROM 'archive'
-     OR v_step7.step_order IS DISTINCT FROM 7 THEN
-    RAISE EXCEPTION USING
-      ERRCODE = 'P0001',
-      MESSAGE = 'B1_44_FIXTURE_15_ARCHIVE_STEP_CONTRACT_MISMATCH';
   END IF;
 
   SELECT
@@ -139,7 +332,7 @@ BEGIN
     FROM public.student_request_workflow_events e
    WHERE e.student_request_id = k_req_id;
 
-  -- Authoritative restored shape (idempotent success path).
+  -- Authoritative restored shape (idempotent success path) — full contract.
   v_restored := (
     v_req.status = 'in_review'
     AND v_req.completed_at IS NULL
@@ -149,19 +342,46 @@ BEGIN
     AND v_step7.status = 'active'
     AND v_step7.completed_at IS NULL
     AND v_step7.completed_by IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.student_request_workflow_steps s
+       WHERE s.student_request_id = k_req_id
+         AND s.step_order BETWEEN 1 AND 6
+         AND s.status IS DISTINCT FROM 'completed'
+    )
+    AND EXISTS (
+      SELECT 1 FROM public.student_request_workflow_steps s
+       WHERE s.id = k_step7_id AND s.status = 'active'
+    )
   );
 
-  -- Documented consumed shape from the production incident.
+  -- Documented consumed shape from the production incident — full contract.
   v_consumed := (
     v_req.status = 'completed'
     AND v_completed = 7
     AND v_active = 0
     AND v_step7.status = 'completed'
+    AND v_step7.completed_by IS NOT DISTINCT FROM k_archive_actor
     AND v_events = 1
+    AND NOT EXISTS (
+      SELECT 1 FROM public.student_request_workflow_steps s
+       WHERE s.student_request_id = k_req_id
+         AND s.status IS DISTINCT FROM 'completed'
+    )
   );
 
   IF v_restored THEN
-    -- Idempotent replay: already restored. Do not mutate. Still enforce package postchecks.
+    -- Idempotent replay: already restored. Prove predecessor completion again.
+    SELECT count(*) INTO v_pred_bad
+      FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id = k_req_id
+       AND s.step_order BETWEEN 1 AND 6
+       AND (s.status IS DISTINCT FROM 'completed' OR s.completed_at IS NULL);
+    IF v_pred_bad IS DISTINCT FROM 0 THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_PREDECESSOR_STATE_MISMATCH',
+        DETAIL = format('restored_incomplete_predecessors=%s', v_pred_bad);
+    END IF;
     NULL;
   ELSIF NOT v_consumed THEN
     RAISE EXCEPTION USING
@@ -172,6 +392,18 @@ BEGIN
         v_req.status, v_completed, v_active, v_step7.status, v_events
       );
   ELSE
+    -- Consumed predecessor/completion: all seven exact steps completed.
+    SELECT count(*) INTO v_pred_bad
+      FROM public.student_request_workflow_steps s
+     WHERE s.student_request_id = k_req_id
+       AND (s.status IS DISTINCT FROM 'completed' OR s.completed_at IS NULL);
+    IF v_pred_bad IS DISTINCT FROM 0 THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_PREDECESSOR_STATE_MISMATCH',
+        DETAIL = format('consumed_incomplete=%s', v_pred_bad);
+    END IF;
+
     -- Strict consumed-event contract (attributable archive RPC evidence).
     SELECT * INTO v_event
       FROM public.student_request_workflow_events e
@@ -212,8 +444,15 @@ BEGIN
         DETAIL = coalesce(v_event.payload->>'action', '<null>');
     END IF;
 
+    -- No duplicate events for Fixture 15.
+    IF v_events IS DISTINCT FROM 1 THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_DUPLICATE_STEP',
+        DETAIL = format('events=%s', v_events);
+    END IF;
+
     -- Preserve read-only incident evidence BEFORE mutating Fixture 15.
-    -- Does not delete or rewrite workflow_events / audit_logs.
     INSERT INTO public.b1_fixture_15_reissue_44_evidence (
       request_id, request_number, request_status, request_completed_at,
       archive_step_id, archive_step_status, archive_step_decision,
@@ -240,6 +479,7 @@ BEGIN
         'event_created_at', v_event.created_at,
         'step_completed_by', v_step7.completed_by,
         'step_completed_at', v_step7.completed_at,
+        'seven_step_contract', 'enforced',
         'note', 'Immutable workflow_events row retained; Fixture 15 runtime restored only.'
       ),
       k_evidence_mark
@@ -251,7 +491,8 @@ BEGIN
         MESSAGE = 'B1_44_EVIDENCE_INSERT_FAILED';
     END IF;
 
-    -- Restore request to authoritative Fixture seed status.
+    -- Restore only request terminal fields + archive completion fields.
+    -- Do not rewrite bindings or repair drift silently.
     UPDATE public.student_requests r
        SET status = 'in_review',
            completed_at = NULL,
@@ -267,8 +508,6 @@ BEGIN
         DETAIL = format('expected=1 actual=%s', v_rows);
     END IF;
 
-    -- Restore archive step to active; keep assignee / unit / role / metadata.
-    -- Do not delete the archived workflow event.
     UPDATE public.student_request_workflow_steps s
        SET status = 'active',
            decision = NULL,
@@ -278,7 +517,15 @@ BEGIN
            entered_at = coalesce(s.entered_at, now()),
            updated_at = now()
      WHERE s.id = k_step7_id
-       AND s.status = 'completed';
+       AND s.status = 'completed'
+       AND s.step_key = 'archive'
+       AND s.step_order = 7
+       AND s.processing_unit_id IS NOT NULL
+       AND s.processing_role_id IS NOT NULL
+       AND s.assigned_staff_profile_id IS NOT NULL
+       AND s.assigned_user_id IS NULL
+       AND s.assigned_faculty_profile_id IS NULL
+       AND s.assigned_position_assignment_id IS NULL;
     GET DIAGNOSTICS v_rows = ROW_COUNT;
     IF v_rows IS DISTINCT FROM 1 THEN
       RAISE EXCEPTION USING
@@ -289,7 +536,7 @@ BEGIN
   END IF;
 
   -- ------------------------------------------------------------------
-  -- Postconditions: Fixture 15 restored + package 19/19 contract.
+  -- Postconditions: exact seven-step restored contract + package 19/19.
   -- ------------------------------------------------------------------
   SELECT * INTO v_req FROM public.student_requests WHERE id = k_req_id;
   SELECT * INTO v_step7 FROM public.student_request_workflow_steps WHERE id = k_step7_id;
@@ -305,6 +552,69 @@ BEGIN
       MESSAGE = 'B1_44_FIXTURE_15_POSTCHECK_FAILED';
   END IF;
 
+  -- Re-prove the full seven-step authoritative bindings after restore.
+  FOR v_exp IN
+    SELECT * FROM (VALUES
+      (1, 'f1300001-0000-4000-8000-000015000001'::uuid, 'student_affairs_reception',
+       'student_affairs', 'student_affairs_specialist', 'review',
+       'c8a94548-4782-4252-86f9-23559d3b95bd'::uuid, 'completed'::text),
+      (2, 'f1300001-0000-4000-8000-000015000002'::uuid, 'library_clearance',
+       'library', 'library_officer', 'clear',
+       'e7a93314-bb06-4525-b412-5315198c668a'::uuid, 'completed'),
+      (3, 'f1300001-0000-4000-8000-000015000003'::uuid, 'labs_clearance',
+       'labs', 'labs_manager', 'clear',
+       '67b39ee4-4918-4b00-b4cc-0d5046ac8a5a'::uuid, 'completed'),
+      (4, 'f1300001-0000-4000-8000-000015000004'::uuid, 'activities_clearance',
+       'student_affairs', 'student_affairs_manager', 'clear',
+       'aac0e62d-4e8b-4440-b649-caa388d34837'::uuid, 'completed'),
+      (5, 'f1300001-0000-4000-8000-000015000005'::uuid, 'finance_clearance',
+       'finance', 'revenue_finance_officer', 'clear',
+       '79783c0f-8d95-4110-8239-0ac504d63a24'::uuid, 'completed'),
+      (6, 'f1300001-0000-4000-8000-000015000006'::uuid, 'registrar_apply',
+       'registrar', 'registrar_general', 'apply_decision',
+       '4c261c1c-97fb-42da-a544-e8a59853ebe3'::uuid, 'completed'),
+      (7, 'f1300001-0000-4000-8000-000015000007'::uuid, 'archive',
+       'archive', 'archive_officer', 'archive',
+       'aec1303e-de6a-4580-94cf-7205c17b5535'::uuid, 'active')
+    ) AS e(step_order, step_id, step_key, unit_code, role_code, action_type, principal_user_id, expected_status)
+  LOOP
+    SELECT * INTO v_step
+      FROM public.student_request_workflow_steps s
+     WHERE s.id = v_exp.step_id
+       AND s.student_request_id = k_req_id;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_STEP_CONTRACT_MISMATCH',
+        DETAIL = format('postcheck_missing_order=%s', v_exp.step_order);
+    END IF;
+
+    SELECT u.code INTO v_unit_code
+      FROM public.request_processing_units u WHERE u.id = v_step.processing_unit_id;
+    SELECT rr.code INTO v_role_code
+      FROM public.request_processing_roles rr WHERE rr.id = v_step.processing_role_id;
+    SELECT sp.user_id INTO v_principal
+      FROM public.staff_profiles sp WHERE sp.id = v_step.assigned_staff_profile_id;
+
+    IF v_step.step_key IS DISTINCT FROM v_exp.step_key
+       OR v_step.step_order IS DISTINCT FROM v_exp.step_order
+       OR v_step.status IS DISTINCT FROM v_exp.expected_status
+       OR v_unit_code IS DISTINCT FROM v_exp.unit_code
+       OR v_role_code IS DISTINCT FROM v_exp.role_code
+       OR coalesce(v_step.metadata->>'action_type','') IS DISTINCT FROM v_exp.action_type
+       OR v_principal IS DISTINCT FROM v_exp.principal_user_id
+       OR v_step.workflow_id IS DISTINCT FROM v_wf_id
+       OR num_nonnulls(
+            v_step.assigned_user_id, v_step.assigned_staff_profile_id,
+            v_step.assigned_faculty_profile_id, v_step.assigned_position_assignment_id
+          ) IS DISTINCT FROM 1 THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'P0001',
+        MESSAGE = 'B1_44_FIXTURE_15_STEP_CONTRACT_MISMATCH',
+        DETAIL = format('postcheck_order=%s status=%s', v_exp.step_order, v_step.status);
+    END IF;
+  END LOOP;
+
   SELECT
       count(*) FILTER (WHERE s.status = 'completed'),
       count(*) FILTER (WHERE s.status = 'active')
@@ -319,7 +629,6 @@ BEGIN
       DETAIL = format('completed=%s active=%s', v_completed, v_active);
   END IF;
 
-  -- Event evidence must still exist (never deleted by this repair).
   SELECT count(*) INTO v_events
     FROM public.student_request_workflow_events e
    WHERE e.student_request_id = k_req_id;
@@ -329,7 +638,6 @@ BEGIN
       MESSAGE = 'B1_44_EVENT_EVIDENCE_LOST';
   END IF;
 
-  -- Full TEST_ONLY fixture package: 19 requests / 19 active steps / 1 each.
   SELECT count(*) INTO v_n
     FROM public.student_requests r
    WHERE r.internal_notes = k_marker
@@ -369,8 +677,6 @@ BEGIN
       MESSAGE = 'B1_44_FIXTURE_ACTIVE_STEP_PER_REQUEST_MISMATCH';
   END IF;
 
-  -- Visibility / certificate surfaces must remain untouched by this migration
-  -- (no UPDATE against those relations above; assert five stay hidden if present).
   IF EXISTS (
     SELECT 1 FROM public.request_types rt
      WHERE rt.code IN (

@@ -19,6 +19,52 @@ CREATE TABLE public.request_types (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE public.request_processing_units (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text NOT NULL UNIQUE,
+  name_ar text NOT NULL DEFAULT '',
+  is_active boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE public.request_processing_roles (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  unit_id uuid NOT NULL REFERENCES public.request_processing_units(id),
+  code text NOT NULL,
+  name_ar text NOT NULL DEFAULT '',
+  is_active boolean NOT NULL DEFAULT true,
+  UNIQUE (unit_id, code)
+);
+
+CREATE TABLE public.staff_profiles (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'active',
+  full_name_ar text
+);
+
+CREATE TABLE public.request_type_workflows (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_type_id uuid NOT NULL REFERENCES public.request_types(id),
+  code text NOT NULL,
+  name_ar text NOT NULL DEFAULT '',
+  is_active boolean NOT NULL DEFAULT true,
+  status text NOT NULL DEFAULT 'active',
+  version integer NOT NULL DEFAULT 1
+);
+
+CREATE TABLE public.request_type_workflow_steps (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  workflow_id uuid NOT NULL REFERENCES public.request_type_workflows(id),
+  step_key text NOT NULL,
+  step_name_ar text NOT NULL DEFAULT '',
+  step_order integer NOT NULL,
+  processing_unit_id uuid REFERENCES public.request_processing_units(id),
+  processing_role_id uuid REFERENCES public.request_processing_roles(id),
+  action_type text NOT NULL,
+  UNIQUE (workflow_id, step_key),
+  UNIQUE (workflow_id, step_order)
+);
+
 CREATE TABLE public.student_profiles (
   id uuid PRIMARY KEY,
   user_id uuid,
@@ -42,6 +88,7 @@ CREATE TABLE public.student_requests (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+-- No UNIQUE(student_request_id, step_key) so drift tests can simulate a duplicate row.
 CREATE TABLE public.student_request_workflow_steps (
   id uuid PRIMARY KEY,
   student_request_id uuid NOT NULL REFERENCES public.student_requests(id),
@@ -118,8 +165,6 @@ CREATE TRIGGER trg_guard_b1_runtime_mutation_boundary
 BEFORE INSERT OR UPDATE OR DELETE ON public.student_request_workflow_steps
 FOR EACH ROW EXECUTE FUNCTION public.guard_b1_runtime_mutation_boundary();
 
--- Activation guard stub: production assert is assignment-heavy; disposable
--- harness only proves the migration GUC + restore mechanics.
 CREATE OR REPLACE FUNCTION public.assert_b1_runtime_step_row_assignee_effective(
   p_step public.student_request_workflow_steps
 ) RETURNS void LANGUAGE plpgsql AS $$
