@@ -28,19 +28,24 @@ const FINGERPRINT_PATH = join(HERE, "fingerprint.sql");
 const OUT = join(HERE, "generated");
 const CASES = join(OUT, "cases");
 
-export const MATRIX_SHA256_LF = "fd2621877d4db1df5927f0583d6de5a269c9e50b258578592c299f373459739d";
+export const MATRIX_SHA256_LF = "5c76faffd33ccd9ed57ffc7d5a93f3217feea48cf33170414a4f06b07c5c7e46";
 export const EXPECTED_NEGATIVE_TOTAL = 267;
-/** REMEDIATION-12 G1: a case may only execute against an ACTIVE runtime step
- *  when its contract depends on reaching a gate that sits behind the
- *  active-step gate. 19 illegal-action cases (pending steps) and 3
- *  transfer-scope cases are therefore blocked and rendered non-executing. */
-export const EXPECTED_EXECUTABLE_TOTAL = 245;
-export const EXPECTED_BLOCKED_TOTAL = 22;
-export const BLOCKED_TOKEN = "BLOCKED_PENDING_ACTIVE_FIXTURE";
-/** Backwards-compatible alias: the single canonical blocked token. */
-export const TRANSFER_SCOPE_BLOCKED_TOKEN = BLOCKED_TOKEN;
-export const BLOCKED_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_ACTIVE_FIXTURES_INCOMPLETE";
+/** REMEDIATION-15 G5: every case whose contract sits behind the active-step
+ *  gate is now bound to a deterministic ACTIVE Fixture-13 runtime step, so the
+ *  blocked partition is empty by contract. A blocked case is no longer a legal
+ *  render output: it aborts the render instead of producing a .BLOCKED.sql. */
+export const EXPECTED_EXECUTABLE_TOTAL = 267;
+export const EXPECTED_BLOCKED_TOTAL = 0;
+/** Fixture package that supplies the 19 ACTIVE TEST_ONLY steps. */
+export const FIXTURE_PACKAGE_ID = "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13";
+export const FIXTURE_MARKER = "TEST_ONLY_B1_FIXTURE_13";
+export const FIXTURE_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED";
 export const APPROVED_PROJECT_REF = "wpmicqriltrowwonknox";
+/** REMEDIATION-26: execution authorization is a separate owner-approved
+ *  artifact, never a flag on the read-only baseline capture. */
+export const EXECUTION_AUTH_REL =
+  "scripts/b1-rpc-principal-harness-01/authorization/EXECUTION-AUTHORIZATION.json";
+export const EXECUTION_AUTH_HOLD_TOKEN = "HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED";
 
 /** G1 — forbidden characters / tokens in ANY MATRIX-derived value. */
 export const FORBIDDEN_PATTERNS: Array<[string, RegExp]> = [
@@ -342,29 +347,6 @@ export function isBlockedCase(nc: NegativeCase, pin: StepStatePin): boolean {
   return requiresActiveFixture(nc) && pin.runtime_status !== "active";
 }
 
-/** Deprecated name kept for compatibility with earlier remediation rounds. */
-export const isBlockedScopeCase = isBlockedCase;
-
-export function renderBlockedCase(ordinal: number, nc: NegativeCase): string {
-  const id = String(ordinal).padStart(4, "0");
-  return `-- ============================================================================
--- case-${id} — NOT EXECUTED
-${comment("class", nc.case)}
-${comment("request_number", nc.request_number)}
-${comment("step_key", nc.step_key)}
-${comment("execution_status", BLOCKED_TOKEN)}
-${comment("blocked_reason", nc.blocked_reason ?? "target step is not active")}
--- This case can NEVER be reported as PASS while it is blocked.
--- This file is excluded from master-negative-matrix.sql. Running it raises.
--- ============================================================================
-DO $blocked$
-BEGIN
-  RAISE EXCEPTION 'CASE_${BLOCKED_TOKEN} case-${id} ${nc.case}: ${BLOCKED_HOLD_TOKEN}';
-END
-$blocked$;
-`;
-}
-
 function renderCase(
   ordinal: number,
   nc: NegativeCase,
@@ -427,6 +409,15 @@ function renderCase(
   // G7: assigned_user_id is NULL in production; the effective assignee is bound
   // through exactly one direct slot (staff / faculty / position assignment) plus
   // exactly one active unit+role processing assignment. Both are pinned.
+  // REMEDIATION-15 G3: department-head steps resolve within ONE department, so
+  // the unit+role assignment pin must be department-scoped or it would count
+  // the source, target and unrelated heads together.
+  const scopeDepartmentId = (pin as StepStatePin & { department_scope_department_id?: string | null })
+    .department_scope_department_id;
+  const scopeDepartmentLiteral = scopeDepartmentId
+    ? `${lit(assertUuid("department_scope_department_id", scopeDepartmentId))}`
+    : "NULL::text";
+
   const assigneePin = `IF v_assignee IS NOT NULL THEN
     RAISE EXCEPTION 'CASE_STATE_DRIFT: assigned_user_id is no longer NULL on step %', v_step;
   END IF;
@@ -441,11 +432,14 @@ function renderCase(
   SELECT count(*) INTO v_n
     FROM public.request_processing_assignments a
     JOIN public.student_request_workflow_steps w ON w.id = v_step
-   WHERE a.processing_unit_id = w.processing_unit_id
-     AND a.processing_role_id = w.processing_role_id
-     AND a.is_active;
+   WHERE a.unit_id = w.processing_unit_id
+     AND a.role_id = w.processing_role_id
+     AND a.is_active
+     AND (a.starts_at IS NULL OR a.starts_at <= now())
+     AND (a.ends_at IS NULL OR a.ends_at > now())
+     AND (${scopeDepartmentLiteral} IS NULL OR a.department_id = ${scopeDepartmentLiteral}::uuid);
   IF v_n <> 1 THEN
-    RAISE EXCEPTION 'CASE_STATE_DRIFT: % active unit+role assignments for step % (want 1)', v_n, v_step;
+    RAISE EXCEPTION 'CASE_STATE_DRIFT: % effective unit+role assignments for step % (want 1)', v_n, v_step;
   END IF;`;
 
   const transferScopePin =
@@ -738,7 +732,7 @@ ROLLBACK;
 `;
 }
 
-function renderPins(manifest: any, fingerprintExpr: string, blockedTotal: number, executableTotal: number): string {
+function renderPins(manifest: any, fingerprintExpr: string, executableTotal: number, execAuth: any): string {
   const fn = manifest.function_graph.functions as any[];
   const trg = manifest.migration_29_triggers as any[];
   const m29 = new Set<string>(manifest.migration_29_functions);
@@ -783,9 +777,47 @@ INSERT INTO b1_pin_scalar(key, value) VALUES
   ('probe_sub', ${sqlText(manifest.probe_sub)}),
   ('baseline_status', ${sqlText(manifest.authoritative_baseline.status)}),
   ('baseline_fingerprint', ${sqlText(manifest.authoritative_baseline.fingerprint)}),
-  ('blocked_case_total', ${sqlText(String(blockedTotal))}),
+  ('baseline_execution_authorized', ${sqlText(
+    manifest.authoritative_baseline.execution_authorized === true ? "true" : "false",
+  )}),
+  ('baseline_artifact_sha256', ${sqlText(manifest.authoritative_baseline.artifact_sha256)}),
+  ('baseline_operator_preflight_executed', ${sqlText(
+    manifest.authoritative_baseline.operator_preflight_executed === true ? "true" : "false",
+  )}),
+  ('baseline_negative_cases_executed', ${sqlText(
+    String(manifest.authoritative_baseline.negative_cases_executed ?? 0),
+  )}),
+  ('baseline_expected_migration_head', ${sqlText(manifest.authoritative_baseline.expected_migration_head)}),
+  ('baseline_migration_head', ${sqlText(manifest.authoritative_baseline.migration_head)}),
+  ('baseline_reviewed_package_sha', ${sqlText(manifest.authoritative_baseline.reviewed_package_sha)}),
+  ('baseline_artifact_path', ${sqlText(manifest.authoritative_baseline.artifact_path)}),
+  ('execution_authorization_artifact_path', ${sqlText(manifest.execution_authorization.artifact_path)}),
+  ('execution_authorization_artifact_sha256', ${sqlText(manifest.execution_authorization.artifact_sha256)}),
+  ('execution_authorization_status', ${sqlText(execAuth.status)}),
+  ('execution_authorization_execution_authorized', ${sqlText(
+    execAuth.execution_authorized === true ? "true" : "false",
+  )}),
+  ('execution_authorization_requires_preflight_pass', ${sqlText(
+    execAuth.requires_operator_preflight_pass === true ? "true" : "false",
+  )}),
+  ('execution_authorization_bound_baseline_fingerprint', ${sqlText(execAuth.bound_baseline_fingerprint ?? null)}),
+  ('execution_authorization_bound_baseline_artifact_sha256', ${sqlText(
+    execAuth.bound_baseline_artifact_sha256 ?? null,
+  )}),
+  ('execution_authorization_bound_reviewed_package_sha', ${sqlText(
+    execAuth.bound_reviewed_package_sha ?? null,
+  )}),
+  ('execution_authorization_authorized_at_utc', ${sqlText(execAuth.authorized_at_utc ?? null)}),
+  ('execution_authorization_valid_for_minutes', ${sqlText(
+    execAuth.valid_for_minutes === null || execAuth.valid_for_minutes === undefined
+      ? null
+      : String(execAuth.valid_for_minutes),
+  )}),
   ('executable_case_total', ${sqlText(String(executableTotal))}),
-  ('blocked_hold_token', ${sqlText(BLOCKED_HOLD_TOKEN)});
+  ('fixture_package_id', ${sqlText(FIXTURE_PACKAGE_ID)}),
+  ('fixture_marker', ${sqlText(FIXTURE_MARKER)}),
+  ('fixture_hold_token', ${sqlText(FIXTURE_HOLD_TOKEN)}),
+  ('fixture_readiness_status', ${sqlText(manifest.matrix?.readiness?.status ?? "FIXTURE_PACKAGE_NOT_APPLIED")});
 
 CREATE TEMP TABLE b1_pin_function(
   signature text primary key,
@@ -859,11 +891,11 @@ DECLARE
   v_observed text;
 BEGIN
   IF v_expected IS NULL THEN
-    RAISE EXCEPTION 'POST_RUN_FAIL: authoritative baseline is ${baseline.status}';
+    RAISE EXCEPTION 'POST_RUN_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: authoritative baseline is ${baseline.status}';
   END IF;
   v_observed := ${fingerprintExpr};
   IF v_observed IS DISTINCT FROM v_expected THEN
-    RAISE EXCEPTION 'POST_RUN_FAIL: BASELINE_MISMATCH after the matrix run';
+    RAISE EXCEPTION 'POST_RUN_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: BASELINE_MISMATCH after the matrix run';
   END IF;
   RAISE NOTICE 'POST_RUN_BASELINE_MATCH';
 END
@@ -875,10 +907,16 @@ function renderMaster(executable: string[], total: number): string {
   const includes: string[] = executable.map((f) => `\\ir ${f}`);
   const count = executable.length;
   return `-- GENERATED master script (G9). ONE psql process executes the whole run.
--- Order: preflight -> ${count} rollback-only negative cases -> outside-transaction baseline check.
--- MATRIX total = ${total}; blocked and excluded = ${total - count} (${BLOCKED_TOKEN}).
--- Blocked cases can never be counted as PASS: while any exists the run halts with
--- ${BLOCKED_HOLD_TOKEN}.
+-- Order: preflight -> execution authorization gate -> ${count} rollback-only negative cases -> outside-transaction baseline check.
+-- REMEDIATION-26: 01-execution-gate.sql runs AFTER the read-only preflight and
+-- BEFORE the first case. It fails closed with
+-- ${EXECUTION_AUTH_HOLD_TOKEN} unless a separate owner-approved
+-- authorization artifact (never the baseline itself) is GRANTED and bound to
+-- the active baseline, and the operator preflight passed in this session.
+-- MATRIX total = ${total}; blocked and excluded = ${total - count} (must be 0).
+-- Blocked rendering is abolished: an unbound case aborts the render, and a
+-- fixture package that is not applied halts the run inside the preflight with
+-- ${FIXTURE_HOLD_TOKEN} before any case executes.
 -- ON_ERROR_STOP aborts the entire run at the first failure. No COMMIT anywhere.
 \\set ON_ERROR_STOP on
 \\timing off
@@ -887,6 +925,9 @@ function renderMaster(executable: string[], total: number): string {
 
 \\echo === B1 NEGATIVE RPC MATRIX: PREFLIGHT ===
 \\ir ../00-preflight.sql
+
+\\echo === B1 NEGATIVE RPC MATRIX: EXECUTION AUTHORIZATION GATE ===
+\\ir ../01-execution-gate.sql
 
 \\echo === B1 NEGATIVE RPC MATRIX: ${count} NEGATIVE CASES ===
 ${includes.join("\n")}
@@ -915,9 +956,75 @@ export function main(): void {
   }
 
   if (manifest.matrix?.sha256_lf !== MATRIX_SHA256_LF) throw new Error("MANIFEST_MATRIX_SHA_MISMATCH");
+  // RECONCILIATION-17: the manifest must carry the reconciled 267/267/0 source
+  // contract, the fixture rebind pin and the readiness status, and must agree
+  // with MATRIX.json. Absent or disagreeing pins abort the render fail-closed.
+  if (manifest.matrix?.negative_total !== EXPECTED_NEGATIVE_TOTAL) throw new Error("MANIFEST_MATRIX_COUNT_MISMATCH");
+  if (manifest.matrix?.executable_negative_total !== EXPECTED_EXECUTABLE_TOTAL) {
+    throw new Error("MANIFEST_EXECUTABLE_COUNT_MISMATCH");
+  }
+  if (manifest.matrix?.blocked_negative_total !== EXPECTED_BLOCKED_TOTAL) {
+    throw new Error("MANIFEST_BLOCKED_COUNT_MISMATCH");
+  }
+  if (manifest.matrix?.fixture_rebind?.rebound_cases !== 22 || matrix.fixture_rebind?.rebound_cases !== 22) {
+    throw new Error("FIXTURE_REBIND_PIN_MISSING");
+  }
+  const readinessStatus = manifest.matrix?.readiness?.status;
+  if (readinessStatus !== "FIXTURE_PACKAGE_NOT_APPLIED" && readinessStatus !== "FIXTURE_PACKAGE_APPLIED_AND_VERIFIED") {
+    throw new Error("FIXTURE_READINESS_STATUS_MISSING");
+  }
+  if (matrix.counts?.executable_negative_total !== EXPECTED_EXECUTABLE_TOTAL) {
+    throw new Error("MATRIX_EXECUTABLE_TOTAL_FIELD_MISMATCH");
+  }
+  if (matrix.counts?.execution_blocked !== EXPECTED_BLOCKED_TOTAL) throw new Error("MATRIX_BLOCKED_FIELD_MISMATCH");
   for (const f of manifest.function_graph.functions as Array<{ signature: string; definition_sha256: string }>) {
     if (!/^[0-9a-f]{64}$/u.test(f.definition_sha256 ?? "")) {
       throw new Error(`FUNCTION_GRAPH_UNPINNED: ${f.signature}`);
+    }
+  }
+
+  // REMEDIATION-26 G1 — the baseline must never self-authorize execution, and
+  // the manifest pin must match the canonical artifact byte-for-byte (LF).
+  const baselineBlock = manifest.authoritative_baseline;
+  if (baselineBlock?.artifact_path !== "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json") {
+    throw new Error("BASELINE_ARTIFACT_PATH_DRIFT");
+  }
+  if (baselineBlock.execution_authorized !== false) throw new Error("BASELINE_SELF_AUTHORIZATION_DRIFT");
+  const baselineRaw = readLf(join(REPO, baselineBlock.artifact_path));
+  if (sha256Lf(baselineRaw) !== baselineBlock.artifact_sha256) {
+    throw new Error("BASELINE_ARTIFACT_SHA_MISMATCH");
+  }
+  const baselineArtifact = JSON.parse(baselineRaw);
+  if (baselineArtifact.execution_authorized !== false) throw new Error("BASELINE_SELF_AUTHORIZATION_DRIFT");
+  if (baselineArtifact.fingerprint !== baselineBlock.fingerprint) throw new Error("BASELINE_FINGERPRINT_DRIFT");
+
+  // REMEDIATION-26 G3 — the separate owner-approved execution authorization
+  // artifact. Absent, drifted or inconsistent blocks abort the render
+  // fail-closed; a GRANTED block must be fully bound to the active baseline.
+  const authBlock = manifest.execution_authorization;
+  if (!authBlock) throw new Error("EXECUTION_AUTHORIZATION_BLOCK_MISSING");
+  if (authBlock.artifact_path !== EXECUTION_AUTH_REL) throw new Error("EXECUTION_AUTHORIZATION_PATH_DRIFT");
+  const authRaw = readLf(join(REPO, authBlock.artifact_path));
+  if (sha256Lf(authRaw) !== authBlock.artifact_sha256) {
+    throw new Error("EXECUTION_AUTHORIZATION_ARTIFACT_SHA_MISMATCH");
+  }
+  const execAuth = JSON.parse(authRaw);
+  if (execAuth.status !== authBlock.status) throw new Error("EXECUTION_AUTHORIZATION_STATUS_DRIFT");
+  if ((execAuth.execution_authorized === true) !== (authBlock.execution_authorized === true)) {
+    throw new Error("EXECUTION_AUTHORIZATION_FLAG_DRIFT");
+  }
+  if (execAuth.status !== "GRANTED" && execAuth.status !== "NOT_GRANTED") {
+    throw new Error("EXECUTION_AUTHORIZATION_STATUS_UNKNOWN");
+  }
+  if (execAuth.status === "GRANTED") {
+    if (execAuth.bound_baseline_fingerprint !== baselineBlock.fingerprint) {
+      throw new Error("EXECUTION_AUTHORIZATION_UNBOUND_FINGERPRINT");
+    }
+    if (execAuth.bound_baseline_artifact_sha256 !== baselineBlock.artifact_sha256) {
+      throw new Error("EXECUTION_AUTHORIZATION_UNBOUND_BASELINE_SHA");
+    }
+    if (execAuth.bound_reviewed_package_sha !== baselineBlock.reviewed_package_sha) {
+      throw new Error("EXECUTION_AUTHORIZATION_UNBOUND_PACKAGE_SHA");
     }
   }
 
@@ -961,15 +1068,11 @@ export function main(): void {
     if (!pin) throw new Error(`MATRIX_VALIDATION_FAIL: no step state pin for ${key}`);
     const ordinal = index + 1;
     if (isBlockedCase(nc, pin)) {
-      if (nc.execution_status !== BLOCKED_TOKEN) {
-        throw new Error(`MATRIX_VALIDATION_FAIL: blocked case ${key} must be marked ${BLOCKED_TOKEN}`);
-      }
-      const name = `case-${String(ordinal).padStart(4, "0")}.BLOCKED.sql`;
-      writeFileSync(join(CASES, name), renderBlockedCase(ordinal, nc), "utf8");
-      files.push(`cases/${name}`);
-      blocked.push(`cases/${name}`);
-      blockedByClass[nc.case] = (blockedByClass[nc.case] ?? 0) + 1;
-      return;
+      // REMEDIATION-15 G5: blocked rendering is abolished. A case that is not
+      // bound to an ACTIVE runtime step is a package defect, not an output.
+      throw new Error(
+        `${FIXTURE_HOLD_TOKEN}: ${key} is not bound to an ACTIVE step; apply ${FIXTURE_PACKAGE_ID}`,
+      );
     }
     const name = `case-${String(ordinal).padStart(4, "0")}.sql`;
     writeFileSync(join(CASES, name), renderCase(ordinal, nc, pc, fingerprintExpr, contract, attest, pin), "utf8");
@@ -987,7 +1090,7 @@ export function main(): void {
     throw new Error("MATRIX_PARTITION_DRIFT");
   }
 
-  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr, blocked.length, executable.length), "utf8");
+  writeFileSync(join(OUT, "pins.sql"), renderPins(manifest, fingerprintExpr, executable.length, execAuth), "utf8");
   writeFileSync(join(OUT, "fingerprint-check.sql"), renderFingerprintCheck(manifest, fingerprintExpr), "utf8");
   writeFileSync(join(OUT, "master-negative-matrix.sql"), renderMaster(executable, negatives.length), "utf8");
   writeFileSync(
@@ -999,11 +1102,20 @@ export function main(): void {
         negative_total: negatives.length,
         executable_negative_total: executable.length,
         blocked_negative_total: blocked.length,
-        blocked_reason: blocked.length ? BLOCKED_TOKEN : null,
+        blocked_reason: null,
         blocked_files: blocked,
         blocked_by_class: blockedByClass,
-        final_pass_allowed: blocked.length === 0,
-        hold_token_when_blocked: BLOCKED_HOLD_TOKEN,
+        rebound_cases: 22,
+        fixture_package_id: FIXTURE_PACKAGE_ID,
+        fixture_readiness: readinessStatus,
+        readiness_hold_token: FIXTURE_HOLD_TOKEN,
+        execution_authorization: {
+          artifact_path: authBlock.artifact_path,
+          artifact_sha256: authBlock.artifact_sha256,
+          status: execAuth.status,
+          execution_authorized: execAuth.execution_authorized === true,
+          hold_token: EXECUTION_AUTH_HOLD_TOKEN,
+        },
         positive_rendered: 0,
         commits: 0,
         files: ["pins.sql", "fingerprint-check.sql", "master-negative-matrix.sql", ...files],

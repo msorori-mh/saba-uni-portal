@@ -1,0 +1,2 @@
+id,student_profile_id,request_id,academic_year_id,semester_id,chance_type,reason,approved_by,approved_at,created_at
+b2137c6e-7566-4ddc-8994-bf15321b33be,7020e51d-19e3-4acb-9597-5145b65d117e,30482047-e7e4-4e5a-accd-5a9a097d9e14,6b297abe-b4d5-47f0-a24e-ea25c7c691f6,d4dc2d92-00ce-4ea0-a7ed-da06d546512f,final_chance,TEST_ONLY فرصة أخيرة,15b0f3cd-29d8-4eb1-ad15-bb9026986dbc,2026-07-27 10:59:50.521601+00,2026-07-27 10:59:50.521601+00

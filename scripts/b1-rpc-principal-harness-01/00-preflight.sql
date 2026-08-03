@@ -196,16 +196,44 @@ DECLARE
   v_status   text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_status');
   v_expected text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_fingerprint');
   v_observed text := (SELECT fingerprint FROM b1_observed_fingerprint);
+  v_authorized text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_execution_authorized');
+  v_preflight_done text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_operator_preflight_executed');
+  v_cases_done text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_negative_cases_executed');
+  v_expected_head text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_expected_migration_head');
+  v_baseline_head text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_migration_head');
+  v_path text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_artifact_path');
 BEGIN
   IF v_status IS DISTINCT FROM 'PINNED' OR v_expected IS NULL OR v_expected = '' THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: authoritative baseline is % (observed %)',
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: OPERATOR_VISIBILITY_NOT_PROVEN: authoritative baseline is % (observed %)',
       coalesce(v_status, 'MISSING'), v_observed;
   END IF;
+  -- REMEDIATION-26: a read-only capture must NEVER authorize execution. A
+  -- baseline carrying execution_authorized = true is contract drift and fails
+  -- closed; execution authorization lives only in the separate owner-approved
+  -- artifact enforced by 01-execution-gate.sql.
+  IF v_authorized IS DISTINCT FROM 'false' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline self-authorizes execution (execution_authorized=%); a read-only capture must never authorize execution',
+      coalesce(v_authorized, 'MISSING');
+  END IF;
+  -- the baseline must be unused: no recorded operator preflight, no executed case
+  IF v_preflight_done IS DISTINCT FROM 'false' OR v_cases_done IS DISTINCT FROM '0' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline already recorded preflight=% cases=%',
+      coalesce(v_preflight_done, 'MISSING'), coalesce(v_cases_done, 'MISSING');
+  END IF;
+  IF v_path IS DISTINCT FROM 'scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline path is not the canonical active path (%)',
+      coalesce(v_path, 'MISSING');
+  END IF;
+  IF v_expected_head IS DISTINCT FROM '20260801021541'
+     OR v_baseline_head IS DISTINCT FROM v_expected_head THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: migration head % is not the required %',
+      coalesce(v_baseline_head, 'MISSING'), coalesce(v_expected_head, 'MISSING');
+  END IF;
   IF v_observed IS NULL THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint is NULL';
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint is NULL';
   END IF;
   IF v_observed IS DISTINCT FROM v_expected THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint mismatch (rows hidden by RLS or state drift)';
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint mismatch (rows hidden by RLS or state drift)';
   END IF;
 END $$;
 
@@ -338,21 +366,88 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 8b. REMEDIATION-12 G3 — ACTIVE FIXTURE GATE (fail-closed)
---     The matrix may not run and may not be declared PASS while any case is
---     BLOCKED_PENDING_ACTIVE_FIXTURE. This gate is inside the master script so
---     a direct psql invocation cannot bypass the launcher check.
+-- 8b. RECONCILIATION-17 — BLOCKED-CASE GATE ABOLISHED
+--     The 245+22 model is gone: all 267 cases render as executable SQL bound to
+--     deterministic ACTIVE fixture steps. Readiness is enforced by the
+--     fixture-state gate below (8c), never by blocked-case counts.
+-- ============================================================================
+
+-- ============================================================================
+-- 8c. REMEDIATION-15 G5 — FIXTURE-13 STATE GATE (fail-closed)
+--     Every previously blocked case is now bound to a deterministic ACTIVE
+--     TEST_ONLY fixture step. If the fixture package is not applied, or drifted,
+--     the run halts here instead of "passing" against a non-existent step.
+--     RECONCILIATION-17: the migration-head contract after apply is enforced by
+--     the fixture migration itself (precondition k_head = 20260731203030); the
+--     post-apply head is pinned when the migration is reviewed and applied.
 -- ============================================================================
 DO $$
 DECLARE
-  v_blocked int  := (SELECT value::int FROM b1_pin_scalar WHERE key = 'blocked_case_total');
-  v_hold    text := (SELECT value FROM b1_pin_scalar WHERE key = 'blocked_hold_token');
+  k_marker  CONSTANT text := 'TEST_ONLY_B1_FIXTURE_13';
+  k_hold    CONSTANT text := 'HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED';
+  v_req     int;
+  v_steps   int;
+  v_active  int;
+  v_detail  int;
+  v_bad     int;
 BEGIN
-  IF v_blocked IS NULL OR v_hold IS NULL THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_BLOCKED_CASE_PIN_MISSING';
+  -- RECONCILIATION-17: the rendered pins must carry the fixture contract.
+  IF (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_package_id')
+       IS DISTINCT FROM 'B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13'
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_marker') IS DISTINCT FROM k_marker
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_hold_token') IS DISTINCT FROM k_hold
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'executable_case_total') IS DISTINCT FROM '267' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : fixture contract pins missing or drifted', k_hold;
   END IF;
-  IF v_blocked > 0 THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % negative cases are BLOCKED_PENDING_ACTIVE_FIXTURE', v_hold, v_blocked;
+
+  SELECT count(*) INTO v_req FROM public.student_requests
+   WHERE internal_notes = k_marker AND request_number LIKE 'SR-20260801-13%';
+  IF v_req <> 19 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture requests (expected 19)', k_hold, v_req;
+  END IF;
+
+  SELECT count(*) INTO v_steps
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker;
+  IF v_steps <> 104 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture runtime steps (expected 104)', k_hold, v_steps;
+  END IF;
+
+  SELECT count(*) INTO v_active
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker AND w.status = 'active';
+  IF v_active <> 19 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % ACTIVE fixture steps (expected 19)', k_hold, v_active;
+  END IF;
+
+  SELECT count(*) INTO v_detail
+    FROM public.transfer_request_details d
+    JOIN public.student_requests r ON r.id = d.request_id
+   WHERE r.internal_notes = k_marker
+     AND d.current_department_id <> d.requested_department_id;
+  IF v_detail <> 5 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % transfer scope rows (expected 5)', k_hold, v_detail;
+  END IF;
+
+  -- singular identity + provenance on every fixture runtime step
+  SELECT count(*) INTO v_bad
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker
+     AND (num_nonnulls(w.assigned_user_id, w.assigned_staff_profile_id,
+                       w.assigned_faculty_profile_id, w.assigned_position_assignment_id) <> 1
+       OR (w.metadata ->> 'direct_assignment_id') IS NULL);
+  IF v_bad <> 0 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture steps violate the singular-identity contract', k_hold, v_bad;
+  END IF;
+
+  -- no fixture may have been advanced past its parked boundary
+  SELECT count(*) INTO v_bad FROM public.student_requests
+   WHERE internal_notes = k_marker AND status <> 'in_review';
+  IF v_bad <> 0 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture requests left the in_review boundary', k_hold, v_bad;
   END IF;
 END $$;
 
@@ -620,3 +715,11 @@ END $$;
 SELECT 'B1_OPERATOR_PREFLIGHT_PASS' AS verdict;
 
 ROLLBACK;
+
+-- REMEDIATION-26 (gate 2 marker): the read-only operator preflight passed in
+-- THIS psql session. Set AFTER the ROLLBACK so it survives as session state
+-- (a SET inside the rolled-back transaction would be discarded). This marker
+-- is NOT execution authorization: it only proves gate 2 to
+-- 01-execution-gate.sql, which additionally requires the separate
+-- owner-approved execution authorization artifact (gate 3).
+SELECT set_config('b1.operator_preflight_passed', 'true', false) AS operator_preflight_session_marker;

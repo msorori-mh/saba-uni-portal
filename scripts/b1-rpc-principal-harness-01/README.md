@@ -8,8 +8,11 @@ NO_ROLE_CHANGE, NO_MIGRATION, NO_DEPLOY.**
 
 | File | Purpose | Runs |
 | --- | --- | --- |
-| `TARGET-MANIFEST.json` | the only source of endpoint, migration, trigger, function-graph and baseline pins | data |
-| `00-preflight.sql` | fail-closed session / target / privilege / baseline / catalog / function-graph preflight, read-only, ends in `ROLLBACK` | operator |
+| `TARGET-MANIFEST.json` | the only source of endpoint, migration, trigger, function-graph, baseline and execution-authorization pins | data |
+| `baseline/AUTHORITATIVE-BASELINE.json` | captured read-only production baseline (`PINNED`, fingerprinted, **never** self-authorizing) | data |
+| `authorization/EXECUTION-AUTHORIZATION.json` | separate owner-approved execution authorization (currently **NOT_GRANTED**) | data |
+| `00-preflight.sql` | fail-closed session / target / privilege / baseline / catalog / function-graph preflight, read-only, ends in `ROLLBACK` + gate-2 session marker | operator |
+| `01-execution-gate.sql` | fail-closed execution-authorization gate (gate 3): requires the gate-2 session marker AND the GRANTED, baseline-bound authorization artifact | operator |
 | `fingerprint.sql` | canonical complete-content fingerprint (count + full row content, **no LIMIT**) | operator |
 | `render-negative-cases.ts` | offline renderer: MATRIX.json + manifest → pins, 267 cases, master script | offline |
 | `run-negative-matrix.ps1` | Windows launcher: renders, then runs **one** psql process | operator |
@@ -17,9 +20,9 @@ NO_ROLE_CHANGE, NO_MIGRATION, NO_DEPLOY.**
 | `negative-harness.sql`, `positive-harness.sql` | superseded / **HELD_BACK** | not run |
 
 Case source of truth: `tests/b1-five-services-rpc-authorization-preflight-01/MATRIX.json`
-(240 core + 24 illegal-action + 3 transfer-scope = **267** defined, of which **264 executable**
-and **3 BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE**, positives rendered **0**,
-`COMMIT` statements **0**).
+(240 core + 24 illegal-action + 3 transfer-scope = **267** defined, **267 executable**,
+**0 blocked** — the 22 previously blocked cases are rebound to deterministic ACTIVE
+TEST_ONLY fixture steps; positives rendered **0**, `COMMIT` statements **0**).
 
 ## G1 — value sanitation and denial-class fail-closed gate
 
@@ -81,9 +84,33 @@ least one policy on every scope relation — partial RLS fails.
 Row-count checks are not accepted as visibility proof. The preflight computes the
 complete-content fingerprint and compares it to the pinned
 `authoritative_baseline.fingerprint` produced out-of-band through the Lovable
-read-only channel. Status `PENDING` (the current state) fails closed with
+read-only channel. Status `PENDING` fails closed with
 `PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN` — the baseline must be generated
 and pinned in the manifest immediately before the run.
+
+## G5b — REMEDIATION-26: capture ≠ authorization (three fail-closed gates)
+
+A read-only baseline capture **never** authorizes execution. The gates are
+three independent states, and no single flag opens the run:
+
+1. **Baseline (gate 1).** `AUTHORITATIVE-BASELINE.json` is `PINNED` with a
+   non-null fingerprint, `operator_preflight_executed = false`,
+   `negative_cases_executed = 0` and **`execution_authorized = false`**. A
+   baseline (or manifest) carrying `execution_authorized = true` is contract
+   drift: the launcher and the preflight both fail closed on it.
+2. **Operator Preflight (gate 2).** `00-preflight.sql` is read-only, executes
+   no workflow RPC and never sets execution authorization. After its
+   `ROLLBACK` it sets the session marker `b1.operator_preflight_passed` —
+   reviewable evidence that gate 2 passed **in this session**, nothing more.
+3. **Execution authorization (gate 3).** `01-execution-gate.sql` runs in the
+   master script after the preflight and before `case-0001`. It requires the
+   gate-2 marker AND a separate owner-approved artifact
+   (`authorization/EXECUTION-AUTHORIZATION.json`) with `status = GRANTED`,
+   bound to the active baseline fingerprint, baseline artifact sha256 and
+   reviewed package SHA, inside its validity window. The launcher enforces the
+   same artifact before psql. The artifact is currently **NOT_GRANTED**, so
+   the 267 cases stay blocked with
+   `HOLD_B1_NEGATIVE_RPC_MATRIX_EXECUTION_NOT_AUTHORIZED`.
 
 ## G6 — real locking and state pinning
 
@@ -133,13 +160,18 @@ as a notice for review.
 ## G9 — single-psql master execution
 
 `generated/master-negative-matrix.sql` is executed by one `psql -W … -f` process:
-preflight → the 264 executable cases (`case-0001` … `case-0264`) → outside-transaction
-baseline check. `case-0265..0267` are rendered as `*.BLOCKED.sql` and excluded. Each
+preflight → execution authorization gate → the 267 executable cases
+(`case-0001` … `case-0267`) → outside-transaction baseline check. Blocked
+rendering is abolished: every case is bound to a deterministic ACTIVE TEST_ONLY
+fixture step, and a fixture package that is not applied halts the run inside
+the preflight with
+`HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED`. Each
 case is its own `BEGIN ISOLATION LEVEL SERIALIZABLE … ROLLBACK`. `ON_ERROR_STOP`
-aborts the entire run at the first `PREFLIGHT_FAIL`, `CASE_STATE_DRIFT`,
-`CASE_FAIL_ALLOWED`, `CASE_FAIL_MUTATION` or `POST_RUN_FAIL`. The session runs with
-`default_transaction_read_only=off` on purpose (see G1): read-only sessions must
-never mask an authorization bypass. Isolation comes from the ROLLBACK-only cases.
+aborts the entire run at the first `PREFLIGHT_FAIL`, `EXECUTION_GATE_FAIL`,
+`CASE_STATE_DRIFT`, `CASE_FAIL_ALLOWED`, `CASE_FAIL_MUTATION` or `POST_RUN_FAIL`.
+The session runs with `default_transaction_read_only=off` on purpose (see G1):
+read-only sessions must never mask an authorization bypass. Isolation comes
+from the ROLLBACK-only cases.
 
 ## Usage
 
@@ -167,12 +199,13 @@ the target or for credentials by design.
   sending an illegal action is therefore denied with **`42501` /
   `B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED`**. `B1_ACTION_TYPE_MISMATCH` is
   unreachable from any external caller and is never accepted as proof.
-* **Transfer department scope.** The three scope-swap cases target steps that are
-  currently `pending`; the RPC would deny with `B1_ACTIVE_STEP_REQUIRED`, which
-  proves nothing about scope. They are rendered as non-executing
-  `case-02NN.BLOCKED.sql` files, excluded from the master script, and the launcher
-  fails if a blocked case ever reaches it. Status:
-  `TRANSFER_SCOPE_EXECUTION=BLOCKED_PENDING_ACTIVE_TEST_ONLY_FIXTURE`.
+* **Transfer department scope.** The three scope-swap cases are rebound to
+  deterministic ACTIVE transfer fixtures (IT source / CS target / CIS unrelated)
+  from `B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13`, so they render as ordinary
+  executable cases. Until the fixture package is applied, the launcher and the
+  fixture-state preflight stop the run with
+  `HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED`. Status:
+  `TRANSFER_SCOPE_EXECUTION=EXECUTABLE_PENDING_FIXTURE_APPLY`.
 * **Per-step state pinning.** Every executable case now also pins the processing
   unit code, processing role code, configured `action_type`, the resolved direct
   assignee `user_id` (staff / faculty / position assignment slot) and the expected

@@ -13,13 +13,15 @@ import {
   mapGraduationProjectRpcError,
 } from "../../src/lib/graduation-projects/rpc";
 
-const enumMigration = readFileSync(
+// Read with EOL normalization: the index stores LF, but Windows checkouts with
+// core.autocrlf=true produce CRLF in the worktree; the assertions are EOL-agnostic.
+const readSql = (path: string) =>
+  readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+const enumMigration = readSql(
   "supabase/migrations/20260730100002_c8f89b6d-6521-4597-97bc-aae0b837023f.sql",
-  "utf8",
 );
-const hardeningMigration = readFileSync(
+const hardeningMigration = readSql(
   "supabase/migrations/20260730100003_1811ed11-afad-4cbc-8f8a-287ba5b13a19.sql",
-  "utf8",
 );
 
 type RpcCall = { fn: string; args: Record<string, unknown> };

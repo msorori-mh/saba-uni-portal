@@ -1,105 +1,104 @@
 {
-  "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-AUTHORITATIVE-BASELINE-CAPTURE-60",
+  "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-POST-FIXTURE-AUTHORITATIVE-BASELINE-CAPTURE-22-RERUN-25",
   "mode": "PRODUCTION_READ_ONLY_BASELINE_CAPTURE",
   "status": "PINNED",
-  "fingerprint": "be5040a4fd34fc1fbab235e118c509d0",
-  "captured_at_utc": "2026-07-29T23:20:07Z",
+  "execution_authorized": false,
+  "fingerprint": "4c95c6a344cee2f52ade4a5312bd8240",
+  "fingerprint_recomputed_in_transaction": "4c95c6a344cee2f52ade4a5312bd8240",
+  "drift": "NONE",
+  "captured_at_utc": "2026-08-01T23:33:44Z",
   "valid_for_minutes": 120,
-  "reviewed_package_sha": "a1c86ea42b600e67f38c69a1cd610a916a33c312",
-  "package_source_equivalence": {
-    "checked_paths": [
-      "scripts/b1-rpc-principal-harness-01",
-      "tests/b1-five-services-rpc-authorization-preflight-01"
-    ],
-    "diff_vs_reviewed_sha": "EMPTY",
-    "verdict": "SOURCE_MATCHES_REVIEWED_PACKAGE"
+  "reviewed_package_sha": "0bc2e27f8c3985b8a35c2f1a19ed39955cb5007e",
+  "migration_head": "20260801021541",
+  "expected_migration_head": "20260801021541",
+  "previous_migration_head": "20260731203030",
+  "capture_session": {
+    "isolation": "SERIALIZABLE READ ONLY",
+    "transaction_read_only": "on",
+    "principal": "supabase_read_only_user",
+    "production_writes": 0,
+    "workflow_rpc_calls": 0
   },
-  "fingerprint_expression": {
-    "source_file": "scripts/b1-rpc-principal-harness-01/fingerprint.sql",
-    "delimiters": ["-- BEGIN_FINGERPRINT_EXPR", "-- END_FINGERPRINT_EXPR"],
-    "modified": false,
-    "abbreviated": false
+  "function_graph": {
+    "closure_entries": 28,
+    "resolved": 28,
+    "matching": 28,
+    "mismatched": 0,
+    "owner_violations": 0,
+    "search_path_violations": 0,
+    "entrypoint_signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+    "entrypoint_sha256_normalized": "07d793b4bb4831dc3187c05b3971c2ab683637d0d2afefc57be4f5a40beaab9b",
+    "reattestation_mission_id": "PORTAL-B1-FUNCTION-GRAPH-ENTRYPOINT-READONLY-REATTESTATION-AND-SOURCE-REPIN-23"
   },
-  "capture_transaction": {
-    "count": 1,
-    "isolation_level": "SERIALIZABLE",
-    "access_mode": "READ ONLY",
-    "recomputed_in_transaction": true,
-    "fingerprint_first": "be5040a4fd34fc1fbab235e118c509d0",
-    "fingerprint_second": "be5040a4fd34fc1fbab235e118c509d0",
-    "drift": "NONE",
-    "dml": 0,
-    "ddl": 0,
-    "role_changes": 0,
-    "workflow_rpc_calls": 0,
-    "production_writes": 0
-  },
-  "endpoint_attestation": {
-    "project_ref": "wpmicqriltrowwonknox",
-    "approved_pghost": "aws-1-eu-north-1.pooler.supabase.com",
-    "approved_pgport": "5432",
-    "approved_pgdatabase": "postgres",
-    "tls": {
-      "sslmode": "verify-full",
-      "verdict": "VERIFIED",
-      "server_leaf_cn": "*.pooler.supabase.com",
-      "server_leaf_san": ["*.pooler.supabase.com", "*.pooler.supabase.co"],
-      "issuer": "C=US, ST=Delware, L=New Castle, O=Supabase Inc, CN=Supabase Intermediate 2021 CA",
-      "root_ca_subject": "C=US, ST=Delware, L=New Castle, O=Supabase Inc, CN=Supabase Root 2021 CA",
-      "root_ca_sha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
-      "root_ca_obtained_from": "https://supabase-downloads.s3.amazonaws.com/prod/ssl/prod-ca-2021.crt (out-of-band vendor origin over public-CA HTTPS)",
-      "root_ca_stored_in_git": false,
-      "root_ca_local_path_untracked": "/tmp/b1tls/prod-ca-2021.crt",
-      "hostname_verification": "PASS",
-      "ca_chain_verification": "PASS",
-      "proof": "psql sslmode=verify-full sslrootcert=<local untracked CA> returned TLS_VERIFY_FULL_OK on PostgreSQL 17.6"
-    },
-    "fingerprint_channel": {
-      "channel": "Lovable Cloud read-only SQL channel (manifest authoritative_baseline.generated_by)",
-      "database_principal": "supabase_read_only_user",
-      "reason": "The sandbox psql principal (sandbox_exec) has no SELECT on supabase_migrations.schema_migrations, so the unmodified fingerprint expression cannot be evaluated there; the contract designates the Lovable read-only channel as the baseline generator.",
-      "transport": "HTTPS, public-CA verified"
+  "fixture_state": {
+    "marker": "TEST_ONLY_B1_FIXTURE_13",
+    "requests": 19,
+    "steps": 104,
+    "active_steps": 19,
+    "requests_with_non_single_active_step": 0,
+    "transfer_details": 5,
+    "workflow_events": 0,
+    "fee_assessments": 0,
+    "statuses": ["in_review"],
+    "distribution": {
+      "department_transfer": 5,
+      "enrollment_suspension": 2,
+      "excused_absence": 2,
+      "file_withdrawal": 6,
+      "final_chance": 4
     }
   },
-  "catalog_attestation": {
-    "migration_head": "20260729173359",
-    "expected_migration_head": "20260729173359",
-    "verdict": "MATCH"
+  "protected_state": {
+    "enrollment_certificate": {
+      "is_active": true,
+      "student_visible": true,
+      "requests": 4,
+      "document_details": 2,
+      "official_documents": 2,
+      "latest_request_activity_utc": "2026-07-16T04:44:29.338193Z"
+    },
+    "b1_services_student_visible": {
+      "enrollment_suspension": false,
+      "excused_absence": false,
+      "department_transfer": false,
+      "final_chance": false,
+      "file_withdrawal": false
+    }
   },
-  "function_graph_attestation": {
-    "closure_size": 28,
-    "verified": 28,
-    "mismatched": 0,
-    "null_hashes": 0,
-    "hash_rule": "sha256(pg_get_functiondef() with runs of whitespace collapsed to one space and trimmed)",
-    "verdict": "28/28 MATCH"
-  },
-  "visibility_attestation": {
-    "enrollment_suspension": { "is_active": true, "student_visible": false },
-    "excused_absence": { "is_active": true, "student_visible": false },
-    "department_transfer": { "is_active": true, "student_visible": false },
-    "final_chance": { "is_active": true, "student_visible": false },
-    "file_withdrawal": { "is_active": true, "student_visible": false },
-    "enrollment_certificate": { "is_active": true, "student_visible": true },
-    "verdict": "MATCH"
+  "state_pins": {
+    "student_requests": 52,
+    "student_request_workflow_steps": 160,
+    "student_request_workflow_events": 83,
+    "student_request_attachments": 1,
+    "student_request_attachment_uploads": 8,
+    "student_fees": 0,
+    "student_payments": 0,
+    "payment_receipts": 0,
+    "notifications": 6,
+    "audit_logs": 2625,
+    "student_excused_absences": 2,
+    "student_extra_chances": 1,
+    "request_processing_assignments": 26,
+    "student_profiles": 848
   },
   "scope": [
-    "SR-20260727-42393846",
-    "SR-20260727-50BEDCE2",
-    "SR-20260727-3C550070",
-    "SR-20260727-88D885F0",
-    "SR-20260727-695EC35B",
     "SR-20260713-2DE64041",
     "SR-20260715-FEDCB3E1",
-    "SR-20260716-26BAD4C8"
+    "SR-20260716-26BAD4C8",
+    "SR-20260727-3C550070",
+    "SR-20260727-42393846",
+    "SR-20260727-50BEDCE2",
+    "SR-20260727-695EC35B",
+    "SR-20260727-88D885F0"
   ],
+  "operator_preflight_executed": false,
+  "negative_cases_executed": 0,
   "contains_secrets": false,
-  "held_back": {
-    "negative_cases_executed": 0,
-    "operator_preflight_executed": false,
-    "positive_harness": "HELD_BACK",
-    "blocked_22_cases": "NOT_ADDRESSED_IN_THIS_MISSION",
-    "deploy": false
+  "canonical_active_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
+  "archived_predecessor": {
+    "path": "scripts/b1-rpc-principal-harness-01/baseline/archive/AUTHORITATIVE-BASELINE-20260729-STALE.json",
+    "status": "STALE",
+    "selectable_by_launcher": false
   },
-  "on_mismatch": "PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN"
+  "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE"
 }
