@@ -4,9 +4,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { MilestonesPanel } from "../../src/components/graduation-projects/MilestonesPanel";
-import { GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG } from "../../src/lib/graduation-projects/portal.functions";
-import * as availability from "../../src/lib/graduation-projects/availability";
-import { GraduationProjectsRpcClient } from "../../src/lib/graduation-projects/rpc";
+import {
+  GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG,
+  enforceGraduationProjectFileRegistrationUnavailable,
+} from "../../src/lib/graduation-projects/portal.functions";
+import * as lifecycle from "../../src/lib/graduation-projects/lifecycle";
+import {
+  GraduationProjectsRpcClient,
+  GraduationProjectsRpcError,
+} from "../../src/lib/graduation-projects/rpc";
 
 const root = process.cwd();
 
@@ -33,15 +39,49 @@ function extractRegisterHandlerSource(): string {
   return src.slice(start, end);
 }
 
-/** Mirrors the registerGraduationProjectFile fail-closed call chain for spy proofs. */
-async function runRegisterFailClosedChain(supabase: object): Promise<never> {
-  await availability.probeGraduationProjectsRuntime(supabase as never);
-  availability.assertGraduationProjectsAvailable({
-    available: true,
-    message: null,
-    probedRpc: "list_my_graduation_projects",
-  });
-  throw new Error(GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG);
+function extractEnforceSource(): string {
+  const src = read("src/lib/graduation-projects/portal.functions.ts");
+  const start = src.indexOf(
+    "export async function enforceGraduationProjectFileRegistrationUnavailable",
+  );
+  const end = src.indexOf("function mapThrown");
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return src.slice(start, end);
+}
+
+type RpcCall = { name: string; args: unknown };
+type DbCall = { table: string; method: string };
+
+function createFakeSupabase() {
+  const rpcCalls: RpcCall[] = [];
+  const dbCalls: DbCall[] = [];
+  const storageCalls: string[] = [];
+
+  const supabase = {
+    rpc: async (name: string, args?: unknown) => {
+      rpcCalls.push({ name, args: args ?? {} });
+      if (name === "list_my_graduation_projects") {
+        return { data: [], error: null };
+      }
+      return {
+        data: null,
+        error: { message: `unexpected rpc in storage fail-closed test: ${name}` },
+      };
+    },
+    from: (table: string) => {
+      dbCalls.push({ table, method: "from" });
+      throw new Error(`unexpected database access: ${table}`);
+    },
+    storage: {
+      from: (bucket: string) => {
+        storageCalls.push(bucket);
+        throw new Error(`unexpected storage access: ${bucket}`);
+      },
+    },
+  };
+
+  return { supabase, rpcCalls, dbCalls, storageCalls };
 }
 
 describe("GP storage fail-closed — UI gate", () => {
@@ -99,17 +139,10 @@ describe("GP storage fail-closed — UI gate", () => {
 });
 
 describe("GP storage fail-closed — server gate", () => {
-  test("handler fails closed before UUID, object-key, registerFile, or RPC", () => {
+  test("handler delegates to the production enforce helper", () => {
     const handler = extractRegisterHandlerSource();
     expect(handler).toContain("requireSupabaseAuth");
-    expect(handler).toContain("ensureAvailable");
-    expect(handler).toContain("GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG");
-
-    const ensureIdx = handler.indexOf("ensureAvailable");
-    const throwIdx = handler.indexOf("GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG");
-    expect(ensureIdx).toBeGreaterThanOrEqual(0);
-    expect(throwIdx).toBeGreaterThan(ensureIdx);
-
+    expect(handler).toContain("enforceGraduationProjectFileRegistrationUnavailable");
     expect(handler).not.toContain("randomUUID");
     expect(handler).not.toContain("buildPrivateObjectKey");
     expect(handler).not.toContain("registerFile(");
@@ -118,6 +151,14 @@ describe("GP storage fail-closed — server gate", () => {
     expect(handler).not.toContain(".storage");
     expect(handler).not.toContain("getPublicUrl");
     expect(handler).not.toContain("createSignedUrl");
+
+    const enforce = extractEnforceSource();
+    expect(enforce).toContain("ensureAvailable");
+    expect(enforce).toContain("GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG");
+    const ensureIdx = enforce.indexOf("ensureAvailable");
+    const throwIdx = enforce.indexOf("GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG");
+    expect(ensureIdx).toBeGreaterThanOrEqual(0);
+    expect(throwIdx).toBeGreaterThan(ensureIdx);
   });
 
   test("safe Arabic message exposes no infrastructure identifiers", () => {
@@ -127,35 +168,55 @@ describe("GP storage fail-closed — server gate", () => {
     expect(GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG).not.toContain("graduation-projects/");
   });
 
-  test("fail-closed chain never reaches registerFile or UUID generation", async () => {
-    const probeSpy = spyOn(availability, "probeGraduationProjectsRuntime").mockResolvedValue({
-      available: true,
-      message: null,
-      probedRpc: "list_my_graduation_projects",
-    });
+  test("production enforce path fails closed before registration/Storage side effects", async () => {
+    const { supabase, rpcCalls, dbCalls, storageCalls } = createFakeSupabase();
     const cryptoSpy = spyOn(crypto, "randomUUID");
+    const objectKeySpy = spyOn(lifecycle, "buildPrivateObjectKey");
     const registerSpy = spyOn(GraduationProjectsRpcClient.prototype, "registerFile");
 
-    await expect(runRegisterFailClosedChain({})).rejects.toMatchObject({
-      message: GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG,
-    });
+    let thrown: unknown;
+    try {
+      await enforceGraduationProjectFileRegistrationUnavailable(supabase);
+    } catch (error) {
+      thrown = error;
+    }
 
-    expect(probeSpy).toHaveBeenCalledTimes(1);
-    expect(cryptoSpy).not.toHaveBeenCalled();
-    expect(registerSpy).not.toHaveBeenCalled();
-
-    // Source chain must match the mirrored order (auth/availability then throw).
-    const src = extractRegisterHandlerSource();
-    expect(src.indexOf("ensureAvailable")).toBeLessThan(
-      src.indexOf("GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG"),
+    expect(thrown).toBeInstanceOf(GraduationProjectsRpcError);
+    expect((thrown as GraduationProjectsRpcError).message).toBe(
+      GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG,
     );
-    expect(src).not.toContain("registerFile(");
-    expect(src).not.toContain("randomUUID");
-    expect(src).not.toContain("buildPrivateObjectKey");
 
-    probeSpy.mockRestore();
+    // Read-only availability probe is expected; mutating registration RPC is not.
+    expect(rpcCalls.map((call) => call.name)).toEqual(["list_my_graduation_projects"]);
+    expect(rpcCalls.some((call) => call.name === "register_graduation_project_file")).toBe(false);
+
+    expect(cryptoSpy).not.toHaveBeenCalled();
+    expect(objectKeySpy).not.toHaveBeenCalled();
+    expect(registerSpy).not.toHaveBeenCalled();
+    expect(dbCalls).toEqual([]);
+    expect(storageCalls).toEqual([]);
+
     cryptoSpy.mockRestore();
+    objectKeySpy.mockRestore();
     registerSpy.mockRestore();
+  });
+
+  test("tested production function remains the one invoked by the server handler", () => {
+    const portal = read("src/lib/graduation-projects/portal.functions.ts");
+    const handler = extractRegisterHandlerSource();
+    expect(portal).toContain(
+      "export async function enforceGraduationProjectFileRegistrationUnavailable",
+    );
+    expect(handler).toContain(
+      "await enforceGraduationProjectFileRegistrationUnavailable(context.supabase)",
+    );
+    // No duplicated fail-closed sequence outside the production helper.
+    expect(portal).not.toContain("runRegisterFailClosedChain");
+    const throwCount = (
+      portal.match(/throw new GraduationProjectsRpcError\(GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG\)/g) ??
+      []
+    ).length;
+    expect(throwCount).toBe(1);
   });
 });
 
@@ -198,6 +259,7 @@ describe("GP storage fail-closed — alternate entry points", () => {
         const relFile = file.replace(/\\/g, "/").replace(root.replace(/\\/g, "/") + "/", "");
         if (relFile.endsWith("portal.functions.ts")) {
           expect(src).toContain("GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG");
+          expect(src).toContain("enforceGraduationProjectFileRegistrationUnavailable");
           continue;
         }
         if (relFile.endsWith("rpc.ts") || relFile.endsWith("lifecycle.ts")) {
@@ -230,7 +292,9 @@ describe("GP storage fail-closed — alternate entry points", () => {
   test("auth and privacy guards remain on the register server function", () => {
     const handler = extractRegisterHandlerSource();
     expect(handler).toContain("requireSupabaseAuth");
-    expect(handler).toContain("ensureAvailable");
+    expect(handler).toContain("enforceGraduationProjectFileRegistrationUnavailable");
+    const enforce = extractEnforceSource();
+    expect(enforce).toContain("ensureAvailable");
     const portalFns = read("src/lib/graduation-projects/portal.functions.ts");
     expect(portalFns).toContain("applyPortalPrivacy");
     expect(portalFns).toContain("Never accept actor ids from the client");

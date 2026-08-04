@@ -53,6 +53,19 @@ async function ensureAvailable(supabase: RpcLike) {
   return probe;
 }
 
+/**
+ * Production fail-closed gate for file metadata registration while private
+ * Storage remains unbootstrapped. Auth stays in the server-fn middleware;
+ * this runs only after that, probes module availability, then throws before
+ * any token, object-key, registerFile, mutating RPC, DB write, or Storage call.
+ */
+export async function enforceGraduationProjectFileRegistrationUnavailable(
+  supabase: RpcLike,
+): Promise<never> {
+  await ensureAvailable(supabase);
+  throw new GraduationProjectsRpcError(GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG);
+}
+
 function mapThrown(error: unknown): never {
   if (error instanceof GraduationProjectsRpcError) throw error;
   if (error instanceof Error) throw new GraduationProjectsRpcError(error.message);
@@ -371,10 +384,7 @@ export const registerGraduationProjectFile = createServerFn({ method: "POST" })
   )
   .handler(async ({ context }) => {
     try {
-      // Auth (middleware) + module availability only — then fail closed before any
-      // token, object-key, registerFile, RPC, DB mutation, or Storage call.
-      await ensureAvailable(context.supabase);
-      throw new GraduationProjectsRpcError(GRADUATION_PROJECTS_STORAGE_UNAVAILABLE_MSG);
+      await enforceGraduationProjectFileRegistrationUnavailable(context.supabase);
     } catch (error) {
       mapThrown(error);
     }
