@@ -842,6 +842,75 @@ export type Database = {
         }
         Relationships: []
       }
+      b1_fixture_15_reissue_44_evidence: {
+        Row: {
+          archive_step_comment: string | null
+          archive_step_completed_at: string | null
+          archive_step_completed_by: string | null
+          archive_step_decision: string | null
+          archive_step_id: string | null
+          archive_step_status: string | null
+          captured_at: string
+          event_actor_user_id: string | null
+          event_created_at: string | null
+          event_id: string | null
+          event_message_ar: string | null
+          event_payload: Json | null
+          event_type: string | null
+          evidence: Json
+          id: string
+          marker: string
+          request_completed_at: string | null
+          request_id: string
+          request_number: string
+          request_status: string | null
+        }
+        Insert: {
+          archive_step_comment?: string | null
+          archive_step_completed_at?: string | null
+          archive_step_completed_by?: string | null
+          archive_step_decision?: string | null
+          archive_step_id?: string | null
+          archive_step_status?: string | null
+          captured_at?: string
+          event_actor_user_id?: string | null
+          event_created_at?: string | null
+          event_id?: string | null
+          event_message_ar?: string | null
+          event_payload?: Json | null
+          event_type?: string | null
+          evidence: Json
+          id?: string
+          marker?: string
+          request_completed_at?: string | null
+          request_id: string
+          request_number: string
+          request_status?: string | null
+        }
+        Update: {
+          archive_step_comment?: string | null
+          archive_step_completed_at?: string | null
+          archive_step_completed_by?: string | null
+          archive_step_decision?: string | null
+          archive_step_id?: string | null
+          archive_step_status?: string | null
+          captured_at?: string
+          event_actor_user_id?: string | null
+          event_created_at?: string | null
+          event_id?: string | null
+          event_message_ar?: string | null
+          event_payload?: Json | null
+          event_type?: string | null
+          evidence?: Json
+          id?: string
+          marker?: string
+          request_completed_at?: string | null
+          request_id?: string
+          request_number?: string
+          request_status?: string | null
+        }
+        Relationships: []
+      }
       buildings: {
         Row: {
           code: string
