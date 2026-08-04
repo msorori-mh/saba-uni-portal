@@ -1,9 +1,10 @@
 # PORTAL_PR281_B1_E2E_SUPPORT_CODEX_REMEDIATION_91
 
-Decision: **PASS_PR281_B1_E2E_SUPPORT_REMEDIATION** (pending post-push verification block below)
+Decision: **PASS_PR281_B1_E2E_SUPPORT_REMEDIATION**
 
 Starting HEAD: `85a8512da43f717ec26a325e1756b610dcd391be`  
-PR: https://github.com/msorori-mh/saba-uni-portal/pull/281  
+Final HEAD: `b4b60b0a42579a819b07fa1fe8c296237162b271`  
+PR: https://github.com/msorori-mh/saba-uni-portal/pull/281 (OPEN + Draft)  
 Mode: SOURCE AND LOCAL TESTING ONLY
 
 ## CI root cause (run 30869302022)
