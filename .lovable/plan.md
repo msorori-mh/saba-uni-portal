@@ -1,154 +1,126 @@
-# PORTAL_B1_E2E_VISIBILITY_AND_ACTOR_UNBLOCK_PREFLIGHT_85
+# PORTAL_B1_E2E_TEST_ONLY_IDENTITY_AND_VISIBILITY_CONTROL_PLAN_86
 
-Decision: **HOLD_B1_E2E_UNBLOCK_PLAN_NOT_READY** (blocking gap: positive-actor credentials)
-Final recommendation: **REQUIRES_TEST_IDENTITY_PROVISIONING_DECISION**, then `READY_FOR_OWNER_APPROVED_ONE_SERVICE_VISIBILITY_WINDOW`
+Mode: strict read-only. Production writes this mission: ZERO.
+Project: wpmicqriltrowwonknox · migration head 20260804004546 · fixtures 19/19.
 
-Production writes this mission: ZERO. Migration apply: NONE. Publish: NONE. Deploy: NONE. Source changes: NONE.
+## Decision
 
-## 1 — Safety state (verified read-only)
+HOLD_B1_TEST_ONLY_E2E_PROVISIONING_PLAN_NOT_READY
 
-| Check | Value |
-|---|---|
-| Project ref | wpmicqriltrowwonknox |
-| Migration head | 20260804004546 |
-| Fixture matrix | 19 requests / 19 `active` steps (one per request) |
-| Five B1 services | all `is_active=true`, `student_visible=false` |
-| enrollment_certificate | `is_active=true`, `student_visible=true` — unchanged |
-| Total `student_requests` | 52 |
-| E2E-84 requests created | none |
+Reason (verified, not assumed): the ten TEST_ONLY staff-shaped auth accounts exist, but each one has **no staff profile, no role assignment, and no processing assignment**. They cannot be resolved as an assignee by any workflow step today. A TEST_ONLY-only E2E therefore cannot be executed by reusing existing identities; it needs an owner-approved provisioning package.
 
-Pre-state matches the mission contract. No `HOLD_..._PRESTATE_MISMATCH`.
+## What the production reads showed
 
-## 2 — Minimum visibility window
+Workflow steps for the five services all use `assignment_strategy = specific_user`, resolved through `request_processing_assignments`.
 
-Only three production functions reference `student_visible`:
+Active assignments in production: **13 rows, exactly one per (unit, role, department scope)**, all real-person:
 
-- `create_b1_request_draft_for_student` — rejects unless `student_visible IS true` (draft creation)
-- `create_student_request` — legacy generic create path, same gate
-- `get_b1_secure_read_runtime_capability` — student-side secure read capability requires `rt.student_visible is true`
-
-Not gated by visibility: draft update/persist, `submit_b1_student_request_atomic` (checks `is_active` only), workflow initialization, staff reads (`get_b1_assigned_inbox_for_actor`, `get_b1_assigned_request_details_for_actor`), `act_on_b1_student_request_step_atomic`, all terminal/apply-effect functions.
-
-Because all five services share the same generic B1 RPCs (`b1_is_five_service_type`), the classification is identical and proved for each:
-
-| Service | Window | Earliest safe re-hide point |
+| unit | role | current holder |
 |---|---|---|
-| enrollment_suspension | **C. FULL_STUDENT_PHASE_WINDOW** | immediately after successful submit + single workflow initialization |
-| excused_absence | **C. FULL_STUDENT_PHASE_WINDOW** | same |
-| department_transfer | **C. FULL_STUDENT_PHASE_WINDOW** | same |
-| final_chance | **C. FULL_STUDENT_PHASE_WINDOW** | same |
-| file_withdrawal | **C. FULL_STUDENT_PHASE_WINDOW** | same |
+| student_affairs | student_affairs_specialist | hitham@usr.edu.ye |
+| student_affairs | student_affairs_manager | yasmin@usr.edu.ye |
+| registrar | registrar_general | toaiman@usr.edu.ye |
+| finance | revenue_finance_officer | fares@usr.edu.ye |
+| library | library_officer | naji@usr.edu.ye |
+| labs | labs_manager | mohammed@usr.edu.ye |
+| archive | archive_officer | mameen@usr.edu.ye |
+| dean | dean | faculty-profile assignment |
+| department | department_head | three department-scoped position assignments (ce485c67, 22222222, 11111111) |
 
-Rationale for C rather than A/B: create needs visibility, and every student-side read between create and submit goes through the secure read capability, which also requires it. Nothing after workflow initialization needs it — the whole staff workflow, the RPC matrix and the terminal actions run with the service hidden.
+There is **no unique index** enforcing one active row per (unit, role, dept) — the single-row state is a data convention, so behaviour when two active rows exist for the same pair is unproven and must be tested locally before any production write.
 
-## 3 — Actor manifest (resolved from live assignments)
+TEST_ONLY accounts that exist in auth (all with zero profiles/roles/assignments):
 
-All 19 active fixture steps resolve through `request_processing_assignments` (`assigned_user_id` is NULL on every step, so resolution is unit+role based).
+| purpose | email | user_id |
+|---|---|---|
+| specialist | test-only.b1.sa_spec@testonly.quboolye.com | 24406961-d8b2-4db7-8896-0ef82039d75f |
+| SA manager | test-only.b1.sa_mgr@testonly.quboolye.com | 0b2a2543-a77a-4b86-ad7f-8b35f9db6502 |
+| registrar | test-only.b1.registrar@testonly.quboolye.com | 15b0f3cd-29d8-4eb1-ad15-bb9026986dbc |
+| finance | test-only.b1.finance@testonly.quboolye.com | f0d8a6b1-7845-46bd-8a12-d78ed6af2bfd |
+| library | test-only.b1.library@testonly.quboolye.com | 749a6e5d-eb27-4417-99a4-7abaffe406a3 |
+| labs | test-only.b1.labs@testonly.quboolye.com | b8b50c98-f26c-413b-a585-fafd0abfaa21 |
+| archive | test-only.b1.archive@testonly.quboolye.com | 676ecf19-4c7a-45eb-86db-2c141e5a7691 |
+| dean | test-only.b1.dean@testonly.quboolye.com | fb59542d-d410-4fa4-88d3-1e3e2fabe014 |
+| source dept head | test-only.b1.dh_src@testonly.quboolye.com | 49f152f8-db2b-4bd0-af08-2f8b3425d053 |
+| target dept head | test-only.b1.dh_tgt@testonly.quboolye.com | 4b45ddf7-140a-44b1-a452-e51c182aab5d |
+| unassigned same-role negative | test-only.b1.unassigned@testonly.quboolye.com | 0105864b-36b7-4d72-a813-a30c672202e1 |
+| owner student | test-only.b1.e2e03@usr.edu.ye | 3a279561-f8e6-41d9-b8ca-ce60682c9eab |
+| other student | test-only.b1.e2e02@testonly.quboolye.com | 57e805dc-f975-4834-b1cb-f99c09756980 |
+| other student (2) | test-only.b1.student@testonly.quboolye.com | 2e3ca4d6-603c-4f06-a23e-462bf92fcfd3 |
 
-Positive actors resolved by staff profile:
+## TEST_ONLY positive actor matrix (target state)
 
-| Service | Step | Action | user_id | Login | TEST_ONLY? |
-|---|---|---|---|---|---|
-| department_transfer | payment_confirmation | confirm_payment | 79783c0f-8d95-4110-8239-0ac504d63a24 | fares@usr.edu.ye | No — real-person staff |
-| department_transfer | registrar_apply | apply_decision | 4c261c1c-97fb-42da-a544-e8a59853ebe3 | toaiman@usr.edu.ye | No |
-| enrollment_suspension | manager_approval | approve | aac0e62d-4e8b-4440-b649-caa388d34837 | yasmin@usr.edu.ye | No |
-| enrollment_suspension | registrar_apply | apply_decision | 4c261c1c… | toaiman@usr.edu.ye | No |
-| excused_absence | manager_review | approve | aac0e62d… | yasmin@usr.edu.ye | No |
-| excused_absence | record_apply | apply_decision | c8a94548-4782-4252-86f9-23559d3b95bd | hitham@usr.edu.ye | No |
-| file_withdrawal | library_clearance | clear | e7a93314-bb06-4525-b412-5315198c668a | naji@usr.edu.ye | No |
-| file_withdrawal | labs_clearance | clear | 67b39ee4-4918-4b00-b4cc-0d5046ac8a5a | mohammed@usr.edu.ye | No |
-| file_withdrawal | activities_clearance | clear | aac0e62d… | yasmin@usr.edu.ye | No |
-| file_withdrawal | finance_clearance | clear | 79783c0f… | fares@usr.edu.ye | No |
-| file_withdrawal | registrar_apply | apply_decision | 4c261c1c… | toaiman@usr.edu.ye | No |
-| file_withdrawal | archive | archive | aec1303e-de6a-4580-94cf-7205c17b5535 | mameen@usr.edu.ye | No |
-| final_chance | manager_review | approve | aac0e62d… | yasmin@usr.edu.ye | No |
-| final_chance | payment_confirmation | confirm_payment | 79783c0f… | fares@usr.edu.ye | No |
-| final_chance | registrar_apply | apply_decision | 4c261c1c… | toaiman@usr.edu.ye | No |
+| service | step | action | unit | role | TEST_ONLY actor | assignment needed |
+|---|---|---|---|---|---|---|
+| enrollment_suspension | initial_review | review | student_affairs | specialist | sa_spec | yes |
+| enrollment_suspension | manager_approval | approve | student_affairs | manager | sa_mgr | yes |
+| enrollment_suspension | registrar_apply | apply_decision | registrar | registrar_general | registrar | yes |
+| excused_absence | student_affairs_intake | review | student_affairs | specialist | sa_spec | reuse |
+| excused_absence | manager_review | approve | student_affairs | manager | sa_mgr | reuse |
+| excused_absence | record_apply | apply_decision | student_affairs | specialist | sa_spec | reuse |
+| department_transfer | student_affairs_intake | review | student_affairs | specialist | sa_spec | reuse |
+| department_transfer | source_department_head_approval | approve | department (ce485c67) | department_head | dh_src | yes (dept-scoped) |
+| department_transfer | target_department_head_approval | approve | department (22222222) | department_head | dh_tgt | yes (dept-scoped) |
+| department_transfer | dean_approval | approve | dean | dean | dean | yes |
+| department_transfer | payment_confirmation | confirm_payment | finance | revenue_finance_officer | finance | yes |
+| department_transfer | registrar_apply | apply_decision | registrar | registrar_general | registrar | reuse |
+| final_chance | student_affairs_intake / manager_review / dean_decision / payment_confirmation / registrar_apply | review / approve / approve / confirm_payment / apply_decision | as above | as above | sa_spec, sa_mgr, dean, finance, registrar | reuse |
+| file_withdrawal | intake / library / labs / activities / finance / registrar_apply / archive | review, clear ×4, apply_decision, archive | as above + library, labs, archive | as above | sa_spec, library, labs, sa_mgr, finance, registrar, archive | library, labs, archive new |
 
-Unresolved to a single login by this read: `department_transfer / source_department_head_approval` and `target_department_head_approval` (three `position_assignment` rows scoped to departments 22222222…, 11111111…, ce485c67…), and the two dean steps (`department_transfer / dean_approval`, `final_chance / dean_decision`, `faculty_profile` type with no `auth.users` row joined). These four steps need an explicit identity resolution pass before execution.
+## Negative actor matrix
 
-No passwords, tokens, OTPs or cookies are read or exposed anywhere in this plan.
+| case | account | status |
+|---|---|---|
+| owner student | e2e03 | exists |
+| other student | e2e02 / b1.student | exists |
+| unassigned same-role | b1.unassigned (needs the same role_code, no assignment) | exists, needs role only |
+| wrong department head | dh_tgt against the source step (and vice versa) | covered by the two dept heads |
+| faculty-only | none | **MISSING** |
+| registrar / dean / admin bypass | registrar, dean TEST_ONLY + an admin-role TEST_ONLY | admin TEST_ONLY **MISSING** |
+| previous-step / next-step actor | any two adjacent TEST_ONLY actors in the same chain | covered |
 
-TEST_ONLY accounts that exist (all confirmed, all last signed in 2026-07-27):
-`test-only.b1.student@`, `test-only.b1.e2e02@`, `test-only.b1.e2e03@usr.edu.ye`, `test-only.b1.unassigned@`, `test-only.b1.dh_src@`, `test-only.b1.dh_tgt@`, `test-only.b1.dean@`, `test-only.b1.registrar@`, `test-only.b1.sa_mgr@`, `test-only.b1.sa_spec@`, `test-only.b1.library@`, `test-only.b1.labs@`, `test-only.b1.finance@`, `test-only.b1.archive@` (domain `testonly.quboolye.com`), plus older `*.test.01d@quboolye.test` fixtures (student, dean, student affairs, unrelated admin).
+## True minimum distinct accounts
 
-## 4 — Minimum distinct accounts
+- Positive: **10** (sa_spec, sa_mgr, registrar, finance, library, labs, archive, dean, dh_src, dh_tgt) — all exist in auth.
+- Negative-only extra: **3** (unassigned same-role, second student, faculty-only) + **1** admin-role TEST_ONLY.
+- Student: **1** owner (e2e03) + 1 other.
+- **Minimum distinct = 15**, of which **13 already exist in auth** and **2 are missing** (faculty-only actor, admin-role actor).
 
-Minimum safe set: **13 distinct accounts**.
+Missing identities: faculty-only TEST_ONLY actor; admin-role TEST_ONLY actor; passwords for all 13 existing TEST_ONLY accounts are unknown to this environment.
 
-Positive side (5 needed, none TEST_ONLY): hitham, yasmin, naji, mohammed, fares, toaiman, mameen plus the two department heads and the dean — these are real-person staff accounts and are the only identities the live assignments authorize.
+## Temporary assignment package (design only)
 
-Negative side (fully covered by existing TEST_ONLY accounts, kept distinct so no account carries two roles that would make a denial ambiguous):
+One reviewed forward-only migration, tagged `TEST_ONLY_B1_E2E_86`:
 
-| Negative category | Account |
-|---|---|
-| owner student | test-only.b1.e2e03@usr.edu.ye |
-| another student | test-only.b1.student@testonly.quboolye.com |
-| same role, unassigned | test-only.b1.unassigned@ |
-| wrong department | test-only.b1.dh_tgt@ (against source-dept step) |
-| previous-step actor | test-only.b1.sa_spec@ |
-| next-step actor | test-only.b1.registrar@ |
-| department-head negative | test-only.b1.dh_src@ |
-| dean negative | test-only.b1.dean@ |
-| registrar negative | test-only.b1.registrar@ |
-| admin negative | unrelated.admin.test.01d@quboolye.test |
-| faculty negative | **MISSING** — no TEST_ONLY faculty-only account found |
+1. Insert TEST_ONLY `staff_profiles` rows (status TEST_ONLY-marked) for the ten staff actors, plus a faculty profile for the dean and department-position rows for the two dept heads.
+2. Insert `user_role_assignments` role_code rows matching each actor's role.
+3. Assignment exclusivity: because resolution is `specific_user` and production holds exactly one active row per (unit, role, dept), the package must **temporarily deactivate** each real-person row (`is_active=false`, recording the original id) and insert the TEST_ONLY row, then restore on cleanup. Adding a parallel second active row is not permitted until the local PG17 harness proves the resolver's behaviour with two active rows.
+4. Boundaries: no global admin/registrar/dean bypass, no changes to `graduate_affairs` rows, nothing outside the nine (unit, role) pairs the five services use, no touch to enrollment_certificate.
+5. Cleanup manifest: exact list of inserted profile/role/assignment ids to delete and exact list of deactivated real-person assignment ids to re-activate, verified by a post-cleanup query asserting the original 13-row state byte-for-byte.
 
-- Accounts with a usable current session: none (no live browser session; last sign-ins are days old).
-- Accounts requiring manual owner-supplied credentials: all of them.
-- Missing categories: faculty-only negative actor; department-head and dean **positive** identities pending resolution.
-- Excluded as real-person data: the nine `@usr.edu.ye` staff accounts are real staff, not TEST_ONLY — using them is the blocking authorization decision.
+Blast radius to disclose: while the swap is active, real staff cannot act on **any** service that shares those units/roles, including live traffic. This is the main reason the package must run inside one short owner-supervised window.
 
-## 5 — Authentication execution channel
+## Visibility-control package (design only)
 
-Supported: **method 1 — browser login using owner-supplied existing credentials**, driven through the sandbox browser against the app, one actor at a time. Method 2 (existing session) is unavailable. Method 3 (native authenticated Lovable action) does not exist for these RPCs. Method 4 is acceptable only when the session came from a real sign-in.
+Single reviewed production function, e.g. `admin_set_b1_service_visibility_window(p_service_code, p_enable, p_reason)`:
 
-Explicitly rejected and not used: service-role impersonation, fabricated JWTs, overriding `request.jwt.claim.sub`, migration-channel execution as a user, bypassing auth middleware, treating UI visibility as authorization proof.
+- Updates `request_types.student_visible` only; never touches `is_active`.
+- Accepts exactly one of the five B1 codes; rejects `enrollment_certificate` and anything else.
+- Refuses to open a second service while another window is open (single-service invariant).
+- Records an audit row (actor, service, open/close, reason, timestamp) via the existing audit path.
+- Auto re-hide: a closing call is mandatory in the runbook, plus a stored `expires_at`; the read gate re-checks `student_visible` on every draft creation, so once closed a stale browser session cannot create another request — the RPC `create_b1_request_draft_for_student` re-evaluates visibility server-side per call.
+- Failure behaviour: any error path closes the window (sets false) before raising.
+- No Publish/Deploy needed — it is a database function callable by an authorized admin.
+- Cleanup: after the fifth service, assert all five back to `student_visible=false` and the audit log shows a matched open/close pair per service.
 
-Sequential isolation is provable: each actor runs in a fresh browser context (sign in → execute exact RPCs → sign out → clear storage/cookies → verify `auth.uid()` is null → sign in as next actor), and `auth.uid()` is re-read from the live session before every call.
+## Owner approvals required
 
-## 6 — Visibility control method
+- Auth user creation: **required** (faculty-only + admin-role TEST_ONLY actors).
+- Password reset / credential issuance: **required** for the 13 existing TEST_ONLY accounts.
+- Temporary assignments (with real-person deactivation window): **required**.
+- Visibility control function: **required**.
+- Migration/package apply: **required** — two packages total (identity+assignments, visibility control), applied one at a time.
 
-There is **no existing safe production mechanism** to flip `student_visible` for one B1 service. The only related function, `admin_set_enrollment_certificate_e2e_submit_window`, is hard-coded to `enrollment_certificate`, toggles `is_active`, and requires `student_visible=false` — it is rejected on three of the mission's own criteria.
+## Final recommendation
 
-Therefore the only compliant option is an owner-approved, single-service, forward-only controlled change per window:
-
-- Scope: exactly one row in `request_types` (`code = <service>`), field `student_visible` only.
-- `updated_at` changes; the change is immediately effective (server-side gate, no cache).
-- No Publish, no Deploy, no workflow-config change, no `is_active` change, no enrollment_certificate touch.
-- Restoration verified by re-reading all six rows and asserting five `false` + enrollment_certificate `true`.
-- Stale-browser risk: a page already loaded keeps rendering, but every gated RPC re-checks server-side, so create/read fails after re-hide; mitigation is to sign out and clear the session at re-hide time.
-- Student request creation is impossible again immediately after restoration.
-
-## 7 — One-service-at-a-time runbook (not executed)
-
-For each service in order — enrollment_suspension, excused_absence, department_transfer, final_chance, file_withdrawal:
-
-1. Capture global read-only fingerprint (head, request count, fixture matrix, request_types).
-2. Assert the other four services are hidden.
-3. Open the visibility window for the current service only.
-4. Sign in as the TEST_ONLY owner student.
-5. Create the fresh TEST_ONLY draft (marker `TEST_ONLY_FIRST_DELIVERY_5_SERVICES`), attach required files.
-6. Submit inside the window.
-7. Assert workflow initialized exactly once, one active step.
-8. Re-hide the service immediately (earliest proven safe point per section 2); sign out and clear session.
-9. Assert all five services hidden.
-10. Run the positive/negative RPC matrix as authenticated actors, one identity at a time with isolation proof.
-11. Complete the lifecycle to the terminal step.
-12. Assert terminal state and academic effect.
-13. Assert fixture matrix still 19/19.
-14. Assert enrollment_certificate unchanged.
-15. Assert no unrelated row mutated (counts + fingerprints).
-16. Mark the service PASS before moving to the next.
-
-## 8 — Required owner authorizations
-
-- **A. Temporary `student_visible` change — REQUIRED.** One service at a time, `student_visible` only, restored within the same window.
-- **B. Use of existing credentials — REQUIRED.** For the nine real-person staff positive actors and the TEST_ONLY negative actors; credentials supplied manually by the owner, never stored or echoed.
-- **C. Password resets — not requested.**
-- **D. New Auth users — requested only for the missing faculty-only negative actor, and only if the owner rules that category mandatory.**
-- **E. Role/assignment writes — not requested.**
-
-## Blocking gap
-
-The E2E cannot start until the owner decides how the positive actors are authenticated: every positive actor for the 19 active steps is a real-person staff account, and two department-head steps plus two dean steps have not yet been resolved to a single login. That decision (plus item A) is the entire remaining unblock.
+DO_NOT_PROCEED until the four approvals above are granted. Once granted, the sequence is: identity+assignment package → local PG17 verification → single production apply → per-service visibility window E2E → cleanup and restoration proof.
