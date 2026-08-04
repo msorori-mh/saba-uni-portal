@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS public.b1_e2e_88_actor_bindings (
   active boolean NOT NULL DEFAULT true,
   correlation_id uuid NOT NULL,
   prior_assignee_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  applied_assignee_snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
   e2e_position_assignment_id uuid,
   created_at timestamptz NOT NULL DEFAULT now(),
   deactivated_at timestamptz,
@@ -153,6 +154,47 @@ AS $$
   SELECT 'TEST_ONLY_B1_E2E_88'::text;
 $$;
 
+CREATE OR REPLACE FUNCTION public.b1_e2e_88_parse_correlation(p_raw text)
+RETURNS uuid
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_txt text := btrim(COALESCE(p_raw, ''));
+  v_uuid uuid;
+BEGIN
+  IF v_txt = '' THEN
+    RETURN NULL;
+  END IF;
+  -- Canonical UUID text only (reject non-canonical / malformed).
+  IF v_txt !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN
+    RETURN NULL;
+  END IF;
+  BEGIN
+    v_uuid := v_txt::uuid;
+  EXCEPTION WHEN others THEN
+    RETURN NULL;
+  END;
+  IF lower(v_uuid::text) IS DISTINCT FROM lower(v_txt) THEN
+    RETURN NULL;
+  END IF;
+  RETURN v_uuid;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.b1_e2e_88_request_correlation(p_request_id uuid)
+RETURNS uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT public.b1_e2e_88_parse_correlation(sr.form_data->>'e2e_correlation_id')
+  FROM public.student_requests sr
+  WHERE sr.id = p_request_id;
+$$;
+
 CREATE OR REPLACE FUNCTION public.b1_e2e_88_request_is_marked(p_request_id uuid)
 RETURNS boolean
 LANGUAGE sql
@@ -165,6 +207,8 @@ AS $$
     FROM public.student_requests sr
     WHERE sr.id = p_request_id
       AND COALESCE(sr.form_data->>'e2e_marker', '') = public.b1_e2e_88_marker()
+      AND public.b1_e2e_88_parse_correlation(sr.form_data->>'e2e_correlation_id') IS NOT NULL
+      AND COALESCE(sr.form_data->>'e2e_immutable', 'false') = 'true'
       AND public.b1_e2e_88_is_five_service(
         CASE sr.request_type
           WHEN 'absence_excuse' THEN 'excused_absence'
@@ -177,6 +221,23 @@ AS $$
       AND COALESCE(sr.form_data->>'authoritative_fixture', 'false') IS DISTINCT FROM 'true'
       AND COALESCE(sr.request_number, '') NOT LIKE 'SR-20260801-13%'
   );
+$$;
+
+CREATE OR REPLACE FUNCTION public.b1_e2e_88_correlations_aligned(
+  p_request_id uuid,
+  p_execution_correlation uuid,
+  p_binding_correlation uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT p_execution_correlation IS NOT NULL
+    AND p_binding_correlation IS NOT NULL
+    AND p_execution_correlation = p_binding_correlation
+    AND public.b1_e2e_88_request_correlation(p_request_id) = p_execution_correlation;
 $$;
 
 CREATE OR REPLACE FUNCTION public.b1_e2e_88_write_audit(
@@ -241,6 +302,7 @@ AS $$
       FROM public.b1_e2e_88_actor_bindings b
       JOIN public.b1_e2e_88_executions e ON e.id = b.execution_id
       JOIN public.student_request_workflow_steps s ON s.id = b.runtime_step_id
+      JOIN public.student_requests sr ON sr.id = b.request_id
       WHERE b.request_id = p_request_id
         AND b.runtime_step_id = p_runtime_step_id
         AND b.actor_user_id = auth.uid()
@@ -252,7 +314,15 @@ AS $$
         AND e.closed_at IS NULL
         AND e.expires_at > now()
         AND e.starts_at <= now()
-        AND e.correlation_id = b.correlation_id
+        AND public.b1_e2e_88_correlations_aligned(
+          p_request_id, e.correlation_id, b.correlation_id
+        )
+        AND e.service_code = CASE sr.request_type
+          WHEN 'absence_excuse' THEN 'excused_absence'
+          WHEN 'transfer' THEN 'department_transfer'
+          WHEN 'extra_chance' THEN 'final_chance'
+          ELSE sr.request_type
+        END
         AND s.id = p_runtime_step_id
         AND s.student_request_id = p_request_id
         AND s.workflow_step_id = b.workflow_step_id
@@ -288,7 +358,10 @@ AS $$
      AND e.status = 'active'
      AND e.closed_at IS NULL
      AND e.expires_at > now()
-     AND e.correlation_id = b.correlation_id
+     AND public.b1_e2e_88_correlations_aligned(
+       s.student_request_id, e.correlation_id, b.correlation_id
+     )
+     AND e.service_code = 'department_transfer'
     WHERE s.id = p_step_id
       AND s.step_key = p_step_key
       AND p_step_key IN ('source_department_head_approval', 'target_department_head_approval')
@@ -350,12 +423,7 @@ BEGIN
     RETURN false;
   END IF;
 
-  BEGIN
-    v_corr := NULLIF(btrim(COALESCE(p_form_data->>'e2e_correlation_id', '')), '')::uuid;
-  EXCEPTION WHEN others THEN
-    RETURN false;
-  END;
-
+  v_corr := public.b1_e2e_88_parse_correlation(p_form_data->>'e2e_correlation_id');
   IF v_corr IS NULL THEN
     RETURN false;
   END IF;
@@ -515,7 +583,9 @@ DECLARE
   v_req public.student_requests%ROWTYPE;
   v_binding_id uuid;
   v_prior jsonb;
+  v_applied jsonb;
   v_is_dept boolean;
+  v_req_corr uuid;
 BEGIN
   IF p_correlation_id IS NULL OR p_request_id IS NULL
      OR p_runtime_step_id IS NULL OR p_actor_user_id IS NULL
@@ -547,6 +617,14 @@ BEGIN
 
   IF NOT public.b1_e2e_88_request_is_marked(p_request_id) THEN
     RAISE EXCEPTION 'B1_E2E_88_REQUEST_NOT_MARKED' USING ERRCODE = '42501';
+  END IF;
+
+  v_req_corr := public.b1_e2e_88_request_correlation(p_request_id);
+  IF v_req_corr IS NULL
+     OR NOT public.b1_e2e_88_correlations_aligned(
+       p_request_id, v_exec.correlation_id, p_correlation_id
+     ) THEN
+    RAISE EXCEPTION 'B1_E2E_88_CORRELATION_MISMATCH' USING ERRCODE = '42501';
   END IF;
 
   IF v_exec.service_code IS DISTINCT FROM (
@@ -646,7 +724,12 @@ BEGIN
     'assigned_user_id', v_step.assigned_user_id,
     'assigned_staff_profile_id', v_step.assigned_staff_profile_id,
     'assigned_faculty_profile_id', v_step.assigned_faculty_profile_id,
-    'assigned_position_assignment_id', v_step.assigned_position_assignment_id
+    'assigned_position_assignment_id', v_step.assigned_position_assignment_id,
+    'direct_assignment_id', v_step.metadata->>'direct_assignment_id',
+    'workflow_step_id', v_step.workflow_step_id,
+    'processing_unit_id', v_step.processing_unit_id,
+    'processing_role_id', v_step.processing_role_id,
+    'request_id', p_request_id
   );
 
   -- Department-head steps forbid assigned_user_id; identity is satisfied by the
@@ -663,16 +746,38 @@ BEGIN
     WHERE s.id = p_runtime_step_id;
   END IF;
 
+  SELECT s.* INTO v_step
+  FROM public.student_request_workflow_steps s
+  WHERE s.id = p_runtime_step_id;
+
+  v_applied := jsonb_build_object(
+    'assigned_user_id', v_step.assigned_user_id,
+    'assigned_staff_profile_id', v_step.assigned_staff_profile_id,
+    'assigned_faculty_profile_id', v_step.assigned_faculty_profile_id,
+    'assigned_position_assignment_id', v_step.assigned_position_assignment_id,
+    'direct_assignment_id', v_step.metadata->>'direct_assignment_id',
+    'workflow_step_id', v_step.workflow_step_id,
+    'processing_unit_id', v_step.processing_unit_id,
+    'processing_role_id', v_step.processing_role_id,
+    'request_id', p_request_id,
+    'mutated_assignees', NOT v_is_dept,
+    'department_side', p_department_side,
+    'department_id', p_department_id,
+    'execution_id', v_exec.id,
+    'correlation_id', p_correlation_id
+  );
+
   INSERT INTO public.b1_e2e_88_actor_bindings(
     execution_id, request_id, workflow_step_id, runtime_step_id,
     actor_user_id, processing_unit_id, processing_role_id,
     department_id, department_side, action, expires_at, active,
-    correlation_id, prior_assignee_snapshot, e2e_position_assignment_id
+    correlation_id, prior_assignee_snapshot, applied_assignee_snapshot,
+    e2e_position_assignment_id
   ) VALUES (
     v_exec.id, p_request_id, v_step.workflow_step_id, p_runtime_step_id,
     p_actor_user_id, v_step.processing_unit_id, v_step.processing_role_id,
     p_department_id, p_department_side, p_action, v_exec.expires_at, true,
-    p_correlation_id, v_prior, NULL
+    p_correlation_id, v_prior, v_applied, NULL
   )
   RETURNING id INTO v_binding_id;
 
@@ -698,6 +803,33 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.b1_e2e_88_step_matches_applied_snapshot(
+  p_step_id uuid,
+  p_applied jsonb
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.student_request_workflow_steps s
+    WHERE s.id = p_step_id
+      AND s.student_request_id IS NOT DISTINCT FROM NULLIF(p_applied->>'request_id','')::uuid
+      AND s.workflow_step_id IS NOT DISTINCT FROM NULLIF(p_applied->>'workflow_step_id','')::uuid
+      AND s.processing_unit_id IS NOT DISTINCT FROM NULLIF(p_applied->>'processing_unit_id','')::uuid
+      AND s.processing_role_id IS NOT DISTINCT FROM NULLIF(p_applied->>'processing_role_id','')::uuid
+      AND s.assigned_user_id IS NOT DISTINCT FROM NULLIF(p_applied->>'assigned_user_id','')::uuid
+      AND s.assigned_staff_profile_id IS NOT DISTINCT FROM NULLIF(p_applied->>'assigned_staff_profile_id','')::uuid
+      AND s.assigned_faculty_profile_id IS NOT DISTINCT FROM NULLIF(p_applied->>'assigned_faculty_profile_id','')::uuid
+      AND s.assigned_position_assignment_id IS NOT DISTINCT FROM NULLIF(p_applied->>'assigned_position_assignment_id','')::uuid
+      AND COALESCE(s.metadata->>'direct_assignment_id','')
+          IS NOT DISTINCT FROM COALESCE(p_applied->>'direct_assignment_id','')
+  );
+$$;
+
 CREATE OR REPLACE FUNCTION public.cleanup_b1_e2e_88_package(
   p_correlation_id uuid DEFAULT NULL,
   p_restore_assignees boolean DEFAULT true
@@ -714,6 +846,49 @@ DECLARE
   v_deactivated int := 0;
   v_restored int := 0;
 BEGIN
+  -- Phase 1: compare-and-swap validation for every active binding.
+  -- Any drift aborts the entire cleanup with no partial mutation.
+  FOR v_exec IN
+    SELECT e.*
+    FROM public.b1_e2e_88_executions e
+    WHERE p_correlation_id IS NULL OR e.correlation_id = p_correlation_id
+    FOR UPDATE
+  LOOP
+    FOR v_binding IN
+      SELECT b.*
+      FROM public.b1_e2e_88_actor_bindings b
+      WHERE b.execution_id = v_exec.id
+        AND b.active
+      FOR UPDATE
+    LOOP
+      IF NOT public.b1_e2e_88_correlations_aligned(
+           v_binding.request_id, v_exec.correlation_id, v_binding.correlation_id
+         )
+         OR v_binding.execution_id IS DISTINCT FROM v_exec.id
+         OR v_binding.correlation_id IS DISTINCT FROM v_exec.correlation_id THEN
+        RAISE EXCEPTION 'B1_E2E_88_CLEANUP_ASSIGNEE_DRIFT'
+          USING ERRCODE = '42501',
+                DETAIL = format('binding=%s correlation drift', v_binding.id);
+      END IF;
+
+      IF p_restore_assignees THEN
+        IF v_binding.applied_assignee_snapshot IS NULL
+           OR v_binding.applied_assignee_snapshot = '{}'::jsonb
+           OR NOT public.b1_e2e_88_step_matches_applied_snapshot(
+                v_binding.runtime_step_id, v_binding.applied_assignee_snapshot
+              ) THEN
+          RAISE EXCEPTION 'B1_E2E_88_CLEANUP_ASSIGNEE_DRIFT'
+            USING ERRCODE = '42501',
+                  DETAIL = format(
+                    'binding=%s step=%s later reassignment or drift detected',
+                    v_binding.id, v_binding.runtime_step_id
+                  );
+        END IF;
+      END IF;
+    END LOOP;
+  END LOOP;
+
+  -- Phase 2: restore + deactivate only after every CAS check passes.
   FOR v_exec IN
     SELECT e.*
     FROM public.b1_e2e_88_executions e
@@ -726,7 +901,10 @@ BEGIN
       WHERE b.execution_id = v_exec.id
       FOR UPDATE
     LOOP
-      IF p_restore_assignees AND v_binding.active THEN
+      IF p_restore_assignees
+         AND v_binding.active
+         AND COALESCE((v_binding.applied_assignee_snapshot->>'mutated_assignees')::boolean, false)
+      THEN
         PERFORM set_config('b1.atomic_action', '1', true);
         UPDATE public.student_request_workflow_steps s
         SET assigned_user_id =
@@ -770,7 +948,7 @@ BEGIN
       NULL, auth.uid(),
       jsonb_build_object(
         'restore_assignees', p_restore_assignees,
-        'note', 'preserves request and audit evidence; never touches request_processing_assignments'
+        'note', 'CAS-validated cleanup; preserves request and audit evidence; never touches request_processing_assignments'
       )
     );
   END LOOP;
@@ -847,6 +1025,13 @@ BEGIN
 
   IF v_type.is_active IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'نوع الطلب غير مفعل'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- Fail-closed: E2E marker never authorizes enrollment_certificate, even when visible.
+  IF COALESCE(v_form->>'e2e_marker', '') = public.b1_e2e_88_marker()
+     AND p_request_type = 'enrollment_certificate' THEN
+    RAISE EXCEPTION 'B1_E2E_88_ENROLLMENT_CERTIFICATE_FORBIDDEN'
       USING ERRCODE = '42501';
   END IF;
 
@@ -1001,7 +1186,9 @@ BEGIN
          AND e.status = 'active'
          AND e.closed_at IS NULL
          AND e.expires_at > now()
-         AND e.correlation_id = b.correlation_id
+         AND public.b1_e2e_88_correlations_aligned(
+           v_step.student_request_id, e.correlation_id, b.correlation_id
+         )
      ) THEN
     RETURN true;
   END IF;
@@ -1287,7 +1474,11 @@ $function$;
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON FUNCTION public.b1_e2e_88_is_five_service(text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.b1_e2e_88_marker() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.b1_e2e_88_parse_correlation(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.b1_e2e_88_request_correlation(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.b1_e2e_88_request_is_marked(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.b1_e2e_88_correlations_aligned(uuid,uuid,uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.b1_e2e_88_step_matches_applied_snapshot(uuid,jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.b1_e2e_88_write_audit(text,uuid,uuid,uuid,uuid,uuid,jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.b1_e2e_88_execution_is_live(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.b1_e2e_88_allows_hidden_create(text,jsonb) FROM PUBLIC, anon, authenticated;

@@ -57,6 +57,12 @@ describe("B1 E2E 88 PG17 disposable harness", () => {
     expect(sqlContent).toContain("C_E2E_CREATE_SHOULD_PASS");
     expect(sqlContent).toContain("D_RPA_FINGERPRINT_DRIFT");
     expect(sqlContent).toContain("SR-20260801-13");
+    expect(sqlContent).toContain("B1_E2E_88_HARNESS_UNEXPECTED_SUCCESS");
+    expect(sqlContent).toContain("B1_E2E_88_CLEANUP_ASSIGNEE_DRIFT");
+    expect(sqlContent).toContain("D_CAS_LATER_ASSIGNMENT_NOT_PRESERVED");
+    expect(sqlContent).not.toMatch(
+      /RAISE EXCEPTION '[A-Z0-9_]*SHOULD_DENY'[\s\S]{0,80}EXCEPTION WHEN others THEN\s*NULL;/i,
+    );
   });
 
   it("launches PostgreSQL 17 and proves A/B/C/D locally", async () => {

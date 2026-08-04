@@ -535,12 +535,20 @@ describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
     const migs = readdirSync(join(root, "supabase/migrations"))
       .filter((f: string) => f.endsWith(".sql"))
       .sort();
-    expect(migs[migs.length - 1]).toBe(
-      "20260803030000_b1_44_restore_sr_20260801_13000015.sql",
+    const baseline = "20260802225131_c5d176f3-4841-49e9-b4e7-15df8ac7e0fe.sql";
+    const fixture15 = "20260803030000_b1_44_restore_sr_20260801_13000015.sql";
+    expect(migs).toContain(baseline);
+    expect(migs).toContain(fixture15);
+    // Pin exactly one Fixture-15 reissue carrier after the managed-channel baseline.
+    // Later unrelated forward migrations (e.g. B1 E2E support) must not break this pin.
+    const fixture15Carriers = migs.filter(
+      (f: string) =>
+        f > baseline &&
+        (f.includes("b1_44_restore_sr_20260801_13000015") ||
+          f.includes("FIXTURE_15_REISSUE")),
     );
-    expect(migs).toContain(
-      "20260802225131_c5d176f3-4841-49e9-b4e7-15df8ac7e0fe.sql",
-    );
+    expect(fixture15Carriers).toEqual([fixture15]);
+    expect(migs.indexOf(fixture15)).toBeGreaterThan(migs.indexOf(baseline));
   });
 
   it("declares the exact authoritative seven-step contract", () => {

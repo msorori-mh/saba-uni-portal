@@ -147,6 +147,17 @@ describe("B1 E2E 88 — migration source contract", () => {
     expect(sql).toContain("B1_E2E_88_EXECUTION_NOT_LIVE");
   });
 
+  it("closes request/execution/binding correlation and CAS cleanup", () => {
+    expect(sql).toContain("b1_e2e_88_correlations_aligned");
+    expect(sql).toContain("b1_e2e_88_parse_correlation");
+    expect(sql).toContain("b1_e2e_88_request_correlation");
+    expect(sql).toContain("B1_E2E_88_CORRELATION_MISMATCH");
+    expect(sql).toContain("applied_assignee_snapshot");
+    expect(sql).toContain("b1_e2e_88_step_matches_applied_snapshot");
+    expect(sql).toContain("B1_E2E_88_CLEANUP_ASSIGNEE_DRIFT");
+    expect(sql).toContain("Phase 1: compare-and-swap validation");
+  });
+
   it("writes canonical audit evidence and ships cleanup artifacts", () => {
     expect(sql).toContain("b1_e2e_88_write_audit");
     expect(sql).toContain("execution_opened");
