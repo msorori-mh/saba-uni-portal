@@ -93,6 +93,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      # Package 97 PG17 smoke requires the exact postgres:17 image on the runner
+      # (fail-closed when missing). Pull + inspect before tests; do not use latest.
+      - name: Provision PostgreSQL 17 image
+        run: |
+          set -euo pipefail
+          docker pull postgres:17
+          docker image inspect postgres:17
+
       # Fail-closed: any failing test in any tests/ suite fails this job.
       # The discovery guard also fails the job if the suites ever go missing
       # (e.g. a path rename), so the job can never silently become a no-op.
