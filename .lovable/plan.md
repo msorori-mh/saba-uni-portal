@@ -1,33 +1,78 @@
-## الهدف
-تقليل ازدحام الصفحة الرئيسية للطالب باستبدال قسم «الخطة الدراسية» الطويل ببطاقة دخول واحدة تنقل إلى صفحة مستقلة تعرض الخطة مع فلاتر (المستوى + الفصل الدراسي).
+# PORTAL_B1_E2E_88_PRODUCTION_READONLY_PREFLIGHT_EXECUTION_107
 
-## التغييرات
+Decision:
+HOLD_B1_E2E_88_PRODUCTION_READONLY_PREFLIGHT_TRUSTED_LOVABLE_PROJECT_ID_MISMATCH
 
-### 1. صفحة جديدة: `src/routes/student.study-plan.tsx`
-- مسار: `/student/study-plan` (تحت حماية الطالب).
-- تستخدم نفس `fetchMyStudyPlan(programId)` (يُنقل إلى ملف مشترك خفيف أو يُعاد تعريفه محلياً بنفس الاستعلام) — استعلام Supabase مباشر كما هو حالياً.
-- عناصر الواجهة:
-  - عنوان الصفحة عبر `PortalShell` + `PageHeader`.
-  - شريط فلاتر: 
-    - Select «المستوى» (كل المستويات + قائمة المستويات المستنبطة من الصفوف).
-    - Select «الفصل الدراسي» (الكل / الأول / الثاني).
-  - عرض النتائج بنفس الشكل الحالي (بطاقات المستوى → الفصلين → قائمة المقررات) مع تطبيق الفلترة.
-  - رسالة فارغة عند عدم وجود نتائج مطابقة.
-  - افتراضي الفلاتر: «الكل».
+Trusted channel attestation:
+- Lovable project ID: 90f4dcde-07fb-4441-b86a-6ad5510833b8
+- Supabase project ref: wpmicqriltrowwonknox
+- Attestation source: Lovable connected-project metadata (trusted channel; not SQL, not user input)
+- Match: NO (ref matches; Lovable project ID does not equal expected 4b291119-790f-4484-9285-c2b774e1ba6f)
 
-### 2. تعديل `src/routes/student.index.tsx`
-- إزالة استخدام `StudyPlanSection` وحذف `LazyMount` الخاصة به (السطران 335–337).
-- حذف تعريف الدالة `StudyPlanSection` والدوال/الاستعلامات غير المستخدمة الأخرى **فقط** إذا لم تعد مستعملة (الاستعلام `planCourses` قد يبقى فقط إذا لزم للإحصاءات — سيُحذف بما أنه غير مستخدم في مكان آخر، بعد التأكد بـ grep).
-- إضافة بطاقة دخول جديدة ضمن شبكة «روابط سريعة» الحالية (بجوار «جدولي الأسبوعي» و«تقدمي الأكاديمي») بعنوان «الخطة الدراسية» ووصف مختصر، تربط إلى `/student/study-plan` بنفس نمط التصميم الحالي.
+Source identity:
+- Merged commit: e097efd66c536bd2409b39b9381155b30804ea5f (matches)
+- SQL path: docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql
+- Raw SHA: f58d5446e9d72f7c1b34cc24ef3a2a68af400c62eed9589b890eed89a095c40f
+- LF SHA: f58d5446e9d72f7c1b34cc24ef3a2a68af400c62eed9589b890eed89a095c40f
+- Bytes: 55815 (raw = LF; LF-only file, 1242 lines incl. final line)
+- Match: YES (identical to Package 97 pins)
 
-### 3. لا تعديلات على الباك-إند
-- لا migrations، لا server functions جديدة — نفس الاستعلام القرائي على `study_plans` و`study_plan_courses` عبر عميل Supabase الموجود.
+Execution:
+- Execution count: 0
+- Transaction mode: N/A (not started)
+- Final ROLLBACK: N/A
+- SQL errors: NONE (no SQL executed)
+- Result row count: 0
 
-## النطاق
-- ملفات مُعدَّلة: `src/routes/student.index.tsx`.
-- ملفات جديدة: `src/routes/student.study-plan.tsx`.
-- لا تغييرات في قاعدة البيانات، ولا في مكونات أخرى.
+Gate results:
+- G01: NOT_EXECUTED
+- G02: NOT_EXECUTED
+- G03: NOT_EXECUTED
+- G04: NOT_EXECUTED
+- G05: NOT_EXECUTED
+- G06: NOT_EXECUTED
+- G07: NOT_EXECUTED
+- G08: NOT_EXECUTED
+- G09: NOT_EXECUTED
+- G10: NOT_EXECUTED
+- G11: NOT_EXECUTED
+- G12: NOT_EXECUTED
+- G13: NOT_EXECUTED
+- G14: NOT_EXECUTED
 
-## التحقق
-- بناء ناجح دون أخطاء TypeScript/JSX.
-- الرابط الجديد يظهر ويفتح صفحة الخطة، والفلاتر تعمل، والصفحة الرئيسية أقصر.
+Exact blockers:
+- Migration/application blockers: UNKNOWN (gates not executed)
+- TEST_ONLY identity blockers: UNKNOWN (gates not executed)
+- Password/session blockers: UNKNOWN (gates not executed)
+- Faculty-only negative blocker: UNKNOWN (gates not executed)
+- Admin-role negative blocker: UNKNOWN (gates not executed)
+- Business-data blockers: UNKNOWN (gates not executed)
+- Primary blocker: trusted Lovable project ID mismatch (stop rule 1)
+
+Production access:
+READ_ONLY
+
+Production writes:
+ZERO
+
+Migration apply:
+NONE
+
+Auth writes:
+NONE
+
+RPC calls:
+ZERO
+
+Deploy/Publish:
+NONE
+
+Final recommendation:
+HOLD_REMEDIATION_REQUIRED
+
+## Remediation to unblock
+
+Re-issue mission 107 with the Lovable project ID corrected to the trusted connected value
+`90f4dcde-07fb-4441-b86a-6ad5510833b8` (Supabase ref `wpmicqriltrowwonknox` already matches),
+or repoint execution to the project whose ID is `4b291119-790f-4484-9285-c2b774e1ba6f`.
+On re-issue, the SQL file is already hash-verified and can be executed unchanged, exactly once.
