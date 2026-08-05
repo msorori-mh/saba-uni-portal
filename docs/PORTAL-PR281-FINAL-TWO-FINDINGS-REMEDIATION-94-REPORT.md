@@ -1,9 +1,10 @@
 # PORTAL_PR281_FINAL_TWO_FINDINGS_REMEDIATION_94
 
-Decision: **PASS_PR281_FINAL_TWO_FINDINGS_REMEDIATION** (pending post-push verification block)
+Decision: **PASS_PR281_FINAL_TWO_FINDINGS_REMEDIATION**
 
 Starting HEAD: `e9632382b4ede73d8bbc374a4624fc7bccc1a8c6`  
-PR: https://github.com/msorori-mh/saba-uni-portal/pull/281  
+Final HEAD: `46e4d41e439c41b171904c68e5b76cc722444062`  
+PR: https://github.com/msorori-mh/saba-uni-portal/pull/281 (OPEN + Draft)  
 Branch: `feat/b1-e2e-request-scoped-support-88`  
 Mode: SOURCE AND LOCAL TESTING ONLY
 
