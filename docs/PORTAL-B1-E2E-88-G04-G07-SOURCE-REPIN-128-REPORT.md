@@ -8,9 +8,9 @@
 |---|---|
 | Base HEAD | `e00fbe611b888b1589a03a3b8716fb167fec09da` |
 | Implementation HEAD | `f3a7d16af858151ca312de7ad65c48ec2a419968` |
-| Final HEAD | `f3a7d16af858151ca312de7ad65c48ec2a419968` |
+| Final HEAD | `9e8667e0759ed2464ffe3120fe73844f9f71e831` |
 | Branch | `fix/b1-e2e-88-preflight-g04-g07-repin-128` |
-| Draft PR | _(set after create)_ |
+| Draft PR | https://github.com/msorori-mh/saba-uni-portal/pull/287 |
 | Working tree | clean after commit |
 | Production ref | `wpmicqriltrowwonknox` |
 | Lovable project id (active) | `90f4dcde-07fb-4441-b86a-6ad5510833b8` |
