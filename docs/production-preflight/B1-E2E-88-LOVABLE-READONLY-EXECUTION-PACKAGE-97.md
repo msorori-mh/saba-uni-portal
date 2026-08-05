@@ -8,9 +8,10 @@
 | Lovable project id (historical/stale; do not use) | `4b291119-790f-4484-9285-c2b774e1ba6f` |
 | production Supabase project ref | `wpmicqriltrowwonknox` |
 | repository | `msorori-mh/saba-uni-portal` |
-| branch | `fix/b1-e2e-88-preflight-privileged-schemas-112` |
+| branch | `fix/b1-e2e-88-preflight-uuid-text-116` |
 | source merge commit | `e0cf9d48acb562109aaf310dbd5e534b900c6d90` |
 | PR #281 source HEAD | `630bb9d1eac55b97e0723381d8d859a463dfaacc` |
+| uuid/text remediation | `PORTAL_B1_E2E_88_PREFLIGHT_UUID_TEXT_FIX_116` |
 | privileged-schema remediation | `PORTAL_B1_E2E_88_PREFLIGHT_PRIVILEGED_SCHEMAS_FIX_112` |
 | prior ledger-permission remediation | `PORTAL_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX_108` |
 | channel | Lovable-managed **production database** (read / query channel) |
@@ -34,13 +35,13 @@
 | field | value |
 |---|---|
 | path | `docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql` |
-| raw SHA-256 | `e1c1e8a0ac2775e58412d6aa9fb6591abe6fd0da28190cd1d2b2b76fd0711d71` |
-| LF SHA-256 | `e1c1e8a0ac2775e58412d6aa9fb6591abe6fd0da28190cd1d2b2b76fd0711d71` |
-| raw bytes | `67054` |
-| LF bytes | `67054` |
+| raw SHA-256 | `ad3ce4f4d40418862d0e71e593eb96a78da64a59e14eadc1bccc015b7ffff4f5` |
+| LF SHA-256 | `ad3ce4f4d40418862d0e71e593eb96a78da64a59e14eadc1bccc015b7ffff4f5` |
+| raw bytes | `67078` |
+| LF bytes | `67078` |
 | LF lines | `1476` |
 
-> Identity values above are filled by the focused remediation commit after SHA recalculation. Do **not** reuse consumed identities `f58d5446…` or `e65dc4ae…`. Execute only after merge and dual review.
+> Identity values above are filled by the focused remediation commit after SHA recalculation. Do **not** reuse consumed identities `f58d5446…`, `e65dc4ae…`, or `e1c1e8a0…`. Execute only after merge and dual review.
 
 ## Explicit non-authorization
 
@@ -252,4 +253,4 @@ Do **not** fabricate password or session usability from public profile rows.
 
 ## Final recommendation after successful source review
 
-`READY_FOR_FAST_DUAL_REVIEW_AND_NEW_SQL_EXECUTION`
+`READY_FOR_MINIMAL_DUAL_REVIEW_AND_NEW_SQL_EXECUTION`
