@@ -1,5 +1,6 @@
 /**
  * PORTAL_B1_E2E_88_PRODUCTION_READONLY_PREFLIGHT_PACKAGE_97
+ * + PORTAL_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX_108
  * Source-only contract tests for the production READ-ONLY preflight package.
  * Does not connect to production. Does not apply Migration 88.
  */
@@ -18,6 +19,10 @@ const EXEC_PKG = join(
   "docs/production-preflight/B1-E2E-88-LOVABLE-READONLY-EXECUTION-PACKAGE-97.md",
 );
 const REPORT = join(
+  ROOT,
+  "docs/PORTAL-B1-E2E-88-PREFLIGHT-LEDGER-PERMISSION-FIX-108-REPORT.md",
+);
+const REPORT_97 = join(
   ROOT,
   "docs/PORTAL-B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97-REPORT.md",
 );
@@ -75,15 +80,16 @@ const FOUR_FNS = [
 const GATES = Array.from({ length: 14 }, (_, i) => `G${String(i + 1).padStart(2, "0")}`);
 
 const PRE_RAW_SHA =
-  "f58d5446e9d72f7c1b34cc24ef3a2a68af400c62eed9589b890eed89a095c40f";
+  "e65dc4ae5f36a692e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68";
 const PRE_LF_SHA =
-  "f58d5446e9d72f7c1b34cc24ef3a2a68af400c62eed9589b890eed89a095c40f";
+  "e65dc4ae5f36a692e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68";
 
 describe("Package 97 — artifact presence and migration pin", () => {
-  it("ships preflight SQL, Lovable package, and report only in allowed scope", () => {
+  it("ships preflight SQL, Lovable package, and remediation report only in allowed scope", () => {
     expect(existsSync(PREFLIGHT)).toBe(true);
     expect(existsSync(EXEC_PKG)).toBe(true);
     expect(existsSync(REPORT)).toBe(true);
+    expect(existsSync(REPORT_97)).toBe(true);
     expect(existsSync(MIGRATION)).toBe(true);
     expect(existsSync(CLEANUP)).toBe(true);
     expect(existsSync(PG17_STUB)).toBe(true);
@@ -181,6 +187,23 @@ describe("Package 97 — read-only SQL contract", () => {
     expect(sql).toContain("public.b1_e2e_88_marker()");
     expect(sql).toContain("trg_b1_e2e_88_audit_no_update");
     expect(sql).toContain("trg_guard_b1_e2e_88_immutable_marker");
+  });
+
+  it("never queries the managed migration ledger relation", () => {
+    expect(code).not.toMatch(/supabase_migrations\.schema_migrations/i);
+    expect(sql).not.toMatch(/supabase_migrations\.schema_migrations/i);
+    expect(code).not.toMatch(/has_table_privilege\s*\(/i);
+    expect(sql).toContain("HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE");
+    expect(sql).toContain("OBJECT_STATE_NOT_APPLIED");
+    expect(sql).toContain("OBJECT_STATE_APPLIED_OR_EQUIVALENT");
+    expect(sql).toContain("ledger_readability");
+    expect(sql).toContain("UNREADABLE");
+    expect(sql).toContain("object_state_inference");
+    expect(sql).toContain("source_version_identity");
+    expect(sql).toContain("expected_managed_alias_identity");
+    expect(sql).toContain("definitive_not_applied_from_unreadable_ledger");
+    expect(sql).toContain("external_lovable_ledger_attestation_required");
+    expect(sql).toMatch(/'G02'[\s\S]*?'UNPROVEN'/);
   });
 
   it("keeps G01 UNPROVEN and rejects operator set_config identity proof", () => {
@@ -294,20 +317,33 @@ describe("Package 97 — Lovable execution package + report contracts", () => {
     expect(pkg).toContain("trusted Lovable channel");
   });
 
+  it("requires trusted Lovable ledger attestation outside SQL", () => {
+    expect(pkg).toContain("Trusted Lovable-managed migration metadata");
+    expect(pkg).toContain("whether Migration 88 is already applied");
+    expect(pkg).toContain("whether an equivalent migration exists");
+    expect(pkg).toContain("Final G02 remains HOLD");
+    expect(pkg).toContain("HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE");
+    expect(pkg).toContain("OBJECT_STATE_NOT_APPLIED");
+    expect(pkg).toContain("OBJECT_STATE_APPLIED_OR_EQUIVALENT");
+    expect(pkg).toContain("No static or dynamic SQL against the managed migration ledger relation");
+    expect(pkg).not.toMatch(/user prompt text.*count as migration-ledger attestation/i);
+  });
+
   it("forbids apply/deploy/publish/auth writes in operator instructions", () => {
     expect(pkg).toContain("No Migration 88 apply");
     expect(pkg).toContain("No Deploy / Publish");
     expect(pkg).toContain("No Auth user create");
-    expect(pkg).toContain("READY_FOR_INDEPENDENT_REVIEW_AND_LOVABLE_READONLY_EXECUTION");
+    expect(pkg).toContain("READY_FOR_FAST_DELTA_REVIEW_AND_REEXECUTION");
   });
 
-  it("report declares source-ready decision without production execution", () => {
-    expect(report).toContain("PASS_B1_E2E_88_READONLY_PREFLIGHT_PACKAGE_SOURCE_READY");
+  it("report declares ledger-permission fix decision without production execution", () => {
+    expect(report).toContain("PASS_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX");
     expect(report).toMatch(/Production access\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Migration apply\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Auth writes\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Production writes\s*\|\s*\*{0,2}ZERO\*{0,2}/i);
     expect(report).toContain("UNPROVEN");
+    expect(report).toContain("HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE");
     expect(report).toContain("wpmicqriltrowwonknox");
   });
 });
