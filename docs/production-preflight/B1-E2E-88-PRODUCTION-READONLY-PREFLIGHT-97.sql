@@ -31,6 +31,17 @@
 --   the Supabase project ref. User-supplied set_config / GUCs must NEVER
 --   make G01 PASS. Operational classification requires trusted Lovable
 --   channel attestation of wpmicqriltrowwonknox plus G02–G14 results.
+--
+-- Migration ledger (G02):
+--   SQL never queries the managed migration ledger relation. The Lovable
+--   read-only role may lack schema USAGE; any static/dynamic probe of that
+--   relation can abort the whole preflight. G02 therefore always reports
+--   ledger readability as UNREADABLE from SQL, returns status UNPROVEN with
+--   code HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE when the ledger cannot
+--   be read independently, and separately reports Migration-88 object-state
+--   inference from pg_catalog only. Final operational G02 combines SQL
+--   object-state with trusted Lovable-managed migration-history metadata
+--   outside SQL (never user prompt / GUC / set_config).
 -- ============================================================================
 
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE READ ONLY;
@@ -347,47 +358,39 @@ fn_eval AS (
   FROM fn_expect e
   LEFT JOIN fn_catalog c ON c.identity = e.identity
 ),
+-- Ledger is never queried from SQL (no managed-ledger relation access).
+-- Readability is always UNREADABLE for this package; object-state uses pg_catalog.
 migration_ledger AS (
   SELECT
-    (
-      EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = 'supabase_migrations' AND table_name = 'schema_migrations'
-      )
-      AND has_table_privilege('supabase_migrations.schema_migrations', 'SELECT')
-    ) AS ledger_readable_candidate,
+    false AS ledger_readable,
+    'UNREADABLE'::text AS ledger_readability,
+    'sql_cannot_independently_read_managed_ledger'::text AS ledger_attestation_source,
+    NULL::bigint AS ledger_hits,
+    NULL::bigint AS migration_count,
+    NULL::text AS migration_head
+),
+object_state_inference AS (
+  SELECT
     CASE
-      WHEN NOT EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = 'supabase_migrations' AND table_name = 'schema_migrations'
-      )
-        OR NOT has_table_privilege('supabase_migrations.schema_migrations', 'SELECT')
-      THEN -1::bigint
-      ELSE (
-        SELECT count(*)::bigint
-        FROM supabase_migrations.schema_migrations sm
-        WHERE sm.version = (SELECT expected_migration_version FROM params)
-           OR sm.version ILIKE '%' || (SELECT expected_migration_token FROM params) || '%'
-      )
-    END AS ledger_hits,
-    CASE
-      WHEN NOT EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = 'supabase_migrations' AND table_name = 'schema_migrations'
-      )
-        OR NOT has_table_privilege('supabase_migrations.schema_migrations', 'SELECT')
-      THEN NULL::bigint
-      ELSE (SELECT count(*)::bigint FROM supabase_migrations.schema_migrations)
-    END AS migration_count,
-    CASE
-      WHEN NOT EXISTS (
-        SELECT 1 FROM information_schema.tables
-        WHERE table_schema = 'supabase_migrations' AND table_name = 'schema_migrations'
-      )
-        OR NOT has_table_privilege('supabase_migrations.schema_migrations', 'SELECT')
-      THEN NULL::text
-      ELSE (SELECT max(version) FROM supabase_migrations.schema_migrations)
-    END AS migration_head
+      WHEN (SELECT all_objects_absent FROM object_inventory_counts)
+        THEN 'OBJECT_STATE_NOT_APPLIED'
+      WHEN (SELECT full_object_set_present FROM object_inventory_counts)
+           AND (SELECT e2e_policy_count FROM object_prestate) = 0
+        THEN 'OBJECT_STATE_APPLIED_OR_EQUIVALENT'
+      WHEN (SELECT present_object_hits FROM object_inventory_counts) > 0
+        THEN 'HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED'
+      ELSE 'HOLD'
+    END AS object_state_code,
+    (SELECT all_objects_absent FROM object_inventory_counts) AS objects_absent,
+    (SELECT full_object_set_present FROM object_inventory_counts)
+      AND (SELECT e2e_policy_count FROM object_prestate) = 0 AS objects_complete,
+    (SELECT present_object_hits FROM object_inventory_counts) > 0
+      AND NOT (
+        (SELECT full_object_set_present FROM object_inventory_counts)
+        AND (SELECT e2e_policy_count FROM object_prestate) = 0
+      ) AS objects_partial,
+    (SELECT present_object_hits FROM object_inventory_counts) AS present_object_hits,
+    (SELECT expected_object_total FROM object_inventory_counts) AS expected_object_total
 ),
 visibility AS (
   SELECT
@@ -756,28 +759,36 @@ gate_rows AS (
 
   UNION ALL
 
-  -- G02 migration ledger
+  -- G02 migration ledger (SQL never reads managed ledger; object-state via pg_catalog)
   SELECT
     'G02', 'migration_ledger_not_applied',
     CASE
-      WHEN NOT ml.ledger_readable_candidate OR ml.ledger_hits < 0 THEN 'HOLD'
-      WHEN ml.ledger_hits > 0 THEN 'HOLD'
-      WHEN ml.ledger_hits = 0 AND NOT (SELECT all_objects_absent FROM object_inventory_counts)
-        THEN 'HOLD'
-      WHEN ml.ledger_hits = 0 AND (SELECT all_objects_absent FROM object_inventory_counts)
-        THEN 'PASS'
-      ELSE 'HOLD'
+      WHEN osi.object_state_code = 'HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED' THEN 'HOLD'
+      WHEN osi.object_state_code = 'HOLD' THEN 'HOLD'
+      ELSE 'UNPROVEN'
     END,
     CASE
-      WHEN NOT ml.ledger_readable_candidate OR ml.ledger_hits < 0 THEN 'MIGRATION_LEDGER_UNREADABLE'
-      WHEN ml.ledger_hits > 1 THEN 'MIGRATION_LEDGER_AMBIGUOUS_OR_DUPLICATE'
-      WHEN ml.ledger_hits = 1 THEN 'MIGRATION_88_ALREADY_APPLIED'
-      WHEN ml.ledger_hits = 0 AND NOT (SELECT all_objects_absent FROM object_inventory_counts)
+      WHEN osi.object_state_code = 'HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED'
         THEN 'HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED'
-      WHEN ml.ledger_hits = 0 THEN 'MIGRATION_88_NOT_APPLIED'
-      ELSE 'MIGRATION_LEDGER_UNEXPECTED'
+      WHEN osi.object_state_code = 'HOLD'
+        THEN 'HOLD_B1_E2E_88_OBJECT_STATE_AMBIGUOUS'
+      ELSE 'HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE'
     END,
     jsonb_build_object(
+      'ledger_readability', ml.ledger_readability,
+      'ledger_readable', ml.ledger_readable,
+      'ledger_attestation_source', ml.ledger_attestation_source,
+      'sql_ledger_status', 'UNPROVEN',
+      'code', 'HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE',
+      'object_state_code', osi.object_state_code,
+      'object_state_inference', osi.object_state_code,
+      'objects_absent', osi.objects_absent,
+      'objects_partial', osi.objects_partial,
+      'objects_complete', osi.objects_complete,
+      'present_object_hits', osi.present_object_hits,
+      'expected_object_total', osi.expected_object_total,
+      'source_version_identity', p.expected_migration_version,
+      'expected_managed_alias_identity', p.expected_migration_token,
       'expected_version', p.expected_migration_version,
       'expected_token', p.expected_migration_token,
       'ledger_hits', ml.ledger_hits,
@@ -785,9 +796,13 @@ gate_rows AS (
       'migration_head', ml.migration_head,
       'migration_raw_sha256', p.migration_raw_sha256,
       'migration_lf_sha256', p.migration_lf_sha256,
-      'object_identity_alias_search', 'also fails closed on partial b1_e2e_88_* object presence'
+      'definitive_not_applied_from_unreadable_ledger', false,
+      'external_lovable_ledger_attestation_required', true,
+      'note', 'SQL does not query the managed migration ledger. Do not classify Migration 88 definitively NOT_APPLIED solely because the ledger is unreadable. Final G02 combines this SQL object-state result with trusted Lovable-managed migration-history metadata outside SQL.'
     )
-  FROM params p CROSS JOIN migration_ledger ml
+  FROM params p
+  CROSS JOIN migration_ledger ml
+  CROSS JOIN object_state_inference osi
 
   UNION ALL
 
@@ -1100,25 +1115,26 @@ gate_rows AS (
 
   UNION ALL
 
-  -- G12 apply feasibility
+  -- G12 apply feasibility (does not require successful ledger SELECT; attest externally)
   SELECT
     'G12', 'apply_feasibility',
     CASE
       WHEN NOT (SELECT all_objects_absent FROM object_inventory_counts) THEN 'HOLD'
-      WHEN (SELECT ledger_hits FROM migration_ledger) > 0 THEN 'HOLD'
-      WHEN (SELECT NOT ledger_readable_candidate OR ledger_hits < 0 FROM migration_ledger) THEN 'HOLD'
       ELSE 'PASS'
     END,
     CASE
       WHEN NOT (SELECT all_objects_absent FROM object_inventory_counts)
         THEN 'HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED'
-      WHEN (SELECT ledger_hits FROM migration_ledger) > 0 THEN 'MIGRATION_88_ALREADY_APPLIED'
-      WHEN (SELECT NOT ledger_readable_candidate OR ledger_hits < 0 FROM migration_ledger)
-        THEN 'MIGRATION_LEDGER_UNREADABLE'
       ELSE 'APPLY_FEASIBILITY_SOURCE_READY_NOT_AUTHORIZED'
     END,
     jsonb_build_object(
       'expected_source_version', p.expected_migration_version,
+      'expected_managed_alias_identity', p.expected_migration_token,
+      'ledger_readability', ml.ledger_readability,
+      'ledger_readable', ml.ledger_readable,
+      'sql_ledger_status', 'UNPROVEN',
+      'object_state_code', osi.object_state_code,
+      'external_lovable_ledger_attestation_required', true,
       'recommended_managed_alias_strategy',
         'Prefer exact version 20260804120000; if Lovable rewrites the name, match post-apply by object identity (b1_e2e_88_* tables + open/bind/cleanup RPCs), never by filename alone',
       'preflight_fingerprint_package', '97',
@@ -1146,6 +1162,8 @@ gate_rows AS (
       'this_package_authorizes_apply', false
     )
   FROM params p
+  CROSS JOIN migration_ledger ml
+  CROSS JOIN object_state_inference osi
 
   UNION ALL
 
@@ -1189,6 +1207,8 @@ final_decision AS (
         THEN 'HOLD_B1_E2E_88_PROJECT_IDENTITY_UNPROVEN'
       WHEN EXISTS (SELECT 1 FROM gates_core WHERE gate = 'G02' AND status = 'HOLD')
         THEN 'HOLD_B1_E2E_88_MIGRATION_LEDGER'
+      WHEN EXISTS (SELECT 1 FROM gates_core WHERE gate = 'G02' AND status = 'UNPROVEN')
+        THEN 'HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE'
       WHEN EXISTS (SELECT 1 FROM gates_core WHERE gate = 'G05' AND status = 'HOLD')
         THEN 'HOLD_B1_E2E_88_SERVICE_VISIBILITY_DRIFT'
       WHEN EXISTS (SELECT 1 FROM gates_core WHERE gate = 'G06' AND status = 'HOLD')
