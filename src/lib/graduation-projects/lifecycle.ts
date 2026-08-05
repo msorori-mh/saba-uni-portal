@@ -15,10 +15,11 @@ import {
 export type LifecycleAction =
   | "submit_proposal" | "resubmit_proposal" | "start_review" | "approve_proposal"
   | "reject_proposal" | "require_revision" | "create_project" | "activate_project"
-  | "assign_faculty" | "end_assignment" | "submit_deliverable" | "review_submission"
+  | "assign_faculty" | "end_assignment" | "add_team_member" | "set_milestone"
+  | "submit_deliverable" | "review_submission"
   | "add_note" | "resolve_note" | "register_file" | "request_discussion"
   | "schedule_discussion" | "reject_discussion_request" | "assign_panel_member"
-  | "record_discussion_outcome" | "save_evaluation" | "conclude_result"
+  | "record_discussion_outcome" | "save_evaluation" | "finalize_evaluation" | "conclude_result"
   | "complete_correction" | "accept_correction" | "archive" | "view_reports";
 
 export const PROJECT_STATE_LABELS: Record<ProjectState, string> = {
@@ -41,6 +42,7 @@ export const PROJECT_STATE_LABELS: Record<ProjectState, string> = {
 export const ROLE_LABELS: Record<ProjectRole, string> = {
   student: "طالب",
   supervisor: "مشرف",
+  co_supervisor: "مشرف مشارك",
   coordinator: "منسق",
   department_head: "رئيس القسم",
   dean: "عميد",
@@ -58,6 +60,8 @@ export const ACTION_LABELS: Record<LifecycleAction, string> = {
   activate_project: "تفعيل المشروع",
   assign_faculty: "تعيين عضو هيئة تدريس",
   end_assignment: "إنهاء تعيين",
+  add_team_member: "إضافة عضو فريق",
+  set_milestone: "تحديد مرحلة",
   submit_deliverable: "تسليم مخرج",
   review_submission: "مراجعة التسليم",
   add_note: "إضافة ملاحظة",
@@ -69,6 +73,7 @@ export const ACTION_LABELS: Record<LifecycleAction, string> = {
   assign_panel_member: "تعيين عضو لجنة",
   record_discussion_outcome: "تسجيل نتيجة المناقشة",
   save_evaluation: "حفظ التقييم",
+  finalize_evaluation: "اعتماد التقييم",
   conclude_result: "اعتماد النتيجة",
   complete_correction: "إتمام تصحيح",
   accept_correction: "قبول تصحيح",
@@ -127,7 +132,8 @@ function studentActions(state: ProjectState): LifecycleAction[] {
 
 function supervisorActions(state: ProjectState): LifecycleAction[] {
   switch (state) {
-    case "active": return ["review_submission", "add_note", "register_file", "request_discussion"];
+    case "approved": return ["set_milestone"];
+    case "active": return ["review_submission", "add_note", "register_file", "request_discussion", "set_milestone"];
     case "discussion_requested":
     case "discussion_scheduled":
     case "evaluating":
@@ -141,12 +147,19 @@ function managerActions(state: ProjectState, head: boolean): LifecycleAction[] {
   const actions: LifecycleAction[] = ["create_project", "view_reports"];
   if (!TERMINAL_STATES.has(state)) actions.push("end_assignment");
   switch (state) {
-    case "draft": actions.push("assign_faculty"); break;
+    case "draft": actions.push("assign_faculty", "add_team_member"); break;
     case "submitted": actions.push("start_review", "require_revision", "reject_proposal"); break;
     case "under_review": actions.push("approve_proposal", "require_revision", "reject_proposal"); break;
-    case "revision_required": actions.push("assign_faculty"); break;
-    case "approved": actions.push("activate_project", "assign_faculty"); break;
-    case "active": actions.push("assign_faculty"); break;
+    case "revision_required": actions.push("assign_faculty", "add_team_member"); break;
+    case "approved":
+      actions.push("activate_project", "assign_faculty");
+      // set_graduation_project_milestone whitelists supervisor/coordinator only.
+      if (!head) actions.push("set_milestone");
+      break;
+    case "active":
+      actions.push("assign_faculty");
+      if (!head) actions.push("set_milestone");
+      break;
     case "discussion_requested": actions.push("schedule_discussion", "reject_discussion_request"); break;
     case "discussion_scheduled": actions.push("assign_panel_member", "record_discussion_outcome"); break;
     case "evaluating": if (head) actions.push("conclude_result"); break;
@@ -181,10 +194,12 @@ export function availableProjectActions(
     switch (role) {
       case "student": push(studentActions(state)); break;
       case "supervisor": push(supervisorActions(state)); break;
+      // co_supervisor is read-only by contract: no write RPC whitelists the role.
+      case "co_supervisor": break;
       case "coordinator": push(managerActions(state, false)); break;
       case "department_head": push(managerActions(state, true)); break;
       case "dean": push(deanActions(state)); break;
-      case "panel_member": if (state === "evaluating") push(["save_evaluation"]); break;
+      case "panel_member": if (state === "evaluating") push(["save_evaluation", "finalize_evaluation"]); break;
     }
   }
   return result;
@@ -221,7 +236,7 @@ export interface EvaluationViewer {
   ownPanelMemberIds: readonly string[];
 }
 
-const STAFF_ROLES = new Set(["supervisor", "coordinator", "department_head", "dean"]);
+const STAFF_ROLES = new Set(["supervisor", "co_supervisor", "coordinator", "department_head", "dean"]);
 
 /**
  * Students never see an evaluation before it is finalized; panel members see
@@ -442,9 +457,40 @@ export interface ProjectFileRow {
   media_type: string;
   byte_size: number;
   scan_state: string;
+  scan_decided_at?: string | null;
+  file_kind?: ProjectFileKind;
   object_key: string | null;
   uploaded_by_assignment_id: string;
   created_at: string;
+}
+
+export const PROJECT_FILE_KINDS = [
+  "attachment", "proposal", "milestone_submission", "supervisor_feedback",
+  "final_manuscript", "presentation", "source_archive", "defense_minutes",
+  "correction_version", "archived_final",
+] as const;
+
+export type ProjectFileKind = (typeof PROJECT_FILE_KINDS)[number];
+
+export const FILE_KIND_LABELS: Record<ProjectFileKind, string> = {
+  attachment: "مرفق",
+  proposal: "وثيقة المقترح",
+  milestone_submission: "تسليم مرحلة",
+  supervisor_feedback: "مرفق ملاحظات المشرف",
+  final_manuscript: "النسخة النهائية",
+  presentation: "عرض المناقشة",
+  source_archive: "أرشيف الشيفرة المصدرية",
+  defense_minutes: "محضر المناقشة",
+  correction_version: "نسخة تصحيح",
+  archived_final: "النسخة المؤرشفة",
+};
+
+export interface ProjectNotificationRow {
+  project_id: string;
+  notification_type: string;
+  entity_type: string;
+  entity_id: string;
+  occurred_at: string;
 }
 
 export interface SupervisorNoteRow {
@@ -648,4 +694,79 @@ export interface ArchiveReportRow {
 export interface GraduationProjectArchiveReport {
   department_id: string;
   archives: ArchiveReportRow[];
+}
+
+/* ---------- assignment candidates (department pickers, GP-04) ---------- */
+
+export interface AssignmentCandidate {
+  profile_id: string;
+  user_id: string;
+  full_name: string;
+}
+
+export interface AssignmentCandidates {
+  students: AssignmentCandidate[];
+  faculty: AssignmentCandidate[];
+}
+
+/* ---------- administration & settings payloads (GP-06) ---------- */
+
+export interface GraduationProjectSettingsRow {
+  id: string;
+  department_id: string;
+  academic_year_id: string | null;
+  team_min: number;
+  team_max: number;
+  supervisor_capacity: number | null;
+  co_supervisor_allowed: boolean;
+  correction_window_days: number;
+  defense_notice_days: number;
+  proposal_window_opens_at: string | null;
+  proposal_window_closes_at: string | null;
+  active: boolean;
+  updated_at: string;
+}
+
+export interface RubricCriterionInput {
+  criterion_code: string;
+  criterion_label: string;
+  maximum_score: number;
+  weight?: number;
+  sequence_no: number;
+}
+
+export interface GraduationProjectRubricRow {
+  id: string;
+  code: string;
+  version_label: string;
+  title: string;
+  passing_threshold: number | null;
+  active: boolean;
+  criteria: (RubricCriterionInput & { weight: number })[];
+}
+
+export interface ScheduledDefenseRow {
+  project_id: string;
+  title: string;
+  discussion_id: string;
+  starts_at: string;
+  venue: string;
+  panel_size: number;
+  has_chair: boolean;
+}
+
+export interface MissingEvaluationsRow {
+  project_id: string;
+  title: string;
+  discussion_id: string;
+  panel_size: number;
+  finalized: number;
+  pending: number;
+}
+
+export interface GraduationProjectDefenseReport {
+  department_id: string;
+  scheduled_defenses: ScheduledDefenseRow[];
+  missing_evaluations: MissingEvaluationsRow[];
+  results_distribution: Record<string, number>;
 }

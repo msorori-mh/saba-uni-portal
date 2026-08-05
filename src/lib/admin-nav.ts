@@ -82,6 +82,8 @@ export const NAV_ITEM_ROLES: Record<string, readonly string[]> = {
   "/admin/student-progress": ["system_admin", "admin", "dean", "registrar"],
   "/admin/at-risk-students": ["system_admin", "admin", "dean", "registrar", "student_affairs"],
   "/admin/graduation-candidates": ["system_admin", "admin", "dean", "registrar"],
+  // Graduation-projects dept workspace: UI gate only. RPCs still require direct assignment.
+  "/admin/graduation-projects": ["department_head", "dean"],
   "/admin/academic-councils": ["system_admin", "admin", "dean"],
   "/admin/students": ["system_admin", "admin", "dean", "registrar", "student_affairs"],
   "/admin/student-requests": ["system_admin", "admin", "dean", "registrar", "student_affairs"],

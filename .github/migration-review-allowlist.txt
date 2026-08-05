@@ -1,0 +1,11 @@
+# Migration Review allowlist — exact line fingerprints only.
+# Format: <migration-path><TAB><exact trimmed SQL line>
+# Scope: SECURITY DEFINER RPC child-row replacement under draft/department guards.
+# Not for bulk cleanup, backfill, or production data deletion.
+# Pattern covered: DELETE FROM only (other dangerous patterns are never allowlisted).
+
+# save_graduation_project_evaluation: replace draft evaluation scores after FOR UPDATE + draft-state guard.
+supabase/migrations/20260730100001_96beebe1-d809-4302-a782-c2f6483e102a.sql	delete from public.graduation_project_evaluation_scores where evaluation_id=v_id;
+
+# upsert_graduation_project_rubric: replace department-scoped rubric criteria after admin assignment + payload guards.
+supabase/migrations/20260730100005_a69a1dc9-8b9f-4dfc-a5e8-69a335909c8b.sql	delete from public.graduation_project_rubric_criteria where rubric_id=v_id and department_id=p_department_id;

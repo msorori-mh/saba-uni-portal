@@ -3,10 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { assessDiscussionReadiness, type DiscussionReadiness } from "../../lib/graduation-projects/domain";
+import {
+  assessDiscussionReadiness,
+  type DiscussionReadiness,
+} from "../../lib/graduation-projects/domain";
 import type {
+  AssignableFacultyRole,
   CorrectionInput,
   DiscussionOutcome,
+  MilestoneKind,
   ProposalReviewAction,
   ResultOutcome,
   SubmissionReviewAction,
@@ -15,22 +20,33 @@ import {
   EVENT_LABELS,
   availableProjectActions,
   resolveViewerEvaluation,
+  type AssignmentCandidates,
   type EvaluationScoreRow,
   type GraduationProjectDetail,
 } from "../../lib/graduation-projects/lifecycle";
 import { GraduationProjectStateBadge } from "./GraduationProjectStateBadge";
 import { ProposalWorkflowPanel } from "./ProposalWorkflowPanel";
 import { MilestonesPanel, type RegisterFileFormInput } from "./MilestonesPanel";
+import { AssignmentsPanel } from "./AssignmentsPanel";
 import { DiscussionPanel } from "./DiscussionPanel";
 import { EvaluationPanel } from "./EvaluationPanel";
 import { ResultCorrectionsArchivePanel } from "./ResultCorrectionsArchivePanel";
+import { formatGpDateTimeAr } from "./gp-datetime";
 
 export interface GraduationProjectWorkspaceHandlers {
   onSubmitProposal(): void;
   onResubmitProposal(): void;
   onReviewProposal(action: ProposalReviewAction, reason: string | null): void;
+  onAddTeamMember(studentProfileId: string): void;
+  onAssignFaculty(role: AssignableFacultyRole, facultyProfileId: string): void;
+  onEndAssignment(assignmentId: string): void;
+  onSetMilestone(title: string, kind: MilestoneKind, sequence: number, weight: number): void;
   onSubmitDeliverable(milestoneId: string, summary: string): void;
-  onReviewSubmission(submissionId: string, action: SubmissionReviewAction, note: string | null): void;
+  onReviewSubmission(
+    submissionId: string,
+    action: SubmissionReviewAction,
+    note: string | null,
+  ): void;
   onAddNote(note: string, submissionId: string | null): void;
   onResolveNote(noteId: string): void;
   onRegisterFile(input: RegisterFileFormInput): void;
@@ -39,10 +55,17 @@ export interface GraduationProjectWorkspaceHandlers {
   onRejectDiscussionRequest(requestId: string, reason: string): void;
   onAssignPanelMember(discussionId: string, assignmentId: string, chair: boolean): void;
   onRecordDiscussionOutcome(discussionId: string, outcome: DiscussionOutcome): void;
-  onSaveEvaluation(discussionId: string, scores: EvaluationScoreRow[], comments: string | null, submit: boolean): void;
+  onSaveEvaluation(
+    discussionId: string,
+    scores: EvaluationScoreRow[],
+    comments: string | null,
+    submit: boolean,
+  ): void;
+  onFinalizeEvaluation(evaluationId: string): void;
   onConcludeResult(outcome: ResultOutcome, corrections: CorrectionInput[]): void;
   onCompleteCorrection(correctionId: string): void;
   onAcceptCorrection(correctionId: string): void;
+  onArchive(finalFileId: string): void;
 }
 
 export interface GraduationProjectWorkspaceProps {
@@ -53,17 +76,27 @@ export interface GraduationProjectWorkspaceProps {
    * evaluation derivation is scoped to this viewer's assignments only.
    */
   viewerUserId: string;
+  candidates?: AssignmentCandidates | null;
   busy?: boolean;
   handlers: GraduationProjectWorkspaceHandlers;
 }
 
-export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, busy = false, handlers }: GraduationProjectWorkspaceProps) {
+export function GraduationProjectWorkspace({
+  detail,
+  readiness,
+  viewerUserId,
+  candidates = null,
+  busy = false,
+  handlers,
+}: GraduationProjectWorkspaceProps) {
   const { project } = detail;
   const actions = availableProjectActions(detail.viewer_roles, project.state);
   const readinessAssessment = assessDiscussionReadiness(readiness);
-  const heldDiscussion = detail.discussions.find((discussion) => discussion.state === "held") ?? null;
+  const heldDiscussion =
+    detail.discussions.find((discussion) => discussion.state === "held") ?? null;
   const panelCandidates = detail.assignments.filter(
-    (assignment) => assignment.role === "panel_member" && assignment.active);
+    (assignment) => assignment.role === "panel_member" && assignment.active,
+  );
   // MEDIUM-1 (review 4982): the own-evaluation derivation is scoped to the
   // viewer's own active panel_member assignments (resolveViewerEvaluation),
   // so another member's finalized evaluation can never be mistaken for the
@@ -83,7 +116,9 @@ export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, bu
         <CardContent className="space-y-2">
           <Progress value={project.progress_percent} />
           <p className="text-sm text-muted-foreground">التقدم: {project.progress_percent}%</p>
-          {project.proposal_abstract ? <p className="text-sm">{project.proposal_abstract}</p> : null}
+          {project.proposal_abstract ? (
+            <p className="text-sm">{project.proposal_abstract}</p>
+          ) : null}
         </CardContent>
       </Card>
       <ProposalWorkflowPanel
@@ -97,6 +132,7 @@ export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, bu
       <Tabs defaultValue="milestones">
         <TabsList>
           <TabsTrigger value="milestones">المراحل</TabsTrigger>
+          <TabsTrigger value="team">الفريق والتعيينات</TabsTrigger>
           <TabsTrigger value="discussion">المناقشة</TabsTrigger>
           <TabsTrigger value="evaluation">التقييم</TabsTrigger>
           <TabsTrigger value="result">النتيجة والأرشيف</TabsTrigger>
@@ -110,11 +146,23 @@ export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, bu
             notes={detail.notes}
             files={detail.files}
             busy={busy}
+            onSetMilestone={handlers.onSetMilestone}
             onSubmitDeliverable={handlers.onSubmitDeliverable}
             onReviewSubmission={handlers.onReviewSubmission}
             onAddNote={handlers.onAddNote}
             onResolveNote={handlers.onResolveNote}
             onRegisterFile={handlers.onRegisterFile}
+          />
+        </TabsContent>
+        <TabsContent value="team">
+          <AssignmentsPanel
+            actions={actions}
+            assignments={detail.assignments}
+            candidates={candidates}
+            busy={busy}
+            onAddTeamMember={handlers.onAddTeamMember}
+            onAssignFaculty={handlers.onAssignFaculty}
+            onEndAssignment={handlers.onEndAssignment}
           />
         </TabsContent>
         <TabsContent value="discussion">
@@ -141,6 +189,7 @@ export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, bu
             ownEvaluation={ownEvaluation}
             busy={busy}
             onSave={handlers.onSaveEvaluation}
+            onFinalize={handlers.onFinalizeEvaluation}
           />
         </TabsContent>
         <TabsContent value="result">
@@ -148,11 +197,13 @@ export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, bu
             project={project}
             actions={actions}
             corrections={detail.corrections}
+            files={detail.files}
             archive={detail.archive}
             busy={busy}
             onConclude={handlers.onConcludeResult}
             onCompleteCorrection={handlers.onCompleteCorrection}
             onAcceptCorrection={handlers.onAcceptCorrection}
+            onArchive={handlers.onArchive}
           />
         </TabsContent>
         <TabsContent value="events">
@@ -165,8 +216,12 @@ export function GraduationProjectWorkspace({ detail, readiness, viewerUserId, bu
               <ul className="space-y-2">
                 {detail.events.map((event) => (
                   <li key={event.id} className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline">{EVENT_LABELS[event.event_type] ?? event.event_type}</Badge>
-                    <span className="text-sm text-muted-foreground">{event.occurred_at}</span>
+                    <Badge variant="outline">
+                      {EVENT_LABELS[event.event_type] ?? event.event_type}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {formatGpDateTimeAr(event.occurred_at)}
+                    </span>
                     {event.reason ? <span className="text-sm">{event.reason}</span> : null}
                   </li>
                 ))}

@@ -246,6 +246,12 @@ const SERVICE_LINKS = [
     desc: "تقديم ومتابعة الخدمات الطلابية.",
     Icon: FileText,
   },
+  {
+    to: "/student/graduation-project" as const,
+    title: "مشروع التخرج",
+    desc: "متابعة حالة مشروعك وتسليماتك ومناقشتك.",
+    Icon: GraduationCap,
+  },
   ...(portalFeatures.studentCourseMaterials
     ? ([{
         to: "/student/materials" as const,

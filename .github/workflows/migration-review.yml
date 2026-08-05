@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "supabase/migrations/**"
+      - ".github/workflows/migration-review.yml"
+      - ".github/migration-review-allowlist.txt"
 
 permissions:
   contents: read
@@ -62,19 +64,92 @@ jobs:
             'UPDATE[[:space:]]+auth\.users'
           )
 
+          ALLOWLIST=".github/migration-review-allowlist.txt"
           FOUND=0
+          ALLOWLISTED=0
           REPORT="$RUNNER_TEMP/migration-review.txt"
           : > "$REPORT"
+
+          trim() {
+            local s="$1"
+            s="${s#"${s%%[![:space:]]*}"}"
+            s="${s%"${s##*[![:space:]]}"}"
+            printf '%s' "$s"
+          }
+
+          file_has_trimmed_line() {
+            local file="$1"
+            local want="$2"
+            local raw
+            while IFS= read -r raw || [ -n "${raw:-}" ]; do
+              if [ "$(trim "$raw")" = "$want" ]; then
+                return 0
+              fi
+            done < "$file"
+            return 1
+          }
+
+          # Allowlist applies only to DELETE FROM, and only for exact file+line fingerprints.
+          is_delete_allowlisted() {
+            local file="$1"
+            local line
+            line="$(trim "$2")"
+            [ -f "$ALLOWLIST" ] || return 1
+            local afile aline
+            while IFS=$'\t' read -r afile aline || [ -n "${afile:-}" ]; do
+              case "$afile" in
+                ''|\#*) continue ;;
+              esac
+              aline="$(trim "$aline")"
+              if [ "$file" = "$afile" ] && [ "$line" = "$aline" ]; then
+                return 0
+              fi
+            done < "$ALLOWLIST"
+            return 1
+          }
+
+          # Fail closed if an allowlist fingerprint no longer exists in its file.
+          if [ -f "$ALLOWLIST" ]; then
+            while IFS=$'\t' read -r afile aline || [ -n "${afile:-}" ]; do
+              case "$afile" in
+                ''|\#*) continue ;;
+              esac
+              aline="$(trim "$aline")"
+              if [ ! -f "$afile" ]; then
+                echo "Allowlist references missing file: $afile" >> "$REPORT"
+                FOUND=1
+                continue
+              fi
+              if ! file_has_trimmed_line "$afile" "$aline"; then
+                echo "Stale allowlist entry (line not found): $afile — $aline" >> "$REPORT"
+                FOUND=1
+              fi
+            done < "$ALLOWLIST"
+          fi
 
           for file in "${FILES[@]}"; do
             [ -f "$file" ] || continue
             for pattern in "${PATTERNS[@]}"; do
-              if grep -Ein "$pattern" "$file"; then
-                echo "⚠️  $file — matched: $pattern" >> "$REPORT"
+              while IFS= read -r match || [ -n "${match:-}" ]; do
+                [ -z "$match" ] && continue
+                lineno="${match%%:*}"
+                content="${match#*:}"
+                if [ "$pattern" = 'DELETE[[:space:]]+FROM' ] && is_delete_allowlisted "$file" "$content"; then
+                  echo "ℹ️  allowlisted DELETE FROM: $file:$lineno" >> "$REPORT"
+                  ALLOWLISTED=$((ALLOWLISTED + 1))
+                  continue
+                fi
+                echo "$match"
+                echo "⚠️  $file:$lineno — matched: $pattern" >> "$REPORT"
                 FOUND=1
-              fi
+              done < <(grep -Ein "$pattern" "$file" || true)
             done
           done
+
+          if [ "$ALLOWLISTED" -gt 0 ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Allowlisted DELETE FROM matches: $ALLOWLISTED (see \`.github/migration-review-allowlist.txt\`)." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
           if [ "$FOUND" -eq 1 ]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
