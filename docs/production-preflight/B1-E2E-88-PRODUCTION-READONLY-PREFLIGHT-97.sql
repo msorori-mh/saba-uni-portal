@@ -715,7 +715,7 @@ testonly_public_user_ids AS (
       coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
       OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
       OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
-      OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%'
+      OR coalesce(fp.faculty_id::text, '') LIKE 'TEST_ONLY%'
     )
 ),
 identity_inventory AS (
@@ -760,7 +760,7 @@ identity_inventory AS (
       WHERE coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
          OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
          OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
-         OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%')
+         OR coalesce(fp.faculty_id::text, '') LIKE 'TEST_ONLY%')
       AS public_faculty_profile_candidates,
     (
       SELECT count(DISTINCT x.user_id)
@@ -809,7 +809,7 @@ identity_inventory AS (
             WHERE coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
                OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
                OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
-               OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%'
+               OR coalesce(fp.faculty_id::text, '') LIKE 'TEST_ONLY%'
           )
         )) AS public_assignment_records,
     EXISTS (
@@ -848,7 +848,7 @@ identity_inventory AS (
         coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
         OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
         OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
-        OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%'
+        OR coalesce(fp.faculty_id::text, '') LIKE 'TEST_ONLY%'
       )
       AND fp.user_id IS NOT NULL
       AND NOT EXISTS (

@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS public.staff_profiles (
 CREATE TABLE IF NOT EXISTS public.faculty_profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
-  faculty_id text,
+  faculty_id uuid,
   employee_number text,
   department_id uuid REFERENCES public.departments(id),
   full_name_ar text,

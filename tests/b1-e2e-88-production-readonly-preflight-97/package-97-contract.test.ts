@@ -1,6 +1,6 @@
 /**
  * PORTAL_B1_E2E_88_PRODUCTION_READONLY_PREFLIGHT_PACKAGE_97
- * + PORTAL_B1_E2E_88_PREFLIGHT_PRIVILEGED_SCHEMAS_FIX_112
+ * + PORTAL_B1_E2E_88_PREFLIGHT_UUID_TEXT_FIX_116
  * Source-only contract tests for the production READ-ONLY preflight package.
  * Does not connect to production. Does not apply Migration 88.
  */
@@ -19,6 +19,10 @@ const EXEC_PKG = join(
   "docs/production-preflight/B1-E2E-88-LOVABLE-READONLY-EXECUTION-PACKAGE-97.md",
 );
 const REPORT = join(
+  ROOT,
+  "docs/PORTAL-B1-E2E-88-PREFLIGHT-UUID-TEXT-FIX-116-REPORT.md",
+);
+const REPORT_112 = join(
   ROOT,
   "docs/PORTAL-B1-E2E-88-PREFLIGHT-PRIVILEGED-SCHEMAS-FIX-112-REPORT.md",
 );
@@ -102,7 +106,13 @@ const KNOWN_RESTRICTED = [
 const CONSUMED_SQL_IDS = [
   "f58d5446",
   "e65dc4ae5f36a906e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68",
+  "e1c1e8a0ac2775e58412d6aa9fb6591abe6fd0da28190cd1d2b2b76fd0711d71",
 ] as const;
+
+const CANONICAL_LF_SHA =
+  "ad3ce4f4d40418862d0e71e593eb96a78da64a59e14eadc1bccc015b7ffff4f5";
+const CANONICAL_LF_BYTES = 67078;
+const CANONICAL_LF_LINES = 1476;
 
 const PRE_RAW_SHA = (() => {
   const raw = readFileSync(PREFLIGHT);
@@ -124,6 +134,7 @@ describe("Package 97 — artifact presence and migration pin", () => {
     expect(existsSync(PREFLIGHT)).toBe(true);
     expect(existsSync(EXEC_PKG)).toBe(true);
     expect(existsSync(REPORT)).toBe(true);
+    expect(existsSync(REPORT_112)).toBe(true);
     expect(existsSync(REPORT_108)).toBe(true);
     expect(existsSync(REPORT_97)).toBe(true);
     expect(existsSync(MIGRATION)).toBe(true);
@@ -395,17 +406,93 @@ describe("Package 97 — read-only SQL contract", () => {
   it("pins preflight SQL content hashes and rejects consumed identities", () => {
     const raw = readFileSync(PREFLIGHT);
     const lf = Buffer.from(toLf(raw.toString("utf8")), "utf8");
+    expect(sha256(lf)).toBe(CANONICAL_LF_SHA);
     expect(sha256(lf)).toBe(PRE_LF_SHA);
-    expect(sha256(raw) === PRE_RAW_SHA || sha256(lf) === PRE_LF_SHA).toBe(true);
+    expect(lf.length).toBe(CANONICAL_LF_BYTES);
     expect(lf.length).toBe(PRE_LF_BYTES);
+    expect(toLf(raw.toString("utf8")).split("\n").length).toBe(CANONICAL_LF_LINES);
     expect(toLf(raw.toString("utf8")).split("\n").length).toBe(PRE_LF_LINES);
     for (const consumed of CONSUMED_SQL_IDS) {
+      expect(PRE_LF_SHA).not.toBe(consumed);
+      expect(PRE_RAW_SHA).not.toBe(consumed);
       expect(PRE_LF_SHA.startsWith(consumed.slice(0, 8))).toBe(false);
       expect(PRE_RAW_SHA.startsWith(consumed.slice(0, 8))).toBe(false);
     }
     expect(PRE_LF_SHA).not.toBe(
-      "e65dc4ae5f36a906e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68",
+      "e1c1e8a0ac2775e58412d6aa9fb6591abe6fd0da28190cd1d2b2b76fd0711d71",
     );
+  });
+});
+
+describe("Package 97 — UUID/text type-safety contract", () => {
+  const sql = toLf(readFileSync(PREFLIGHT, "utf8"));
+  const code = stripSqlNoise(sql);
+  const stub = toLf(readFileSync(PG17_STUB, "utf8"));
+
+  it("rejects coalesce(uuid_column, '') and bare uuid = '' / uuid LIKE patterns", () => {
+    // Faculty regression: must never coalesce faculty_id with empty text without ::text.
+    // Check raw SQL so string-literal stripping cannot invent false `_id = ''` hits.
+    expect(sql).not.toMatch(/coalesce\s*\(\s*fp\.faculty_id\s*,\s*''\s*\)/i);
+    expect(sql).not.toMatch(/coalesce\s*\(\s*[a-z_][a-z0-9_.]*faculty_id\s*,\s*''\s*\)/i);
+    expect(code).not.toMatch(/coalesce\s*\(\s*fp\.faculty_id\s*,\s*''\s*\)/i);
+
+    // Generic unsafe: coalesce(<ident>, '') where the coalesced ident looks like a uuid column
+    // and lacks an explicit ::text cast before the comma.
+    const unsafeCoalesce = [
+      ...sql.matchAll(
+        /coalesce\s*\(\s*([a-z_][a-z0-9_.]*)\s*,\s*''\s*\)/gi,
+      ),
+    ];
+    for (const m of unsafeCoalesce) {
+      const col = m[1].toLowerCase();
+      // text-safe profile columns may coalesce with ''
+      const textSafe =
+        /(?:email|full_name_en|full_name_ar|employee_number|academic_number|request_number|code|status|step_key|assignment_type|action_type|role)$/.test(
+          col,
+        );
+      expect(textSafe || !/(?:_id|uuid)$/.test(col)).toBe(true);
+    }
+
+    // Bare uuid compared to empty text / LIKE without cast (raw SQL literals only).
+    expect(sql).not.toMatch(/\bfaculty_id\s*=\s*''/i);
+    expect(sql).not.toMatch(/\bfaculty_id\s+LIKE\s+/i);
+    expect(sql).not.toMatch(/\b[a-z_][a-z0-9_]*_id\s*=\s*''/i);
+    expect(sql).not.toMatch(/\b[a-z_][a-z0-9_]*_id\s+LIKE\s+'/i);
+  });
+
+  it("requires explicit ::text before faculty_id TEST_ONLY pattern comparisons", () => {
+    expect(sql).toContain("coalesce(fp.faculty_id::text, '') LIKE 'TEST_ONLY%'");
+    const facultyLikes = [
+      ...sql.matchAll(/coalesce\(\s*fp\.faculty_id(::text)?\s*,\s*''\s*\)\s+LIKE/gi),
+    ];
+    expect(facultyLikes.length).toBeGreaterThanOrEqual(4);
+    for (const m of facultyLikes) {
+      expect(m[1]).toBe("::text");
+    }
+  });
+
+  it("rejects CASE branches that force uuid/text coercion via empty-string uuid arms", () => {
+    // Raw SQL: reject CASE arms that emit literal '' alongside a uuid-typed column reference
+    // without an explicit ::text cast (the faculty_id regression class).
+    const caseBlocks = [...sql.matchAll(/\bCASE\b[\s\S]*?\bEND\b/gi)];
+    for (const block of caseBlocks) {
+      const body = block[0];
+      if (!/\bTHEN\s*''/i.test(body)) continue;
+      const uuidCols = [
+        ...body.matchAll(/\b([a-z_][a-z0-9_]*_id)\b/gi),
+      ].map((m) => m[1].toLowerCase());
+      for (const col of uuidCols) {
+        // Allow only when every uuid col appearance in the CASE is cast to text.
+        const bare = new RegExp(`\\b${col}(?!::text)\\b`, "i");
+        expect(bare.test(body)).toBe(false);
+      }
+    }
+    expect(sql).not.toMatch(/CASE[\s\S]{0,300}?\bfaculty_id\s*=\s*''/i);
+  });
+
+  it("pins stub faculty_profiles.faculty_id as uuid to reproduce the production type", () => {
+    expect(stub).toMatch(/faculty_id\s+uuid/i);
+    expect(stub).not.toMatch(/faculty_id\s+text/i);
   });
 });
 
@@ -420,10 +507,14 @@ describe("Package 97 — Lovable execution package + report contracts", () => {
     expect(pkg).toContain("historical/stale");
     expect(pkg).toContain("4b291119-790f-4484-9285-c2b774e1ba6f");
     expect(pkg).toMatch(/do not use|historical\/stale/i);
-    expect(pkg).toContain(PRE_LF_SHA);
+    expect(pkg).toContain(CANONICAL_LF_SHA);
+    expect(pkg).toContain("67078");
     expect(pkg).not.toMatch(/eyJ|service_role|postgres:\/\//i);
     expect(pkg).not.toMatch(/set_config\s*\(/i);
     expect(pkg).toContain("trusted Lovable channel");
+    expect(pkg).not.toContain(
+      "e1c1e8a0ac2775e58412d6aa9fb6591abe6fd0da28190cd1d2b2b76fd0711d71",
+    );
   });
 
   it("requires trusted Lovable ledger + Auth attestations outside SQL", () => {
@@ -445,17 +536,18 @@ describe("Package 97 — Lovable execution package + report contracts", () => {
     expect(pkg).toContain("No Migration 88 apply");
     expect(pkg).toContain("No Deploy / Publish");
     expect(pkg).toContain("No Auth user create");
-    expect(pkg).toContain("READY_FOR_FAST_DUAL_REVIEW_AND_NEW_SQL_EXECUTION");
+    expect(pkg).toContain("READY_FOR_MINIMAL_DUAL_REVIEW_AND_NEW_SQL_EXECUTION");
   });
 
-  it("report declares privileged-schema fix decision without production execution", () => {
-    expect(report).toContain("PASS_B1_E2E_88_PREFLIGHT_PRIVILEGED_SCHEMAS_FIX");
+  it("report declares UUID/text fix decision without production execution", () => {
+    expect(report).toContain("PASS_B1_E2E_88_PREFLIGHT_UUID_TEXT_FIX");
     expect(report).toMatch(/Production access\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Migration apply\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Auth writes\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Production writes\s*\|\s*\*{0,2}ZERO\*{0,2}/i);
-    expect(report).toContain("UNPROVEN");
-    expect(report).toContain("HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE");
+    expect(report).toContain("faculty_id");
+    expect(report).toContain("::text");
+    expect(report).toContain(CANONICAL_LF_SHA);
     expect(report).toContain("wpmicqriltrowwonknox");
     expect(report).toContain("90f4dcde-07fb-4441-b86a-6ad5510833b8");
   });
