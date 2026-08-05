@@ -7,8 +7,8 @@
 | field | value |
 |---|---|
 | Base HEAD | `e0b1448ab0bfb192d0bb4e4c49586af3cb6780b3` |
-| Final HEAD | _(set at commit)_ |
-| Draft PR | _(set after open)_ |
+| Final HEAD | `b511d7ded7422e4774eed5b1c21582a539afce84` |
+| Draft PR | https://github.com/msorori-mh/saba-uni-portal/pull/283 |
 | Working tree | clean after commit |
 | Branch | `fix/b1-e2e-88-preflight-ledger-permission-108` |
 | Production ref | `wpmicqriltrowwonknox` |
