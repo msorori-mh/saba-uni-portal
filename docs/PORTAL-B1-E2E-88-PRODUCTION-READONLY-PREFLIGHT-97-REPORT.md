@@ -7,7 +7,7 @@
 | field | value |
 |---|---|
 | Base HEAD | `e0cf9d48acb562109aaf310dbd5e534b900c6d90` |
-| Final HEAD | `15af15e4e03ee90ae1f28ace0e51537ad4a83808` |
+| Final HEAD | `bdc9d8b9b552dc35478db56e7757b481a8dbb594` |
 | Draft PR | _(filled after open)_ |
 | Working tree | clean after commit |
 | Branch | `ops/b1-e2e-88-production-readonly-preflight-97` |
