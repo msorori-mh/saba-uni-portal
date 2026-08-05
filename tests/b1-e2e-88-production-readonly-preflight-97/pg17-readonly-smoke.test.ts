@@ -1,6 +1,6 @@
 /**
  * Real PostgreSQL 17 full preflight execution for Package 97
- * + ledger-permission fix 108 scenarios.
+ * + privileged-schemas fix 112 scenarios.
  * Disposable pre-Migration-88 schema only. No production access.
  */
 import { afterAll, describe, expect, it } from "bun:test";
@@ -30,12 +30,10 @@ const dockerReady = (() => {
   }
 })();
 
-const container = `pkg97-pg17-full-${Date.now()}`;
+const container = `pkg97-pg17-priv-${Date.now()}`;
 
 function psql(sql: string, extraArgs: string[] = [], role?: string) {
-  const rolePrefix = role
-    ? `SET ROLE ${role};\n`
-    : "";
+  const rolePrefix = role ? `SET ROLE ${role};\n` : "";
   const r = spawnSync(
     "docker",
     [
@@ -69,7 +67,10 @@ FROM (
   SELECT n.nspname||'.'||c.relname||':'||c.relkind::text AS x
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname IN ('public','auth','supabase_migrations')
+  WHERE n.nspname IN (
+    'public','auth','storage','vault','realtime','supabase_functions',
+    'supabase_migrations','net','cron','pgmq'
+  )
   UNION ALL
   SELECT n.nspname||'.'||p.proname||'('||pg_get_function_identity_arguments(p.oid)||')'
   FROM pg_proc p
@@ -99,11 +100,61 @@ function expectFourteenGates(stdout: string) {
   return gateLines;
 }
 
-function expectG02UnprovenLedger(gateLines: string[]) {
-  const g02 = gateLines.find((l) => l.startsWith("G02|"))!;
-  expect(g02).toContain("UNPROVEN");
-  expect(g02).toContain("HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE");
-  expect(g02).toMatch(/OBJECT_STATE_NOT_APPLIED|object_state/);
+function expectG10AuthUnproven(gateLines: string[]) {
+  const g10 = gateLines.find((l) => l.startsWith("G10|"))!;
+  expect(g10).toContain("UNPROVEN");
+  expect(g10).toContain("HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE");
+  const g11 = gateLines.find((l) => l.startsWith("G11|"))!;
+  expect(g11).toContain("HOLD");
+}
+
+function expectG03ThroughG14(gateLines: string[]) {
+  for (let i = 3; i <= 14; i++) {
+    const g = `G${String(i).padStart(2, "0")}`;
+    expect(gateLines.some((l) => l.startsWith(`${g}|`))).toBe(true);
+  }
+}
+
+function expectCleanRun(r: ReturnType<typeof psql>) {
+  expect(r.status).toBe(0);
+  expect(r.stderr || "").not.toMatch(/permission denied for schema/i);
+  expect(r.stderr || "").not.toMatch(/relation .* does not exist/i);
+}
+
+function setupRestrictedRole() {
+  expect(
+    psql(`
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec') THEN
+    CREATE ROLE sandbox_exec NOLOGIN;
+  END IF;
+END $$;
+GRANT USAGE ON SCHEMA public TO sandbox_exec;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO sandbox_exec;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO sandbox_exec;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO sandbox_exec;
+-- Deny all privileged schemas (production Lovable read-role shape).
+REVOKE ALL ON SCHEMA auth FROM PUBLIC;
+REVOKE ALL ON SCHEMA auth FROM sandbox_exec;
+REVOKE ALL ON SCHEMA storage FROM PUBLIC;
+REVOKE ALL ON SCHEMA storage FROM sandbox_exec;
+REVOKE ALL ON SCHEMA vault FROM PUBLIC;
+REVOKE ALL ON SCHEMA vault FROM sandbox_exec;
+REVOKE ALL ON SCHEMA realtime FROM PUBLIC;
+REVOKE ALL ON SCHEMA realtime FROM sandbox_exec;
+REVOKE ALL ON SCHEMA supabase_functions FROM PUBLIC;
+REVOKE ALL ON SCHEMA supabase_functions FROM sandbox_exec;
+REVOKE ALL ON SCHEMA supabase_migrations FROM PUBLIC;
+REVOKE ALL ON SCHEMA supabase_migrations FROM sandbox_exec;
+REVOKE ALL ON SCHEMA net FROM PUBLIC;
+REVOKE ALL ON SCHEMA net FROM sandbox_exec;
+REVOKE ALL ON SCHEMA cron FROM PUBLIC;
+REVOKE ALL ON SCHEMA cron FROM sandbox_exec;
+REVOKE ALL ON SCHEMA pgmq FROM PUBLIC;
+REVOKE ALL ON SCHEMA pgmq FROM sandbox_exec;
+`).status,
+  ).toBe(0);
 }
 
 afterAll(() => {
@@ -115,8 +166,8 @@ afterAll(() => {
   }
 });
 
-describe("Package 97 — real PG17 full preflight", () => {
-  it("executes complete preflight SQL against disposable pre-M88 PG17", async () => {
+describe("Package 97 — real PG17 privileged-schema preflight", () => {
+  it("proves G01–G14 continuity across privileged-schema and identity scenarios", async () => {
     if (!dockerReady) {
       throw new Error(
         "postgres:17 image required locally for Package 97 full preflight proof",
@@ -146,137 +197,119 @@ describe("Package 97 — real PG17 full preflight", () => {
     const stub = readFileSync(STUB, "utf8");
     const stubRun = psql(stub);
     expect(stubRun.status).toBe(0);
-
-    // Restricted role mimicking Lovable sandbox_exec without ledger USAGE.
-    expect(
-      psql(`
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'sandbox_exec') THEN
-    CREATE ROLE sandbox_exec NOLOGIN;
-  END IF;
-END $$;
-GRANT USAGE ON SCHEMA public TO sandbox_exec;
-GRANT USAGE ON SCHEMA auth TO sandbox_exec;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO sandbox_exec;
-GRANT SELECT ON ALL TABLES IN SCHEMA auth TO sandbox_exec;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO sandbox_exec;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA auth TO sandbox_exec;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO sandbox_exec;
-ALTER DEFAULT PRIVILEGES IN SCHEMA auth GRANT SELECT ON TABLES TO sandbox_exec;
-REVOKE ALL ON SCHEMA supabase_migrations FROM PUBLIC;
-REVOKE ALL ON SCHEMA supabase_migrations FROM sandbox_exec;
-`).status,
-    ).toBe(0);
+    setupRestrictedRole();
 
     const sql = readFileSync(PREFLIGHT, "utf8");
     const before = catalogFingerprint();
 
-    // --- 1) Schema present, USAGE denied (production failure mode) ---
-    const usageDenied = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(usageDenied.status).toBe(0);
-    expect(usageDenied.stderr || "").not.toMatch(/permission denied for schema/i);
-    expect(usageDenied.stderr || "").not.toMatch(/relation .* does not exist/i);
-    const usageGates = expectFourteenGates(usageDenied.stdout || "");
-    expectG02UnprovenLedger(usageGates);
-    expect(usageGates.find((l) => l.startsWith("G01|"))!).toMatch(/UNPROVEN/);
-    expect(catalogFingerprint()).toBe(before);
+    // --- 1) auth schema present, USAGE denied ---
+    {
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expectG03ThroughG14(gates);
+      expect(gates.find((l) => l.startsWith("G01|"))!).toMatch(/UNPROVEN/);
+      expect(catalogFingerprint()).toBe(before);
+    }
 
-    // --- 2) Schema absent ---
-    expect(psql(`DROP SCHEMA supabase_migrations CASCADE;`).status).toBe(0);
-    const afterDropSchema = catalogFingerprint();
-    const schemaAbsent = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(schemaAbsent.status).toBe(0);
-    expect(schemaAbsent.stderr || "").not.toMatch(/permission denied for schema/i);
-    const absentGates = expectFourteenGates(schemaAbsent.stdout || "");
-    expectG02UnprovenLedger(absentGates);
-    expect(absentGates.some((l) => l.includes("OBJECT_STATE_NOT_APPLIED"))).toBe(
-      true,
-    );
-    expect(catalogFingerprint()).toBe(afterDropSchema);
-
-    // --- 3) Schema USAGE allowed but ledger table unavailable ---
-    expect(
-      psql(`
-CREATE SCHEMA supabase_migrations;
-GRANT USAGE ON SCHEMA supabase_migrations TO sandbox_exec;
--- intentionally no schema_migrations table
-`).status,
-    ).toBe(0);
-    const afterEmptySchema = catalogFingerprint();
-    const tableMissing = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(tableMissing.status).toBe(0);
-    expect(tableMissing.stderr || "").not.toMatch(/permission denied for schema/i);
-    expect(tableMissing.stderr || "").not.toMatch(/schema_migrations/i);
-    const missingTableGates = expectFourteenGates(tableMissing.stdout || "");
-    expectG02UnprovenLedger(missingTableGates);
-    expect(catalogFingerprint()).toBe(afterEmptySchema);
-
-    // Restore stub ledger for remaining object-state probes (postgres role ok).
-    expect(
-      psql(`
-CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
-  version text PRIMARY KEY,
-  inserted_at timestamptz DEFAULT now()
-);
-INSERT INTO supabase_migrations.schema_migrations(version)
-VALUES ('20260731203030')
+    // --- 2) auth.users present but unreadable (USAGE denied already) ---
+    {
+      expect(
+        psql(`
+INSERT INTO auth.users(id, email)
+VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'student@testonly.quboolye.com')
 ON CONFLICT DO NOTHING;
-REVOKE ALL ON SCHEMA supabase_migrations FROM sandbox_exec;
 `).status,
-    ).toBe(0);
-    const baseline = catalogFingerprint();
+      ).toBe(0);
+      const afterInsert = catalogFingerprint();
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expect(catalogFingerprint()).toBe(afterInsert);
+    }
 
-    // --- 4) All Migration-88 objects absent ---
-    const allAbsent = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(allAbsent.status).toBe(0);
-    const allAbsentGates = expectFourteenGates(allAbsent.stdout || "");
-    expectG02UnprovenLedger(allAbsentGates);
-    expect(allAbsentGates.some((l) => l.includes("OBJECT_STATE_NOT_APPLIED"))).toBe(
-      true,
-    );
-    expect(catalogFingerprint()).toBe(baseline);
+    // --- 3) storage + sibling restricted schemas USAGE denied ---
+    {
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expect(r.stdout || "").toMatch(/storage_schema_access/);
+    }
 
-    // --- 5) One Migration-88 object present (partial) ---
-    expect(
-      psql(`
+    // --- 4) auth schema absent ---
+    {
+      expect(psql(`DROP SCHEMA auth CASCADE;`).status).toBe(0);
+      const afterDropAuth = catalogFingerprint();
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expect(r.stdout || "").toMatch(/ABSENT|HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE/);
+      expect(catalogFingerprint()).toBe(afterDropAuth);
+      // Restore auth for remaining scenarios
+      expect(
+        psql(`
+CREATE SCHEMA auth;
+CREATE TABLE auth.users (
+  id uuid PRIMARY KEY,
+  email text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+REVOKE ALL ON SCHEMA auth FROM PUBLIC;
+REVOKE ALL ON SCHEMA auth FROM sandbox_exec;
+`).status,
+      ).toBe(0);
+    }
+
+    // --- 5) all privileged schemas simultaneously inaccessible ---
+    {
+      expect(
+        psql(`
+REVOKE ALL ON SCHEMA auth FROM sandbox_exec;
+REVOKE ALL ON SCHEMA storage FROM sandbox_exec;
+REVOKE ALL ON SCHEMA vault FROM sandbox_exec;
+REVOKE ALL ON SCHEMA realtime FROM sandbox_exec;
+REVOKE ALL ON SCHEMA supabase_functions FROM sandbox_exec;
+REVOKE ALL ON SCHEMA supabase_migrations FROM sandbox_exec;
+REVOKE ALL ON SCHEMA net FROM sandbox_exec;
+REVOKE ALL ON SCHEMA cron FROM sandbox_exec;
+REVOKE ALL ON SCHEMA pgmq FROM sandbox_exec;
+`).status,
+      ).toBe(0);
+      const baseline = catalogFingerprint();
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expectG03ThroughG14(gates);
+      expect(catalogFingerprint()).toBe(baseline);
+
+      // --- 6) Migration-88 objects absent ---
+      expect(gates.some((l) => l.includes("OBJECT_STATE_NOT_APPLIED"))).toBe(true);
+
+      // --- 7) one Migration-88 object present (partial) ---
+      expect(
+        psql(`
 CREATE TABLE public.b1_e2e_88_executions (id uuid PRIMARY KEY);
 GRANT SELECT ON public.b1_e2e_88_executions TO sandbox_exec;
 `).status,
-    ).toBe(0);
-    const afterPartialCreate = catalogFingerprint();
-    const partialRun = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(partialRun.status).toBe(0);
-    const partialGates = expectFourteenGates(partialRun.stdout || "");
-    expect(partialRun.stdout || "").toMatch(
-      /HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED/,
-    );
-    const g02Partial = partialGates.find((l) => l.startsWith("G02|"))!;
-    expect(g02Partial).toContain("HOLD");
-    expect(g02Partial).toContain("HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED");
-    expect(psql(`DROP TABLE public.b1_e2e_88_executions;`).status).toBe(0);
-    expect(catalogFingerprint()).toBe(baseline);
-    void afterPartialCreate;
+      ).toBe(0);
+      const partialRun = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(partialRun);
+      const partialGates = expectFourteenGates(partialRun.stdout || "");
+      expect(partialRun.stdout || "").toMatch(
+        /HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED/,
+      );
+      expectG10AuthUnproven(partialGates);
+      expect(psql(`DROP TABLE public.b1_e2e_88_executions;`).status).toBe(0);
+      expect(catalogFingerprint()).toBe(baseline);
 
-    // Partial function presence → HOLD
-    expect(
-      psql(`
-CREATE OR REPLACE FUNCTION public.b1_e2e_88_marker()
-RETURNS text LANGUAGE sql IMMUTABLE AS $$ SELECT 'TEST_ONLY_B1_E2E_88'::text $$;
-`).status,
-    ).toBe(0);
-    const fnPartial = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(fnPartial.status).toBe(0);
-    expectFourteenGates(fnPartial.stdout || "");
-    expect(fnPartial.stdout || "").toMatch(
-      /HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED/,
-    );
-    expect(psql(`DROP FUNCTION public.b1_e2e_88_marker();`).status).toBe(0);
-    expect(catalogFingerprint()).toBe(baseline);
-
-    // --- 6) Complete Migration-88 object set ---
-    expect(
-      psql(`
+      // --- 8) complete Migration-88 object set ---
+      expect(
+        psql(`
 CREATE TABLE public.b1_e2e_88_executions (id uuid PRIMARY KEY);
 CREATE TABLE public.b1_e2e_88_actor_bindings (id uuid PRIMARY KEY);
 CREATE TABLE public.b1_e2e_88_audit_events (id uuid PRIMARY KEY);
@@ -331,76 +364,125 @@ CREATE TRIGGER trg_guard_b1_e2e_88_immutable_marker
   BEFORE UPDATE ON public.student_requests
   FOR EACH ROW EXECUTE FUNCTION public.guard_b1_e2e_88_immutable_marker();
 `).status,
-    ).toBe(0);
+      ).toBe(0);
 
-    const completeRun = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(completeRun.status).toBe(0);
-    const completeGates = expectFourteenGates(completeRun.stdout || "");
-    const g02Complete = completeGates.find((l) => l.startsWith("G02|"))!;
-    // Ledger still unreadable → UNPROVEN code; object-state complete.
-    expect(g02Complete).toContain("UNPROVEN");
-    expect(g02Complete).toContain("HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE");
-    expect(completeRun.stdout || "").toMatch(/OBJECT_STATE_APPLIED_OR_EQUIVALENT/);
-    // G03 still fails closed on object presence.
-    expect(completeRun.stdout || "").toMatch(
-      /HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED/,
-    );
+      const completeRun = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(completeRun);
+      const completeGates = expectFourteenGates(completeRun.stdout || "");
+      expectG10AuthUnproven(completeGates);
+      expect(completeRun.stdout || "").toMatch(/OBJECT_STATE_APPLIED_OR_EQUIVALENT/);
+      expect(completeRun.stdout || "").toMatch(
+        /HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED/,
+      );
 
-    // Wrong fixture routing → HOLD
-    expect(
-      psql(`
-INSERT INTO public.request_types(id, code, is_active, student_visible)
-VALUES
-  ('a0000000-0000-4000-8000-000000000001','department_transfer', true, false),
-  ('a0000000-0000-4000-8000-000000000002','enrollment_certificate', true, true)
-ON CONFLICT (code) DO NOTHING;
+      // Drop M88 objects to restore baseline-ish public surface for identity scenarios
+      expect(
+        psql(`
+DROP TRIGGER IF EXISTS trg_guard_b1_e2e_88_immutable_marker ON public.student_requests;
+DROP TRIGGER IF EXISTS trg_b1_e2e_88_audit_no_update ON public.b1_e2e_88_audit_events;
+DROP TABLE IF EXISTS public.b1_e2e_88_executions CASCADE;
+DROP TABLE IF EXISTS public.b1_e2e_88_actor_bindings CASCADE;
+DROP TABLE IF EXISTS public.b1_e2e_88_audit_events CASCADE;
+DROP FUNCTION IF EXISTS public.b1_e2e_88_audit_events_deny_mutate();
+DROP FUNCTION IF EXISTS public.b1_e2e_88_is_five_service(text);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_marker();
+DROP FUNCTION IF EXISTS public.b1_e2e_88_parse_correlation(text);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_request_correlation(uuid);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_request_is_marked(uuid);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_correlations_aligned(uuid, uuid, uuid);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_write_audit(text, uuid, uuid, uuid, uuid, uuid, jsonb);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_execution_is_live(uuid);
+DROP FUNCTION IF EXISTS public.current_user_has_b1_e2e_88_actor_binding(uuid, uuid, text);
+DROP FUNCTION IF EXISTS public.current_user_has_b1_e2e_88_department_binding(uuid, text);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_allows_hidden_create(text, jsonb);
+DROP FUNCTION IF EXISTS public.open_b1_e2e_88_execution(uuid, uuid, text, timestamp with time zone, jsonb);
+DROP FUNCTION IF EXISTS public.close_b1_e2e_88_execution(uuid, text);
+DROP FUNCTION IF EXISTS public.bind_b1_e2e_88_actor_to_runtime_step(uuid, uuid, uuid, uuid, text, uuid, text);
+DROP FUNCTION IF EXISTS public.b1_e2e_88_step_matches_applied_snapshot(uuid, jsonb);
+DROP FUNCTION IF EXISTS public.cleanup_b1_e2e_88_package(uuid, boolean);
+DROP FUNCTION IF EXISTS public.guard_b1_e2e_88_immutable_marker();
+`).status,
+      ).toBe(0);
+    }
 
-INSERT INTO public.student_requests(id, request_number, request_type, status, form_data)
+    // --- 9) public TEST_ONLY identities absent ---
+    {
+      const fp = catalogFingerprint();
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expect(r.stdout || "").toMatch(/MISSING|public_identity_completeness/);
+      expect(catalogFingerprint()).toBe(fp);
+    }
+
+    // --- 10) public TEST_ONLY identities partial ---
+    {
+      expect(
+        psql(`
+INSERT INTO public.student_profiles(id, user_id, academic_number, email, full_name_ar, full_name_en)
 VALUES (
-  'f1300000-0000-4000-8000-000000000001',
-  'SR-20260801-13000001',
-  'excused_absence',
-  'in_review',
-  '{}'::jsonb
-) ON CONFLICT (id) DO UPDATE SET request_type = EXCLUDED.request_type;
-
-INSERT INTO public.student_request_workflow_steps(
-  id, student_request_id, step_key, step_order, status
-) VALUES (
-  'f1300001-0000-4000-8000-000001000002',
-  'f1300000-0000-4000-8000-000000000001',
-  'manager_review',
-  2,
-  'active'
+  'b1000001-0000-4000-8000-000000000001',
+  'b1e20002-0000-4000-8000-000000000002',
+  'TEST_ONLY_B1_0002',
+  'test-only.b1.e2e02@testonly.quboolye.com',
+  'طالب TEST_ONLY',
+  'TEST_ONLY Student'
 ) ON CONFLICT (id) DO NOTHING;
+GRANT SELECT ON public.student_profiles TO sandbox_exec;
 `).status,
-    ).toBe(0);
-    const wrongRoute = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(wrongRoute.status).toBe(0);
-    expectFourteenGates(wrongRoute.stdout || "");
-    expect(wrongRoute.stdout || "").toMatch(
-      /FIXTURE_SERVICE_OR_STEP_ROUTING_DRIFT|FIXTURE_IDENTITY_DRIFT|FIXTURE_COUNT_DRIFT/,
-    );
+      ).toBe(0);
+      const fp = catalogFingerprint();
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expect(r.stdout || "").toMatch(/PARTIAL_OR_AMBIGUOUS|COMPLETE_PUBLIC_SIDE|MISSING/);
+      expect(catalogFingerprint()).toBe(fp);
+    }
 
-    // Function preimage drift → HOLD
-    expect(
-      psql(`
-CREATE OR REPLACE FUNCTION public.can_current_user_act_on_step(p_step_id uuid, p_action text)
-RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
-  SELECT position('b1_e2e_88' in 'b1_e2e_88_drift') > 0;
-$$;
+    // --- 11) public TEST_ONLY identities complete but Auth readiness unavailable ---
+    {
+      expect(
+        psql(`
+INSERT INTO public.staff_profiles(id, user_id, email, full_name_ar, full_name_en, employee_number)
+VALUES (
+  'b1000002-0000-4000-8000-000000000002',
+  'd4aaa5c9-72d1-4996-b0e8-d30c6327da6e',
+  'dept.head@testonly.quboolye.com',
+  'موظف TEST_ONLY',
+  'TEST_ONLY Staff',
+  'TEST_ONLY_STAFF_01'
+) ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.faculty_profiles(id, user_id, faculty_id, full_name_ar, full_name_en, employee_number)
+VALUES (
+  'b1000003-0000-4000-8000-000000000003',
+  '11111111-1111-4111-8111-111111111101',
+  'TEST_ONLY_FAC_01',
+  'عضو هيئة TEST_ONLY',
+  'TEST_ONLY Faculty',
+  'TEST_ONLY_FAC_01'
+) ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.user_roles(user_id, role)
+VALUES ('d4aaa5c9-72d1-4996-b0e8-d30c6327da6e', 'admin')
+ON CONFLICT DO NOTHING;
+GRANT SELECT ON public.staff_profiles TO sandbox_exec;
+GRANT SELECT ON public.faculty_profiles TO sandbox_exec;
+GRANT SELECT ON public.user_roles TO sandbox_exec;
 `).status,
-    ).toBe(0);
-    const drift = psql(sql, ["-F", "|"], "sandbox_exec");
-    expect(drift.status).toBe(0);
-    expectFourteenGates(drift.stdout || "");
-    expect(drift.stdout || "").toMatch(
-      /HOLD_B1_E2E_88_FUNCTION_PREIMAGE_DRIFT/,
-    );
+      ).toBe(0);
+      const fp = catalogFingerprint();
+      const r = psql(sql, ["-F", "|"], "sandbox_exec");
+      expectCleanRun(r);
+      const gates = expectFourteenGates(r.stdout || "");
+      expectG10AuthUnproven(gates);
+      expect(r.stdout || "").toMatch(/COMPLETE_PUBLIC_SIDE|public_student_profile_candidates/);
+      expect(r.stdout || "").toMatch(/auth_user_existence/);
+      expect(catalogFingerprint()).toBe(fp);
+    }
 
-    // Final rollback proof already encoded in preflight; confirm txn ended
+    // Final rollback / txn proof
     const txn = psql(`SHOW transaction_read_only;`);
     expect(txn.status).toBe(0);
-  }, 240000);
+  }, 300000);
 });

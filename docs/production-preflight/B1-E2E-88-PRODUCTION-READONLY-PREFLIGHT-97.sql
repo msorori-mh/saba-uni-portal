@@ -23,8 +23,18 @@
 --   lines    : 1571 (LF)
 --
 -- Expected production project ref: wpmicqriltrowwonknox
--- Lovable project id: 4b291119-790f-4484-9285-c2b774e1ba6f
+-- Lovable project id (active): 90f4dcde-07fb-4441-b86a-6ad5510833b8
+-- Lovable project id (historical/stale; do not use): 4b291119-790f-4484-9285-c2b774e1ba6f
 -- Source merge HEAD: e0cf9d48acb562109aaf310dbd5e534b900c6d90
+--
+-- Privileged-schema contract:
+--   Executable SQL may read only public, pg_catalog, and information_schema.
+--   Never SELECT/JOIN/call/EXECUTE against auth, storage, vault, realtime,
+--   supabase_functions, supabase_migrations, net, cron, pgmq, or any other
+--   restricted schema. Schema names may appear in comments, evidence labels,
+--   expected object-name strings, and pg_catalog metadata predicates only.
+--   Catalog presence/USAGE may be inspected via pg_catalog / has_schema_privilege;
+--   never via to_regclass / relation SELECT that requires restricted USAGE.
 --
 -- Project identity (G01):
 --   SQL alone cannot PASS. Database metadata cannot independently prove
@@ -42,6 +52,14 @@
 --   inference from pg_catalog only. Final operational G02 combines SQL
 --   object-state with trusted Lovable-managed migration-history metadata
 --   outside SQL (never user prompt / GUC / set_config).
+--
+-- Auth inventory (G10/G11):
+--   SQL never reads auth.users or any auth.* relation. G10 returns a
+--   public-side TEST_ONLY identity inventory only, with Auth-user existence
+--   UNPROVEN, password usability UNKNOWN, session usability UNKNOWN, and
+--   status UNPROVEN / HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE. G11 remains
+--   fail-closed. Final Auth readiness requires trusted Lovable Auth
+--   attestation outside SQL (no password/secret printing).
 -- ============================================================================
 
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE READ ONLY;
@@ -665,70 +683,237 @@ workflow_fp AS (
     JOIN five_services f ON f.code = rt.code
   ) q
 ),
+-- Public-side TEST_ONLY inventory only. Never SELECT auth.* / storage.* / etc.
+-- Auth-user existence remains UNPROVEN from SQL; password/session UNKNOWN.
+testonly_public_user_ids AS (
+  SELECT sp.user_id AS user_id
+  FROM public.student_profiles sp
+  WHERE sp.user_id IS NOT NULL
+    AND (
+      sp.email ILIKE '%@testonly.quboolye.com'
+      OR sp.email = 'test-only.b1.e2e03@usr.edu.ye'
+      OR sp.academic_number LIKE 'TEST_ONLY%'
+      OR coalesce(sp.full_name_en, '') ILIKE '%TEST_ONLY%'
+      OR coalesce(sp.full_name_ar, '') ILIKE '%TEST_ONLY%'
+    )
+  UNION
+  SELECT st.user_id
+  FROM public.staff_profiles st
+  WHERE st.user_id IS NOT NULL
+    AND (
+      st.email ILIKE '%@testonly.quboolye.com'
+      OR st.email = 'unrelated.admin.test.01d@quboolye.test'
+      OR coalesce(st.full_name_en, '') ILIKE '%TEST_ONLY%'
+      OR coalesce(st.full_name_ar, '') ILIKE '%TEST_ONLY%'
+      OR coalesce(st.employee_number, '') LIKE 'TEST_ONLY%'
+    )
+  UNION
+  SELECT fp.user_id
+  FROM public.faculty_profiles fp
+  WHERE fp.user_id IS NOT NULL
+    AND (
+      coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
+      OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
+      OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
+      OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%'
+    )
+),
 identity_inventory AS (
   SELECT
-    (SELECT count(*) FROM auth.users u
-      WHERE u.email ILIKE '%@testonly.quboolye.com'
-         OR u.email = 'test-only.b1.e2e03@usr.edu.ye') AS testonly_auth_shells,
-    (
-      SELECT count(DISTINCT u.id) FROM auth.users u
-      WHERE (u.email ILIKE '%@testonly.quboolye.com'
-             OR u.email = 'test-only.b1.e2e03@usr.edu.ye')
-        AND (
-          EXISTS (SELECT 1 FROM public.student_profiles sp WHERE sp.user_id = u.id)
-          OR EXISTS (SELECT 1 FROM public.staff_profiles st WHERE st.user_id = u.id)
-          OR EXISTS (SELECT 1 FROM public.faculty_profiles fp WHERE fp.user_id = u.id)
-        )
-    ) AS testonly_profiles,
-    (SELECT count(*) FROM public.staff_profiles sp
-      JOIN auth.users u ON u.id = sp.user_id
-      WHERE u.email ILIKE '%@testonly.quboolye.com') AS testonly_staff,
-    (SELECT count(*) FROM public.faculty_profiles fp
-      JOIN auth.users u ON u.id = fp.user_id
-      WHERE u.email ILIKE '%@testonly.quboolye.com') AS testonly_faculty,
-    (SELECT count(*) FROM public.user_roles ur
-      JOIN auth.users u ON u.id = ur.user_id
-      WHERE u.email ILIKE '%@testonly.quboolye.com') AS testonly_roles,
     EXISTS (
-      SELECT 1 FROM auth.users u
-      WHERE u.email IN (
+      SELECT 1 FROM pg_catalog.pg_namespace n WHERE n.nspname = 'auth'
+    ) AS auth_schema_catalog_present,
+    CASE
+      WHEN NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_namespace n WHERE n.nspname = 'auth'
+      ) THEN 'ABSENT'
+      WHEN coalesce(has_schema_privilege('auth', 'USAGE'), false) = false
+        THEN 'USAGE_DENIED'
+      ELSE 'PRESENT_NOT_QUERIED'
+    END AS auth_schema_access,
+    EXISTS (
+      SELECT 1 FROM pg_catalog.pg_namespace n WHERE n.nspname = 'storage'
+    ) AS storage_schema_catalog_present,
+    CASE
+      WHEN NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_namespace n WHERE n.nspname = 'storage'
+      ) THEN 'ABSENT'
+      WHEN coalesce(has_schema_privilege('storage', 'USAGE'), false) = false
+        THEN 'USAGE_DENIED'
+      ELSE 'PRESENT_NOT_QUERIED'
+    END AS storage_schema_access,
+    (SELECT count(*) FROM public.student_profiles sp
+      WHERE sp.email ILIKE '%@testonly.quboolye.com'
+         OR sp.email = 'test-only.b1.e2e03@usr.edu.ye'
+         OR sp.academic_number LIKE 'TEST_ONLY%'
+         OR coalesce(sp.full_name_en, '') ILIKE '%TEST_ONLY%'
+         OR coalesce(sp.full_name_ar, '') ILIKE '%TEST_ONLY%')
+      AS public_student_profile_candidates,
+    (SELECT count(*) FROM public.staff_profiles st
+      WHERE st.email ILIKE '%@testonly.quboolye.com'
+         OR st.email = 'unrelated.admin.test.01d@quboolye.test'
+         OR coalesce(st.full_name_en, '') ILIKE '%TEST_ONLY%'
+         OR coalesce(st.full_name_ar, '') ILIKE '%TEST_ONLY%'
+         OR coalesce(st.employee_number, '') LIKE 'TEST_ONLY%')
+      AS public_staff_profile_candidates,
+    (SELECT count(*) FROM public.faculty_profiles fp
+      WHERE coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
+         OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
+         OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
+         OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%')
+      AS public_faculty_profile_candidates,
+    (
+      SELECT count(DISTINCT x.user_id)
+      FROM (
+        SELECT sp.user_id FROM public.student_profiles sp
+        WHERE sp.user_id IS NOT NULL
+          AND (
+            sp.email ILIKE '%@testonly.quboolye.com'
+            OR sp.email = 'test-only.b1.e2e03@usr.edu.ye'
+            OR sp.academic_number LIKE 'TEST_ONLY%'
+          )
+        UNION
+        SELECT st.user_id FROM public.staff_profiles st
+        WHERE st.user_id IS NOT NULL
+          AND (
+            st.email ILIKE '%@testonly.quboolye.com'
+            OR coalesce(st.full_name_en, '') ILIKE '%TEST_ONLY%'
+            OR coalesce(st.full_name_ar, '') ILIKE '%TEST_ONLY%'
+          )
+        UNION
+        SELECT fp.user_id FROM public.faculty_profiles fp
+        WHERE fp.user_id IS NOT NULL
+          AND (
+            coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
+            OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
+            OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
+          )
+      ) x
+    ) AS public_profile_user_id_candidates,
+    (SELECT count(*) FROM public.user_roles ur
+      WHERE ur.user_id IN (SELECT user_id FROM testonly_public_user_ids))
+      AS public_role_records,
+    (SELECT count(*) FROM public.request_processing_assignments a
+      WHERE a.is_active IS TRUE
+        AND (
+          a.user_id IN (SELECT user_id FROM testonly_public_user_ids)
+          OR a.staff_profile_id IN (
+            SELECT st.id FROM public.staff_profiles st
+            WHERE st.email ILIKE '%@testonly.quboolye.com'
+               OR coalesce(st.full_name_en, '') ILIKE '%TEST_ONLY%'
+               OR coalesce(st.full_name_ar, '') ILIKE '%TEST_ONLY%'
+               OR coalesce(st.employee_number, '') LIKE 'TEST_ONLY%'
+          )
+          OR a.faculty_profile_id IN (
+            SELECT fp.id FROM public.faculty_profiles fp
+            WHERE coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
+               OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
+               OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
+               OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%'
+          )
+        )) AS public_assignment_records,
+    EXISTS (
+      SELECT 1 FROM public.student_profiles sp
+      WHERE sp.email IN (
         'student@testonly.quboolye.com',
+        'test-only.b1.student@testonly.quboolye.com',
         'e2e02@testonly.quboolye.com',
         'test-only.b1.e2e02@testonly.quboolye.com',
         'test-only.b1.e2e03@usr.edu.ye'
       )
-    ) AS owner_student_shell,
+      OR sp.academic_number IN (
+        'TEST_ONLY_B1_0001',
+        'TEST_ONLY_B1_0002',
+        'TEST_ONLY_B1_0003'
+      )
+    ) AS owner_student_public_candidate,
     EXISTS (
-      SELECT 1 FROM auth.users u
-      WHERE u.email ILIKE '%@testonly.quboolye.com'
-        AND u.email NOT IN (
-          'student@testonly.quboolye.com',
-          'e2e02@testonly.quboolye.com',
-          'test-only.b1.e2e02@testonly.quboolye.com'
-        )
-    ) AS other_student_candidate,
+      SELECT 1 FROM public.student_profiles sp
+      WHERE (
+        sp.email ILIKE '%@testonly.quboolye.com'
+        OR sp.academic_number LIKE 'TEST_ONLY%'
+      )
+      AND coalesce(sp.email, '') NOT IN (
+        'student@testonly.quboolye.com',
+        'test-only.b1.student@testonly.quboolye.com',
+        'e2e02@testonly.quboolye.com',
+        'test-only.b1.e2e02@testonly.quboolye.com'
+      )
+      AND coalesce(sp.academic_number, '') NOT IN ('TEST_ONLY_B1_0001')
+    ) AS other_student_public_candidate,
     EXISTS (
       SELECT 1
       FROM public.faculty_profiles fp
-      JOIN auth.users u ON u.id = fp.user_id
-      WHERE u.email ILIKE '%@testonly.quboolye.com'
-        AND NOT EXISTS (
-          SELECT 1 FROM public.staff_profiles sp WHERE sp.user_id = u.id
-        )
-    ) AS faculty_only_negative_ready,
+      WHERE (
+        coalesce(fp.full_name_en, '') ILIKE '%TEST_ONLY%'
+        OR coalesce(fp.full_name_ar, '') ILIKE '%TEST_ONLY%'
+        OR coalesce(fp.employee_number, '') LIKE 'TEST_ONLY%'
+        OR coalesce(fp.faculty_id, '') LIKE 'TEST_ONLY%'
+      )
+      AND fp.user_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM public.staff_profiles st WHERE st.user_id = fp.user_id
+      )
+    ) AS faculty_only_negative_public_candidate,
     EXISTS (
       SELECT 1
       FROM public.user_roles ur
-      JOIN auth.users u ON u.id = ur.user_id
-      WHERE (u.email ILIKE '%@testonly.quboolye.com'
-             OR u.email = 'unrelated.admin.test.01d@quboolye.test')
+      WHERE ur.user_id IN (SELECT user_id FROM testonly_public_user_ids)
         AND ur.role::text IN ('admin', 'system_admin')
-    ) AS admin_role_negative_ready,
-    EXISTS (
-      SELECT 1 FROM auth.users u
-      WHERE u.email = 'unrelated.admin.test.01d@quboolye.test'
-    ) AS unrelated_admin_shell_exists,
-    'UNKNOWN'::text AS password_usability
+    ) AS admin_role_negative_public_candidate,
+    (
+      EXISTS (
+        SELECT 1 FROM public.staff_profiles st
+        WHERE st.email = 'unrelated.admin.test.01d@quboolye.test'
+      )
+      OR EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.role::text IN ('admin', 'system_admin')
+          AND ur.user_id IN (SELECT user_id FROM testonly_public_user_ids)
+      )
+    ) AS unrelated_admin_public_candidate,
+    CASE
+      WHEN (
+        SELECT count(*) FROM public.student_profiles sp
+        WHERE sp.email ILIKE '%@testonly.quboolye.com'
+           OR sp.email = 'test-only.b1.e2e03@usr.edu.ye'
+           OR sp.academic_number LIKE 'TEST_ONLY%'
+      ) = 0
+      AND (
+        SELECT count(*) FROM public.staff_profiles st
+        WHERE st.email ILIKE '%@testonly.quboolye.com'
+           OR coalesce(st.full_name_en, '') ILIKE '%TEST_ONLY%'
+           OR coalesce(st.full_name_ar, '') ILIKE '%TEST_ONLY%'
+      ) = 0
+        THEN 'MISSING'
+      WHEN (
+        SELECT count(*) FROM public.student_profiles sp
+        WHERE sp.email IN (
+          'student@testonly.quboolye.com',
+          'test-only.b1.student@testonly.quboolye.com',
+          'e2e02@testonly.quboolye.com',
+          'test-only.b1.e2e02@testonly.quboolye.com',
+          'test-only.b1.e2e03@usr.edu.ye'
+        )
+        OR sp.academic_number IN (
+          'TEST_ONLY_B1_0001',
+          'TEST_ONLY_B1_0002',
+          'TEST_ONLY_B1_0003'
+        )
+      ) >= 1
+      AND (
+        SELECT count(*) FROM public.staff_profiles st
+        WHERE st.email ILIKE '%@testonly.quboolye.com'
+           OR coalesce(st.full_name_en, '') ILIKE '%TEST_ONLY%'
+           OR coalesce(st.full_name_ar, '') ILIKE '%TEST_ONLY%'
+      ) >= 1
+        THEN 'COMPLETE_PUBLIC_SIDE'
+      ELSE 'PARTIAL_OR_AMBIGUOUS'
+    END AS public_identity_completeness,
+    'UNPROVEN'::text AS auth_user_existence,
+    'UNKNOWN'::text AS password_usability,
+    'UNKNOWN'::text AS session_usability,
+    'HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE'::text AS auth_unreadability_code
 ),
 dept_identities AS (
   SELECT
@@ -1070,46 +1255,72 @@ gate_rows AS (
 
   UNION ALL
 
-  -- G10 TEST_ONLY identity inventory
+  -- G10 TEST_ONLY identity inventory (public-side only; Auth unreadable)
   SELECT
     'G10', 'test_only_identity_inventory',
-    'PASS',
-    'INVENTORY_CAPTURED_PASSWORD_UNKNOWN',
+    'UNPROVEN',
+    'HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE',
     jsonb_build_object(
-      'auth_shell_count', ii.testonly_auth_shells,
-      'profile_count', ii.testonly_profiles,
-      'staff_count', ii.testonly_staff,
-      'faculty_count', ii.testonly_faculty,
-      'role_count', ii.testonly_roles,
+      'auth_schema_catalog_present', ii.auth_schema_catalog_present,
+      'auth_schema_access', ii.auth_schema_access,
+      'storage_schema_catalog_present', ii.storage_schema_catalog_present,
+      'storage_schema_access', ii.storage_schema_access,
+      'public_student_profile_candidates', ii.public_student_profile_candidates,
+      'public_staff_profile_candidates', ii.public_staff_profile_candidates,
+      'public_faculty_profile_candidates', ii.public_faculty_profile_candidates,
+      'public_profile_user_id_candidates', ii.public_profile_user_id_candidates,
+      'public_role_records', ii.public_role_records,
+      'public_assignment_records', ii.public_assignment_records,
+      'public_identity_completeness', ii.public_identity_completeness,
+      'owner_student_public_candidate', ii.owner_student_public_candidate,
+      'other_student_public_candidate', ii.other_student_public_candidate,
+      'faculty_only_negative_public_candidate', ii.faculty_only_negative_public_candidate,
+      'admin_role_negative_public_candidate', ii.admin_role_negative_public_candidate,
+      'unrelated_admin_public_candidate', ii.unrelated_admin_public_candidate,
+      'auth_user_existence', ii.auth_user_existence,
       'password_usability', ii.password_usability,
-      'faculty_only_negative_ready', ii.faculty_only_negative_ready,
-      'admin_role_negative_ready', ii.admin_role_negative_ready,
-      'unrelated_admin_shell_exists', ii.unrelated_admin_shell_exists,
-      'note', 'Inventory only. No Auth create/repair. Password usability always UNKNOWN.'
+      'session_usability', ii.session_usability,
+      'code', ii.auth_unreadability_code,
+      'external_lovable_auth_attestation_required', true,
+      'note', 'Public-side inventory only. SQL never reads auth.users. Auth-user existence UNPROVEN; password/session UNKNOWN. Final Auth readiness requires trusted Lovable Auth attestation outside SQL.'
     )
   FROM identity_inventory ii
 
   UNION ALL
 
-  -- G11 production E2E prerequisites
+  -- G11 production E2E prerequisites (fail-closed while Auth unresolved)
   SELECT
     'G11', 'production_e2e_prerequisites',
     'HOLD',
     'PREREQUISITES_NOT_READY_OR_UNPROVEN',
     jsonb_build_object(
-      'owner_student', CASE WHEN ii.owner_student_shell THEN 'READY' ELSE 'NOT_READY' END,
-      'other_student_negatives', CASE WHEN ii.other_student_candidate THEN 'AMBIGUOUS' ELSE 'NOT_READY' END,
-      'workflow_actors', CASE WHEN ii.testonly_auth_shells >= 8 THEN 'AMBIGUOUS' ELSE 'NOT_READY' END,
-      'faculty_only_negative', CASE WHEN ii.faculty_only_negative_ready THEN 'READY' ELSE 'NOT_READY' END,
-      'admin_role_negative', CASE WHEN ii.admin_role_negative_ready THEN 'READY' ELSE 'NOT_READY' END,
+      'owner_student',
+        CASE WHEN ii.owner_student_public_candidate THEN 'PUBLIC_CANDIDATE' ELSE 'NOT_READY' END,
+      'other_student_negatives',
+        CASE WHEN ii.other_student_public_candidate THEN 'PUBLIC_CANDIDATE_AMBIGUOUS' ELSE 'NOT_READY' END,
+      'workflow_actors',
+        CASE
+          WHEN ii.public_assignment_records >= 1 AND ii.public_staff_profile_candidates >= 1
+            THEN 'PUBLIC_CANDIDATE_AUTH_UNPROVEN'
+          ELSE 'NOT_READY'
+        END,
+      'faculty_only_negative',
+        CASE WHEN ii.faculty_only_negative_public_candidate THEN 'PUBLIC_CANDIDATE' ELSE 'NOT_READY' END,
+      'admin_role_negative',
+        CASE WHEN ii.admin_role_negative_public_candidate THEN 'PUBLIC_CANDIDATE' ELSE 'NOT_READY' END,
+      'auth_user_existence', ii.auth_user_existence,
       'password_session_ability', 'UNPROVEN',
+      'password_usability', ii.password_usability,
+      'session_usability', ii.session_usability,
       'department_source_target',
         CASE WHEN d.source_dept_ok AND d.target_dept_ok THEN 'READY' ELSE 'NOT_READY' END,
       'attachment_prerequisites', 'UNPROVEN',
       'service_business_data_prerequisites', 'UNPROVEN',
-      'password_usability', ii.password_usability,
+      'auth_schema_access', ii.auth_schema_access,
+      'code', 'HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE',
+      'external_lovable_auth_attestation_required', true,
       'classification_rule',
-        'Identity readiness cannot become PASS while password_usability=UNKNOWN'
+        'Identity readiness cannot become PASS while auth_user_existence=UNPROVEN or password_usability=UNKNOWN or session_usability=UNKNOWN'
     )
   FROM identity_inventory ii CROSS JOIN dept_identities d
 
@@ -1217,6 +1428,8 @@ final_decision AS (
         THEN 'HOLD_B1_E2E_88_FIXTURE_DRIFT'
       WHEN EXISTS (SELECT 1 FROM gates_core WHERE gate = 'G08' AND status = 'HOLD')
         THEN 'HOLD_B1_E2E_88_RPA_AMBIGUITY'
+      WHEN EXISTS (SELECT 1 FROM gates_core WHERE gate = 'G10' AND status = 'UNPROVEN')
+        THEN 'HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE'
       WHEN EXISTS (SELECT 1 FROM gates_core WHERE gate = 'G11' AND status = 'HOLD')
         THEN 'HOLD_B1_E2E_88_E2E_PREREQUISITES_UNPROVEN'
       WHEN EXISTS (SELECT 1 FROM gates_core WHERE status = 'HOLD')
@@ -1243,6 +1456,7 @@ final_decision AS (
         'RPA ambiguity or empty',
         'empty protected surfaces',
         'missing required identity',
+        'auth schema unreadable / Auth-user existence UNPROVEN',
         'password/session ability unproven',
         'faculty-only/admin-negative identities missing',
         'any query error',

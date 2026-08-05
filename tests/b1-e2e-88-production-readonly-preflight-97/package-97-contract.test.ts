@@ -1,6 +1,6 @@
 /**
  * PORTAL_B1_E2E_88_PRODUCTION_READONLY_PREFLIGHT_PACKAGE_97
- * + PORTAL_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX_108
+ * + PORTAL_B1_E2E_88_PREFLIGHT_PRIVILEGED_SCHEMAS_FIX_112
  * Source-only contract tests for the production READ-ONLY preflight package.
  * Does not connect to production. Does not apply Migration 88.
  */
@@ -19,6 +19,10 @@ const EXEC_PKG = join(
   "docs/production-preflight/B1-E2E-88-LOVABLE-READONLY-EXECUTION-PACKAGE-97.md",
 );
 const REPORT = join(
+  ROOT,
+  "docs/PORTAL-B1-E2E-88-PREFLIGHT-PRIVILEGED-SCHEMAS-FIX-112-REPORT.md",
+);
+const REPORT_108 = join(
   ROOT,
   "docs/PORTAL-B1-E2E-88-PREFLIGHT-LEDGER-PERMISSION-FIX-108-REPORT.md",
 );
@@ -44,6 +48,7 @@ const toLf = (s: string) => s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 const sha256 = (buf: Buffer | string) =>
   createHash("sha256").update(buf).digest("hex");
 
+/** Strip SQL comments and string literals so contract checks see executable text only. */
 const stripSqlNoise = (sql: string): string => {
   const noLineComments = toLf(sql)
     .split("\n")
@@ -53,6 +58,7 @@ const stripSqlNoise = (sql: string): string => {
     })
     .join("\n");
   return noLineComments
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/\$[a-zA-Z0-9_]*\$[\s\S]*?\$[a-zA-Z0-9_]*\$/g, "''")
     .replace(/'(?:''|[^'])*'/g, "''");
 };
@@ -79,16 +85,46 @@ const FOUR_FNS = [
 
 const GATES = Array.from({ length: 14 }, (_, i) => `G${String(i + 1).padStart(2, "0")}`);
 
-const PRE_RAW_SHA =
-  "e65dc4ae5f36a692e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68";
-const PRE_LF_SHA =
-  "e65dc4ae5f36a692e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68";
+const WHITELIST_SCHEMAS = new Set(["public", "pg_catalog", "information_schema"]);
+
+const KNOWN_RESTRICTED = [
+  "auth",
+  "storage",
+  "vault",
+  "realtime",
+  "supabase_functions",
+  "supabase_migrations",
+  "net",
+  "cron",
+  "pgmq",
+] as const;
+
+const CONSUMED_SQL_IDS = [
+  "f58d5446",
+  "e65dc4ae5f36a906e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68",
+] as const;
+
+const PRE_RAW_SHA = (() => {
+  const raw = readFileSync(PREFLIGHT);
+  return sha256(raw);
+})();
+const PRE_LF_SHA = (() => {
+  const lf = Buffer.from(toLf(readFileSync(PREFLIGHT, "utf8")), "utf8");
+  return sha256(lf);
+})();
+const PRE_LF_BYTES = (() => {
+  return Buffer.from(toLf(readFileSync(PREFLIGHT, "utf8")), "utf8").length;
+})();
+const PRE_LF_LINES = (() => {
+  return toLf(readFileSync(PREFLIGHT, "utf8")).split("\n").length;
+})();
 
 describe("Package 97 — artifact presence and migration pin", () => {
   it("ships preflight SQL, Lovable package, and remediation report only in allowed scope", () => {
     expect(existsSync(PREFLIGHT)).toBe(true);
     expect(existsSync(EXEC_PKG)).toBe(true);
     expect(existsSync(REPORT)).toBe(true);
+    expect(existsSync(REPORT_108)).toBe(true);
     expect(existsSync(REPORT_97)).toBe(true);
     expect(existsSync(MIGRATION)).toBe(true);
     expect(existsSync(CLEANUP)).toBe(true);
@@ -98,7 +134,6 @@ describe("Package 97 — artifact presence and migration pin", () => {
   it("pins Migration 88 hashes and does not rewrite the migration", () => {
     const raw = readFileSync(MIGRATION);
     const lf = Buffer.from(toLf(raw.toString("utf8")), "utf8");
-    // LF identity is authoritative across platforms (CI checks out LF).
     expect(sha256(lf)).toBe(
       "fb4e1e507b0bc109a225cb33e1a95e740253c3c85f508ed673abd4f273726f2a",
     );
@@ -141,6 +176,62 @@ describe("Package 97 — artifact presence and migration pin", () => {
     expect(pkg).toContain("Executing this package does NOT authorize Migration 88 apply");
     expect(pre).toContain("production_execution_claim");
     expect(pre).toContain("false");
+  });
+});
+
+describe("Package 97 — privileged-schema executable whitelist", () => {
+  const sql = toLf(readFileSync(PREFLIGHT, "utf8"));
+  const code = stripSqlNoise(sql);
+
+  it("never executes against restricted schemas (auth/storage/vault/…)", () => {
+    for (const schema of KNOWN_RESTRICTED) {
+      expect(code).not.toMatch(
+        new RegExp(`\\b(?:FROM|JOIN)\\s+${schema}\\.`, "i"),
+      );
+      expect(code).not.toMatch(
+        new RegExp(`\\b${schema}\\.[a-zA-Z_][a-zA-Z0-9_]*\\s*\\(`, "i"),
+      );
+      expect(code).not.toMatch(
+        new RegExp(`\\b(?:INSERT|UPDATE|DELETE)\\s+(?:INTO\\s+|FROM\\s+)?${schema}\\.`, "i"),
+      );
+    }
+    expect(code).not.toMatch(/\bFROM\s+auth\.users\b/i);
+    expect(code).not.toMatch(/\bJOIN\s+auth\.users\b/i);
+  });
+
+  it("rejects EXECUTE/CALL/GRANT/REVOKE/set_config and non-whitelist schema refs", () => {
+    expect(code).not.toMatch(/\bEXECUTE\b/i);
+    expect(code).not.toMatch(/\bCALL\b/i);
+    expect(code).not.toMatch(/\bGRANT\b/i);
+    expect(code).not.toMatch(/\bREVOKE\b/i);
+    expect(code).not.toMatch(/\bset_config\s*\(/i);
+    expect(code).not.toMatch(/\bSET\s+search_path\b/i);
+
+    // Relation refs: FROM/JOIN/INTO/UPDATE schema.rel
+    // Exclude "IS [NOT] DISTINCT FROM alias.col" false positives.
+    const schemaRefs = [
+      ...code.matchAll(/(?<!\bDISTINCT\s)\bFROM\s+([a-zA-Z_][a-zA-Z0-9_]*)\./gi),
+      ...code.matchAll(/\b(?:JOIN|INTO|UPDATE)\s+([a-zA-Z_][a-zA-Z0-9_]*)\./gi),
+    ];
+    for (const m of schemaRefs) {
+      const schema = m[1].toLowerCase();
+      expect(WHITELIST_SCHEMAS.has(schema)).toBe(true);
+    }
+
+    // Restricted-schema function calls only (alias.col( is not a schema call).
+    for (const schema of KNOWN_RESTRICTED) {
+      expect(code).not.toMatch(
+        new RegExp(`\\b${schema}\\.[a-zA-Z_][a-zA-Z0-9_]*\\s*\\(`, "i"),
+      );
+    }
+  });
+
+  it("allows restricted schema names only in comments / evidence / catalog predicates", () => {
+    expect(sql).toContain("auth");
+    expect(sql).toContain("HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE");
+    expect(sql).toContain("nspname = 'auth'");
+    expect(sql).toContain("has_schema_privilege");
+    expect(code).not.toMatch(/\bauth\.users\b/i);
   });
 });
 
@@ -217,14 +308,23 @@ describe("Package 97 — read-only SQL contract", () => {
     expect(sql).toContain("wpmicqriltrowwonknox");
   });
 
-  it("allows auth.users SELECT inventory but forbids Auth mutation verbs", () => {
-    expect(sql).toMatch(/FROM auth\.users/i);
-    expect(code).not.toMatch(/\bINSERT\s+INTO\s+auth\./i);
-    expect(code).not.toMatch(/\bUPDATE\s+auth\./i);
-    expect(code).not.toMatch(/\bDELETE\s+FROM\s+auth\./i);
-    expect(sql).not.toMatch(/encrypted_password/i);
+  it("keeps G10/G11 Auth fail-closed without reading auth.users", () => {
+    expect(code).not.toMatch(/\bauth\.users\b/i);
+    expect(sql).toContain("HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE");
+    expect(sql).toContain("public_student_profile_candidates");
+    expect(sql).toContain("public_role_records");
+    expect(sql).toContain("public_assignment_records");
+    expect(sql).toContain("auth_user_existence");
+    expect(sql).toContain("session_usability");
     expect(sql).toContain("password_usability");
     expect(sql).toContain("UNKNOWN");
+    expect(sql).toContain("UNPROVEN");
+    expect(sql).toContain("external_lovable_auth_attestation_required");
+    expect(sql).toMatch(/'G10'[\s\S]*?'UNPROVEN'/);
+    expect(sql).toMatch(/'G11'[\s\S]*?'HOLD'/);
+    expect(sql).toContain(
+      "Identity readiness cannot become PASS while auth_user_existence=UNPROVEN or password_usability=UNKNOWN or session_usability=UNKNOWN",
+    );
   });
 
   it("declares all fourteen gates exactly once in the result builder", () => {
@@ -285,20 +385,27 @@ describe("Package 97 — read-only SQL contract", () => {
     expect(sql).toContain("includes_position_assignment_id");
   });
 
-  it("fails closed on partial apply and unknown passwords", () => {
+  it("fails closed on partial apply and unresolved Auth", () => {
     expect(sql).toContain("HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED");
-    expect(sql).toContain(
-      "Identity readiness cannot become PASS while password_usability=UNKNOWN",
-    );
+    expect(sql).toContain("HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE");
     expect(sql).toContain("'G11'");
     expect(sql).toMatch(/'G11'[\s\S]*?'HOLD'/);
   });
 
-  it("pins preflight SQL content hashes", () => {
+  it("pins preflight SQL content hashes and rejects consumed identities", () => {
     const raw = readFileSync(PREFLIGHT);
     const lf = Buffer.from(toLf(raw.toString("utf8")), "utf8");
     expect(sha256(lf)).toBe(PRE_LF_SHA);
     expect(sha256(raw) === PRE_RAW_SHA || sha256(lf) === PRE_LF_SHA).toBe(true);
+    expect(lf.length).toBe(PRE_LF_BYTES);
+    expect(toLf(raw.toString("utf8")).split("\n").length).toBe(PRE_LF_LINES);
+    for (const consumed of CONSUMED_SQL_IDS) {
+      expect(PRE_LF_SHA.startsWith(consumed.slice(0, 8))).toBe(false);
+      expect(PRE_RAW_SHA.startsWith(consumed.slice(0, 8))).toBe(false);
+    }
+    expect(PRE_LF_SHA).not.toBe(
+      "e65dc4ae5f36a906e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68",
+    );
   });
 });
 
@@ -306,45 +413,51 @@ describe("Package 97 — Lovable execution package + report contracts", () => {
   const pkg = toLf(readFileSync(EXEC_PKG, "utf8"));
   const report = toLf(readFileSync(REPORT, "utf8"));
 
-  it("records Lovable/production identity and preflight hashes", () => {
-    expect(pkg).toContain("4b291119-790f-4484-9285-c2b774e1ba6f");
+  it("records active Lovable/production identity and rejects stale project id in active contract", () => {
+    expect(pkg).toContain("90f4dcde-07fb-4441-b86a-6ad5510833b8");
     expect(pkg).toContain("wpmicqriltrowwonknox");
     expect(pkg).toContain("e0cf9d48acb562109aaf310dbd5e534b900c6d90");
-    expect(pkg).toContain(PRE_RAW_SHA);
+    expect(pkg).toContain("historical/stale");
+    expect(pkg).toContain("4b291119-790f-4484-9285-c2b774e1ba6f");
+    expect(pkg).toMatch(/do not use|historical\/stale/i);
     expect(pkg).toContain(PRE_LF_SHA);
     expect(pkg).not.toMatch(/eyJ|service_role|postgres:\/\//i);
     expect(pkg).not.toMatch(/set_config\s*\(/i);
     expect(pkg).toContain("trusted Lovable channel");
   });
 
-  it("requires trusted Lovable ledger attestation outside SQL", () => {
+  it("requires trusted Lovable ledger + Auth attestations outside SQL", () => {
     expect(pkg).toContain("Trusted Lovable-managed migration metadata");
     expect(pkg).toContain("whether Migration 88 is already applied");
     expect(pkg).toContain("whether an equivalent migration exists");
     expect(pkg).toContain("Final G02 remains HOLD");
     expect(pkg).toContain("HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE");
+    expect(pkg).toContain("HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE");
+    expect(pkg).toContain("Auth readiness");
+    expect(pkg).toContain("exact Auth user IDs");
+    expect(pkg).toContain("never print password");
     expect(pkg).toContain("OBJECT_STATE_NOT_APPLIED");
     expect(pkg).toContain("OBJECT_STATE_APPLIED_OR_EQUIVALENT");
-    expect(pkg).toContain("No static or dynamic SQL against the managed migration ledger relation");
-    expect(pkg).not.toMatch(/user prompt text.*count as migration-ledger attestation/i);
+    expect(pkg).toContain("No static or dynamic SQL against privileged schemas");
   });
 
   it("forbids apply/deploy/publish/auth writes in operator instructions", () => {
     expect(pkg).toContain("No Migration 88 apply");
     expect(pkg).toContain("No Deploy / Publish");
     expect(pkg).toContain("No Auth user create");
-    expect(pkg).toContain("READY_FOR_FAST_DELTA_REVIEW_AND_REEXECUTION");
+    expect(pkg).toContain("READY_FOR_FAST_DUAL_REVIEW_AND_NEW_SQL_EXECUTION");
   });
 
-  it("report declares ledger-permission fix decision without production execution", () => {
-    expect(report).toContain("PASS_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX");
+  it("report declares privileged-schema fix decision without production execution", () => {
+    expect(report).toContain("PASS_B1_E2E_88_PREFLIGHT_PRIVILEGED_SCHEMAS_FIX");
     expect(report).toMatch(/Production access\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Migration apply\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Auth writes\s*\|\s*\*{0,2}NONE\*{0,2}/i);
     expect(report).toMatch(/Production writes\s*\|\s*\*{0,2}ZERO\*{0,2}/i);
     expect(report).toContain("UNPROVEN");
-    expect(report).toContain("HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE");
+    expect(report).toContain("HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE");
     expect(report).toContain("wpmicqriltrowwonknox");
+    expect(report).toContain("90f4dcde-07fb-4441-b86a-6ad5510833b8");
   });
 });
 
