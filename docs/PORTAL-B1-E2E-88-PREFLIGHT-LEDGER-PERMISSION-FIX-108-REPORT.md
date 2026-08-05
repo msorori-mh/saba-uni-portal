@@ -7,7 +7,7 @@
 | field | value |
 |---|---|
 | Base HEAD | `e0b1448ab0bfb192d0bb4e4c49586af3cb6780b3` |
-| Final HEAD | `b511d7ded7422e4774eed5b1c21582a539afce84` |
+| Final HEAD | `64894d9f52b64ff72dbabdb4d42594fe0bee1d95` |
 | Draft PR | https://github.com/msorori-mh/saba-uni-portal/pull/283 |
 | Working tree | clean after commit |
 | Branch | `fix/b1-e2e-88-preflight-ledger-permission-108` |
