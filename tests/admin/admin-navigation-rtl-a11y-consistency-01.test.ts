@@ -39,15 +39,16 @@ const ROOT = join(import.meta.dir, "../..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf-8");
 
 const SHELL_SRC = read("src/components/admin/AdminShell.tsx");
+const NAV_CONFIG_SRC = read("src/lib/admin-navigation-config.ts");
 const BELL_SRC = read("src/components/portal/NotificationsBell.tsx");
 const LOGOUT_SRC = read("src/lib/use-admin-logout.ts");
 const LAYOUT_SRC = read("src/routes/admin.tsx");
 const ROUTE_TREE_SRC = read("src/routeTree.gen.ts");
 
 describe("sidebar links — no dead targets", () => {
-  const NAV_TARGETS = [...SHELL_SRC.matchAll(/\{\s*to:\s*"((?:\/admin|\/messages)[^"]*)"/g)].map(
-    (m) => m[1],
-  );
+  const NAV_TARGETS = [
+    ...NAV_CONFIG_SRC.matchAll(/\{\s*to:\s*"((?:\/admin|\/messages)[^"]*)"/g),
+  ].map((m) => m[1]);
 
   it("exposes a non-empty set of nav targets", () => {
     expect(NAV_TARGETS.length).toBeGreaterThan(30);

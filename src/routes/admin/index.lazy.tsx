@@ -299,15 +299,17 @@ function AdminDashboard() {
   ];
 
   const quickActions = [
-    { to: "/admin/study-plans", label: "إضافة مقرر", icon: BookOpen },
-    { to: "/admin/study-plans", label: "إنشاء خطة دراسية", icon: ListTree },
-    { to: "/admin/course-offerings", label: "إنشاء مجموعة دراسية", icon: CalendarDays },
-    { to: "/admin/enrollments", label: "تقسيم المجموعات", icon: ClipboardList },
-    { to: "/admin/grades", label: "إدخال درجات", icon: ClipboardCheck },
     { to: "/admin/student-requests", label: "مراجعة الطلبات", icon: FileWarning },
-    { to: "/admin/news", label: "خبر جديد", icon: Newspaper },
-    { to: "/admin/contacts", label: "الرسائل", icon: MessageSquare },
+    { to: "/admin/grades", label: "إدخال درجات", icon: ClipboardCheck },
+    { to: "/admin/academic-operations", label: "العمليات الأكاديمية", icon: Activity },
+    { to: "/admin/enrollments", label: "تقسيم المجموعات", icon: ClipboardList },
+    { to: "/admin/course-offerings", label: "إنشاء مجموعة دراسية", icon: CalendarDays },
+    { to: "/admin/reports", label: "التقارير", icon: BarChart3 },
   ];
+
+  const pendingNew = counts.newReq ?? 0;
+  const pendingReview = counts.reviewReq ?? 0;
+  const pendingOpen = kpis?.openRequests ?? pendingNew + pendingReview;
 
   return (
     <div className="space-y-8">
@@ -317,6 +319,80 @@ function AdminDashboard() {
           نظرة شاملة على حركة الكلية والخدمات الأكاديمية.
         </p>
       </div>
+
+      {/* Pending actions — existing request counts only (no fabricated KPIs) */}
+      <section
+        aria-label="إجراءات تحتاج متابعة"
+        className="rounded-xl border border-border bg-card p-5 shadow-card"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className="font-display text-base font-bold text-primary">يحتاج إجراء اليوم</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              طلبات قائمة بانتظار المتابعة من البيانات الحالية فقط.
+            </p>
+          </div>
+          <Link
+            to="/admin/student-requests"
+            className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:opacity-90"
+          >
+            <FileWarning className="h-4 w-4" aria-hidden /> فتح الطلبات
+          </Link>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <Link
+            to="/admin/student-requests"
+            className="rounded-lg border border-border bg-background px-4 py-3 hover:border-gold transition-colors"
+          >
+            <div className="text-xs font-semibold text-muted-foreground">طلبات جديدة</div>
+            <div className="mt-1 font-display text-2xl font-extrabold text-primary">
+              {pendingNew.toLocaleString("ar-EG")}
+            </div>
+          </Link>
+          <Link
+            to="/admin/student-requests"
+            className="rounded-lg border border-border bg-background px-4 py-3 hover:border-gold transition-colors"
+          >
+            <div className="text-xs font-semibold text-muted-foreground">قيد المراجعة</div>
+            <div className="mt-1 font-display text-2xl font-extrabold text-primary">
+              {pendingReview.toLocaleString("ar-EG")}
+            </div>
+          </Link>
+          <Link
+            to="/admin/reports"
+            search={{ tab: "requests" } as any}
+            className="rounded-lg border border-border bg-background px-4 py-3 hover:border-gold transition-colors"
+          >
+            <div className="text-xs font-semibold text-muted-foreground">طلبات مفتوحة</div>
+            <div className="mt-1 font-display text-2xl font-extrabold text-primary">
+              {pendingOpen.toLocaleString("ar-EG")}
+            </div>
+          </Link>
+        </div>
+      </section>
+
+      {/* Quick actions — task-oriented shortcuts using existing routes */}
+      <section className="space-y-3">
+        <h2 className="font-display text-base font-bold text-primary">إجراءات سريعة</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {quickActions.map((a) => {
+            const Icon = a.icon;
+            return (
+              <Link
+                key={a.label}
+                to={a.to}
+                className="flex min-h-11 items-center gap-3 rounded-xl bg-card border border-border p-4 hover:border-gold hover:shadow-card transition-all"
+              >
+                <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary">
+                  <Icon className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="flex-1 text-sm font-bold text-primary">{a.label}</div>
+                <Plus className="h-4 w-4 text-muted-foreground" aria-hidden />
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       {/* Stats grouped sections */}
       {sections_
@@ -401,29 +477,6 @@ function AdminDashboard() {
               </table>
             </div>
           )}
-        </div>
-      </section>
-
-      {/* Quick actions */}
-      <section className="space-y-3">
-        <h2 className="font-display text-base font-bold text-primary">إجراءات سريعة</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {quickActions.map((a) => {
-            const Icon = a.icon;
-            return (
-              <Link
-                key={a.label}
-                to={a.to}
-                className="flex items-center gap-3 rounded-xl bg-card border border-border p-4 hover:border-gold hover:shadow-card transition-all"
-              >
-                <div className="grid h-10 w-10 place-items-center rounded-lg bg-secondary text-primary">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="flex-1 text-sm font-bold text-primary">{a.label}</div>
-                <Plus className="h-4 w-4 text-muted-foreground" />
-              </Link>
-            );
-          })}
         </div>
       </section>
 
