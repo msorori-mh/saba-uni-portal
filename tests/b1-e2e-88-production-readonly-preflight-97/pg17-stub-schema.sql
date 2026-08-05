@@ -10,7 +10,14 @@ BEGIN
 END $$;
 
 CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE SCHEMA IF NOT EXISTS vault;
+CREATE SCHEMA IF NOT EXISTS realtime;
+CREATE SCHEMA IF NOT EXISTS supabase_functions;
 CREATE SCHEMA IF NOT EXISTS supabase_migrations;
+CREATE SCHEMA IF NOT EXISTS net;
+CREATE SCHEMA IF NOT EXISTS cron;
+CREATE SCHEMA IF NOT EXISTS pgmq;
 
 CREATE TABLE IF NOT EXISTS supabase_migrations.schema_migrations (
   version text PRIMARY KEY,
@@ -29,6 +36,11 @@ CREATE TABLE IF NOT EXISTS auth.users (
   id uuid PRIMARY KEY,
   email text,
   created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS storage.buckets (
+  id text PRIMARY KEY,
+  name text
 );
 
 CREATE TABLE IF NOT EXISTS public.departments (
@@ -52,13 +64,21 @@ CREATE TABLE IF NOT EXISTS public.request_processing_roles (
 CREATE TABLE IF NOT EXISTS public.staff_profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
+  email text,
+  employee_number text,
+  full_name_ar text,
+  full_name_en text,
   status text DEFAULT 'active'
 );
 
 CREATE TABLE IF NOT EXISTS public.faculty_profiles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid,
+  faculty_id text,
+  employee_number text,
   department_id uuid REFERENCES public.departments(id),
+  full_name_ar text,
+  full_name_en text,
   status text DEFAULT 'active'
 );
 
@@ -67,7 +87,9 @@ CREATE TABLE IF NOT EXISTS public.student_profiles (
   user_id uuid,
   status text NOT NULL DEFAULT 'active',
   academic_number text,
+  email text,
   full_name_ar text,
+  full_name_en text,
   department_id uuid REFERENCES public.departments(id)
 );
 

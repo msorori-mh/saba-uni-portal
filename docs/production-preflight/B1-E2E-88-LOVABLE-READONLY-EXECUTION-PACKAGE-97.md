@@ -4,13 +4,15 @@
 |---|---|
 | package | `PORTAL_B1_E2E_88_PRODUCTION_READONLY_PREFLIGHT_PACKAGE_97` |
 | mode | **READ-ONLY preflight execution package only** |
-| Lovable project id | `4b291119-790f-4484-9285-c2b774e1ba6f` |
+| Lovable project id (active) | `90f4dcde-07fb-4441-b86a-6ad5510833b8` |
+| Lovable project id (historical/stale; do not use) | `4b291119-790f-4484-9285-c2b774e1ba6f` |
 | production Supabase project ref | `wpmicqriltrowwonknox` |
 | repository | `msorori-mh/saba-uni-portal` |
-| branch | `fix/b1-e2e-88-preflight-ledger-permission-108` |
+| branch | `fix/b1-e2e-88-preflight-privileged-schemas-112` |
 | source merge commit | `e0cf9d48acb562109aaf310dbd5e534b900c6d90` |
 | PR #281 source HEAD | `630bb9d1eac55b97e0723381d8d859a463dfaacc` |
-| ledger-permission remediation | `PORTAL_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX_108` |
+| privileged-schema remediation | `PORTAL_B1_E2E_88_PREFLIGHT_PRIVILEGED_SCHEMAS_FIX_112` |
+| prior ledger-permission remediation | `PORTAL_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX_108` |
 | channel | Lovable-managed **production database** (read / query channel) |
 | execution status | **NOT EXECUTED by this source package** |
 
@@ -32,11 +34,13 @@
 | field | value |
 |---|---|
 | path | `docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql` |
-| raw SHA-256 | `e65dc4ae5f36a692e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68` |
-| LF SHA-256 | `e65dc4ae5f36a692e5ffbe7fd48cfec303229e76f208435017b3bcd93af62c68` |
-| raw bytes | `57376` |
-| LF bytes | `57376` |
-| LF lines | `1262` |
+| raw SHA-256 | `e1c1e8a0ac2775e58412d6aa9fb6591abe6fd0da28190cd1d2b2b76fd0711d71` |
+| LF SHA-256 | `e1c1e8a0ac2775e58412d6aa9fb6591abe6fd0da28190cd1d2b2b76fd0711d71` |
+| raw bytes | `67054` |
+| LF bytes | `67054` |
+| LF lines | `1476` |
+
+> Identity values above are filled by the focused remediation commit after SHA recalculation. Do **not** reuse consumed identities `f58d5446…` or `e65dc4ae…`. Execute only after merge and dual review.
 
 ## Explicit non-authorization
 
@@ -45,15 +49,15 @@ It does NOT authorize Deploy, Publish, Auth writes, password changes, visibility
 
 ## Operator steps (exactly once)
 
-1. Confirm Lovable project `4b291119-790f-4484-9285-c2b774e1ba6f` is bound to production Supabase ref **`wpmicqriltrowwonknox`** via the trusted Lovable channel. If unproven → **STOP** (`HOLD_B1_E2E_88_PROJECT_IDENTITY_UNPROVEN`).
+1. Confirm Lovable project `90f4dcde-07fb-4441-b86a-6ad5510833b8` is bound to production Supabase ref **`wpmicqriltrowwonknox`** via the trusted Lovable channel. If unproven → **STOP** (`HOLD_B1_E2E_88_PROJECT_IDENTITY_UNPROVEN`). Do **not** use stale id `4b291119-790f-4484-9285-c2b774e1ba6f`.
 2. Open the Lovable-managed production database query channel.
-3. Do **not** use `set_config` or any user-supplied GUC to force G01 or G02 PASS. SQL G01 remains **UNPROVEN** by design; SQL G02 ledger readability remains **UNPROVEN** by design when the managed ledger cannot be read independently.
+3. Do **not** use `set_config` or any user-supplied GUC to force G01, G02, G10, or G11 PASS. SQL G01 remains **UNPROVEN** by design; SQL G02 ledger readability remains **UNPROVEN** by design; SQL G10 Auth existence remains **UNPROVEN** by design.
 4. Paste and execute **the entire** file  
    `docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql`  
-   exactly once, unmodified.
+   exactly once, unmodified, **after** merge + dual review of the new SQL identity.
 5. Archive the full result set (14 gate rows G01–G14).
-6. Collect **trusted Lovable-managed migration-history metadata** outside SQL (see G02 final classification below). User prompt text, operator GUCs, and `set_config` do **not** count.
-7. Classify PASS/HOLD using the rules below.
+6. Collect **trusted Lovable-managed external attestations** outside SQL (see below). User prompt text, operator GUCs, SQL literals, comments, and `set_config` do **not** count.
+7. Classify PASS/HOLD by combining SQL gates with those attestations.
 8. Do **not** apply Migration 88 from this package.
 
 ## Required result schema
@@ -64,7 +68,7 @@ Exactly one deterministic result set with **one row per gate** (14 rows), column
 |---|---|
 | `gate` | text (`G01` … `G14`) |
 | `check_name` | text |
-| `status` | text (`PASS`, `HOLD`, or `UNPROVEN` for G01/G02 SQL ledger identity) |
+| `status` | text (`PASS`, `HOLD`, or `UNPROVEN`) |
 | `detail` | text |
 | `evidence` | jsonb |
 
@@ -73,27 +77,77 @@ Exactly one deterministic result set with **one row per gate** (14 rows), column
 | gate | purpose |
 |---|---|
 | G01 | Project identity — SQL always **UNPROVEN**; trusted Lovable channel attests `wpmicqriltrowwonknox` |
-| G02 | Migration ledger — SQL never queries the managed ledger; returns **UNPROVEN** / `HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE` when ledger unreadable; separately reports pg_catalog object-state + source/alias identity; final class combines trusted Lovable migration-history metadata |
-| G03 | Full Migration-88 object inventory (3 tables + 18 M88-only functions + 2 triggers + RLS/ACL) — any non-zero subset → `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED` |
-| G04 | Four replaced-function base preimage fingerprints (deterministic ACL / null markers) |
+| G02 | Migration ledger — SQL never queries the managed ledger; **UNPROVEN** / `HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE` + pg_catalog object-state; final class needs Lovable migration-history metadata |
+| G03 | Full Migration-88 object inventory — any non-zero subset → `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED` |
+| G04 | Four replaced-function base preimage fingerprints |
 | G05 | Five services `is_active=true` and `student_visible=false` |
 | G06 | `enrollment_certificate` protected + protected request/document identities |
-| G07 | Full 19-Fixture matrix pins (id/number/type/status/step/unit/role/action/assignee/dept) |
-| G08 | Five-service RPA fingerprint (includes `position_assignment_id`; empty → HOLD) |
+| G07 | Full 19-Fixture matrix pins |
+| G08 | Five-service RPA fingerprint (empty → HOLD) |
 | G09 | Protected-surface fingerprints (empty/missing → HOLD) |
-| G10 | TEST_ONLY identity inventory (password usability **UNKNOWN**) |
-| G11 | Production E2E prerequisites classification (READY / NOT_READY / AMBIGUOUS / UNPROVEN) |
-| G12 | Apply feasibility record (does **not** authorize apply; does not require ledger SELECT success) |
+| G10 | Public-side TEST_ONLY identity inventory; Auth-user existence **UNPROVEN**; password/session **UNKNOWN**; SQL status **UNPROVEN** / `HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE` |
+| G11 | Production E2E prerequisites — fail-closed while Auth/password/session unresolved |
+| G12 | Apply feasibility record (does **not** authorize apply) |
 | G13 | Decommission draft pin + base restore fingerprints |
 | G14 | Stop conditions / final HOLD detail |
 
+## Privileged-schema contract (SQL)
+
+Executable SQL may read only:
+
+- `public`
+- `pg_catalog`
+- `information_schema`
+
+SQL must **never** SELECT/JOIN/call/EXECUTE against:
+
+- `auth`, `storage`, `vault`, `realtime`, `supabase_functions`, `supabase_migrations`, `net`, `cron`, `pgmq`
+- any other non-whitelisted schema
+
+Restricted schema names may appear only in comments, evidence labels, expected object-name strings, and `pg_catalog` metadata predicates. No `GRANT`/`REVOKE`, no `set_config`, no `search_path` mutation, no dynamic `EXECUTE`/`CALL`.
+
+Gate continuity: G01–G14 must always return even when auth/storage/sibling schemas are absent, USAGE-denied, or unreadable.
+
+## Required external attestations (outside SQL)
+
+Final operational classification = SQL G01–G14 **plus** trusted Lovable-managed metadata. Prompt text, comments, SQL literals, user input, GUCs, and `set_config` are **not** trusted evidence.
+
+### 1) Connected project identity
+
+| attestation | required value |
+|---|---|
+| Lovable project ID | `90f4dcde-07fb-4441-b86a-6ad5510833b8` |
+| Supabase ref | `wpmicqriltrowwonknox` |
+
+### 2) Migration history
+
+| attestation field | required |
+|---|---|
+| source migration version | yes (`20260804120000` or proven equivalent) |
+| known managed alias | yes (token / rewritten filename identity) |
+| whether Migration 88 is already applied | yes |
+| whether an equivalent migration exists | yes |
+
+### 3) Auth readiness
+
+| attestation field | required |
+|---|---|
+| exact Auth user IDs for required TEST_ONLY actors | yes |
+| whether each required TEST_ONLY Auth user exists | yes |
+| password usability where the managed channel can prove it | yes (never print password values/secrets) |
+| session usability where the managed channel can prove it | yes (never print session secrets) |
+
+SQL alone leaves Auth existence **UNPROVEN** and password/session **UNKNOWN**.
+
+### 4) Storage / protected-schema evidence
+
+Any required storage or other protected-schema evidence that SQL cannot read must be attested via the trusted Lovable channel outside SQL.
+
 ## G02 final classification (SQL + trusted Lovable ledger attestation)
 
-SQL alone **cannot** independently prove managed migration-ledger state. The preflight SQL deliberately does **not** reference the managed ledger relation (the Lovable read-only role may lack schema USAGE and would otherwise abort with `permission denied for schema …`).
+SQL alone **cannot** independently prove managed migration-ledger state. The preflight SQL deliberately does **not** reference the managed ledger relation.
 
 ### 1) SQL result (always archived)
-
-From gate G02 evidence / detail:
 
 | SQL field | meaning |
 |---|---|
@@ -114,8 +168,6 @@ Object-state inference rules (pg_catalog only):
 
 **Do not** classify Migration 88 definitively `NOT_APPLIED` solely because the ledger is unreadable.
 
-Partial object state forces SQL G02 `status = HOLD` with `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED`. G03–G14 continue regardless.
-
 ### 2) Trusted Lovable-managed migration metadata (outside SQL)
 
 Operator must obtain from the trusted Lovable channel (not user prompt / GUC / `set_config`):
@@ -123,7 +175,7 @@ Operator must obtain from the trusted Lovable channel (not user prompt / GUC / `
 | attestation field | required |
 |---|---|
 | source migration version | yes (`20260804120000` or proven equivalent) |
-| known managed alias | yes (token / rewritten filename identity) |
+| known managed alias | yes |
 | whether Migration 88 is already applied | yes |
 | whether an equivalent migration exists | yes |
 
@@ -139,18 +191,41 @@ Operator must obtain from the trusted Lovable channel (not user prompt / GUC / `
 
 If Lovable cannot provide trusted migration-history metadata → **Final G02 remains HOLD**.
 
+## G10 / G11 Auth final classification (SQL + trusted Lovable Auth attestation)
+
+### SQL result
+
+| field | SQL value |
+|---|---|
+| G10 status / detail | `UNPROVEN` / `HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE` |
+| public identity inventory | student/staff/faculty/role/assignment candidates from `public` only |
+| Auth-user existence | `UNPROVEN` |
+| password usability | `UNKNOWN` |
+| session usability | `UNKNOWN` |
+| G11 | always fail-closed `HOLD` while Auth/password/session unresolved |
+
+### Combined final Auth readiness
+
+| SQL Auth | Trusted Lovable Auth attestation | Final |
+|---|---|---|
+| UNPROVEN | unavailable / untrusted | **HOLD** |
+| UNPROVEN | proves required Auth users + password/session readiness without printing secrets | may lift Auth hold only if all other gates allow |
+| UNPROVEN | proves missing required Auth users | **HOLD** |
+
+Do **not** fabricate password or session usability from public profile rows.
+
 ## PASS / HOLD classification rules
 
-- Final operational classification requires **trusted Lovable channel identity** (`wpmicqriltrowwonknox`) **and** SQL G02–G14 results **and** trusted Lovable migration-history attestation for final G02.
+- Final operational classification requires **trusted Lovable channel identity** (`90f4dcde-07fb-4441-b86a-6ad5510833b8` ↔ `wpmicqriltrowwonknox`) **and** SQL G02–G14 **and** trusted Lovable migration-history attestation **and** trusted Lovable Auth attestation for Auth readiness.
 - G01 from SQL is **UNPROVEN** and never PASS from user-supplied values.
-- G02 SQL ledger readability is **UNPROVEN** when the managed ledger cannot be read independently; final G02 requires trusted Lovable migration-history metadata.
-- Any gate `status = HOLD` among G02–G14 (or unresolved G01 channel attestation, or missing Lovable ledger attestation) ⇒ overall production preflight **HOLD**.
+- G02 SQL ledger readability is **UNPROVEN** when the managed ledger cannot be read independently.
+- G10 SQL Auth existence is **UNPROVEN**; G11 cannot PASS while Auth/password/session unresolved.
+- Any gate `status = HOLD` among G02–G14 (or unresolved G01/G10 channel attestation, or missing Lovable ledger/Auth attestation) ⇒ overall production preflight **HOLD**.
 - Partial Migration-88 objects ⇒ `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED`.
 - Function fingerprint ≠ base or body contains `b1_e2e_88` ⇒ `HOLD_B1_E2E_88_FUNCTION_PREIMAGE_DRIFT`.
 - Wrong Fixture service/step routing ⇒ HOLD.
-- G11 cannot become production-ready PASS while `password_usability = UNKNOWN`.
 - Any query error or unexpected result count ⇒ **HOLD**.
-- Source-package readiness (`PASS_B1_E2E_88_READONLY_PREFLIGHT_PACKAGE_SOURCE_READY`) is separate from a live production PASS.
+- Source-package readiness is separate from a live production PASS.
 
 ## Prohibitions
 
@@ -160,9 +235,11 @@ If Lovable cannot provide trusted migration-history metadata → **Final G02 rem
 - No password or session material changes
 - No visibility / workflow / assignment / fixture / request writes
 - No secrets or connection strings in this package
-- No operator `set_config` identity or ledger proof
+- No operator `set_config` identity, ledger, or Auth proof
 - No GRANT / schema changes requested from this package
+- No static or dynamic SQL against privileged schemas (`auth`, `storage`, `vault`, `realtime`, `supabase_functions`, `supabase_migrations`, `net`, `cron`, `pgmq`, …)
 - No static or dynamic SQL against the managed migration ledger relation
+- No printing of password values or session secrets
 
 ## Decommission companion (pin only; do not apply)
 
@@ -175,4 +252,4 @@ If Lovable cannot provide trusted migration-history metadata → **Final G02 rem
 
 ## Final recommendation after successful source review
 
-`READY_FOR_FAST_DELTA_REVIEW_AND_REEXECUTION`
+`READY_FOR_FAST_DUAL_REVIEW_AND_NEW_SQL_EXECUTION`
