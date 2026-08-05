@@ -41,7 +41,7 @@ describe("lifecycle action matrix mirrors SQL preconditions", () => {
     expect(availableProjectActions(["supervisor"], "under_review")).toEqual([]);
     expect(availableProjectActions(["supervisor"], "evaluating")).toEqual(["add_note"]);
     expect(availableProjectActions(["coordinator"], "evaluating").sort()).toEqual(["create_project", "end_assignment", "view_reports"].sort());
-    expect(availableProjectActions(["panel_member"], "evaluating")).toEqual(["save_evaluation"]);
+    expect(availableProjectActions(["panel_member"], "evaluating").sort()).toEqual(["finalize_evaluation", "save_evaluation"].sort());
     expect(availableProjectActions(["panel_member"], "active")).toEqual([]);
   });
 
@@ -261,5 +261,20 @@ describe("resolveViewerEvaluation — MEDIUM-1 viewer scoping (review 4982)", ()
       panel_members: [pm("pm-viewer", "a-viewer"), pm("pm-ended", "a-viewer-ended"), pm("pm-other", "a-other")],
     };
     expect(resolveViewerPanelMemberIds(detail, "u-viewer")).toEqual(["pm-viewer"]);
+  });
+
+  test("member-id resolution ignores ended assignments even when still flagged active", () => {
+    // The module's active-assignment invariant is `active && ended_at == null`
+    // (portal-privacy.ts ownPanelMemberIds, deriveDiscussionReadiness). An
+    // assignment with ended_at set must never resolve as the viewer's panel
+    // membership, even if the active flag was left stale.
+    const ended = { ...asg("a-viewer-ended", "u-viewer"), ended_at: "2026-01-01T00:00:00.000Z" };
+    const detail = {
+      assignments: [ended, asg("a-other", "u-other")],
+      panel_members: [pm("pm-ended", "a-viewer-ended"), pm("pm-other", "a-other")],
+      evaluations: [ev("e-ended", "pm-ended", "submitted")],
+    };
+    expect(resolveViewerPanelMemberIds(detail, "u-viewer")).toEqual([]);
+    expect(resolveViewerEvaluation(detail, "u-viewer")).toBeNull();
   });
 });

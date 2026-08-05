@@ -2,10 +2,16 @@ import type {
   EvaluationScoreRow,
   GraduationProjectArchiveReport,
   GraduationProjectAssignmentsReport,
+  GraduationProjectDefenseReport,
   GraduationProjectDetail,
   GraduationProjectEvaluationsReport,
+  GraduationProjectRubricRow,
+  GraduationProjectSettingsRow,
   GraduationProjectStatesReport,
   MyProjectRow,
+  ProjectFileKind,
+  ProjectNotificationRow,
+  RubricCriterionInput,
 } from "./lifecycle";
 
 /**
@@ -42,17 +48,26 @@ export class GraduationProjectsRpcError extends Error {
 /** Exact SQL draft messages mapped to Arabic user-facing labels. */
 export const ERROR_LABELS: Record<string, string> = {
   "project not found": "المشروع غير موجود",
-  "project creation assignment required": "إنشاء المشاريع يتطلب تعييناً نشطاً كمنسق أو رئيس قسم في القسم",
+  "project creation assignment required":
+    "إنشاء المشاريع يتطلب تعييناً نشطاً كمنسق أو رئيس قسم في القسم",
   "project title invalid": "عنوان المشروع يجب أن يكون بين 3 و300 حرف",
   "exact direct processing assignment required": "لا تملك تعييناً مباشراً نشطاً يسمح بهذا الإجراء",
   "proposal review action unknown": "إجراء المراجعة غير معروف",
-  "proposal review precondition failed": "لا يمكن تنفيذ إجراء المراجعة في الحالة الحالية أو برقم النسخة الحالي",
+  "proposal review precondition failed":
+    "لا يمكن تنفيذ إجراء المراجعة في الحالة الحالية أو برقم النسخة الحالي",
   "review reason required": "السبب مطلوب لهذا القرار",
-  "proposal resubmission precondition failed": "إعادة التقديم تتطلب حالة «يتطلب تعديلاً» ورقم النسخة الصحيح",
+  "proposal resubmission precondition failed":
+    "إعادة التقديم تتطلب حالة «يتطلب تعديلاً» ورقم النسخة الصحيح",
   "project activation precondition failed": "التفعيل يتطلب مشروعاً معتمداً ورقم النسخة الصحيح",
   "faculty assignment role denied": "لا يمكن تعيين هذا الدور عبر هذه الخدمة",
   "faculty assignment state denied": "حالة المشروع لا تسمح بالتعيين",
   "faculty assignment already exists": "لدى هذا المستخدم تعيين نشط بنفس الدور على هذا المشروع",
+  "project supervisor slot already filled": "يوجد مشرف نشط لهذا الدور على المشروع مسبقاً",
+  "discussion request already pending": "يوجد طلب مناقشة معلَّق لهذا المشروع مسبقاً",
+  "panel chair already assigned": "رئيس اللجنة معيَّن لهذه المناقشة مسبقاً",
+  "scan state invalid": "حالة الفحص غير صالحة",
+  "file not found": "الملف غير موجود",
+  "file scan state already decided": "حالة فحص الملف محسومة مسبقاً",
   "panel member already assigned": "عضو اللجنة معيَّن لهذه المناقشة مسبقاً",
   "file object key already registered": "مفتاح الملف مسجَّل مسبقاً",
   "assignment end state denied": "لا يمكن إنهاء التعيينات في حالة نهائية",
@@ -70,18 +85,25 @@ export const ERROR_LABELS: Record<string, string> = {
   "file registration state denied": "حالة المشروع لا تسمح بتسجيل الملفات",
   "file object key outside project scope": "مفتاح الملف خارج نطاق المشروع",
   "file metadata invalid": "بيانات الملف الوصفية غير مكتملة أو غير صالحة",
+  "file media type not allowed": "نوع الملف غير مسموح",
+  "file size exceeds limit": "حجم الملف يتجاوز الحد المسموح (50 ميغابايت)",
+  "file kind invalid": "نوع الملف المرحلي غير صالح",
+  "file stage binding invalid": "هذا النوع من الملفات يجب أن يرتبط بتسليم",
+  "final manuscript must attach to a final milestone submission": "النسخة النهائية يجب أن ترتبط بتسليم المرحلة النهائية",
   "discussion scheduling precondition failed": "لا يمكن جدولة المناقشة في الحالة الحالية",
   "discussion schedule details invalid": "موعد المناقشة ومكانها مطلوبان",
   "discussion rejection precondition failed": "لا يمكن رفض طلب المناقشة في الحالة الحالية",
   "discussion not found": "المناقشة غير موجودة",
   "panel assignment precondition failed": "تعيين اللجنة يتطلب مناقشة مجدولة وعضو لجنة نشطاً",
   "discussion outcome unknown": "نتيجة المناقشة غير معروفة",
+  "panel incomplete for defense": "لا يمكن انعقاد المناقشة بلجنة غير مكتملة (عضو ورئيس مطلوبان)",
   "discussion outcome precondition failed": "لا يمكن تسجيل نتيجة المناقشة في الحالة الحالية",
   "evaluation write precondition failed": "التقييم يتطلب مناقشة منعقدة وعضوية في اللجنة",
   "evaluation scores invalid": "درجات التقييم غير صالحة",
   "evaluation already submitted": "التقييم أُرسل مسبقاً ولا يمكن تعديله",
   "result outcome unknown": "نتيجة المشروع غير معروفة",
-  "result conclusion precondition failed": "اعتماد النتيجة يتطلب حالة «قيد التقييم» ورقم النسخة الصحيح",
+  "result conclusion precondition failed":
+    "اعتماد النتيجة يتطلب حالة «قيد التقييم» ورقم النسخة الصحيح",
   "evaluations not finalized": "يجب اعتماد جميع التقييمات قبل إنهاء النتيجة",
   "corrections payload invalid": "قائمة التصحيحات غير صالحة",
   "correction completion precondition failed": "لا يمكن إتمام هذا التصحيح في الحالة الحالية",
@@ -89,7 +111,8 @@ export const ERROR_LABELS: Record<string, string> = {
   "department report assignment required": "تقارير القسم تتطلب تعييناً إدارياً نشطاً في القسم",
   "direct archive assignment required": "الأرشفة تتطلب تعييناً مباشراً بصلاحية الأرشفة",
   "project not archive-ready": "المشروع ليس جاهزاً للأرشفة",
-  "clean accepted final evidence and accepted corrections required": "الأرشفة تتطلب ملفاً نهائياً سليم الفحص ومقبولاً وتصحيحات مقبولة",
+  "clean accepted final evidence and accepted corrections required":
+    "الأرشفة تتطلب ملفاً نهائياً سليم الفحص ومقبولاً وتصحيحات مقبولة",
   "proposal transition precondition failed": "لا يمكن تقديم المقترح في الحالة الحالية",
   "team mutation state denied": "حالة المشروع لا تسمح بتعديل الفريق",
   "milestone mutation state denied": "حالة المشروع لا تسمح بتعديل المراحل",
@@ -97,26 +120,45 @@ export const ERROR_LABELS: Record<string, string> = {
   "evaluation lifecycle precondition failed": "لا يمكن اعتماد التقييم في الحالة الحالية",
   "evaluation finalization precondition failed": "لا يمكن اعتماد التقييم في الحالة الحالية",
   "graduation project events are append-only": "سجل الأحداث للإضافة فقط",
+  "settings administration assignment required": "إدارة الإعدادات تتطلب تعييناً برئاسة القسم أو العمادة",
+  "settings invalid": "قيم الإعدادات غير صالحة",
+  "team size limit reached": "تم بلوغ الحد الأقصى لأعضاء الفريق",
+  "team below minimum size": "عدد أعضاء الفريق دون الحد الأدنى",
+  "proposal window closed": "نافذة تقديم المقترحات مغلقة",
+  "supervisor capacity reached": "المشرف بلغ الحد الأقصى للإشراف",
+  "co-supervisor not allowed by settings": "المشرف المشارك غير مسموح وفق إعدادات القسم",
+  "rubric administration assignment required": "إدارة سلالم التقييم تتطلب تعييناً برئاسة القسم أو العمادة",
+  "rubric payload invalid": "بيانات سلم التقييم غير صالحة",
+  "rubric not found": "سلم التقييم غير موجود",
 };
 
-export function isGraduationProjectsRpcUnavailable(error: RpcErrorLike | null | undefined): boolean {
+export function isGraduationProjectsRpcUnavailable(
+  error: RpcErrorLike | null | undefined,
+): boolean {
   if (!error) return false;
   const msg = error.message ?? "";
   const code = error.code ?? "";
   return (
-    code === "42883"
-    || /function .* does not exist/i.test(msg)
-    || /could not find the function/i.test(msg)
-    || /schema cache/i.test(msg)
+    code === "42883" ||
+    /function .* does not exist/i.test(msg) ||
+    /could not find the function/i.test(msg) ||
+    /schema cache/i.test(msg)
   );
 }
 
 export function mapGraduationProjectRpcError(error: RpcErrorLike): GraduationProjectsRpcError {
   if (isGraduationProjectsRpcUnavailable(error)) {
-    return new GraduationProjectsRpcError(GRADUATION_PROJECTS_SERVICE_UPDATING_MSG, error.code ?? "", true);
+    return new GraduationProjectsRpcError(
+      GRADUATION_PROJECTS_SERVICE_UPDATING_MSG,
+      error.code ?? "",
+      true,
+    );
   }
   const msg = error.message ?? "";
-  return new GraduationProjectsRpcError(ERROR_LABELS[msg] ?? msg ?? "حدث خطأ غير متوقع", error.code ?? "");
+  return new GraduationProjectsRpcError(
+    ERROR_LABELS[msg] ?? msg ?? "حدث خطأ غير متوقع",
+    error.code ?? "",
+  );
 }
 
 /** Idempotency correlation id for one logical user action (safe retries). */
@@ -126,7 +168,8 @@ export function newCorrelationId(): string {
 
 export type ProposalReviewAction = "start_review" | "approve" | "reject" | "require_revision";
 export type SubmissionReviewAction = "accept" | "require_revision";
-export type AssignableFacultyRole = "supervisor" | "coordinator" | "panel_member";
+export type AssignableFacultyRole = "supervisor" | "co_supervisor" | "coordinator" | "panel_member";
+export type MilestoneKind = "progress" | "final";
 export type DiscussionOutcome = "held" | "postponed" | "cancelled";
 export type ResultOutcome = "completed" | "corrections_required";
 
@@ -296,6 +339,7 @@ export class GraduationProjectsRpcClient {
     mediaType: string;
     byteSize: number;
     sha256: string;
+    fileKind?: ProjectFileKind;
     correlationId?: string;
   }): Promise<string> {
     return this.call<string>("register_graduation_project_file", {
@@ -306,8 +350,17 @@ export class GraduationProjectsRpcClient {
       p_media_type: input.mediaType,
       p_byte_size: input.byteSize,
       p_sha256: input.sha256,
+      p_file_kind: input.fileKind ?? "attachment",
       p_correlation_id: input.correlationId ?? newCorrelationId(),
     });
+  }
+
+  async listMyNotifications(): Promise<ProjectNotificationRow[]> {
+    const rows = await this.call<ProjectNotificationRow[] | null>(
+      "list_my_graduation_project_notifications",
+      {},
+    );
+    return rows ?? [];
   }
 
   async scheduleDiscussion(input: {
@@ -430,6 +483,84 @@ export class GraduationProjectsRpcClient {
     });
   }
 
+  async submitProposal(input: {
+    projectId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("submit_graduation_project_proposal", {
+      p_project_id: input.projectId,
+      p_expected_version: input.expectedVersion,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async addTeamMember(input: {
+    projectId: string;
+    studentProfileId: string;
+    studentUserId: string;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("add_graduation_project_team_member", {
+      p_project_id: input.projectId,
+      p_student_profile_id: input.studentProfileId,
+      p_student_user_id: input.studentUserId,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async setMilestone(input: {
+    projectId: string;
+    title: string;
+    kind: MilestoneKind;
+    sequence: number;
+    weight: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("set_graduation_project_milestone", {
+      p_project_id: input.projectId,
+      p_title: input.title,
+      p_kind: input.kind,
+      p_sequence: input.sequence,
+      p_weight: input.weight,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async requestDiscussion(input: {
+    projectId: string;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("request_graduation_project_discussion", {
+      p_project_id: input.projectId,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async finalizeEvaluation(input: {
+    evaluationId: string;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("finalize_graduation_project_evaluation", {
+      p_evaluation_id: input.evaluationId,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async archiveProject(input: {
+    projectId: string;
+    finalFileId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("archive_graduation_project", {
+      p_project_id: input.projectId,
+      p_final_file_id: input.finalFileId,
+      p_expected_version: input.expectedVersion,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
   async listMyProjects(): Promise<MyProjectRow[]> {
     const rows = await this.call<MyProjectRow[] | null>("list_my_graduation_projects", {});
     return rows ?? [];
@@ -448,19 +579,93 @@ export class GraduationProjectsRpcClient {
   }
 
   async getAssignmentsReport(departmentId: string): Promise<GraduationProjectAssignmentsReport> {
-    return this.call<GraduationProjectAssignmentsReport>("get_graduation_project_assignments_report", {
-      p_department_id: departmentId,
-    });
+    return this.call<GraduationProjectAssignmentsReport>(
+      "get_graduation_project_assignments_report",
+      {
+        p_department_id: departmentId,
+      },
+    );
   }
 
   async getEvaluationsReport(departmentId: string): Promise<GraduationProjectEvaluationsReport> {
-    return this.call<GraduationProjectEvaluationsReport>("get_graduation_project_evaluations_report", {
-      p_department_id: departmentId,
-    });
+    return this.call<GraduationProjectEvaluationsReport>(
+      "get_graduation_project_evaluations_report",
+      {
+        p_department_id: departmentId,
+      },
+    );
   }
 
   async getArchiveReport(departmentId: string): Promise<GraduationProjectArchiveReport> {
     return this.call<GraduationProjectArchiveReport>("get_graduation_project_archive_report", {
+      p_department_id: departmentId,
+    });
+  }
+
+  async getSettings(departmentId: string): Promise<GraduationProjectSettingsRow[]> {
+    const rows = await this.call<GraduationProjectSettingsRow[] | null>(
+      "get_graduation_project_settings",
+      { p_department_id: departmentId },
+    );
+    return rows ?? [];
+  }
+
+  async upsertSettings(input: {
+    departmentId: string;
+    academicYearId?: string | null;
+    teamMin: number;
+    teamMax: number;
+    supervisorCapacity?: number | null;
+    coSupervisorAllowed: boolean;
+    correctionWindowDays: number;
+    defenseNoticeDays: number;
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("upsert_graduation_project_settings", {
+      p_department_id: input.departmentId,
+      p_academic_year_id: input.academicYearId ?? null,
+      p_team_min: input.teamMin,
+      p_team_max: input.teamMax,
+      p_supervisor_capacity: input.supervisorCapacity ?? null,
+      p_co_supervisor_allowed: input.coSupervisorAllowed,
+      p_correction_window_days: input.correctionWindowDays,
+      p_defense_notice_days: input.defenseNoticeDays,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async upsertRubric(input: {
+    departmentId: string;
+    rubricId?: string | null;
+    code: string;
+    versionLabel: string;
+    title: string;
+    passingThreshold?: number | null;
+    criteria: RubricCriterionInput[];
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("upsert_graduation_project_rubric", {
+      p_department_id: input.departmentId,
+      p_rubric_id: input.rubricId ?? null,
+      p_code: input.code,
+      p_version_label: input.versionLabel,
+      p_title: input.title,
+      p_passing_threshold: input.passingThreshold ?? null,
+      p_criteria: input.criteria,
+      p_correlation_id: input.correlationId ?? newCorrelationId(),
+    });
+  }
+
+  async listRubrics(departmentId: string): Promise<GraduationProjectRubricRow[]> {
+    const rows = await this.call<GraduationProjectRubricRow[] | null>(
+      "list_graduation_project_rubrics",
+      { p_department_id: departmentId },
+    );
+    return rows ?? [];
+  }
+
+  async getDefenseReport(departmentId: string): Promise<GraduationProjectDefenseReport> {
+    return this.call<GraduationProjectDefenseReport>("get_graduation_project_defense_report", {
       p_department_id: departmentId,
     });
   }

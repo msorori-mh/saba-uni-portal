@@ -2,12 +2,9 @@ import {
   evaluateAccountContinuityAccess,
   type AccountContinuityPolicy,
 } from "@/lib/graduates-affairs/account-continuity";
-import {
-  summarizeGraduateFile,
-  type GraduateFile,
-} from "@/lib/graduates-affairs/graduate-file";
+import { summarizeGraduateFile, type GraduateFile } from "@/lib/graduates-affairs/graduate-file";
 import type { EmploymentStatus, GraduationDecisionState } from "@/lib/graduates-affairs/foundation";
-import type { GraduateConsentPurpose } from "@/lib/graduates-affairs/consents";
+import { formatGaDateAr, gaPurposeLabelAr } from "./display-format";
 
 const RECORD_STATE_LABELS: Record<GraduationDecisionState, string> = {
   pending: "قيد الانتظار",
@@ -25,14 +22,6 @@ const EMPLOYMENT_STATUS_LABELS: Record<EmploymentStatus, string> = {
   not_disclosed: "غير مصرّح",
 };
 
-const PURPOSE_LABELS: Record<GraduateConsentPurpose, string> = {
-  career_followup: "المتابعة المهنية",
-  communications: "التواصل",
-  surveys: "الاستبيانات",
-  events: "الفعاليات",
-  employment_quality: "جودة التوظيف",
-};
-
 const VISIBILITY_LABELS = {
   private: "خاص",
   graduates_affairs: "شؤون الخريجين",
@@ -46,13 +35,15 @@ function accountContinuityLabel(policy: AccountContinuityPolicy, at: string): st
   }
   switch (evaluation.reason) {
     case "account_continuity_policy_undecided":
-      return "سياسة استمرارية الحساب قيد الاعتماد (لم تُحسم)";
+      return "لم تُعتمد سياسة استمرارية الحساب بعد.";
     case "account_continuity_policy_rejected":
-      return "سياسة استمرارية الحساب مرفوضة";
+      return "سياسة استمرارية الحساب مرفوضة.";
     case "account_continuity_policy_not_in_force":
-      return "سياسة استمرارية الحساب غير سارية حالياً";
+      return "سياسة استمرارية الحساب منتهية الصلاحية أو لم تبدأ بعد.";
+    case "account_continuity_capability_not_allowed":
+      return "غير مسموح بموجب سياسة استمرارية الحساب الحالية.";
     default:
-      return "استمرارية الحساب غير متاحة";
+      return "استمرارية الحساب غير متاحة.";
   }
 }
 
@@ -69,12 +60,14 @@ export function GraduateFileCard(props: {
   const summary = summarizeGraduateFile(props.file);
   return (
     <section dir="rtl" aria-labelledby="graduate-file-title" className="rounded-lg border p-4">
-      <h3 id="graduate-file-title" className="font-semibold">ملف الخريج الشامل</h3>
-      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+      <h3 id="graduate-file-title" className="font-semibold">
+        ملف الخريج الشامل
+      </h3>
+      <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
         <dt>حالة السجل</dt>
         <dd>{RECORD_STATE_LABELS[summary.recordState]}</dd>
         <dt>تاريخ التخرج</dt>
-        <dd>{props.file.record.effectiveGraduationDate}</dd>
+        <dd>{formatGaDateAr(props.file.record.effectiveGraduationDate)}</dd>
         <dt>إصدار السجل</dt>
         <dd>{summary.version}</dd>
         <dt>الملف التعريفي</dt>
@@ -94,7 +87,7 @@ export function GraduateFileCard(props: {
         <dt>الموافقات الفعالة</dt>
         <dd>
           {summary.activeConsentPurposes.length > 0
-            ? summary.activeConsentPurposes.map((purpose) => PURPOSE_LABELS[purpose]).join("، ")
+            ? summary.activeConsentPurposes.map((purpose) => gaPurposeLabelAr(purpose)).join("، ")
             : "لا توجد"}
         </dd>
         <dt>الحالة الوظيفية الحالية</dt>
@@ -106,7 +99,10 @@ export function GraduateFileCard(props: {
         <dt>متابعات مفتوحة</dt>
         <dd>{summary.openFollowUps}</dd>
       </dl>
-      <p className="mt-3 border-t pt-2 text-sm text-muted-foreground" aria-label="حالة سياسة استمرارية الحساب">
+      <p
+        className="mt-3 border-t pt-2 text-sm text-muted-foreground"
+        aria-label="حالة سياسة استمرارية الحساب"
+      >
         {accountContinuityLabel(props.accountPolicy, props.evaluatedAt)}
       </p>
     </section>

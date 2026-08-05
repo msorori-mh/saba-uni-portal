@@ -24,9 +24,12 @@ const STATE_VARIANTS: Record<ProjectState, "default" | "secondary" | "destructiv
   cancelled: "outline",
 };
 
-export function GraduationProjectStateBadge({ state, atRisk = false }: GraduationProjectStateBadgeProps) {
+export function GraduationProjectStateBadge({
+  state,
+  atRisk = false,
+}: GraduationProjectStateBadgeProps) {
   return (
-    <span className="inline-flex items-center gap-1">
+    <span dir="rtl" className="inline-flex items-center gap-1">
       <Badge variant={STATE_VARIANTS[state]}>{PROJECT_STATE_LABELS[state]}</Badge>
       {atRisk ? <Badge variant="destructive">متعثر</Badge> : null}
     </span>

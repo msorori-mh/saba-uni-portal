@@ -5,7 +5,7 @@ export const PROJECT_STATES = [
 ] as const;
 
 export type ProjectState = (typeof PROJECT_STATES)[number];
-export type ProjectRole = "student" | "supervisor" | "coordinator" | "department_head" | "dean" | "panel_member";
+export type ProjectRole = "student" | "supervisor" | "co_supervisor" | "coordinator" | "department_head" | "dean" | "panel_member";
 export type ProjectAction =
   | "read" | "edit_proposal" | "manage_team" | "approve_proposal"
   | "manage_milestones" | "submit_deliverable" | "comment" | "request_discussion"
@@ -31,6 +31,7 @@ const immutableStates = new Set<ProjectState>(["completed", "archived", "rejecte
 const actionsByRole: Record<ProjectRole, ReadonlySet<ProjectAction>> = {
   student: new Set(["read", "edit_proposal", "manage_team", "submit_deliverable", "request_discussion"]),
   supervisor: new Set(["read", "comment", "manage_milestones", "request_discussion"]),
+  co_supervisor: new Set(["read"]),
   coordinator: new Set(["read", "approve_proposal", "manage_milestones", "schedule_discussion", "read_report"]),
   department_head: new Set(["read", "approve_proposal", "schedule_discussion", "approve_result", "read_report"]),
   dean: new Set(["read", "approve_result", "archive", "read_report"]),
@@ -46,7 +47,11 @@ export function authorizeProjectAction(
   if (authority.projectId !== project.id) return false;
   if (authority.departmentId !== project.departmentId) return false;
   if (!actionsByRole[authority.role].has(action)) return false;
-  if (immutableStates.has(project.state) && !["read", "read_report"].includes(action)) return false;
+  if (immutableStates.has(project.state) && !["read", "read_report"].includes(action)) {
+    // Sole legal write out of a frozen state: archive from completed
+    // (transitions map, lifecycle matrix, archive RPC precondition agree).
+    if (!(project.state === "completed" && action === "archive")) return false;
+  }
   return true;
 }
 
