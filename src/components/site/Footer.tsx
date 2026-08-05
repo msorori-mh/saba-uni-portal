@@ -1,11 +1,13 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useHydrated } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
 import universityLogo from "@/assets/university-logo.jpeg.asset.json";
 
 export function Footer() {
+  const hydrated = useHydrated();
   const { data: s = {} } = useQuery(settingsQuery);
+
 
   const socials = [
     { key: "facebook_url", Icon: Facebook, label: "Facebook" },
