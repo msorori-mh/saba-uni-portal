@@ -6,8 +6,8 @@
 
 | field | value |
 |---|---|
-| Base HEAD | `e0cf9d48acb562109aaf310dbd5e534b900c6d90` |
-| Final HEAD | `5a86ce7dc59ede62c2415f362630740eb7ae7131` (pre-report-PR-pin tip; see branch) |
+| Base HEAD | `0a1afc3f8aed7d894ef875f2233b39ccd7fcbf11` |
+| Final HEAD | _(set at commit)_ |
 | Draft PR | https://github.com/msorori-mh/saba-uni-portal/pull/282 |
 | Working tree | clean after commit |
 | Branch | `ops/b1-e2e-88-production-readonly-preflight-97` |
@@ -28,82 +28,49 @@
 | LF SHA-256 | `fb4e1e507b0bc109a225cb33e1a95e740253c3c85f508ed673abd4f273726f2a` |
 | Bytes | raw `58236` / LF `56666` |
 | Lines | `1571` (LF) |
-| Transaction | single `BEGIN;` … `COMMIT;` |
 | Created tables | `b1_e2e_88_executions`, `b1_e2e_88_actor_bindings`, `b1_e2e_88_audit_events` |
 | Created functions | 18 new E2E helpers/management/trigger functions |
-| Replaced production functions | 4 (see below) |
+| Replaced production functions | 4 |
 | Triggers | `trg_b1_e2e_88_audit_no_update`, `trg_guard_b1_e2e_88_immutable_marker` |
 | RLS | enabled on all three E2E tables; **no** policies (deny-by-default) |
-| Grants/revokes | REVOKE ALL from PUBLIC/anon/authenticated on E2E tables; GRANT SELECT to `service_role`; operational RPCs `service_role` only |
-| Expected object delta | +3 tables, +2 triggers, +18 functions, RLS×3, policies 0, data DML 0 |
-| Expected function replacements | `create_student_request(text,text,jsonb,text)`, `user_matches_workflow_runtime_step(uuid)`, `current_user_matches_transfer_department_scope(uuid,text)`, `can_current_user_act_on_step(uuid,text)` |
-| Cleanup/decommission companion | `docs/migration-drafts/B1-E2E-88-REQUEST-SCOPED-SUPPORT-CLEANUP.NOT_APPLIED.sql` (raw SHA `61254e3f3e6cc66802b5aa16d6b40f0fa9019d1a3d88a50c334424bcbad0335d`) |
 | Migration 88 rewrite | **NONE** (bytes pinned only) |
 
-## Preflight package
+## Preflight package (fast-track remediation)
 
 | field | value |
 |---|---|
 | SQL path | `docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql` |
-| SQL raw SHA-256 | `42d7b23ce9c62f4d864f00423d017b9dbecda29f6462585b6adc4d3d554df6ac` |
-| SQL LF SHA-256 | `e8a03afdee01d8776ab8e292f26817addb05a0ed7609a45a9bcb65d49e302e05` |
+| SQL SHA-256 | `f58d5446e9d72f7c1b34cc24ef3a2a68af400c62eed9589b890eed89a095c40f` |
 | Lovable package | `docs/production-preflight/B1-E2E-88-LOVABLE-READONLY-EXECUTION-PACKAGE-97.md` |
 | Lovable project id | `4b291119-790f-4484-9285-c2b774e1ba6f` |
 | Production ref | `wpmicqriltrowwonknox` |
 | Read-only | **YES** (`SERIALIZABLE READ ONLY` → `ROLLBACK`) |
 | Gates | **G01–G14** (14) |
-| Project identity | fail-closed via session attestation GUC; unproven ⇒ HOLD |
-| Migration ledger | version/token search + object-identity alias; already-applied / ambiguous ⇒ HOLD |
-| Partial-apply detection | **YES** → `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED` |
-| Function preimages | base fingerprints pinned; drift ⇒ `HOLD_B1_E2E_88_FUNCTION_PREIMAGE_DRIFT` |
-| Five-service visibility | exact five; `is_active=true`, `student_visible=false` |
-| Enrollment certificate | protected visibility + protected request/document identities |
-| Fixtures | exact 19; one active step; Fixture 15 restored approved (`in_review` + active archive) |
-| RPA fingerprint | five-service-scoped active assignments; duplicate active ⇒ HOLD |
-| Protected fingerprints | request_types / fixtures / runtime / RPA / workflows / enrollment protected surfaces |
-| TEST_ONLY identities | inventory only |
-| Password/session readiness | **UNKNOWN / UNPROVEN** (cannot PASS G11) |
-| Faculty-only negative | inventoried; missing ⇒ NOT_READY |
-| Admin-role negative | inventoried; `hr_officer` stand-in is NOT sufficient |
-| Decommission readiness | draft path + hashes + base restore fingerprints pinned; no auto TEST_ONLY deletion |
-
-## Local verification (source)
-
-| check | result |
-|---|---|
-| Focused Package 97 | **17/17 PASS** |
-| `tests/b1-e2e-request-scoped-support-88` | **18/18 PASS** |
-| `tests/b1-authoritative-positive-fixture-matrix-19` | **14/14 PASS** |
-| `tests/student-requests` | **1065/1065 PASS** |
-| PG17 smoke | **PASS** (local `postgres:17` probe) |
-| `bunx tsc --noEmit` | **PASS** |
-| `bun run build` | **PASS** |
-| `git diff --check` | **PASS** |
-| routeTree | **UNCHANGED** |
+| Project identity | SQL G01 = **UNPROVEN** (no operator `set_config`); trusted Lovable channel attests `wpmicqriltrowwonknox` |
+| Static M88 table SELECTs | **NONE** (catalog / information_schema only) |
+| Partial-apply detection | full inventory (3 tables + 18 functions + 2 triggers + RLS/ACL) → `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED` |
+| Fixture matrix | full 19 pins including unit/role/action/assignee/dept routing |
+| Fingerprints | deterministic ACL order, `<NULL>`/`<EMPTY>`, epoch UTC, `position_assignment_id`; empty protected surfaces HOLD |
+| PG17 proof | full preflight SQL against disposable pre-M88 schema |
 
 ## Assumptions
 
-1. Production Fixture 15 restored approved state means dual-reviewed restore predecessor: `status=in_review`, `completed_at IS NULL`, six completed steps, one active archive step `f1300001-0000-4000-8000-000015000007`. If production is still consumed, live G07 HOLDs (fail-closed).
-2. Project ref cannot be proven from catalog alone; operator attestation GUC is required for G01 PASS.
+1. Database metadata cannot independently prove the Supabase project ref; G01 remains UNPROVEN in SQL.
+2. Final operational classification requires trusted Lovable channel identity plus G02–G14.
 3. Password usability remains UNKNOWN without an authorized session proof mission.
-4. Lovable may rewrite migration filenames; post-apply proof must use object identity.
 
 ## Risks
 
-- Live G07 may HOLD if Fixture 15 restore (#44 family) was never successfully applied.
-- G11 remains HOLD while passwords/session ability are UNPROVEN and faculty-only/admin-negative identities are unresolved.
-- `supabase_migrations.schema_migrations` may be unreadable on some operator roles → G02 HOLD.
-
-## Blockers for live production PASS (not source blockers)
-
-- Project attestation must be performed in the Lovable session.
-- Fixture 15 may still be consumed in production.
-- Faculty-only and true admin-role TEST_ONLY negatives remain unresolved per IDENTITIES.md.
-- Password/session ability unproven.
+- Live G07 may HOLD if Fixture 15 restore was never successfully applied.
+- G11 remains HOLD while passwords/session ability are UNPROVEN.
 
 ## Production impact of this package
 
 **None.** Source docs + tests only. No production connection. No SQL apply. No Auth writes. No deploy/publish.
+
+## routeTree
+
+routeTree: UNCHANGED
 
 ## Final recommendation
 

@@ -30,11 +30,11 @@
 | field | value |
 |---|---|
 | path | `docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql` |
-| raw SHA-256 | `42d7b23ce9c62f4d864f00423d017b9dbecda29f6462585b6adc4d3d554df6ac` |
-| LF SHA-256 | `e8a03afdee01d8776ab8e292f26817addb05a0ed7609a45a9bcb65d49e302e05` |
-| raw bytes | `42186` |
-| LF bytes | `41256` |
-| LF lines | `931` |
+| raw SHA-256 | `f58d5446e9d72f7c1b34cc24ef3a2a68af400c62eed9589b890eed89a095c40f` |
+| LF SHA-256 | `f58d5446e9d72f7c1b34cc24ef3a2a68af400c62eed9589b890eed89a095c40f` |
+| raw bytes | `55815` |
+| LF bytes | `55815` |
+| LF lines | `1242` |
 
 ## Explicit non-authorization
 
@@ -43,14 +43,9 @@ It does NOT authorize Deploy, Publish, Auth writes, password changes, visibility
 
 ## Operator steps (exactly once)
 
-1. Confirm Lovable project `4b291119-790f-4484-9285-c2b774e1ba6f` is bound to production Supabase ref `wpmicqriltrowwonknox`. If unproven → **STOP** (`HOLD_B1_E2E_88_PROJECT_IDENTITY_UNPROVEN`).
+1. Confirm Lovable project `4b291119-790f-4484-9285-c2b774e1ba6f` is bound to production Supabase ref **`wpmicqriltrowwonknox`** via the trusted Lovable channel. If unproven → **STOP** (`HOLD_B1_E2E_88_PROJECT_IDENTITY_UNPROVEN`).
 2. Open the Lovable-managed production database query channel.
-3. In the same session, attest the project ref (required for G01 PASS):
-
-```sql
-SELECT set_config('app.b1_e2e_88_preflight_project_ref', 'wpmicqriltrowwonknox', true);
-```
-
+3. Do **not** use `set_config` or any user-supplied GUC to force G01 PASS. SQL G01 remains **UNPROVEN** by design; trusted channel attestation of `wpmicqriltrowwonknox` is external to SQL.
 4. Paste and execute **the entire** file  
    `docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql`  
    exactly once, unmodified.
@@ -74,15 +69,15 @@ Exactly one deterministic result set with **one row per gate** (14 rows), column
 
 | gate | purpose |
 |---|---|
-| G01 | Exact project/ref attestation (`wpmicqriltrowwonknox`) |
+| G01 | Project identity — SQL always **UNPROVEN**; trusted Lovable channel attests `wpmicqriltrowwonknox` |
 | G02 | Migration ledger — Migration 88 not applied; alias search by version/token + object identity |
-| G03 | Object pre-state — Migration-88-only tables/RPCs/triggers absent; partial → `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED` |
-| G04 | Four replaced-function base preimage fingerprints |
+| G03 | Full Migration-88 object inventory (3 tables + 18 M88-only functions + 2 triggers + RLS/ACL) — any non-zero subset → `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED` |
+| G04 | Four replaced-function base preimage fingerprints (deterministic ACL / null markers) |
 | G05 | Five services `is_active=true` and `student_visible=false` |
 | G06 | `enrollment_certificate` protected + protected request/document identities |
-| G07 | Exactly 19 Fixtures; one active step each; Fixture 15 restored approved state |
-| G08 | Five-service RPA fingerprint; no duplicate active ambiguity |
-| G09 | Protected-surface fingerprints capture |
+| G07 | Full 19-Fixture matrix pins (id/number/type/status/step/unit/role/action/assignee/dept) |
+| G08 | Five-service RPA fingerprint (includes `position_assignment_id`; empty → HOLD) |
+| G09 | Protected-surface fingerprints (empty/missing → HOLD) |
 | G10 | TEST_ONLY identity inventory (password usability **UNKNOWN**) |
 | G11 | Production E2E prerequisites classification (READY / NOT_READY / AMBIGUOUS / UNPROVEN) |
 | G12 | Apply feasibility record (does **not** authorize apply) |
@@ -91,10 +86,12 @@ Exactly one deterministic result set with **one row per gate** (14 rows), column
 
 ## PASS / HOLD classification rules
 
-- Any gate `status = HOLD` ⇒ overall production preflight **HOLD**.
-- G01 unset/mismatch ⇒ `HOLD_B1_E2E_88_PROJECT_IDENTITY_UNPROVEN`.
+- Final operational classification requires **trusted Lovable channel identity** (`wpmicqriltrowwonknox`) **and** SQL G02–G14 results.
+- G01 from SQL is **UNPROVEN** and never PASS from user-supplied values.
+- Any gate `status = HOLD` among G02–G14 (or unresolved G01 channel attestation) ⇒ overall production preflight **HOLD**.
 - Partial Migration-88 objects ⇒ `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED`.
 - Function fingerprint ≠ base or body contains `b1_e2e_88` ⇒ `HOLD_B1_E2E_88_FUNCTION_PREIMAGE_DRIFT`.
+- Wrong Fixture service/step routing ⇒ HOLD.
 - G11 cannot become production-ready PASS while `password_usability = UNKNOWN`.
 - Any query error or unexpected result count ⇒ **HOLD**.
 - Source-package readiness (`PASS_B1_E2E_88_READONLY_PREFLIGHT_PACKAGE_SOURCE_READY`) is separate from a live production PASS.
@@ -107,6 +104,7 @@ Exactly one deterministic result set with **one row per gate** (14 rows), column
 - No password or session material changes
 - No visibility / workflow / assignment / fixture / request writes
 - No secrets or connection strings in this package
+- No operator `set_config` identity proof
 
 ## Decommission companion (pin only; do not apply)
 
