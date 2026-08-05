@@ -788,6 +788,164 @@ export type Database = {
           },
         ]
       }
+      b1_e2e_88_actor_bindings: {
+        Row: {
+          action: string
+          active: boolean
+          actor_user_id: string
+          applied_assignee_snapshot: Json
+          correlation_id: string
+          created_at: string
+          deactivated_at: string | null
+          department_id: string | null
+          department_side: string | null
+          e2e_position_assignment_id: string | null
+          execution_id: string
+          expires_at: string
+          id: string
+          prior_assignee_snapshot: Json
+          processing_role_id: string
+          processing_unit_id: string
+          request_id: string
+          runtime_step_id: string
+          workflow_step_id: string
+        }
+        Insert: {
+          action: string
+          active?: boolean
+          actor_user_id: string
+          applied_assignee_snapshot?: Json
+          correlation_id: string
+          created_at?: string
+          deactivated_at?: string | null
+          department_id?: string | null
+          department_side?: string | null
+          e2e_position_assignment_id?: string | null
+          execution_id: string
+          expires_at: string
+          id?: string
+          prior_assignee_snapshot?: Json
+          processing_role_id: string
+          processing_unit_id: string
+          request_id: string
+          runtime_step_id: string
+          workflow_step_id: string
+        }
+        Update: {
+          action?: string
+          active?: boolean
+          actor_user_id?: string
+          applied_assignee_snapshot?: Json
+          correlation_id?: string
+          created_at?: string
+          deactivated_at?: string | null
+          department_id?: string | null
+          department_side?: string | null
+          e2e_position_assignment_id?: string | null
+          execution_id?: string
+          expires_at?: string
+          id?: string
+          prior_assignee_snapshot?: Json
+          processing_role_id?: string
+          processing_unit_id?: string
+          request_id?: string
+          runtime_step_id?: string
+          workflow_step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "b1_e2e_88_actor_bindings_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "b1_e2e_88_executions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      b1_e2e_88_audit_events: {
+        Row: {
+          actor_user_id: string | null
+          correlation_id: string | null
+          created_at: string
+          detail: Json
+          event_type: string
+          execution_id: string | null
+          id: number
+          request_id: string | null
+          runtime_step_id: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type: string
+          execution_id?: string | null
+          id?: number
+          request_id?: string | null
+          runtime_step_id?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          correlation_id?: string | null
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          execution_id?: string | null
+          id?: number
+          request_id?: string | null
+          runtime_step_id?: string | null
+        }
+        Relationships: []
+      }
+      b1_e2e_88_executions: {
+        Row: {
+          audit_metadata: Json
+          closed_at: string | null
+          correlation_id: string
+          created_at: string
+          created_by: string | null
+          created_request_id: string | null
+          expires_at: string
+          id: string
+          marker: string
+          service_code: string
+          starts_at: string
+          status: string
+          student_user_id: string
+        }
+        Insert: {
+          audit_metadata?: Json
+          closed_at?: string | null
+          correlation_id: string
+          created_at?: string
+          created_by?: string | null
+          created_request_id?: string | null
+          expires_at: string
+          id?: string
+          marker?: string
+          service_code: string
+          starts_at?: string
+          status?: string
+          student_user_id: string
+        }
+        Update: {
+          audit_metadata?: Json
+          closed_at?: string | null
+          correlation_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_request_id?: string | null
+          expires_at?: string
+          id?: string
+          marker?: string
+          service_code?: string
+          starts_at?: string
+          status?: string
+          student_user_id?: string
+        }
+        Relationships: []
+      }
       b1_e2e_assignment_snapshot: {
         Row: {
           assignment_id: string
@@ -6247,6 +6405,49 @@ export type Database = {
         Args: { p_canonical: string; p_form: Json; p_request_id: string }
         Returns: string
       }
+      b1_e2e_88_allows_hidden_create: {
+        Args: { p_form_data: Json; p_request_type: string }
+        Returns: boolean
+      }
+      b1_e2e_88_correlations_aligned: {
+        Args: {
+          p_binding_correlation: string
+          p_execution_correlation: string
+          p_request_id: string
+        }
+        Returns: boolean
+      }
+      b1_e2e_88_execution_is_live: {
+        Args: { p_execution_id: string }
+        Returns: boolean
+      }
+      b1_e2e_88_is_five_service: { Args: { p_code: string }; Returns: boolean }
+      b1_e2e_88_marker: { Args: never; Returns: string }
+      b1_e2e_88_parse_correlation: { Args: { p_raw: string }; Returns: string }
+      b1_e2e_88_request_correlation: {
+        Args: { p_request_id: string }
+        Returns: string
+      }
+      b1_e2e_88_request_is_marked: {
+        Args: { p_request_id: string }
+        Returns: boolean
+      }
+      b1_e2e_88_step_matches_applied_snapshot: {
+        Args: { p_applied: Json; p_step_id: string }
+        Returns: boolean
+      }
+      b1_e2e_88_write_audit: {
+        Args: {
+          p_actor_user_id: string
+          p_correlation_id: string
+          p_detail?: Json
+          p_event_type: string
+          p_execution_id: string
+          p_request_id: string
+          p_runtime_step_id: string
+        }
+        Returns: undefined
+      }
       b1_expected_secure_attachment_field: {
         Args: { p_request_type: string }
         Returns: string
@@ -6294,6 +6495,18 @@ export type Database = {
       }
       b1_require_auth_uid: { Args: never; Returns: string }
       b1_stored_to_canonical: { Args: { p_stored: string }; Returns: string }
+      bind_b1_e2e_88_actor_to_runtime_step: {
+        Args: {
+          p_action: string
+          p_actor_user_id: string
+          p_correlation_id: string
+          p_department_id?: string
+          p_department_side?: string
+          p_request_id: string
+          p_runtime_step_id: string
+        }
+        Returns: string
+      }
       build_enrollment_certificate_issuance_snapshot: {
         Args: { p_student_profile_id: string }
         Returns: Json
@@ -6368,7 +6581,15 @@ export type Database = {
         Args: { p_request_type_code: string; p_student_profile_id: string }
         Returns: Json
       }
+      cleanup_b1_e2e_88_package: {
+        Args: { p_correlation_id?: string; p_restore_assignees?: boolean }
+        Returns: Json
+      }
       cleanup_rate_limit_attempts: { Args: never; Returns: number }
+      close_b1_e2e_88_execution: {
+        Args: { p_correlation_id: string; p_reason?: string }
+        Returns: boolean
+      }
       complete_faculty_password_change: { Args: never; Returns: undefined }
       complete_staff_password_change: { Args: never; Returns: undefined }
       complete_student_password_change: { Args: never; Returns: undefined }
@@ -6434,6 +6655,18 @@ export type Database = {
         }[]
       }
       current_user_app_roles: { Args: never; Returns: string[] }
+      current_user_has_b1_e2e_88_actor_binding: {
+        Args: {
+          p_action: string
+          p_request_id: string
+          p_runtime_step_id: string
+        }
+        Returns: boolean
+      }
+      current_user_has_b1_e2e_88_department_binding: {
+        Args: { p_step_id: string; p_step_key: string }
+        Returns: boolean
+      }
       current_user_has_exact_processing_binding: {
         Args: { p_role_id: string; p_unit_id: string }
         Returns: boolean
@@ -6830,6 +7063,16 @@ export type Database = {
       mark_enrollment_certificate_document_uploaded: {
         Args: { p_attempt_id: string; p_byte_length: number; p_sha256: string }
         Returns: Json
+      }
+      open_b1_e2e_88_execution: {
+        Args: {
+          p_audit_metadata?: Json
+          p_correlation_id: string
+          p_expires_at: string
+          p_service_code: string
+          p_student_user_id: string
+        }
+        Returns: string
       }
       persist_b1_draft_form_and_details: {
         Args: {
