@@ -7,11 +7,11 @@
 | field | value |
 |---|---|
 | Base HEAD | `966194001b24deebc68507403706cfe70a9e9250` |
-| Implementation HEAD | _(filled at commit)_ |
-| Final HEAD | _(filled at commit)_ |
+| Implementation HEAD | `7f65b0aa72b4ccef86093a122e52f287c8a0eacb` |
+| Final HEAD | `7f65b0aa72b4ccef86093a122e52f287c8a0eacb` |
 | Branch | `fix/b1-e2e-88-preflight-privileged-schemas-112` |
 | Draft PR | _(filled after PR create)_ |
-| Working tree | clean after commit (allowed paths only) |
+| Working tree | clean for package paths; concurrent unrelated `src/lib/admin-navigation-config.ts` not committed |
 | Production ref | `wpmicqriltrowwonknox` |
 | Lovable project id (active) | `90f4dcde-07fb-4441-b86a-6ad5510833b8` |
 | Lovable project id (historical/stale) | `4b291119-790f-4484-9285-c2b774e1ba6f` |
