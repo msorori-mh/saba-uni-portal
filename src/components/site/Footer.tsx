@@ -22,7 +22,7 @@ export function Footer() {
   const phone = s.contact_phone || "";
   const email = s.contact_email || "";
   const address = s.contact_address || "";
-  const universityName = s.university_name_ar || "جامعة إقليم سبأ";
+  const universityName = (hydrated && s.university_name_ar) || "جامعة إقليم سبأ";
 
   return (
     <footer className="bg-primary-deep text-primary-foreground mt-20 border-t-4 border-gold">
