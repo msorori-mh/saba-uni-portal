@@ -1,12 +1,25 @@
 import { afterAll, describe, expect, it } from "bun:test";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+  copyFileSync,
+} from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { execSync, spawnSync } from "node:child_process";
 
 const root = process.cwd();
 const migRel =
   "supabase/migrations/20260803030000_b1_44_restore_sr_20260801_13000015.sql";
 const migPath = join(root, migRel);
+const managedAliasRel =
+  "supabase/migrations/20260804004546_17b78d6d-3a17-41d9-ba7b-d0c19c6459cc.sql";
+const managedAliasPath = join(root, managedAliasRel);
+const migrationsDir = join(root, "supabase/migrations");
 const scriptDir = join(root, "scripts/b1-fixture-15-reissue-44-pg17");
 const matrixPath = join(
   root,
@@ -20,6 +33,140 @@ const workflowMigPath = join(
   root,
   "supabase/migrations/20260725110900_b1_16_free_service_workflows_08.sql",
 );
+
+/** Canonical Fixture-15 source carrier (approved). */
+const APPROVED_SOURCE = "20260803030000_b1_44_restore_sr_20260801_13000015.sql";
+/** Lovable managed applied alias (intentionally approved when present). */
+const APPROVED_MANAGED_ALIAS =
+  "20260804004546_17b78d6d-3a17-41d9-ba7b-d0c19c6459cc.sql";
+
+const F15_REQ_ID = "f1300000-0000-4000-8000-000000000015";
+const F15_REQ_NUMBER = "SR-20260801-13000015";
+
+/**
+ * Normalize SQL for semantic carrier identity.
+ * - LF/CRLF unified
+ * - insignificant whitespace collapsed
+ * - SQL line comments stripped only when safe (full-line `--` comments)
+ * Does NOT strip string literals or executable tokens.
+ */
+function normalizeSqlSemantic(sql: string): string {
+  return sql
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trimStart();
+      if (trimmed.startsWith("--")) return "";
+      return line;
+    })
+    .join("\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n+/g, "\n")
+    .trim();
+}
+
+/** Executable-SQL identity markers required of a Fixture-15 carrier. */
+function isFixture15CarrierContent(sql: string): boolean {
+  const norm = normalizeSqlSemantic(sql);
+  const lower = norm.toLowerCase();
+
+  // Exact Fixture-15 request identity + SR target
+  if (!norm.includes(F15_REQ_ID)) return false;
+  if (!norm.includes(F15_REQ_NUMBER)) return false;
+
+  // Required seven-step restoration/reissue behavior
+  for (const step of STEP_CONTRACT) {
+    if (!norm.includes(step.id)) return false;
+    if (!norm.includes(`'${step.key}'`)) return false;
+  }
+
+  // Exact protected state transition + evidence/audit marker
+  if (!/b1_fixture_15_reissue_44_evidence/i.test(norm)) return false;
+  if (!/TEST_ONLY_B1_FIXTURE_15_REISSUE_44/.test(norm)) return false;
+  if (!/B1_44_FIXTURE_15_UNEXPECTED_PRESTATE/.test(norm)) return false;
+  if (!/FOR UPDATE/i.test(norm)) return false;
+
+  // Authorization-context behavior (managed-channel trigger contract)
+  if (!/request\.jwt\.claim\.sub/i.test(norm)) return false;
+  if (!/b1\.atomic_action/i.test(norm)) return false;
+  if (!/B1_44_MANAGED_CHANNEL_AUTH_CONTEXT_RESTORE_FAILED/.test(norm)) {
+    return false;
+  }
+
+  // Canonical migration contract markers that affect executable behavior
+  const contractMarkers = [
+    "B1_44_FIXTURE_15_STEP_UUID_MISMATCH",
+    "B1_44_FIXTURE_15_UNIT_MISMATCH",
+    "B1_44_FIXTURE_15_ROLE_MISMATCH",
+    "B1_44_FIXTURE_15_ACTION_MISMATCH",
+    "B1_44_FIXTURE_15_ASSIGNEE_MISMATCH",
+    "B1_44_FIXTURE_15_IDENTITY_NOT_SINGULAR",
+    "B1_44_FIXTURE_15_PREDECESSOR_STATE_MISMATCH",
+    "B1_44_FIXTURE_15_DUPLICATE_STEP",
+    "B1_44_FIXTURE_15_WORKFLOW_MISMATCH",
+    "B1_44_FIXTURE_15_CONSUMED_REQUEST_COMPLETED_AT_MISSING",
+  ];
+  for (const m of contractMarkers) {
+    if (!norm.includes(m)) return false;
+  }
+
+  // Must perform the protected completed → in_review style request UPDATE
+  if (
+    !/update\s+public\.student_requests/i.test(lower) ||
+    !/status\s*=\s*'in_review'/i.test(lower) ||
+    !/completed_at\s*=\s*null/i.test(lower)
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+type CarrierClass =
+  | "canonical_source"
+  | "managed_applied_alias"
+  | "unapproved_semantic_clone";
+
+type CarrierHit = {
+  filename: string;
+  classification: CarrierClass;
+  semanticKey: string;
+};
+
+function classifyFixture15Carriers(dir: string): CarrierHit[] {
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  const hits: CarrierHit[] = [];
+  for (const filename of files) {
+    const sql = readFileSync(join(dir, filename), "utf8");
+    if (!isFixture15CarrierContent(sql)) continue;
+    const semanticKey = normalizeSqlSemantic(sql);
+    let classification: CarrierClass = "unapproved_semantic_clone";
+    if (filename === APPROVED_SOURCE) classification = "canonical_source";
+    else if (filename === APPROVED_MANAGED_ALIAS) {
+      classification = "managed_applied_alias";
+    }
+    hits.push({ filename, classification, semanticKey });
+  }
+  return hits;
+}
+
+function assertApprovedCarrierSet(hits: CarrierHit[]) {
+  const sources = hits.filter((h) => h.classification === "canonical_source");
+  const aliases = hits.filter(
+    (h) => h.classification === "managed_applied_alias",
+  );
+  const clones = hits.filter(
+    (h) => h.classification === "unapproved_semantic_clone",
+  );
+  expect(sources.map((h) => h.filename)).toEqual([APPROVED_SOURCE]);
+  expect(aliases.map((h) => h.filename)).toEqual([APPROVED_MANAGED_ALIAS]);
+  expect(clones).toEqual([]);
+  // Source and managed alias must remain semantically reconciled
+  expect(sources[0].semanticKey).toBe(aliases[0].semanticKey);
+}
 
 const STEP_CONTRACT = [
   {
@@ -530,25 +677,131 @@ afterAll(() => {
 });
 
 describe("B1 Fixture-15 forward-only reissue 44 — source contract", () => {
-  it("ships exactly one forward-only migration after 20260802225131", () => {
+  it("classifies Fixture-15 carriers by executable SQL identity (not filename)", () => {
     expect(existsSync(migPath)).toBe(true);
-    const migs = readdirSync(join(root, "supabase/migrations"))
+    expect(existsSync(managedAliasPath)).toBe(true);
+    const migs = readdirSync(migrationsDir)
       .filter((f: string) => f.endsWith(".sql"))
       .sort();
     const baseline = "20260802225131_c5d176f3-4841-49e9-b4e7-15df8ac7e0fe.sql";
-    const fixture15 = "20260803030000_b1_44_restore_sr_20260801_13000015.sql";
     expect(migs).toContain(baseline);
-    expect(migs).toContain(fixture15);
-    // Pin exactly one Fixture-15 reissue carrier after the managed-channel baseline.
-    // Later unrelated forward migrations (e.g. B1 E2E support) must not break this pin.
-    const fixture15Carriers = migs.filter(
-      (f: string) =>
-        f > baseline &&
-        (f.includes("b1_44_restore_sr_20260801_13000015") ||
-          f.includes("FIXTURE_15_REISSUE")),
-    );
-    expect(fixture15Carriers).toEqual([fixture15]);
-    expect(migs.indexOf(fixture15)).toBeGreaterThan(migs.indexOf(baseline));
+    expect(migs).toContain(APPROVED_SOURCE);
+    expect(migs).toContain(APPROVED_MANAGED_ALIAS);
+
+    const hits = classifyFixture15Carriers(migrationsDir);
+    assertApprovedCarrierSet(hits);
+
+    // Filename-substring detection must not be the authority: E2E / unrelated
+    // later migrations must not be misclassified as carriers.
+    expect(hits.every((h) => isFixture15CarrierContent(
+      readFileSync(join(migrationsDir, h.filename), "utf8"),
+    ))).toBe(true);
+    expect(
+      hits.some((h) => h.filename.includes("b1_88_request_scoped_e2e_support")),
+    ).toBe(false);
+  });
+
+  it("rejects arbitrary-name clones, partial carriers, and content drift via temp dirs", () => {
+    const staging = mkdtempSync(join(tmpdir(), "b1-f15-carrier-"));
+    try {
+      // Copy production migrations into an isolated staging tree (never mutate real files).
+      for (const f of readdirSync(migrationsDir).filter((x) => x.endsWith(".sql"))) {
+        copyFileSync(join(migrationsDir, f), join(staging, f));
+      }
+      assertApprovedCarrierSet(classifyFixture15Carriers(staging));
+
+      const sourceSql = readFileSync(migPath, "utf8");
+
+      // Exact carrier copied under an unrelated filename → unapproved clone
+      writeFileSync(
+        join(staging, "20991231999999_unrelated_ops_note.sql"),
+        sourceSql,
+        "utf8",
+      );
+      {
+        const hits = classifyFixture15Carriers(staging);
+        expect(
+          hits.some(
+            (h) =>
+              h.classification === "unapproved_semantic_clone" &&
+              h.filename === "20991231999999_unrelated_ops_note.sql",
+          ),
+        ).toBe(true);
+        expect(() => assertApprovedCarrierSet(hits)).toThrow();
+      }
+      rmSync(join(staging, "20991231999999_unrelated_ops_note.sql"));
+
+      // Comments + filename changed but executable SQL identical → still a carrier clone
+      const commentOnly = `-- totally different report name FIXTURE_99\n${sourceSql}`;
+      writeFileSync(
+        join(staging, "20991231888888_renamed_report.sql"),
+        commentOnly,
+        "utf8",
+      );
+      {
+        const hits = classifyFixture15Carriers(staging);
+        const clone = hits.find(
+          (h) => h.filename === "20991231888888_renamed_report.sql",
+        );
+        expect(clone?.classification).toBe("unapproved_semantic_clone");
+        // Semantic key matches approved source (comment-normalized)
+        const sourceHit = hits.find((h) => h.classification === "canonical_source")!;
+        expect(clone!.semanticKey).toBe(sourceHit.semanticKey);
+        expect(() => assertApprovedCarrierSet(hits)).toThrow();
+      }
+      rmSync(join(staging, "20991231888888_renamed_report.sql"));
+
+      // Partial carrier: protected UPDATE without required audit/auth context
+      const partial = `
+UPDATE public.student_requests
+   SET status = 'in_review', completed_at = NULL
+ WHERE id = '${F15_REQ_ID}' AND request_number = '${F15_REQ_NUMBER}';
+-- missing seven-step contract, evidence table, auth context, markers
+`;
+      writeFileSync(
+        join(staging, "20991231777777_partial_restore.sql"),
+        partial,
+        "utf8",
+      );
+      {
+        const hits = classifyFixture15Carriers(staging);
+        expect(
+          hits.some((h) => h.filename === "20991231777777_partial_restore.sql"),
+        ).toBe(false);
+        assertApprovedCarrierSet(hits);
+      }
+      rmSync(join(staging, "20991231777777_partial_restore.sql"));
+
+      // Approved carrier content altered → fails reconciliation / identity
+      const altered = sourceSql.replace(
+        "B1_44_FIXTURE_15_UNEXPECTED_PRESTATE",
+        "B1_44_FIXTURE_15_UNEXPECTED_PRESTATE_DRIFTED",
+      );
+      writeFileSync(join(staging, APPROVED_SOURCE), altered, "utf8");
+      {
+        const hits = classifyFixture15Carriers(staging);
+        // Altered source may drop out of carrier set or diverge semantically from alias
+        const sourceHit = hits.find((h) => h.filename === APPROVED_SOURCE);
+        const aliasHit = hits.find((h) => h.filename === APPROVED_MANAGED_ALIAS);
+        if (sourceHit && aliasHit) {
+          expect(sourceHit.semanticKey).not.toBe(aliasHit.semanticKey);
+        }
+        expect(() => assertApprovedCarrierSet(hits)).toThrow();
+      }
+      // restore staging source from real file
+      copyFileSync(migPath, join(staging, APPROVED_SOURCE));
+      assertApprovedCarrierSet(classifyFixture15Carriers(staging));
+
+      // Later unrelated migration compatibility (filename-independent, not a carrier)
+      writeFileSync(
+        join(staging, "20991231666666_b1_99_unrelated_forward.sql"),
+        `-- unrelated forward migration\nSELECT 1;\n`,
+        "utf8",
+      );
+      assertApprovedCarrierSet(classifyFixture15Carriers(staging));
+    } finally {
+      rmSync(staging, { recursive: true, force: true });
+    }
   });
 
   it("declares the exact authoritative seven-step contract", () => {

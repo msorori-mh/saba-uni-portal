@@ -13,9 +13,9 @@ Draft SQL: `docs/migration-drafts/B1-E2E-88-REQUEST-SCOPED-SUPPORT-CLEANUP.NOT_A
 5. Preserve `student_requests`, workflow events, and append-only `b1_e2e_88_audit_events` until a separately authorized evidence purge.
 6. Remove temporary `staff_profiles` / `faculty_profiles` / `user_roles` **only** when a follow-up mission proves they are unused.
 
-## B) Package decommission (NOT_APPLIED draft)
+## B) Package decommission (NOT_APPLIED draft — fully executable)
 
-Refuses unless open executions = 0 and active bindings = 0. Restores pre-package function bodies from base `092ba053`, revokes operational entry points, keeps audit evidence locked/non-operational, leaves five services hidden, fixtures 19/19, enrollment_certificate, and RPA untouched.
+Refuses unless open executions = 0 and active bindings = 0. Embeds exact pre-package `CREATE OR REPLACE` bodies reconstructed from base `092ba053` migration lineage (not first-historical stubs). Pins catalog fingerprints before (migration-88 preimage) and after (base) restore; restores owner-preserved bodies, search_path, volatility/security attributes, and EXECUTE ACLs; revokes operational entry points; keeps audit evidence locked/non-operational; leaves five services hidden, fixtures 19/19, enrollment_certificate, and RPA untouched. Any assertion failure aborts the transaction.
 
 ## Hard prohibitions
 

@@ -174,6 +174,26 @@ describe("B1 E2E 88 — migration source contract", () => {
     expect(manifest).toContain("student_visible");
   });
 
+  it("ships an executable decommission draft with pinned restores (no paste placeholders)", () => {
+    const draft = readFileSync(CLEANUP_DRAFT, "utf8");
+    expect(draft).toContain("CREATE OR REPLACE FUNCTION public.create_student_request");
+    expect(draft).toContain(
+      "CREATE OR REPLACE FUNCTION public.user_matches_workflow_runtime_step",
+    );
+    expect(draft).toContain(
+      "CREATE OR REPLACE FUNCTION public.current_user_matches_transfer_department_scope",
+    );
+    expect(draft.toLowerCase()).toContain(
+      "create or replace function public.can_current_user_act_on_step",
+    );
+    expect(draft).toContain("pg_temp.b1_e2e_88_fn_fingerprint");
+    expect(draft).toMatch(/ed11125e55df36b154c432c7e28d7285/);
+    expect(draft).toMatch(/9c9090f29458975b197b92dc86b0e587/);
+    expect(draft).not.toMatch(/Operator must paste/i);
+    expect(draft).not.toMatch(/\bgit show\b/i);
+    expect(draft).not.toMatch(/placeholder/i);
+  });
+
   it("rejects authoritative fixtures and preserves resubmit safety", () => {
     expect(sql).toContain("B1_E2E_88_AUTHORITATIVE_FIXTURE_FORBIDDEN");
     expect(sql).toContain("SR-20260801-13%");
