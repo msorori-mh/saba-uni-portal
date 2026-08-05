@@ -7,8 +7,8 @@
 | field | value |
 |---|---|
 | Base HEAD | `e0cf9d48acb562109aaf310dbd5e534b900c6d90` |
-| Final HEAD | `bdc9d8b9b552dc35478db56e7757b481a8dbb594` |
-| Draft PR | _(filled after open)_ |
+| Final HEAD | `5a86ce7dc59ede62c2415f362630740eb7ae7131` (pre-report-PR-pin tip; see branch) |
+| Draft PR | https://github.com/msorori-mh/saba-uni-portal/pull/282 |
 | Working tree | clean after commit |
 | Branch | `ops/b1-e2e-88-production-readonly-preflight-97` |
 | Merged PR | #281 |
