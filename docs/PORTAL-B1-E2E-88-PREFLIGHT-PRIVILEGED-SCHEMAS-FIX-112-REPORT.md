@@ -8,10 +8,10 @@
 |---|---|
 | Base HEAD | `966194001b24deebc68507403706cfe70a9e9250` |
 | Implementation HEAD | `7f65b0aa72b4ccef86093a122e52f287c8a0eacb` |
-| Final HEAD | `7f65b0aa72b4ccef86093a122e52f287c8a0eacb` |
+| Final HEAD | `72be66d1453c601b599e37c257f98b7a8f9b4c98` |
 | Branch | `fix/b1-e2e-88-preflight-privileged-schemas-112` |
-| Draft PR | _(filled after PR create)_ |
-| Working tree | clean for package paths; concurrent unrelated `src/lib/admin-navigation-config.ts` not committed |
+| Draft PR | https://github.com/msorori-mh/saba-uni-portal/pull/284 |
+| Working tree | package paths committed; concurrent unrelated untracked files may remain locally |
 | Production ref | `wpmicqriltrowwonknox` |
 | Lovable project id (active) | `90f4dcde-07fb-4441-b86a-6ad5510833b8` |
 | Lovable project id (historical/stale) | `4b291119-790f-4484-9285-c2b774e1ba6f` |
