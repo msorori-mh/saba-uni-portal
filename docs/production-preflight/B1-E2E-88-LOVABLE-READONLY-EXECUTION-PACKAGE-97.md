@@ -8,9 +8,12 @@
 | Lovable project id (historical/stale; do not use) | `4b291119-790f-4484-9285-c2b774e1ba6f` |
 | production Supabase project ref | `wpmicqriltrowwonknox` |
 | repository | `msorori-mh/saba-uni-portal` |
-| branch | `fix/b1-e2e-88-preflight-uuid-text-116` |
-| source merge commit | `e0cf9d48acb562109aaf310dbd5e534b900c6d90` |
-| PR #281 source HEAD | `630bb9d1eac55b97e0723381d8d859a463dfaacc` |
+| branch | `fix/b1-e2e-88-preflight-g04-g07-repin-128` |
+| source merge commit | `e00fbe611b888b1589a03a3b8716fb167fec09da` |
+| G04/G07 source repin | `PORTAL_B1_E2E_88_G04_G07_SOURCE_REPIN_128` |
+| evidence capture | `PORTAL_B1_E2E_88_PRODUCTION_REPIN_EVIDENCE_CAPTURE_125` |
+| G04 analysis | `PORTAL_B1_E2E_88_G04_FUNCTION_REPIN_SOURCE_ANALYSIS_126` |
+| G07 analysis | `PORTAL_B1_E2E_88_G07_FIXTURE_REPIN_SOURCE_ANALYSIS_127` |
 | uuid/text remediation | `PORTAL_B1_E2E_88_PREFLIGHT_UUID_TEXT_FIX_116` |
 | privileged-schema remediation | `PORTAL_B1_E2E_88_PREFLIGHT_PRIVILEGED_SCHEMAS_FIX_112` |
 | prior ledger-permission remediation | `PORTAL_B1_E2E_88_PREFLIGHT_LEDGER_PERMISSION_FIX_108` |
@@ -35,13 +38,13 @@
 | field | value |
 |---|---|
 | path | `docs/production-preflight/B1-E2E-88-PRODUCTION-READONLY-PREFLIGHT-97.sql` |
-| raw SHA-256 | `ad3ce4f4d40418862d0e71e593eb96a78da64a59e14eadc1bccc015b7ffff4f5` |
-| LF SHA-256 | `ad3ce4f4d40418862d0e71e593eb96a78da64a59e14eadc1bccc015b7ffff4f5` |
-| raw bytes | `67078` |
-| LF bytes | `67078` |
-| LF lines | `1476` |
+| raw SHA-256 | `01d5d27dd7a22d1fbfe4f7694900a6fc7a3ba2db9775ba60217db20732e0e348` |
+| LF SHA-256 | `01d5d27dd7a22d1fbfe4f7694900a6fc7a3ba2db9775ba60217db20732e0e348` |
+| raw bytes | `75453` |
+| LF bytes | `75453` |
+| LF lines | `1608` |
 
-> Identity values above are filled by the focused remediation commit after SHA recalculation. Do **not** reuse consumed identities `f58d5446…`, `e65dc4ae…`, or `e1c1e8a0…`. Execute only after merge and dual review.
+> Identity values above are filled by the focused G04/G07 source-repin commit after SHA recalculation. Do **not** reuse consumed identities `f58d5446…`, `e65dc4ae…`, `e1c1e8a0…`, or `ad3ce4f4…`. Execute only after merge and dual review.
 
 ## Explicit non-authorization
 
@@ -80,17 +83,39 @@ Exactly one deterministic result set with **one row per gate** (14 rows), column
 | G01 | Project identity — SQL always **UNPROVEN**; trusted Lovable channel attests `wpmicqriltrowwonknox` |
 | G02 | Migration ledger — SQL never queries the managed ledger; **UNPROVEN** / `HOLD_B1_E2E_88_MIGRATION_LEDGER_UNREADABLE` + pg_catalog object-state; final class needs Lovable migration-history metadata |
 | G03 | Full Migration-88 object inventory — any non-zero subset → `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED` |
-| G04 | Four replaced-function base preimage fingerprints |
+| G04 | Four replaced-function **current-production** base preimage fingerprints (`8d0ca5f5…` / `8a8fb290…` / `4ae614f3…` / `4d564dd7…`) |
 | G05 | Five services `is_active=true` and `student_visible=false` |
 | G06 | `enrollment_certificate` protected + protected request/document identities |
-| G07 | Full 19-Fixture matrix pins |
+| G07 | Full 19-Fixture matrix pins including `direct_assignee_principal_kind` + id + row/matrix fingerprints |
 | G08 | Five-service RPA fingerprint (empty → HOLD) |
 | G09 | Protected-surface fingerprints (empty/missing → HOLD) |
 | G10 | Public-side TEST_ONLY identity inventory; Auth-user existence **UNPROVEN**; password/session **UNKNOWN**; SQL status **UNPROVEN** / `HOLD_B1_E2E_88_AUTH_SCHEMA_UNREADABLE` |
 | G11 | Production E2E prerequisites — fail-closed while Auth/password/session unresolved |
 | G12 | Apply feasibility record (does **not** authorize apply) |
-| G13 | Decommission draft pin + base restore fingerprints |
+| G13 | Decommission draft pin + cleanup restore fingerprints (unchanged companion pins) |
 | G14 | Stop conditions / final HOLD detail |
+
+## G04 current-production base fingerprints
+
+| function | expected base fp | forbidden Migration-88 fp |
+|---|---|---|
+| `public.create_student_request(text, text, jsonb, text)` | `8d0ca5f5dfed004fb105ce0e5904e9ce` | `ed11125e55df36b154c432c7e28d7285` |
+| `public.user_matches_workflow_runtime_step(uuid)` | `8a8fb2907a080a1fa782332d49086394` | `2fba2db758a2edd42b1c440a36a4aa47` |
+| `public.current_user_matches_transfer_department_scope(uuid, text)` | `4ae614f3f203fdccb68a90ed38d60a91` | `396eb3a5f12fb7d46018823930d87851` |
+| `public.can_current_user_act_on_step(uuid, text)` | `4d564dd7ee03dbbefaff1c607f6537b6` | `586893beacb33c10a1483b38e8d090fd` |
+
+Canonicalization remains: `md5(regexp_replace(pg_get_functiondef) || owner || prosecdef || provolatile || proisstrict || proparallel || proconfig || ACL(order) || identity_args)`. Unique catalog match required. Body must not contain `b1_e2e_88`. Equality with a forbidden Migration-88 fingerprint forces HOLD.
+
+## G07 assignee + matrix pins
+
+- Fixture count / active row count expected: **19**
+- Routing drift / missing / duplicates / unexpected expected: **0**
+- Sole prior drift dimension: direct-assignee identity (kind + id)
+- Expected full-matrix fingerprint: `ebc412c0ad1d3be9742fddd5219216a7` (`md5(string_agg(expected_row_fp, '|' ORDER BY expected_row_fp))`)
+- Live kind derivation: `assigned_user_id` → `user`; else `assigned_staff_profile_id` → `staff_profile`; else `assigned_faculty_profile_id` → `faculty_profile`; else `assigned_position_assignment_id` → `position_assignment`; else NULL
+- Exactly one direct-assignee column must be populated per authoritative fixture
+- Fixture-15 remains `in_review` with archive active and six completed predecessors
+- `enrollment_certificate` protection unchanged
 
 ## Privileged-schema contract (SQL)
 
@@ -225,6 +250,7 @@ Do **not** fabricate password or session usability from public profile rows.
 - Partial Migration-88 objects ⇒ `HOLD_B1_E2E_88_PARTIAL_APPLY_DETECTED`.
 - Function fingerprint ≠ base or body contains `b1_e2e_88` ⇒ `HOLD_B1_E2E_88_FUNCTION_PREIMAGE_DRIFT`.
 - Wrong Fixture service/step routing ⇒ HOLD.
+- Assignee kind/id drift or multi-populated assignee columns ⇒ HOLD.
 - Any query error or unexpected result count ⇒ **HOLD**.
 - Source-package readiness is separate from a live production PASS.
 
@@ -251,6 +277,8 @@ Do **not** fabricate password or session usability from public profile rows.
 | LF SHA-256 | `e77ea69b3c7914408af06c4c2b9ea50ce9fbd217d380507c94b0a2766107bce8` |
 | raw bytes | `29733` |
 
+Cleanup restore fingerprints remain the companion pins (`9c9090f2…` / `e25e7e4f…` / `4a3c50af…` / `f0bf4089…`) and are **not** rewritten by this G04 production-base repin.
+
 ## Final recommendation after successful source review
 
-`READY_FOR_MINIMAL_DUAL_REVIEW_AND_NEW_SQL_EXECUTION`
+`READY_FOR_FAST_DUAL_REVIEW_AND_NEW_PREFLIGHT_EXECUTION`
