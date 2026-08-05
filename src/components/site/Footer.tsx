@@ -1,11 +1,13 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useHydrated } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Mail, Phone, MapPin, Facebook, Twitter, Youtube, Linkedin, GraduationCap, BookOpen, Briefcase, ShieldCheck } from "lucide-react";
 import { settingsQuery } from "@/lib/queries";
 import universityLogo from "@/assets/university-logo.jpeg.asset.json";
 
 export function Footer() {
+  const hydrated = useHydrated();
   const { data: s = {} } = useQuery(settingsQuery);
+
 
   const socials = [
     { key: "facebook_url", Icon: Facebook, label: "Facebook" },
@@ -20,7 +22,7 @@ export function Footer() {
   const phone = s.contact_phone || "";
   const email = s.contact_email || "";
   const address = s.contact_address || "";
-  const universityName = s.university_name_ar || "جامعة إقليم سبأ";
+  const universityName = (hydrated && s.university_name_ar) || "جامعة إقليم سبأ";
 
   return (
     <footer className="bg-primary-deep text-primary-foreground mt-20 border-t-4 border-gold">
@@ -90,13 +92,13 @@ export function Footer() {
           <div className="font-display text-xl font-extrabold text-gold mb-3">تواصل معنا</div>
           <div className="divider-gold mb-4" />
           <ul className="space-y-3 text-sm text-primary-foreground/75">
-            {address && (
+            {hydrated && address && (
               <li className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 text-gold shrink-0" /><span>{address}</span></li>
             )}
-            {phone && (
+            {hydrated && phone && (
               <li className="flex items-center gap-2"><Phone className="h-4 w-4 text-gold shrink-0" /><span dir="ltr">{phone}</span></li>
             )}
-            {email && (
+            {hydrated && email && (
               <li className="flex items-center gap-2"><Mail className="h-4 w-4 text-gold shrink-0" /><span dir="ltr">{email}</span></li>
             )}
             <li className="pt-2">
@@ -106,7 +108,7 @@ export function Footer() {
             </li>
           </ul>
 
-          {socials.length > 0 && (
+          {hydrated && socials.length > 0 && (
             <div className="mt-5">
               <div className="text-xs font-bold text-gold mb-2">تابعنا</div>
               <div className="flex items-center gap-2">
