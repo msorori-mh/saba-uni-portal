@@ -80,14 +80,21 @@ params AS (
     '61254e3f3e6cc66802b5aa16d6b40f0fa9019d1a3d88a50c334424bcbad0335d'::text AS decommission_raw_sha256,
     'e77ea69b3c7914408af06c4c2b9ea50ce9fbd217d380507c94b0a2766107bce8'::text AS decommission_lf_sha256,
     29733::bigint AS decommission_raw_bytes,
-    '9c9090f29458975b197b92dc86b0e587'::text AS fp_create_student_request_base,
-    'e25e7e4f6cb759814857abcd509ae49e'::text AS fp_user_matches_base,
-    '4a3c50af92db046b1571eba0e4073f64'::text AS fp_transfer_scope_base,
-    'f0bf40897b23c49bfee1044b2ce34e3d'::text AS fp_can_act_base,
+    -- G04 current-production base preimages (trusted capture 125 / analysis 126).
+    '8d0ca5f5dfed004fb105ce0e5904e9ce'::text AS fp_create_student_request_base,
+    '8a8fb2907a080a1fa782332d49086394'::text AS fp_user_matches_base,
+    '4ae614f3f203fdccb68a90ed38d60a91'::text AS fp_transfer_scope_base,
+    '4d564dd7ee03dbbefaff1c607f6537b6'::text AS fp_can_act_base,
+    -- Cleanup draft restore targets (unchanged; NOT_APPLIED companion pins).
+    '9c9090f29458975b197b92dc86b0e587'::text AS fp_create_student_request_cleanup_restore,
+    'e25e7e4f6cb759814857abcd509ae49e'::text AS fp_user_matches_cleanup_restore,
+    '4a3c50af92db046b1571eba0e4073f64'::text AS fp_transfer_scope_cleanup_restore,
+    'f0bf40897b23c49bfee1044b2ce34e3d'::text AS fp_can_act_cleanup_restore,
     'ed11125e55df36b154c432c7e28d7285'::text AS fp_create_student_request_m88,
     '2fba2db758a2edd42b1c440a36a4aa47'::text AS fp_user_matches_m88,
     '396eb3a5f12fb7d46018823930d87851'::text AS fp_transfer_scope_m88,
-    '586893beacb33c10a1483b38e8d090fd'::text AS fp_can_act_m88
+    '586893beacb33c10a1483b38e8d090fd'::text AS fp_can_act_m88,
+    'ebc412c0ad1d3be9742fddd5219216a7'::text AS expected_fixture_full_matrix_fp
 ),
 session_meta AS (
   SELECT
@@ -108,30 +115,31 @@ five_services AS (
 ),
 fixture_expect AS (
   SELECT * FROM (VALUES
-    (1, 'SR-20260801-13000001'::text, 'f1300000-0000-4000-8000-000000000001'::uuid, 'department_transfer'::text, 'in_review'::text, 2, 'source_department_head_approval'::text, 'f1300001-0000-4000-8000-000001000002'::uuid, 'approve'::text, 'department'::text, 'department_head'::text, 'd4aaa5c9-72d1-4996-b0e8-d30c6327da6e'::uuid, 'ce485c67-5f7c-498d-b120-4b1130a86ae8'::uuid, 'source'::text),
-    (2, 'SR-20260801-13000002', 'f1300000-0000-4000-8000-000000000002'::uuid, 'department_transfer', 'in_review', 3, 'target_department_head_approval', 'f1300001-0000-4000-8000-000002000003'::uuid, 'approve', 'department', 'department_head', '97acbe02-c59c-409c-8d51-7d4ef72e6db7'::uuid, '11111111-1111-4111-8111-111111111111'::uuid, 'target'),
-    (3, 'SR-20260801-13000003', 'f1300000-0000-4000-8000-000000000003'::uuid, 'department_transfer', 'in_review', 4, 'dean_approval', 'f1300001-0000-4000-8000-000003000004'::uuid, 'approve', 'dean', 'dean', 'b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0'::uuid, NULL::uuid, NULL),
-    (4, 'SR-20260801-13000004', 'f1300000-0000-4000-8000-000000000004'::uuid, 'department_transfer', 'in_review', 5, 'payment_confirmation', 'f1300001-0000-4000-8000-000004000005'::uuid, 'confirm_payment', 'finance', 'revenue_finance_officer', '79783c0f-8d95-4110-8239-0ac504d63a24'::uuid, NULL::uuid, NULL),
-    (5, 'SR-20260801-13000005', 'f1300000-0000-4000-8000-000000000005'::uuid, 'department_transfer', 'in_review', 6, 'registrar_apply', 'f1300001-0000-4000-8000-000005000006'::uuid, 'apply_decision', 'registrar', 'registrar_general', '4c261c1c-97fb-42da-a544-e8a59853ebe3'::uuid, NULL::uuid, NULL),
-    (6, 'SR-20260801-13000006', 'f1300000-0000-4000-8000-000000000006'::uuid, 'enrollment_suspension', 'in_review', 2, 'manager_approval', 'f1300001-0000-4000-8000-000006000002'::uuid, 'approve', 'student_affairs', 'student_affairs_manager', 'aac0e62d-4e8b-4440-b649-caa388d34837'::uuid, NULL::uuid, NULL),
-    (7, 'SR-20260801-13000007', 'f1300000-0000-4000-8000-000000000007'::uuid, 'enrollment_suspension', 'in_review', 3, 'registrar_apply', 'f1300001-0000-4000-8000-000007000003'::uuid, 'apply_decision', 'registrar', 'registrar_general', '4c261c1c-97fb-42da-a544-e8a59853ebe3'::uuid, NULL::uuid, NULL),
-    (8, 'SR-20260801-13000008', 'f1300000-0000-4000-8000-000000000008'::uuid, 'excused_absence', 'in_review', 2, 'manager_review', 'f1300001-0000-4000-8000-000008000002'::uuid, 'approve', 'student_affairs', 'student_affairs_manager', 'aac0e62d-4e8b-4440-b649-caa388d34837'::uuid, NULL::uuid, NULL),
-    (9, 'SR-20260801-13000009', 'f1300000-0000-4000-8000-000000000009'::uuid, 'excused_absence', 'in_review', 3, 'record_apply', 'f1300001-0000-4000-8000-000009000003'::uuid, 'apply_decision', 'student_affairs', 'student_affairs_specialist', 'c8a94548-4782-4252-86f9-23559d3b95bd'::uuid, NULL::uuid, NULL),
-    (10, 'SR-20260801-13000010', 'f1300000-0000-4000-8000-000000000010'::uuid, 'file_withdrawal', 'in_review', 2, 'library_clearance', 'f1300001-0000-4000-8000-000010000002'::uuid, 'clear', 'library', 'library_officer', 'e7a93314-bb06-4525-b412-5315198c668a'::uuid, NULL::uuid, NULL),
-    (11, 'SR-20260801-13000011', 'f1300000-0000-4000-8000-000000000011'::uuid, 'file_withdrawal', 'in_review', 3, 'labs_clearance', 'f1300001-0000-4000-8000-000011000003'::uuid, 'clear', 'labs', 'labs_manager', '67b39ee4-4918-4b00-b4cc-0d5046ac8a5a'::uuid, NULL::uuid, NULL),
-    (12, 'SR-20260801-13000012', 'f1300000-0000-4000-8000-000000000012'::uuid, 'file_withdrawal', 'in_review', 4, 'activities_clearance', 'f1300001-0000-4000-8000-000012000004'::uuid, 'clear', 'student_affairs', 'student_affairs_manager', 'aac0e62d-4e8b-4440-b649-caa388d34837'::uuid, NULL::uuid, NULL),
-    (13, 'SR-20260801-13000013', 'f1300000-0000-4000-8000-000000000013'::uuid, 'file_withdrawal', 'in_review', 5, 'finance_clearance', 'f1300001-0000-4000-8000-000013000005'::uuid, 'clear', 'finance', 'revenue_finance_officer', '79783c0f-8d95-4110-8239-0ac504d63a24'::uuid, NULL::uuid, NULL),
-    (14, 'SR-20260801-13000014', 'f1300000-0000-4000-8000-000000000014'::uuid, 'file_withdrawal', 'in_review', 6, 'registrar_apply', 'f1300001-0000-4000-8000-000014000006'::uuid, 'apply_decision', 'registrar', 'registrar_general', '4c261c1c-97fb-42da-a544-e8a59853ebe3'::uuid, NULL::uuid, NULL),
-    (15, 'SR-20260801-13000015', 'f1300000-0000-4000-8000-000000000015'::uuid, 'file_withdrawal', 'in_review', 7, 'archive', 'f1300001-0000-4000-8000-000015000007'::uuid, 'archive', 'archive', 'archive_officer', 'aec1303e-de6a-4580-94cf-7205c17b5535'::uuid, NULL::uuid, NULL),
-    (16, 'SR-20260801-13000016', 'f1300000-0000-4000-8000-000000000016'::uuid, 'final_chance', 'in_review', 2, 'manager_review', 'f1300001-0000-4000-8000-000016000002'::uuid, 'approve', 'student_affairs', 'student_affairs_manager', 'aac0e62d-4e8b-4440-b649-caa388d34837'::uuid, NULL::uuid, NULL),
-    (17, 'SR-20260801-13000017', 'f1300000-0000-4000-8000-000000000017'::uuid, 'final_chance', 'in_review', 3, 'dean_decision', 'f1300001-0000-4000-8000-000017000003'::uuid, 'approve', 'dean', 'dean', 'b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0'::uuid, NULL::uuid, NULL),
-    (18, 'SR-20260801-13000018', 'f1300000-0000-4000-8000-000000000018'::uuid, 'final_chance', 'in_review', 4, 'payment_confirmation', 'f1300001-0000-4000-8000-000018000004'::uuid, 'confirm_payment', 'finance', 'revenue_finance_officer', '79783c0f-8d95-4110-8239-0ac504d63a24'::uuid, NULL::uuid, NULL),
-    (19, 'SR-20260801-13000019', 'f1300000-0000-4000-8000-000000000019'::uuid, 'final_chance', 'in_review', 5, 'registrar_apply', 'f1300001-0000-4000-8000-000019000005'::uuid, 'apply_decision', 'registrar', 'registrar_general', '4c261c1c-97fb-42da-a544-e8a59853ebe3'::uuid, NULL::uuid, NULL)
+    (1, 'SR-20260801-13000001'::text, 'f1300000-0000-4000-8000-000000000001'::uuid, 'department_transfer'::text, 'in_review'::text, 2, 'source_department_head_approval'::text, 'f1300001-0000-4000-8000-000001000002'::uuid, 'approve'::text, 'department'::text, 'department_head'::text, 'position_assignment'::text, '9c608c94-a2ac-436c-9a14-e5908068f397'::uuid, 'ce485c67-5f7c-498d-b120-4b1130a86ae8'::uuid, 'source'::text, 'd7f1b5f6b01327e068ddc02e48aae6ea'::text),
+    (2, 'SR-20260801-13000002', 'f1300000-0000-4000-8000-000000000002'::uuid, 'department_transfer', 'in_review', 3, 'target_department_head_approval', 'f1300001-0000-4000-8000-000002000003'::uuid, 'approve', 'department', 'department_head', 'position_assignment', 'bde82530-1400-4ee5-afcc-a15453cd2069'::uuid, '11111111-1111-4111-8111-111111111111'::uuid, 'target', 'c1285bc3394a58ecc441ca5895b01d23'),
+    (3, 'SR-20260801-13000003', 'f1300000-0000-4000-8000-000000000003'::uuid, 'department_transfer', 'in_review', 4, 'dean_approval', 'f1300001-0000-4000-8000-000003000004'::uuid, 'approve', 'dean', 'dean', 'faculty_profile', 'ce2f9190-27f4-4914-8971-3ffff97ce2d8'::uuid, NULL::uuid, NULL, '785fdcb51a313c34cb64772bbe183253'),
+    (4, 'SR-20260801-13000004', 'f1300000-0000-4000-8000-000000000004'::uuid, 'department_transfer', 'in_review', 5, 'payment_confirmation', 'f1300001-0000-4000-8000-000004000005'::uuid, 'confirm_payment', 'finance', 'revenue_finance_officer', 'staff_profile', '233c9c36-29de-4352-9db3-938a89efe897'::uuid, NULL::uuid, NULL, '0c15d684176ceafa98f5e5e075d13693'),
+    (5, 'SR-20260801-13000005', 'f1300000-0000-4000-8000-000000000005'::uuid, 'department_transfer', 'in_review', 6, 'registrar_apply', 'f1300001-0000-4000-8000-000005000006'::uuid, 'apply_decision', 'registrar', 'registrar_general', 'staff_profile', '89d5e758-6971-45df-98c0-8de9caabb00d'::uuid, NULL::uuid, NULL, '8fe0c00a477cba2c5957a6ffc1afe84a'),
+    (6, 'SR-20260801-13000006', 'f1300000-0000-4000-8000-000000000006'::uuid, 'enrollment_suspension', 'in_review', 2, 'manager_approval', 'f1300001-0000-4000-8000-000006000002'::uuid, 'approve', 'student_affairs', 'student_affairs_manager', 'staff_profile', 'b3966846-116e-44a9-ba54-1cce7971af15'::uuid, NULL::uuid, NULL, '1b3d4d54ee3426a6b769c2fa47fb43cc'),
+    (7, 'SR-20260801-13000007', 'f1300000-0000-4000-8000-000000000007'::uuid, 'enrollment_suspension', 'in_review', 3, 'registrar_apply', 'f1300001-0000-4000-8000-000007000003'::uuid, 'apply_decision', 'registrar', 'registrar_general', 'staff_profile', '89d5e758-6971-45df-98c0-8de9caabb00d'::uuid, NULL::uuid, NULL, '11a2ac6a21ced5385318512a7175d043'),
+    (8, 'SR-20260801-13000008', 'f1300000-0000-4000-8000-000000000008'::uuid, 'excused_absence', 'in_review', 2, 'manager_review', 'f1300001-0000-4000-8000-000008000002'::uuid, 'approve', 'student_affairs', 'student_affairs_manager', 'staff_profile', 'b3966846-116e-44a9-ba54-1cce7971af15'::uuid, NULL::uuid, NULL, '88db01eb91daa7345c8100540ce1ea62'),
+    (9, 'SR-20260801-13000009', 'f1300000-0000-4000-8000-000000000009'::uuid, 'excused_absence', 'in_review', 3, 'record_apply', 'f1300001-0000-4000-8000-000009000003'::uuid, 'apply_decision', 'student_affairs', 'student_affairs_specialist', 'staff_profile', '06f48015-bb18-461e-b818-cfd1a31a8e0d'::uuid, NULL::uuid, NULL, '9d1c70708f6738e1e621bdf69a096951'),
+    (10, 'SR-20260801-13000010', 'f1300000-0000-4000-8000-000000000010'::uuid, 'file_withdrawal', 'in_review', 2, 'library_clearance', 'f1300001-0000-4000-8000-000010000002'::uuid, 'clear', 'library', 'library_officer', 'staff_profile', '4a838311-0ab7-4033-8e0c-69327d522bc7'::uuid, NULL::uuid, NULL, '55fd53b6cc68b1522cab869692a50779'),
+    (11, 'SR-20260801-13000011', 'f1300000-0000-4000-8000-000000000011'::uuid, 'file_withdrawal', 'in_review', 3, 'labs_clearance', 'f1300001-0000-4000-8000-000011000003'::uuid, 'clear', 'labs', 'labs_manager', 'staff_profile', 'b59e6e45-260d-4af6-b312-85381d354104'::uuid, NULL::uuid, NULL, '8c8a5d857dcee9a2018346e5005d299d'),
+    (12, 'SR-20260801-13000012', 'f1300000-0000-4000-8000-000000000012'::uuid, 'file_withdrawal', 'in_review', 4, 'activities_clearance', 'f1300001-0000-4000-8000-000012000004'::uuid, 'clear', 'student_affairs', 'student_affairs_manager', 'staff_profile', 'b3966846-116e-44a9-ba54-1cce7971af15'::uuid, NULL::uuid, NULL, 'f6d68c52f657f10761b5c2494e7b8dea'),
+    (13, 'SR-20260801-13000013', 'f1300000-0000-4000-8000-000000000013'::uuid, 'file_withdrawal', 'in_review', 5, 'finance_clearance', 'f1300001-0000-4000-8000-000013000005'::uuid, 'clear', 'finance', 'revenue_finance_officer', 'staff_profile', '233c9c36-29de-4352-9db3-938a89efe897'::uuid, NULL::uuid, NULL, '9ee619a47e38a4150515f062f8fba4ac'),
+    (14, 'SR-20260801-13000014', 'f1300000-0000-4000-8000-000000000014'::uuid, 'file_withdrawal', 'in_review', 6, 'registrar_apply', 'f1300001-0000-4000-8000-000014000006'::uuid, 'apply_decision', 'registrar', 'registrar_general', 'staff_profile', '89d5e758-6971-45df-98c0-8de9caabb00d'::uuid, NULL::uuid, NULL, '462bc48bf1353382696a156fb19c7dbb'),
+    (15, 'SR-20260801-13000015', 'f1300000-0000-4000-8000-000000000015'::uuid, 'file_withdrawal', 'in_review', 7, 'archive', 'f1300001-0000-4000-8000-000015000007'::uuid, 'archive', 'archive', 'archive_officer', 'staff_profile', 'df2b0ebf-c23c-40d8-aea7-9622dec6d0f1'::uuid, NULL::uuid, NULL, '8160d7e351c0411920d2dc4c9ace2f5e'),
+    (16, 'SR-20260801-13000016', 'f1300000-0000-4000-8000-000000000016'::uuid, 'final_chance', 'in_review', 2, 'manager_review', 'f1300001-0000-4000-8000-000016000002'::uuid, 'approve', 'student_affairs', 'student_affairs_manager', 'staff_profile', 'b3966846-116e-44a9-ba54-1cce7971af15'::uuid, NULL::uuid, NULL, 'b63f199072c5a7992c46fc589e212b08'),
+    (17, 'SR-20260801-13000017', 'f1300000-0000-4000-8000-000000000017'::uuid, 'final_chance', 'in_review', 3, 'dean_decision', 'f1300001-0000-4000-8000-000017000003'::uuid, 'approve', 'dean', 'dean', 'faculty_profile', 'ce2f9190-27f4-4914-8971-3ffff97ce2d8'::uuid, NULL::uuid, NULL, '82c757cf996db9b6bad8065230d9da2a'),
+    (18, 'SR-20260801-13000018', 'f1300000-0000-4000-8000-000000000018'::uuid, 'final_chance', 'in_review', 4, 'payment_confirmation', 'f1300001-0000-4000-8000-000018000004'::uuid, 'confirm_payment', 'finance', 'revenue_finance_officer', 'staff_profile', '233c9c36-29de-4352-9db3-938a89efe897'::uuid, NULL::uuid, NULL, '34cb6fa983204e09f350b51ea94136da'),
+    (19, 'SR-20260801-13000019', 'f1300000-0000-4000-8000-000000000019'::uuid, 'final_chance', 'in_review', 5, 'registrar_apply', 'f1300001-0000-4000-8000-000019000005'::uuid, 'apply_decision', 'registrar', 'registrar_general', 'staff_profile', '89d5e758-6971-45df-98c0-8de9caabb00d'::uuid, NULL::uuid, NULL, '2cde238f199c506ba23073b658e44f01')
   ) AS t(
     case_index, request_number, request_id, service_code, request_status,
     step_index, step_code, runtime_step_id, configured_action,
-    processing_unit_code, processing_role_code, direct_assignee_principal_id,
-    department_scope_id, department_side
+    processing_unit_code, processing_role_code,
+    direct_assignee_principal_kind, direct_assignee_principal_id,
+    department_scope_id, department_side, expected_row_fp
   )
 ),
 m88_fn_expect AS (
@@ -467,6 +475,41 @@ fixture_live AS (
        FROM public.student_request_workflow_steps s
       WHERE s.student_request_id = sr.id AND s.status = 'active'
       ORDER BY s.step_order, s.id LIMIT 1) AS active_direct_assignee,
+    (SELECT CASE
+        WHEN s.assigned_user_id IS NOT NULL THEN 'user'
+        WHEN s.assigned_staff_profile_id IS NOT NULL THEN 'staff_profile'
+        WHEN s.assigned_faculty_profile_id IS NOT NULL THEN 'faculty_profile'
+        WHEN s.assigned_position_assignment_id IS NOT NULL THEN 'position_assignment'
+        ELSE NULL
+      END
+       FROM public.student_request_workflow_steps s
+      WHERE s.student_request_id = sr.id AND s.status = 'active'
+      ORDER BY s.step_order, s.id LIMIT 1) AS active_direct_assignee_kind,
+    (SELECT (
+        (s.assigned_user_id IS NOT NULL)::int
+        + (s.assigned_staff_profile_id IS NOT NULL)::int
+        + (s.assigned_faculty_profile_id IS NOT NULL)::int
+        + (s.assigned_position_assignment_id IS NOT NULL)::int
+      )
+       FROM public.student_request_workflow_steps s
+      WHERE s.student_request_id = sr.id AND s.status = 'active'
+      ORDER BY s.step_order, s.id LIMIT 1) AS active_direct_assignee_populated_count,
+    (SELECT s.assigned_user_id
+       FROM public.student_request_workflow_steps s
+      WHERE s.student_request_id = sr.id AND s.status = 'active'
+      ORDER BY s.step_order, s.id LIMIT 1) AS active_assigned_user_id,
+    (SELECT s.assigned_staff_profile_id
+       FROM public.student_request_workflow_steps s
+      WHERE s.student_request_id = sr.id AND s.status = 'active'
+      ORDER BY s.step_order, s.id LIMIT 1) AS active_assigned_staff_profile_id,
+    (SELECT s.assigned_faculty_profile_id
+       FROM public.student_request_workflow_steps s
+      WHERE s.student_request_id = sr.id AND s.status = 'active'
+      ORDER BY s.step_order, s.id LIMIT 1) AS active_assigned_faculty_profile_id,
+    (SELECT s.assigned_position_assignment_id
+       FROM public.student_request_workflow_steps s
+      WHERE s.student_request_id = sr.id AND s.status = 'active'
+      ORDER BY s.step_order, s.id LIMIT 1) AS active_assigned_position_assignment_id,
     (SELECT s.metadata->>'direct_assignment_id'
        FROM public.student_request_workflow_steps s
       WHERE s.student_request_id = sr.id AND s.status = 'active'
@@ -492,6 +535,12 @@ fixture_joined AS (
     l.active_unit_id,
     l.active_role_id,
     l.active_direct_assignee,
+    l.active_direct_assignee_kind,
+    l.active_direct_assignee_populated_count,
+    l.active_assigned_user_id,
+    l.active_assigned_staff_profile_id,
+    l.active_assigned_faculty_profile_id,
+    l.active_assigned_position_assignment_id,
     l.has_e2e_marker,
     l.has_correlation_field,
     l.completed_at AS live_completed_at,
@@ -514,7 +563,9 @@ fixture_joined AS (
       AND ws.action_type IS NOT DISTINCT FROM e.configured_action
       AND u.code IS NOT DISTINCT FROM e.processing_unit_code
       AND r.code IS NOT DISTINCT FROM e.processing_role_code
+      AND l.active_direct_assignee_kind IS NOT DISTINCT FROM e.direct_assignee_principal_kind
       AND l.active_direct_assignee IS NOT DISTINCT FROM e.direct_assignee_principal_id
+      AND l.active_direct_assignee_populated_count = 1
       AND l.active_workflow_step_id IS NOT NULL
       AND NOT l.has_e2e_marker
       AND NOT l.has_correlation_field
@@ -551,6 +602,31 @@ fixture_eval AS (
          OR j.active_step_key IS DISTINCT FROM j.step_code
          OR j.live_request_type IS DISTINCT FROM j.service_code
     ) AS routing_drift_count,
+    (SELECT count(*) FROM fixture_joined j WHERE j.live_status IS NULL) AS missing_count,
+    (SELECT count(*) FROM fixture_live l
+      WHERE NOT EXISTS (
+        SELECT 1 FROM fixture_expect e WHERE e.request_id = l.id
+      )) AS unexpected_count,
+    (SELECT count(*) FROM (
+        SELECT request_number FROM fixture_live GROUP BY request_number HAVING count(*) > 1
+      ) d) AS duplicate_request_number_count,
+    (SELECT count(*) FROM (
+        SELECT id FROM fixture_live GROUP BY id HAVING count(*) > 1
+      ) d) AS duplicate_request_id_count,
+    (SELECT count(*) FROM (
+        SELECT active_step_id FROM fixture_live
+        WHERE active_step_id IS NOT NULL
+        GROUP BY active_step_id HAVING count(*) > 1
+      ) d) AS duplicate_runtime_step_id_count,
+    (SELECT count(*) FROM fixture_joined j
+      WHERE j.active_direct_assignee_populated_count IS DISTINCT FROM 1) AS assignee_cardinality_drift,
+    (SELECT count(*) FROM fixture_joined j
+      WHERE j.active_direct_assignee_kind IS DISTINCT FROM j.direct_assignee_principal_kind
+         OR j.active_direct_assignee IS DISTINCT FROM j.direct_assignee_principal_id
+    ) AS assignee_identity_drift,
+    (SELECT md5(coalesce(string_agg(expected_row_fp, '|' ORDER BY expected_row_fp), '<EMPTY>'))
+       FROM fixture_expect) AS expected_full_matrix_fp,
+    (SELECT count(DISTINCT expected_row_fp) FROM fixture_expect) AS expected_row_fp_distinct,
     EXISTS (
       SELECT 1 FROM fixture_joined j
       WHERE j.case_index = 15
@@ -1133,12 +1209,31 @@ gate_rows AS (
            AND fe.correlation_field_hits = 0
            AND NOT fe.bindings_table_present
            AND fe.routing_drift_count = 0
+           AND fe.missing_count = 0
+           AND fe.unexpected_count = 0
+           AND fe.duplicate_request_number_count = 0
+           AND fe.duplicate_request_id_count = 0
+           AND fe.duplicate_runtime_step_id_count = 0
+           AND fe.assignee_cardinality_drift = 0
+           AND fe.assignee_identity_drift = 0
+           AND fe.expected_row_fp_distinct = 19
+           AND fe.expected_full_matrix_fp = (SELECT expected_fixture_full_matrix_fp FROM params)
            AND fe.fixture_15_restored_ok
            AND fe.fixture_15_completed_steps = 6
         THEN 'PASS' ELSE 'HOLD'
     END,
     CASE
       WHEN fe.fixture_count <> 19 THEN 'FIXTURE_COUNT_DRIFT'
+      WHEN fe.missing_count > 0 OR fe.unexpected_count > 0
+           OR fe.duplicate_request_number_count > 0
+           OR fe.duplicate_request_id_count > 0
+           OR fe.duplicate_runtime_step_id_count > 0
+        THEN 'FIXTURE_IDENTITY_DRIFT'
+      WHEN fe.assignee_cardinality_drift > 0 OR fe.assignee_identity_drift > 0
+        THEN 'FIXTURE_ASSIGNEE_IDENTITY_DRIFT'
+      WHEN fe.expected_row_fp_distinct <> 19
+           OR fe.expected_full_matrix_fp IS DISTINCT FROM (SELECT expected_fixture_full_matrix_fp FROM params)
+        THEN 'FIXTURE_MATRIX_FINGERPRINT_DRIFT'
       WHEN fe.pin_ok_count <> 19 THEN 'FIXTURE_IDENTITY_DRIFT'
       WHEN fe.exactly_one_active <> 19 THEN 'FIXTURE_ACTIVE_STEP_DRIFT'
       WHEN fe.routing_drift_count > 0 THEN 'FIXTURE_SERVICE_OR_STEP_ROUTING_DRIFT'
@@ -1157,8 +1252,40 @@ gate_rows AS (
       'correlation_field_hits', fe.correlation_field_hits,
       'bindings_table_present', fe.bindings_table_present,
       'routing_drift_count', fe.routing_drift_count,
+      'missing_count', fe.missing_count,
+      'unexpected_count', fe.unexpected_count,
+      'duplicate_request_number_count', fe.duplicate_request_number_count,
+      'duplicate_request_id_count', fe.duplicate_request_id_count,
+      'duplicate_runtime_step_id_count', fe.duplicate_runtime_step_id_count,
+      'assignee_cardinality_drift', fe.assignee_cardinality_drift,
+      'assignee_identity_drift', fe.assignee_identity_drift,
+      'expected_full_matrix_fp', fe.expected_full_matrix_fp,
+      'expected_row_fp_distinct', fe.expected_row_fp_distinct,
       'fixture_15_restored_ok', fe.fixture_15_restored_ok,
       'fixture_15_completed_steps', fe.fixture_15_completed_steps,
+      'expected_rows', (
+        SELECT coalesce(
+          jsonb_agg(
+            jsonb_build_object(
+              'case_index', case_index,
+              'request_number', request_number,
+              'request_id', request_id,
+              'runtime_step_id', runtime_step_id,
+              'service_code', service_code,
+              'step_code', step_code,
+              'configured_action', configured_action,
+              'processing_unit_code', processing_unit_code,
+              'processing_role_code', processing_role_code,
+              'direct_assignee_principal_kind', direct_assignee_principal_kind,
+              'direct_assignee_principal_id', direct_assignee_principal_id,
+              'expected_row_fp', expected_row_fp
+            )
+            ORDER BY case_index
+          ),
+          '[]'::jsonb
+        )
+        FROM fixture_expect
+      ),
       'failed_pins', (
         SELECT coalesce(
           jsonb_agg(
@@ -1170,7 +1297,12 @@ gate_rows AS (
               'live_status', coalesce(live_status, '<NULL>'),
               'active_step_key', coalesce(active_step_key, '<NULL>'),
               'live_unit_code', coalesce(live_unit_code, '<NULL>'),
-              'live_role_code', coalesce(live_role_code, '<NULL>')
+              'live_role_code', coalesce(live_role_code, '<NULL>'),
+              'expected_assignee_kind', coalesce(direct_assignee_principal_kind, '<NULL>'),
+              'live_assignee_kind', coalesce(active_direct_assignee_kind, '<NULL>'),
+              'expected_assignee_id', coalesce(direct_assignee_principal_id::text, '<NULL>'),
+              'live_assignee_id', coalesce(active_direct_assignee::text, '<NULL>'),
+              'live_assignee_populated_count', coalesce(active_direct_assignee_populated_count, -1)
             )
             ORDER BY case_index
           ),
@@ -1389,10 +1521,10 @@ gate_rows AS (
       'cleanup_lf_sha256', p.decommission_lf_sha256,
       'cleanup_raw_bytes', p.decommission_raw_bytes,
       'post_decommission_base_fingerprints', jsonb_build_object(
-        'create_student_request', p.fp_create_student_request_base,
-        'user_matches_workflow_runtime_step', p.fp_user_matches_base,
-        'current_user_matches_transfer_department_scope', p.fp_transfer_scope_base,
-        'can_current_user_act_on_step', p.fp_can_act_base
+        'create_student_request', p.fp_create_student_request_cleanup_restore,
+        'user_matches_workflow_runtime_step', p.fp_user_matches_cleanup_restore,
+        'current_user_matches_transfer_department_scope', p.fp_transfer_scope_cleanup_restore,
+        'can_current_user_act_on_step', p.fp_can_act_cleanup_restore
       ),
       'operational_cleanup_prerequisites',
         'open executions = 0; active bindings = 0; CAS assignee snapshots align',
