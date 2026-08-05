@@ -108,7 +108,7 @@ export function Footer() {
             </li>
           </ul>
 
-          {socials.length > 0 && (
+          {hydrated && socials.length > 0 && (
             <div className="mt-5">
               <div className="text-xs font-bold text-gold mb-2">تابعنا</div>
               <div className="flex items-center gap-2">
