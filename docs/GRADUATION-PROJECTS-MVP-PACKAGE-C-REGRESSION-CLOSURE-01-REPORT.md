@@ -21,7 +21,7 @@ No production connection · No migration edit · No deploy · No publish · No G
 |---|---|
 | Branch | `fix/gp-mvp-package-c-regression-closure-01` |
 | Test-baseline commit | `d24e37f3658e799d1a79b916c701b7c8c013daad` |
-| Final tip (includes this report) | recorded in the commit that adds this file (`git rev-parse HEAD`) |
+| Final tip (includes this report) | `40d11e43eec06a89a9e1dc244693592f6ae9d9ec` |
 
 ## Released visibility evidence used
 
