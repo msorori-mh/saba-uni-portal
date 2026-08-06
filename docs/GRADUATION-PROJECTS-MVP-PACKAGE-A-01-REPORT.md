@@ -16,7 +16,7 @@
 | Branch | `feat/gp-mvp-package-a-01` |
 | Frozen base | `7b67539aeb21bd223287de39d480cb1e6c0332b0` |
 | Primary implementation commit | `f5abc75c39352d9deea28e365f5ffcf0a9c4bea2` |
-| Final completion commit | _(recorded after push of verifier/report completion)_ |
+| Final completion commit | `90163f5e3595cca944f28d10c7703fc80d8ef674` |
 
 ## A1 / A2 / A3 migrations
 
