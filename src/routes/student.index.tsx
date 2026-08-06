@@ -223,6 +223,12 @@ function InfoValue({ children, mono = false }: { children: React.ReactNode; mono
 
 const SERVICE_LINKS = [
   {
+    to: "/student/graduation-projects" as const,
+    title: "مشاريع التخرج",
+    desc: "الفريق والمقترح والتقدم والمناقشة.",
+    Icon: GraduationCap,
+  },
+  {
     to: "/student/schedule" as const,
     title: "جدولي الدراسي الأسبوعي",
     desc: "المحاضرات المعتمدة هذا الفصل.",
