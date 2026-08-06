@@ -3,6 +3,7 @@
 **Mission:** `PORTAL_GRADUATION_PROJECTS_MVP_PACKAGE_A_DATABASE_STORAGE_IMPLEMENTATION_01`  
 **Branch:** `feat/gp-mvp-package-a-01`  
 **Frozen contract SHA:** `7b67539aeb21bd223287de39d480cb1e6c0332b0`  
+**Implementation commit:** `f5abc75c39352d9deea28e365f5ffcf0a9c4bea2`  
 **Sole authority:** `docs/PORTAL-GRADUATION-PROJECTS-MVP-SCOPE-AND-CONTRACT-FREEZE-01.md`
 
 ## Decision
