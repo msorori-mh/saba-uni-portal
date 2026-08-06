@@ -43,6 +43,8 @@ describe("graduation projects Package B client RPC inventory", () => {
     ];
     for (const name of frozen) expect(client).toContain(`"${name}"`);
     expect(client).not.toContain(".from(");
+    expect(client).not.toContain("cleanupTestArtifacts");
+    expect(client).not.toMatch(/\.call\(\s*["']cleanup_graduation_project_test_artifacts["']/);
     expect(client).toContain("p_correlation_id");
     expect(client).toContain("p_expected_version");
     expect(client).toContain("p_decision");

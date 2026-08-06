@@ -52,12 +52,13 @@ function mockRpc(handler?: (fn: string, args: Record<string, unknown>) => unknow
 }
 
 describe("frozen RPC inventory and argument contracts", () => {
-  test("exports full frozen write/read inventory", () => {
+  test("exports full frozen write/read inventory without Package D cleanup", () => {
     expect(FROZEN_WRITE_RPCS).toContain("create_graduation_project_team");
     expect(FROZEN_WRITE_RPCS).toContain("respond_graduation_project_supervision");
     expect(FROZEN_WRITE_RPCS).toContain("schedule_graduation_project_defense");
     expect(FROZEN_WRITE_RPCS).toContain("conclude_graduation_project_result");
     expect(FROZEN_WRITE_RPCS).toContain("create_graduation_project_signed_download");
+    expect(FROZEN_WRITE_RPCS).not.toContain("cleanup_graduation_project_test_artifacts");
     expect(FROZEN_READ_RPCS).toEqual([
       "list_my_graduation_projects",
       "get_graduation_project_detail",

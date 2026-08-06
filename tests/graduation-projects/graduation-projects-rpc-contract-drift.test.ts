@@ -5,6 +5,7 @@ import {
   FROZEN_READ_RPCS,
   FROZEN_WRITE_RPCS,
   PACKAGE_A_SIGNATURE_DEPENDENCIES,
+  PACKAGE_D_TEST_ONLY_HELPERS,
 } from "../../src/lib/graduation-projects/rpc";
 import { GP_PRIVATE_BUCKET } from "../../src/lib/graduation-projects/domain";
 
@@ -15,9 +16,17 @@ const a1 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A1-FOUNDA
 const a2 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A2-STORAGE-01.sql");
 const a3 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A3-LIFECYCLE-01.sql");
 const migA2 = read("supabase/migrations/20260806120100_gp_mvp_package_a2_storage_01.sql");
+const packageDCleanup = read(
+  "docs/migration-drafts/GRADUATION-PROJECTS-PACKAGE-D-FIXTURES-AND-CLEANUP.sql",
+);
+const packageDVerifier = read("tests/graduation-projects/package-d-verifier.sql");
 const rpcTs = read("src/lib/graduation-projects/rpc.ts");
 const serviceTs = read("src/lib/graduation-projects/service.ts");
+const hooksTs = read("src/lib/graduation-projects/hooks.ts");
+const indexTs = read("src/lib/graduation-projects/index.ts");
 const adapterTs = read("src/routes/-graduation-projects-adapter.ts");
+const migA1 = read("supabase/migrations/20260806120000_gp_mvp_package_a1_foundation_01.sql");
+const migA3 = read("supabase/migrations/20260806120200_gp_mvp_package_a3_lifecycle_01.sql");
 
 /** Extract create function public.<name>(...params...) parameter text from SQL. */
 function extractParams(sql: string, name: string): string | null {
@@ -268,16 +277,45 @@ describe("Package B ↔ Package A RPC contract drift guard", () => {
     }
   });
 
-  test("frozen inventory RPCs are present in rpc.ts call sites", () => {
+  test("production frozen inventory RPCs are present in rpc.ts and A1/A2/A3 only", () => {
+    expect(FROZEN_WRITE_RPCS).not.toContain("cleanup_graduation_project_test_artifacts");
     for (const name of [...FROZEN_WRITE_RPCS, ...FROZEN_READ_RPCS]) {
-      if (name === "cleanup_graduation_project_test_artifacts") {
-        // Package D TEST_ONLY — may be absent from A1/A2/A3; still must be callable from B.
-        expect(rpcTs).toContain(`"${name}"`);
-        continue;
-      }
       expect(a2 + a3).toContain(`create function public.${name}`);
       expect(rpcTs).toContain(`"${name}"`);
     }
+  });
+
+  test("Package D TEST_ONLY helpers stay out of production runtime API", () => {
+    expect(PACKAGE_D_TEST_ONLY_HELPERS).toContain("cleanup_graduation_project_test_artifacts");
+    expect(PACKAGE_D_TEST_ONLY_HELPERS).toContain("export_graduation_project_e2e_fingerprint");
+    expect(PACKAGE_D_TEST_ONLY_HELPERS).toHaveLength(2);
+
+    for (const name of PACKAGE_D_TEST_ONLY_HELPERS) {
+      expect(a1 + a2 + a3).not.toContain(`create function public.${name}`);
+      expect(migA1 + migA2 + migA3).not.toContain(`create function public.${name}`);
+      expect(FROZEN_WRITE_RPCS as readonly string[]).not.toContain(name);
+      expect(FROZEN_READ_RPCS as readonly string[]).not.toContain(name);
+    }
+
+    // Runtime product surface must not invoke cleanup (inventory label may document the name).
+    expect(rpcTs).not.toContain("cleanupTestArtifacts");
+    expect(rpcTs).not.toMatch(/\.call\(\s*["']cleanup_graduation_project_test_artifacts["']/);
+    expect(rpcTs).not.toMatch(/this\.call\([^)]*cleanup_graduation_project_test_artifacts/);
+    expect(serviceTs).not.toContain("cleanup_graduation_project_test_artifacts");
+    expect(serviceTs).not.toContain("cleanupTestArtifacts");
+    expect(hooksTs).not.toContain("cleanup_graduation_project_test_artifacts");
+    expect(hooksTs).not.toContain("cleanupTestArtifacts");
+    expect(indexTs).not.toContain("cleanupTestArtifacts");
+    expect(adapterTs).not.toContain("cleanup_graduation_project_test_artifacts");
+    expect(adapterTs).not.toContain("cleanupTestArtifacts");
+
+    // Package D infrastructure retains the helper.
+    expect(packageDCleanup).toContain("create or replace function public.cleanup_graduation_project_test_artifacts");
+    expect(packageDCleanup).toContain("TEST_ONLY_GP_MVP_E2E_01");
+    expect(packageDCleanup).toContain("p_temp_project_ids");
+    expect(packageDCleanup).toContain("p_preserve_project_id");
+    expect(packageDVerifier).toContain("cleanup_graduation_project_test_artifacts");
+    expect(packageDVerifier).toContain("PACKAGE_D_CLEANUP_PASS");
   });
 
   test("upload contract: sha256 required at finalize; nullable only while pending", () => {

@@ -154,7 +154,15 @@ export const FROZEN_WRITE_RPCS = [
   "conclude_graduation_project_result",
   "archive_graduation_project",
   "create_graduation_project_signed_download",
+] as const;
+
+/**
+ * Package D TEST_ONLY helpers — verification infrastructure only.
+ * Never expose through GraduationProjectsRpcClient / service / hooks / UI.
+ */
+export const PACKAGE_D_TEST_ONLY_HELPERS = [
   "cleanup_graduation_project_test_artifacts",
+  "export_graduation_project_e2e_fingerprint",
 ] as const;
 
 export const FROZEN_READ_RPCS = [
@@ -752,16 +760,6 @@ export class GraduationProjectsRpcClient {
         projectId: input.projectId,
         entityId: input.fileId,
       }),
-    });
-  }
-
-  async cleanupTestArtifacts(input: {
-    fingerprint: string;
-    correlationId?: string;
-  }): Promise<unknown> {
-    return this.call("cleanup_graduation_project_test_artifacts", {
-      p_fingerprint: input.fingerprint,
-      p_correlation_id: input.correlationId ?? newCorrelationId(),
     });
   }
 
