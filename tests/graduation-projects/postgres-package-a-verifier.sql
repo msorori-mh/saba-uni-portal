@@ -1,6 +1,4 @@
-﻿-- Package A lifecycle verifier (disposable PG17). NEVER run on production.
--- Alias of postgres-package-a-verifier.sql for mission chain compatibility.
--- Package A disposable PostgreSQL 17 verifier (SOURCE ONLY).
+﻿-- Package A disposable PostgreSQL 17 verifier (SOURCE ONLY).
 -- Full positive lifecycle + core negatives. Ends with ROLLBACK.
 -- Requires: postgres-minimal-schema + A1 + A2 + A3 drafts applied in same session.
 
