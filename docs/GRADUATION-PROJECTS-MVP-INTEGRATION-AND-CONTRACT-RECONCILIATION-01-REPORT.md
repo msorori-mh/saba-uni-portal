@@ -193,4 +193,8 @@ None for SOURCE-ONLY integration candidate.
 
 ## Final SHA
 
-Recorded after reconciliation commit on `integration/gp-mvp-01` (see git log / push confirmation).
+| Item | Value |
+|---|---|
+| Branch | `integration/gp-mvp-01` |
+| Final HEAD | `0bece43665344165ef2becb09e406fd5f757abaa` |
+| Reconciliation commit | `0bece436` — `feat(gp): integrate MVP packages and reconcile contracts` |
