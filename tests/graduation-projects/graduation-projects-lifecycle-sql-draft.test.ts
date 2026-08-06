@@ -45,6 +45,6 @@ describe("graduation projects Package B client RPC inventory", () => {
     expect(client).not.toContain(".from(");
     expect(client).toContain("p_correlation_id");
     expect(client).toContain("p_expected_version");
-    expect(client).toContain("p_final_decision");
+    expect(client).toContain("p_decision");
   });
 });

@@ -177,14 +177,18 @@ describe("Package C routed UI contracts", () => {
     );
     expect(read("src/components/admin/AdminShell.tsx")).toContain("/admin/graduation-projects");
   });
-  it("adapter uses RPC only and never direct Supabase table or storage mutation", () => {
+  it("adapter is a thin Package B wrapper with no temp RPC names or public URLs", () => {
     const source = read("src/routes/-graduation-projects-adapter.ts");
-    expect(source).toContain("rpcPort.rpc");
-    expect(source).not.toMatch(/\.from\s*\(/);
-    expect(source).not.toMatch(/\.storage\s*\./);
+    expect(source).toContain("@/lib/graduation-projects");
+    expect(source).toContain("createGraduationProjectsService");
+    expect(source).toContain("uploadPrivateFile");
+    expect(source).toContain("signedDownload");
     expect(source).not.toMatch(/getPublicUrl|publicUrl/);
-    expect(source).toContain("prepare_graduation_project_private_upload");
-    expect(source).toContain("finalize_graduation_project_private_upload");
+    expect(source).not.toContain("prepare_graduation_project_private_upload");
+    expect(source).not.toContain("finalize_graduation_project_private_upload");
+    expect(source).not.toContain("list_my_graduation_projects_mvp");
+    expect(source).not.toContain("get_my_graduation_project_workspace");
+    expect(source).not.toMatch(/\.from\s*\(\s*["']graduation_project/);
   });
   it("uses identity selectors and never raw UUID inputs", () => {
     const source = read("src/components/graduation-projects/MvpProjectWorkspace.tsx");

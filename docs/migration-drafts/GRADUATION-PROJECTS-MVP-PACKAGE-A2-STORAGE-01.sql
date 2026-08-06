@@ -14,11 +14,19 @@ do $$ begin
   end if;
 end $$;
 
--- Source contract only. Production bucket creation/apply requires separate explicit authorization.
--- Disposable PG17 tests may stub storage.buckets; this INSERT documents the binding contract.
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('graduation-projects','graduation-projects',false,20971520, array['application/pdf']::text[])
-on conflict (id) do update set public=false, file_size_limit=20971520, allowed_mime_types=excluded.allowed_mime_types;
+-- Fail-closed prerequisite: bucket must already exist via managed Lovable Stage S1
+-- (storage_create_bucket only). A2 never INSERTs/UPDATEs storage.buckets.
+do $$ begin
+  if not exists (
+    select 1 from storage.buckets
+    where id = 'graduation-projects'
+      and name = 'graduation-projects'
+      and public = false
+  ) then
+    raise exception
+      'graduation-projects private bucket missing or public; create via Lovable storage_create_bucket only';
+  end if;
+end $$;
 
 -- INSERT-only storage policy (mirror B1). No SELECT/UPDATE/DELETE for clients; downloads via signed RPC.
 create policy graduation_projects_storage_insert on storage.objects for insert to authenticated with check (

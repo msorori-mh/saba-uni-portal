@@ -38,7 +38,7 @@ ON CONFLICT (marker_tag) DO NOTHING;
 -- 3. Synthetic Test Department & Project Identifiers
 -- Department ID: 00000000-0000-4000-b000-000000000001 (Computer Science)
 -- Project ID: 00000000-0000-4000-c000-000000000001 (E2E Test Project)
--- Private Storage Bucket: graduation-projects-files
--- Object Key Format: graduation-projects/00000000-0000-4000-c000-000000000001/e2e-proposal-v1.pdf
+-- Private Storage Bucket: graduation-projects
+-- Object Key Format: graduation-projects/00000000-0000-4000-c000-000000000001/proposal/{token}-e2e-proposal-v1.pdf
 
 COMMIT;

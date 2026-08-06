@@ -9,6 +9,7 @@ import { graduationProjectKeys } from "./query-keys";
 import {
   GraduationProjectsService,
   createGraduationProjectsService,
+  type GpStorageClient,
 } from "./service";
 import type {
   AdministrationOverviewReport,
@@ -27,12 +28,18 @@ import type { FileCategory } from "./domain";
 export type GpServiceFactory = (queryClient: ReturnType<typeof useQueryClient>) => GraduationProjectsService;
 
 let defaultRpcClient: RpcClient | null = null;
+let defaultStorageClient: GpStorageClient | null = null;
 let defaultServiceFactory: GpServiceFactory | null = null;
 
-/** Wire the browser Supabase (or test) RPC client once for Package C hooks. */
-export function configureGraduationProjectsRpc(client: RpcClient): void {
+/** Wire the browser Supabase (or test) RPC + private storage clients once for Package C. */
+export function configureGraduationProjectsRpc(
+  client: RpcClient,
+  storage?: GpStorageClient,
+): void {
   defaultRpcClient = client;
-  defaultServiceFactory = (qc) => createGraduationProjectsService(client, qc);
+  defaultStorageClient = storage ?? null;
+  defaultServiceFactory = (qc) =>
+    createGraduationProjectsService(client, qc, defaultStorageClient ?? undefined);
 }
 
 export function configureGraduationProjectsServiceFactory(factory: GpServiceFactory): void {
@@ -42,7 +49,13 @@ export function configureGraduationProjectsServiceFactory(factory: GpServiceFact
 function useGpService(): GraduationProjectsService {
   const queryClient = useQueryClient();
   if (defaultServiceFactory) return defaultServiceFactory(queryClient);
-  if (defaultRpcClient) return createGraduationProjectsService(defaultRpcClient, queryClient);
+  if (defaultRpcClient) {
+    return createGraduationProjectsService(
+      defaultRpcClient,
+      queryClient,
+      defaultStorageClient ?? undefined,
+    );
+  }
   throw new Error(
     "Graduation Projects RPC client is not configured. Call configureGraduationProjectsRpc first.",
   );
@@ -130,10 +143,10 @@ export function useCreateGraduationProjectTeam(
   options?: MutOpts<string, {
     departmentId: string;
     leaderStudentProfileId: string;
-    title?: string;
-    programId?: string | null;
-    academicYearId?: string | null;
-    semesterId?: string | null;
+    leaderUserId: string;
+    programId: string;
+    academicYearId: string;
+    semesterId: string;
     correlationId?: string;
   }>,
 ) {
@@ -264,7 +277,11 @@ export function useReviewGraduationProjectProgress(
 
 export function useSubmitGraduationProjectFinal(
   projectId: string,
-  options?: MutOpts<string, { fileId: string; correlationId?: string }>,
+  options?: MutOpts<string, {
+    fileId: string;
+    expectedVersion: number;
+    correlationId?: string;
+  }>,
 ) {
   const service = useGpService();
   return useMutation({
@@ -276,9 +293,9 @@ export function useSubmitGraduationProjectFinal(
 export function useReviewGraduationProjectFinal(
   projectId: string,
   options?: MutOpts<string, {
-    finalId: string;
     action: FinalReviewAction;
     comments?: string | null;
+    expectedVersion: number;
     correlationId?: string;
   }>,
 ) {
@@ -308,10 +325,8 @@ export function useScheduleGraduationProjectDefense(
 export function useAssignGraduationProjectCommitteeMember(
   projectId: string,
   options?: MutOpts<string, {
-    defenseId: string;
     facultyProfileId: string;
     userId: string;
-    chair?: boolean;
     correlationId?: string;
   }>,
 ) {
@@ -325,7 +340,6 @@ export function useAssignGraduationProjectCommitteeMember(
 export function useMarkGraduationProjectDefenseHeld(
   projectId: string,
   options?: MutOpts<string, {
-    defenseId: string;
     expectedVersion: number;
     correlationId?: string;
   }>,
@@ -340,7 +354,6 @@ export function useMarkGraduationProjectDefenseHeld(
 export function useSubmitGraduationProjectEvaluation(
   projectId: string,
   options?: MutOpts<string, {
-    defenseId: string;
     score: number;
     notes?: string | null;
     correlationId?: string;
@@ -386,10 +399,9 @@ export function useGraduationProjectFileUpload(
     {
       category: FileCategory;
       originalName: string;
-      mediaType: string;
+      mediaType?: string;
       byteSize: number;
-      sha256: string;
-      token?: string;
+      sha256?: string | null;
       correlationId?: string;
     }
   >,
@@ -405,7 +417,7 @@ export function useFinalizeGraduationProjectFile(
   projectId: string,
   options?: MutOpts<
     Awaited<ReturnType<GraduationProjectsService["finalizeFileUpload"]>>,
-    { fileId: string; correlationId?: string }
+    { fileId: string; sha256: string; correlationId?: string }
   >,
 ) {
   const service = useGpService();

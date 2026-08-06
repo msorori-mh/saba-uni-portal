@@ -36,7 +36,9 @@ describe("graduation projects Package A SQL drafts", () => {
   });
 
   test("A2 private bucket contract is PDF-only with upload/finalize/download flow", () => {
-    expect(a2).toContain("insert into storage.buckets");
+    expect(a2).not.toMatch(/insert\s+into\s+storage\.buckets/i);
+    expect(a2).toContain("graduation-projects private bucket missing or public");
+    expect(a2).toContain("Lovable storage_create_bucket");
     expect(a2).toContain("'graduation-projects'");
     expect(a2).toContain("application/pdf");
     expect(a2).toContain("create_graduation_project_file_upload_intent");

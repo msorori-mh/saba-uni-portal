@@ -55,8 +55,8 @@
       "administration_viewer_mode": "read_only"
     },
     "storage_fingerprints": {
-      "bucket": "graduation-projects-files",
-      "object_key_shape": "graduation-projects/{project_id}/{token}-{safe_filename}",
+      "bucket": "graduation-projects",
+      "object_key_shape": "graduation-projects/{project_id}/{category}/{token}-{safe_filename}.pdf",
       "signed_urls_only": true,
       "public_urls_forbidden": true
     },

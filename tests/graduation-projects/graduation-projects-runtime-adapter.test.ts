@@ -76,14 +76,17 @@ describe("frozen RPC inventory and argument contracts", () => {
     expect(toCanonicalResultOutcome("failed")).toBe("failed");
   });
 
-  test("createTeam / reviewProposal / concludeResult send frozen arg names", async () => {
+  test("createTeam / reviewProposal / concludeResult send Package A arg names", async () => {
     const { client, calls } = mockRpc();
     const rpc = new GraduationProjectsRpcClient(client);
 
     await rpc.createTeam({
       departmentId: "d1",
       leaderStudentProfileId: "sp1",
-      title: "مشروع",
+      leaderUserId: "u1",
+      programId: "prog1",
+      academicYearId: "ay1",
+      semesterId: "sem1",
       correlationId: "c-create",
     });
     expect(calls[0]).toEqual({
@@ -91,10 +94,10 @@ describe("frozen RPC inventory and argument contracts", () => {
       args: {
         p_department_id: "d1",
         p_leader_student_profile_id: "sp1",
-        p_title: "مشروع",
-        p_program_id: null,
-        p_academic_year_id: null,
-        p_semester_id: null,
+        p_leader_user_id: "u1",
+        p_program_id: "prog1",
+        p_academic_year_id: "ay1",
+        p_semester_id: "sem1",
         p_correlation_id: "c-create",
       },
     });
@@ -108,6 +111,7 @@ describe("frozen RPC inventory and argument contracts", () => {
     });
     expect(calls[1]?.args.p_action).toBe("accept");
     expect(calls[1]?.args.p_expected_version).toBe(3);
+    expect(calls[1]?.args).not.toHaveProperty("p_comments");
 
     await rpc.concludeResult({
       projectId: "p1",
@@ -116,45 +120,63 @@ describe("frozen RPC inventory and argument contracts", () => {
       correlationId: "c-result",
     });
     expect(calls[2]?.fn).toBe("conclude_graduation_project_result");
-    expect(calls[2]?.args.p_final_decision).toBe("passed");
+    expect(calls[2]?.args.p_decision).toBe("passed");
+    expect(calls[2]?.args).not.toHaveProperty("p_final_decision");
   });
 
-  test("upload finalize and signed download adapters use frozen RPCs", async () => {
+  test("upload finalize and signed download adapters use Package A RPCs", async () => {
+    const sha = "a".repeat(64);
     const { client, calls } = mockRpc((fn) => {
+      if (fn === "create_graduation_project_file_upload_intent") {
+        return {
+          file_id: "file-1",
+          storage_bucket: "graduation-projects",
+          storage_object_path: "graduation-projects/p1/proposal/t-a.pdf",
+          category: "proposal",
+        };
+      }
+      if (fn === "finalize_graduation_project_file") {
+        return { file_id: "file-1", scan_state: "pending", sha256: sha };
+      }
       if (fn === "create_graduation_project_signed_download") {
-        return { url: "https://signed.example/x", expires_at: "2026-01-01T00:00:00Z" };
+        return {
+          storage_bucket: "graduation-projects",
+          storage_object_path: "graduation-projects/p1/proposal/t-a.pdf",
+          expires_in_seconds: 300,
+        };
       }
       return "file-1";
     });
     const rpc = new GraduationProjectsRpcClient(client);
 
-    await rpc.registerFile({
+    await rpc.createFileUploadIntent({
       projectId: "p1",
       category: "proposal",
-      objectKey: "graduation-projects/p1/t-a.pdf",
       originalName: "a.pdf",
-      mediaType: "application/pdf",
       byteSize: 10,
-      sha256: "abc",
-      correlationId: "c-reg",
+      sha256: null,
+      correlationId: "c-intent",
     });
-    await rpc.finalizeFile({ projectId: "p1", fileId: "file-1", correlationId: "c-fin" });
+    await rpc.finalizeFile({ fileId: "file-1", sha256: sha, correlationId: "c-fin" });
     const download = await rpc.createSignedDownload({
-      projectId: "p1",
       fileId: "file-1",
       correlationId: "c-dl",
     });
 
     expect(calls.map((c) => c.fn)).toEqual([
-      "register_graduation_project_file",
+      "create_graduation_project_file_upload_intent",
       "finalize_graduation_project_file",
       "create_graduation_project_signed_download",
     ]);
     expect(calls[0]?.args.p_category).toBe("proposal");
-    expect(download.url).toContain("https://");
+    expect(calls[0]?.args.p_sha256).toBeNull();
+    expect(calls[1]?.args.p_sha256).toBe(sha);
+    expect(calls[1]?.args).not.toHaveProperty("p_project_id");
+    expect(download.storage_bucket).toBe("graduation-projects");
+    expect(download.expires_in_seconds).toBe(300);
   });
 
-  test("supervision and defense RPCs match freeze names", async () => {
+  test("supervision and defense RPCs match Package A names", async () => {
     const { client, calls } = mockRpc();
     const rpc = new GraduationProjectsRpcClient(client);
     await rpc.assignSupervisor({
@@ -178,7 +200,6 @@ describe("frozen RPC inventory and argument contracts", () => {
     });
     await rpc.submitEvaluation({
       projectId: "p1",
-      defenseId: "def1",
       score: 88,
       notes: "جيد",
       correlationId: "c4",
@@ -190,6 +211,7 @@ describe("frozen RPC inventory and argument contracts", () => {
       "submit_graduation_project_evaluation",
     ]);
     expect(calls[3]?.args.p_score).toBe(88);
+    expect(calls[3]?.args).not.toHaveProperty("p_defense_id");
   });
 
   test("client never uses table from()", async () => {
@@ -288,7 +310,7 @@ describe("service orchestration and stale-version refresh", () => {
       expectedVersion: 5,
       correlationId: "c-c",
     });
-    expect(calls[0]?.args.p_final_decision).toBe("revisions_required");
+    expect(calls[0]?.args.p_decision).toBe("revisions_required");
 
     const { client: failClient } = mockRpc(() => {
       throw { message: "stale project version", code: "P0002" };
@@ -307,8 +329,18 @@ describe("service orchestration and stale-version refresh", () => {
     expect(staleHits).toBe(1);
   });
 
-  test("beginFileUpload builds safe key and registers proposal category", async () => {
-    const { client, calls } = mockRpc(() => "file-9");
+  test("beginFileUpload calls Package A intent and uses graduation-projects bucket", async () => {
+    const { client, calls } = mockRpc((fn) => {
+      if (fn === "create_graduation_project_file_upload_intent") {
+        return {
+          file_id: "file-9",
+          storage_bucket: "graduation-projects",
+          storage_object_path: "graduation-projects/p1/proposal/tok123-proposal.pdf",
+          category: "proposal",
+        };
+      }
+      return "file-9";
+    });
     const service = new GraduationProjectsService({ rpc: client });
     const result = await service.beginFileUpload({
       projectId: "p1",
@@ -316,13 +348,14 @@ describe("service orchestration and stale-version refresh", () => {
       originalName: "proposal.pdf",
       mediaType: "application/pdf",
       byteSize: 12,
-      sha256: "deadbeef",
-      token: "tok123",
+      sha256: null,
       correlationId: "c-up",
     });
-    expect(result.objectKey).toBe("graduation-projects/p1/tok123-proposal.pdf");
-    expect(result.bucket).toBe("graduation-projects-files");
+    expect(result.objectKey).toBe("graduation-projects/p1/proposal/tok123-proposal.pdf");
+    expect(result.bucket).toBe("graduation-projects");
+    expect(calls[0]?.fn).toBe("create_graduation_project_file_upload_intent");
     expect(calls[0]?.args.p_category).toBe("proposal");
+    expect(calls[0]?.args.p_sha256).toBeNull();
   });
 
   test("queue helpers filter faculty/coordinator/defense without cross-role leakage", async () => {

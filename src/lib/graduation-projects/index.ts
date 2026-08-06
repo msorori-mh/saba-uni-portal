@@ -10,5 +10,10 @@ export * from "./correlation";
 export * from "./query-keys";
 export * from "./invalidation";
 export * from "./rpc";
-export * from "./service";
+export {
+  GraduationProjectsService,
+  createGraduationProjectsService,
+  type GpStorageClient,
+  type GraduationProjectsServiceOptions,
+} from "./service";
 export * from "./hooks";

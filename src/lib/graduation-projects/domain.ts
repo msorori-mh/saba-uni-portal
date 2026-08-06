@@ -263,7 +263,7 @@ export function isSafePrivateObjectKey(projectId: string, key: string): boolean 
   );
 }
 
-export const GP_PRIVATE_BUCKET = "graduation-projects-files";
+export const GP_PRIVATE_BUCKET = "graduation-projects";
 
 export interface ProgressInput {
   weight: number;

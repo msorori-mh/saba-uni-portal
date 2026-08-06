@@ -39,6 +39,21 @@ create table if not exists storage.objects(
   unique(bucket_id, name)
 );
 
+-- Private-bucket prerequisite fixture (simulates Lovable Stage S1 storage_create_bucket).
+-- A2 asserts this row exists and public=false; it must not create the bucket itself.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'graduation-projects',
+  'graduation-projects',
+  false,
+  20971520,
+  array['application/pdf']::text[]
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = 20971520,
+    allowed_mime_types = excluded.allowed_mime_types;
+
 do $$ begin if not exists(select 1 from pg_roles where rolname='anon') then create role anon nologin; end if; end $$;
 do $$ begin if not exists(select 1 from pg_roles where rolname='authenticated') then create role authenticated nologin; end if; end $$;
 

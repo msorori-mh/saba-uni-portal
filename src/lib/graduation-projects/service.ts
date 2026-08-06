@@ -18,8 +18,10 @@ import {
   type SignedDownloadResult,
   type SupervisionResponse,
   type UploadIntentResult,
+  type FinalizeFileResult,
 } from "./rpc";
 import type { FileCategory } from "./domain";
+import { GP_PRIVATE_BUCKET } from "./domain";
 import {
   GraduationProjectsRpcError,
   isStaleVersionError,
@@ -29,12 +31,28 @@ import {
   invalidateAllGraduationProjects,
   type GpMutationKind,
 } from "./invalidation";
-import { buildPrivateObjectKey } from "./lifecycle";
-import { newCorrelationId } from "./correlation";
-import { GP_PRIVATE_BUCKET } from "./domain";
+
+/** Private storage port — upload + signed download only (never getPublicUrl). */
+export type GpStorageClient = {
+  from: (bucket: string) => {
+    upload: (
+      path: string,
+      body: Blob | ArrayBuffer | File | Uint8Array,
+      options?: { contentType?: string; upsert?: boolean },
+    ) => Promise<{ error: { message: string } | null }>;
+    createSignedUrl: (
+      path: string,
+      expiresIn: number,
+    ) => Promise<{
+      data: { signedUrl?: string } | null;
+      error: { message?: string } | null;
+    }>;
+  };
+};
 
 export interface GraduationProjectsServiceOptions {
   rpc: RpcClient;
+  storage?: GpStorageClient;
   queryClient?: QueryClient;
   /** Called when expected-version conflicts require a detail refresh. */
   onStaleVersion?: (projectId: string) => void | Promise<void>;
@@ -42,7 +60,7 @@ export interface GraduationProjectsServiceOptions {
 
 /**
  * Service orchestration over the frozen RPC adapter.
- * Never touches tables/storage outside register → upload → finalize → signed download.
+ * Upload: create intent → private binary upload → finalize (sha256 required) → scan gate → signed download.
  */
 export class GraduationProjectsService {
   readonly client: GraduationProjectsRpcClient;
@@ -72,6 +90,15 @@ export class GraduationProjectsService {
       }
       throw error;
     }
+  }
+
+  private requireStorage(): GpStorageClient {
+    if (!this.options.storage) {
+      throw new GraduationProjectsRpcError("عميل التخزين الخاص غير مهيأ", {
+        family: "validation",
+      });
+    }
+    return this.options.storage;
   }
 
   /* ---------- reads ---------- */
@@ -116,10 +143,10 @@ export class GraduationProjectsService {
   async createTeam(input: {
     departmentId: string;
     leaderStudentProfileId: string;
-    title?: string;
-    programId?: string | null;
-    academicYearId?: string | null;
-    semesterId?: string | null;
+    leaderUserId: string;
+    programId: string;
+    academicYearId: string;
+    semesterId: string;
     correlationId?: string;
   }): Promise<string> {
     const id = await this.client.createTeam(input);
@@ -130,6 +157,7 @@ export class GraduationProjectsService {
   async addTeamMember(input: {
     projectId: string;
     studentProfileId: string;
+    studentUserId: string;
     correlationId?: string;
   }): Promise<string> {
     const id = await this.client.addTeamMember(input);
@@ -258,6 +286,7 @@ export class GraduationProjectsService {
   async submitFinal(input: {
     projectId: string;
     fileId: string;
+    expectedVersion: number;
     correlationId?: string;
   }): Promise<string> {
     const id = await this.client.submitFinal(input);
@@ -267,10 +296,11 @@ export class GraduationProjectsService {
 
   async reviewFinal(input: {
     projectId: string;
-    finalId: string;
     action: FinalReviewAction;
     comments?: string | null;
+    expectedVersion: number;
     correlationId?: string;
+    finalId?: string;
   }): Promise<string> {
     const id = await this.client.reviewFinal(input);
     await this.after("final", input.projectId);
@@ -295,11 +325,11 @@ export class GraduationProjectsService {
 
   async assignCommitteeMember(input: {
     projectId: string;
-    defenseId: string;
     facultyProfileId: string;
     userId: string;
-    chair?: boolean;
     correlationId?: string;
+    defenseId?: string;
+    chair?: boolean;
   }): Promise<string> {
     const id = await this.client.assignCommitteeMember(input);
     await this.after("committee", input.projectId);
@@ -308,9 +338,9 @@ export class GraduationProjectsService {
 
   async markDefenseHeld(input: {
     projectId: string;
-    defenseId: string;
     expectedVersion: number;
     correlationId?: string;
+    defenseId?: string;
   }): Promise<string> {
     return this.withVersionGuard(input.projectId, async () => {
       const id = await this.client.markDefenseHeld(input);
@@ -321,10 +351,10 @@ export class GraduationProjectsService {
 
   async submitEvaluation(input: {
     projectId: string;
-    defenseId: string;
     score: number;
     notes?: string | null;
     correlationId?: string;
+    defenseId?: string;
   }): Promise<string> {
     const id = await this.client.submitEvaluation(input);
     await this.after("evaluation", input.projectId);
@@ -359,47 +389,133 @@ export class GraduationProjectsService {
     });
   }
 
-  /* ---------- files: register → (caller uploads) → finalize → signed download ---------- */
+  /* ---------- files: intent → private upload → finalize → scan → signed download ---------- */
 
   async beginFileUpload(input: {
     projectId: string;
     category: FileCategory;
     originalName: string;
-    mediaType: string;
+    mediaType?: string;
     byteSize: number;
-    sha256: string;
-    token?: string;
+    sha256?: string | null;
     correlationId?: string;
-  }): Promise<{ fileRef: string | UploadIntentResult; objectKey: string; bucket: string }> {
-    const token = input.token ?? newCorrelationId().replace(/-/g, "").slice(0, 16);
-    const objectKey = buildPrivateObjectKey(input.projectId, input.originalName, token);
-    if (!objectKey) {
-      throw new GraduationProjectsRpcError("بيانات الملف الوصفية غير مكتملة أو غير صالحة", {
+  }): Promise<{
+    fileRef: string;
+    objectKey: string;
+    bucket: string;
+    intent: UploadIntentResult;
+  }> {
+    const intent = await this.client.createFileUploadIntent({
+      projectId: input.projectId,
+      category: input.category,
+      originalName: input.originalName,
+      byteSize: input.byteSize,
+      sha256: input.sha256 ?? null,
+      correlationId: input.correlationId,
+    });
+    if (intent.storage_bucket !== GP_PRIVATE_BUCKET) {
+      throw new GraduationProjectsRpcError("حاوية التخزين غير مطابقة للعقد", {
         family: "validation",
       });
     }
-    const fileRef = await this.client.registerFile({
-      projectId: input.projectId,
-      category: input.category,
-      objectKey,
-      originalName: input.originalName,
-      mediaType: input.mediaType,
-      byteSize: input.byteSize,
-      sha256: input.sha256,
-      correlationId: input.correlationId,
-    });
     await this.after("file", input.projectId);
-    return { fileRef, objectKey, bucket: GP_PRIVATE_BUCKET };
+    return {
+      fileRef: intent.file_id,
+      objectKey: intent.storage_object_path,
+      bucket: intent.storage_bucket,
+      intent,
+    };
+  }
+
+  async uploadPrivateBytes(input: {
+    bucket: string;
+    objectKey: string;
+    bytes: Blob | ArrayBuffer | File | Uint8Array;
+    contentType?: string;
+  }): Promise<void> {
+    if (input.bucket !== GP_PRIVATE_BUCKET) {
+      throw new GraduationProjectsRpcError("حاوية التخزين غير مطابقة للعقد", {
+        family: "validation",
+      });
+    }
+    const storage = this.requireStorage();
+    const { error } = await storage.from(input.bucket).upload(input.objectKey, input.bytes, {
+      contentType: input.contentType ?? "application/pdf",
+      upsert: false,
+    });
+    if (error) {
+      throw new GraduationProjectsRpcError(error.message || "تعذر رفع الملف الخاص", {
+        family: "unknown",
+      });
+    }
   }
 
   async finalizeFileUpload(input: {
     projectId: string;
     fileId: string;
+    sha256: string;
     correlationId?: string;
-  }): Promise<string | { file_id: string; scan_state: string }> {
-    const result = await this.client.finalizeFile(input);
+  }): Promise<FinalizeFileResult> {
+    const result = await this.client.finalizeFile({
+      fileId: input.fileId,
+      sha256: input.sha256,
+      projectId: input.projectId,
+      correlationId: input.correlationId,
+    });
     await this.after("file", input.projectId);
     return result;
+  }
+
+  /**
+   * Full private upload: intent → binary upload → finalize with required sha256.
+   * Scan gate remains a separate coordinator RPC before signed download is usable.
+   */
+  async uploadPrivateFile(input: {
+    projectId: string;
+    category: FileCategory;
+    file: File | Blob;
+    originalName: string;
+    sha256: string;
+    correlationId?: string;
+  }): Promise<{ fileId: string; finalize: FinalizeFileResult }> {
+    if (!input.sha256 || !/^[0-9a-f]{64}$/.test(input.sha256)) {
+      throw new GraduationProjectsRpcError("بصمة الملف مطلوبة عند الإنهاء", {
+        family: "validation",
+      });
+    }
+    const byteSize = "size" in input.file ? input.file.size : (input.file as Blob).size;
+    const begun = await this.beginFileUpload({
+      projectId: input.projectId,
+      category: input.category,
+      originalName: input.originalName,
+      byteSize,
+      sha256: null,
+      correlationId: input.correlationId,
+    });
+    await this.uploadPrivateBytes({
+      bucket: begun.bucket,
+      objectKey: begun.objectKey,
+      bytes: input.file,
+      contentType: "application/pdf",
+    });
+    const finalize = await this.finalizeFileUpload({
+      projectId: input.projectId,
+      fileId: begun.fileRef,
+      sha256: input.sha256,
+      correlationId: input.correlationId,
+    });
+    return { fileId: begun.fileRef, finalize };
+  }
+
+  async markFileScanState(input: {
+    fileId: string;
+    scanState: "clean" | "quarantined" | "rejected";
+    correlationId?: string;
+    projectId?: string;
+  }): Promise<string> {
+    const id = await this.client.markFileScanState(input);
+    await this.after("file", input.projectId);
+    return id;
   }
 
   async signedDownload(input: {
@@ -407,15 +523,39 @@ export class GraduationProjectsService {
     fileId: string;
     correlationId?: string;
   }): Promise<SignedDownloadResult> {
-    const result = await this.client.createSignedDownload(input);
+    const auth = await this.client.createSignedDownload({
+      fileId: input.fileId,
+      projectId: input.projectId,
+      correlationId: input.correlationId,
+    });
+    if (auth.storage_bucket !== GP_PRIVATE_BUCKET) {
+      throw new GraduationProjectsRpcError("حاوية التخزين غير مطابقة للعقد", {
+        family: "validation",
+      });
+    }
+    const storage = this.requireStorage();
+    const expiresIn = auth.expires_in_seconds || 300;
+    const signed = await storage
+      .from(auth.storage_bucket)
+      .createSignedUrl(auth.storage_object_path, expiresIn);
+    if (signed.error || !signed.data?.signedUrl) {
+      throw new GraduationProjectsRpcError("تعذر إنشاء رابط التحميل الموقّع", {
+        family: "authorization",
+      });
+    }
     await this.after("download", input.projectId);
-    return result;
+    return {
+      ...auth,
+      url: signed.data.signedUrl,
+      expires_at: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    };
   }
 }
 
 export function createGraduationProjectsService(
   rpc: RpcClient,
   queryClient?: QueryClient,
+  storage?: GpStorageClient,
 ): GraduationProjectsService {
-  return new GraduationProjectsService({ rpc, queryClient });
+  return new GraduationProjectsService({ rpc, queryClient, storage });
 }

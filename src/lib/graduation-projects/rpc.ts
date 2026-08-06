@@ -99,23 +99,36 @@ export function toCanonicalResultOutcome(outcome: ResultOutcomeInput): ResultOut
   return outcome;
 }
 
+/** Package A create_graduation_project_file_upload_intent / register result. */
 export interface UploadIntentResult {
   file_id: string;
-  object_key: string;
-  bucket: string;
-  upload_token?: string | null;
-  /** Short-lived upload target when Package A provides one. */
-  upload_url?: string | null;
+  storage_bucket: string;
+  storage_object_path: string;
+  category: string;
+  request?: Record<string, unknown>;
+  /** @deprecated alias — use storage_object_path */
+  object_key?: string;
+  /** @deprecated alias — use storage_bucket */
+  bucket?: string;
 }
 
 export interface FinalizeFileResult {
   file_id: string;
+  category?: string;
+  upload_status?: string;
   scan_state: string;
+  is_current?: boolean;
+  sha256?: string | null;
 }
 
+/** Package A authorize payload; service may attach a short-lived signed url. */
 export interface SignedDownloadResult {
-  url: string;
-  expires_at: string;
+  storage_bucket: string;
+  storage_object_path: string;
+  expires_in_seconds: number;
+  /** Filled by service via storage.createSignedUrl after RPC authorize. */
+  url?: string;
+  expires_at?: string;
 }
 
 export const FROZEN_WRITE_RPCS = [
@@ -151,28 +164,32 @@ export const FROZEN_READ_RPCS = [
 ] as const;
 
 /**
- * Signature dependencies on Package A (document exact args expected).
- * Package A must expose these parameter names; B does not weaken them.
+ * Signature dependencies on Package A (exact p_* names from A1/A2/A3).
+ * Package B must not invent alternate argument names or return shapes.
  */
 export const PACKAGE_A_SIGNATURE_DEPENDENCIES = {
   create_graduation_project_team:
-    "p_department_id, p_leader_student_profile_id, p_title?, p_program_id?, p_academic_year_id?, p_semester_id?, p_correlation_id",
+    "p_department_id, p_leader_student_profile_id, p_leader_user_id, p_program_id, p_academic_year_id, p_semester_id, p_correlation_id",
   add_graduation_project_team_member:
-    "p_project_id, p_student_profile_id, p_correlation_id",
+    "p_project_id, p_student_profile_id, p_student_user_id, p_correlation_id",
   remove_graduation_project_team_member:
     "p_project_id, p_assignment_id, p_correlation_id",
   upsert_graduation_project_proposal:
     "p_project_id, p_title, p_problem_statement, p_objectives, p_summary, p_expected_version, p_correlation_id",
+  create_graduation_project_file_upload_intent:
+    "p_project_id, p_category, p_original_name, p_byte_size, p_correlation_id, p_sha256?",
   register_graduation_project_file:
-    "p_project_id, p_category, p_object_key, p_original_name, p_media_type, p_byte_size, p_sha256, p_correlation_id",
+    "p_project_id, p_category, p_original_name, p_byte_size, p_correlation_id, p_sha256?",
   finalize_graduation_project_file:
-    "p_project_id, p_file_id, p_correlation_id",
+    "p_file_id, p_correlation_id, p_sha256?",
+  mark_graduation_project_file_scan_state:
+    "p_file_id, p_scan_state, p_correlation_id",
   submit_graduation_project_proposal:
     "p_project_id, p_expected_version, p_correlation_id",
   resubmit_graduation_project_proposal:
     "p_project_id, p_expected_version, p_correlation_id",
   review_graduation_project_proposal:
-    "p_project_id, p_action (accept|return|reject), p_reason?, p_comments?, p_expected_version, p_correlation_id",
+    "p_project_id, p_action (accept|return|reject), p_reason, p_expected_version, p_correlation_id",
   assign_graduation_project_supervisor:
     "p_project_id, p_faculty_profile_id, p_user_id, p_correlation_id",
   respond_graduation_project_supervision:
@@ -180,28 +197,30 @@ export const PACKAGE_A_SIGNATURE_DEPENDENCIES = {
   submit_graduation_project_progress:
     "p_project_id, p_summary, p_file_id?, p_correlation_id",
   review_graduation_project_progress:
-    "p_project_id, p_progress_id, p_action (approve|return), p_comments?, p_correlation_id",
+    "p_entry_id, p_action (approve|return), p_comments, p_correlation_id",
   submit_graduation_project_final:
-    "p_project_id, p_file_id, p_correlation_id",
+    "p_project_id, p_file_id, p_expected_version, p_correlation_id",
   review_graduation_project_final:
-    "p_project_id, p_final_id, p_action (ready|return), p_comments?, p_correlation_id",
+    "p_project_id, p_action (ready|return), p_comments, p_expected_version, p_correlation_id",
   schedule_graduation_project_defense:
     "p_project_id, p_starts_at, p_venue, p_expected_version, p_correlation_id",
   assign_graduation_project_committee_member:
-    "p_project_id, p_defense_id, p_faculty_profile_id, p_user_id, p_chair?, p_correlation_id",
+    "p_project_id, p_faculty_profile_id, p_user_id, p_correlation_id",
   mark_graduation_project_defense_held:
-    "p_project_id, p_defense_id, p_expected_version, p_correlation_id",
+    "p_project_id, p_expected_version, p_correlation_id",
   submit_graduation_project_evaluation:
-    "p_project_id, p_defense_id, p_score (0..100), p_notes?, p_correlation_id",
+    "p_project_id, p_score (0..100), p_notes, p_correlation_id",
   conclude_graduation_project_result:
-    "p_project_id, p_final_decision (passed|revisions_required|failed), p_expected_version, p_correlation_id",
+    "p_project_id, p_decision (passed|revisions_required|failed), p_expected_version, p_correlation_id",
   archive_graduation_project:
     "p_project_id, p_expected_version, p_correlation_id",
   create_graduation_project_signed_download:
-    "p_project_id, p_file_id, p_correlation_id",
+    "p_file_id, p_correlation_id",
+  cleanup_graduation_project_orphan_storage_contract:
+    "p_project_id, p_correlation_id",
   list_my_graduation_projects: "(no args)",
   get_graduation_project_detail: "p_project_id",
-  list_administration_graduation_projects_overview: "optional filters",
+  list_administration_graduation_projects_overview: "(no args)",
 } as const;
 
 export class GraduationProjectsRpcClient {
@@ -236,19 +255,21 @@ export class GraduationProjectsRpcClient {
   async createTeam(input: {
     departmentId: string;
     leaderStudentProfileId: string;
-    title?: string;
-    programId?: string | null;
-    academicYearId?: string | null;
-    semesterId?: string | null;
+    leaderUserId: string;
+    programId: string;
+    academicYearId: string;
+    semesterId: string;
     correlationId?: string;
+    /** @deprecated title is not a Package A create-team parameter */
+    title?: string;
   }): Promise<string> {
     return this.call<string>("create_graduation_project_team", {
       p_department_id: input.departmentId,
       p_leader_student_profile_id: input.leaderStudentProfileId,
-      p_title: input.title ?? null,
-      p_program_id: input.programId ?? null,
-      p_academic_year_id: input.academicYearId ?? null,
-      p_semester_id: input.semesterId ?? null,
+      p_leader_user_id: input.leaderUserId,
+      p_program_id: input.programId,
+      p_academic_year_id: input.academicYearId,
+      p_semester_id: input.semesterId,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "create_team",
@@ -260,11 +281,13 @@ export class GraduationProjectsRpcClient {
   async addTeamMember(input: {
     projectId: string;
     studentProfileId: string;
+    studentUserId: string;
     correlationId?: string;
   }): Promise<string> {
     return this.call<string>("add_graduation_project_team_member", {
       p_project_id: input.projectId,
       p_student_profile_id: input.studentProfileId,
+      p_student_user_id: input.studentUserId,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "add_member",
@@ -316,48 +339,102 @@ export class GraduationProjectsRpcClient {
   }
 
   /**
-   * Upload-intent / register metadata for private GP files.
-   * Binary bytes go to storage via the returned intent; never public URLs.
+   * Create upload intent (Package A). sha256 may be null while pending.
+   * Server builds object key; binary bytes upload privately afterward.
+   */
+  async createFileUploadIntent(input: {
+    projectId: string;
+    category: FileCategory;
+    originalName: string;
+    byteSize: number;
+    sha256?: string | null;
+    correlationId?: string;
+  }): Promise<UploadIntentResult> {
+    const result = await this.call<UploadIntentResult>("create_graduation_project_file_upload_intent", {
+      p_project_id: input.projectId,
+      p_category: input.category,
+      p_original_name: input.originalName,
+      p_byte_size: input.byteSize,
+      p_correlation_id: this.corr({
+        correlationId: input.correlationId,
+        scope: "upload_intent",
+        projectId: input.projectId,
+        entityId: input.category,
+      }),
+      p_sha256: input.sha256 ?? null,
+    });
+    return {
+      ...result,
+      object_key: result.storage_object_path,
+      bucket: result.storage_bucket,
+    };
+  }
+
+  /**
+   * Thin Package A wrapper → create_graduation_project_file_upload_intent; returns file_id.
    */
   async registerFile(input: {
     projectId: string;
     category: FileCategory;
-    objectKey: string;
     originalName: string;
-    mediaType: string;
     byteSize: number;
-    sha256: string;
+    sha256?: string | null;
     correlationId?: string;
-  }): Promise<string | UploadIntentResult> {
-    return this.call<string | UploadIntentResult>("register_graduation_project_file", {
+    /** @deprecated client no longer supplies object key — Package A builds it */
+    objectKey?: string;
+    /** @deprecated media type fixed to application/pdf by Package A */
+    mediaType?: string;
+  }): Promise<string> {
+    return this.call<string>("register_graduation_project_file", {
       p_project_id: input.projectId,
       p_category: input.category,
-      p_object_key: input.objectKey,
       p_original_name: input.originalName,
-      p_media_type: input.mediaType,
       p_byte_size: input.byteSize,
-      p_sha256: input.sha256,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "register_file",
         projectId: input.projectId,
-        entityId: input.objectKey,
+        entityId: input.category,
       }),
+      p_sha256: input.sha256 ?? null,
     });
   }
 
   async finalizeFile(input: {
-    projectId: string;
     fileId: string;
+    sha256: string;
     correlationId?: string;
-  }): Promise<string | FinalizeFileResult> {
-    return this.call<string | FinalizeFileResult>("finalize_graduation_project_file", {
-      p_project_id: input.projectId,
+    /** @deprecated not a Package A finalize parameter */
+    projectId?: string;
+  }): Promise<FinalizeFileResult> {
+    if (!input.sha256 || !/^[0-9a-f]{64}$/.test(input.sha256)) {
+      throw new GraduationProjectsRpcError("بصمة الملف مطلوبة عند الإنهاء", {
+        family: "validation",
+      });
+    }
+    return this.call<FinalizeFileResult>("finalize_graduation_project_file", {
       p_file_id: input.fileId,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "finalize_file",
         projectId: input.projectId,
+        entityId: input.fileId,
+      }),
+      p_sha256: input.sha256,
+    });
+  }
+
+  async markFileScanState(input: {
+    fileId: string;
+    scanState: "clean" | "quarantined" | "rejected";
+    correlationId?: string;
+  }): Promise<string> {
+    return this.call<string>("mark_graduation_project_file_scan_state", {
+      p_file_id: input.fileId,
+      p_scan_state: input.scanState,
+      p_correlation_id: this.corr({
+        correlationId: input.correlationId,
+        scope: "mark_scan",
         entityId: input.fileId,
       }),
     });
@@ -412,8 +489,7 @@ export class GraduationProjectsRpcClient {
     return this.call<string>("review_graduation_project_proposal", {
       p_project_id: input.projectId,
       p_action: canonical,
-      p_reason: input.reason ?? null,
-      p_comments: input.comments ?? input.reason ?? null,
+      p_reason: input.reason ?? input.comments ?? null,
       p_expected_version: input.expectedVersion,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
@@ -481,15 +557,15 @@ export class GraduationProjectsRpcClient {
   }
 
   async reviewProgress(input: {
-    projectId: string;
     progressId: string;
     action: ProgressReviewAction;
     comments?: string | null;
     correlationId?: string;
+    /** @deprecated not a Package A review-progress parameter */
+    projectId?: string;
   }): Promise<string> {
     return this.call<string>("review_graduation_project_progress", {
-      p_project_id: input.projectId,
-      p_progress_id: input.progressId,
+      p_entry_id: input.progressId,
       p_action: input.action,
       p_comments: input.comments ?? null,
       p_correlation_id: this.corr({
@@ -504,11 +580,13 @@ export class GraduationProjectsRpcClient {
   async submitFinal(input: {
     projectId: string;
     fileId: string;
+    expectedVersion: number;
     correlationId?: string;
   }): Promise<string> {
     return this.call<string>("submit_graduation_project_final", {
       p_project_id: input.projectId,
       p_file_id: input.fileId,
+      p_expected_version: input.expectedVersion,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "submit_final",
@@ -520,21 +598,23 @@ export class GraduationProjectsRpcClient {
 
   async reviewFinal(input: {
     projectId: string;
-    finalId: string;
     action: FinalReviewAction;
     comments?: string | null;
+    expectedVersion: number;
     correlationId?: string;
+    /** @deprecated not a Package A review-final parameter */
+    finalId?: string;
   }): Promise<string> {
     return this.call<string>("review_graduation_project_final", {
       p_project_id: input.projectId,
-      p_final_id: input.finalId,
       p_action: input.action,
       p_comments: input.comments ?? null,
+      p_expected_version: input.expectedVersion,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "review_final",
         projectId: input.projectId,
-        entityId: input.finalId,
+        entityId: input.action,
       }),
     });
   }
@@ -561,18 +641,18 @@ export class GraduationProjectsRpcClient {
 
   async assignCommitteeMember(input: {
     projectId: string;
-    defenseId: string;
     facultyProfileId: string;
     userId: string;
-    chair?: boolean;
     correlationId?: string;
+    /** @deprecated not a Package A committee parameter */
+    defenseId?: string;
+    /** @deprecated not a Package A committee parameter */
+    chair?: boolean;
   }): Promise<string> {
     return this.call<string>("assign_graduation_project_committee_member", {
       p_project_id: input.projectId,
-      p_defense_id: input.defenseId,
       p_faculty_profile_id: input.facultyProfileId,
       p_user_id: input.userId,
-      p_chair: input.chair ?? false,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "assign_committee",
@@ -584,40 +664,38 @@ export class GraduationProjectsRpcClient {
 
   async markDefenseHeld(input: {
     projectId: string;
-    defenseId: string;
     expectedVersion: number;
     correlationId?: string;
+    /** @deprecated not a Package A mark-held parameter */
+    defenseId?: string;
   }): Promise<string> {
     return this.call<string>("mark_graduation_project_defense_held", {
       p_project_id: input.projectId,
-      p_defense_id: input.defenseId,
       p_expected_version: input.expectedVersion,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "mark_defense_held",
         projectId: input.projectId,
-        entityId: input.defenseId,
       }),
     });
   }
 
   async submitEvaluation(input: {
     projectId: string;
-    defenseId: string;
     score: number;
     notes?: string | null;
     correlationId?: string;
+    /** @deprecated not a Package A evaluation parameter */
+    defenseId?: string;
   }): Promise<string> {
     return this.call<string>("submit_graduation_project_evaluation", {
       p_project_id: input.projectId,
-      p_defense_id: input.defenseId,
       p_score: input.score,
       p_notes: input.notes ?? null,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
         scope: "submit_evaluation",
         projectId: input.projectId,
-        entityId: input.defenseId,
       }),
     });
   }
@@ -633,7 +711,7 @@ export class GraduationProjectsRpcClient {
     const decision = toCanonicalResultOutcome(input.outcome);
     return this.call<string>("conclude_graduation_project_result", {
       p_project_id: input.projectId,
-      p_final_decision: decision,
+      p_decision: decision,
       p_expected_version: input.expectedVersion,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
@@ -661,12 +739,12 @@ export class GraduationProjectsRpcClient {
   }
 
   async createSignedDownload(input: {
-    projectId: string;
     fileId: string;
     correlationId?: string;
+    /** @deprecated not a Package A signed-download parameter */
+    projectId?: string;
   }): Promise<SignedDownloadResult> {
     return this.call<SignedDownloadResult>("create_graduation_project_signed_download", {
-      p_project_id: input.projectId,
       p_file_id: input.fileId,
       p_correlation_id: this.corr({
         correlationId: input.correlationId,
@@ -700,14 +778,29 @@ export class GraduationProjectsRpcClient {
     });
   }
 
-  async listAdministrationOverview(filters?: {
+  async listAdministrationOverview(_filters?: {
     departmentId?: string | null;
     lifecycleState?: string | null;
   }): Promise<AdministrationOverviewReport> {
-    return this.call<AdministrationOverviewReport>("list_administration_graduation_projects_overview", {
-      p_department_id: filters?.departmentId ?? null,
-      p_lifecycle_state: filters?.lifecycleState ?? null,
-    });
+    const rows = await this.call<AdministrationOverviewReport["projects"] | AdministrationOverviewReport | null>(
+      "list_administration_graduation_projects_overview",
+      {},
+    );
+    if (Array.isArray(rows)) {
+      return {
+        projects: rows,
+        counts: {
+          total: rows.length,
+          by_lifecycle_state: {},
+          by_final_decision: {},
+          archived: rows.filter((r) => r.lifecycle_state === "archived" || Boolean((r as { archived_at?: string }).archived_at)).length,
+        },
+      };
+    }
+    return rows ?? {
+      projects: [],
+      counts: { total: 0, by_lifecycle_state: {}, by_final_decision: {}, archived: 0 },
+    };
   }
 
   /* ---------- legacy draft method names (compat shims for unrouted workspace) ---------- */
@@ -722,21 +815,23 @@ export class GraduationProjectsRpcClient {
     semesterId: string;
     correlationId?: string;
     leaderStudentProfileId?: string;
+    leaderUserId?: string;
   }): Promise<string> {
-    if (!input.leaderStudentProfileId) {
+    if (!input.leaderStudentProfileId || !input.leaderUserId) {
       throw new GraduationProjectsRpcError(
-        "إنشاء الفريق يتطلب معرّف قائد الفريق وفق العقد المجمّد",
+        "إنشاء الفريق يتطلب معرّف قائد الفريق والمستخدم وفق العقد المجمّد",
         { family: "validation" },
       );
     }
     return this.createTeam({
       departmentId: input.departmentId,
       leaderStudentProfileId: input.leaderStudentProfileId,
-      title: input.title,
+      leaderUserId: input.leaderUserId,
       programId: input.programId,
       academicYearId: input.academicYearId,
       semesterId: input.semesterId,
       correlationId: input.correlationId,
+      title: input.title,
     });
   }
 
@@ -776,10 +871,8 @@ export class GraduationProjectsRpcClient {
     }
     return this.assignCommitteeMember({
       projectId: input.projectId,
-      defenseId: input.discussionId,
       facultyProfileId: input.facultyProfileId,
       userId: input.userId,
-      chair: input.chair,
       correlationId: input.correlationId,
     });
   }
@@ -799,7 +892,6 @@ export class GraduationProjectsRpcClient {
     }
     return this.markDefenseHeld({
       projectId: input.projectId,
-      defenseId: input.discussionId,
       expectedVersion: input.expectedVersion ?? 0,
       correlationId: input.correlationId,
     });
@@ -823,7 +915,6 @@ export class GraduationProjectsRpcClient {
     const total = input.scores.reduce((sum, row) => sum + row.awarded_score, 0);
     return this.submitEvaluation({
       projectId: input.projectId,
-      defenseId: input.discussionId,
       score: total,
       notes: input.comments ?? null,
       correlationId: input.correlationId,
