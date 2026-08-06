@@ -1,7 +1,7 @@
 # GRADUATION-PROJECTS-MVP-FINAL-RUNTIME-CLEANUP-ISOLATION-01-REPORT
 
 **Mission:** `PORTAL_GRADUATION_PROJECTS_MVP_FINAL_RUNTIME_CLEANUP_ISOLATION_AND_SECURITY_MERGE_01`  
-**Mode:** IMPLEMENT + VERIFY + COMMIT + PUSH · FOCUSED FINAL INTEGRATION FIX · SOURCE-ONLY  
+**Mode:** IMPLEMENT + VERIFY + COMMIT + PUSH آ· FOCUSED FINAL INTEGRATION FIX آ· SOURCE-ONLY  
 **Branch:** `integration/gp-mvp-01`  
 **Base (mission start):** `f9fe5468dc8e8364ff01df85e843c1785a60e81b`  
 **Executable verifier fix:** `0693132c0185f3eeee803804fabfdb16e825b770`  
@@ -30,15 +30,15 @@ Package D cleanup remains only in verification infrastructure.
 |---|---|
 | Verifier-fix merge | `7e8bcc079249f36c9e85321e14194ba93a0fe23d` |
 | Prior cleanup isolation | `e7281d9348a7cd1400953d254038212e30ceb8cc` |
-| Final reconciliation (this mission) | *(see git tip after commit)* |
-| Final integration HEAD | *(tip of `origin/integration/gp-mvp-01` after push)* |
+| Final reconciliation (this mission) | $sha |
+| Final integration HEAD | $sha |
 
 ## Changed files (this reconciliation)
 
-- `src/lib/graduation-projects/rpc.ts` — zero TEST_ONLY helper strings/exports/methods
-- `tests/graduation-projects/graduation-projects-rpc-contract-drift.test.ts` — production vs TEST_ONLY split; full `src/**` scan = 0 hits
-- `tests/graduation-projects/graduation-projects-runtime-adapter.test.ts` — no TEST_ONLY cleanup API export assertion
-- `docs/GRADUATION-PROJECTS-MVP-FINAL-RUNTIME-CLEANUP-ISOLATION-01-REPORT.md` — this report
+- `src/lib/graduation-projects/rpc.ts` â€” zero TEST_ONLY helper strings/exports/methods
+- `tests/graduation-projects/graduation-projects-rpc-contract-drift.test.ts` â€” production vs TEST_ONLY split; full `src/**` scan = 0 hits
+- `tests/graduation-projects/graduation-projects-runtime-adapter.test.ts` â€” no TEST_ONLY cleanup API export assertion
+- `docs/GRADUATION-PROJECTS-MVP-FINAL-RUNTIME-CLEANUP-ISOLATION-01-REPORT.md` â€” this report
 
 ## Inventory
 
