@@ -2,12 +2,17 @@
  * PORTAL-B1-FIVE-SERVICES-TERMINAL-VISIBILITY-MINIMAL-FIX-34
  *
  * Source contract: after ordered migration replay, the terminal writer of
- * student_visible for the five B1 services must leave them hidden (false).
- * A future migration that terminally re-exposes any of the five must fail here.
+ * student_visible for the five B1 services must leave them
+ * student_visible=true (officially released terminal state).
  *
- * Later migrations after B1-34 are allowed when they do not set any of the five
- * codes to student_visible=true (e.g. Fixture-15 repair that never writes
- * request_types visibility).
+ * B1-34 remains the fail-closed hide migration. The authoritative completed
+ * production release (`20260806005924_…` / "Released B1 five services") is the
+ * subsequent terminal writer that re-exposes all five as active +
+ * student_visible=true. enrollment_certificate stays active + visible and is
+ * never mutated by these writers.
+ *
+ * Later migrations after the official release are allowed only when they do
+ * not rewrite student_visible for any of the five codes.
  */
 import { describe, expect, it } from "bun:test";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
@@ -17,6 +22,7 @@ const ROOT = process.cwd();
 const MIG_DIR = join(ROOT, "supabase/migrations");
 const PREDECESSOR_HEAD = "20260801021541";
 const FIX_PREFIX = "20260802070000_b1_34_five_services_terminal_visibility_false";
+const RELEASE_PREFIX = "20260806005924";
 const FIXTURE_15_REPAIR =
   "20260803030000_b1_44_restore_sr_20260801_13000015.sql";
 
@@ -94,6 +100,12 @@ function fixMigrationPath(): string {
   return join(MIG_DIR, match!);
 }
 
+function releaseMigrationPath(): string {
+  const match = migrationFiles().find((f) => f.startsWith(RELEASE_PREFIX));
+  expect(match).toBeTruthy();
+  return join(MIG_DIR, match!);
+}
+
 function stripSqlComments(sql: string): string {
   return sql
     .replace(/--.*$/gm, "")
@@ -107,8 +119,8 @@ describe("B1-34 five-services terminal visibility minimal fix", () => {
     expect(fix).toBeTruthy();
     expect(fix!.localeCompare(`${PREDECESSOR_HEAD}_`) > 0).toBe(true);
     expect(files.filter((f) => f.startsWith(FIX_PREFIX))).toHaveLength(1);
-    // B1-34 need not remain the final migration filename; later non-visibility
-    // repairs (e.g. Fixture-15) are allowed after it.
+    // B1-34 need not remain the final migration filename; later repairs and
+    // the official B1 five-services release follow it.
     expect(existsSync(fixMigrationPath())).toBe(true);
   });
 
@@ -148,7 +160,7 @@ describe("B1-34 five-services terminal visibility minimal fix", () => {
     expect(setClause).not.toMatch(/\bform_schema\s*=/);
   });
 
-  it("keeps terminal polarity false for each of the five after ordered replay", () => {
+  it("keeps terminal polarity true for each of the five after ordered replay", () => {
     const files = migrationFiles();
     const writes: VisibilityWrite[] = [];
     for (const file of files) {
@@ -158,36 +170,71 @@ describe("B1-34 five-services terminal visibility minimal fix", () => {
 
     expect(writes.length).toBeGreaterThan(0);
 
-    // Known terminal-true writers before the fix (ordered).
+    // Known true writers before B1-34, plus the official release terminal writer.
     const trueWriters = writes
       .filter((w) => w.polarity === "true")
       .map((w) => w.file);
     expect(trueWriters.some((f) => f.startsWith("20260727071910"))).toBe(true);
     expect(trueWriters.some((f) => f.startsWith("20260727114619"))).toBe(true);
     expect(trueWriters.some((f) => f.startsWith("20260727115111"))).toBe(true);
+    expect(trueWriters.some((f) => f.startsWith(RELEASE_PREFIX))).toBe(true);
 
-    // Per-code: final ordered writer of student_visible must leave it false.
+    // B1-34 remains present as the fail-closed hide step before release.
+    const falseWriters = writes
+      .filter((w) => w.polarity === "false")
+      .map((w) => w.file);
+    expect(falseWriters.some((f) => f.startsWith(FIX_PREFIX))).toBe(true);
+
+    const fixIndex = files.findIndex((f) => f.startsWith(FIX_PREFIX));
+    const releaseIndex = files.findIndex((f) => f.startsWith(RELEASE_PREFIX));
+    expect(fixIndex).toBeGreaterThanOrEqual(0);
+    expect(releaseIndex).toBeGreaterThan(fixIndex);
+
+    // Per-code: final ordered writer of student_visible must leave it true
+    // via the official release migration.
     for (const code of FIVE) {
       const codeWrites = writes.filter((w) => w.codes.includes(code));
       expect(codeWrites.length).toBeGreaterThan(0);
       const last = codeWrites[codeWrites.length - 1];
-      expect(last.polarity).toBe("false");
+      expect(last.polarity).toBe("true");
+      expect(last.file.startsWith(RELEASE_PREFIX)).toBe(true);
     }
 
-    // Aggregate chain must also end false (no terminal re-exposure).
+    // Aggregate chain must also end true (released terminal state).
     const last = writes[writes.length - 1];
-    expect(last.polarity).toBe("false");
+    expect(last.polarity).toBe("true");
+    expect(last.file.startsWith(RELEASE_PREFIX)).toBe(true);
 
-    // Migrations after B1-34 may exist, but must not set any of the five true.
-    const fixIndex = files.findIndex((f) => f.startsWith(FIX_PREFIX));
-    expect(fixIndex).toBeGreaterThanOrEqual(0);
-    for (const file of files.slice(fixIndex + 1)) {
+    // Migrations after the official release must not rewrite the five.
+    for (const file of files.slice(releaseIndex + 1)) {
       const body = readFileSync(join(MIG_DIR, file), "utf8");
-      const laterTrue = visibilityWrites(file, body).filter(
-        (w) => w.polarity === "true",
-      );
-      expect(laterTrue).toEqual([]);
+      expect(visibilityWrites(file, body)).toEqual([]);
     }
+  });
+
+  it("official release preserves enrollment_certificate active + visible", () => {
+    const sql = readFileSync(releaseMigrationPath(), "utf8");
+    const executable = stripSqlComments(sql);
+
+    for (const code of FIVE) {
+      expect(sql).toContain(`'${code}'`);
+    }
+    expect(sql).toMatch(
+      /SET\s+student_visible\s*=\s*true\s*,\s*updated_at\s*=\s*now\(\)/i,
+    );
+    expect(sql).toContain("B1_RELEASE_PRECONDITION_MISMATCH");
+    expect(sql).toContain("B1_RELEASE_UPDATE_COUNT_MISMATCH");
+    expect(sql).toContain("B1_RELEASE_POST_HIDDEN");
+    expect(sql).toContain("B1_RELEASE_EC_STATE_CHANGED");
+    expect(sql).toContain("enrollment_certificate");
+    // Release must require certificate remains active AND visible.
+    expect(executable).toMatch(
+      /\(is_active\s+AND\s+student_visible\).*enrollment_certificate|enrollment_certificate[\s\S]{0,120}\(is_active\s+AND\s+student_visible\)/i,
+    );
+    // Release must not UPDATE the certificate row.
+    expect(executable).not.toMatch(
+      /UPDATE\s+(?:public\.)?request_types[\s\S]{0,200}enrollment_certificate/i,
+    );
   });
 
   it("Fixture-15 repair does not write request_types / student_visible / is_active", () => {
