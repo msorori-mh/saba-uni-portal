@@ -1,3 +1,5 @@
+-- SUPERSEDED BY PACKAGE A (A1/A2/A3). Retained for historical reference only.
+-- Use GRADUATION-PROJECTS-MVP-PACKAGE-A{1,2,3}-*.sql as sole authority with the freeze contract.
 -- DRAFT ONLY — DO NOT APPLY. GRADUATION-PROJECTS-MVP-FOUNDATION-01
 -- Academic eligibility/team-size/rubric/storage policies remain configuration inputs.
 -- No production migration, bucket, policy, workflow, or feature activation is authorized.

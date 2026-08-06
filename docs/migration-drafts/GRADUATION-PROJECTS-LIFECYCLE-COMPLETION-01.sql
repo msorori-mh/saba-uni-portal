@@ -1,3 +1,5 @@
+-- SUPERSEDED BY PACKAGE A (A1/A2/A3). Retained for historical reference only.
+-- Use GRADUATION-PROJECTS-MVP-PACKAGE-A{1,2,3}-*.sql as sole authority with the freeze contract.
 -- DRAFT ONLY — DO NOT APPLY. GRADUATION-PROJECTS-LIFECYCLE-COMPLETION-01
 -- Completes the source-only lifecycle of GRADUATION-PROJECTS-MVP-FOUNDATION-01:
 -- proposal review/activation, faculty assignment, deliverables, supervisor notes,
