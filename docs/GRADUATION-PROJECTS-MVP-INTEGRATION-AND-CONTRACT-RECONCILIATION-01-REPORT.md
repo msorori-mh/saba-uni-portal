@@ -196,6 +196,6 @@ None for SOURCE-ONLY integration candidate.
 | Item | Value |
 |---|---|
 | Branch | `integration/gp-mvp-01` |
-| Final HEAD | `0bf55def94aa0377db6b47c34c30356bf875a926` |
+| Final HEAD | tip of `origin/integration/gp-mvp-01` after push (verify with `git rev-parse HEAD`) |
 | Reconciliation commit | `0bece436` — `feat(gp): integrate MVP packages and reconcile contracts` |
-| Report SHA pin | `0bf55def` — `docs(gp): pin MVP integration final HEAD SHA` |
+| Merge tip before reconcile | `ff9b78a0` — Package D merge |
