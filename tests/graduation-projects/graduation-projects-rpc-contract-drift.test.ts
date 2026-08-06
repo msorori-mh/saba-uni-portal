@@ -1,16 +1,41 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   FROZEN_READ_RPCS,
   FROZEN_WRITE_RPCS,
   PACKAGE_A_SIGNATURE_DEPENDENCIES,
-  PACKAGE_D_TEST_ONLY_HELPERS,
 } from "../../src/lib/graduation-projects/rpc";
 import { GP_PRIVATE_BUCKET } from "../../src/lib/graduation-projects/domain";
 
 const ROOT = join(import.meta.dir, "../..");
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
+
+/** Package D TEST_ONLY helpers — test inventory only; never imported from production runtime. */
+const PACKAGE_D_TEST_ONLY_HELPERS = [
+  "cleanup_graduation_project_test_artifacts",
+  "export_graduation_project_e2e_fingerprint",
+] as const;
+
+const RUNTIME_FORBIDDEN = [
+  "TEST_ONLY_GP_MVP_E2E_01",
+  "cleanup_graduation_project_test_artifacts",
+  "cleanup_gp_test_artifacts",
+  "export_graduation_project_e2e_fingerprint",
+  "cleanupTestArtifacts",
+  "p_fingerprint",
+] as const;
+
+function listSourceFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    const st = statSync(full);
+    if (st.isDirectory()) out.push(...listSourceFiles(full));
+    else if (/\.(ts|tsx|js|jsx)$/.test(entry)) out.push(full);
+  }
+  return out;
+}
 
 const a1 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A1-FOUNDATION-01.sql");
 const a2 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A2-STORAGE-01.sql");
@@ -286,8 +311,6 @@ describe("Package B ↔ Package A RPC contract drift guard", () => {
   });
 
   test("Package D TEST_ONLY helpers stay out of production runtime API", () => {
-    expect(PACKAGE_D_TEST_ONLY_HELPERS).toContain("cleanup_graduation_project_test_artifacts");
-    expect(PACKAGE_D_TEST_ONLY_HELPERS).toContain("export_graduation_project_e2e_fingerprint");
     expect(PACKAGE_D_TEST_ONLY_HELPERS).toHaveLength(2);
 
     for (const name of PACKAGE_D_TEST_ONLY_HELPERS) {
@@ -297,17 +320,32 @@ describe("Package B ↔ Package A RPC contract drift guard", () => {
       expect(FROZEN_READ_RPCS as readonly string[]).not.toContain(name);
     }
 
-    // Runtime product surface must not invoke cleanup (inventory label may document the name).
-    expect(rpcTs).not.toContain("cleanupTestArtifacts");
-    expect(rpcTs).not.toMatch(/\.call\(\s*["']cleanup_graduation_project_test_artifacts["']/);
-    expect(rpcTs).not.toMatch(/this\.call\([^)]*cleanup_graduation_project_test_artifacts/);
-    expect(serviceTs).not.toContain("cleanup_graduation_project_test_artifacts");
-    expect(serviceTs).not.toContain("cleanupTestArtifacts");
-    expect(hooksTs).not.toContain("cleanup_graduation_project_test_artifacts");
-    expect(hooksTs).not.toContain("cleanupTestArtifacts");
-    expect(indexTs).not.toContain("cleanupTestArtifacts");
-    expect(adapterTs).not.toContain("cleanup_graduation_project_test_artifacts");
-    expect(adapterTs).not.toContain("cleanupTestArtifacts");
+    for (const fragment of [
+      "cleanup_graduation_project_test_artifacts",
+      "cleanupTestArtifacts",
+      "p_fingerprint",
+      "PACKAGE_D_TEST_ONLY_HELPERS",
+      "export_graduation_project_e2e_fingerprint",
+      "TEST_ONLY_GP_MVP_E2E_01",
+      "cleanup_gp_test_artifacts",
+    ]) {
+      expect(rpcTs).not.toContain(fragment);
+      expect(serviceTs).not.toContain(fragment);
+      expect(hooksTs).not.toContain(fragment);
+      expect(indexTs).not.toContain(fragment);
+      expect(adapterTs).not.toContain(fragment);
+    }
+
+    // Entire production/runtime tree must have zero TEST_ONLY cleanup references.
+    const runtimeFiles = listSourceFiles(join(ROOT, "src"));
+    let runtimeHits = 0;
+    for (const file of runtimeFiles) {
+      const text = readFileSync(file, "utf8");
+      for (const needle of RUNTIME_FORBIDDEN) {
+        if (text.includes(needle)) runtimeHits += 1;
+      }
+    }
+    expect(runtimeHits).toBe(0);
 
     // Package D infrastructure retains the helper.
     expect(packageDCleanup).toContain("create or replace function public.cleanup_graduation_project_test_artifacts");

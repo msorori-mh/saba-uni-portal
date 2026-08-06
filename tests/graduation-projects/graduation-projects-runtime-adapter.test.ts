@@ -221,6 +221,22 @@ describe("frozen RPC inventory and argument contracts", () => {
     for (const name of FROZEN_WRITE_RPCS) expect(source).toContain(`"${name}"`);
     for (const name of FROZEN_READ_RPCS) expect(source).toContain(`"${name}"`);
   });
+
+  test("exports no TEST_ONLY cleanup API from Package B public surface", async () => {
+    const rpc = await Bun.file("src/lib/graduation-projects/rpc.ts").text();
+    const index = await Bun.file("src/lib/graduation-projects/index.ts").text();
+    const service = await Bun.file("src/lib/graduation-projects/service.ts").text();
+    const hooks = await Bun.file("src/lib/graduation-projects/hooks.ts").text();
+    for (const source of [rpc, index, service, hooks]) {
+      expect(source).not.toContain("cleanupTestArtifacts");
+      expect(source).not.toContain("cleanup_graduation_project_test_artifacts");
+      expect(source).not.toContain("p_fingerprint");
+      expect(source).not.toContain("export_graduation_project_e2e_fingerprint");
+      expect(source).not.toContain("TEST_ONLY_GP_MVP_E2E_01");
+    }
+    expect("cleanupTestArtifacts" in GraduationProjectsRpcClient.prototype).toBe(false);
+    expect(typeof (GraduationProjectsRpcClient.prototype as { cleanupTestArtifacts?: unknown }).cleanupTestArtifacts).toBe("undefined");
+  });
 });
 
 describe("error mapping families", () => {

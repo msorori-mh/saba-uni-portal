@@ -156,15 +156,6 @@ export const FROZEN_WRITE_RPCS = [
   "create_graduation_project_signed_download",
 ] as const;
 
-/**
- * Package D TEST_ONLY helpers — verification infrastructure only.
- * Never expose through GraduationProjectsRpcClient / service / hooks / UI.
- */
-export const PACKAGE_D_TEST_ONLY_HELPERS = [
-  "cleanup_graduation_project_test_artifacts",
-  "export_graduation_project_e2e_fingerprint",
-] as const;
-
 export const FROZEN_READ_RPCS = [
   "list_my_graduation_projects",
   "get_graduation_project_detail",
