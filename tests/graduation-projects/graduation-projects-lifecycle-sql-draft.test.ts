@@ -79,12 +79,41 @@ describe("graduation projects lifecycle completion SQL draft", () => {
     expect(sql).toContain("file object key outside project scope");
   });
 
-  test("client module consumes exactly the drafted RPC surface", () => {
-    for (const signature of [...WRITE_RPCS, ...READ_RPCS]) {
-      expect(client).toContain(`"${signature.slice(0, signature.indexOf("("))}"`);
-    }
+  test("client module follows frozen MVP RPC inventory (Package B; not draft dean/discussion surface)", () => {
+    // Freeze wins over draft SQL names. Package A may still carry legacy draft RPCs;
+    // Package B adapter must call the frozen inventory only for operational paths.
+    const frozen = [
+      "create_graduation_project_team",
+      "add_graduation_project_team_member",
+      "remove_graduation_project_team_member",
+      "upsert_graduation_project_proposal",
+      "register_graduation_project_file",
+      "finalize_graduation_project_file",
+      "submit_graduation_project_proposal",
+      "resubmit_graduation_project_proposal",
+      "review_graduation_project_proposal",
+      "assign_graduation_project_supervisor",
+      "respond_graduation_project_supervision",
+      "submit_graduation_project_progress",
+      "review_graduation_project_progress",
+      "submit_graduation_project_final",
+      "review_graduation_project_final",
+      "schedule_graduation_project_defense",
+      "assign_graduation_project_committee_member",
+      "mark_graduation_project_defense_held",
+      "submit_graduation_project_evaluation",
+      "conclude_graduation_project_result",
+      "archive_graduation_project",
+      "create_graduation_project_signed_download",
+      "list_my_graduation_projects",
+      "get_graduation_project_detail",
+      "list_administration_graduation_projects_overview",
+    ];
+    for (const name of frozen) expect(client).toContain(`"${name}"`);
     expect(client).not.toContain(".from(");
     expect(client).toContain("p_correlation_id");
+    expect(client).toContain("p_expected_version");
+    expect(client).toContain("p_final_decision");
   });
 
   test("verifier is an executable denial/idempotency matrix, not a comment matrix", () => {
