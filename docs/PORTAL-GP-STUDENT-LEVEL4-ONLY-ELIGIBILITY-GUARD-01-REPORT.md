@@ -8,7 +8,7 @@
 **PR:** `#290`
 **Base:** `origin/main` @ `4a6e16b9`
 **Old review SHA:** `b17b6cebc939cbb814d7b3d23dadfe4fa72e3e3d`
-**New review SHA:** `(set after final push commit)`
+**New review SHA:** branch tip of `fix/gp-student-level4-only-eligibility-guard-01` on PR #290 after remediation push
 **Mode:** TARGETED REMEDIATION + TESTS - no production apply / deploy / publish
 
 ---
