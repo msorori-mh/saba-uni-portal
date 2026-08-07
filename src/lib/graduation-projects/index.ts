@@ -6,6 +6,7 @@
 export * from "./domain";
 export * from "./lifecycle";
 export * from "./errors";
+export * from "./eligibility";
 export * from "./correlation";
 export * from "./query-keys";
 export * from "./invalidation";

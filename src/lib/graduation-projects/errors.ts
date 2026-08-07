@@ -88,6 +88,8 @@ export const ERROR_LABELS: Record<string, string> = {
   "version mismatch": "تغيرت بيانات المشروع. حدّث الصفحة ثم أعد المحاولة",
   "project title invalid": "عنوان المشروع غير صالح",
   "team mutation state denied": "حالة المشروع لا تسمح بتعديل الفريق",
+  "fourth-level student eligibility required":
+    "مشاريع التخرج متاحة فقط لطلاب المستوى الرابع الحاليين",
   // retained draft strings still emitted until Package A applies freeze deltas
   "project activation precondition failed": "التفعيل يتطلب مشروعاً معتمداً ورقم النسخة الصحيح",
   "faculty assignment role denied": "لا يمكن تعيين هذا الدور عبر هذه الخدمة",
@@ -138,6 +140,7 @@ const AUTHORIZATION_MESSAGE_FRAGMENTS = [
   "faculty assignment role denied",
   "cannot end own assignment",
   "evaluation write precondition failed",
+  "fourth-level student eligibility required",
 ] as const;
 
 const STALE_VERSION_FRAGMENTS = [

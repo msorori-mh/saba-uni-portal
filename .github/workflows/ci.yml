@@ -169,35 +169,28 @@ jobs:
               docs/migration-drafts/DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-FOUNDATION-01.sql
               docs/drafts/ACADEMIC-CLEARANCE-COMPLETION-01.sql
               tests/academic-clearance/academic-clearance-completion.pg-verify.sql
-          # Chain: minimal schema -> GRADUATION-PROJECTS-MVP-FOUNDATION-01 ->
-          # foundation verifier. Fixture ids from postgres-minimal-schema.sql.
+          # Chain: minimal schema -> Package A1/A2/A3 (+ storage insert fix) ->
+          # foundation verifier. Superseded FOUNDATION-01 drafts do not expose
+          # create_graduation_project_team; Package A is the sole authority.
           - name: graduation-projects-foundation
             files: >-
               tests/graduation-projects/postgres-minimal-schema.sql
-              docs/migration-drafts/GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql
+              supabase/migrations/20260806120000_gp_mvp_package_a1_foundation_01.sql
+              supabase/migrations/20260806120100_gp_mvp_package_a2_storage_01.sql
+              supabase/migrations/20260806120200_gp_mvp_package_a3_lifecycle_01.sql
+              supabase/migrations/20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql
               tests/graduation-projects/postgres-foundation-verifier.sql
-            vars: >-
-              -v department_id=20000000-0000-0000-0000-000000000001
-              -v student_profile_id=30000000-0000-0000-0000-000000000001
-              -v student_user_id=10000000-0000-0000-0000-000000000001
-              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
-              -v faculty_user_id=10000000-0000-0000-0000-000000000002
-          # Chain: minimal schema -> foundation draft -> lifecycle completion
-          # draft (PR #190) -> foundation verifier -> lifecycle verifier.
-          # Same synthetic -v fixtures as the foundation leg.
+          # Chain: minimal schema -> Package A1/A2/A3 (+ storage insert fix) ->
+          # foundation verifier -> lifecycle (Package A) verifier.
           - name: graduation-projects-lifecycle
             files: >-
               tests/graduation-projects/postgres-minimal-schema.sql
-              docs/migration-drafts/GRADUATION-PROJECTS-MVP-FOUNDATION-01.sql
-              docs/migration-drafts/GRADUATION-PROJECTS-LIFECYCLE-COMPLETION-01.sql
+              supabase/migrations/20260806120000_gp_mvp_package_a1_foundation_01.sql
+              supabase/migrations/20260806120100_gp_mvp_package_a2_storage_01.sql
+              supabase/migrations/20260806120200_gp_mvp_package_a3_lifecycle_01.sql
+              supabase/migrations/20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql
               tests/graduation-projects/postgres-foundation-verifier.sql
               tests/graduation-projects/postgres-lifecycle-verifier.sql
-            vars: >-
-              -v department_id=20000000-0000-0000-0000-000000000001
-              -v student_profile_id=30000000-0000-0000-0000-000000000001
-              -v student_user_id=10000000-0000-0000-0000-000000000001
-              -v faculty_profile_id=40000000-0000-0000-0000-000000000001
-              -v faculty_user_id=10000000-0000-0000-0000-000000000002
           # Chain: minimal schema -> 20260721000000_materials_secure_activation
           # draft -> secure activation verifier (38 assertion groups).
           - name: materials-secure-activation
