@@ -5,7 +5,7 @@
 | Mission | `PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01` |
 | Branch | `fix/graduates-affairs-multimodel-remediation-01` |
 | BASE_REVIEW_SHA | `724f040743c1017e4b322f68b8e248bde122d1c3` |
-| REMEDIATION_REVIEW_SHA | a0930f5bf543e0744e237887004b1616e93ca711 |
+| REMEDIATION_REVIEW_SHA | `19bd85a0d7dcb64a0784b51c4cb00aac10289472` |
 | Mode | SOURCE-ONLY remediation (no migration apply, no deploy, no publish) |
 | Supersedes review packaging | `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-REVIEW-PACKAGE-01.md` (pre-fix baseline) |
 
