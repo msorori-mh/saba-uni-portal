@@ -2,12 +2,14 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import {
   GP_STUDENT_LEVEL4_REQUIRED_MSG,
-  isCurrentFourthAcademicLevel,
+  resolveCanonicalCurrentFourthLevelEligibility,
+  type AcademicStatusTimestampRow,
 } from "@/lib/graduation-projects/eligibility";
 
 /**
- * Student GP route guard: reads authoritative current academic level from
- * student_academic_status → academic_levels (never client-supplied level).
+ * Student GP route guard: reads authoritative current academic level using the
+ * same ordering/uniqueness semantics as student_is_current_fourth_academic_level
+ * (updated_at DESC NULLS LAST, created_at DESC; exactly one top row).
  * UI denial is presentation; RPCs remain the security boundary.
  */
 async function assertStudentGpLevel4Eligible(): Promise<void> {
@@ -26,24 +28,24 @@ async function assertStudentGpLevel4Eligible(): Promise<void> {
     throw redirect({ to: "/portal-login" });
   }
 
-  const { data: status, error: statusError } = await supabase
+  const { data: statuses, error: statusError } = await supabase
     .from("student_academic_status")
-    .select("level_id, level:academic_levels(level_number)")
+    .select(
+      "id, level_id, created_at, updated_at, level:academic_levels(level_number)",
+    )
     .eq("student_profile_id", profile.id)
-    .order("updated_at", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
 
   if (statusError) {
     throw redirect({ to: "/student" });
   }
 
-  const levelNumber = (
-    status?.level as { level_number?: number } | null | undefined
-  )?.level_number;
+  const resolved = resolveCanonicalCurrentFourthLevelEligibility(
+    (statuses ?? []) as AcademicStatusTimestampRow[],
+  );
 
-  if (!isCurrentFourthAcademicLevel(levelNumber)) {
+  if (!resolved.eligible) {
     throw redirect({ to: "/student" });
   }
 }

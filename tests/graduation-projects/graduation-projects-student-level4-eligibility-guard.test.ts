@@ -5,8 +5,11 @@ import { execSync, spawnSync } from "node:child_process";
 import {
   GP_FOURTH_ACADEMIC_LEVEL_NUMBER,
   GP_STUDENT_LEVEL4_REQUIRED_MSG,
+  compareAcademicStatusCurrency,
   isCurrentFourthAcademicLevel,
   isGpStudentLevel4EligibleFromStatus,
+  resolveCanonicalCurrentFourthLevelEligibility,
+  shouldShowStudentGpNav,
 } from "@/lib/graduation-projects/eligibility";
 import { classifyGpError, ERROR_LABELS } from "@/lib/graduation-projects/errors";
 
@@ -74,6 +77,7 @@ const adminShellPath = join(
   "admin",
   "AdminShell.tsx",
 );
+const ciPath = join(root, ".github", "workflows", "ci.yml");
 
 const draft = readFileSync(draftPath, "utf8");
 const verifier = readFileSync(verifierPath, "utf8");
@@ -81,6 +85,7 @@ const studentIndex = readFileSync(studentIndexPath, "utf8");
 const studentGpRoute = readFileSync(studentGpRoutePath, "utf8");
 const facultyShell = readFileSync(facultyShellPath, "utf8");
 const adminShell = readFileSync(adminShellPath, "utf8");
+const ciYml = readFileSync(ciPath, "utf8");
 
 const container = `gp-l4-eligibility-${Date.now()}`;
 
@@ -147,7 +152,7 @@ afterAll(() => {
 });
 
 describe("GP student Level-4-only eligibility guard", () => {
-  it("defines a single fail-closed canonical Level-4 predicate", () => {
+  it("defines a single fail-closed canonical Level-4 predicate with uniqueness", () => {
     expect(draft).toContain("DRAFT ONLY");
     expect(draft).toContain("DO NOT APPLY");
     expect(draft).toContain("student_is_current_fourth_academic_level");
@@ -158,10 +163,12 @@ describe("GP student Level-4-only eligibility guard", () => {
     expect(draft).toContain("updated_at desc nulls last");
     expect(draft).toContain("fourth-level student eligibility required");
     expect(draft).toContain("GP_STUDENT_L4_GUARD_PREDICATE_EXISTS");
+    expect(draft).toContain("coalesce(v_top_rows, 0) <> 1");
+    expect(draft).toContain("v_orphan_level");
     expect(draft).not.toMatch(/exception when others/i);
   });
 
-  it("wires the predicate into student-facing team/read/write helpers", () => {
+  it("wires the predicate into student-facing team/read/write/storage helpers", () => {
     for (const fragment of [
       "create or replace function public.require_graduation_project_leader",
       "create or replace function public.gp_team_mutator",
@@ -170,10 +177,12 @@ describe("GP student Level-4-only eligibility guard", () => {
       "create or replace function public.list_my_graduation_projects",
       "create or replace function public.get_graduation_project_detail",
       "create or replace function public.create_graduation_project_signed_download",
+      "create or replace function public.can_upload_graduation_project_object",
       "perform public.require_student_gp_fourth_level_eligibility(p_leader_student_profile_id)",
       "perform public.require_student_gp_fourth_level_eligibility(p_student_profile_id)",
       "perform public.require_caller_student_gp_fourth_level_when_student_only()",
       "perform public.require_student_actor_gp_fourth_level(p_project_id)",
+      "idempotent replay actor mismatch",
     ]) {
       expect(draft).toContain(fragment);
     }
@@ -190,6 +199,14 @@ describe("GP student Level-4-only eligibility guard", () => {
       "LEVEL2_NEGATIVE",
       "LEVEL3_NEGATIVE",
       "UNKNOWN_LEVEL_NEGATIVE",
+      "DUPLICATE_L4_L4_TOP_ROWS_DENY_FAILED",
+      "CONFLICTING_L4_L3_TOP_ROWS_DENY_FAILED",
+      "CREATED_UPDATED_ORDER_CONFLICT",
+      "DUAL_ROLE_CROSS_PROJECT_LEAK_A_IN_LIST",
+      "SIGNED_DOWNLOAD_L4_POSITIVE_FAILED",
+      "idempotent replay actor mismatch",
+      "STORAGE_INSERT_DEMOTION_DENY_FAILED",
+      "STORAGE_INSERT_STAFF_POSITIVE_FAILED",
       "ZERO_SIDE_EFFECT_DENIAL",
       "STAFF_BEHAVIOR",
       "ARCHIVED_IMMUTABILITY",
@@ -200,20 +217,37 @@ describe("GP student Level-4-only eligibility guard", () => {
     }
   });
 
-  it("frontend nav/route guards are Level-4 presentation only and leave staff nav alone", () => {
-    expect(studentIndex).toContain("isCurrentFourthAcademicLevel");
+  it("frontend nav/route guards use canonical ordering and leave staff nav alone", () => {
+    expect(studentIndex).toContain("resolveCanonicalCurrentFourthLevelEligibility");
+    expect(studentIndex).toContain("shouldShowStudentGpNav");
+    expect(studentIndex).toContain('order("updated_at"');
+    expect(studentIndex).toContain('order("created_at"');
+    expect(studentIndex).not.toMatch(
+      /\.order\("created_at".*\)\s*\n\s*\.limit\(1\)/s,
+    );
     expect(studentIndex).toContain('link.to !== "/student/graduation-projects"');
     expect(studentGpRoute).toContain("beforeLoad");
+    expect(studentGpRoute).toContain("resolveCanonicalCurrentFourthLevelEligibility");
+    expect(studentGpRoute).toContain('order("updated_at"');
     expect(studentGpRoute).toContain("student_academic_status");
-    expect(studentGpRoute).toContain("academic_levels(level_number)");
-    expect(studentGpRoute).toContain("isCurrentFourthAcademicLevel");
     expect(studentGpRoute).not.toContain("searchParams");
-    expect(studentGpRoute).not.toMatch(/level\s*=\s*4|levelNumber\s*=\s*4/);
     expect(facultyShell).toContain("/faculty-portal/graduation-projects");
     expect(adminShell).toContain("/admin/graduation-projects");
   });
 
-  it("TS eligibility helper is fail-closed and maps authorization denial", () => {
+  it("CI PG17 chains use Package A migrations so A3 lifecycle RPCs exist", () => {
+    expect(ciYml).toContain(
+      "20260806120200_gp_mvp_package_a3_lifecycle_01.sql",
+    );
+    expect(ciYml).toContain(
+      "20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
+    );
+    expect(ciYml).not.toMatch(
+      /graduation-projects-foundation:[\s\S]*GRADUATION-PROJECTS-MVP-FOUNDATION-01\.sql/,
+    );
+  });
+
+  it("TS eligibility helper is fail-closed, unique-current, and maps authorization denial", () => {
     expect(GP_FOURTH_ACADEMIC_LEVEL_NUMBER).toBe(4);
     expect(isCurrentFourthAcademicLevel(4)).toBe(true);
     expect(isCurrentFourthAcademicLevel(1)).toBe(false);
@@ -224,13 +258,53 @@ describe("GP student Level-4-only eligibility guard", () => {
     expect(isGpStudentLevel4EligibleFromStatus({ level: { level_number: 4 } })).toBe(true);
     expect(isGpStudentLevel4EligibleFromStatus({ level: { level_number: 3 } })).toBe(false);
     expect(isGpStudentLevel4EligibleFromStatus(null)).toBe(false);
-    // Forged client-ish values must not pass the helper
     expect(isCurrentFourthAcademicLevel("4" as unknown as number)).toBe(false);
     expect(ERROR_LABELS["fourth-level student eligibility required"]).toContain("المستوى الرابع");
     expect(classifyGpError({ message: "fourth-level student eligibility required" })).toBe(
       "authorization",
     );
     expect(GP_STUDENT_LEVEL4_REQUIRED_MSG.length).toBeGreaterThan(10);
+
+    const tied = resolveCanonicalCurrentFourthLevelEligibility([
+      {
+        id: "a",
+        created_at: "2026-08-01T12:00:00Z",
+        updated_at: "2026-08-01T12:00:00Z",
+        level: { level_number: 4 },
+      },
+      {
+        id: "b",
+        created_at: "2026-08-01T12:00:00Z",
+        updated_at: "2026-08-01T12:00:00Z",
+        level: { level_number: 4 },
+      },
+    ]);
+    expect(tied.eligible).toBe(false);
+    expect(tied.ambiguous).toBe(true);
+
+    const conflict = resolveCanonicalCurrentFourthLevelEligibility([
+      {
+        id: "a",
+        created_at: "2026-08-02T12:00:00Z",
+        updated_at: "2026-08-02T12:00:00Z",
+        level: { level_number: 3 },
+      },
+      {
+        id: "b",
+        created_at: "2026-08-01T12:00:00Z",
+        updated_at: "2026-08-03T12:00:00Z",
+        level: { level_number: 4 },
+      },
+    ]);
+    expect(conflict.eligible).toBe(true);
+    expect(conflict.levelNumber).toBe(4);
+    expect(compareAcademicStatusCurrency(conflict.current!, {
+      created_at: "2026-08-02T12:00:00Z",
+      updated_at: "2026-08-02T12:00:00Z",
+    })).toBeLessThan(0);
+    expect(shouldShowStudentGpNav(false)).toBe(false);
+    expect(shouldShowStudentGpNav(true)).toBe(true);
+    expect(shouldShowStudentGpNav(undefined)).toBe(false);
   });
 
   it("launches disposable PG17 and proves the L4 eligibility authorization chain", async () => {
@@ -271,9 +345,11 @@ describe("GP student Level-4-only eligibility guard", () => {
     ]);
 
     const noticeCheck = psqlFile(verifierPath);
-    expect(noticeCheck.ok).toBe(true);
+    if (!noticeCheck.ok) {
+      throw new Error(`L4 verifier failed:\n${noticeCheck.out}`);
+    }
     expect(noticeCheck.out).toContain(
       "GP_STUDENT_LEVEL4_ONLY_ELIGIBILITY_GUARD_VERIFIER_PASS",
     );
-  }, 180_000);
+  }, 240_000);
 });

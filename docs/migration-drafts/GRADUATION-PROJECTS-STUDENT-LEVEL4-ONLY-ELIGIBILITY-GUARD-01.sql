@@ -1,12 +1,13 @@
 -- DRAFT ONLY -- DO NOT APPLY. GRADUATION-PROJECTS-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01
--- MISSION: GP-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01
+-- MISSION: GP-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01 (+ CODEX-CI-REMEDIATION-02)
 -- SOURCE-ONLY remediation. No production apply / deploy / publish in this mission.
 --
 -- Canonical current level: public.student_academic_status.level_id
 --   -> public.academic_levels.level_number
 -- Ordering matches get_student_request_eligibility_context:
 --   updated_at DESC NULLS LAST, created_at DESC
--- Fail-closed when absent, null level, missing level row, or ambiguous top snapshot.
+-- Fail-closed when absent, null level, missing level row, OR when more than one
+-- row shares the top ordering rank (including duplicate L4/L4 ties).
 --
 -- Does NOT weaken team ownership, assignment, lifecycle, archive immutability, or storage.
 -- Staff/faculty RPCs remain unchanged except where they enroll student members (target L4).
@@ -32,7 +33,7 @@ do $$ begin
 end $$;
 
 -- =============================================================================
--- G1 — Canonical Level-4 predicate (single reusable source)
+-- G1 — Canonical Level-4 predicate (exactly one authoritative current row)
 -- =============================================================================
 
 create or replace function public.student_is_current_fourth_academic_level(
@@ -45,8 +46,8 @@ set search_path = public, pg_temp
 as $$
 declare
   v_top_rows integer;
-  v_distinct_levels integer;
   v_any_null_level boolean;
+  v_orphan_level boolean;
   v_level_number integer;
 begin
   if p_student_profile_id is null then
@@ -64,25 +65,27 @@ begin
   )
   select
     count(*),
-    count(distinct r.level_id),
     bool_or(r.level_id is null),
+    bool_or(r.level_id is not null and al.id is null),
     max(al.level_number)
   into
     v_top_rows,
-    v_distinct_levels,
     v_any_null_level,
+    v_orphan_level,
     v_level_number
   from ranked r
   left join public.academic_levels al on al.id = r.level_id
   where r.rnk = 1;
 
-  if coalesce(v_top_rows, 0) = 0 then
+  -- Exactly one authoritative current snapshot — tied top rows always deny
+  -- (including duplicate L4/L4 and conflicting L4/L3 timestamps).
+  if coalesce(v_top_rows, 0) <> 1 then
     return false;
   end if;
   if coalesce(v_any_null_level, true) then
     return false;
   end if;
-  if coalesce(v_distinct_levels, 0) <> 1 then
+  if coalesce(v_orphan_level, true) then
     return false;
   end if;
   if v_level_number is distinct from 4 then
@@ -107,7 +110,9 @@ begin
 end;
 $$;
 
--- Student-only actor path on a project: require current L4. Faculty roles skip.
+-- Student-only actor path on a project: require current L4.
+-- Non-student assignment on the SAME project follows existing staff auth (no L4).
+-- Staff role on an unrelated project never unlocks this project's student path.
 create or replace function public.require_student_actor_gp_fourth_level(
   p_project_id uuid
 ) returns void
@@ -140,7 +145,13 @@ begin
   )
   into v_has_student, v_has_non_student;
 
-  if not v_has_student or v_has_non_student then
+  -- No student assignment on this project: staff/faculty path unchanged.
+  if not v_has_student then
+    return;
+  end if;
+
+  -- Same-project non-student assignment: existing staff authorization applies.
+  if v_has_non_student then
     return;
   end if;
 
@@ -157,7 +168,8 @@ begin
 end;
 $$;
 
--- Deny pure-student callers who are not currently L4 (faculty paths unchanged).
+-- Pure-student callers (no active non-student GP assignment / coordinator seat)
+-- must be current L4. Does NOT globally unlock student projects for dual-role actors.
 create or replace function public.require_caller_student_gp_fourth_level_when_student_only()
 returns void
 language plpgsql
@@ -167,6 +179,7 @@ set search_path = public, pg_temp
 as $$
 declare
   v_student_profile_id uuid;
+  v_has_staff_capability boolean;
 begin
   if auth.uid() is null then
     raise exception 'graduation project access denied';
@@ -181,17 +194,17 @@ begin
     return;
   end if;
 
-  if exists (
+  select exists (
     select 1 from public.graduation_project_assignments a
     where a.user_id = auth.uid() and a.active and a.ended_at is null and a.role <> 'student'
-  ) then
-    return;
-  end if;
-
-  if exists (
+  ) or exists (
     select 1 from public.graduation_project_department_coordinators c
     where c.user_id = auth.uid() and c.active and c.ended_at is null
-  ) then
+  )
+  into v_has_staff_capability;
+
+  -- Dual-role actors are not raised here; list/detail enforce per-project rules.
+  if v_has_staff_capability then
     return;
   end if;
 
@@ -313,7 +326,7 @@ begin
 end $$;
 
 -- =============================================================================
--- Student read / download surfaces
+-- Student read / download surfaces — per-project dual-role isolation
 -- =============================================================================
 
 create or replace function public.list_my_graduation_projects()
@@ -321,6 +334,8 @@ returns jsonb language plpgsql stable security definer set search_path = public,
 declare v jsonb;
 begin
   if auth.uid() is null then raise exception 'graduation project access denied'; end if;
+  -- Raise only for pure-student non-L4 callers; dual-role actors continue with
+  -- per-project filtering below (staff project B never unlocks student project A).
   perform public.require_caller_student_gp_fourth_level_when_student_only();
   select coalesce(jsonb_agg(row_to_json(t)::jsonb order by t.updated_at desc), '[]'::jsonb) into v
   from (
@@ -331,7 +346,14 @@ begin
     from public.graduation_projects p
     where exists (
       select 1 from public.graduation_project_assignments a
-      where a.project_id = p.id and a.user_id = auth.uid() and a.active
+      where a.project_id = p.id
+        and a.user_id = auth.uid()
+        and a.active
+        and a.ended_at is null
+        and (
+          a.role <> 'student'
+          or public.student_is_current_fourth_academic_level(a.student_profile_id)
+        )
     )
   ) t;
   return v;
@@ -400,6 +422,7 @@ begin
   return v;
 end $$;
 
+-- Authz before any replayed storage coordinates; replay bound to actor_user_id.
 create or replace function public.create_graduation_project_signed_download(
   p_file_id uuid,
   p_correlation_id uuid
@@ -407,22 +430,15 @@ create or replace function public.create_graduation_project_signed_download(
 declare
   f public.graduation_project_files;
   v_ok boolean;
-  v_replay uuid;
+  v_replay_entity uuid;
+  v_replay_actor uuid;
   v_payload jsonb;
 begin
   if auth.uid() is null then raise exception 'graduation project access denied'; end if;
   select * into f from public.graduation_project_files where id = p_file_id;
   if f.id is null then raise exception 'file not found'; end if;
-  v_replay := public.gp_replay_entity(f.project_id, p_correlation_id, 'file_download_authorized');
-  if v_replay is not null then
-    if v_replay <> f.id then raise exception 'idempotent replay entity mismatch'; end if;
-    select e.payload into v_payload from public.graduation_project_events e
-    where e.project_id = f.project_id and e.correlation_id = p_correlation_id and e.event_type = 'file_download_authorized';
-    if v_payload is not null then return v_payload; end if;
-    return jsonb_build_object(
-      'storage_bucket', 'graduation-projects', 'storage_object_path', f.object_key, 'expires_in_seconds', 300
-    );
-  end if;
+
+  -- All authorization checks BEFORE returning any replayed payload / coordinates.
   if f.upload_status not in ('active','superseded') or f.scan_state <> 'clean' then
     raise exception 'file download not authorized';
   end if;
@@ -436,6 +452,26 @@ begin
   ) into v_ok;
   if not v_ok then raise exception 'exact project assignment required'; end if;
   perform public.require_student_actor_gp_fourth_level(f.project_id);
+
+  select e.entity_id, e.actor_user_id, e.payload
+    into v_replay_entity, v_replay_actor, v_payload
+  from public.graduation_project_events e
+  where e.project_id = f.project_id
+    and e.correlation_id = p_correlation_id
+    and e.event_type = 'file_download_authorized'
+  limit 1;
+
+  if v_replay_entity is not null then
+    if v_replay_entity <> f.id then raise exception 'idempotent replay entity mismatch'; end if;
+    if v_replay_actor is distinct from auth.uid() then
+      raise exception 'idempotent replay actor mismatch';
+    end if;
+    if v_payload is not null then return v_payload; end if;
+    return jsonb_build_object(
+      'storage_bucket', 'graduation-projects', 'storage_object_path', f.object_key, 'expires_in_seconds', 300
+    );
+  end if;
+
   v_payload := jsonb_build_object(
     'storage_bucket', 'graduation-projects',
     'storage_object_path', f.object_key,
@@ -449,6 +485,48 @@ begin
   return v_payload;
 end $$;
 
+-- =============================================================================
+-- Storage INSERT predicate — re-check student L4 at object INSERT time
+-- Staff/faculty upload assignments are unchanged (no student-level gate).
+-- =============================================================================
+
+create or replace function public.can_upload_graduation_project_object(
+  p_object_name text
+) returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if auth.uid() is null then
+    return false;
+  end if;
+
+  return exists (
+    select 1
+    from public.graduation_project_files f
+    where f.object_key = p_object_name
+      and f.upload_status = 'pending'
+      and exists (
+        select 1
+        from public.graduation_project_assignments a
+        where a.id = f.uploaded_by_assignment_id
+          and a.project_id = f.project_id
+          and a.user_id = auth.uid()
+          and a.active = true
+          and a.ended_at is null
+          and (
+            a.role <> 'student'
+            or public.student_is_current_fourth_academic_level(a.student_profile_id)
+          )
+      )
+  );
+end $$;
+
+revoke all on function public.can_upload_graduation_project_object(text) from public, anon;
+grant execute on function public.can_upload_graduation_project_object(text) to authenticated;
+
 revoke all on function public.student_is_current_fourth_academic_level(uuid) from public, anon;
 revoke all on function public.require_student_gp_fourth_level_eligibility(uuid) from public, anon, authenticated;
 revoke all on function public.require_student_actor_gp_fourth_level(uuid) from public, anon, authenticated;
@@ -457,6 +535,6 @@ revoke all on function public.require_caller_student_gp_fourth_level_when_studen
 grant execute on function public.student_is_current_fourth_academic_level(uuid) to authenticated;
 
 comment on function public.student_is_current_fourth_academic_level(uuid) is
-  'GP student eligibility: true only when the uniquely determined current student_academic_status maps to academic_levels.level_number = 4. Fail-closed.';
+  'GP student eligibility: true only when exactly one authoritative current student_academic_status row maps to academic_levels.level_number = 4. Fail-closed on ties/ambiguity.';
 
 commit;
