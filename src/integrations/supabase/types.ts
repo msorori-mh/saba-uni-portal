@@ -7290,6 +7290,10 @@ export type Database = {
         Args: { p_correlation_id?: string; p_restore_assignees?: boolean }
         Returns: Json
       }
+      cleanup_graduation_project_orphan_storage_contract: {
+        Args: { p_correlation_id: string; p_project_id: string }
+        Returns: Json
+      }
       cleanup_rate_limit_attempts: { Args: never; Returns: number }
       close_b1_e2e_88_execution: {
         Args: { p_correlation_id: string; p_reason?: string }
@@ -7317,6 +7321,21 @@ export type Database = {
       count_admins: { Args: never; Returns: number }
       create_b1_request_draft_for_student: {
         Args: { p_canonical_code: string; p_idempotency_key?: string }
+        Returns: Json
+      }
+      create_graduation_project_file_upload_intent: {
+        Args: {
+          p_byte_size: number
+          p_category: string
+          p_correlation_id: string
+          p_original_name: string
+          p_project_id: string
+          p_sha256?: string
+        }
+        Returns: Json
+      }
+      create_graduation_project_signed_download: {
+        Args: { p_correlation_id: string; p_file_id: string }
         Returns: Json
       }
       create_notification: {
@@ -7411,6 +7430,10 @@ export type Database = {
           p_comment?: string
           p_verification_token?: string
         }
+        Returns: Json
+      }
+      finalize_graduation_project_file: {
+        Args: { p_correlation_id: string; p_file_id: string; p_sha256?: string }
         Returns: Json
       }
       find_auth_user_id_by_email: { Args: { p_email: string }; Returns: string }
@@ -7790,6 +7813,14 @@ export type Database = {
         Args: { p_attempt_id: string; p_byte_length: number; p_sha256: string }
         Returns: Json
       }
+      mark_graduation_project_file_scan_state: {
+        Args: {
+          p_correlation_id: string
+          p_file_id: string
+          p_scan_state: string
+        }
+        Returns: string
+      }
       open_b1_e2e_88_execution: {
         Args: {
           p_audit_metadata?: Json
@@ -7829,6 +7860,17 @@ export type Database = {
       record_external_university_payment_confirmation: {
         Args: { p_note?: string; p_step_id: string }
         Returns: Json
+      }
+      register_graduation_project_file: {
+        Args: {
+          p_byte_size: number
+          p_category: string
+          p_correlation_id: string
+          p_original_name: string
+          p_project_id: string
+          p_sha256?: string
+        }
+        Returns: string
       }
       reject_student_request_attachment: {
         Args: { p_attachment_id: string; p_rejection_code: string }
