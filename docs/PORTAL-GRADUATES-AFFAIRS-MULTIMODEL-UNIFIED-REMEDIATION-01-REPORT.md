@@ -5,7 +5,7 @@
 | Mission | `PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01` |
 | Branch | `fix/graduates-affairs-multimodel-remediation-01` |
 | BASE_REVIEW_SHA | `724f040743c1017e4b322f68b8e248bde122d1c3` |
-| REMEDIATION_REVIEW_SHA | `TBD_AFTER_COMMIT` |
+| REMEDIATION_REVIEW_SHA | `9356fad2a71517807e9117c704883cc3544c7cc7` (code tip; doc pin may follow) |
 | Mode | SOURCE-ONLY remediation (no migration apply, no deploy, no publish) |
 | Supersedes review packaging | `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-REVIEW-PACKAGE-01.md` (pre-fix baseline) |
 
@@ -168,6 +168,6 @@ Post-fixiation suite counts: record actual `bun test` totals on the remediation 
 
 **PASS_PORTAL_GRADUATES_AFFAIRS_MULTIMODEL_REMEDIATION_REVIEW_SHA_READY**
 
-(pending fill-in of `REMEDIATION_REVIEW_SHA` = `TBD_AFTER_COMMIT` once the remediation commit lands)
+`REMEDIATION_REVIEW_SHA` pinned after remediation commit (see header). Tip SHA after this doc pin is the immutable review artifact for targeted Codex/Qwen re-review.
 
 NEXT: `TARGETED_CODEX_AND_QWEN_REVIEW_ON_EXACT_REMEDIATION_REVIEW_SHA`
