@@ -4,7 +4,7 @@
 |---|---|
 | Mission | PORTAL-GRADUATES-AFFAIRS-SINGLE-SHA-INTEGRATION-AND-REVIEW-BASELINE-01 |
 | Branch | feat/graduates-affairs-single-sha-integration-01 |
-| INTEGRATION_REVIEW_SHA | (branch tip containing this package — set in follow-up line after commit) |
+| INTEGRATION_REVIEW_SHA | `c43ee5d67bed7c7d63cf15a61b8c24e9a847ec7d` |
 | Integrated runtime+P0 content commit | 4ec6eccf04fc9dc55d08cfd223bea290b464f4ff |
 | Base main | 4a6e16b9fa66d6738a17b1399c553144b13a5101 |
 | PR #273 head | eddad8d2c510b955f92f9f6fa08adeb31e0aef66 (MERGED) |
