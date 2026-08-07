@@ -2,10 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Mission | `PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01` |
+| Mission | `PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01` (+ `PORTAL-GRADUATES-AFFAIRS-CODEX-FINAL-HIGH-REMEDIATION-03`) |
 | Branch | `fix/graduates-affairs-multimodel-remediation-01` |
+| PR | `#291` |
 | BASE_REVIEW_SHA | `724f040743c1017e4b322f68b8e248bde122d1c3` |
-| REMEDIATION_REVIEW_SHA | `9356fad2a71517807e9117c704883cc3544c7cc7` |
+| REMEDIATION_REVIEW_SHA | `9356fad2a71517807e9117c704883cc3544c7cc7` (prior multimodel fix set) |
+| OLD_HELD_SHA | `e613f40e286d35f61ef4bf0643daf9988c86c44b` |
 | Mode | SOURCE-ONLY remediation (no migration apply, no deploy, no publish) |
 | Supersedes review packaging | `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-REVIEW-PACKAGE-01.md` (pre-fix baseline) |
 
@@ -28,8 +30,8 @@ Status vocabulary (only):
 
 | ID | Topic | Status | Notes |
 |---|---|---|---|
-| R1 | Specialist department scope union | **CONFIRMED_FIXED** | Caller-owned active specialist departments only; bidirectional denial proven |
-| R2 | Active staff profile status | **CONFIRMED_FIXED** | `staff_profiles.status = 'active'` on capability / assignee paths |
+| R1 | Specialist department scope union | **CONFIRMED_FIXED** | Authorizing-profile-bound departments only; bidirectional denial proven; tightened by CODEX-FINAL-HIGH-2 |
+| R2 | Active staff profile status | **CONFIRMED_FIXED** | `staff_profiles.status = 'active'` on capability / assignee paths; tightened by CODEX-FINAL-HIGH-1 for direct-user assignments |
 | R3 | Follow-up after revocation | **POLICY_RESOLVED_AND_FIXED** | Owner: immediate loss of authority; row retained for audit |
 | R4 | Cross-scope follow-up delegation | **POLICY_RESOLVED_AND_FIXED** | Manager college-wide; specialist in-scope assignee only |
 | R5 | Opportunity moderation / employer verification | **POLICY_RESOLVED_AND_FIXED** | Manager-only MVP (no invented object scope) |
@@ -39,6 +41,8 @@ Status vocabulary (only):
 | R9 | Server runtime trust boundary | **CONFIRMED_FIXED** | Client supplies capability/target only; server derives authority via AUTH-04 context RPCs |
 | R10 | Follow-up FSM duplication | **CONFIRMED_FIXED** | Canonical transitions in `authorization.ts`; `communications.ts` re-exports |
 | R11 | Route hash / stale counts / doc drift | **CONFIRMED_FIXED** | Route semantic hash re-pinned; stale suite-count / §G8·§G9 claims superseded here |
+| CODEX-FINAL-HIGH-1 | Direct user assignment active-staff bypass | **CONFIRMED_FIXED** | `assignment_type='user'` must resolve fail-closed to exactly one active `staff_profiles` row; zero/>1/inactive/suspended ⇒ DENY |
+| CODEX-FINAL-HIGH-2 | Specialist scope unbound from authorizing profile | **CONFIRMED_FIXED** | Scope binds only to the resolver's authorizing profile; other owned active profiles contribute zero departments |
 
 ### Qwen (QGA-DB-01..09)
 
@@ -93,6 +97,26 @@ Status vocabulary (only):
 | Repository-wide production-export hygiene | **SEPARATE_NONBLOCKING_HYGIENE** | Not mixed into GA remediation |
 | Publishable anon fallback key hygiene | **SEPARATE_NONBLOCKING_HYGIENE** | Not mixed into GA remediation |
 
+## CODEX-FINAL-HIGH remediation (mission 03)
+
+Final Codex review on held tip `e613f40e` confirmed exactly two residual HIGH authorization defects. R5–R11 remained closed and were not reopened.
+
+### Frozen direct-user assignment resolution rule
+
+ALL Graduate Affairs operational staff authority requires an ACTIVE staff identity:
+
+1. **`assignment_type = 'staff_profile'`** — `assignment.staff_profile_id` must exist, belong to the target/caller user, and `status = 'active'`.
+2. **`assignment_type = 'user'`** — `assignment.user_id` must match; the user must resolve fail-closed to **exactly one** active `staff_profiles` row (zero ⇒ DENY; more than one ⇒ DENY; inactive/suspended do not qualify).
+
+Canonical helpers (internal, SECURITY DEFINER, revoked from anon/authenticated):
+
+- `graduate_affairs_resolve_authorized_staff_profile_id(user, role)`
+- `graduate_affairs_resolve_caller_authorized_staff_profile_id(role)`
+
+Manager / specialist / active-staff capability and specialist department scope all route through the resolver. Specialist scope never unions departments from non-authorizing profiles owned by the same user. Follow-up read/transition authority is lost immediately when the authorizing profile becomes inactive/suspended, even if a direct user assignment row remains active; the historical follow-up row is retained.
+
+Executable matrix: `tests/graduates-affairs/graduates-affairs-codex-final-high-profile-binding-03.pg-verify.sql` (CI leg `graduates-affairs-codex-final-high-profile-binding`).
+
 ## Files changed summary (major paths)
 
 SQL drafts / matrix:
@@ -145,6 +169,7 @@ CI-equivalent legs (`.github/workflows/ci.yml` `pg-verifiers`, `postgres:17`):
 2. **completion** — foundation setup → foundation draft → `GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql` → completion pg-verify
 3. **authorization-04** — `graduates-affairs-authorization-04.pg-setup.sql` → foundation → completion → `GRADUATES-AFFAIRS-AUTHORIZATION-04.sql` → authorization-04 pg-verify (includes multimodel section R)
 4. **remediation-concurrency** — auth setup → foundation → completion → AUTH-04 → `graduates-affairs-remediation-concurrency-01.pg-verify.sql`
+5. **codex-final-high-profile-binding** — auth setup → foundation → completion → AUTH-04 → `graduates-affairs-codex-final-high-profile-binding-03.pg-verify.sql`
 
 Additional coverage for this remediation is embedded in the expanded authorization-04 and completion verifiers (multi-specialist, revocation, delegation, lifecycle, continuity supersession).
 
@@ -154,7 +179,9 @@ All PG17 work is disposable local/CI only — **no production database contact**
 
 | Check | Result |
 |---|---|
-| `bun test tests/graduates-affairs` | **145 pass / 0 fail** (757 expects) |
+| `bun test tests/graduates-affairs` | **147 pass / 0 fail** |
+| `bun test tests/graduation-projects` | **PASS** |
+| `bun test tests/student-requests` | **1066 pass / 0 fail** |
 | `bunx tsc --noEmit` | **PASS** |
 | `bun run build` | **PASS** |
 | `git diff --check` | **PASS** |
@@ -162,6 +189,7 @@ All PG17 work is disposable local/CI only — **no production database contact**
 | PG17 completion | **PASS** |
 | PG17 authorization-04 | **PASS** (incl. section R remediation matrix) |
 | PG17 remediation-concurrency | **PASS** |
+| PG17 codex-final-high-profile-binding | **PASS** |
 | Route semantic hash pin | `c6099cd0b7d68f1c576a495fd49e0d011da21ed7c76488e7e2febcbab08be67e` |
 
 Full `bun test` locally: **2665+ pass**; workstation-only outside-git D02 artifact absence is **not** a GA product failure (CI expects `CI=true`). Package 97 PG17 smoke re-verified **PASS** after disposable container cleanup.
@@ -182,6 +210,6 @@ Do not reuse pre-fix integration package counts (114 / 135 / 136).
 
 ## Decision
 
-**PASS_PORTAL_GRADUATES_AFFAIRS_MULTIMODEL_REMEDIATION_REVIEW_SHA_READY**
+**PASS_PORTAL_GRADUATES_AFFAIRS_CODEX_FINAL_HIGH_REMEDIATED_REVIEW_SHA_READY**
 
-NEXT: `TARGETED_CODEX_AND_QWEN_REVIEW_ON_EXACT_REMEDIATION_REVIEW_SHA`
+NEXT: `FINAL_CODEX_AND_QWEN_TARGETED_REVIEW_ON_NEW_FINAL_GA_REVIEW_SHA`

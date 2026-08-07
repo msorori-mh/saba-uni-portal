@@ -60,6 +60,8 @@ const CLIENT_RPCS = [...SELF_RPCS, ...STAFF_RPCS, ...CONTEXT_RPCS];
 
 const HELPERS = [
   "graduate_affairs_audit",
+  "graduate_affairs_resolve_authorized_staff_profile_id",
+  "graduate_affairs_resolve_caller_authorized_staff_profile_id",
   "graduate_affairs_is_manager",
   "graduate_affairs_is_specialist",
   "graduate_affairs_specialist_department_ids",
@@ -122,7 +124,7 @@ describe("function inventory and privileges", () => {
     const functions = sql.match(/CREATE OR REPLACE FUNCTION/g) ?? [];
     const definer = sql.match(/SECURITY DEFINER/g) ?? [];
     const searchPath = sql.match(/SET search_path = public, pg_temp/g) ?? [];
-    expect(functions).toHaveLength(34);
+    expect(functions).toHaveLength(36);
     expect(definer).toHaveLength(functions.length);
     expect(searchPath).toHaveLength(functions.length);
   });
@@ -336,12 +338,39 @@ describe("actor model has no bypass", () => {
     }
   });
 
-  test("specialist_department_ids requires caller-owned active staff profile", () => {
+  test("specialist_department_ids binds only to the authorizing active profile", () => {
     const body = bodyOf("graduate_affairs_specialist_department_ids");
-    expect(body).toContain("sp.user_id = auth.uid()");
-    expect(body).toContain("sp.status = 'active'");
-    // Must not use an uncorrelated EXISTS that could union other specialists.
+    expect(body).toContain(
+      "graduate_affairs_resolve_caller_authorized_staff_profile_id",
+    );
+    expect(body).toContain("spd.staff_profile_id = v_profile_id");
+    // Must not union departments across every active profile owned by the user.
+    expect(body).not.toContain("sp.user_id = auth.uid()");
     expect(body).not.toMatch(/EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+public\.staff_profile_departments/i);
+  });
+
+  test("direct user assignments require exactly one active staff_profile", () => {
+    const resolver = bodyOf("graduate_affairs_resolve_authorized_staff_profile_id");
+    expect(resolver).toContain("assignment_type = 'user'");
+    expect(resolver).toContain("assignment_type = 'staff_profile'");
+    expect(resolver).toContain("sp.status = 'active'");
+    expect(resolver).toContain("COUNT(*) = 1");
+    expect(resolver).toContain("COUNT(DISTINCT c.profile_id) = 1");
+  });
+
+  test("manager and specialist capabilities route through the canonical resolver", () => {
+    expect(bodyOf("graduate_affairs_is_manager")).toContain(
+      "graduate_affairs_resolve_caller_authorized_staff_profile_id",
+    );
+    expect(bodyOf("graduate_affairs_is_specialist")).toContain(
+      "graduate_affairs_resolve_caller_authorized_staff_profile_id",
+    );
+    expect(bodyOf("graduate_affairs_user_is_active_staff")).toContain(
+      "graduate_affairs_resolve_authorized_staff_profile_id",
+    );
+    expect(bodyOf("graduate_affairs_user_specialist_department_ids")).toContain(
+      "spd.staff_profile_id = v_profile_id",
+    );
   });
 
   test("audience matching is fail-closed on non-object scopes", () => {

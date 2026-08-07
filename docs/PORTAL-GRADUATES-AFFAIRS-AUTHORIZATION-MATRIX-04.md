@@ -31,6 +31,21 @@ AND (ends_at IS NULL OR ends_at > now())` on the assignment, plus `is_active` on
 both the unit and the role. Actor resolution accepts assignment types `user` and
 `staff_profile` only; every other type is ignored (fail-closed).
 
+**Frozen direct-user assignment identity rule (CODEX-FINAL-HIGH-1):** every GA
+operational staff capability requires an ACTIVE staff identity.
+
+| Assignment type | Identity rule |
+|---|---|
+| `staff_profile` | `assignment.staff_profile_id` must exist, belong to the target/caller user, and `status = 'active'` |
+| `user` | `assignment.user_id` must match the target/caller, and that user must resolve fail-closed to **exactly one** `staff_profiles` row with `status = 'active'` (zero ⇒ DENY; more than one ⇒ DENY; inactive/suspended do not qualify) |
+
+Canonical resolver: `graduate_affairs_resolve_authorized_staff_profile_id(user, role)`
+(+ caller variant). Multiple distinct authorizing profiles for the same role ⇒ DENY.
+
+**Specialist scope binding (CODEX-FINAL-HIGH-2):** department scope comes only from
+the authorizing profile returned by the resolver — never the union of other active
+profiles owned by the same user.
+
 ## 2. Capability matrix
 
 ALLOW = explicit mechanism exists in the drafts. DENY = default-deny (no policy /

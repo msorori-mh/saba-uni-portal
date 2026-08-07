@@ -15,17 +15,29 @@
 --     'graduate_affairs' unit and an active 'graduate_affairs_manager' or
 --     'graduate_affairs_specialist' role. Manager = college scope;
 --     specialist = department scope from staff_profile_departments of the
---     resolved staff profile (empty scope set = no access, fail-closed).
---   * staff_profile assignments require staff_profiles.user_id = auth.uid()
---     AND staff_profiles.status = 'active'. Inactive/suspended profiles lose
---     all Graduate Affairs authority immediately.
---   * specialist department scope is caller-owned only (never the union of
---     other specialists' staff_profile_departments).
+--     single authorized staff profile (empty scope set = no access,
+--     fail-closed).
+--   * ALL operational GA staff authority requires an ACTIVE staff identity:
+--       - assignment_type 'staff_profile': assignment.staff_profile_id must
+--         belong to the target/caller user and status must equal 'active'.
+--       - assignment_type 'user': assignment.user_id must match, and the user
+--         must resolve fail-closed to exactly ONE active staff_profile
+--         (zero active => DENY; >1 active => DENY; inactive/suspended do
+--         not qualify).
+--   * Canonical resolver:
+--     graduate_affairs_resolve_authorized_staff_profile_id(user, role)
+--     (caller variant:
+--     graduate_affairs_resolve_caller_authorized_staff_profile_id(role)).
+--     Multiple distinct authorizing profiles for the same role => DENY.
+--   * specialist department scope binds ONLY to that authorizing profile
+--     (never the union of other active profiles owned by the same user,
+--     and never other specialists' staff_profile_departments).
 --   * direct case assignee: graduate_followups row with
 --     assignee_user_id = auth.uid() and state IN ('open','in_progress'),
 --     AND the assignee still holds an active Graduate Affairs staff
 --     capability. Revoked/expired assignment or inactive staff profile
---     immediately loses follow-up read/transition authority; the row is
+--     immediately loses follow-up read/transition authority even when a
+--     direct user assignment row remains active; the follow-up row is
 --     retained for audit/history.
 --   * opportunity moderation and employer verification are MANAGER-ONLY
 --     for MVP (no invented object-to-department scope).
@@ -67,6 +79,97 @@ BEGIN
 END;
 $$;
 
+-- Resolve the unique authorizing active staff_profile_id for a user + GA role.
+-- Fail-closed: NULL when unauthenticated inputs are null, no matching
+-- assignment, direct-user assignment lacks exactly one active profile, or
+-- multiple distinct authorizing profiles would otherwise be selected.
+CREATE OR REPLACE FUNCTION public.graduate_affairs_resolve_authorized_staff_profile_id(
+  p_user_id uuid,
+  p_role_code text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_profile_id uuid;
+BEGIN
+  IF p_user_id IS NULL OR p_role_code IS NULL OR btrim(p_role_code) = '' THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT CASE
+           WHEN COUNT(DISTINCT c.profile_id) = 1
+             THEN (ARRAY_AGG(DISTINCT c.profile_id))[1]
+           ELSE NULL
+         END
+  INTO v_profile_id
+  FROM (
+    -- staff_profile assignments: exact assigned profile must be owned + active
+    SELECT a.staff_profile_id AS profile_id
+    FROM public.request_processing_assignments a
+    JOIN public.request_processing_units u
+      ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
+    JOIN public.request_processing_roles r
+      ON r.id = a.role_id AND r.code = p_role_code AND r.is_active
+    JOIN public.staff_profiles sp
+      ON sp.id = a.staff_profile_id
+     AND sp.user_id = p_user_id
+     AND sp.status = 'active'
+    WHERE a.is_active
+      AND (a.starts_at IS NULL OR a.starts_at <= now())
+      AND (a.ends_at IS NULL OR a.ends_at > now())
+      AND a.assignment_type = 'staff_profile'
+      AND a.staff_profile_id IS NOT NULL
+
+    UNION
+
+    -- direct user assignments: fail-closed to exactly one active staff_profile
+    SELECT (
+      SELECT CASE
+               WHEN COUNT(*) = 1 THEN (ARRAY_AGG(sp.id))[1]
+               ELSE NULL
+             END
+      FROM public.staff_profiles sp
+      WHERE sp.user_id = p_user_id
+        AND sp.status = 'active'
+    ) AS profile_id
+    FROM public.request_processing_assignments a
+    JOIN public.request_processing_units u
+      ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
+    JOIN public.request_processing_roles r
+      ON r.id = a.role_id AND r.code = p_role_code AND r.is_active
+    WHERE a.is_active
+      AND (a.starts_at IS NULL OR a.starts_at <= now())
+      AND (a.ends_at IS NULL OR a.ends_at > now())
+      AND a.assignment_type = 'user'
+      AND a.user_id = p_user_id
+  ) AS c
+  WHERE c.profile_id IS NOT NULL;
+
+  RETURN v_profile_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.graduate_affairs_resolve_caller_authorized_staff_profile_id(
+  p_role_code text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN NULL;
+  END IF;
+  RETURN public.graduate_affairs_resolve_authorized_staff_profile_id(auth.uid(), p_role_code);
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.graduate_affairs_is_manager()
 RETURNS boolean
 LANGUAGE plpgsql
@@ -75,26 +178,9 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-  RETURN EXISTS (
-    SELECT 1
-    FROM public.request_processing_assignments a
-    JOIN public.request_processing_units u
-      ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
-    JOIN public.request_processing_roles r
-      ON r.id = a.role_id AND r.code = 'graduate_affairs_manager' AND r.is_active
-    WHERE a.is_active
-      AND (a.starts_at IS NULL OR a.starts_at <= now())
-      AND (a.ends_at IS NULL OR a.ends_at > now())
-      AND (
-        (a.assignment_type = 'user' AND a.user_id = auth.uid())
-        OR (a.assignment_type = 'staff_profile' AND EXISTS (
-          SELECT 1 FROM public.staff_profiles sp
-          WHERE sp.id = a.staff_profile_id
-            AND sp.user_id = auth.uid()
-            AND sp.status = 'active'
-        ))
-      )
-  );
+  RETURN public.graduate_affairs_resolve_caller_authorized_staff_profile_id(
+    'graduate_affairs_manager'
+  ) IS NOT NULL;
 END;
 $$;
 
@@ -106,31 +192,14 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-  RETURN EXISTS (
-    SELECT 1
-    FROM public.request_processing_assignments a
-    JOIN public.request_processing_units u
-      ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
-    JOIN public.request_processing_roles r
-      ON r.id = a.role_id AND r.code = 'graduate_affairs_specialist' AND r.is_active
-    WHERE a.is_active
-      AND (a.starts_at IS NULL OR a.starts_at <= now())
-      AND (a.ends_at IS NULL OR a.ends_at > now())
-      AND (
-        (a.assignment_type = 'user' AND a.user_id = auth.uid())
-        OR (a.assignment_type = 'staff_profile' AND EXISTS (
-          SELECT 1 FROM public.staff_profiles sp
-          WHERE sp.id = a.staff_profile_id
-            AND sp.user_id = auth.uid()
-            AND sp.status = 'active'
-        ))
-      )
-  );
+  RETURN public.graduate_affairs_resolve_caller_authorized_staff_profile_id(
+    'graduate_affairs_specialist'
+  ) IS NOT NULL;
 END;
 $$;
 
--- Department scope of the calling specialist. Fail-closed: a specialist with
--- no staff_profile_departments rows gets an empty set = no department access.
+-- Department scope of the calling specialist. Fail-closed: binds ONLY to the
+-- unique authorizing active staff_profile (never other owned active profiles).
 CREATE OR REPLACE FUNCTION public.graduate_affairs_specialist_department_ids()
 RETURNS SETOF uuid
 LANGUAGE plpgsql
@@ -138,18 +207,19 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  v_profile_id uuid;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.graduate_affairs_is_specialist() THEN
+  v_profile_id := public.graduate_affairs_resolve_caller_authorized_staff_profile_id(
+    'graduate_affairs_specialist'
+  );
+  IF v_profile_id IS NULL THEN
     RETURN;
   END IF;
-  -- Caller-owned departments only. The is_specialist() gate already proved
-  -- the role; never union other specialists' staff_profile_departments.
   RETURN QUERY
   SELECT DISTINCT spd.department_id
   FROM public.staff_profile_departments spd
-  JOIN public.staff_profiles sp ON sp.id = spd.staff_profile_id
-  WHERE sp.user_id = auth.uid()
-    AND sp.status = 'active';
+  WHERE spd.staff_profile_id = v_profile_id;
 END;
 $$;
 
@@ -217,7 +287,7 @@ END;
 $$;
 
 -- True when p_user_id holds an active Graduate Affairs staff capability
--- (manager or specialist) with active staff_profile status when applicable.
+-- (manager or specialist) with a uniquely resolved active staff_profile.
 CREATE OR REPLACE FUNCTION public.graduate_affairs_user_is_active_staff(p_user_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -229,32 +299,17 @@ BEGIN
   IF p_user_id IS NULL THEN
     RETURN false;
   END IF;
-  RETURN EXISTS (
-    SELECT 1
-    FROM public.request_processing_assignments a
-    JOIN public.request_processing_units u
-      ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
-    JOIN public.request_processing_roles r
-      ON r.id = a.role_id
-     AND r.code IN ('graduate_affairs_manager','graduate_affairs_specialist')
-     AND r.is_active
-    WHERE a.is_active
-      AND (a.starts_at IS NULL OR a.starts_at <= now())
-      AND (a.ends_at IS NULL OR a.ends_at > now())
-      AND (
-        (a.assignment_type = 'user' AND a.user_id = p_user_id)
-        OR (a.assignment_type = 'staff_profile' AND EXISTS (
-          SELECT 1 FROM public.staff_profiles sp
-          WHERE sp.id = a.staff_profile_id
-            AND sp.user_id = p_user_id
-            AND sp.status = 'active'
-        ))
-      )
-  );
+  RETURN public.graduate_affairs_resolve_authorized_staff_profile_id(
+           p_user_id, 'graduate_affairs_manager'
+         ) IS NOT NULL
+      OR public.graduate_affairs_resolve_authorized_staff_profile_id(
+           p_user_id, 'graduate_affairs_specialist'
+         ) IS NOT NULL;
 END;
 $$;
 
 -- Department ids authorized for a specific specialist user (not the caller).
+-- Binds ONLY to that user's unique authorizing specialist profile.
 CREATE OR REPLACE FUNCTION public.graduate_affairs_user_specialist_department_ids(p_user_id uuid)
 RETURNS SETOF uuid
 LANGUAGE plpgsql
@@ -262,16 +317,19 @@ STABLE
 SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
+DECLARE
+  v_profile_id uuid;
 BEGIN
-  IF p_user_id IS NULL OR NOT public.graduate_affairs_user_is_active_staff(p_user_id) THEN
+  v_profile_id := public.graduate_affairs_resolve_authorized_staff_profile_id(
+    p_user_id, 'graduate_affairs_specialist'
+  );
+  IF v_profile_id IS NULL THEN
     RETURN;
   END IF;
   RETURN QUERY
   SELECT DISTINCT spd.department_id
   FROM public.staff_profile_departments spd
-  JOIN public.staff_profiles sp ON sp.id = spd.staff_profile_id
-  WHERE sp.user_id = p_user_id
-    AND sp.status = 'active';
+  WHERE spd.staff_profile_id = v_profile_id;
 END;
 $$;
 
@@ -1094,26 +1152,9 @@ BEGIN
   IF public.graduate_affairs_is_manager() THEN
     NULL;
   ELSIF public.graduate_affairs_is_specialist() THEN
-    SELECT EXISTS (
-      SELECT 1
-      FROM public.request_processing_assignments a
-      JOIN public.request_processing_units u
-        ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
-      JOIN public.request_processing_roles r
-        ON r.id = a.role_id AND r.code = 'graduate_affairs_manager' AND r.is_active
-      WHERE a.is_active
-        AND (a.starts_at IS NULL OR a.starts_at <= now())
-        AND (a.ends_at IS NULL OR a.ends_at > now())
-        AND (
-          (a.assignment_type = 'user' AND a.user_id = p_assignee_user_id)
-          OR (a.assignment_type = 'staff_profile' AND EXISTS (
-            SELECT 1 FROM public.staff_profiles sp
-            WHERE sp.id = a.staff_profile_id
-              AND sp.user_id = p_assignee_user_id
-              AND sp.status = 'active'
-          ))
-        )
-    ) INTO v_assignee_ok;
+    v_assignee_ok := public.graduate_affairs_resolve_authorized_staff_profile_id(
+      p_assignee_user_id, 'graduate_affairs_manager'
+    ) IS NOT NULL;
     IF NOT v_assignee_ok
        AND v_department_id NOT IN (
          SELECT public.graduate_affairs_user_specialist_department_ids(p_assignee_user_id)
@@ -1491,6 +1532,8 @@ $$;
 -- =====================================================================
 
 REVOKE ALL ON FUNCTION public.graduate_affairs_audit(text, text, uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_affairs_resolve_authorized_staff_profile_id(uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_affairs_resolve_caller_authorized_staff_profile_id(text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_is_manager() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_is_specialist() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_specialist_department_ids() FROM PUBLIC, anon, authenticated;
