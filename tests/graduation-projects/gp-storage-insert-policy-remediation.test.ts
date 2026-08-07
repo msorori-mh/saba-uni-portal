@@ -223,16 +223,25 @@ describe("GP MVP storage insert policy remediation (forward fix)", () => {
     teardownContainer();
 
     execSync(
-      `docker run --rm --detach --name ${container} -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17`,
+      `docker run -d --name ${container} -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17`,
       { stdio: "ignore" },
     );
 
     try {
       const ready = await waitReady();
       expect(ready).toBe(true);
+      // Brief settle — CI runners can race between pg_isready and first SQL apply.
+      await Bun.sleep(1000);
+      const settled = await waitReady();
+      expect(settled).toBe(true);
 
       // 1) Minimal stub schema (auth, storage, synthetic identities).
-      const schemaOut = psqlFile(minimalSchemaPath);
+      let schemaOut = psqlFile(minimalSchemaPath);
+      if (!schemaOut.ok && /No such file or directory|Connection refused/i.test(schemaOut.out)) {
+        await Bun.sleep(1500);
+        expect(await waitReady()).toBe(true);
+        schemaOut = psqlFile(minimalSchemaPath);
+      }
       if (!schemaOut.ok) {
         throw new Error(`minimal-schema failed:\n${schemaOut.out}`);
       }
