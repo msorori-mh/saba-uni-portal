@@ -30,6 +30,7 @@ import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWi
 import { LazyMount } from "@/components/util/LazyMount";
 import { Skeleton } from "@/components/ui/skeleton";
 import { portalFeatures } from "@/lib/portal-features";
+import { isCurrentFourthAcademicLevel } from "@/lib/graduation-projects/eligibility";
 
 const STALE_LONG = 5 * 60 * 1000;
 const STALE_MED = 60 * 1000;
@@ -402,7 +403,11 @@ function StudentDashboard() {
             </div>
 
             <div className="mt-4 grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
-              {SERVICE_LINKS.map(({ to, title, desc, Icon }) => (
+              {SERVICE_LINKS.filter((link) => {
+                if (link.to !== "/student/graduation-projects") return true;
+                // Presentation only — backend L4 predicate remains authoritative.
+                return isCurrentFourthAcademicLevel(acad?.level?.level_number);
+              }).map(({ to, title, desc, Icon }) => (
                 <Link
                   key={to}
                   to={to}
