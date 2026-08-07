@@ -329,6 +329,10 @@ describe("GP student Level-4-only eligibility guard", () => {
     );
     const ready = await waitReady();
     expect(ready).toBe(true);
+    // Brief settle — CI runners can race between pg_isready and first SQL apply.
+    await Bun.sleep(1000);
+    const settled = await waitReady();
+    expect(settled).toBe(true);
 
     const promotedL4 = readFileSync(promotedL4Path, "utf8");
     expect(promotedL4).toContain("PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION");
@@ -344,7 +348,15 @@ describe("GP student Level-4-only eligibility guard", () => {
       ["U4-storage-fix", storageFixPath],
       ["L4-promoted", promotedL4Path],
     ] as const) {
-      const result = psqlFile(path);
+      let result = psqlFile(path);
+      if (!result.ok) {
+        // One retry after a short settle for transient docker socket races.
+        await Bun.sleep(1000);
+        if (!(await waitReady())) {
+          throw new Error(`${label} failed (postgres not ready):\n${result.out}`);
+        }
+        result = psqlFile(path);
+      }
       if (!result.ok) {
         throw new Error(`${label} failed:\n${result.out}`);
       }
