@@ -131,7 +131,10 @@ async function waitReady(): Promise<boolean> {
       ["exec", container, "pg_isready", "-U", "postgres"],
       { encoding: "utf8" },
     );
-    if (r.status === 0) return true;
+    if (r.status === 0) {
+      const probe = psql("select 1;");
+      if (probe.ok) return true;
+    }
     await Bun.sleep(500);
   }
   return false;
@@ -202,14 +205,13 @@ describe("GP MVP storage insert policy remediation (forward fix)", () => {
   });
 
   it("remediation migration is byte-identical to reviewed SHA fe4da88a", () => {
-    const reviewedHash = execSync(
-      "git rev-parse fe4da88a:supabase/migrations/20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
-      { encoding: "utf8" },
-    ).trim();
+    // Pin the reviewed blob directly so shallow CI checkouts (fetch-depth: 1)
+    // still prove byte-identity without requiring commit fe4da88a locally.
+    const reviewedBlob = "2f16cc45a3d7a0b91c71cfcea93a19ff2cdd1f7b";
     const currentHash = execSync(`git hash-object ${migrationPath}`, {
       encoding: "utf8",
     }).trim();
-    expect(currentHash).toBe(reviewedHash);
+    expect(currentHash).toBe(reviewedBlob);
   });
 
   it("launches disposable PG17 and proves the full chain", async () => {
@@ -221,16 +223,28 @@ describe("GP MVP storage insert policy remediation (forward fix)", () => {
     teardownContainer();
 
     execSync(
-      `docker run --rm --detach --name ${container} -e POSTGRES_PASSWORD=local_only postgres:17-alpine`,
+      `docker run -d --name ${container} -e POSTGRES_HOST_AUTH_METHOD=trust postgres:17`,
       { stdio: "ignore" },
     );
 
     try {
       const ready = await waitReady();
       expect(ready).toBe(true);
+      // Brief settle — CI runners can race between pg_isready and first SQL apply.
+      await Bun.sleep(1000);
+      const settled = await waitReady();
+      expect(settled).toBe(true);
 
       // 1) Minimal stub schema (auth, storage, synthetic identities).
-      const schemaOut = psqlFile(minimalSchemaPath);
+      let schemaOut = psqlFile(minimalSchemaPath);
+      if (!schemaOut.ok && /No such file or directory|Connection refused/i.test(schemaOut.out)) {
+        await Bun.sleep(1500);
+        expect(await waitReady()).toBe(true);
+        schemaOut = psqlFile(minimalSchemaPath);
+      }
+      if (!schemaOut.ok) {
+        throw new Error(`minimal-schema failed:\n${schemaOut.out}`);
+      }
       expect(schemaOut.ok).toBe(true);
 
       // 2) A1 foundation.

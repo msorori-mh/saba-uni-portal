@@ -30,6 +30,11 @@ import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWi
 import { LazyMount } from "@/components/util/LazyMount";
 import { Skeleton } from "@/components/ui/skeleton";
 import { portalFeatures } from "@/lib/portal-features";
+import {
+  resolveCanonicalCurrentFourthLevelEligibility,
+  shouldShowStudentGpNav,
+  type AcademicStatusTimestampRow,
+} from "@/lib/graduation-projects/eligibility";
 
 const STALE_LONG = 5 * 60 * 1000;
 const STALE_MED = 60 * 1000;
@@ -150,17 +155,22 @@ async function fetchMyProfile(): Promise<StudentRow | null> {
 }
 
 async function fetchMyAcademicStatus(studentId: string): Promise<AcademicStatus | null> {
+  // Canonical ordering matches backend student_is_current_fourth_academic_level:
+  // updated_at DESC NULLS LAST, created_at DESC. Ambiguous top ties yield null
+  // so GP nav never flashes for an ineligible / ambiguous student.
   const { data, error } = await supabase
     .from("student_academic_status")
     .select(
-      "enrollment_status, academic_year_id, semester_id, level_id, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)",
+      "id, enrollment_status, academic_year_id, semester_id, level_id, created_at, updated_at, academic_year:academic_years(name), semester:semesters(name), level:academic_levels(name, level_number)",
     )
     .eq("student_profile_id", studentId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("updated_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false });
   if (error) throw error;
-  return data as unknown as AcademicStatus;
+  const rows = (data ?? []) as unknown as (AcademicStatus & AcademicStatusTimestampRow)[];
+  const resolved = resolveCanonicalCurrentFourthLevelEligibility(rows);
+  if (!resolved.current) return null;
+  return resolved.current as unknown as AcademicStatus;
 }
 
 async function fetchMySchedule(
@@ -410,7 +420,16 @@ function StudentDashboard() {
             </div>
 
             <div className="mt-4 grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
-              {SERVICE_LINKS.map(({ to, title, desc, Icon }) => (
+              {SERVICE_LINKS.filter((link) => {
+                if (link.to !== "/student/graduation-projects") return true;
+                // Presentation only — backend L4 predicate remains authoritative.
+                // Hide while loading / ambiguous / non-L4 (no transient GP link).
+                return shouldShowStudentGpNav(
+                  resolveCanonicalCurrentFourthLevelEligibility(
+                    acad ? [acad as AcademicStatusTimestampRow] : [],
+                  ).eligible,
+                );
+              }).map(({ to, title, desc, Icon }) => (
                 <Link
                   key={to}
                   to={to}
