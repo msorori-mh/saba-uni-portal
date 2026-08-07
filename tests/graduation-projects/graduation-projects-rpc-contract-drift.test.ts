@@ -40,7 +40,7 @@ function listSourceFiles(dir: string): string[] {
 const a1 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A1-FOUNDATION-01.sql");
 const a2 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A2-STORAGE-01.sql");
 const a3 = read("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A3-LIFECYCLE-01.sql");
-const migA2 = read("supabase/migrations/20260806120100_gp_mvp_package_a2_storage_01.sql");
+const migA2 = read("supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql");
 const packageDCleanup = read(
   "docs/migration-drafts/GRADUATION-PROJECTS-PACKAGE-D-FIXTURES-AND-CLEANUP.sql",
 );
@@ -50,8 +50,8 @@ const serviceTs = read("src/lib/graduation-projects/service.ts");
 const hooksTs = read("src/lib/graduation-projects/hooks.ts");
 const indexTs = read("src/lib/graduation-projects/index.ts");
 const adapterTs = read("src/routes/-graduation-projects-adapter.ts");
-const migA1 = read("supabase/migrations/20260806120000_gp_mvp_package_a1_foundation_01.sql");
-const migA3 = read("supabase/migrations/20260806120200_gp_mvp_package_a3_lifecycle_01.sql");
+const migA1 = read("supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql");
+const migA3 = read("supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql");
 
 /** Extract create function public.<name>(...params...) parameter text from SQL. */
 function extractParams(sql: string, name: string): string | null {

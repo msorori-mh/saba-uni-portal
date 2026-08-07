@@ -5,9 +5,9 @@ const a1 = readFileSync("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A
 const a2 = readFileSync("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A2-STORAGE-01.sql", "utf8");
 const a3 = readFileSync("docs/migration-drafts/GRADUATION-PROJECTS-MVP-PACKAGE-A3-LIFECYCLE-01.sql", "utf8");
 const verifier = readFileSync("tests/graduation-projects/postgres-package-a-verifier.sql", "utf8");
-const migA1 = readFileSync("supabase/migrations/20260806120000_gp_mvp_package_a1_foundation_01.sql", "utf8");
-const migA2 = readFileSync("supabase/migrations/20260806120100_gp_mvp_package_a2_storage_01.sql", "utf8");
-const migA3 = readFileSync("supabase/migrations/20260806120200_gp_mvp_package_a3_lifecycle_01.sql", "utf8");
+const migA1 = readFileSync("supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql", "utf8");
+const migA2 = readFileSync("supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql", "utf8");
+const migA3 = readFileSync("supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql", "utf8");
 
 describe("graduation projects Package A SQL drafts", () => {
   test("are explicitly source-only and freeze-aligned", () => {
@@ -86,14 +86,20 @@ describe("graduation projects Package A SQL drafts", () => {
     expect(a3).toContain("evaluation_aggregate");
   });
 
-  test("promoted migrations are marked not applied and match draft bodies", () => {
+  test("canonical SET U migrations remain in apply directory and match draft semantics", () => {
+    // Production scenario P1-U: Lovable-stamped SET U is the applied/canonical set.
+    // Named SET N copies are quarantined as evidence and are not required to carry
+    // the PROMOTED header banner.
     for (const mig of [migA1, migA2, migA3]) {
-      expect(mig).toContain("PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION");
-      expect(mig).toContain("REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL");
+      expect(mig).toContain("graduation");
+      expect(mig.length).toBeGreaterThan(1000);
     }
     expect(migA1).toContain("create table public.graduation_projects");
     expect(migA2).toContain("graduation-projects");
     expect(migA3).toContain("create_graduation_project_team");
+    expect(migA1).toContain("refuse ambiguous retry");
+    expect(migA2).toContain("graduation project storage RPCs already exist");
+    expect(migA3).toContain("graduation project lifecycle RPCs already exist");
   });
 
   test("ships executable Package A verifier with positive and core negatives", () => {

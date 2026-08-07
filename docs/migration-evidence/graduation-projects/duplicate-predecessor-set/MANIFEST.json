@@ -1,0 +1,42 @@
+﻿[
+    {
+        "old_path":  "supabase/migrations/20260806120000_gp_mvp_package_a1_foundation_01.sql",
+        "new_evidence_path":  "docs/migration-evidence/graduation-projects/duplicate-predecessor-set/20260806120000_gp_mvp_package_a1_foundation_01.sql",
+        "sha256":  "a7c4cd8a1bce287bdee222b456e34df15f143c1f767a6862a19aa4244b254c6e",
+        "canonical_counterpart":  "supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql",
+        "canonical_sha256":  "61fb94c45bdffaf16518d061d22a4e197f503a688b33bccccdb65340161635fa",
+        "semantic_equivalence":  "PASS (normalized SQL equal; differ only in headers/begin-commit/trailing newline)",
+        "reason_not_in_migrations":  "Production schema_migrations records exactly SET U (U1-U4). Keeping SET N in supabase/migrations would fail-closed on fresh apply and contradict production ledger (scenario P1-U).",
+        "production_scenario":  "P1-U"
+    },
+    {
+        "old_path":  "supabase/migrations/20260806120100_gp_mvp_package_a2_storage_01.sql",
+        "new_evidence_path":  "docs/migration-evidence/graduation-projects/duplicate-predecessor-set/20260806120100_gp_mvp_package_a2_storage_01.sql",
+        "sha256":  "0cb52d4149843fe8cf2adab2cff927c17e942af4be6b7fec75828d10660a707a",
+        "canonical_counterpart":  "supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql",
+        "canonical_sha256":  "ca07850460fb7dc979968e6dc0179276a3e9fa6c6856e8b7301c897f22fa6b28",
+        "semantic_equivalence":  "PASS (normalized SQL equal; differ only in headers/begin-commit/trailing newline)",
+        "reason_not_in_migrations":  "Production schema_migrations records exactly SET U (U1-U4). Keeping SET N in supabase/migrations would fail-closed on fresh apply and contradict production ledger (scenario P1-U).",
+        "production_scenario":  "P1-U"
+    },
+    {
+        "old_path":  "supabase/migrations/20260806120200_gp_mvp_package_a3_lifecycle_01.sql",
+        "new_evidence_path":  "docs/migration-evidence/graduation-projects/duplicate-predecessor-set/20260806120200_gp_mvp_package_a3_lifecycle_01.sql",
+        "sha256":  "a7214c8d43094ddbc94e48c47f9f263ca7b8524ca93f78496e94c96ff86d060e",
+        "canonical_counterpart":  "supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql",
+        "canonical_sha256":  "15c369971c950753e094063052d540b47c95c4835a4253d2f2af50bfbe01047d",
+        "semantic_equivalence":  "PASS (normalized SQL equal; differ only in headers/begin-commit/trailing newline)",
+        "reason_not_in_migrations":  "Production schema_migrations records exactly SET U (U1-U4). Keeping SET N in supabase/migrations would fail-closed on fresh apply and contradict production ledger (scenario P1-U).",
+        "production_scenario":  "P1-U"
+    },
+    {
+        "old_path":  "supabase/migrations/20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
+        "new_evidence_path":  "docs/migration-evidence/graduation-projects/duplicate-predecessor-set/20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
+        "sha256":  "b03dd561620dffddc0467729980463754e8cf748f9bb4739eaf5ac9b67e2c4e1",
+        "canonical_counterpart":  "supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql",
+        "canonical_sha256":  "878505edcc7d398949690e9c609012abd796bb4217cd5e0cc04e404949c1831b",
+        "semantic_equivalence":  "PASS (normalized SQL equal; differ only in headers/begin-commit/trailing newline)",
+        "reason_not_in_migrations":  "Production schema_migrations records exactly SET U (U1-U4). Keeping SET N in supabase/migrations would fail-closed on fresh apply and contradict production ledger (scenario P1-U).",
+        "production_scenario":  "P1-U"
+    }
+]
