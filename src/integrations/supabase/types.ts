@@ -6885,6 +6885,15 @@ export type Database = {
         }
         Returns: Json
       }
+      add_graduation_project_team_member: {
+        Args: {
+          p_correlation_id: string
+          p_project_id: string
+          p_student_profile_id: string
+          p_student_user_id: string
+        }
+        Returns: string
+      }
       admin_create_enrollment_certificate_e2e_draft: {
         Args: {
           p_e2e_marker: string
@@ -7004,6 +7013,14 @@ export type Database = {
         Args: { p_comment?: string; p_payload?: Json; p_step_id: string }
         Returns: Json
       }
+      archive_graduation_project: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
       assert_b1_academic_period_reference: {
         Args: { p_academic_year_id: string; p_semester_id: string }
         Returns: undefined
@@ -7063,6 +7080,24 @@ export type Database = {
       assess_student_request_fee: {
         Args: { p_amount: number; p_notes?: string; p_request_id: string }
         Returns: Json
+      }
+      assign_graduation_project_committee_member: {
+        Args: {
+          p_correlation_id: string
+          p_faculty_profile_id: string
+          p_project_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      assign_graduation_project_supervisor: {
+        Args: {
+          p_correlation_id: string
+          p_faculty_profile_id: string
+          p_project_id: string
+          p_user_id: string
+        }
+        Returns: string
       }
       audit_resolve_role: { Args: { _user_id: string }; Returns: string }
       authorize_student_request_attachment_download: {
@@ -7306,6 +7341,15 @@ export type Database = {
         Args: { p_attachment_id: string }
         Returns: Json
       }
+      conclude_graduation_project_result: {
+        Args: {
+          p_correlation_id: string
+          p_decision: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
       confirm_student_request_fee_payment: {
         Args: {
           p_notes?: string
@@ -7337,6 +7381,18 @@ export type Database = {
       create_graduation_project_signed_download: {
         Args: { p_correlation_id: string; p_file_id: string }
         Returns: Json
+      }
+      create_graduation_project_team: {
+        Args: {
+          p_academic_year_id: string
+          p_correlation_id: string
+          p_department_id: string
+          p_leader_student_profile_id: string
+          p_leader_user_id: string
+          p_program_id: string
+          p_semester_id: string
+        }
+        Returns: string
       }
       create_notification: {
         Args: {
@@ -7506,6 +7562,10 @@ export type Database = {
         Args: { p_step_id: string }
         Returns: Json
       }
+      get_graduation_project_detail: {
+        Args: { p_project_id: string }
+        Returns: Json
+      }
       get_hardening_status: { Args: never; Returns: Json }
       get_my_request_actor_inbox: {
         Args: { p_filters?: Json; p_limit?: number; p_offset?: number }
@@ -7608,6 +7668,24 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: Json
       }
+      gp_assert_version: {
+        Args: {
+          p: Database["public"]["Tables"]["graduation_projects"]["Row"]
+          p_expected: number
+        }
+        Returns: undefined
+      }
+      gp_has_current_clean_file: {
+        Args: {
+          p_category: Database["public"]["Enums"]["graduation_project_file_category"]
+          p_project_id: string
+        }
+        Returns: boolean
+      }
+      gp_proposal_complete: {
+        Args: { p: Database["public"]["Tables"]["graduation_projects"]["Row"] }
+        Returns: boolean
+      }
       gp_replay_entity: {
         Args: {
           p_correlation_id: string
@@ -7624,6 +7702,36 @@ export type Database = {
           p_request: Json
         }
         Returns: string
+      }
+      gp_team_mutator: {
+        Args: { p_project_id: string }
+        Returns: {
+          active: boolean
+          assigned_at: string
+          assigned_by: string
+          department_id: string
+          ended_at: string | null
+          faculty_profile_id: string | null
+          id: string
+          is_leader: boolean
+          processing_role:
+            | Database["public"]["Enums"]["graduation_project_assignment_role"]
+            | null
+          processing_unit_id: string | null
+          project_id: string
+          role: Database["public"]["Enums"]["graduation_project_assignment_role"]
+          student_profile_id: string | null
+          supervision_status:
+            | Database["public"]["Enums"]["graduation_project_supervision_status"]
+            | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "graduation_project_assignments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       has_any_role: {
         Args: { _roles: string[]; _user_id: string }
@@ -7757,6 +7865,10 @@ export type Database = {
         Args: { _profile_id: string; _target_user_id: string }
         Returns: Json
       }
+      list_administration_graduation_projects_overview: {
+        Args: never
+        Returns: Json
+      }
       list_b1_request_attachments_for_viewer: {
         Args: { p_request_id: string }
         Returns: Json
@@ -7765,6 +7877,7 @@ export type Database = {
         Args: { p_limit?: number; p_offset?: number }
         Returns: Json
       }
+      list_my_graduation_projects: { Args: never; Returns: Json }
       list_my_student_request_attachments: {
         Args: { p_student_request_id: string }
         Returns: {
@@ -7812,6 +7925,14 @@ export type Database = {
       mark_enrollment_certificate_document_uploaded: {
         Args: { p_attempt_id: string; p_byte_length: number; p_sha256: string }
         Returns: Json
+      }
+      mark_graduation_project_defense_held: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
       }
       mark_graduation_project_file_scan_state: {
         Args: {
@@ -7875,6 +7996,14 @@ export type Database = {
       reject_student_request_attachment: {
         Args: { p_attachment_id: string; p_rejection_code: string }
         Returns: boolean
+      }
+      remove_graduation_project_team_member: {
+        Args: {
+          p_assignment_id: string
+          p_correlation_id: string
+          p_project_id: string
+        }
+        Returns: string
       }
       replace_class_schedule_for_context: {
         Args: { _rows: Json; _section_ids: string[] }
@@ -7992,9 +8121,55 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      respond_graduation_project_supervision: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_response: string
+        }
+        Returns: string
+      }
+      resubmit_graduation_project_proposal: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
       revert_student_discount: {
         Args: { _discount_id: string }
         Returns: undefined
+      }
+      review_graduation_project_final: {
+        Args: {
+          p_action: string
+          p_comments: string
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
+      review_graduation_project_progress: {
+        Args: {
+          p_action: string
+          p_comments: string
+          p_correlation_id: string
+          p_entry_id: string
+        }
+        Returns: string
+      }
+      review_graduation_project_proposal: {
+        Args: {
+          p_action: string
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_reason: string
+        }
+        Returns: string
       }
       save_b1_request_draft_for_student: {
         Args: {
@@ -8004,6 +8179,16 @@ export type Database = {
           p_request_id: string
         }
         Returns: Json
+      }
+      schedule_graduation_project_defense: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+          p_starts_at: string
+          p_venue: string
+        }
+        Returns: string
       }
       student_has_approved_grades_for_transcript: {
         Args: { _student_profile_id: string }
@@ -8027,6 +8212,41 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_graduation_project_evaluation: {
+        Args: {
+          p_correlation_id: string
+          p_notes: string
+          p_project_id: string
+          p_score: number
+        }
+        Returns: string
+      }
+      submit_graduation_project_final: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_file_id: string
+          p_project_id: string
+        }
+        Returns: string
+      }
+      submit_graduation_project_progress: {
+        Args: {
+          p_correlation_id: string
+          p_file_id: string
+          p_project_id: string
+          p_summary: string
+        }
+        Returns: string
+      }
+      submit_graduation_project_proposal: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_project_id: string
+        }
+        Returns: string
+      }
       submit_student_request: {
         Args: { p_request_id: string }
         Returns: boolean
@@ -8034,6 +8254,18 @@ export type Database = {
       submit_student_request_with_secure_attachments: {
         Args: { p_attachment_ids: string[]; p_request_id: string }
         Returns: undefined
+      }
+      upsert_graduation_project_proposal: {
+        Args: {
+          p_correlation_id: string
+          p_expected_version: number
+          p_objectives: string
+          p_problem_statement: string
+          p_project_id: string
+          p_summary: string
+          p_title: string
+        }
+        Returns: string
       }
       user_can_see_announcement: {
         Args: { _ann_id: string; _uid: string }
