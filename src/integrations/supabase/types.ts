@@ -7299,6 +7299,10 @@ export type Database = {
         Args: { _council_id: string; _topic_id: string; _user: string }
         Returns: boolean
       }
+      can_upload_graduation_project_object: {
+        Args: { p_object_name: string }
+        Returns: boolean
+      }
       can_write_council_agenda: {
         Args: { _council: string; _user: string }
         Returns: boolean
