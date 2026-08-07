@@ -188,6 +188,9 @@ describe("GP MVP storage insert policy remediation (forward fix)", () => {
     expect(verifier).toContain("B_POSITIVE_STORAGE_INSERT_ALLOWED");
     expect(verifier).toContain("C1_WRONG_USER_DENIED");
     expect(verifier).toContain("C2_INACTIVE_ASSIGNMENT_DENIED");
+    expect(verifier).toContain(
+      "C3_ASSIGNMENT_INTERVAL_PREVENTS_ACTIVE_ENDED_STATE",
+    );
     expect(verifier).toContain("C3_ENDED_ASSIGNMENT_DENIED");
     expect(verifier).toContain("C4_NON_PENDING_FILE_DENIED");
     expect(verifier).toContain("C5_UNKNOWN_OBJECT_KEY_DENIED");
@@ -196,6 +199,17 @@ describe("GP MVP storage insert policy remediation (forward fix)", () => {
     expect(verifier).toContain("D_PREDICATE_ACL_OK");
     expect(verifier).toContain("E_NO_BROAD_TABLE_GRANTS");
     expect(verifier).toContain("A_GP_TABLE_SELECT_DENIED");
+  });
+
+  it("remediation migration is byte-identical to reviewed SHA fe4da88a", () => {
+    const reviewedHash = execSync(
+      "git rev-parse fe4da88a:supabase/migrations/20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
+      { encoding: "utf8" },
+    ).trim();
+    const currentHash = execSync(`git hash-object ${migrationPath}`, {
+      encoding: "utf8",
+    }).trim();
+    expect(currentHash).toBe(reviewedHash);
   });
 
   it("launches disposable PG17 and proves the full chain", async () => {
@@ -269,6 +283,10 @@ SELECT has_function_privilege('authenticated','public.can_upload_graduation_proj
       expect(verifierOut.out).toContain(
         "GP_MVP_STORAGE_INSERT_REMEDIATION_VERIFIER_PASS",
       );
+      expect(verifierOut.out).toContain(
+        "C3_ASSIGNMENT_INTERVAL_PREVENTS_ACTIVE_ENDED_STATE",
+      );
+      expect(verifierOut.out).toContain("C3_ENDED_ASSIGNMENT_DENIED");
 
       // 7) Existing GP verifiers where applicable (regression guard).
       const foundationOut = psqlFile(foundationVerifierPath);

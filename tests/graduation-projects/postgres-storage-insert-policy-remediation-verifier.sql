@@ -156,7 +156,34 @@ select pg_temp.expect_rls_deny(
 );
 do $$ begin raise notice 'C2_INACTIVE_ASSIGNMENT_DENIED'; end $$;
 
--- C3. Ended assignment (explicitly ended_at not null)
+-- C3. Schema invariant + ended-state denial.
+-- The A1 assignment_interval constraint only permits:
+--   (active=true AND ended_at IS NULL)
+--   OR
+--   (active=false AND ended_at IS NOT NULL AND ended_at >= assigned_at)
+-- Therefore active=true + ended_at IS NOT NULL is an INVALID DATABASE STATE.
+-- The predicate's extra a.ended_at is null check is defense-in-depth:
+-- under valid A1 rows, active=true already implies ended_at IS NULL.
+-- This section proves:
+--   - the database rejects the invalid active+ended state
+--   - the valid ended state (active=false, ended_at not null) is denied upload.
+
+-- C3a. A1 prevents the invalid active+ended state.
+do $$
+begin
+  -- Attempt the invalid state: active=true while ended_at is already set.
+  -- The PL/pgSQL exception block provides an implicit savepoint, so the
+  -- failed invalid-state attempt is rolled back without aborting the verifier.
+  update public.graduation_project_assignments
+  set active = true
+  where id = '51000000-0000-0000-0000-000000000001';
+  -- If the update succeeds, the invariant is broken.
+  raise exception 'assignment_interval allowed active=true with ended_at not null';
+exception when check_violation then
+  raise notice 'C3_ASSIGNMENT_INTERVAL_PREVENTS_ACTIVE_ENDED_STATE';
+end $$;
+
+-- C3b. Valid ended assignment state still denied.
 select pg_temp.expect_rls_deny(
   '10000000-0000-0000-0000-000000000001'::uuid,
   $sql$insert into storage.objects(bucket_id, name, metadata) values
