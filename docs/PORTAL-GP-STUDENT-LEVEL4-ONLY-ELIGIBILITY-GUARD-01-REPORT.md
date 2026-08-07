@@ -1,4 +1,4 @@
-# GP-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01 â€” Report
+# GP-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01 - Report
 
 **Decision:** `PASS_GP_STUDENT_LEVEL4_ONLY_GUARD_CODEX_CI_REMEDIATED_REVIEW_SHA_READY`
 
@@ -8,7 +8,8 @@
 **PR:** `#290`
 **Base:** `origin/main` @ `4a6e16b9`
 **Old review SHA:** `b17b6cebc939cbb814d7b3d23dadfe4fa72e3e3d`
-**Mode:** TARGETED REMEDIATION + TESTS â€” no production apply / deploy / publish
+**New review SHA:** `(set after final push commit)`
+**Mode:** TARGETED REMEDIATION + TESTS - no production apply / deploy / publish
 
 ---
 
@@ -21,7 +22,7 @@
 | FINDING_003 | Signed-download replay returned payload before authz | Authz first; bind replay to `actor_user_id` | FIXED |
 | FINDING_004 | Pending storage intent remained uploadable after demotion | `can_upload` re-checks student L4; staff path unchanged | FIXED |
 | FINDING_005 | Dashboard used `created_at`-only status order | Shared canonical resolver (`updated_at`, `created_at`, uniqueness) | FIXED |
-| FINDING_006 | CI GP foundation/lifecycle used superseded drafts â†’ A3 RPCs missing | CI chains now apply Package A1/A2/A3 + storage fix | FIXED |
+| FINDING_006 | CI GP foundation/lifecycle used superseded drafts -> A3 RPCs missing | CI chains now apply Package A1/A2/A3 + storage fix | FIXED |
 
 ## CI failures and root causes
 
@@ -29,16 +30,16 @@
    Root cause: workflow applied superseded `GRADUATION-PROJECTS-MVP-FOUNDATION-01` (+ lifecycle completion) which never creates `create_graduation_project_team`. Verifier correctly raised `A3 lifecycle RPCs missing`.
    Fix: point both chains at Package A migrations + storage insert fix.
 
-2. **Bun tests â€” storage insert remediation**
-   - Shallow clone could not `git rev-parse fe4da88a:...` â†’ pin reviewed blob hash.
-   - Race: `pg_isready` alone before schema apply â†’ wait for `select 1` probe; use `postgres:17`.
+2. **Bun tests - storage insert remediation**
+   - Shallow clone could not `git rev-parse fe4da88a:...` -> pin reviewed blob hash.
+   - Race: `pg_isready` alone before schema apply -> wait for `select 1` probe; use `postgres:17`.
 
 3. **Whitespace**
    Report rewritten without trailing whitespace; `git diff --check` must pass.
 
 ## AUTHORITATIVE_LEVEL_SOURCE
 
-`public.student_academic_status.level_id` â†’ `public.academic_levels.level_number`
+`public.student_academic_status.level_id` -> `public.academic_levels.level_number`
 
 Ordering: `updated_at DESC NULLS LAST, created_at DESC`.
 Exactly one top-rank row required; any tie/ambiguity denies.
@@ -90,14 +91,14 @@ All auth checks run before any replayed storage coordinates. Replay requires mat
 
 ## TEST_RESULTS
 
-- L4 guard Bun + disposable PG17 verifier â€” PASS
-- Package A foundation verifier â€” `PACKAGE_A_FOUNDATION_VERIFIER_PASS`
-- Package A lifecycle verifier â€” `PACKAGE_A_VERIFIER_PASS`
-- Storage insert remediation PG17 â€” PASS
-- RPC contract drift / Package A SQL draft tests â€” PASS
-- `bunx tsc --noEmit` â€” PASS
-- `bun run build` â€” PASS
-- `git diff --check` â€” PASS
+- L4 guard Bun + disposable PG17 verifier - PASS
+- Package A foundation verifier - `PACKAGE_A_FOUNDATION_VERIFIER_PASS`
+- Package A lifecycle verifier - `PACKAGE_A_VERIFIER_PASS`
+- Storage insert remediation PG17 - PASS
+- RPC contract drift / Package A SQL draft tests - PASS
+- `bunx tsc --noEmit` - PASS
+- `bun run build` - PASS
+- `git diff --check` - PASS
 
 ## Matrix
 
