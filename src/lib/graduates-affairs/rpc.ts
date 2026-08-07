@@ -37,6 +37,10 @@ export const ERROR_LABELS: Record<string, string> = {
   GRADUATE_AFFAIRS_ACCESS_DENIED: "ليس لديك صلاحية لتنفيذ هذا الإجراء.",
   GRADUATE_RECORD_NOT_CURRENT: "سجل الخريج غير معتمد أو غير سارٍ.",
   GRADUATE_PROFILE_FIELD_NOT_MUTABLE: "حقل الملف غير قابل للتعديل.",
+  // Canonical SQL exception from graduate_update_own_profile.
+  GRADUATE_PROFILE_VERSION_CONFLICT: "تم تحديث الملف من جهة أخرى. أعد المحاولة.",
+  // Compatibility alias only — not emitted by AUTH-04 SQL; retained if older
+  // client/server paths still surface this token in error text.
   GRADUATE_PROFILE_STALE_VERSION: "تم تحديث الملف من جهة أخرى. أعد المحاولة.",
 };
 
@@ -94,7 +98,7 @@ export class GraduatesAffairsRpcClient {
       p_preferred_contact_channel: input.preferredContactChannel,
       p_career_summary: input.careerSummary,
       p_profile_visibility: input.profileVisibility,
-      p_row_version: input.rowVersion,
+      p_expected_row_version: input.rowVersion,
     });
   }
 

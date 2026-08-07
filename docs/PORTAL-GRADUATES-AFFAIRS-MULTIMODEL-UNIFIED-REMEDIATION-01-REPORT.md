@@ -43,6 +43,10 @@ Status vocabulary (only):
 | R11 | Route hash / stale counts / doc drift | **CONFIRMED_FIXED** | Route semantic hash re-pinned; stale suite-count / §G8·§G9 claims superseded here |
 | CODEX-FINAL-HIGH-1 | Direct user assignment active-staff bypass | **CONFIRMED_FIXED** | `assignment_type='user'` must resolve fail-closed to exactly one active `staff_profiles` row; zero/>1/inactive/suspended ⇒ DENY |
 | CODEX-FINAL-HIGH-2 | Specialist scope unbound from authorizing profile | **CONFIRMED_FIXED** | Scope binds only to the resolver's authorizing profile; other owned active profiles contribute zero departments |
+| QWEN-FINAL-F1 | `updateOwnProfile` RPC arg `p_row_version` ≠ SQL `p_expected_row_version` | **CONFIRMED_FIXED** | After `ccb2b0ad…`; TS payload key aligned to SQL; durable contract test |
+| QWEN-FINAL-F2 | ERROR_LABELS missed `GRADUATE_PROFILE_VERSION_CONFLICT` | **CONFIRMED_FIXED** | After `ccb2b0ad…`; canonical mapping + STALE_VERSION compat alias |
+| QWEN-FINAL-NOTE-CONTEXT-RPC | Context RPC actor matrix only external/ad-hoc | **CONFIRMED_FIXED** | After `ccb2b0ad…`; persisted PG17 functional matrix + CI leg |
+| QWEN-FINAL-NOTE-REVERSE-RACE | Reverse lifecycle→self-write TOCTOU not in repo | **CONFIRMED_FIXED** | After `ccb2b0ad…`; reverse direction persisted in concurrency verifier |
 
 ### Qwen (QGA-DB-01..09)
 
@@ -117,6 +121,19 @@ Manager / specialist / active-staff capability and specialist department scope a
 
 Executable matrix: `tests/graduates-affairs/graduates-affairs-codex-final-high-profile-binding-03.pg-verify.sql` (CI leg `graduates-affairs-codex-final-high-profile-binding`).
 
+## Qwen wiring + coverage remediation (mission 04)
+
+These closures land **after** start SHA `ccb2b0ad7f15f9a705ca128aed1724759b6616bc` (Codex HIGH-1/HIGH-2 tip). They do **not** reopen R1–R11. This tip is a **PRE-#292 GA SHA** — not the final immutable merge-review SHA.
+
+| ID | Topic | Status | Evidence |
+|---|---|---|---|
+| QWEN-FINAL-F1 | `GraduatesAffairsRpcClient.updateOwnProfile` sent `p_row_version`; SQL expects `p_expected_row_version` | **CONFIRMED_FIXED** | `src/lib/graduates-affairs/rpc.ts`; `tests/graduates-affairs/graduates-affairs-rpc-contract-04.test.ts` compares live runtime args to SQL signature |
+| QWEN-FINAL-F2 | Runtime ERROR_LABELS used `GRADUATE_PROFILE_STALE_VERSION`; SQL raises `GRADUATE_PROFILE_VERSION_CONFLICT` | **CONFIRMED_FIXED** | Canonical `GRADUATE_PROFILE_VERSION_CONFLICT` mapping; STALE_VERSION retained as compatibility alias only |
+| QWEN-FINAL-NOTE-CONTEXT-RPC | Context RPC ACL existed; actor behavior matrix was external | **CONFIRMED_FIXED** | `tests/graduates-affairs/graduates-affairs-context-rpc-functional-matrix-04.pg-verify.sql` + CI leg `graduates-affairs-context-rpc-functional-matrix` |
+| QWEN-FINAL-NOTE-REVERSE-RACE | Forward R6 concurrency only | **CONFIRMED_FIXED** | Reverse lifecycle→self-write TOCTOU appended to `graduates-affairs-remediation-concurrency-01.pg-verify.sql` (dblink + async block proof) |
+
+CODEX-FINAL-HIGH-1 / HIGH-2 resolvers and profile-binding verifier remain intact and are re-run as regression.
+
 ## Files changed summary (major paths)
 
 SQL drafts / matrix:
@@ -168,8 +185,9 @@ CI-equivalent legs (`.github/workflows/ci.yml` `pg-verifiers`, `postgres:17`):
 1. **foundation** — `graduates-affairs-foundation-01.pg-setup.sql` → `GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql` → foundation pg-verify
 2. **completion** — foundation setup → foundation draft → `GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql` → completion pg-verify
 3. **authorization-04** — `graduates-affairs-authorization-04.pg-setup.sql` → foundation → completion → `GRADUATES-AFFAIRS-AUTHORIZATION-04.sql` → authorization-04 pg-verify (includes multimodel section R)
-4. **remediation-concurrency** — auth setup → foundation → completion → AUTH-04 → `graduates-affairs-remediation-concurrency-01.pg-verify.sql`
+4. **remediation-concurrency** — auth setup → foundation → completion → AUTH-04 → `graduates-affairs-remediation-concurrency-01.pg-verify.sql` (forward R6 + reverse TOCTOU)
 5. **codex-final-high-profile-binding** — auth setup → foundation → completion → AUTH-04 → `graduates-affairs-codex-final-high-profile-binding-03.pg-verify.sql`
+6. **context-rpc-functional-matrix** — auth setup → foundation → completion → AUTH-04 → `graduates-affairs-context-rpc-functional-matrix-04.pg-verify.sql`
 
 Additional coverage for this remediation is embedded in the expanded authorization-04 and completion verifiers (multi-specialist, revocation, delegation, lifecycle, continuity supersession).
 
@@ -179,20 +197,18 @@ All PG17 work is disposable local/CI only — **no production database contact**
 
 | Check | Result |
 |---|---|
-| `bun test tests/graduates-affairs` | **147 pass / 0 fail** |
-| `bun test tests/graduation-projects` | **PASS** |
+| `bun test tests/graduates-affairs` | **152 pass / 0 fail** |
+| `bun test tests/graduation-projects` | **108 pass / 0 fail** |
 | `bun test tests/student-requests` | **1066 pass / 0 fail** |
 | `bunx tsc --noEmit` | **PASS** |
 | `bun run build` | **PASS** |
 | `git diff --check` | **PASS** |
 | PG17 foundation | **PASS** |
 | PG17 completion | **PASS** |
-| PG17 authorization-04 | **PASS** (incl. section R remediation matrix) |
-| PG17 remediation-concurrency | **PASS** |
+| PG17 authorization-04 | **PASS** |
+| PG17 remediation-concurrency (incl. reverse) | **PASS** |
 | PG17 codex-final-high-profile-binding | **PASS** |
-| Route semantic hash pin | `c6099cd0b7d68f1c576a495fd49e0d011da21ed7c76488e7e2febcbab08be67e` |
-
-Full `bun test` locally: **2665+ pass**; workstation-only outside-git D02 artifact absence is **not** a GA product failure (CI expects `CI=true`). Package 97 PG17 smoke re-verified **PASS** after disposable container cleanup.
+| PG17 context-rpc-functional-matrix | **PASS** |
 
 Do not reuse pre-fix integration package counts (114 / 135 / 136).
 
@@ -210,6 +226,6 @@ Do not reuse pre-fix integration package counts (114 / 135 / 136).
 
 ## Decision
 
-**PASS_PORTAL_GRADUATES_AFFAIRS_CODEX_FINAL_HIGH_REMEDIATED_REVIEW_SHA_READY**
+**PASS_PORTAL_GA_QWEN_WIRING_COVERAGE_REMEDIATED_PRE292_SHA_READY**
 
-NEXT: `FINAL_CODEX_AND_QWEN_TARGETED_REVIEW_ON_NEW_FINAL_GA_REVIEW_SHA`
+NEXT: `MERGE_PR292_FIRST_THEN_SYNC_PR291_TO_NEW_MAIN`
