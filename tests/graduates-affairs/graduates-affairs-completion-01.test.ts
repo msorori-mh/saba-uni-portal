@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { OfficialGraduationDecision } from "../../src/lib/graduates-affairs/foundation";
 import {
+  ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE,
   ACCOUNT_CONTINUITY_POLICY_UNDECIDED,
   evaluateAccountContinuityAccess,
   type AccountContinuityPolicy,
@@ -123,6 +124,46 @@ describe("D-13 account continuity policy (configurable, fail-closed)", () => {
         "2026-10-01T00:00:00Z",
       ),
     ).toEqual({ ok: false, reason: "account_continuity_policy_undecided" });
+  });
+
+  test("approved product baseline encodes closed D-AUTH content without silent grant", () => {
+    expect(ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE.state).toBe("approved");
+    expect(ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE.allowPortalSignIn).toBe(true);
+    expect(ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE.allowUniversityEmailReuse).toBe(false);
+    expect(ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE.allowedCapabilities).toEqual(
+      expect.arrayContaining([
+        "portal_sign_in",
+        "password_recovery",
+        "profile_self_service_non_academic",
+        "request_audience_graduate",
+        "official_document_download_issued_archived",
+        "graduate_survey_participation",
+        "notification_receive_non_sensitive",
+      ]),
+    );
+    expect(ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE.allowedCapabilities).not.toContain(
+      "university_email_reuse",
+    );
+    // Baseline encodes product content only — evaluator still requires provenance.
+    expect(
+      evaluateAccountContinuityAccess(
+        ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE,
+        "portal_sign_in",
+        "2026-10-01T00:00:00Z",
+      ),
+    ).toEqual({ ok: false, reason: "missing_policy_decision_provenance" });
+    expect(
+      evaluateAccountContinuityAccess(
+        {
+          ...ACCOUNT_CONTINUITY_POLICY_APPROVED_BASELINE,
+          decidedBy: "33333333-3333-4333-8333-333333333333",
+          decidedAt: "2026-08-15T00:00:00Z",
+          validFrom: "2026-09-01T00:00:00Z",
+        },
+        "portal_sign_in",
+        "2026-10-01T00:00:00Z",
+      ),
+    ).toEqual({ ok: true });
   });
 
   test("rejected policy and missing provenance fail closed", () => {
