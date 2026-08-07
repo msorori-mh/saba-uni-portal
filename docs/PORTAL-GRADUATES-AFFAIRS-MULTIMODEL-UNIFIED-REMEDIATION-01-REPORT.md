@@ -5,13 +5,15 @@
 | Mission | `PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01` |
 | Branch | `fix/graduates-affairs-multimodel-remediation-01` |
 | BASE_REVIEW_SHA | `724f040743c1017e4b322f68b8e248bde122d1c3` |
-| REMEDIATION_REVIEW_SHA | `19bd85a0d7dcb64a0784b51c4cb00aac10289472` |
+| REMEDIATION_REVIEW_SHA | `9356fad2a71517807e9117c704883cc3544c7cc7` |
 | Mode | SOURCE-ONLY remediation (no migration apply, no deploy, no publish) |
 | Supersedes review packaging | `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-REVIEW-PACKAGE-01.md` (pre-fix baseline) |
 
 ## Mission
 
 Unify Codex / Qwen / Kimi / Antigravity multimodel findings against Graduates Affairs into one source remediation on the BASE_REVIEW_SHA tip: close confirmed authorization and runtime defects, freeze owner policy decisions where required, expand PG17 / bun coverage, and leave a single review SHA for targeted re-review after commit.
+
+`REMEDIATION_REVIEW_SHA` pins the substantive remediation commit (`fix(graduates-affairs): unify multimodel authorization remediation`). Branch tip may include subsequent documentation pins; reviewers should use the PR tip for CI and the pinned SHA for code/SQL review of the fix set.
 
 ## Finding status matrix
 
@@ -142,15 +144,29 @@ CI-equivalent legs (`.github/workflows/ci.yml` `pg-verifiers`, `postgres:17`):
 1. **foundation** — `graduates-affairs-foundation-01.pg-setup.sql` → `GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql` → foundation pg-verify
 2. **completion** — foundation setup → foundation draft → `GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql` → completion pg-verify
 3. **authorization-04** — `graduates-affairs-authorization-04.pg-setup.sql` → foundation → completion → `GRADUATES-AFFAIRS-AUTHORIZATION-04.sql` → authorization-04 pg-verify (includes multimodel section R)
+4. **remediation-concurrency** — auth setup → foundation → completion → AUTH-04 → `graduates-affairs-remediation-concurrency-01.pg-verify.sql`
 
-Additional local / targeted disposable chains for this remediation:
-
-- concurrency (`graduates-affairs-remediation-concurrency-01.pg-verify.sql`)
-- multi-specialist / revocation / delegation / lifecycle / continuity coverage embedded in the expanded authorization-04 and completion verifiers
+Additional coverage for this remediation is embedded in the expanded authorization-04 and completion verifiers (multi-specialist, revocation, delegation, lifecycle, continuity supersession).
 
 All PG17 work is disposable local/CI only — **no production database contact**.
 
-Post-fixiation suite counts: record actual `bun test` totals on the remediation tip after commit; do not reuse pre-fix integration package counts (114 / 135 / 136).
+### Post-remediation verification results
+
+| Check | Result |
+|---|---|
+| `bun test tests/graduates-affairs` | **145 pass / 0 fail** (757 expects) |
+| `bunx tsc --noEmit` | **PASS** |
+| `bun run build` | **PASS** |
+| `git diff --check` | **PASS** |
+| PG17 foundation | **PASS** |
+| PG17 completion | **PASS** |
+| PG17 authorization-04 | **PASS** (incl. section R remediation matrix) |
+| PG17 remediation-concurrency | **PASS** |
+| Route semantic hash pin | `c6099cd0b7d68f1c576a495fd49e0d011da21ed7c76488e7e2febcbab08be67e` |
+
+Full `bun test` locally: **2665+ pass**; workstation-only outside-git D02 artifact absence is **not** a GA product failure (CI expects `CI=true`). Package 97 PG17 smoke re-verified **PASS** after disposable container cleanup.
+
+Do not reuse pre-fix integration package counts (114 / 135 / 136).
 
 ## Safety counters
 
@@ -167,7 +183,5 @@ Post-fixiation suite counts: record actual `bun test` totals on the remediation 
 ## Decision
 
 **PASS_PORTAL_GRADUATES_AFFAIRS_MULTIMODEL_REMEDIATION_REVIEW_SHA_READY**
-
-`REMEDIATION_REVIEW_SHA` pinned after remediation commit (see header). Tip SHA after this doc pin is the immutable review artifact for targeted Codex/Qwen re-review.
 
 NEXT: `TARGETED_CODEX_AND_QWEN_REVIEW_ON_EXACT_REMEDIATION_REVIEW_SHA`
