@@ -16,8 +16,19 @@
 --     'graduate_affairs_specialist' role. Manager = college scope;
 --     specialist = department scope from staff_profile_departments of the
 --     resolved staff profile (empty scope set = no access, fail-closed).
+--   * staff_profile assignments require staff_profiles.user_id = auth.uid()
+--     AND staff_profiles.status = 'active'. Inactive/suspended profiles lose
+--     all Graduate Affairs authority immediately.
+--   * specialist department scope is caller-owned only (never the union of
+--     other specialists' staff_profile_departments).
 --   * direct case assignee: graduate_followups row with
---     assignee_user_id = auth.uid() and state IN ('open','in_progress').
+--     assignee_user_id = auth.uid() and state IN ('open','in_progress'),
+--     AND the assignee still holds an active Graduate Affairs staff
+--     capability. Revoked/expired assignment or inactive staff profile
+--     immediately loses follow-up read/transition authority; the row is
+--     retained for audit/history.
+--   * opportunity moderation and employer verification are MANAGER-ONLY
+--     for MVP (no invented object-to-department scope).
 --   * NO admin/registrar/dean/system_admin bypass; app_role plays no part.
 --
 -- Confidentiality contract: graduate_contact_points.protected_value and
@@ -78,7 +89,9 @@ BEGIN
         (a.assignment_type = 'user' AND a.user_id = auth.uid())
         OR (a.assignment_type = 'staff_profile' AND EXISTS (
           SELECT 1 FROM public.staff_profiles sp
-          WHERE sp.id = a.staff_profile_id AND sp.user_id = auth.uid()
+          WHERE sp.id = a.staff_profile_id
+            AND sp.user_id = auth.uid()
+            AND sp.status = 'active'
         ))
       )
   );
@@ -107,7 +120,9 @@ BEGIN
         (a.assignment_type = 'user' AND a.user_id = auth.uid())
         OR (a.assignment_type = 'staff_profile' AND EXISTS (
           SELECT 1 FROM public.staff_profiles sp
-          WHERE sp.id = a.staff_profile_id AND sp.user_id = auth.uid()
+          WHERE sp.id = a.staff_profile_id
+            AND sp.user_id = auth.uid()
+            AND sp.status = 'active'
         ))
       )
   );
@@ -127,24 +142,14 @@ BEGIN
   IF auth.uid() IS NULL OR NOT public.graduate_affairs_is_specialist() THEN
     RETURN;
   END IF;
+  -- Caller-owned departments only. The is_specialist() gate already proved
+  -- the role; never union other specialists' staff_profile_departments.
   RETURN QUERY
   SELECT DISTINCT spd.department_id
   FROM public.staff_profile_departments spd
   JOIN public.staff_profiles sp ON sp.id = spd.staff_profile_id
   WHERE sp.user_id = auth.uid()
-     OR EXISTS (
-       SELECT 1
-       FROM public.request_processing_assignments a
-       JOIN public.request_processing_units u
-         ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
-       JOIN public.request_processing_roles r
-         ON r.id = a.role_id AND r.code = 'graduate_affairs_specialist' AND r.is_active
-       WHERE a.assignment_type = 'staff_profile'
-         AND a.staff_profile_id = sp.id
-         AND a.is_active
-         AND (a.starts_at IS NULL OR a.starts_at <= now())
-         AND (a.ends_at IS NULL OR a.ends_at > now())
-     );
+    AND sp.status = 'active';
 END;
 $$;
 
@@ -190,8 +195,88 @@ BEGIN
 END;
 $$;
 
--- Record read access: self OR manager OR specialist-in-scope OR active
--- direct follow-up assignee. Missing record = false.
+-- Serialize self-service writes against concurrent correction/revocation.
+-- FOR SHARE blocks the propagation UPDATE (ROW EXCLUSIVE) until this
+-- transaction commits, and fails closed if the record is no longer approved.
+CREATE OR REPLACE FUNCTION public.graduate_require_approved_record_locked(p_graduate_record_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  PERFORM 1
+  FROM public.graduate_records r
+  WHERE r.id = p_graduate_record_id
+    AND r.record_state = 'approved'
+  FOR SHARE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
+  END IF;
+END;
+$$;
+
+-- True when p_user_id holds an active Graduate Affairs staff capability
+-- (manager or specialist) with active staff_profile status when applicable.
+CREATE OR REPLACE FUNCTION public.graduate_affairs_user_is_active_staff(p_user_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF p_user_id IS NULL THEN
+    RETURN false;
+  END IF;
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.request_processing_assignments a
+    JOIN public.request_processing_units u
+      ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
+    JOIN public.request_processing_roles r
+      ON r.id = a.role_id
+     AND r.code IN ('graduate_affairs_manager','graduate_affairs_specialist')
+     AND r.is_active
+    WHERE a.is_active
+      AND (a.starts_at IS NULL OR a.starts_at <= now())
+      AND (a.ends_at IS NULL OR a.ends_at > now())
+      AND (
+        (a.assignment_type = 'user' AND a.user_id = p_user_id)
+        OR (a.assignment_type = 'staff_profile' AND EXISTS (
+          SELECT 1 FROM public.staff_profiles sp
+          WHERE sp.id = a.staff_profile_id
+            AND sp.user_id = p_user_id
+            AND sp.status = 'active'
+        ))
+      )
+  );
+END;
+$$;
+
+-- Department ids authorized for a specific specialist user (not the caller).
+CREATE OR REPLACE FUNCTION public.graduate_affairs_user_specialist_department_ids(p_user_id uuid)
+RETURNS SETOF uuid
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF p_user_id IS NULL OR NOT public.graduate_affairs_user_is_active_staff(p_user_id) THEN
+    RETURN;
+  END IF;
+  RETURN QUERY
+  SELECT DISTINCT spd.department_id
+  FROM public.staff_profile_departments spd
+  JOIN public.staff_profiles sp ON sp.id = spd.staff_profile_id
+  WHERE sp.user_id = p_user_id
+    AND sp.status = 'active';
+END;
+$$;
+
+-- Record read access: current-self OR manager OR specialist-in-scope OR
+-- active follow-up assignee who still holds GA staff capability. Missing record = false.
 CREATE OR REPLACE FUNCTION public.graduate_affairs_can_access_record(p_graduate_record_id uuid)
 RETURNS boolean
 LANGUAGE plpgsql
@@ -211,7 +296,7 @@ BEGIN
   IF NOT FOUND THEN
     RETURN false;
   END IF;
-  IF public.graduate_is_self(p_graduate_record_id) THEN
+  IF public.graduate_is_current_self(p_graduate_record_id) THEN
     RETURN true;
   END IF;
   IF public.graduate_affairs_is_manager() THEN
@@ -221,12 +306,17 @@ BEGIN
      AND v_department_id IN (SELECT public.graduate_affairs_specialist_department_ids()) THEN
     RETURN true;
   END IF;
+  -- Direct assignee access requires ongoing GA staff capability (R3).
+  -- Historical follow-up rows remain for audit; authority does not.
   RETURN EXISTS (
     SELECT 1
     FROM public.graduate_followups f
     WHERE f.graduate_record_id = p_graduate_record_id
       AND f.assignee_user_id = auth.uid()
       AND f.state IN ('open','in_progress')
+  ) AND (
+    public.graduate_affairs_is_manager()
+    OR public.graduate_affairs_is_specialist()
   );
 END;
 $$;
@@ -320,10 +410,7 @@ BEGIN
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = p_graduate_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(p_graduate_record_id);
   IF p_preferred_contact_channel IS NOT NULL
      AND p_preferred_contact_channel NOT IN ('email','phone','none') THEN
     RAISE EXCEPTION 'GRADUATE_PROFILE_INVALID_CHANNEL';
@@ -391,10 +478,7 @@ BEGIN
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = p_graduate_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(p_graduate_record_id);
   IF p_purpose_code IS NULL OR btrim(p_purpose_code) = ''
      OR p_notice_version IS NULL OR btrim(p_notice_version) = '' THEN
     RAISE EXCEPTION 'GRADUATE_CONSENT_INVALID_INPUT';
@@ -435,10 +519,7 @@ BEGIN
   IF NOT public.graduate_is_self(v_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = v_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(v_record_id);
 
   UPDATE public.graduate_consents c
   SET consent_state = 'withdrawn', withdrawn_at = now()
@@ -470,10 +551,7 @@ BEGIN
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = p_graduate_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(p_graduate_record_id);
   IF p_channel_type IS NULL OR p_channel_type NOT IN ('email','phone')
      OR p_value IS NULL OR btrim(p_value) = ''
      OR p_purpose_code IS NULL OR btrim(p_purpose_code) = '' THEN
@@ -518,10 +596,7 @@ BEGIN
   IF NOT public.graduate_is_self(v_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = v_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(v_record_id);
 
   UPDATE public.graduate_contact_points cp
   SET revoked_at = now()
@@ -552,7 +627,7 @@ BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
   END IF;
-  IF NOT public.graduate_is_self(p_graduate_record_id) THEN
+  IF NOT public.graduate_is_current_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
   RETURN QUERY
@@ -587,10 +662,7 @@ BEGIN
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = p_graduate_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(p_graduate_record_id);
 
   INSERT INTO public.graduate_employment_events (
     graduate_record_id, employment_status, employer_name_reported,
@@ -631,10 +703,7 @@ BEGIN
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = p_graduate_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(p_graduate_record_id);
   SELECT (s.state = 'active' AND sv.published_at IS NOT NULL) INTO v_active
   FROM public.graduate_survey_versions sv
   JOIN public.graduate_surveys s ON s.id = sv.survey_id
@@ -680,10 +749,7 @@ BEGIN
   IF NOT public.graduate_is_self(v_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = v_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(v_record_id);
 
   UPDATE public.graduate_survey_responses sr
   SET withdrawn_at = now()
@@ -715,10 +781,7 @@ BEGIN
   IF NOT public.graduate_is_self(p_graduate_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = p_graduate_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(p_graduate_record_id);
   SELECT (e.state = 'published' AND e.starts_at > now()) INTO v_open
   FROM public.graduate_events e
   WHERE e.id = p_event_id;
@@ -762,10 +825,7 @@ BEGIN
   IF NOT public.graduate_is_self(v_record_id) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
-  IF (SELECT r.record_state FROM public.graduate_records r WHERE r.id = v_record_id)
-     IS DISTINCT FROM 'approved' THEN
-    RAISE EXCEPTION 'GRADUATE_RECORD_NOT_APPROVED';
-  END IF;
+  PERFORM public.graduate_require_approved_record_locked(v_record_id);
 
   UPDATE public.graduate_event_registrations er
   SET cancelled_at = now()
@@ -1022,30 +1082,46 @@ BEGIN
     RAISE EXCEPTION 'GRADUATE_FOLLOWUP_INVALID_INPUT';
   END IF;
 
-  -- The assignee must itself be an active graduates-affairs staff user
-  -- (manager or specialist), resolvable through either assignment type.
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.request_processing_assignments a
-    JOIN public.request_processing_units u
-      ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
-    JOIN public.request_processing_roles r
-      ON r.id = a.role_id
-     AND r.code IN ('graduate_affairs_manager','graduate_affairs_specialist')
-     AND r.is_active
-    WHERE a.is_active
-      AND (a.starts_at IS NULL OR a.starts_at <= now())
-      AND (a.ends_at IS NULL OR a.ends_at > now())
-      AND (
-        (a.assignment_type = 'user' AND a.user_id = p_assignee_user_id)
-        OR (a.assignment_type = 'staff_profile' AND EXISTS (
-          SELECT 1 FROM public.staff_profiles sp
-          WHERE sp.id = a.staff_profile_id AND sp.user_id = p_assignee_user_id
-        ))
-      )
-  ) INTO v_assignee_ok;
-  IF NOT v_assignee_ok THEN
+  -- Assignee must be active GA staff (active staff_profile when typed).
+  IF NOT public.graduate_affairs_user_is_active_staff(p_assignee_user_id) THEN
     RAISE EXCEPTION 'GRADUATE_FOLLOWUP_ASSIGNEE_NOT_STAFF';
+  END IF;
+
+  -- Manager may assign college-wide. Specialist may assign only to an
+  -- assignee whose independent authorized scope already includes the
+  -- target record's department (or an active manager). Creating a
+  -- follow-up must not manufacture out-of-scope authority.
+  IF public.graduate_affairs_is_manager() THEN
+    NULL;
+  ELSIF public.graduate_affairs_is_specialist() THEN
+    SELECT EXISTS (
+      SELECT 1
+      FROM public.request_processing_assignments a
+      JOIN public.request_processing_units u
+        ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
+      JOIN public.request_processing_roles r
+        ON r.id = a.role_id AND r.code = 'graduate_affairs_manager' AND r.is_active
+      WHERE a.is_active
+        AND (a.starts_at IS NULL OR a.starts_at <= now())
+        AND (a.ends_at IS NULL OR a.ends_at > now())
+        AND (
+          (a.assignment_type = 'user' AND a.user_id = p_assignee_user_id)
+          OR (a.assignment_type = 'staff_profile' AND EXISTS (
+            SELECT 1 FROM public.staff_profiles sp
+            WHERE sp.id = a.staff_profile_id
+              AND sp.user_id = p_assignee_user_id
+              AND sp.status = 'active'
+          ))
+        )
+    ) INTO v_assignee_ok;
+    IF NOT v_assignee_ok
+       AND v_department_id NOT IN (
+         SELECT public.graduate_affairs_user_specialist_department_ids(p_assignee_user_id)
+       ) THEN
+      RAISE EXCEPTION 'GRADUATE_FOLLOWUP_ASSIGNEE_OUT_OF_SCOPE';
+    END IF;
+  ELSE
+    RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
 
   -- Foundation partial unique index enforces one active follow-up per record.
@@ -1089,8 +1165,14 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_TARGET_NOT_FOUND';
   END IF;
-  IF v_followup.assignee_user_id IS DISTINCT FROM auth.uid()
-     AND NOT public.graduate_affairs_is_manager() THEN
+  -- Manager may always transition. Direct assignee may transition only while
+  -- still holding active GA staff capability (revocation fails closed).
+  IF public.graduate_affairs_is_manager() THEN
+    NULL;
+  ELSIF v_followup.assignee_user_id = auth.uid()
+        AND public.graduate_affairs_is_specialist() THEN
+    NULL;
+  ELSE
     RAISE EXCEPTION 'GRADUATE_FOLLOWUP_NOT_ASSIGNEE';
   END IF;
 
@@ -1126,7 +1208,8 @@ BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
   END IF;
-  IF NOT (public.graduate_affairs_is_manager() OR public.graduate_affairs_is_specialist()) THEN
+  -- MVP: manager-only until an enforceable object-to-scope model exists.
+  IF NOT public.graduate_affairs_is_manager() THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
   SELECT o.state INTO v_current_state
@@ -1176,7 +1259,8 @@ BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
   END IF;
-  IF NOT (public.graduate_affairs_is_manager() OR public.graduate_affairs_is_specialist()) THEN
+  -- MVP: manager-only until an enforceable object-to-scope model exists.
+  IF NOT public.graduate_affairs_is_manager() THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
   SELECT e.verification_state INTO v_current_state
@@ -1269,23 +1353,23 @@ $$;
 
 CREATE POLICY graduate_profiles_select_self ON public.graduate_profiles
   FOR SELECT TO authenticated
-  USING (public.graduate_is_self(graduate_record_id));
+  USING (public.graduate_is_current_self(graduate_record_id));
 
 CREATE POLICY graduate_consents_select_self ON public.graduate_consents
   FOR SELECT TO authenticated
-  USING (public.graduate_is_self(graduate_record_id));
+  USING (public.graduate_is_current_self(graduate_record_id));
 
 CREATE POLICY graduate_survey_responses_select_self ON public.graduate_survey_responses
   FOR SELECT TO authenticated
-  USING (public.graduate_is_self(graduate_record_id));
+  USING (public.graduate_is_current_self(graduate_record_id));
 
 CREATE POLICY graduate_event_registrations_select_self ON public.graduate_event_registrations
   FOR SELECT TO authenticated
-  USING (public.graduate_is_self(graduate_record_id));
+  USING (public.graduate_is_current_self(graduate_record_id));
 
 CREATE POLICY graduate_employment_events_select_self ON public.graduate_employment_events
   FOR SELECT TO authenticated
-  USING (public.graduate_is_self(graduate_record_id));
+  USING (public.graduate_is_current_self(graduate_record_id));
 
 -- Published, in-window opportunities/events are visible to an authenticated
 -- caller only when an approved self record matches the audience scope.
@@ -1304,8 +1388,106 @@ CREATE POLICY graduate_events_select_audience ON public.graduate_events
     AND public.graduate_self_matches_audience(graduate_events.audience_scope)
   );
 
+
 -- =====================================================================
--- Privileges: helpers are internal; the 20 RPCs are the only entry points.
+-- Read-only runtime context RPCs (server adapters derive auth facts here)
+-- =====================================================================
+
+-- Client supplies only the requested capability code. Ownership, lifecycle,
+-- and continuity are derived from the database for auth.uid().
+CREATE OR REPLACE FUNCTION public.graduate_affairs_resolve_self_context(p_capability text)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_record_id uuid;
+  v_record_state public.graduate_decision_state;
+  v_continuity boolean := false;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
+  END IF;
+  IF p_capability IS NULL OR btrim(p_capability) = '' THEN
+    RAISE EXCEPTION 'GRADUATE_AFFAIRS_INVALID_INPUT';
+  END IF;
+
+  SELECT r.id, r.record_state
+    INTO v_record_id, v_record_state
+  FROM public.graduate_records r
+  JOIN public.student_profiles sp ON sp.id = r.student_profile_id
+  WHERE sp.user_id = auth.uid()
+    AND r.record_state = 'approved'
+  ORDER BY r.created_at DESC
+  LIMIT 1;
+
+  IF v_record_id IS NOT NULL THEN
+    v_continuity := public.evaluate_graduate_account_continuity(
+      'graduate-account-continuity', p_capability, now());
+  END IF;
+
+  RETURN jsonb_build_object(
+    'owns_graduate_record', v_record_id IS NOT NULL,
+    'graduate_record_id', v_record_id,
+    'graduate_record_state', COALESCE(v_record_state::text, 'absent'),
+    'continuity_allowed', COALESCE(v_continuity, false),
+    'capability', p_capability
+  );
+END;
+$$;
+
+-- Client supplies only the target record id. Staff assignments, department
+-- scope, and follow-up authority are derived server-side.
+CREATE OR REPLACE FUNCTION public.graduate_affairs_resolve_staff_record_access(p_graduate_record_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_department_id uuid;
+  v_via text := NULL;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
+  END IF;
+  IF p_graduate_record_id IS NULL THEN
+    RAISE EXCEPTION 'GRADUATE_AFFAIRS_INVALID_INPUT';
+  END IF;
+
+  SELECT r.department_id INTO v_department_id
+  FROM public.graduate_records r
+  WHERE r.id = p_graduate_record_id;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('allowed', false, 'via', NULL, 'reason', 'graduate_record_access_denied');
+  END IF;
+
+  IF public.graduate_affairs_is_manager() THEN
+    v_via := 'manager';
+  ELSIF public.graduate_affairs_is_specialist()
+        AND v_department_id IN (SELECT public.graduate_affairs_specialist_department_ids()) THEN
+    v_via := 'specialist';
+  ELSIF EXISTS (
+    SELECT 1 FROM public.graduate_followups f
+    WHERE f.graduate_record_id = p_graduate_record_id
+      AND f.assignee_user_id = auth.uid()
+      AND f.state IN ('open','in_progress')
+  ) AND (public.graduate_affairs_is_manager() OR public.graduate_affairs_is_specialist()) THEN
+    v_via := 'direct_assignee';
+  END IF;
+
+  IF v_via IS NULL THEN
+    RETURN jsonb_build_object('allowed', false, 'via', NULL, 'reason', 'graduate_record_access_denied');
+  END IF;
+  RETURN jsonb_build_object('allowed', true, 'via', v_via, 'reason', NULL);
+END;
+$$;
+
+-- =====================================================================
+-- Privileges: helpers are internal; the client RPCs are the only entry points.
 -- =====================================================================
 
 REVOKE ALL ON FUNCTION public.graduate_affairs_audit(text, text, uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
@@ -1313,21 +1495,23 @@ REVOKE ALL ON FUNCTION public.graduate_affairs_is_manager() FROM PUBLIC, anon, a
 REVOKE ALL ON FUNCTION public.graduate_affairs_is_specialist() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_specialist_department_ids() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_can_access_record(uuid) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.graduate_is_current_self(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_require_approved_record_locked(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_affairs_user_is_active_staff(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_affairs_user_specialist_department_ids(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_is_self(uuid) FROM PUBLIC, anon, authenticated;
 
--- graduate_is_self, graduate_audience_matches and
--- graduate_self_matches_audience are referenced by RLS policy expressions
--- below; policy expressions execute with the querying user's privileges, so
--- these pure boolean STABLE helpers must stay executable by authenticated
--- (they leak nothing: record-self booleans and audience-scope math).
-REVOKE ALL ON FUNCTION public.graduate_is_self(uuid) FROM PUBLIC, anon;
+-- graduate_is_current_self, graduate_audience_matches and
+-- graduate_self_matches_audience are referenced by RLS policy expressions;
+-- policy expressions execute with the querying user's privileges, so these
+-- pure boolean STABLE helpers must stay executable by authenticated.
+REVOKE ALL ON FUNCTION public.graduate_is_current_self(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.graduate_audience_matches(jsonb, uuid, uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.graduate_self_matches_audience(jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.graduate_is_self(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.graduate_is_current_self(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.graduate_audience_matches(jsonb, uuid, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.graduate_self_matches_audience(jsonb) TO authenticated;
 
--- The 20 RPCs below are the only mutation/read entry points. CREATE FUNCTION
+-- The client RPCs below are the only mutation/read entry points. CREATE FUNCTION
 -- grants EXECUTE to PUBLIC by default, so every RPC is first revoked from
 -- PUBLIC/anon and then granted to authenticated only; each RPC re-checks the
 -- actor capability internally and raises on failure.
@@ -1351,6 +1535,8 @@ REVOKE ALL ON FUNCTION public.graduate_affairs_transition_followup(uuid, public.
 REVOKE ALL ON FUNCTION public.graduate_affairs_moderate_opportunity(uuid, public.graduate_opportunity_state) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.graduate_affairs_set_employer_verification(uuid, text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.graduate_affairs_cohort_employment_report(uuid, integer, integer) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.graduate_affairs_resolve_self_context(text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.graduate_affairs_resolve_staff_record_access(uuid) FROM PUBLIC, anon;
 
 GRANT EXECUTE ON FUNCTION public.graduate_update_own_profile(uuid, text, text, text, text, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.graduate_grant_consent(uuid, text, text) TO authenticated;
@@ -1372,3 +1558,5 @@ GRANT EXECUTE ON FUNCTION public.graduate_affairs_transition_followup(uuid, publ
 GRANT EXECUTE ON FUNCTION public.graduate_affairs_moderate_opportunity(uuid, public.graduate_opportunity_state) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.graduate_affairs_set_employer_verification(uuid, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.graduate_affairs_cohort_employment_report(uuid, integer, integer) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.graduate_affairs_resolve_self_context(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.graduate_affairs_resolve_staff_record_access(uuid) TO authenticated;

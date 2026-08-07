@@ -40,6 +40,16 @@ export const GRADUATES_AFFAIRS_AUTH04_RPCS = [
   "graduate_affairs_moderate_opportunity",
   "graduate_affairs_set_employer_verification",
   "graduate_affairs_cohort_employment_report",
+  "graduate_affairs_resolve_self_context",
+  "graduate_affairs_resolve_staff_record_access",
+] as const;
+
+/** Direct table mutation paths are never authorized for this domain. */
+export const DIRECT_TABLE_MUTATION_PATHS = [
+  "insert",
+  "update",
+  "delete",
+  "upsert",
 ] as const;
 
 export type GraduatesAffairsAuth04Rpc = (typeof GRADUATES_AFFAIRS_AUTH04_RPCS)[number];

@@ -1,10 +1,18 @@
 ﻿# PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-REVIEW-PACKAGE-01
 
+> **SUPERSEDED for remediation status.** Multimodel findings against this integration
+> baseline are remediated under
+> `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01-REPORT.md`
+> on branch `fix/graduates-affairs-multimodel-remediation-01`.
+> Use that report for post-fixiation finding status, suite counts, and
+> `REMEDIATION_REVIEW_SHA`.
+
 | Field | Value |
 |---|---|
 | Mission | PORTAL-GRADUATES-AFFAIRS-SINGLE-SHA-INTEGRATION-AND-REVIEW-BASELINE-01 |
 | Branch | feat/graduates-affairs-single-sha-integration-01 |
-| INTEGRATION_REVIEW_SHA | `5ccddc9f106bf3c97fab4368faa52ee19d8a0418` |
+| INTEGRATION_REVIEW_SHA | `5ccddc9f106bf3c97fab4368faa52ee19d8a0418` (historical package tip pin) |
+| BASE_REVIEW_SHA (multimodel reviewers) | `724f040743c1017e4b322f68b8e248bde122d1c3` — authoritative review tip; remediation proceeds from this SHA on `fix/graduates-affairs-multimodel-remediation-01` |
 | Integrated runtime+P0 content commit | 4ec6eccf04fc9dc55d08cfd223bea290b464f4ff |
 | Base main | 4a6e16b9fa66d6738a17b1399c553144b13a5101 |
 | PR #273 head | eddad8d2c510b955f92f9f6fa08adeb31e0aef66 (MERGED) |
@@ -12,7 +20,9 @@
 | Runtime wiring source | feat/graduates-affairs-owner-gate-runtime-wire-01 worktree (preserved, uncommitted source) |
 | Mode | SOURCE INTEGRATION ONLY |
 
-All reviewers (Codex / Qwen / Gemini / Kimi) must review the exact INTEGRATION_REVIEW_SHA tip.
+Historical note: Codex / Qwen / Gemini / Kimi multimodel review used BASE_REVIEW_SHA
+`724f0407…` (descendant tip of this package). Do not treat the older
+`INTEGRATION_REVIEW_SHA` self-pin as the remediation baseline.
 
 ## Exact changed files (vs main 4a6e16b9)
 
@@ -89,11 +99,10 @@ studentGraduatesAffairs=false; staffGraduatesAffairs=false
 docs/alumni/* contracts, coverage matrix, reconciliation/*, ALUMNI-P0 reports; continuity conflict resolved keeping P0 module.
 
 ## Tests
-bun test tests/graduates-affairs: 136 pass / 0 fail
-PG17 cumulative AUTH-04 verifier: PASS
-tsc --noEmit: PASS
-build: PASS
-git diff --check: PASS
+Pre-remediation package claims (e.g. “136 pass”) are **stale** and **superseded**
+by `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01-REPORT.md`
+— see that report for post-fixiation counts (do not invent counts here).
+PG17 / tsc / build / diff-check results likewise re-verified on the remediation branch.
 
 ## Deferred fail-closed
 Approve/create client path; login/recovery wiring; P1/P2 dual audit/notifications; D-3..D-12 expansions; promotion/seed/flag enablement not executed.
@@ -109,5 +118,7 @@ PRODUCTION_RPC_CALLS 0; PRODUCTION_WRITES 0; MIGRATION_APPLIED NO; ROLE_SEED_APP
 
 ## Decision
 PASS_PORTAL_GRADUATES_AFFAIRS_SINGLE_SHA_READY_FOR_MULTIMODEL_FINAL_REVIEW
+(historical — multimodel review completed against BASE_REVIEW_SHA `724f0407…`)
 
-NEXT: MULTIMODEL_REVIEW_ON_EXACT_INTEGRATION_REVIEW_SHA
+NEXT: see `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01-REPORT.md`
+(`PASS_PORTAL_GRADUATES_AFFAIRS_MULTIMODEL_REMEDIATION_REVIEW_SHA_READY`, pending commit SHA)

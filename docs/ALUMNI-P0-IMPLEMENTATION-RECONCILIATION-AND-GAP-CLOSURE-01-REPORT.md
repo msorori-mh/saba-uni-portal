@@ -100,7 +100,7 @@ P1/P2 items were **not** pulled forward.
 
 | Check | Result |
 |---|---|
-| `bun test tests/graduates-affairs` | **114 pass / 0 fail** |
+| `bun test tests/graduates-affairs` | **114 pass / 0 fail** (historical; GA suite counts superseded by `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01-REPORT.md`) |
 | PG17 foundation | **PASS** |
 | PG17 completion | **PASS** |
 | PG17 authorization-04 | **PASS** (`NOTICE: … pg-verify: PASS`) |

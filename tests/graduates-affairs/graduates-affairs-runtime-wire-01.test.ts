@@ -21,6 +21,7 @@ import {
   assertGraduateMutationAllowed,
   assertNoDirectGraduateTableMutation,
   appRoleAloneGrantsGraduateAffairs,
+  DIRECT_TABLE_MUTATION_PATHS,
   evaluateGraduateSelfRuntimeAccess,
   evaluateStaffRuntimeAccess,
   GRADUATES_AFFAIRS_AUTH04_RPCS,
@@ -363,7 +364,11 @@ describe("feature flag and AUTH-04-only path", () => {
   test("19. approved AUTH-04 RPC path only", () => {
     expect(GRADUATES_AFFAIRS_AUTH04_RPCS).toContain("graduate_update_own_profile");
     expect(GRADUATES_AFFAIRS_AUTH04_RPCS).toContain("graduate_affairs_get_graduate_file");
+    expect(GRADUATES_AFFAIRS_AUTH04_RPCS).toContain("graduate_affairs_resolve_self_context");
+    expect(GRADUATES_AFFAIRS_AUTH04_RPCS).toContain("graduate_affairs_resolve_staff_record_access");
     expect(isApprovedAuth04Rpc("graduate_update_own_profile")).toBe(true);
+    expect(isApprovedAuth04Rpc("graduate_affairs_resolve_self_context")).toBe(true);
+    expect(isApprovedAuth04Rpc("graduate_affairs_resolve_staff_record_access")).toBe(true);
     expect(isApprovedAuth04Rpc("create_graduate_record_from_official_decision")).toBe(false);
     expect(isApprovedAuth04Rpc("some_random_fn")).toBe(false);
 
@@ -384,6 +389,90 @@ describe("feature flag and AUTH-04-only path", () => {
         rowVersion: 1,
       }),
     ).resolves.toBeNull();
+  });
+
+  test("context RPCs are on the AUTH-04 allowlist and typed on the client", async () => {
+    const calls: string[] = [];
+    const client = new GraduatesAffairsRpcClient({
+      rpc: async (fn, args) => {
+        calls.push(fn);
+        if (fn === "graduate_affairs_resolve_self_context") {
+          return {
+            data: {
+              owns_graduate_record: false,
+              graduate_record_id: null,
+              graduate_record_state: "absent",
+              continuity_allowed: false,
+              capability: args?.p_capability,
+            },
+            error: null,
+          };
+        }
+        return {
+          data: { allowed: false, via: null, reason: "graduate_record_access_denied" },
+          error: null,
+        };
+      },
+    });
+    await client.resolveSelfContext("profile_self_service");
+    await client.resolveStaffRecordAccess(RECORD.recordId);
+    expect(calls).toEqual([
+      "graduate_affairs_resolve_self_context",
+      "graduate_affairs_resolve_staff_record_access",
+    ]);
+  });
+
+  test("DIRECT_TABLE_MUTATION_PATHS remain forbidden", () => {
+    for (const kind of DIRECT_TABLE_MUTATION_PATHS) {
+      expect(assertNoDirectGraduateTableMutation("graduate_records", kind)).toEqual({
+        ok: false,
+        reason: "graduates_affairs_direct_table_mutation_forbidden",
+      });
+    }
+    const functionsSrc = read("src/lib/graduates-affairs/graduates-affairs.functions.ts");
+    expect(functionsSrc).not.toMatch(/\.from\(["']graduate_/);
+    expect(functionsSrc).toContain("graduatesAffairsDirectTableWriteAttempt");
+  });
+
+  test("server schemas reject forged self-surface authority fields", () => {
+    // Strict wire schemas live in adapter-input.ts so forged client facts cannot
+    // be accepted even before the AUTH-04 context RPC runs.
+    const adapterInput = read("src/lib/graduates-affairs/adapter-input.ts");
+    const functionsSrc = read("src/lib/graduates-affairs/graduates-affairs.functions.ts");
+    const selfSchema = adapterInput.slice(
+      adapterInput.indexOf("graduateSelfSurfaceInputSchema"),
+      adapterInput.indexOf(".strict()", adapterInput.indexOf("graduateSelfSurfaceInputSchema")) + ".strict()".length,
+    );
+    expect(selfSchema).toContain("capability:");
+    expect(selfSchema).toContain(".strict()");
+    expect(selfSchema).not.toMatch(/\bownsGraduateRecord\b/);
+    expect(selfSchema).not.toMatch(/\bgraduateRecordState\b/);
+    expect(selfSchema).not.toMatch(/\bstudentProfileStatus\b/);
+    expect(selfSchema).not.toMatch(/\bisGraduationCandidate\b/);
+    expect(selfSchema).not.toMatch(/\bcontinuityPolicy\b/);
+    expect(functionsSrc).toContain("graduateSelfSurfaceInputSchema.parse");
+    expect(functionsSrc).toContain("resolveSelfContext");
+    expect(functionsSrc).toContain("evaluateGraduateSelfRuntimeAccess");
+    expect(functionsSrc).not.toMatch(/data\.ownsGraduateRecord|data\.continuityPolicy|data\.graduateRecordState/);
+  });
+
+  test("server schemas reject forged staff authority fields", () => {
+    const adapterInput = read("src/lib/graduates-affairs/adapter-input.ts");
+    const functionsSrc = read("src/lib/graduates-affairs/graduates-affairs.functions.ts");
+    const staffSchema = adapterInput.slice(
+      adapterInput.indexOf("staffGraduateAccessInputSchema"),
+      adapterInput.indexOf(".strict()", adapterInput.indexOf("staffGraduateAccessInputSchema")) + ".strict()".length,
+    );
+    expect(staffSchema).toContain("recordId:");
+    expect(staffSchema).toContain(".strict()");
+    expect(staffSchema).not.toMatch(/\bappRoles\b/);
+    expect(staffSchema).not.toMatch(/\bassignments\b/);
+    expect(staffSchema).not.toMatch(/\bdepartmentIds\b/);
+    expect(staffSchema).not.toMatch(/\bactiveFollowupRecordIds\b/);
+    expect(staffSchema).not.toMatch(/\bownGraduateRecordIds\b/);
+    expect(functionsSrc).toContain("staffGraduateAccessInputSchema.parse");
+    expect(functionsSrc).toContain("resolveStaffRecordAccess");
+    expect(functionsSrc).not.toMatch(/data\.appRoles|data\.actor|data\.record\b/);
   });
 
   test("20. denial produces zero mutation (pure gate + blocked table path)", () => {

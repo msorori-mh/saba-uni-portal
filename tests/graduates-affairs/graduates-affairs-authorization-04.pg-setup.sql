@@ -22,7 +22,11 @@ $$;
 CREATE TABLE public.student_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL);
 CREATE TABLE public.programs (id uuid PRIMARY KEY, department_id uuid);
 CREATE TABLE public.departments (id uuid PRIMARY KEY);
-CREATE TABLE public.staff_profiles (id uuid PRIMARY KEY, user_id uuid NOT NULL);
+CREATE TABLE public.staff_profiles (
+  id uuid PRIMARY KEY,
+  user_id uuid NOT NULL,
+  status text NOT NULL DEFAULT 'active'
+);
 CREATE TABLE public.staff_profile_departments (
   staff_profile_id uuid NOT NULL,
   department_id uuid NOT NULL,
@@ -64,12 +68,14 @@ GRANT SELECT ON auth.users TO authenticated;
 
 -- ---------------------------------------------------------------------
 -- Fixture users (prefix 10000000-0000-4000-8000-00000000000X):
---   a = graduateA, b = graduateB, c = managerU, d = specialistU,
+--   a = graduateA, b = graduateB, c = managerU, d = specialistU (D1),
 --   e = unrelatedStaffU, f = unrelatedUserU, 1 = inactiveStaffU,
 --   2 = expiredStaffU (graduate_affairs assignment already ended),
 --   3 = registrarLikeU, 4 = deanLikeU, 5 = adminLikeU (privileged-role
 --   analogues: this domain never consults app_role, so a privileged role
---   holder is exactly an unassigned authenticated user here).
+--   holder is exactly an unassigned authenticated user here),
+--   6 = specialist2U (D2 only; disjoint from specialistU for scope tests),
+--   7 = suspendedStaffU (active assignment + suspended staff profile).
 -- ---------------------------------------------------------------------
 INSERT INTO auth.users VALUES
   ('10000000-0000-4000-8000-00000000000a'),
@@ -82,7 +88,9 @@ INSERT INTO auth.users VALUES
   ('10000000-0000-4000-8000-000000000002'),
   ('10000000-0000-4000-8000-000000000003'),
   ('10000000-0000-4000-8000-000000000004'),
-  ('10000000-0000-4000-8000-000000000005');
+  ('10000000-0000-4000-8000-000000000005'),
+  ('10000000-0000-4000-8000-000000000006'),
+  ('10000000-0000-4000-8000-000000000007');
 
 -- Student profiles (prefix 20000000): graduateA/graduateB only.
 INSERT INTO public.student_profiles VALUES
@@ -100,16 +108,20 @@ INSERT INTO public.programs VALUES
   ('40000000-0000-4000-8000-000000000002', '30000000-0000-4000-8000-000000000002');
 
 -- Staff profiles (prefix 50000000) for every staff-side user.
-INSERT INTO public.staff_profiles VALUES
-  ('50000000-0000-4000-8000-00000000000c', '10000000-0000-4000-8000-00000000000c'),
-  ('50000000-0000-4000-8000-00000000000d', '10000000-0000-4000-8000-00000000000d'),
-  ('50000000-0000-4000-8000-00000000000e', '10000000-0000-4000-8000-00000000000e'),
-  ('50000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001'),
-  ('50000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002');
+INSERT INTO public.staff_profiles (id, user_id, status) VALUES
+  ('50000000-0000-4000-8000-00000000000c', '10000000-0000-4000-8000-00000000000c', 'active'),
+  ('50000000-0000-4000-8000-00000000000d', '10000000-0000-4000-8000-00000000000d', 'active'),
+  ('50000000-0000-4000-8000-00000000000e', '10000000-0000-4000-8000-00000000000e', 'active'),
+  ('50000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'active'),
+  ('50000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000002', 'active'),
+  ('50000000-0000-4000-8000-000000000006', '10000000-0000-4000-8000-000000000006', 'active'),
+  ('50000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000007', 'suspended');
 
--- Specialist scope: D1 only (D2 stays out of scope for scope tests).
+-- Specialist scopes are disjoint: d -> D1 only, 6 -> D2 only.
 INSERT INTO public.staff_profile_departments VALUES
-  ('50000000-0000-4000-8000-00000000000d', '30000000-0000-4000-8000-000000000001');
+  ('50000000-0000-4000-8000-00000000000d', '30000000-0000-4000-8000-000000000001'),
+  ('50000000-0000-4000-8000-000000000006', '30000000-0000-4000-8000-000000000002'),
+  ('50000000-0000-4000-8000-000000000007', '30000000-0000-4000-8000-000000000001');
 
 -- Units (prefix 60000000): graduate_affairs = ...0001, student_affairs = ...0002.
 INSERT INTO public.request_processing_units (id, code) VALUES
@@ -125,10 +137,12 @@ INSERT INTO public.request_processing_roles (id, unit_id, code) VALUES
 
 -- Assignments (prefix 80000000):
 --   ...0001 managerU      active manager,       assignment_type 'user'
---   ...0002 specialistU   active specialist,    assignment_type 'staff_profile'
+--   ...0002 specialistU   active specialist D1, assignment_type 'staff_profile'
 --   ...0003 unrelatedStaffU active, wrong unit (student_affairs)
 --   ...0004 inactiveStaffU  graduate_affairs role but is_active = false
 --   ...0005 expiredStaffU   graduate_affairs manager, ends_at in the past
+--   ...0006 specialist2U  active specialist D2, assignment_type 'staff_profile'
+--   ...0007 suspendedStaffU assignment active but staff profile suspended
 INSERT INTO public.request_processing_assignments (
   id, unit_id, role_id, assignment_type, user_id, staff_profile_id,
   is_active, starts_at, ends_at
@@ -148,7 +162,13 @@ INSERT INTO public.request_processing_assignments (
   ('80000000-0000-4000-8000-000000000005',
    '60000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000001',
    'user', '10000000-0000-4000-8000-000000000002', NULL, true,
-   now() - interval '30 days', now() - interval '1 day');
+   now() - interval '30 days', now() - interval '1 day'),
+  ('80000000-0000-4000-8000-000000000006',
+   '60000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000002',
+   'staff_profile', NULL, '50000000-0000-4000-8000-000000000006', true, NULL, NULL),
+  ('80000000-0000-4000-8000-000000000007',
+   '60000000-0000-4000-8000-000000000001', '70000000-0000-4000-8000-000000000002',
+   'staff_profile', NULL, '50000000-0000-4000-8000-000000000007', true, NULL, NULL);
 
 -- Approved official decisions and graduate records are created in the
 -- pg-verify superuser section (they need the chained drafts to exist first).

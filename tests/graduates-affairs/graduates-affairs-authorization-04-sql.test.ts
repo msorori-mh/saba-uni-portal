@@ -50,6 +50,14 @@ const STAFF_RPCS = [
   "graduate_affairs_cohort_employment_report",
 ];
 
+/** Read-only runtime context RPCs used by server adapters (trust boundary). */
+const CONTEXT_RPCS = [
+  "graduate_affairs_resolve_self_context",
+  "graduate_affairs_resolve_staff_record_access",
+];
+
+const CLIENT_RPCS = [...SELF_RPCS, ...STAFF_RPCS, ...CONTEXT_RPCS];
+
 const HELPERS = [
   "graduate_affairs_audit",
   "graduate_affairs_is_manager",
@@ -57,6 +65,9 @@ const HELPERS = [
   "graduate_affairs_specialist_department_ids",
   "graduate_is_self",
   "graduate_is_current_self",
+  "graduate_require_approved_record_locked",
+  "graduate_affairs_user_is_active_staff",
+  "graduate_affairs_user_specialist_department_ids",
   "graduate_affairs_can_access_record",
   "graduate_audience_matches",
   "graduate_self_matches_audience",
@@ -65,11 +76,20 @@ const HELPERS = [
 // Helpers referenced by RLS policy expressions must stay executable by
 // authenticated (policy expressions run with the querying user's privileges).
 const POLICY_HELPERS = [
-  "graduate_is_self",
+  "graduate_is_current_self",
   "graduate_audience_matches",
   "graduate_self_matches_audience",
 ];
 const INTERNAL_HELPERS = HELPERS.filter((name) => !POLICY_HELPERS.includes(name));
+
+const SELF_MUTATING_RPCS = SELF_RPCS.filter(
+  (name) =>
+    ![
+      "graduate_my_contact_points",
+      "graduate_list_visible_opportunities",
+      "graduate_list_visible_events",
+    ].includes(name),
+);
 
 describe("authorization draft header and chain", () => {
   test("is a source-only draft chained after foundation and completion", () => {
@@ -92,8 +112,8 @@ describe("authorization draft header and chain", () => {
 });
 
 describe("function inventory and privileges", () => {
-  test("declares all 20 RPCs and the internal helpers", () => {
-    for (const name of [...SELF_RPCS, ...STAFF_RPCS, ...HELPERS]) {
+  test("declares all 22 client RPCs and the internal helpers", () => {
+    for (const name of [...CLIENT_RPCS, ...HELPERS]) {
       expect(sql).toContain(`FUNCTION public.${name}(`);
     }
   });
@@ -102,7 +122,7 @@ describe("function inventory and privileges", () => {
     const functions = sql.match(/CREATE OR REPLACE FUNCTION/g) ?? [];
     const definer = sql.match(/SECURITY DEFINER/g) ?? [];
     const searchPath = sql.match(/SET search_path = public, pg_temp/g) ?? [];
-    expect(functions).toHaveLength(29);
+    expect(functions).toHaveLength(34);
     expect(definer).toHaveLength(functions.length);
     expect(searchPath).toHaveLength(functions.length);
   });
@@ -127,17 +147,20 @@ describe("function inventory and privileges", () => {
   });
 
   test("every RPC is revoked from PUBLIC and anon before the authenticated grant", () => {
-    for (const name of [...SELF_RPCS, ...STAFF_RPCS]) {
+    for (const name of CLIENT_RPCS) {
       expect(sql).toMatch(
         new RegExp(`REVOKE ALL ON FUNCTION public\\.${name}\\([^)]*\\) FROM PUBLIC, anon;`),
       );
     }
   });
 
-  test("exactly the 20 RPCs plus the three policy helpers are granted EXECUTE", () => {
+  test("exactly the 22 RPCs plus the three policy helpers are granted EXECUTE", () => {
     const grants = sql.match(/GRANT EXECUTE ON FUNCTION public\.\w+\([^)]*\) TO authenticated/g) ?? [];
-    expect(grants).toHaveLength(23);
-    for (const name of [...SELF_RPCS, ...STAFF_RPCS]) {
+    expect(grants).toHaveLength(25);
+    for (const name of CLIENT_RPCS) {
+      expect(grants.some((grant) => grant.includes(`public.${name}(`))).toBe(true);
+    }
+    for (const name of POLICY_HELPERS) {
       expect(grants.some((grant) => grant.includes(`public.${name}(`))).toBe(true);
     }
     // No table privileges are granted anywhere in the bundle.
@@ -170,6 +193,21 @@ describe("approved-lifecycle gate parity (REMEDIATION-06)", () => {
   });
 });
 
+describe("self-service locking and approved-record gate", () => {
+  test("locking helper uses FOR SHARE and fails closed when not approved", () => {
+    const helper = bodyOf("graduate_require_approved_record_locked");
+    expect(helper).toContain("FOR SHARE");
+    expect(helper).toContain("r.record_state = 'approved'");
+    expect(helper).toContain("GRADUATE_RECORD_NOT_APPROVED");
+  });
+
+  test("self mutating RPCs call graduate_require_approved_record_locked", () => {
+    for (const name of SELF_MUTATING_RPCS) {
+      expect(bodyOf(name)).toContain("graduate_require_approved_record_locked(");
+    }
+  });
+});
+
 describe("staff RPCs audit every call", () => {
   for (const name of STAFF_RPCS) {
     test(`${name} writes an audit event`, () => {
@@ -178,15 +216,7 @@ describe("staff RPCs audit every call", () => {
   }
 
   test("mutating self-service RPCs write audit events", () => {
-    const audited = SELF_RPCS.filter(
-      (name) =>
-        ![
-          "graduate_my_contact_points",
-          "graduate_list_visible_opportunities",
-          "graduate_list_visible_events",
-        ].includes(name),
-    );
-    for (const name of audited) {
+    for (const name of SELF_MUTATING_RPCS) {
       expect(bodyOf(name)).toContain("graduate_affairs_audit(");
     }
   });
@@ -210,6 +240,7 @@ describe("protected columns never leave the schema", () => {
       "graduate_affairs_search_records",
       "graduate_list_visible_opportunities",
       "graduate_list_visible_events",
+      ...CONTEXT_RPCS,
     ]) {
       expect(bodyOf(name)).not.toContain("protected_value");
       expect(bodyOf(name)).not.toContain("notes_protected");
@@ -242,6 +273,16 @@ describe("RLS policy surface", () => {
       expect(code).toMatch(
         new RegExp(`CREATE POLICY ${policy}[\\s\\S]*?FOR SELECT TO authenticated`),
       );
+    }
+  });
+
+  test("self-read policies use graduate_is_current_self (not graduate_is_self)", () => {
+    for (const [policy] of POLICIES.filter(([name]) => name.endsWith("_select_self"))) {
+      const idx = code.indexOf(`CREATE POLICY ${policy}`);
+      expect(idx).toBeGreaterThan(-1);
+      const snippet = code.slice(idx, idx + 280);
+      expect(snippet).toContain("graduate_is_current_self(");
+      expect(snippet).not.toMatch(/graduate_is_self\(/);
     }
   });
 
@@ -281,6 +322,26 @@ describe("actor model has no bypass", () => {
           body.includes("graduate_affairs_can_access_record("),
       ).toBe(true);
     }
+  });
+
+  test("moderate_opportunity and set_employer_verification are manager-only", () => {
+    for (const name of [
+      "graduate_affairs_moderate_opportunity",
+      "graduate_affairs_set_employer_verification",
+    ]) {
+      const body = bodyOf(name);
+      expect(body).toContain("graduate_affairs_is_manager()");
+      expect(body).not.toContain("graduate_affairs_is_specialist()");
+      expect(body).not.toContain("graduate_affairs_specialist_department_ids()");
+    }
+  });
+
+  test("specialist_department_ids requires caller-owned active staff profile", () => {
+    const body = bodyOf("graduate_affairs_specialist_department_ids");
+    expect(body).toContain("sp.user_id = auth.uid()");
+    expect(body).toContain("sp.status = 'active'");
+    // Must not use an uncorrelated EXISTS that could union other specialists.
+    expect(body).not.toMatch(/EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+public\.staff_profile_departments/i);
   });
 
   test("audience matching is fail-closed on non-object scopes", () => {

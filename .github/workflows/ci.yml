@@ -154,6 +154,14 @@ jobs:
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
               docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
               tests/graduates-affairs/graduates-affairs-authorization-04.pg-verify.sql
+          # Targeted R6 concurrency: FOR SHARE serializes self-write vs revocation.
+          - name: graduates-affairs-remediation-concurrency
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-remediation-concurrency-01.pg-verify.sql
           # Chain: pg-setup -> DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-
           # FOUNDATION-01 -> verifier.
           - name: academic-clearance-foundation

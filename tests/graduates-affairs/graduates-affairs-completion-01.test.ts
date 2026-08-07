@@ -27,6 +27,7 @@ import {
   evaluateCommunicationEligibility,
   type GraduateContactPointView,
 } from "../../src/lib/graduates-affairs/communications";
+import { canTransitionFollowup } from "../../src/lib/graduates-affairs/authorization";
 import {
   aggregateSurveyResponses,
   evaluateSurveyResponseEligibility,
@@ -390,6 +391,8 @@ describe("communication eligibility and follow-ups", () => {
     expect(canTransitionFollowUp("open", "completed")).toBe(false);
     expect(canTransitionFollowUp("open", "in_progress")).toBe(true);
     expect(canTransitionFollowUp("completed", "open")).toBe(false);
+    // R10: communications re-exports the canonical authorization state machine.
+    expect(canTransitionFollowUp).toBe(canTransitionFollowup);
     const base = {
       graduateRecordId: record.recordId,
       assigneeUserId: "33333333-3333-4333-8333-333333333333",

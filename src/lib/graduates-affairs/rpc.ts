@@ -147,4 +147,34 @@ export class GraduatesAffairsRpcClient {
       p_minimum_cell_size: input.minimumCellSize,
     });
   }
+
+  /**
+   * Server-derived self context. Client may supply capability only;
+   * ownership, lifecycle, and continuity are resolved for auth.uid().
+   */
+  resolveSelfContext(capability: string): Promise<{
+    owns_graduate_record: boolean;
+    graduate_record_id: string | null;
+    graduate_record_state: string;
+    continuity_allowed: boolean;
+    capability: string;
+  }> {
+    return this.call("graduate_affairs_resolve_self_context", {
+      p_capability: capability,
+    });
+  }
+
+  /**
+   * Server-derived staff record access. Client may supply record id only;
+   * assignments, department scope, and follow-up authority are server-side.
+   */
+  resolveStaffRecordAccess(recordId: string): Promise<{
+    allowed: boolean;
+    via: string | null;
+    reason: string | null;
+  }> {
+    return this.call("graduate_affairs_resolve_staff_record_access", {
+      p_graduate_record_id: recordId,
+    });
+  }
 }

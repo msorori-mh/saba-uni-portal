@@ -35,7 +35,8 @@ OPEN draft, MERGEABLE, CI SUCCESS on head.
 
 ### PR273_REVIEW_VERDICT
 
-PASS — targeted D-1/D-2/intake re-review; REMEDIATION-06 intact; 113 GA tests + tsc + build PASS before merge.
+PASS — targeted D-1/D-2/intake re-review; REMEDIATION-06 intact; GA tests + tsc + build PASS before merge.
+(Historical suite counts superseded — see `docs/PORTAL-GRADUATES-AFFAIRS-MULTIMODEL-UNIFIED-REMEDIATION-01-REPORT.md` for post-remediation counts.)
 
 ### PR273_MERGE_VERDICT
 
@@ -86,8 +87,8 @@ None. `assertNoDirectGraduateTableMutation` / `graduatesAffairsDirectTableWriteA
 
 | Check | Result |
 |---|---|
-| Targeted AUTH-04 bun tests (G1) | PASS (69) |
-| `bun test tests/graduates-affairs` | **135 pass / 0 fail** (incl. 22 runtime-wire) |
+| Targeted AUTH-04 bun tests (G1) | PASS (historical) |
+| `bun test tests/graduates-affairs` | PASS at wiring time — **counts superseded**; see unified remediation report for post-fixiation counts |
 | `bunx tsc --noEmit` | PASS |
 | `bun run build` | PASS (routeTree includes `/student/graduates-affairs/` + `/staff/graduates-affairs`) |
 | `git diff --check` | PASS |
@@ -97,10 +98,12 @@ None. `assertNoDirectGraduateTableMutation` / `graduatesAffairsDirectTableWriteA
 ### PROMOTION_PACKAGE
 
 PREPARED_NOT_EXECUTED — `docs/PORTAL-GRADUATES-AFFAIRS-PROMOTION-PACKAGE-01.md`
+(promotion / preflight package; not a §G8 section index)
 
 ### OPERATIONAL_E2E
 
 PREPARED_NOT_EXECUTED — `docs/PORTAL-GRADUATES-AFFAIRS-OPERATIONAL-E2E-PACKAGE-01.md`
+(operational E2E package; not a §G9 section index)
 
 ### PRODUCTION_RPC_CALLS
 

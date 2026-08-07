@@ -1,7 +1,8 @@
 # PORTAL-GRADUATES-AFFAIRS-OPERATIONAL-E2E-PACKAGE-01
 
 Date: 2026-08-07  
-Mission: `PORTAL-GRADUATES-AFFAIRS-OWNER-GATE-AND-RUNTIME-WIRE-01` §G9  
+Mission: `PORTAL-GRADUATES-AFFAIRS-OWNER-GATE-AND-RUNTIME-WIRE-01` — operational E2E package (`PORTAL-GRADUATES-AFFAIRS-OPERATIONAL-E2E-PACKAGE-01`)
+
 Integration baseline: `feat/graduates-affairs-single-sha-integration-01`  
 Status: **PREPARED_NOT_EXECUTED**  
 Do not execute against production. Do not unfreeze or mutate staging unless separately authorized.

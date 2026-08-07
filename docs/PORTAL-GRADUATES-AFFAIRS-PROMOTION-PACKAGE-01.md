@@ -1,7 +1,8 @@
 # PORTAL-GRADUATES-AFFAIRS-PROMOTION-PACKAGE-01
 
 Date: 2026-08-07  
-Mission: `PORTAL-GRADUATES-AFFAIRS-OWNER-GATE-AND-RUNTIME-WIRE-01` §G8  
+Mission: `PORTAL-GRADUATES-AFFAIRS-OWNER-GATE-AND-RUNTIME-WIRE-01` — promotion package (`PORTAL-GRADUATES-AFFAIRS-PROMOTION-PACKAGE-01`)
+
 Integration baseline: `feat/graduates-affairs-single-sha-integration-01` (includes P0 Foundation domain-event gap closure — Foundation SHA256 refreshed below)  
 Status: **PREPARED_NOT_EXECUTED**  
 Production apply: **FORBIDDEN** without a separate explicit authorization.
