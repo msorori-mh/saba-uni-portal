@@ -260,6 +260,14 @@ const SERVICE_LINKS = [
         Icon: BookOpen,
       }] as const)
     : []),
+  ...(portalFeatures.studentGraduatesAffairs
+    ? ([{
+        to: "/student/graduates-affairs" as const,
+        title: "شؤون الخريجين",
+        desc: "ملف الخريج والخدمات الذاتية بعد التخرج.",
+        Icon: GraduationCap,
+      }] as const)
+    : []),
 ] as const;
 
 export const Route = createFileRoute("/student/")({

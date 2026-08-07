@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Mission | `ALUMNI-P0-IMPLEMENTATION-RECONCILIATION-AND-GAP-CLOSURE-01` |
-| Branch | `feat/alumni-p0-integration-reconciliation-01` |
-| Worktree | `C:\projects\saba-uni-portal-alumni-p0-recon-20260807` |
+| Branch | `feat/alumni-p0-integration-reconciliation-01` → integrated into `feat/graduates-affairs-single-sha-integration-01` |
+| Worktree | Original: `C:\projects\saba-uni-portal-alumni-p0-recon-20260807`; integration: `C:\projects\saba-uni-portal-ga-single-sha-20260807` |
 | Mode | SOURCE RECONCILIATION + TRUE-GAP CLOSURE ONLY |
 | Production apply / RPC / deploy / publish | **NONE** |
 
@@ -17,7 +17,7 @@
 | STARTING_MAIN_SHA | `4a6e16b9fa66d6738a17b1399c553144b13a5101` |
 | DECISION_BASELINE_COMMIT_SHA | `82bf86399c293719b7e146db39a996098d72353b` |
 | PR273_HEAD_SHA | `eddad8d2c510b955f92f9f6fa08adeb31e0aef66` (ancestor of main; **already merged**) |
-| ENDING_SHA | *(gap-closure commit after this report)* |
+| ENDING_SHA | `a96c24748106a08b0bb4cf29b59183a1912d8326` (P0 recon source; cherry-picked into single-SHA integration) |
 
 ### Decision artifact SHA256 (baseline commit contents)
 
