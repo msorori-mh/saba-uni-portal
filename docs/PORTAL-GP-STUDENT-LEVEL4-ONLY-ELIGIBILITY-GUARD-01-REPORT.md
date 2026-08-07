@@ -8,7 +8,7 @@
 **PR:** `#290`
 **Base:** `origin/main` @ `4a6e16b9`
 **Old review SHA:** `b17b6cebc939cbb814d7b3d23dadfe4fa72e3e3d`
-**New review SHA:** `c4dc1f07781c39d89b9ce1e882d368f6bb85882f`
+**New review SHA:** `5103c9ab278fb95251d81de1c4689d81951cd759` (pending CI; tip may advance)
 **Mode:** TARGETED REMEDIATION + TESTS - no production apply / deploy / publish
 
 ---
