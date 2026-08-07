@@ -144,6 +144,16 @@ jobs:
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
               tests/graduates-affairs/graduates-affairs-completion-01.pg-verify.sql
+          # Authorization review chain: own pg-setup (staff/assignment stub
+          # schema) -> foundation draft -> completion draft ->
+          # GRADUATES-AFFAIRS-AUTHORIZATION-04 -> authorization verifier.
+          - name: graduates-affairs-authorization
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-verify.sql
           # Chain: pg-setup -> DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-
           # FOUNDATION-01 -> verifier.
           - name: academic-clearance-foundation
