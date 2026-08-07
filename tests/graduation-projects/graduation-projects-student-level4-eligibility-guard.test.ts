@@ -319,6 +319,11 @@ describe("GP student Level-4-only eligibility guard", () => {
     );
     const ready = await waitReady();
     expect(ready).toBe(true);
+    // Brief settle — CI runners can race between pg_isready and first SQL apply
+    // when many disposable PG17 harnesses start in the same bun test process.
+    await Bun.sleep(1000);
+    const settled = await waitReady();
+    expect(settled).toBe(true);
 
     const applied: string[] = [];
     for (const [label, path] of [
@@ -329,7 +334,15 @@ describe("GP student Level-4-only eligibility guard", () => {
       ["storage-fix", storageFixPath],
       ["L4-draft", draftPath],
     ] as const) {
-      const result = psqlFile(path);
+      let result = psqlFile(path);
+      if (
+        !result.ok &&
+        /No such file or directory|Connection refused/i.test(result.out)
+      ) {
+        await Bun.sleep(1500);
+        expect(await waitReady()).toBe(true);
+        result = psqlFile(path);
+      }
       if (!result.ok) {
         throw new Error(`${label} failed:\n${result.out}`);
       }
