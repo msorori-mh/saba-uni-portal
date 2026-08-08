@@ -120,6 +120,10 @@ describe("SQL draft safety contract", () => {
     expect(sql).toContain("graduate_records_official_decision_guard");
     expect(sql).toContain("GRADUATE_RECORD_MUST_MATCH_OFFICIAL_DECISION");
     expect(sql).toContain("graduate_decision_state_propagation");
+    expect(sql).toContain("graduation_decision_corrected");
+    expect(sql).toContain("graduation_decision_revoked");
+    expect(sql).toContain("graduate_record_state_changed");
+    expect(sql).toContain("graduate_fact_lifecycle");
     expect(sql).toContain("SUPERSEDED_GRADUATION_DECISION_NOT_CURRENT");
     expect(sql).toContain("graduate_survey_response_consent_guard");
     expect(sql).toContain("ACTIVE_MATCHING_SURVEY_CONSENT_REQUIRED");

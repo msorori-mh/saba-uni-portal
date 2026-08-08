@@ -154,6 +154,40 @@ jobs:
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
               docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
               tests/graduates-affairs/graduates-affairs-authorization-04.pg-verify.sql
+          # Targeted R6 concurrency: FOR SHARE serializes self-write vs revocation
+          # (forward + reverse TOCTOU directions).
+          - name: graduates-affairs-remediation-concurrency
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-remediation-concurrency-01.pg-verify.sql
+          # Follow-up authority-loss concurrency: FOR SHARE on exact assignment /
+          # profile / department authority rows (forward + reverse).
+          - name: graduates-affairs-followup-authority-race
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-followup-authority-race-01.pg-verify.sql
+          # Codex final HIGH-1/HIGH-2: direct-user active-staff + profile-bound scope.
+          - name: graduates-affairs-codex-final-high-profile-binding
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-codex-final-high-profile-binding-03.pg-verify.sql
+          # Qwen context RPC functional matrix (auth.uid()-driven actor behavior).
+          - name: graduates-affairs-context-rpc-functional-matrix
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-context-rpc-functional-matrix-04.pg-verify.sql
           # Chain: pg-setup -> DEPARTMENT-TRANSFER-ACADEMIC-CLEARANCE-
           # FOUNDATION-01 -> verifier.
           - name: academic-clearance-foundation

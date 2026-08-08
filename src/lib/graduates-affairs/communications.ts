@@ -72,22 +72,14 @@ export function evaluateCommunicationEligibility(input: {
   return { ok: true };
 }
 
-export type FollowUpState = "open" | "in_progress" | "completed" | "cancelled";
+import {
+  canTransitionFollowup as canTransitionFollowUp,
+  type FollowupState as FollowUpState,
+} from "./authorization";
 
-const FOLLOW_UP_TRANSITIONS: Readonly<Record<FollowUpState, readonly FollowUpState[]>> = {
-  open: ["in_progress", "cancelled"],
-  in_progress: ["completed", "cancelled"],
-  completed: [],
-  cancelled: [],
-};
-
-/**
- * Follow-up lifecycle. Terminal states never reopen; continued work is a new
- * case, keeping the assignment trail append-only.
- */
-export function canTransitionFollowUp(from: FollowUpState, to: FollowUpState): boolean {
-  return FOLLOW_UP_TRANSITIONS[from].includes(to);
-}
+/** Canonical follow-up lifecycle — re-exported from authorization (no local duplicate). */
+export type { FollowUpState };
+export { canTransitionFollowUp };
 
 export interface GraduateFollowUp {
   followUpId: string;
