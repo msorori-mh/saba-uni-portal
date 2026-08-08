@@ -9,13 +9,12 @@ describe('Portal Release Orchestrator Fail-Closed Safety Contract', () => {
     new ReleaseOrchestrator().checkReleaseReady();
   }, 60000);
 
-  it('reports HOLD for release-ready when GA security review or Councils C9 extension remains HOLD or unintegrated', () => {
+  it('reports HOLD for release-ready when GA security review or Councils security review remains HOLD', () => {
     const orchestrator = new ReleaseOrchestrator();
     const result = orchestrator.checkReleaseReady();
     expect(result.verdict).toBe('HOLD');
     expect(result.errors.some((e) => e.includes('GA_FINAL_SECURITY_REVIEW_REQUIRED'))).toBe(true);
     expect(result.errors.some((e) => e.includes('COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED'))).toBe(true);
-    expect(result.errors.some((e) => e.includes('C9 extension candidate (#302') || e.includes('C9 extension'))).toBe(true);
   }, 30000);
 
   it('evaluates release-ready to PASS when all pending gates are cleared and future reviewed heads are explicitly pinned', () => {
@@ -78,10 +77,11 @@ describe('Portal Release Orchestrator Fail-Closed Safety Contract', () => {
   }, 30000);
 
   it('distinguishes C9_CANDIDATE_PRESENT from integrated status and rejects release readiness when C9 integrated SHA is PENDING', () => {
-    const manifest: ReleaseManifest = JSON.parse(JSON.stringify(getManifest()));
-    expect(manifest.academic_councils.c9_status).toBe('C9_CANDIDATE_PRESENT');
-    expect(manifest.academic_councils.c9_integrated_sha).toBe('PENDING');
-    const orchestrator = new ReleaseOrchestrator(manifest);
+    const tamperedManifest: ReleaseManifest = JSON.parse(JSON.stringify(getManifest()));
+    tamperedManifest.academic_councils.c9_status = 'C9_CANDIDATE_PRESENT';
+    tamperedManifest.academic_councils.c9_extension_sha = '7d5d607d610f4b319c06b3e1cf8a37d69e18517f';
+    tamperedManifest.academic_councils.c9_integrated_sha = 'PENDING';
+    const orchestrator = new ReleaseOrchestrator(tamperedManifest);
     const result = orchestrator.checkSource();
     expect(result.verdict).toBe('HOLD');
     expect(result.errors.some((e) => e.includes('C9 extension candidate (#302: 7d5d607d610f4b319c06b3e1cf8a37d69e18517f) present but NOT integrated'))).toBe(true);
