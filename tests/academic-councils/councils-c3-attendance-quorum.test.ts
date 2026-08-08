@@ -34,6 +34,24 @@ const schedulePath = join(
   "migrations",
   "20260705232119_84b04a88-50be-4c5c-b9c3-11aeb54fa119.sql",
 );
+const c0Path = join(
+  root,
+  "supabase",
+  "migrations",
+  "20260808120000_councils_c0_write_surface_hardening_01.sql",
+);
+const c1Path = join(
+  root,
+  "supabase",
+  "migrations",
+  "20260808121000_councils_c1_meeting_state_machine_01.sql",
+);
+const c2Path = join(
+  root,
+  "supabase",
+  "migrations",
+  "20260808122000_councils_c2_topic_intake_review_01.sql",
+);
 const minimalSchemaPath = join(
   root,
   "tests",
@@ -238,6 +256,9 @@ describe("Academic Councils C3 attendance and quorum foundation", () => {
       ["councils-harden-anon", hardenPath],
       ["councils-history", historyPath],
       ["councils-schedule-helper", schedulePath],
+      ["councils-c0", c0Path],
+      ["councils-c1", c1Path],
+      ["councils-c2", c2Path],
       ["councils-c3-attendance-quorum", migrationPath],
     ] as const) {
       let result = psqlFile(path);
@@ -259,6 +280,9 @@ describe("Academic Councils C3 attendance and quorum foundation", () => {
       "councils-harden-anon",
       "councils-history",
       "councils-schedule-helper",
+      "councils-c0",
+      "councils-c1",
+      "councils-c2",
       "councils-c3-attendance-quorum",
     ]);
 
