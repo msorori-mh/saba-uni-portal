@@ -1,8 +1,9 @@
 -- DRAFT ONLY — SOURCE REVIEW ARTIFACT — DO NOT APPLY.
 -- Graduates affairs MVP completion 01: staff follow-ups, consent-gated
--- communication log, D-13 account continuity policy surface (configurable,
--- fail-closed while the product decision is NEEDS_USER_INPUT), and an
--- aggregate-only employment report RPC with small-cell suppression.
+-- communication log, account continuity policy versioning (multiple
+-- historical versions per policy_code with exactly one current effective
+-- version; fail-closed evaluator), and an aggregate-only employment report
+-- RPC with small-cell suppression.
 -- Review chain: foundation pg-setup -> GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
 -- -> this draft -> graduates-affairs-completion-01.pg-verify.sql.
 -- No production activation, no seed data, no client grants.
@@ -45,11 +46,14 @@ CREATE TABLE public.graduate_communication_events (
   payload_meta jsonb NOT NULL DEFAULT '{}'::jsonb
 );
 
--- D-13 account continuity policy surface. Default is undecided = deny all.
--- A decided row is immutable; a revised decision is a new row that supersedes.
+-- Account continuity policy surface. Default undecided = deny all.
+-- Multiple historical versions per policy_code are allowed; exactly one
+-- current effective version exists (partial unique index). Decided fact
+-- columns are immutable; supersession demotes is_current and inserts a
+-- new current row atomically via graduate_supersede_account_continuity_policy.
 CREATE TABLE public.graduate_account_continuity_policies (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  policy_code text NOT NULL UNIQUE CHECK (btrim(policy_code) <> ''),
+  policy_code text NOT NULL CHECK (btrim(policy_code) <> ''),
   policy_state public.graduate_account_policy_state NOT NULL DEFAULT 'undecided',
   allow_portal_sign_in boolean NOT NULL DEFAULT false,
   allow_university_email_reuse boolean NOT NULL DEFAULT false,
@@ -59,6 +63,7 @@ CREATE TABLE public.graduate_account_continuity_policies (
   decided_by uuid REFERENCES auth.users(id) ON DELETE RESTRICT,
   decided_at timestamptz,
   supersedes_policy_id uuid REFERENCES public.graduate_account_continuity_policies(id) ON DELETE RESTRICT,
+  is_current boolean NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK (valid_from IS NULL OR expires_at IS NULL OR expires_at > valid_from),
   CHECK (policy_state = 'undecided' OR (decided_by IS NOT NULL AND decided_at IS NOT NULL)),
@@ -67,6 +72,10 @@ CREATE TABLE public.graduate_account_continuity_policies (
     AND allowed_capabilities = '[]'::jsonb
   ))
 );
+
+CREATE UNIQUE INDEX graduate_account_continuity_policies_one_current
+  ON public.graduate_account_continuity_policies(policy_code)
+  WHERE is_current;
 
 CREATE OR REPLACE FUNCTION public.enforce_graduate_followup_update()
 RETURNS trigger LANGUAGE plpgsql AS $$
@@ -153,6 +162,23 @@ CREATE OR REPLACE FUNCTION public.enforce_graduate_account_policy_update()
 RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF OLD.policy_state <> 'undecided' THEN
+    -- Decided fact columns stay immutable. The only allowed mutation is
+    -- demoting is_current during atomic supersession.
+    IF NEW.policy_code IS DISTINCT FROM OLD.policy_code
+       OR NEW.policy_state IS DISTINCT FROM OLD.policy_state
+       OR NEW.allow_portal_sign_in IS DISTINCT FROM OLD.allow_portal_sign_in
+       OR NEW.allow_university_email_reuse IS DISTINCT FROM OLD.allow_university_email_reuse
+       OR NEW.allowed_capabilities IS DISTINCT FROM OLD.allowed_capabilities
+       OR NEW.valid_from IS DISTINCT FROM OLD.valid_from
+       OR NEW.expires_at IS DISTINCT FROM OLD.expires_at
+       OR NEW.decided_by IS DISTINCT FROM OLD.decided_by
+       OR NEW.decided_at IS DISTINCT FROM OLD.decided_at
+       OR NEW.supersedes_policy_id IS DISTINCT FROM OLD.supersedes_policy_id THEN
+      RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_DECIDED_IMMUTABLE';
+    END IF;
+    IF OLD.is_current IS TRUE AND NEW.is_current IS FALSE THEN
+      RETURN NEW;
+    END IF;
     RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_DECIDED_IMMUTABLE';
   END IF;
   IF NEW.policy_code <> OLD.policy_code
@@ -195,7 +221,8 @@ BEGIN
   END IF;
   SELECT * INTO v_policy
   FROM public.graduate_account_continuity_policies
-  WHERE policy_code = p_policy_code;
+  WHERE policy_code = p_policy_code
+    AND is_current;
   IF NOT FOUND OR v_policy.policy_state <> 'approved' THEN
     RETURN false;
   END IF;
@@ -220,6 +247,82 @@ BEGIN
   RETURN true;
 END;
 $$;
+
+-- Atomically supersede the current effective policy version for a code.
+-- Concurrent callers serialize on the current row FOR UPDATE; the loser
+-- fails closed when the current row is no longer current.
+CREATE OR REPLACE FUNCTION public.graduate_supersede_account_continuity_policy(
+  p_policy_code text,
+  p_policy_state public.graduate_account_policy_state,
+  p_allow_portal_sign_in boolean,
+  p_allow_university_email_reuse boolean,
+  p_allowed_capabilities jsonb,
+  p_valid_from timestamptz DEFAULT NULL,
+  p_expires_at timestamptz DEFAULT NULL,
+  p_decided_by uuid DEFAULT NULL,
+  p_decided_at timestamptz DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_old public.graduate_account_continuity_policies%ROWTYPE;
+  v_new_id uuid;
+BEGIN
+  IF p_policy_code IS NULL OR btrim(p_policy_code) = '' THEN
+    RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_INVALID_INPUT';
+  END IF;
+  IF p_policy_state IS NULL OR p_policy_state = 'undecided' THEN
+    RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_INVALID_INPUT';
+  END IF;
+  IF p_decided_by IS NULL OR p_decided_at IS NULL THEN
+    RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_PROVENANCE_REQUIRED';
+  END IF;
+
+  SELECT * INTO v_old
+  FROM public.graduate_account_continuity_policies
+  WHERE policy_code = p_policy_code
+    AND is_current
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_CURRENT_NOT_FOUND';
+  END IF;
+  IF NOT v_old.is_current THEN
+    RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_SUPERSESSION_CONFLICT';
+  END IF;
+
+  UPDATE public.graduate_account_continuity_policies
+  SET is_current = false
+  WHERE id = v_old.id
+    AND is_current;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'GRADUATE_ACCOUNT_POLICY_SUPERSESSION_CONFLICT';
+  END IF;
+
+  INSERT INTO public.graduate_account_continuity_policies (
+    policy_code, policy_state, allow_portal_sign_in, allow_university_email_reuse,
+    allowed_capabilities, valid_from, expires_at, decided_by, decided_at,
+    supersedes_policy_id, is_current
+  ) VALUES (
+    p_policy_code, p_policy_state, COALESCE(p_allow_portal_sign_in, false),
+    COALESCE(p_allow_university_email_reuse, false),
+    COALESCE(p_allowed_capabilities, '[]'::jsonb),
+    p_valid_from, p_expires_at, p_decided_by, p_decided_at,
+    v_old.id, true
+  )
+  RETURNING id INTO v_new_id;
+
+  RETURN v_new_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.graduate_supersede_account_continuity_policy(
+  text, public.graduate_account_policy_state, boolean, boolean, jsonb,
+  timestamptz, timestamptz, uuid, timestamptz
+) FROM PUBLIC, anon, authenticated;
 
 -- Aggregate-only cohort report. Every cell smaller than the enforced
 -- threshold is suppressed (returned as NULL), not only the population:

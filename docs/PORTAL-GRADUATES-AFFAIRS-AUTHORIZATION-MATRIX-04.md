@@ -19,7 +19,7 @@ graduation-projects overnight branch, out of this scope).
 | A1 | Graduate self | `auth.uid()` → `student_profiles.user_id` → `graduate_records.student_profile_id` (record exists only via an approved `graduate_official_decisions` row) |
 | A2 | Graduates-affairs manager | Active `request_processing_assignments` row, unit `graduate_affairs`, role `graduate_affairs_manager` (unit/role seeded by applied migration `20260716172804`), college scope |
 | A3 | Graduates-affairs specialist | Same unit, role `graduate_affairs_specialist`, department scope from `staff_profile_departments` of the resolved `staff_profiles` row; empty scope ⇒ no access |
-| A4 | Direct case assignee | `graduate_followups.assignee_user_id = auth.uid()` with state `open`/`in_progress` for that specific record |
+| A4 | Direct case assignee | `graduate_followups.assignee_user_id = auth.uid()` with state `open`/`in_progress` for that specific record, **and** the assignee still holds an active Graduate Affairs staff capability (inactive/suspended staff profile or revoked/expired assignment immediately loses read/transition authority; the follow-up row is retained for audit) |
 | A5 | Department-scoped staff (other) | Any staff whose scope/department matches but who lacks a `graduate_affairs` assignment — DENY (no cross-domain inference) |
 | A6 | College administration (dean/admin/registrar/system_admin) | `app_role` holders without a `graduate_affairs` assignment — DENY (no bypass, per audit contract) |
 | A7 | Unrelated staff | Active assignment in any other unit — DENY |
@@ -31,6 +31,21 @@ AND (ends_at IS NULL OR ends_at > now())` on the assignment, plus `is_active` on
 both the unit and the role. Actor resolution accepts assignment types `user` and
 `staff_profile` only; every other type is ignored (fail-closed).
 
+**Frozen direct-user assignment identity rule (CODEX-FINAL-HIGH-1):** every GA
+operational staff capability requires an ACTIVE staff identity.
+
+| Assignment type | Identity rule |
+|---|---|
+| `staff_profile` | `assignment.staff_profile_id` must exist, belong to the target/caller user, and `status = 'active'` |
+| `user` | `assignment.user_id` must match the target/caller, and that user must resolve fail-closed to **exactly one** `staff_profiles` row with `status = 'active'` (zero ⇒ DENY; more than one ⇒ DENY; inactive/suspended do not qualify) |
+
+Canonical resolver: `graduate_affairs_resolve_authorized_staff_profile_id(user, role)`
+(+ caller variant). Multiple distinct authorizing profiles for the same role ⇒ DENY.
+
+**Specialist scope binding (CODEX-FINAL-HIGH-2):** department scope comes only from
+the authorizing profile returned by the resolver — never the union of other active
+profiles owned by the same user.
+
 ## 2. Capability matrix
 
 ALLOW = explicit mechanism exists in the drafts. DENY = default-deny (no policy /
@@ -39,7 +54,7 @@ capability re-check and an audit event.
 
 | Capability | A1 self | A2 manager | A3 specialist | A4 assignee | A5–A9 |
 |---|---|---|---|---|---|
-| Read own graduate profile | ALLOW (RLS self SELECT) | ALLOW (RPC `graduate_affairs_get_graduate_file`) | ALLOW in-scope only (same RPC) | ALLOW (same RPC, case-scoped) | DENY |
+| Read own graduate profile | ALLOW while record `approved` (RLS current-self SELECT) | ALLOW (RPC `graduate_affairs_get_graduate_file`) | ALLOW in-scope only (same RPC) | ALLOW (same RPC, case-scoped, while GA capability remains) | DENY |
 | Update own profile | ALLOW — RPC `graduate_update_own_profile` only; mutable-field allowlist: `public_display_name`, `preferred_contact_channel`, `career_summary`, `profile_visibility`; optimistic `row_version` | DENY (no staff profile-edit path) | DENY | DENY | DENY |
 | Read/write academic fact (`graduate_records`, decisions, snapshot) | DENY (no policy; RPC reads expose identity fields only) | read via RPC summary; write DENY | same | DENY | DENY |
 | Manage own consents (grant/withdraw) | ALLOW (RPC, audited) | read via file RPC | in-scope read | DENY | DENY |
@@ -49,10 +64,10 @@ capability re-check and an audit event.
 | Submit/withdraw own survey response | ALLOW (RPC + consent trigger) | aggregates only | aggregates only | DENY | DENY |
 | Register/cancel own event registration | ALLOW (RPC + consent trigger) | DENY | DENY | DENY | DENY |
 | List visible opportunities/events | ALLOW (self RLS/RPC: published + in-window + audience match) | ALLOW (staff moderation RPCs) | ALLOW | DENY | DENY (unpublished invisible to all) |
-| Moderate opportunities | DENY | ALLOW (RPC transition guard) | ALLOW | DENY | DENY |
-| Verify employers | DENY | ALLOW | ALLOW | DENY | DENY |
-| Create follow-up case | DENY | ALLOW (assignee must be active GA staff) | ALLOW in-scope | DENY | DENY |
-| Transition follow-up state | DENY | ALLOW | assignee only | ALLOW (assignee) | DENY |
+| Moderate opportunities | DENY | ALLOW (RPC transition guard; manager-only MVP) | DENY (manager-only until object scope exists) | DENY | DENY |
+| Verify employers | DENY | ALLOW (manager-only MVP) | DENY (manager-only until object scope exists) | DENY | DENY |
+| Create follow-up case | DENY | ALLOW (assignee must be active GA staff; college-wide) | ALLOW in-scope; assignee must independently cover record department | DENY | DENY |
+| Transition follow-up state | DENY | ALLOW | assignee only while GA staff capability remains active | ALLOW only while GA staff capability remains active | DENY |
 | Read follow-up protected notes (`notes_protected`) | DENY | DENY in this bundle (file RPC omits the column) | DENY | DENY in this bundle | DENY |
 | Search records | DENY | ALLOW (audited, non-PII columns) | ALLOW, forced to scope | DENY | DENY |
 | Cohort employment report | DENY | ALLOW (aggregate, min-cell suppression) | ALLOW in-scope program only | DENY | DENY |

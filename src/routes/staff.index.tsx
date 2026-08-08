@@ -1,12 +1,13 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2 } from "lucide-react";
+import { User, IdCard, Briefcase, BadgeCheck, ShieldCheck, Loader2, GraduationCap } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { StatCard } from "@/components/brand";
 import { AnnouncementsWidget } from "@/components/communications/AnnouncementsWidget";
 import { StaffInboxShell } from "@/components/student-requests/StaffInboxShell";
 import { staffFunctionalRoleDisplayLabel } from "@/lib/staff-functional-roles";
+import { portalFeatures } from "@/lib/portal-features";
 
 type StaffProfileRow = {
   employee_number: string | null;
@@ -82,6 +83,23 @@ function StaffDashboard() {
             <div className="mt-6">
               <AnnouncementsWidget limit={5} />
             </div>
+
+            {portalFeatures.staffGraduatesAffairs && (
+              <div className="mt-6">
+                <Link
+                  to="/staff/graduates-affairs"
+                  className="flex items-center gap-3 rounded-xl border-2 border-gold/30 bg-card p-4 hover:border-gold hover:shadow-card transition-all"
+                >
+                  <GraduationCap className="h-5 w-5 text-gold shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-bold text-primary">شؤون الخريجين</div>
+                    <div className="text-xs text-muted-foreground">
+                      ملف الخريج والتقارير المجمعة — يتطلب تعييناً نشطاً في وحدة شؤون الخريجين.
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            )}
 
             <div className="mt-6 space-y-3">
               <h2 className="font-display text-lg font-extrabold text-primary-deep flex items-center gap-2">
