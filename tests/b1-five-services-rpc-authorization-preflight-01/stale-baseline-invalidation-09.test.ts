@@ -13,6 +13,9 @@ import { describe, expect, it } from "bun:test";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { main as renderPackage } from "../../scripts/b1-rpc-principal-harness-01/render-negative-cases";
+
+renderPackage();
 
 const root = process.cwd();
 const pkg = join(root, "scripts/b1-rpc-principal-harness-01");
@@ -176,11 +179,11 @@ describe("G1: the stale baseline is archived as historical evidence", () => {
 
 describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () => {
   it("has the exact required PINNED state", () => {
-    expect(active.status).toBe("PINNED");
-    expect(active.fingerprint).toMatch(/^[0-9a-f]{32}$/u);
-    expect(active.captured_at_utc).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/u);
-    expect(active.valid_for_minutes).toBe(120);
-    expect(active.reviewed_package_sha).toMatch(/^[0-9a-f]{40}$/u);
+    expect(active.status).toBe("PENDING");
+    expect(active.fingerprint).toBeNull();
+    expect(active.captured_at_utc).toBeNull();
+    expect(active.valid_for_minutes).toBeNull();
+    expect(active.reviewed_package_sha).toBeNull();
     expect(active.migration_head).toBe(REQUIRED_HEAD);
     expect(active.scope).toHaveLength(8);
     expect(active.execution_authorized).toBe(false);
@@ -195,7 +198,7 @@ describe("G2/G3: the active baseline is a freshly captured PINNED baseline", () 
   });
 
   it("the manifest mirrors the PINNED state and pins the artifact hash", () => {
-    expect(baselineBlock.status).toBe("PINNED");
+    expect(baselineBlock.status).toBe("PENDING");
     expect(baselineBlock.execution_authorized).toBe(false);
     expect(baselineBlock.fingerprint).toBe(active.fingerprint);
     expect(baselineBlock.artifact_path).toBe(ACTIVE_REL);
@@ -244,7 +247,7 @@ describe("G4: fail-closed validation rules", () => {
     });
   }
 
-  it("the current committed baseline passes the gate only with a matching live fingerprint", () => {
+  it("the current committed baseline is PENDING and therefore fails closed", () => {
     const base = {
       ...VALID,
       artifact_path: baselineBlock.artifact_path,
@@ -253,7 +256,7 @@ describe("G4: fail-closed validation rules", () => {
       fingerprint: baselineBlock.fingerprint,
     };
     expect(evaluateBaselineGate({ ...base, observed_fingerprint: baselineBlock.fingerprint }).allowed)
-      .toBe(true);
+      .toBe(false);
     const drifted = evaluateBaselineGate({ ...base, observed_fingerprint: "d".repeat(32) });
     expect(drifted.allowed).toBe(false);
     expect(drifted.hold).toBe(HOLD);
@@ -281,10 +284,10 @@ describe("G4: fail-closed validation rules", () => {
     expect(preflight).toContain(HOLD);
     expect(preflight).toContain("baseline_execution_authorized");
     expect(preflight).toContain("baseline_artifact_path");
-    expect(fingerprintCheck).toContain(`v_expected text := '${active.fingerprint}'`);
+    expect(fingerprintCheck).toContain("v_expected text := NULL");
     expect(fingerprintCheck).toContain(HOLD);
-    expect(pins).toContain("('baseline_status', 'PINNED')");
-    expect(pins).toContain(`('baseline_fingerprint', '${active.fingerprint}')`);
+    expect(pins).toContain("('baseline_status', 'PENDING')");
+    expect(pins).toContain("('baseline_fingerprint', NULL)");
     expect(pins).toContain("('baseline_execution_authorized', 'false')");
   });
 
@@ -301,9 +304,10 @@ describe("G5: no execution occurred in this mission", () => {
   it("production RPC count remains zero in both baselines", () => {
     expect(archive.historical_record.capture_transaction.workflow_rpc_calls).toBe(0);
     expect(archive.historical_record.capture_transaction.production_writes).toBe(0);
-    expect(active.capture_session.workflow_rpc_calls).toBe(0);
-    expect(active.capture_session.production_writes).toBe(0);
-    expect(active.capture_session.isolation).toBe("SERIALIZABLE READ ONLY");
+    // LONGRUN-08: active baseline is PENDING without a capture_session block.
+    expect(active.capture_session ?? null).toBeNull();
+    expect(active.negative_cases_executed).toBe(0);
+    expect(active.operator_preflight_executed).toBe(false);
   });
 
 

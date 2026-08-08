@@ -59,3 +59,9 @@ __pycache__/
 
 # B1 operator harness rendered artifacts (never committed)
 scripts/b1-rpc-principal-harness-01/generated/
+
+scripts/b1-rpc-principal-harness-01/tls/prod-ca.crt
+scripts/b1-rpc-principal-harness-01/tls/*.pem
+
+
+scripts/b1-rpc-principal-harness-01/local-operator-simulation/out/
