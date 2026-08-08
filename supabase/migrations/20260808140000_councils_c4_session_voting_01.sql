@@ -122,7 +122,27 @@ GRANT SELECT ON TABLE public.academic_council_vote_results TO authenticated, ser
 GRANT ALL ON TABLE public.academic_council_votes TO service_role;
 GRANT ALL ON TABLE public.academic_council_vote_results TO service_role;
 
-DROP POLICY IF EXISTS "ac_votes_select" ON public.academic_council_votes;
+DO $c4_policy_prestate$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_votes'
+      AND policyname = 'ac_votes_select'
+  ) THEN
+    RAISE EXCEPTION 'C4_POLICY_UNEXPECTEDLY_EXISTS:ac_votes_select';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_vote_results'
+      AND policyname = 'ac_vote_results_select'
+  ) THEN
+    RAISE EXCEPTION 'C4_POLICY_UNEXPECTEDLY_EXISTS:ac_vote_results_select';
+  END IF;
+END
+$c4_policy_prestate$;
+
 CREATE POLICY "ac_votes_select"
   ON public.academic_council_votes
   FOR SELECT TO authenticated
@@ -132,7 +152,6 @@ CREATE POLICY "ac_votes_select"
     OR public.is_council_member(auth.uid(), council_id)
   );
 
-DROP POLICY IF EXISTS "ac_vote_results_select" ON public.academic_council_vote_results;
 CREATE POLICY "ac_vote_results_select"
   ON public.academic_council_vote_results
   FOR SELECT TO authenticated

@@ -71,7 +71,19 @@ REVOKE ALL ON TABLE public.academic_council_minutes_amendments FROM PUBLIC, anon
 GRANT SELECT ON TABLE public.academic_council_minutes_amendments TO authenticated, service_role;
 GRANT ALL ON TABLE public.academic_council_minutes_amendments TO service_role;
 
-DROP POLICY IF EXISTS "ac_minutes_amendments_select" ON public.academic_council_minutes_amendments;
+DO $c5_policy_prestate$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_minutes_amendments'
+      AND policyname = 'ac_minutes_amendments_select'
+  ) THEN
+    RAISE EXCEPTION 'C5_POLICY_UNEXPECTEDLY_EXISTS:ac_minutes_amendments_select';
+  END IF;
+END
+$c5_policy_prestate$;
+
 CREATE POLICY "ac_minutes_amendments_select"
   ON public.academic_council_minutes_amendments
   FOR SELECT TO authenticated

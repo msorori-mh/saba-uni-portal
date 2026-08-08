@@ -71,7 +71,19 @@ REVOKE ALL ON TABLE public.academic_council_audit_events FROM PUBLIC, anon, auth
 GRANT SELECT ON TABLE public.academic_council_audit_events TO authenticated, service_role;
 GRANT ALL ON TABLE public.academic_council_audit_events TO service_role;
 
-DROP POLICY IF EXISTS "ac_audit_events_select" ON public.academic_council_audit_events;
+DO $c7_policy_prestate$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_audit_events'
+      AND policyname = 'ac_audit_events_select'
+  ) THEN
+    RAISE EXCEPTION 'C7_POLICY_UNEXPECTEDLY_EXISTS:ac_audit_events_select';
+  END IF;
+END
+$c7_policy_prestate$;
+
 CREATE POLICY "ac_audit_events_select"
   ON public.academic_council_audit_events
   FOR SELECT TO authenticated
