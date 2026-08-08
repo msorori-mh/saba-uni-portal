@@ -20,7 +20,6 @@ on:
       - "eslint.config.js"
       - ".github/workflows/ci.yml"
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
