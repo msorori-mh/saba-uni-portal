@@ -12,7 +12,7 @@
 | Base PR | #306 |
 | Base SHA | `1f50e7dcc8042cf15780c7817ecefa579c49f431` |
 | Branch | `fix/councils-legacy-production-reconciliation-longrun-13` |
-| FINAL_SHA | `8b5b978a4649614ee3ff55f1652dfc645dbecc15` |
+| FINAL_SHA | `f3110fbe67011c2df38adb2ca015c4fac18b4fa0` |
 | PR_NUMBER | #311 |
 | PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/311 |
 | WEB_CI | PASS — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31281543674 |
