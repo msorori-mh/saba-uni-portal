@@ -11,3 +11,16 @@ tests/b1-five-services-rpc-authorization-preflight-01/*.ts text eol=lf
 scripts/b1-isolated-authorization-env-65/*.py text eol=lf
 tests/b1-five-services-rpc-authorization-preflight-01/*.sql text eol=lf
 tests/b1-five-services-rpc-authorization-preflight-01/*.json text eol=lf
+
+# PORTAL-GA operational rehearsal (LONGRUN-16): LF contract for cross-platform
+# failure-matrix / exact-apply runners and promoted GA SQL artifacts.
+scripts/ga-failure-matrix-rehearsal.sh text eol=lf
+scripts/ga-failure-matrix-rehearsal.ps1 text eol=lf
+scripts/ga-local-exact-rehearsal.sh text eol=lf
+scripts/ga-local-exact-rehearsal.ps1 text eol=lf
+docs/migration-drafts/GA-*.sql text eol=lf
+docs/migration-drafts/GRADUATES-AFFAIRS-*.sql text eol=lf
+supabase/migrations/20260808210000_ga_mvp_foundation_01.sql text eol=lf
+supabase/migrations/20260808210100_ga_mvp_completion_01.sql text eol=lf
+supabase/migrations/20260808210200_ga_authorization_04.sql text eol=lf
+tests/graduates-affairs/** text eol=lf
