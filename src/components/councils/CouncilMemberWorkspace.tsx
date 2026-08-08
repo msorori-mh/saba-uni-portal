@@ -1,0 +1,273 @@
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  CalendarClock,
+  ListChecks,
+  Vote,
+  FileText,
+  Scale,
+  Loader2,
+  ScrollText,
+  Eye,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCouncilMemberWorkspaceFn } from "@/lib/councils-c9.functions";
+
+interface CouncilMemberWorkspaceProps {
+  councilId: string;
+  councilName: string;
+  readOnly?: boolean;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  scheduled: "مجدول",
+  intake_open: "استقبال مفتوح",
+  intake_closed: "استقبال مغلق",
+  agenda_ready: "جدول الأعمال جاهز",
+  in_session: "جلسة منعقدة",
+  minutes_draft: "مسودة محضر",
+  minutes_review: "مراجعة محضر",
+  minutes_locked: "محضر مقفل",
+  archived: "مؤرشف",
+  cancelled: "ملغى",
+  pending: "معلّق",
+  in_discussion: "قيد المناقشة",
+  voting_open: "تصويت مفتوح",
+  resolved: "مُبت فيه",
+};
+
+function statusLabel(status: string): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
+function formatDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("ar", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function EmptyItem({ text }: { text: string }) {
+  return (
+    <div className="rounded-md border border-dashed border-border bg-muted/20 p-3 text-center text-xs text-muted-foreground">
+      {text}
+    </div>
+  );
+}
+
+export function CouncilMemberWorkspace({
+  councilId,
+  councilName,
+  readOnly = false,
+}: CouncilMemberWorkspaceProps) {
+  const fetchWorkspace = useServerFn(getCouncilMemberWorkspaceFn);
+  const query = useQuery({
+    queryKey: ["council-member-workspace", councilId],
+    queryFn: () => fetchWorkspace({ data: { council_id: councilId } }),
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const data = (query.data ?? {}) as Record<string, unknown[]>;
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      <div className="flex items-center gap-2">
+        <ScrollText className="h-5 w-5 text-primary" />
+        <h2 className="font-bold text-primary">
+          {readOnly ? "عرض المجلس (قراءة فقط)" : "مساحة العضو"} — {councilName}
+        </h2>
+        {readOnly ? (
+          <Badge variant="outline" className="gap-1">
+            <Eye className="h-3 w-3" />
+            مطّلع
+          </Badge>
+        ) : null}
+      </div>
+
+      {query.isLoading ? (
+        <div className="grid place-items-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : query.isError ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          تعذر تحميل مساحة العضو. تأكد من صلاحياتك.
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <CalendarClock className="h-4 w-4" />
+                الاجتماعات القادمة
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(data.upcoming_meetings ?? []).length === 0 ? (
+                <EmptyItem text="لا توجد اجتماعات قادمة." />
+              ) : (
+                (data.upcoming_meetings as Array<{
+                  meeting_id: string;
+                  meeting_number: number;
+                  title: string;
+                  scheduled_at: string;
+                  status: string;
+                }>).map((m) => (
+                  <div
+                    key={m.meeting_id}
+                    className="rounded-md border border-border p-2 text-xs"
+                  >
+                    <p className="font-bold">{m.title}</p>
+                    <p className="text-muted-foreground mt-0.5">
+                      {formatDateTime(m.scheduled_at)}
+                    </p>
+                    <Badge variant="secondary" className="mt-1.5">
+                      {statusLabel(m.status)}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ListChecks className="h-4 w-4" />
+                جدول الأعمال
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(data.agenda_items ?? []).length === 0 ? (
+                <EmptyItem text="لا توجد بنود في جدول الأعمال." />
+              ) : (
+                (data.agenda_items as Array<{
+                  agenda_item_id: string;
+                  title: string;
+                  order_index: number;
+                  session_status: string;
+                  is_approved: boolean;
+                }>).slice(0, 6).map((i) => (
+                  <div
+                    key={i.agenda_item_id}
+                    className="flex items-center justify-between rounded-md border border-border p-2 text-xs"
+                  >
+                    <p className="font-bold">
+                      {i.order_index}. {i.title}
+                    </p>
+                    <Badge variant={i.is_approved ? "secondary" : "outline"}>
+                      {statusLabel(i.session_status)}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {!readOnly ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Vote className="h-4 w-4" />
+                  تصويت مطلوب
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {(data.open_votes ?? []).length === 0 ? (
+                  <EmptyItem text="لا يوجد تصويت مفتوح حالياً." />
+                ) : (
+                  (data.open_votes as Array<{
+                    agenda_item_id: string;
+                    title: string;
+                    session_status: string;
+                  }>).map((v) => (
+                    <div
+                      key={v.agenda_item_id}
+                      className="rounded-md border border-primary/30 bg-primary/5 p-2 text-xs"
+                    >
+                      <p className="font-bold text-primary">{v.title}</p>
+                      <Badge variant="secondary" className="mt-1.5">
+                        {statusLabel(v.session_status)}
+                      </Badge>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                المحاضر
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(data.minutes ?? []).length === 0 ? (
+                <EmptyItem text="لا توجد محاضر متاحة." />
+              ) : (
+                (data.minutes as Array<{
+                  meeting_id: string;
+                  title: string;
+                  is_locked: boolean;
+                }>).map((m) => (
+                  <div
+                    key={m.meeting_id}
+                    className="flex items-center justify-between rounded-md border border-border p-2 text-xs"
+                  >
+                    <p className="font-bold">{m.title}</p>
+                    <Badge variant={m.is_locked ? "secondary" : "outline"}>
+                      {m.is_locked ? "مقفل" : "مسودة"}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Scale className="h-4 w-4" />
+                القرارات
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {(data.decisions ?? []).length === 0 ? (
+                <EmptyItem text="لا توجد قرارات صادرة لهذا المجلس." />
+              ) : (
+                (data.decisions as Array<{
+                  decision_id: string;
+                  canonical_number: string;
+                  title: string;
+                  status: string;
+                  due_date: string;
+                }>).map((d) => (
+                  <div
+                    key={d.decision_id}
+                    className="flex items-center justify-between rounded-md border border-border p-2 text-xs"
+                  >
+                    <div>
+                      <p className="font-bold">{d.title}</p>
+                      <p className="text-muted-foreground mt-0.5">
+                        الموعد: {formatDateTime(d.due_date)}
+                      </p>
+                    </div>
+                    <Badge variant="outline">{statusLabel(d.status)}</Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}

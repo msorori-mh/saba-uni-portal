@@ -13,10 +13,9 @@ const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
 const REGISTER_PATH = "src/types/tanstack-start-register.d.ts";
 const ROUTE_TREE_PATH = "src/routeTree.gen.ts";
-// Pinned after Graduates Affairs multimodel remediation regenerated routeTree
-// (includes /staff/graduates-affairs and /student/graduates-affairs/).
+// Pinned after integrating GP, GA multimodel, and Councils C9 route additions.
 const ROUTE_SEMANTIC_SHA256 =
-  "c6099cd0b7d68f1c576a495fd49e0d011da21ed7c76488e7e2febcbab08be67e";
+  "0eb14f7ecafa41af96166f1f39d918bdff3feeef6a525b3c920ea937f22f6fef";
 
 const FROZEN_GP_FULL_PATHS = [
   "/student/graduation-projects",
