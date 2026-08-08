@@ -867,28 +867,29 @@ export const submitCouncilTopic = createServerFn({ method: "POST" })
     await assertCanSubmitCouncilTopic(sb, context.userId, data.council_id);
 
     const body = data.description?.trim() || data.title;
-    const submittedAt = new Date().toISOString();
 
-    const { data: inserted, error } = await sb
-      .from("academic_council_topics")
-      .insert({
-        council_id: data.council_id,
-        title: data.title,
-        body,
-        submitted_by: context.userId,
-        status: "submitted",
-        submitted_at: submittedAt,
-        meeting_id: null,
-      })
-      .select("id, status")
-      .maybeSingle();
+    const { data: insertedRpc, error } = await sb.rpc(
+      "council_submit_topic" as never,
+      {
+        p_council_id: data.council_id,
+        p_title: data.title,
+        p_body: body,
+        p_category: null,
+      } as never,
+    );
 
     if (error) throwDbError(error);
-    if (!inserted) throw new Error(RLS_DENIED_MESSAGE);
+    if (!insertedRpc || typeof insertedRpc !== "object") {
+      throw new Error(RLS_DENIED_MESSAGE);
+    }
+    const payload = insertedRpc as Record<string, unknown>;
+    if (!payload.ok || typeof payload.topic_id !== "string") {
+      throw new Error(RLS_DENIED_MESSAGE);
+    }
 
     return {
       ok: true,
-      topic_id: inserted.id as string,
+      topic_id: payload.topic_id,
       status: "submitted",
     };
   });

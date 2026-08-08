@@ -64,11 +64,19 @@ function throwDbError(error: { code?: string; message: string }): never {
     error.code === "42501" ||
     msg.includes("policy") ||
     msg.includes("permission denied") ||
-    msg.includes("row-level security")
+    msg.includes("row-level security") ||
+    msg.includes("council_")
   ) {
     throw new Error(RLS_DENIED_MESSAGE);
   }
   throw new Error(error.message);
+}
+
+function asCouncilRpcPayload(data: unknown): Record<string, unknown> {
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    return data as Record<string, unknown>;
+  }
+  throw new Error(RLS_DENIED_MESSAGE);
 }
 
 type FacultyProfileRow = Pick<
@@ -538,45 +546,44 @@ export const linkAcademicToCouncil = createServerFn({ method: "POST" })
     );
 
     if (inactiveRow) {
-      const { data: reactivated, error: updateErr } = await sb
-        .from("academic_council_members")
-        .update({
-          is_active: true,
-          active_to: null,
-          member_role: data.role,
-          updated_by: context.userId,
-        } as Database["public"]["Tables"]["academic_council_members"]["Update"])
-        .eq("id", inactiveRow.id as string)
-        .select("id")
-        .maybeSingle();
+      const { data: rpcData, error: updateErr } = await sb.rpc(
+        "council_link_membership" as never,
+        {
+          p_council_id: data.councilId,
+          p_user_id: targetUserId,
+          p_member_role: data.role,
+        } as never,
+      );
       if (updateErr) throwDbError(updateErr);
-      if (!reactivated) throw new Error(RLS_DENIED_MESSAGE);
+      const payload = asCouncilRpcPayload(rpcData);
+      if (!payload.ok || typeof payload.membership_id !== "string") {
+        throw new Error(RLS_DENIED_MESSAGE);
+      }
       return {
         ok: true as const,
-        membershipId: reactivated.id as string,
+        membershipId: payload.membership_id,
         reactivated: true as const,
       };
     }
 
-    const { data: inserted, error: insertErr } = await sb
-      .from("academic_council_members")
-      .insert({
-        council_id: data.councilId,
-        user_id: targetUserId,
-        member_role: data.role,
-        is_active: true,
-        created_by: context.userId,
-        updated_by: context.userId,
-      } as Database["public"]["Tables"]["academic_council_members"]["Insert"])
-      .select("id")
-      .maybeSingle();
+    const { data: rpcData, error: insertErr } = await sb.rpc(
+      "council_link_membership" as never,
+      {
+        p_council_id: data.councilId,
+        p_user_id: targetUserId,
+        p_member_role: data.role,
+      } as never,
+    );
     if (insertErr) throwDbError(insertErr);
-    if (!inserted) throw new Error(RLS_DENIED_MESSAGE);
+    const payload = asCouncilRpcPayload(rpcData);
+    if (!payload.ok || typeof payload.membership_id !== "string") {
+      throw new Error(RLS_DENIED_MESSAGE);
+    }
 
     return {
       ok: true as const,
-      membershipId: inserted.id as string,
-      reactivated: false as const,
+      membershipId: payload.membership_id,
+      reactivated: Boolean(payload.reactivated),
     };
   });
 
@@ -588,7 +595,6 @@ export const deactivateCouncilMembership = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertCouncilsMembershipManager(context.userId);
     const sb = context.supabase;
-    const today = new Date().toISOString().slice(0, 10);
 
     const { data: membership, error: readErr } = await sb
       .from("academic_council_members")
@@ -606,20 +612,17 @@ export const deactivateCouncilMembership = createServerFn({ method: "POST" })
       throw new Error("العضوية معطّلة مسبقاً");
     }
 
-    const { data: updated, error: updateErr } = await sb
-      .from("academic_council_members")
-      .update({
-        is_active: false,
-        active_to: today,
-        updated_by: context.userId,
-      } as Database["public"]["Tables"]["academic_council_members"]["Update"])
-      .eq("id", data.membershipId)
-      .select("id")
-      .maybeSingle();
+    const { data: updatedRpc, error: updateErr } = await sb.rpc(
+      "council_deactivate_membership" as never,
+      { p_membership_id: data.membershipId } as never,
+    );
     if (updateErr) throwDbError(updateErr);
-    if (!updated) throw new Error(RLS_DENIED_MESSAGE);
+    const payload = asCouncilRpcPayload(updatedRpc);
+    if (!payload.ok || typeof payload.membership_id !== "string") {
+      throw new Error(RLS_DENIED_MESSAGE);
+    }
 
-    return { ok: true as const, membershipId: updated.id as string };
+    return { ok: true as const, membershipId: payload.membership_id };
   });
 
 // ============================================================================
@@ -697,7 +700,8 @@ function mapMeetingDbError(
     error.code === "42501" ||
     msg.includes("policy") ||
     msg.includes("permission denied") ||
-    msg.includes("row-level security")
+    msg.includes("row-level security") ||
+    msg.includes("council_")
   ) {
     if (mode === "schedule") throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
     if (mode === "update") throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
@@ -733,36 +737,16 @@ async function assertCanScheduleCouncilMeeting(
     return;
   }
 
-  const [adminRes, chairRes] = await Promise.all([
-    sb.rpc("is_council_admin", { _user: userId }),
-    sb.rpc("has_council_role", {
-      _user: userId,
-      _council: councilId,
-      _role: "chair" as Database["public"]["Enums"]["academic_council_member_role"],
-    }),
-  ]);
-
-  if (adminRes.error) mapMeetingDbError(adminRes.error, "schedule");
+  // Fallback: chair membership only — never treat system_admin/admin as academic authority.
+  const chairRes = await sb.rpc("has_council_role", {
+    _user: userId,
+    _council: councilId,
+    _role: "chair" as Database["public"]["Enums"]["academic_council_member_role"],
+  });
   if (chairRes.error) mapMeetingDbError(chairRes.error, "schedule");
-
-  if (adminRes.data === true || chairRes.data === true) return;
+  if (chairRes.data === true) return;
 
   throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
-}
-
-async function resolveNextMeetingNumber(
-  sb: SupabaseClient<Database>,
-  councilId: string,
-): Promise<number> {
-  const { data, error } = await sb
-    .from("academic_council_meetings")
-    .select("meeting_number")
-    .eq("council_id", councilId)
-    .order("meeting_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) mapMeetingDbError(error, "load");
-  return ((data?.meeting_number as number | undefined) ?? 0) + 1;
 }
 
 function unwrapCouncilName(
@@ -891,33 +875,34 @@ export const scheduleCouncilMeeting = createServerFn({ method: "POST" })
     const sb = context.supabase;
     await assertCanScheduleCouncilMeeting(sb, context.userId, data.councilId);
 
-    const meetingNumber = await resolveNextMeetingNumber(sb, data.councilId);
-
-    const { data: inserted, error } = await sb
-      .from("academic_council_meetings")
-      .insert({
-        council_id: data.councilId,
-        title: data.title,
-        scheduled_at: data.scheduledAt,
-        location: data.location?.trim() || null,
-        intake_opens_at: data.intakeOpensAt ?? null,
-        intake_closes_at: data.intakeClosesAt ?? null,
-        notes: data.notes?.trim() || null,
-        meeting_number: meetingNumber,
-        status: "scheduled",
-        created_by: context.userId,
-      } as Database["public"]["Tables"]["academic_council_meetings"]["Insert"])
-      .select("id, meeting_number, status")
-      .maybeSingle();
+    const { data: insertedRpc, error } = await sb.rpc(
+      "council_schedule_meeting" as never,
+      {
+        p_council_id: data.councilId,
+        p_title: data.title,
+        p_scheduled_at: data.scheduledAt,
+        p_location: data.location?.trim() || null,
+        p_intake_opens_at: data.intakeOpensAt ?? null,
+        p_intake_closes_at: data.intakeClosesAt ?? null,
+        p_notes: data.notes?.trim() || null,
+      } as never,
+    );
 
     if (error) mapMeetingDbError(error, "schedule");
-    if (!inserted) throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
+    const payload = asCouncilRpcPayload(insertedRpc);
+    if (
+      !payload.ok ||
+      typeof payload.meeting_id !== "string" ||
+      typeof payload.meeting_number !== "number"
+    ) {
+      throw new Error(MEETING_SCHEDULE_DENIED_MESSAGE);
+    }
 
     return {
       ok: true,
-      meeting_id: inserted.id as string,
-      meeting_number: inserted.meeting_number as number,
-      status: inserted.status as MeetingStatus,
+      meeting_id: payload.meeting_id,
+      meeting_number: payload.meeting_number,
+      status: (payload.status as MeetingStatus) ?? "scheduled",
     };
   });
 
@@ -953,32 +938,40 @@ export const updateCouncilMeeting = createServerFn({ method: "POST" })
       existing.council_id as string,
     );
 
-    const patch: Database["public"]["Tables"]["academic_council_meetings"]["Update"] = {
-      updated_by: context.userId,
-    };
+    if (
+      data.status === "agenda_ready" ||
+      data.status === "in_session" ||
+      data.status === "minutes_draft" ||
+      data.status === "minutes_locked" ||
+      data.status === "archived"
+    ) {
+      throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+    }
 
-    if (data.title !== undefined) patch.title = data.title;
-    if (data.scheduledAt !== undefined) patch.scheduled_at = data.scheduledAt;
-    if (data.location !== undefined) patch.location = data.location;
-    if (data.intakeOpensAt !== undefined) patch.intake_opens_at = data.intakeOpensAt;
-    if (data.intakeClosesAt !== undefined) patch.intake_closes_at = data.intakeClosesAt;
-    if (data.notes !== undefined) patch.notes = data.notes;
-    if (data.status !== undefined) patch.status = data.status;
-
-    const { data: updated, error } = await sb
-      .from("academic_council_meetings")
-      .update(patch)
-      .eq("id", data.meetingId)
-      .select("id, status")
-      .maybeSingle();
+    const { data: updatedRpc, error } = await sb.rpc(
+      "council_update_meeting_metadata" as never,
+      {
+        p_meeting_id: data.meetingId,
+        p_title: data.title,
+        p_scheduled_at: data.scheduledAt,
+        p_location: data.location,
+        p_intake_opens_at: data.intakeOpensAt,
+        p_intake_closes_at: data.intakeClosesAt,
+        p_notes: data.notes,
+        p_status: data.status,
+      } as never,
+    );
 
     if (error) mapMeetingDbError(error, "update");
-    if (!updated) throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+    const payload = asCouncilRpcPayload(updatedRpc);
+    if (!payload.ok || typeof payload.meeting_id !== "string") {
+      throw new Error(MEETING_UPDATE_DENIED_MESSAGE);
+    }
 
     return {
       ok: true,
-      meeting_id: updated.id as string,
-      status: updated.status as string,
+      meeting_id: payload.meeting_id,
+      status: (payload.status as string) ?? existing.status,
     };
   });
 
@@ -1030,7 +1023,8 @@ function mapAgendaDbError(
     error.code === "42501" ||
     msg.includes("policy") ||
     msg.includes("permission denied") ||
-    msg.includes("row-level security")
+    msg.includes("row-level security") ||
+    msg.includes("council_")
   ) {
     if (mode === "finalize") throw new Error(AGENDA_FINALIZE_DENIED_MESSAGE);
     if (mode === "review") throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
@@ -1073,8 +1067,8 @@ async function assertCanWriteCouncilAgenda(
     return;
   }
 
-  const [adminRes, chairRes, secretaryRes] = await Promise.all([
-    sb.rpc("is_council_admin", { _user: userId }),
+  // Fallback: chair/secretary membership only — never treat system_admin/admin as academic authority.
+  const [chairRes, secretaryRes] = await Promise.all([
     sb.rpc("has_council_role", {
       _user: userId,
       _council: councilId,
@@ -1087,17 +1081,10 @@ async function assertCanWriteCouncilAgenda(
     }),
   ]);
 
-  if (adminRes.error) mapAgendaDbError(adminRes.error, "write");
   if (chairRes.error) mapAgendaDbError(chairRes.error, "write");
   if (secretaryRes.error) mapAgendaDbError(secretaryRes.error, "write");
 
-  if (
-    adminRes.data === true ||
-    chairRes.data === true ||
-    secretaryRes.data === true
-  ) {
-    return;
-  }
+  if (chairRes.data === true || secretaryRes.data === true) return;
 
   throw new Error(AGENDA_WRITE_DENIED_MESSAGE);
 }
@@ -1139,21 +1126,6 @@ async function loadMeetingAgendaContext(
     council_name: council?.name ?? "",
     council_type: council?.council_type ?? "",
   };
-}
-
-async function resolveNextAgendaOrderIndex(
-  sb: SupabaseClient<Database>,
-  meetingId: string,
-): Promise<number> {
-  const { data, error } = await sb
-    .from("academic_council_agenda_items")
-    .select("order_index")
-    .eq("meeting_id", meetingId)
-    .order("order_index", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) mapAgendaDbError(error, "load");
-  return ((data?.order_index as number | undefined) ?? 0) + 1;
 }
 
 async function assertTopicNotAlreadyInMeetingAgenda(
@@ -1417,31 +1389,26 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
       }
     }
 
-    const patch: Database["public"]["Tables"]["academic_council_topics"]["Update"] = {
-      status: data.status,
-    };
-    if (data.reviewNote !== undefined) {
-      patch.review_note = data.reviewNote.trim() || null;
-      patch.reviewed_by = context.userId;
-    }
-    if (data.status === "accepted_for_agenda" && data.meetingId) {
-      patch.meeting_id = data.meetingId;
-    }
-
-    const { data: updated, error } = await sb
-      .from("academic_council_topics")
-      .update(patch)
-      .eq("id", data.topicId)
-      .select("id, status")
-      .maybeSingle();
+    const { data: updatedRpc, error } = await sb.rpc(
+      "council_review_topic" as never,
+      {
+        p_topic_id: data.topicId,
+        p_status: data.status,
+        p_review_note: data.reviewNote,
+        p_meeting_id: data.meetingId ?? null,
+      } as never,
+    );
 
     if (error) mapAgendaDbError(error, "review");
-    if (!updated) throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
+    const payload = asCouncilRpcPayload(updatedRpc);
+    if (!payload.ok || typeof payload.topic_id !== "string") {
+      throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
+    }
 
     return {
       ok: true,
-      topic_id: updated.id as string,
-      status: updated.status as TopicReviewStatus,
+      topic_id: payload.topic_id,
+      status: payload.status as TopicReviewStatus,
     };
   });
 
@@ -1497,37 +1464,30 @@ export const addTopicToAgenda = createServerFn({ method: "POST" })
 
     await assertTopicNotAlreadyInMeetingAgenda(sb, data.meetingId, data.topicId);
 
-    const orderIndex =
-      data.orderIndex ?? (await resolveNextAgendaOrderIndex(sb, data.meetingId));
-
-    const { data: inserted, error } = await sb
-      .from("academic_council_agenda_items")
-      .insert({
-        meeting_id: data.meetingId,
-        topic_id: data.topicId,
-        title: topic.title as string,
-        order_index: orderIndex,
-        notes: data.notes?.trim() || null,
-        created_by: context.userId,
-      })
-      .select("id, order_index")
-      .maybeSingle();
+    const { data: insertedRpc, error } = await sb.rpc(
+      "council_add_topic_to_agenda" as never,
+      {
+        p_meeting_id: data.meetingId,
+        p_topic_id: data.topicId,
+        p_order_index: data.orderIndex ?? null,
+        p_notes: data.notes?.trim() || null,
+      } as never,
+    );
 
     if (error) mapAgendaDbError(error, "write");
-    if (!inserted) throw new Error(AGENDA_WRITE_DENIED_MESSAGE);
-
-    if (!linkedMeeting) {
-      const { error: topicLinkErr } = await sb
-        .from("academic_council_topics")
-        .update({ meeting_id: data.meetingId })
-        .eq("id", data.topicId);
-      if (topicLinkErr) mapAgendaDbError(topicLinkErr, "write");
+    const payload = asCouncilRpcPayload(insertedRpc);
+    if (
+      !payload.ok ||
+      typeof payload.agenda_item_id !== "string" ||
+      typeof payload.order_index !== "number"
+    ) {
+      throw new Error(AGENDA_WRITE_DENIED_MESSAGE);
     }
 
     return {
       ok: true,
-      agenda_item_id: inserted.id as string,
-      order_index: inserted.order_index as number,
+      agenda_item_id: payload.agenda_item_id,
+      order_index: payload.order_index,
     };
   });
 
@@ -1563,29 +1523,30 @@ export const addManualAgendaItem = createServerFn({ method: "POST" })
     const meeting = await loadMeetingAgendaContext(sb, data.meetingId);
     await assertCanWriteCouncilAgenda(sb, context.userId, meeting.council_id);
 
-    const orderIndex =
-      data.orderIndex ?? (await resolveNextAgendaOrderIndex(sb, data.meetingId));
-
-    const { data: inserted, error } = await sb
-      .from("academic_council_agenda_items")
-      .insert({
-        meeting_id: data.meetingId,
-        topic_id: null,
-        title: data.title,
-        order_index: orderIndex,
-        notes: data.notes?.trim() || null,
-        created_by: context.userId,
-      })
-      .select("id, order_index")
-      .maybeSingle();
+    const { data: insertedRpc, error } = await sb.rpc(
+      "council_add_manual_agenda_item" as never,
+      {
+        p_meeting_id: data.meetingId,
+        p_title: data.title,
+        p_order_index: data.orderIndex ?? null,
+        p_notes: data.notes?.trim() || null,
+      } as never,
+    );
 
     if (error) mapAgendaDbError(error, "write");
-    if (!inserted) throw new Error(AGENDA_WRITE_DENIED_MESSAGE);
+    const payload = asCouncilRpcPayload(insertedRpc);
+    if (
+      !payload.ok ||
+      typeof payload.agenda_item_id !== "string" ||
+      typeof payload.order_index !== "number"
+    ) {
+      throw new Error(AGENDA_WRITE_DENIED_MESSAGE);
+    }
 
     return {
       ok: true,
-      agenda_item_id: inserted.id as string,
-      order_index: inserted.order_index as number,
+      agenda_item_id: payload.agenda_item_id,
+      order_index: payload.order_index,
     };
   });
 
@@ -1633,34 +1594,24 @@ export const updateAgendaItem = createServerFn({ method: "POST" })
 
     await assertCanWriteCouncilAgenda(sb, context.userId, councilId);
 
-    const patch: Database["public"]["Tables"]["academic_council_agenda_items"]["Update"] = {
-      updated_by: context.userId,
-    };
-    if (data.title !== undefined) patch.title = data.title;
-    if (data.notes !== undefined) patch.notes = data.notes;
-    if (data.orderIndex !== undefined) patch.order_index = data.orderIndex;
-    if (data.isApproved !== undefined) {
-      patch.is_approved = data.isApproved;
-      if (data.isApproved) {
-        patch.approved_by = context.userId;
-        patch.approved_at = new Date().toISOString();
-      } else {
-        patch.approved_by = null;
-        patch.approved_at = null;
-      }
-    }
-
-    const { data: updated, error } = await sb
-      .from("academic_council_agenda_items")
-      .update(patch)
-      .eq("id", data.agendaItemId)
-      .select("id")
-      .maybeSingle();
+    const { data: updatedRpc, error } = await sb.rpc(
+      "council_update_agenda_item" as never,
+      {
+        p_agenda_item_id: data.agendaItemId,
+        p_title: data.title,
+        p_notes: data.notes,
+        p_order_index: data.orderIndex,
+        p_is_approved: data.isApproved,
+      } as never,
+    );
 
     if (error) mapAgendaDbError(error, "write");
-    if (!updated) throw new Error(AGENDA_WRITE_DENIED_MESSAGE);
+    const payload = asCouncilRpcPayload(updatedRpc);
+    if (!payload.ok || typeof payload.agenda_item_id !== "string") {
+      throw new Error(AGENDA_WRITE_DENIED_MESSAGE);
+    }
 
-    return { ok: true, agenda_item_id: updated.id as string };
+    return { ok: true, agenda_item_id: payload.agenda_item_id };
   });
 
 const reorderAgendaItemsSchema = z.object({
@@ -1706,31 +1657,19 @@ export const reorderAgendaItems = createServerFn({ method: "POST" })
       throw new Error(AGENDA_REORDER_FAILED_MESSAGE);
     }
 
-    const tempBase = 100_000;
-    for (let i = 0; i < data.items.length; i++) {
-      const item = data.items[i];
-      const { error } = await sb
-        .from("academic_council_agenda_items")
-        .update({
-          order_index: tempBase + i,
-          updated_by: context.userId,
-        })
-        .eq("id", item.agendaItemId)
-        .eq("meeting_id", data.meetingId);
-      if (error) mapAgendaDbError(error, "reorder");
-    }
-
-    for (const item of data.items) {
-      const { error } = await sb
-        .from("academic_council_agenda_items")
-        .update({
+    const { data: reorderRpc, error } = await sb.rpc(
+      "council_reorder_agenda_items" as never,
+      {
+        p_meeting_id: data.meetingId,
+        p_items: data.items.map((item) => ({
+          agenda_item_id: item.agendaItemId,
           order_index: item.orderIndex,
-          updated_by: context.userId,
-        })
-        .eq("id", item.agendaItemId)
-        .eq("meeting_id", data.meetingId);
-      if (error) mapAgendaDbError(error, "reorder");
-    }
+        })),
+      } as never,
+    );
+    if (error) mapAgendaDbError(error, "reorder");
+    const payload = asCouncilRpcPayload(reorderRpc);
+    if (!payload.ok) throw new Error(AGENDA_REORDER_FAILED_MESSAGE);
 
     return {
       ok: true,
@@ -1750,44 +1689,23 @@ export const finalizeMeetingAgenda = createServerFn({ method: "POST" })
 
     await assertCanScheduleCouncilMeeting(sb, context.userId, meeting.council_id);
 
-    const { data: agendaRows, error: loadErr } = await sb
-      .from("academic_council_agenda_items")
-      .select("id")
-      .eq("meeting_id", data.meetingId);
-    if (loadErr) mapAgendaDbError(loadErr, "finalize");
-
-    const approvedAt = new Date().toISOString();
-    for (const row of agendaRows ?? []) {
-      const { error } = await sb
-        .from("academic_council_agenda_items")
-        .update({
-          is_approved: true,
-          approved_by: context.userId,
-          approved_at: approvedAt,
-          updated_by: context.userId,
-        })
-        .eq("id", row.id as string)
-        .eq("meeting_id", data.meetingId);
-      if (error) mapAgendaDbError(error, "finalize");
+    const { data: finalizeRpc, error } = await sb.rpc(
+      "council_finalize_meeting_agenda" as never,
+      { p_meeting_id: data.meetingId } as never,
+    );
+    if (error) mapAgendaDbError(error, "finalize");
+    const payload = asCouncilRpcPayload(finalizeRpc);
+    if (!payload.ok || typeof payload.meeting_id !== "string") {
+      throw new Error(AGENDA_FINALIZE_DENIED_MESSAGE);
     }
-
-    const { data: updatedMeeting, error: meetingErr } = await sb
-      .from("academic_council_meetings")
-      .update({
-        status: "agenda_ready",
-        updated_by: context.userId,
-      })
-      .eq("id", data.meetingId)
-      .select("id, status")
-      .maybeSingle();
-
-    if (meetingErr) mapAgendaDbError(meetingErr, "finalize");
-    if (!updatedMeeting) throw new Error(AGENDA_FINALIZE_DENIED_MESSAGE);
 
     return {
       ok: true,
-      meeting_id: updatedMeeting.id as string,
+      meeting_id: payload.meeting_id,
       status: "agenda_ready",
-      approved_items_count: agendaRows?.length ?? 0,
+      approved_items_count:
+        typeof payload.approved_items_count === "number"
+          ? payload.approved_items_count
+          : 0,
     };
   });
