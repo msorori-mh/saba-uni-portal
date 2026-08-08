@@ -1,5 +1,5 @@
 -- ============================================================================
--- PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-05
+-- PORTAL-B1-NEGATIVE-RPC-MATRIX-FINAL-EXECUTION-PACKAGE-REMEDIATION-07
 -- FAIL-CLOSED OPERATOR PREFLIGHT (G3 / G4 / G5 / G6 / G8)
 --
 -- READ-ONLY. No RPC action, no DDL on persistent objects, no GRANT, no ALTER
@@ -47,6 +47,7 @@ DECLARE
   v_ref  text := (SELECT value FROM b1_pin_scalar WHERE key = 'project_ref');
   v_db   text := (SELECT value FROM b1_pin_scalar WHERE key = 'approved_pgdatabase');
   v_user text := (SELECT value FROM b1_pin_scalar WHERE key = 'approved_pguser_regex');
+  v_ssl  boolean;
 BEGIN
   IF v_ref IS DISTINCT FROM 'wpmicqriltrowwonknox' THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_PRODUCTION_REF_MISMATCH: %', v_ref;
@@ -57,7 +58,16 @@ BEGIN
   IF session_user !~ v_user THEN
     RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_SESSION_USER_SHAPE_MISMATCH';
   END IF;
+
+  -- G5: the user shape alone never attests the target. The launcher pins host,
+  -- port and sslmode=verify-full from TARGET-MANIFEST.json; here we prove the
+  -- backend actually terminated a TLS connection.
+  SELECT s.ssl INTO v_ssl FROM pg_stat_ssl s WHERE s.pid = pg_backend_pid();
+  IF v_ssl IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_NEEDS_VERIFIED_TLS_ENDPOINT: backend connection is not TLS';
+  END IF;
 END $$;
+
 
 -- ============================================================================
 -- 3. session_user contract — runs BEFORE any SET ROLE
@@ -144,24 +154,39 @@ BEGIN
 END $$;
 
 -- ============================================================================
--- 5. G6 — row-lock capability probe (FOR SHARE is used by every case)
---    Postgres requires UPDATE/DELETE privilege for row-level locking, which
---    contradicts the pure-observer privilege contract above. This probe makes
---    the contradiction explicit and FAIL-CLOSED: it never grants anything.
+-- 5. G6 — pure-observer probe. NO row locks anywhere in this package.
+--    PostgreSQL requires UPDATE privilege for FOR SHARE / FOR UPDATE, which
+--    directly contradicts the observer privilege contract above, so row locking
+--    was removed entirely: isolation comes from SERIALIZABLE + ROLLBACK-only
+--    cases and from the before/after complete-content fingerprint in each case.
+--    Column-level write privileges are checked here because table-level checks
+--    alone can miss a column grant.
 -- ============================================================================
 DO $$
-DECLARE v_id uuid;
+DECLARE
+  r    record;
+  v_id uuid;
 BEGIN
-  BEGIN
-    SELECT r.id INTO v_id FROM public.student_requests r
-     WHERE r.request_number = 'SR-20260727-42393846' FOR SHARE;
-  EXCEPTION WHEN insufficient_privilege THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_ROW_LOCK_CAPABILITY_NOT_PROVEN: the operator role cannot take FOR SHARE on public.student_requests; a DBA must provision a role that can take row share locks while holding no INSERT/UPDATE/DELETE/TRUNCATE, outside this package';
-  END;
+  FOR r IN
+    SELECT DISTINCT g.table_name, g.privilege_type
+      FROM information_schema.column_privileges g
+      JOIN b1_pin_relation f ON f.relname = g.table_name
+     WHERE g.table_schema = 'public'
+       AND g.grantee IN (SELECT rolname FROM pg_roles
+                          WHERE pg_has_role(session_user, oid, 'USAGE'))
+       AND g.privilege_type IN ('INSERT', 'UPDATE')
+  LOOP
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE: % %',
+      r.table_name, r.privilege_type;
+  END LOOP;
+
+  SELECT r2.id INTO v_id FROM public.student_requests r2
+   WHERE r2.request_number = 'SR-20260727-42393846';
   IF v_id IS NULL THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: locked probe row invisible';
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: probe row invisible';
   END IF;
 END $$;
+
 
 -- ============================================================================
 -- 6. G5 — AUTHORITATIVE BASELINE: complete-content equality, not row counts
@@ -171,16 +196,44 @@ DECLARE
   v_status   text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_status');
   v_expected text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_fingerprint');
   v_observed text := (SELECT fingerprint FROM b1_observed_fingerprint);
+  v_authorized text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_execution_authorized');
+  v_preflight_done text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_operator_preflight_executed');
+  v_cases_done text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_negative_cases_executed');
+  v_expected_head text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_expected_migration_head');
+  v_baseline_head text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_migration_head');
+  v_path text := (SELECT value FROM b1_pin_scalar WHERE key = 'baseline_artifact_path');
 BEGIN
   IF v_status IS DISTINCT FROM 'PINNED' OR v_expected IS NULL OR v_expected = '' THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: authoritative baseline is % (observed %)',
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: OPERATOR_VISIBILITY_NOT_PROVEN: authoritative baseline is % (observed %)',
       coalesce(v_status, 'MISSING'), v_observed;
   END IF;
+  -- REMEDIATION-26: a read-only capture must NEVER authorize execution. A
+  -- baseline carrying execution_authorized = true is contract drift and fails
+  -- closed; execution authorization lives only in the separate owner-approved
+  -- artifact enforced by 01-execution-gate.sql.
+  IF v_authorized IS DISTINCT FROM 'false' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline self-authorizes execution (execution_authorized=%); a read-only capture must never authorize execution',
+      coalesce(v_authorized, 'MISSING');
+  END IF;
+  -- the baseline must be unused: no recorded operator preflight, no executed case
+  IF v_preflight_done IS DISTINCT FROM 'false' OR v_cases_done IS DISTINCT FROM '0' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline already recorded preflight=% cases=%',
+      coalesce(v_preflight_done, 'MISSING'), coalesce(v_cases_done, 'MISSING');
+  END IF;
+  IF v_path IS DISTINCT FROM 'scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: baseline path is not the canonical active path (%)',
+      coalesce(v_path, 'MISSING');
+  END IF;
+  IF v_expected_head IS DISTINCT FROM '20260801021541'
+     OR v_baseline_head IS DISTINCT FROM v_expected_head THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: migration head % is not the required %',
+      coalesce(v_baseline_head, 'MISSING'), coalesce(v_expected_head, 'MISSING');
+  END IF;
   IF v_observed IS NULL THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint is NULL';
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint is NULL';
   END IF;
   IF v_observed IS DISTINCT FROM v_expected THEN
-    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint mismatch (rows hidden by RLS or state drift)';
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE: OPERATOR_VISIBILITY_NOT_PROVEN: fingerprint mismatch (rows hidden by RLS or state drift)';
   END IF;
 END $$;
 
@@ -261,6 +314,143 @@ BEGIN
       coalesce(v_found, '<null>'), v_name;
   END IF;
 END $$;
+
+-- G4 (REMEDIATION-09): the migration ledger is part of the operator privilege
+-- contract. It must be readable (the contract above depends on it) and it must
+-- never be writable by the operator session.
+DO $$
+DECLARE
+  r record;
+BEGIN
+  IF to_regclass('supabase_migrations.schema_migrations') IS NULL THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_MIGRATION_LEDGER_MISSING';
+  END IF;
+
+  -- REMEDIATION-12 G4: ownership rejection. Owning the ledger is an implicit
+  -- bypass of every privilege check made against it.
+  IF EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'supabase_migrations' AND c.relname = 'schema_migrations'
+      AND pg_get_userbyid(c.relowner) = session_user
+  ) THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_OWNS_MIGRATION_LEDGER: supabase_migrations.schema_migrations';
+  END IF;
+
+  -- SELECT requirement
+  IF NOT has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'SELECT') THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: OPERATOR_VISIBILITY_NOT_PROVEN: no SELECT on supabase_migrations.schema_migrations';
+  END IF;
+
+  -- table-level write rejection
+  IF has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'INSERT')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'UPDATE')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'DELETE')
+     OR has_table_privilege(session_user, 'supabase_migrations.schema_migrations', 'TRUNCATE') THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_WRITE_PRIVILEGE: supabase_migrations.schema_migrations';
+  END IF;
+
+  -- applicable column-level INSERT/UPDATE rejection
+  FOR r IN
+    SELECT DISTINCT g.column_name, g.privilege_type
+      FROM information_schema.column_privileges g
+     WHERE g.table_schema = 'supabase_migrations'
+       AND g.table_name = 'schema_migrations'
+       AND g.privilege_type IN ('INSERT', 'UPDATE')
+       AND g.grantee IN (SELECT rolname FROM pg_roles
+                          WHERE pg_has_role(session_user, oid, 'USAGE'))
+  LOOP
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_OPERATOR_HAS_COLUMN_WRITE_PRIVILEGE: supabase_migrations.schema_migrations % %',
+      r.column_name, r.privilege_type;
+  END LOOP;
+END $$;
+
+-- ============================================================================
+-- 8b. RECONCILIATION-17 — BLOCKED-CASE GATE ABOLISHED
+--     The 245+22 model is gone: all 267 cases render as executable SQL bound to
+--     deterministic ACTIVE fixture steps. Readiness is enforced by the
+--     fixture-state gate below (8c), never by blocked-case counts.
+-- ============================================================================
+
+-- ============================================================================
+-- 8c. REMEDIATION-15 G5 — FIXTURE-13 STATE GATE (fail-closed)
+--     Every previously blocked case is now bound to a deterministic ACTIVE
+--     TEST_ONLY fixture step. If the fixture package is not applied, or drifted,
+--     the run halts here instead of "passing" against a non-existent step.
+--     RECONCILIATION-17: the migration-head contract after apply is enforced by
+--     the fixture migration itself (precondition k_head = 20260731203030); the
+--     post-apply head is pinned when the migration is reviewed and applied.
+-- ============================================================================
+DO $$
+DECLARE
+  k_marker  CONSTANT text := 'TEST_ONLY_B1_FIXTURE_13';
+  k_hold    CONSTANT text := 'HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED';
+  v_req     int;
+  v_steps   int;
+  v_active  int;
+  v_detail  int;
+  v_bad     int;
+BEGIN
+  -- RECONCILIATION-17: the rendered pins must carry the fixture contract.
+  IF (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_package_id')
+       IS DISTINCT FROM 'B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13'
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_marker') IS DISTINCT FROM k_marker
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'fixture_hold_token') IS DISTINCT FROM k_hold
+     OR (SELECT value FROM b1_pin_scalar WHERE key = 'executable_case_total') IS DISTINCT FROM '267' THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : fixture contract pins missing or drifted', k_hold;
+  END IF;
+
+  SELECT count(*) INTO v_req FROM public.student_requests
+   WHERE internal_notes = k_marker AND request_number LIKE 'SR-20260801-13%';
+  IF v_req <> 19 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture requests (expected 19)', k_hold, v_req;
+  END IF;
+
+  SELECT count(*) INTO v_steps
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker;
+  IF v_steps <> 104 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture runtime steps (expected 104)', k_hold, v_steps;
+  END IF;
+
+  SELECT count(*) INTO v_active
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker AND w.status = 'active';
+  IF v_active <> 19 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % ACTIVE fixture steps (expected 19)', k_hold, v_active;
+  END IF;
+
+  SELECT count(*) INTO v_detail
+    FROM public.transfer_request_details d
+    JOIN public.student_requests r ON r.id = d.request_id
+   WHERE r.internal_notes = k_marker
+     AND d.current_department_id <> d.requested_department_id;
+  IF v_detail <> 5 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % transfer scope rows (expected 5)', k_hold, v_detail;
+  END IF;
+
+  -- singular identity + provenance on every fixture runtime step
+  SELECT count(*) INTO v_bad
+    FROM public.student_request_workflow_steps w
+    JOIN public.student_requests r ON r.id = w.student_request_id
+   WHERE r.internal_notes = k_marker
+     AND (num_nonnulls(w.assigned_user_id, w.assigned_staff_profile_id,
+                       w.assigned_faculty_profile_id, w.assigned_position_assignment_id) <> 1
+       OR (w.metadata ->> 'direct_assignment_id') IS NULL);
+  IF v_bad <> 0 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture steps violate the singular-identity contract', k_hold, v_bad;
+  END IF;
+
+  -- no fixture may have been advanced past its parked boundary
+  SELECT count(*) INTO v_bad FROM public.student_requests
+   WHERE internal_notes = k_marker AND status <> 'in_review';
+  IF v_bad <> 0 THEN
+    RAISE EXCEPTION 'PREFLIGHT_FAIL: % : % fixture requests left the in_review boundary', k_hold, v_bad;
+  END IF;
+END $$;
+
 
 -- the six Migration-29 functions, by EXACT signature
 DO $$
@@ -391,7 +581,34 @@ BEGIN
   END LOOP;
 END $$;
 
--- (b) discovered closure ⊆ pinned closure
+-- (a2) G5 REMEDIATION-09 — TRIGGER-AWARE CLOSURE.
+-- Every enabled, non-internal trigger on any relation the RPC entry points can
+-- write must map to a pinned function. An unpinned trigger function is drift.
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT d.relname,
+           t.tgname,
+           t.tgfoid::regprocedure::text AS fsig
+      FROM b1_pin_dml_relation d
+      JOIN pg_class c ON c.relname = d.relname
+      JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+      JOIN pg_trigger t ON t.tgrelid = c.oid
+     WHERE NOT t.tgisinternal AND t.tgenabled <> 'D'
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM b1_pin_function f
+       WHERE to_regprocedure(f.signature) = r.fsig::regprocedure
+    ) THEN
+      RAISE EXCEPTION 'PREFLIGHT_FAIL: FUNCTION_GRAPH_DRIFT: unpinned trigger function % (trigger % on %)',
+        r.fsig, r.tgname, r.relname;
+    END IF;
+  END LOOP;
+END $$;
+
+-- (b) discovered closure ⊆ pinned closure. Entry points AND every enabled
+-- trigger function on a write-reachable relation seed the walk (G5).
 DO $$
 DECLARE
   v_pinned oid[];
@@ -404,6 +621,14 @@ BEGIN
   SELECT array_agg(to_regprocedure(signature)::oid) INTO v_pinned FROM b1_pin_function;
   SELECT array_agg(to_regprocedure(signature)::oid) INTO v_queue
     FROM b1_pin_function WHERE entry_point;
+
+  SELECT coalesce(v_queue, '{}') || coalesce(array_agg(DISTINCT t.tgfoid), '{}') INTO v_queue
+    FROM b1_pin_dml_relation d
+    JOIN pg_class c ON c.relname = d.relname
+    JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+    JOIN pg_trigger t ON t.tgrelid = c.oid
+   WHERE NOT t.tgisinternal AND t.tgenabled <> 'D';
+
 
   WHILE array_length(v_queue, 1) IS NOT NULL LOOP
     v_cur := v_queue[1];
@@ -442,18 +667,26 @@ DECLARE
   v_sec    text;
   v_owner  text;
   v_path   text;
-  v_tok    record;
+  v_pat    record;
+  v_scan   text;
 BEGIN
   FOR r IN SELECT * FROM b1_pin_function LOOP
     v_oid := to_regprocedure(r.signature)::oid;
     v_def := pg_get_functiondef(v_oid);
 
-    FOR v_tok IN SELECT token FROM b1_pin_forbidden_token LOOP
-      IF position(v_tok.token IN lower(v_def)) > 0 THEN
-        RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION: % token %',
-          r.signature, v_tok.token;
+    -- G9: strip block and line comments before the side-effect scan, so a
+    -- comment can neither trip the scan nor hide a real dynamic EXECUTE.
+    v_scan := lower(regexp_replace(
+                regexp_replace(v_def, '/\*.*?\*/', ' ', 'gs'),
+                '--[^\n]*', ' ', 'g'));
+
+    FOR v_pat IN SELECT id, regex FROM b1_pin_forbidden_pattern LOOP
+      IF v_scan ~ v_pat.regex THEN
+        RAISE EXCEPTION 'PREFLIGHT_FAIL: B1_PREFLIGHT_EXTERNAL_SIDE_EFFECT_IN_FUNCTION: % pattern %',
+          r.signature, v_pat.id;
       END IF;
     END LOOP;
+
 
     v_norm := btrim(regexp_replace(v_def, '\s+', ' ', 'g'));
     v_hash := encode(sha256(convert_to(v_norm, 'UTF8')), 'hex');
@@ -482,3 +715,11 @@ END $$;
 SELECT 'B1_OPERATOR_PREFLIGHT_PASS' AS verdict;
 
 ROLLBACK;
+
+-- REMEDIATION-26 (gate 2 marker): the read-only operator preflight passed in
+-- THIS psql session. Set AFTER the ROLLBACK so it survives as session state
+-- (a SET inside the rolled-back transaction would be discarded). This marker
+-- is NOT execution authorization: it only proves gate 2 to
+-- 01-execution-gate.sql, which additionally requires the separate
+-- owner-approved execution authorization artifact (gate 3).
+SELECT set_config('b1.operator_preflight_passed', 'true', false) AS operator_preflight_session_marker;

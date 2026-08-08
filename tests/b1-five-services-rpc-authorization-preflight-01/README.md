@@ -22,7 +22,7 @@ Read-only preflight package. **Nothing in this directory was executed against pr
 | negative core (10 classes × 24 steps) | 240 |
 | illegal action by the exact assignee | 24 |
 | supplemental transfer department-scope | 3 |
-| **negative total** | **267** |
+| **negative total** | **267** (267 executable + 0 blocked; 22 rebound to ACTIVE TEST_ONLY fixtures) |
 
 The previously planned figure was 240 negative cases (10 × 24). This package keeps those
 240 unchanged and adds 27 explicitly, hiding no role:

@@ -24,7 +24,8 @@
     "archive/archive_officer": "aec1303e-de6a-4580-94cf-7205c17b5535",
     "dean/dean": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
     "department/department_head@source": "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e",
-    "department/department_head@target": "f602b62c-194b-4591-8e9c-956e5cbb347d"
+    "department/department_head@target": "97acbe02-c59c-409c-8d51-7d4ef72e6db7",
+    "department/department_head@unrelated": "f602b62c-194b-4591-8e9c-956e5cbb347d"
   },
   "positive_cases": [
     {
@@ -362,6 +363,291 @@
       "rpc": "act_on_b1_student_request_step_atomic",
       "principal_key": "registrar/registrar_general",
       "principal_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3"
+    },
+    {
+      "request_type": "department_transfer",
+      "request_number": "SR-20260801-13000001",
+      "step_order": 2,
+      "step_key": "source_department_head_approval",
+      "runtime_step_id": "f1300001-0000-4000-8000-000001000002",
+      "runtime_status": "active",
+      "unit": "department",
+      "role": "department_head",
+      "legal_action": "approve",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "department_transfer",
+      "request_number": "SR-20260801-13000002",
+      "step_order": 3,
+      "step_key": "target_department_head_approval",
+      "runtime_step_id": "f1300001-0000-4000-8000-000002000003",
+      "runtime_status": "active",
+      "unit": "department",
+      "role": "department_head",
+      "legal_action": "approve",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "97acbe02-c59c-409c-8d51-7d4ef72e6db7",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "department_transfer",
+      "request_number": "SR-20260801-13000003",
+      "step_order": 4,
+      "step_key": "dean_approval",
+      "runtime_step_id": "f1300001-0000-4000-8000-000003000004",
+      "runtime_status": "active",
+      "unit": "dean",
+      "role": "dean",
+      "legal_action": "approve",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "department_transfer",
+      "request_number": "SR-20260801-13000004",
+      "step_order": 5,
+      "step_key": "payment_confirmation",
+      "runtime_step_id": "f1300001-0000-4000-8000-000004000005",
+      "runtime_status": "active",
+      "unit": "finance",
+      "role": "revenue_finance_officer",
+      "legal_action": "confirm_payment",
+      "rpc": "record_external_university_payment_confirmation",
+      "principal_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "department_transfer",
+      "request_number": "SR-20260801-13000005",
+      "step_order": 6,
+      "step_key": "registrar_apply",
+      "runtime_step_id": "f1300001-0000-4000-8000-000005000006",
+      "runtime_status": "active",
+      "unit": "registrar",
+      "role": "registrar_general",
+      "legal_action": "apply_decision",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "enrollment_suspension",
+      "request_number": "SR-20260801-13000006",
+      "step_order": 2,
+      "step_key": "manager_approval",
+      "runtime_step_id": "f1300001-0000-4000-8000-000006000002",
+      "runtime_status": "active",
+      "unit": "student_affairs",
+      "role": "student_affairs_manager",
+      "legal_action": "approve",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "enrollment_suspension",
+      "request_number": "SR-20260801-13000007",
+      "step_order": 3,
+      "step_key": "registrar_apply",
+      "runtime_step_id": "f1300001-0000-4000-8000-000007000003",
+      "runtime_status": "active",
+      "unit": "registrar",
+      "role": "registrar_general",
+      "legal_action": "apply_decision",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "excused_absence",
+      "request_number": "SR-20260801-13000008",
+      "step_order": 2,
+      "step_key": "manager_review",
+      "runtime_step_id": "f1300001-0000-4000-8000-000008000002",
+      "runtime_status": "active",
+      "unit": "student_affairs",
+      "role": "student_affairs_manager",
+      "legal_action": "approve",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "excused_absence",
+      "request_number": "SR-20260801-13000009",
+      "step_order": 3,
+      "step_key": "record_apply",
+      "runtime_step_id": "f1300001-0000-4000-8000-000009000003",
+      "runtime_status": "active",
+      "unit": "student_affairs",
+      "role": "student_affairs_specialist",
+      "legal_action": "apply_decision",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "file_withdrawal",
+      "request_number": "SR-20260801-13000010",
+      "step_order": 2,
+      "step_key": "library_clearance",
+      "runtime_step_id": "f1300001-0000-4000-8000-000010000002",
+      "runtime_status": "active",
+      "unit": "library",
+      "role": "library_officer",
+      "legal_action": "clear",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "e7a93314-bb06-4525-b412-5315198c668a",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "file_withdrawal",
+      "request_number": "SR-20260801-13000011",
+      "step_order": 3,
+      "step_key": "labs_clearance",
+      "runtime_step_id": "f1300001-0000-4000-8000-000011000003",
+      "runtime_status": "active",
+      "unit": "labs",
+      "role": "labs_manager",
+      "legal_action": "clear",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "67b39ee4-4918-4b00-b4cc-0d5046ac8a5a",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "file_withdrawal",
+      "request_number": "SR-20260801-13000012",
+      "step_order": 4,
+      "step_key": "activities_clearance",
+      "runtime_step_id": "f1300001-0000-4000-8000-000012000004",
+      "runtime_status": "active",
+      "unit": "student_affairs",
+      "role": "student_affairs_manager",
+      "legal_action": "clear",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "file_withdrawal",
+      "request_number": "SR-20260801-13000013",
+      "step_order": 5,
+      "step_key": "finance_clearance",
+      "runtime_step_id": "f1300001-0000-4000-8000-000013000005",
+      "runtime_status": "active",
+      "unit": "finance",
+      "role": "revenue_finance_officer",
+      "legal_action": "clear",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "file_withdrawal",
+      "request_number": "SR-20260801-13000014",
+      "step_order": 6,
+      "step_key": "registrar_apply",
+      "runtime_step_id": "f1300001-0000-4000-8000-000014000006",
+      "runtime_status": "active",
+      "unit": "registrar",
+      "role": "registrar_general",
+      "legal_action": "apply_decision",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "file_withdrawal",
+      "request_number": "SR-20260801-13000015",
+      "step_order": 7,
+      "step_key": "archive",
+      "runtime_step_id": "f1300001-0000-4000-8000-000015000007",
+      "runtime_status": "active",
+      "unit": "archive",
+      "role": "archive_officer",
+      "legal_action": "archive",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "aec1303e-de6a-4580-94cf-7205c17b5535",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "final_chance",
+      "request_number": "SR-20260801-13000016",
+      "step_order": 2,
+      "step_key": "manager_review",
+      "runtime_step_id": "f1300001-0000-4000-8000-000016000002",
+      "runtime_status": "active",
+      "unit": "student_affairs",
+      "role": "student_affairs_manager",
+      "legal_action": "approve",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "final_chance",
+      "request_number": "SR-20260801-13000017",
+      "step_order": 3,
+      "step_key": "dean_decision",
+      "runtime_step_id": "f1300001-0000-4000-8000-000017000003",
+      "runtime_status": "active",
+      "unit": "dean",
+      "role": "dean",
+      "legal_action": "approve",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "final_chance",
+      "request_number": "SR-20260801-13000018",
+      "step_order": 4,
+      "step_key": "payment_confirmation",
+      "runtime_step_id": "f1300001-0000-4000-8000-000018000004",
+      "runtime_status": "active",
+      "unit": "finance",
+      "role": "revenue_finance_officer",
+      "legal_action": "confirm_payment",
+      "rpc": "record_external_university_payment_confirmation",
+      "principal_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
+    },
+    {
+      "request_type": "final_chance",
+      "request_number": "SR-20260801-13000019",
+      "step_order": 5,
+      "step_key": "registrar_apply",
+      "runtime_step_id": "f1300001-0000-4000-8000-000019000005",
+      "runtime_status": "active",
+      "unit": "registrar",
+      "role": "registrar_general",
+      "legal_action": "apply_decision",
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "principal_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "fixture_only_step_expectation": true,
+      "note": "Step expectation only: rendered positive cases remain 0."
     }
   ],
   "negative_case_classes": [
@@ -377,41 +663,21 @@
     "previous_step_assignee_replay"
   ],
   "denial_class_contract": {
-    "version": 1,
+    "version": 3,
     "fail_closed": true,
-    "note": "A negative case is PASS only when the RPC is denied by the authorization layer itself. Any other error class is CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL -> ROLLBACK + immediate stop.",
-    "authorization_sqlstates": [
-      "P0001"
+    "note": "LONGRUN-08 G4. Exact (SQLSTATE, message family) pair from live function source. Known authorization pair => PASS. Unknown 42501 => HOLD. Wrong state/message pair => HOLD.",
+    "contract_source": [
+      "production READ-ONLY pg_get_functiondef(public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)) @ 2026-08-08",
+      "production READ-ONLY pg_get_functiondef(public.record_external_university_payment_confirmation(uuid,text)) @ 2026-08-08"
     ],
-    "expected_by_expect_error": {
-      "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED": {
-        "sqlstate": "P0001",
-        "message_family": [
-          "UNAUTHORIZED_STEP_ACTION",
-          "STEP_ACTION_NOT_ALLOWED"
-        ]
-      },
-      "B1 action gate: action != configured action_type": {
-        "sqlstate": "P0001",
-        "message_family": [
-          "STEP_ACTION_NOT_ALLOWED",
-          "ACTION_NOT_ALLOWED",
-          "INVALID_STEP_ACTION",
-          "UNAUTHORIZED_STEP_ACTION"
-        ]
-      },
-      "transfer department scope mismatch": {
-        "sqlstate": "P0001",
-        "message_family": [
-          "UNAUTHORIZED_STEP_ACTION",
-          "STEP_ACTION_NOT_ALLOWED",
-          "DEPARTMENT_SCOPE"
-        ]
-      }
-    },
+    "authorization_sqlstates": [
+      "28000",
+      "42501",
+      "P0001",
+      "22023"
+    ],
     "infrastructure_sqlstates": [
       "25006",
-      "42501",
       "42883",
       "42P01",
       "42P02",
@@ -429,7 +695,10 @@
       "53300",
       "3D000",
       "3F000",
-      "0A000"
+      "0A000",
+      "P0002",
+      "23505",
+      "23514"
     ],
     "infrastructure_message_tokens": [
       "read-only sql transaction",
@@ -444,9 +713,135 @@
       "could not obtain lock",
       "canceling statement",
       "statement timeout",
-      "connection",
       "server closed",
-      "syntax error"
+      "syntax error",
+      "PAYMENT_CONFIRMATION_STEP_NOT_FOUND",
+      "PAYMENT_CONFIRMATION_REQUEST_NOT_FOUND"
+    ],
+    "resolution_rules": [
+      {
+        "id": "anon_atomic",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "case_class": "anonymous_no_jwt"
+        },
+        "sqlstate": "28000",
+        "message_family": [
+          "AUTHENTICATION_REQUIRED"
+        ]
+      },
+      {
+        "id": "anon_payment",
+        "match": {
+          "rpc": "record_external_university_payment_confirmation",
+          "case_class": "anonymous_no_jwt"
+        },
+        "sqlstate": "28000",
+        "message_family": [
+          "AUTH_REQUIRED"
+        ]
+      },
+      {
+        "id": "payment_step_not_active",
+        "match": {
+          "rpc": "record_external_university_payment_confirmation",
+          "runtime_status": "pending"
+        },
+        "sqlstate": "22023",
+        "message_family": [
+          "INVALID_ACTIVE_PAYMENT_CONFIRMATION_STEP"
+        ]
+      },
+      {
+        "id": "atomic_step_not_active",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "pending"
+        },
+        "sqlstate": "P0001",
+        "message_family": [
+          "B1_ACTIVE_STEP_REQUIRED"
+        ]
+      },
+      {
+        "id": "atomic_illegal_action_by_exact_assignee",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "active",
+          "case_class": "illegal_action_by_exact_assignee"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "B1_ACTION_TYPE_MISMATCH"
+        ],
+        "contract_note": "LONGRUN-08 G4. Live production act_on probes can_current_user_act_on_step with CONFIGURED action_type, then enforces p_action === action_type. Exact assignee + illegal action => B1_ACTION_TYPE_MISMATCH / 42501. Extracted from production READ-ONLY pg_get_functiondef on 2026-08-08.",
+        "source_ref": [
+          "production READ-ONLY pg_get_functiondef(public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)) @ 2026-08-08"
+        ]
+      },
+      {
+        "id": "atomic_department_scope_swap_source_head_on_target_step",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "active",
+          "case_class": "department_scope_swap_source_head_on_target_step"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"
+        ],
+        "contract_note": "REMEDIATION-09 G2. Department-scope swaps are denied by the direct-assignee gate because the scope-bound assignment never resolves to the acting user. B1_ACTIVE_STEP_REQUIRED is NOT an acceptable proof of scope enforcement, so these cases are only executable against an ACTIVE transfer head step."
+      },
+      {
+        "id": "atomic_department_scope_swap_target_head_on_source_step",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "active",
+          "case_class": "department_scope_swap_target_head_on_source_step"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"
+        ],
+        "contract_note": "REMEDIATION-09 G2. Department-scope swaps are denied by the direct-assignee gate because the scope-bound assignment never resolves to the acting user. B1_ACTIVE_STEP_REQUIRED is NOT an acceptable proof of scope enforcement, so these cases are only executable against an ACTIVE transfer head step."
+      },
+      {
+        "id": "atomic_third_department_head_unrelated",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "active",
+          "case_class": "third_department_head_unrelated"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"
+        ],
+        "contract_note": "REMEDIATION-09 G2. Department-scope swaps are denied by the direct-assignee gate because the scope-bound assignment never resolves to the acting user. B1_ACTIVE_STEP_REQUIRED is NOT an acceptable proof of scope enforcement, so these cases are only executable against an ACTIVE transfer head step."
+      },
+      {
+        "id": "atomic_direct_assignee_required",
+        "match": {
+          "rpc": "act_on_b1_student_request_step_atomic",
+          "runtime_status": "active"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"
+        ]
+      },
+      {
+        "id": "payment_direct_assignee_required",
+        "match": {
+          "rpc": "record_external_university_payment_confirmation",
+          "runtime_status": "active"
+        },
+        "sqlstate": "42501",
+        "message_family": [
+          "DIRECT_PAYMENT_ASSIGNEE_REQUIRED",
+          "EXACTLY_ONE_DIRECT_PAYMENT_ASSIGNEE_REQUIRED",
+          "EXACT_FINANCE_PROCESSING_BINDING_REQUIRED"
+        ]
+      }
     ]
   },
   "negative_cases": [
@@ -459,7 +854,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -470,7 +866,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -481,7 +878,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -492,7 +890,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -503,7 +902,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -514,7 +914,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -525,7 +926,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -536,7 +938,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -547,7 +950,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -558,7 +962,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -569,7 +974,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -580,7 +986,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -591,7 +998,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -602,7 +1010,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -613,7 +1022,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -624,7 +1034,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -635,7 +1046,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -646,7 +1058,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -657,7 +1070,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "source_department_head_approval",
@@ -668,7 +1082,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -679,7 +1094,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -690,7 +1106,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -701,7 +1118,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -712,7 +1130,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -723,7 +1142,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -734,7 +1154,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -745,7 +1166,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -756,7 +1178,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -767,7 +1190,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "target_department_head_approval",
@@ -778,7 +1202,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -789,7 +1214,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -800,7 +1226,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -811,7 +1238,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -822,7 +1250,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -833,7 +1262,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -844,7 +1274,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -855,7 +1286,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -866,7 +1298,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -877,7 +1310,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_approval",
@@ -888,7 +1322,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -899,7 +1334,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -910,7 +1346,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -921,7 +1358,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -932,7 +1370,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -943,7 +1382,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -954,7 +1394,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -965,7 +1406,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -976,7 +1418,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -987,7 +1430,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -998,7 +1442,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1009,7 +1454,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1020,7 +1466,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1031,7 +1478,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1042,7 +1490,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1053,7 +1502,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1064,7 +1514,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1075,7 +1526,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1086,7 +1538,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1097,7 +1550,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1108,7 +1562,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1119,7 +1574,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1130,7 +1586,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1141,7 +1598,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1152,7 +1610,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1163,7 +1622,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1174,7 +1634,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1185,7 +1646,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1196,7 +1658,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1207,7 +1670,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "initial_review",
@@ -1218,7 +1682,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1229,7 +1694,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1240,7 +1706,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1251,7 +1718,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1262,7 +1730,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1273,7 +1742,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1284,7 +1754,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1295,7 +1766,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1306,7 +1778,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1317,7 +1790,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_approval",
@@ -1328,7 +1802,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1339,7 +1814,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1350,7 +1826,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1361,7 +1838,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1372,7 +1850,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1383,7 +1862,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1394,7 +1874,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1405,7 +1886,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1416,7 +1898,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1427,7 +1910,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -1438,7 +1922,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1449,7 +1934,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1460,7 +1946,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1471,7 +1958,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1482,7 +1970,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1493,7 +1982,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1504,7 +1994,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1515,7 +2006,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1526,7 +2018,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1537,7 +2030,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1548,7 +2042,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1559,7 +2054,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1570,7 +2066,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1581,7 +2078,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1592,7 +2090,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1603,7 +2102,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1614,7 +2114,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1625,7 +2126,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1636,7 +2138,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1647,7 +2150,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -1658,7 +2162,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1669,7 +2174,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1680,7 +2186,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1691,7 +2198,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1702,7 +2210,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1713,7 +2222,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1724,7 +2234,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1735,7 +2246,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1746,7 +2258,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1757,7 +2270,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "record_apply",
@@ -1768,7 +2282,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1779,7 +2294,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1790,7 +2306,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1801,7 +2318,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1812,7 +2330,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1823,7 +2342,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1834,7 +2354,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1845,7 +2366,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1856,7 +2378,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1867,7 +2390,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -1878,7 +2402,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1889,7 +2414,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1900,7 +2426,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1911,7 +2438,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1922,7 +2450,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1933,7 +2462,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1944,7 +2474,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1955,7 +2486,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1966,7 +2498,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1977,7 +2510,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "library_clearance",
@@ -1988,7 +2522,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -1999,7 +2534,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2010,7 +2546,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2021,7 +2558,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2032,7 +2570,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2043,7 +2582,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2054,7 +2594,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2065,7 +2606,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2076,7 +2618,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2087,7 +2630,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "labs_clearance",
@@ -2098,7 +2642,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2109,7 +2654,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2120,7 +2666,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2131,7 +2678,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2142,7 +2690,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2153,7 +2702,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2164,7 +2714,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2175,7 +2726,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2186,7 +2738,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2197,7 +2750,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "activities_clearance",
@@ -2208,7 +2762,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2219,7 +2774,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2230,7 +2786,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2241,7 +2798,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2252,7 +2810,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2263,7 +2822,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2274,7 +2834,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2285,7 +2846,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2296,7 +2858,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2307,7 +2870,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "finance_clearance",
@@ -2318,7 +2882,8 @@
       "action": "clear",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2329,7 +2894,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2340,7 +2906,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2351,7 +2918,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2362,7 +2930,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2373,7 +2942,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2384,7 +2954,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2395,7 +2966,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2406,7 +2978,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2417,7 +2990,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2428,7 +3002,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2439,7 +3014,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2450,7 +3026,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2461,7 +3038,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2472,7 +3050,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2483,7 +3062,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2494,7 +3074,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2505,7 +3086,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2516,7 +3098,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2527,7 +3110,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "archive",
@@ -2538,7 +3122,8 @@
       "action": "archive",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2549,7 +3134,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2560,7 +3146,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2571,7 +3158,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2582,7 +3170,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2593,7 +3182,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2604,7 +3194,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2615,7 +3206,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2626,7 +3218,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2637,7 +3230,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "student_affairs_intake",
@@ -2648,7 +3242,8 @@
       "action": "review",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2659,7 +3254,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2670,7 +3266,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2681,7 +3278,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2692,7 +3290,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2703,7 +3302,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2714,7 +3314,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2725,7 +3326,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2736,7 +3338,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2747,7 +3350,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "manager_review",
@@ -2758,7 +3362,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2769,7 +3374,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2780,7 +3386,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2791,7 +3398,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2802,7 +3410,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2813,7 +3422,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2824,7 +3434,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2835,7 +3446,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2846,7 +3458,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2857,7 +3470,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "dean_decision",
@@ -2868,7 +3482,8 @@
       "action": "approve",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2879,7 +3494,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2890,7 +3506,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2901,7 +3518,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2912,7 +3530,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2923,7 +3542,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2934,7 +3554,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2945,7 +3566,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2956,7 +3578,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2967,7 +3590,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "payment_confirmation",
@@ -2978,7 +3602,8 @@
       "action": "confirm_payment",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -2989,7 +3614,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3000,7 +3626,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3011,7 +3638,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3022,7 +3650,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3033,7 +3662,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3044,7 +3674,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3055,7 +3686,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3066,7 +3698,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3077,7 +3710,8 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     },
     {
       "step_key": "registrar_apply",
@@ -3088,39 +3722,73 @@
       "action": "apply_decision",
       "expect": "DENY",
       "expect_error": "UNAUTHORIZED_STEP_ACTION / STEP_ACTION_NOT_ALLOWED",
-      "zero_mutation": true
+      "zero_mutation": true,
+      "execution_status": "EXECUTABLE"
     }
   ],
   "supplemental_department_scope_cases": [
     {
       "case": "department_scope_swap_source_head_on_target_step",
-      "request_number": "SR-20260727-88D885F0",
+      "request_number": "SR-20260801-13000002",
       "step_key": "target_department_head_approval",
       "actor_user_id": "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e",
       "action": "approve",
       "expect": "DENY",
-      "expect_error": "transfer department scope mismatch",
-      "zero_mutation": true
+      "expect_error": "transfer department scope: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "actor_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+      "actor_department_scope": "source_department",
+      "requires_active_transfer_scope_fixture": true,
+      "pinned_runtime_status": "active",
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000002",
+      "runtime_step_id": "f1300001-0000-4000-8000-000002000003",
+      "fixture_ordinal": 2,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "department_scope_swap_target_head_on_source_step",
-      "request_number": "SR-20260727-88D885F0",
-      "step_key": "source_department_head_approval",
-      "actor_user_id": "f602b62c-194b-4591-8e9c-956e5cbb347d",
-      "action": "approve",
-      "expect": "DENY",
-      "expect_error": "transfer department scope mismatch",
-      "zero_mutation": true
-    },
-    {
-      "case": "third_department_head_unrelated",
-      "request_number": "SR-20260727-88D885F0",
+      "request_number": "SR-20260801-13000001",
       "step_key": "source_department_head_approval",
       "actor_user_id": "97acbe02-c59c-409c-8d51-7d4ef72e6db7",
       "action": "approve",
       "expect": "DENY",
-      "expect_error": "transfer department scope mismatch",
-      "zero_mutation": true
+      "expect_error": "transfer department scope: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "actor_department_id": "11111111-1111-4111-8111-111111111111",
+      "actor_department_scope": "target_department",
+      "requires_active_transfer_scope_fixture": true,
+      "pinned_runtime_status": "active",
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000001",
+      "runtime_step_id": "f1300001-0000-4000-8000-000001000002",
+      "fixture_ordinal": 1,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+    },
+    {
+      "case": "third_department_head_unrelated",
+      "request_number": "SR-20260801-13000001",
+      "step_key": "source_department_head_approval",
+      "actor_user_id": "f602b62c-194b-4591-8e9c-956e5cbb347d",
+      "action": "approve",
+      "expect": "DENY",
+      "expect_error": "transfer department scope: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "actor_department_id": "22222222-2222-4222-8222-222222222222",
+      "actor_department_scope": "unrelated_department",
+      "requires_active_transfer_scope_fixture": true,
+      "pinned_runtime_status": "active",
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000001",
+      "runtime_step_id": "f1300001-0000-4000-8000-000001000002",
+      "fixture_ordinal": 1,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     }
   ],
   "illegal_action_cases": [
@@ -3131,58 +3799,125 @@
       "actor_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "review",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE",
+      "blocked_reason": null
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-88D885F0",
+      "request_number": "SR-20260801-13000001",
       "step_key": "source_department_head_approval",
       "actor_user_id": "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "approve",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000001",
+      "runtime_step_id": "f1300001-0000-4000-8000-000001000002",
+      "fixture_ordinal": 1,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-88D885F0",
+      "request_number": "SR-20260801-13000002",
       "step_key": "target_department_head_approval",
-      "actor_user_id": "f602b62c-194b-4591-8e9c-956e5cbb347d",
+      "actor_user_id": "97acbe02-c59c-409c-8d51-7d4ef72e6db7",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "approve",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000002",
+      "runtime_step_id": "f1300001-0000-4000-8000-000002000003",
+      "fixture_ordinal": 2,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-88D885F0",
+      "request_number": "SR-20260801-13000003",
       "step_key": "dean_approval",
       "actor_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "approve",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000003",
+      "runtime_step_id": "f1300001-0000-4000-8000-000003000004",
+      "fixture_ordinal": 3,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-88D885F0",
+      "request_number": "SR-20260801-13000004",
       "step_key": "payment_confirmation",
       "actor_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "confirm_payment",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000004",
+      "runtime_step_id": "f1300001-0000-4000-8000-000004000005",
+      "fixture_ordinal": 4,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-88D885F0",
+      "request_number": "SR-20260801-13000005",
       "step_key": "registrar_apply",
       "actor_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "apply_decision",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-88D885F0",
+      "request_id": "f1300000-0000-4000-8000-000000000005",
+      "runtime_step_id": "f1300001-0000-4000-8000-000005000006",
+      "fixture_ordinal": 5,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
@@ -3191,28 +3926,59 @@
       "actor_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "review",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE",
+      "blocked_reason": null
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-50BEDCE2",
+      "request_number": "SR-20260801-13000006",
       "step_key": "manager_approval",
       "actor_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "approve",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-50BEDCE2",
+      "request_id": "f1300000-0000-4000-8000-000000000006",
+      "runtime_step_id": "f1300001-0000-4000-8000-000006000002",
+      "fixture_ordinal": 6,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-50BEDCE2",
+      "request_number": "SR-20260801-13000007",
       "step_key": "registrar_apply",
       "actor_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "apply_decision",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-50BEDCE2",
+      "request_id": "f1300000-0000-4000-8000-000000000007",
+      "runtime_step_id": "f1300001-0000-4000-8000-000007000003",
+      "fixture_ordinal": 7,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
@@ -3221,28 +3987,59 @@
       "actor_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "review",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE",
+      "blocked_reason": null
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-695EC35B",
+      "request_number": "SR-20260801-13000008",
       "step_key": "manager_review",
       "actor_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "approve",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-695EC35B",
+      "request_id": "f1300000-0000-4000-8000-000000000008",
+      "runtime_step_id": "f1300001-0000-4000-8000-000008000002",
+      "fixture_ordinal": 8,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-695EC35B",
+      "request_number": "SR-20260801-13000009",
       "step_key": "record_apply",
       "actor_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "apply_decision",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-695EC35B",
+      "request_id": "f1300000-0000-4000-8000-000000000009",
+      "runtime_step_id": "f1300001-0000-4000-8000-000009000003",
+      "fixture_ordinal": 9,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
@@ -3251,68 +4048,147 @@
       "actor_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "review",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE",
+      "blocked_reason": null
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-42393846",
+      "request_number": "SR-20260801-13000010",
       "step_key": "library_clearance",
       "actor_user_id": "e7a93314-bb06-4525-b412-5315198c668a",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "clear",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-42393846",
+      "request_id": "f1300000-0000-4000-8000-000000000010",
+      "runtime_step_id": "f1300001-0000-4000-8000-000010000002",
+      "fixture_ordinal": 10,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-42393846",
+      "request_number": "SR-20260801-13000011",
       "step_key": "labs_clearance",
       "actor_user_id": "67b39ee4-4918-4b00-b4cc-0d5046ac8a5a",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "clear",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-42393846",
+      "request_id": "f1300000-0000-4000-8000-000000000011",
+      "runtime_step_id": "f1300001-0000-4000-8000-000011000003",
+      "fixture_ordinal": 11,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-42393846",
+      "request_number": "SR-20260801-13000012",
       "step_key": "activities_clearance",
       "actor_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "clear",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-42393846",
+      "request_id": "f1300000-0000-4000-8000-000000000012",
+      "runtime_step_id": "f1300001-0000-4000-8000-000012000004",
+      "fixture_ordinal": 12,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-42393846",
+      "request_number": "SR-20260801-13000013",
       "step_key": "finance_clearance",
       "actor_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "clear",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-42393846",
+      "request_id": "f1300000-0000-4000-8000-000000000013",
+      "runtime_step_id": "f1300001-0000-4000-8000-000013000005",
+      "fixture_ordinal": 13,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-42393846",
+      "request_number": "SR-20260801-13000014",
       "step_key": "registrar_apply",
       "actor_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "apply_decision",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-42393846",
+      "request_id": "f1300000-0000-4000-8000-000000000014",
+      "runtime_step_id": "f1300001-0000-4000-8000-000014000006",
+      "fixture_ordinal": 14,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-42393846",
+      "request_number": "SR-20260801-13000015",
       "step_key": "archive",
       "actor_user_id": "aec1303e-de6a-4580-94cf-7205c17b5535",
       "action": "confirm_payment",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "archive",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-42393846",
+      "request_id": "f1300000-0000-4000-8000-000000000015",
+      "runtime_step_id": "f1300001-0000-4000-8000-000015000007",
+      "fixture_ordinal": 15,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
@@ -3321,55 +4197,1986 @@
       "actor_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "review",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE",
+      "blocked_reason": null
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-3C550070",
+      "request_number": "SR-20260801-13000016",
       "step_key": "manager_review",
       "actor_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "approve",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-3C550070",
+      "request_id": "f1300000-0000-4000-8000-000000000016",
+      "runtime_step_id": "f1300001-0000-4000-8000-000016000002",
+      "fixture_ordinal": 16,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-3C550070",
+      "request_number": "SR-20260801-13000017",
       "step_key": "dean_decision",
       "actor_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "approve",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-3C550070",
+      "request_id": "f1300000-0000-4000-8000-000000000017",
+      "runtime_step_id": "f1300001-0000-4000-8000-000017000003",
+      "fixture_ordinal": 17,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-3C550070",
+      "request_number": "SR-20260801-13000018",
       "step_key": "payment_confirmation",
       "actor_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "confirm_payment",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-3C550070",
+      "request_id": "f1300000-0000-4000-8000-000000000018",
+      "runtime_step_id": "f1300001-0000-4000-8000-000018000004",
+      "fixture_ordinal": 18,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     },
     {
       "case": "illegal_action_by_exact_assignee",
-      "request_number": "SR-20260727-3C550070",
+      "request_number": "SR-20260801-13000019",
       "step_key": "registrar_apply",
       "actor_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
       "action": "archive",
       "expect": "DENY",
-      "expect_error": "B1 action gate: action != configured action_type",
-      "zero_mutation": true
+      "expect_error": "authorization gate precedes action_type gate: B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED (42501)",
+      "zero_mutation": true,
+      "configured_action_type": "apply_decision",
+      "assignee_is_exact_direct_assignee": true,
+      "only_negative_variable": "action",
+      "pinned_runtime_status": "active",
+      "requires_active_step_fixture": true,
+      "execution_status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+      "blocked_reason": null,
+      "legacy_request_number": "SR-20260727-3C550070",
+      "request_id": "f1300000-0000-4000-8000-000000000019",
+      "runtime_step_id": "f1300001-0000-4000-8000-000019000005",
+      "fixture_ordinal": 19,
+      "requires_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
     }
   ],
   "counts": {
-    "positive": 24,
+    "positive": 0,
     "negative_core": 240,
     "illegal_action": 24,
     "supplemental_department_scope": 3,
-    "negative_total": 267
+    "negative_total": 267,
+    "execution_blocked": 0,
+    "execution_blocked_illegal_action_pending": 0,
+    "execution_blocked_transfer_scope": 0,
+    "executable_negative_total": 267,
+    "positive_rendered": 0,
+    "executable_pending_fixture_apply": 22
+  },
+  "production_readonly_attestation": {
+    "obtained_by": "Lovable read-only channel (SELECT only). ZERO_RPC_CALLS, NO_PRODUCTION_WRITE.",
+    "obtained_at_utc": "2026-07-29T04:55:00Z",
+    "requests": {
+      "SR-20260727-3C550070": {
+        "request_type": "final_chance",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "39931cd9-c0ca-4a0c-bdba-16dde7ae1145",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-42393846": {
+        "request_type": "file_withdrawal",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-50BEDCE2": {
+        "request_type": "enrollment_suspension",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "6e7855cb-ed60-4c24-8f82-7fe9c69b4216",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-695EC35B": {
+        "request_type": "excused_absence",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "44b1d694-2015-412e-86e3-235116a710b2",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null
+      },
+      "SR-20260727-88D885F0": {
+        "request_type": "department_transfer",
+        "request_status": "submitted",
+        "active_step_count": 1,
+        "active_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+        "fee_assessment_rows": 0,
+        "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+        "target_department_id": "22222222-2222-4222-8222-222222222222"
+      },
+      "SR-20260801-13000001": {
+        "request_type": "department_transfer",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000001000002",
+        "fee_assessment_rows": 0,
+        "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+        "target_department_id": "11111111-1111-4111-8111-111111111111",
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000002": {
+        "request_type": "department_transfer",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000002000003",
+        "fee_assessment_rows": 0,
+        "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+        "target_department_id": "11111111-1111-4111-8111-111111111111",
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000003": {
+        "request_type": "department_transfer",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000003000004",
+        "fee_assessment_rows": 0,
+        "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+        "target_department_id": "11111111-1111-4111-8111-111111111111",
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000004": {
+        "request_type": "department_transfer",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000004000005",
+        "fee_assessment_rows": 0,
+        "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+        "target_department_id": "11111111-1111-4111-8111-111111111111",
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000005": {
+        "request_type": "department_transfer",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000005000006",
+        "fee_assessment_rows": 0,
+        "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+        "target_department_id": "11111111-1111-4111-8111-111111111111",
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000006": {
+        "request_type": "enrollment_suspension",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000006000002",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000007": {
+        "request_type": "enrollment_suspension",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000007000003",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000008": {
+        "request_type": "excused_absence",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000008000002",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000009": {
+        "request_type": "excused_absence",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000009000003",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000010": {
+        "request_type": "file_withdrawal",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000010000002",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000011": {
+        "request_type": "file_withdrawal",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000011000003",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000012": {
+        "request_type": "file_withdrawal",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000012000004",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000013": {
+        "request_type": "file_withdrawal",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000013000005",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000014": {
+        "request_type": "file_withdrawal",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000014000006",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000015": {
+        "request_type": "file_withdrawal",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000015000007",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000016": {
+        "request_type": "final_chance",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000016000002",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000017": {
+        "request_type": "final_chance",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000017000003",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000018": {
+        "request_type": "final_chance",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000018000004",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      },
+      "SR-20260801-13000019": {
+        "request_type": "final_chance",
+        "request_status": "in_review",
+        "active_step_count": 1,
+        "active_step_id": "f1300001-0000-4000-8000-000019000005",
+        "fee_assessment_rows": 0,
+        "source_department_id": null,
+        "target_department_id": null,
+        "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13"
+      }
+    },
+    "step_invariants": {
+      "direct_assignment_slots": 1,
+      "active_unit_role_assignments": 1,
+      "assigned_user_id_is_null": true,
+      "note": "Every runtime step binds exactly one direct assignee slot (staff/faculty/position), assigned_user_id itself is NULL, and exactly one active request_processing_assignments row exists for the step unit+role. The effective assignee is resolved through the same four slots the production RPC uses."
+    },
+    "actor_departments": {
+      "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+      "f602b62c-194b-4591-8e9c-956e5cbb347d": "22222222-2222-4222-8222-222222222222",
+      "97acbe02-c59c-409c-8d51-7d4ef72e6db7": "ce485c67-5f7c-498d-b120-4b1130a86ae8"
+    }
+  },
+  "step_state_pins": {
+    "SR-20260727-88D885F0|student_affairs_intake": {
+      "request_type": "department_transfer",
+      "step_order": 1,
+      "runtime_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_specialist",
+      "configured_action_type": "review",
+      "direct_assignee_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "predecessor_incomplete_expected": 0,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [],
+      "predecessor_total_expected": 0,
+      "department_scope": "transfer_department_scope"
+    },
+    "SR-20260727-88D885F0|source_department_head_approval": {
+      "request_type": "department_transfer",
+      "step_order": 2,
+      "runtime_step_id": "6b224eb7-7720-42e4-bb08-ad3c2bd1c0f3",
+      "runtime_status": "pending",
+      "processing_unit_code": "department",
+      "processing_role_code": "department_head",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e",
+      "predecessor_incomplete_expected": 1,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+          "runtime_status": "active"
+        }
+      ],
+      "predecessor_total_expected": 1,
+      "department_scope": "transfer_department_scope"
+    },
+    "SR-20260727-88D885F0|target_department_head_approval": {
+      "request_type": "department_transfer",
+      "step_order": 3,
+      "runtime_step_id": "dd1360de-d3a1-49e8-9a67-876506b27150",
+      "runtime_status": "pending",
+      "processing_unit_code": "department",
+      "processing_role_code": "department_head",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "f602b62c-194b-4591-8e9c-956e5cbb347d",
+      "predecessor_incomplete_expected": 2,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "6b224eb7-7720-42e4-bb08-ad3c2bd1c0f3",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 2,
+      "department_scope": "transfer_department_scope"
+    },
+    "SR-20260727-88D885F0|dean_approval": {
+      "request_type": "department_transfer",
+      "step_order": 4,
+      "runtime_step_id": "b75dff6d-f8ba-4654-b4ce-f8986d90dbcc",
+      "runtime_status": "pending",
+      "processing_unit_code": "dean",
+      "processing_role_code": "dean",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
+      "predecessor_incomplete_expected": 3,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "6b224eb7-7720-42e4-bb08-ad3c2bd1c0f3",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "target_department_head_approval",
+          "step_order": 3,
+          "runtime_step_id": "dd1360de-d3a1-49e8-9a67-876506b27150",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 3,
+      "department_scope": "transfer_department_scope"
+    },
+    "SR-20260727-88D885F0|payment_confirmation": {
+      "request_type": "department_transfer",
+      "step_order": 5,
+      "runtime_step_id": "4b55d00e-1827-4347-8a61-ed4658f63fa5",
+      "runtime_status": "pending",
+      "processing_unit_code": "finance",
+      "processing_role_code": "revenue_finance_officer",
+      "configured_action_type": "confirm_payment",
+      "direct_assignee_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "predecessor_incomplete_expected": 4,
+      "rpc": "record_external_university_payment_confirmation",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "6b224eb7-7720-42e4-bb08-ad3c2bd1c0f3",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "target_department_head_approval",
+          "step_order": 3,
+          "runtime_step_id": "dd1360de-d3a1-49e8-9a67-876506b27150",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "dean_approval",
+          "step_order": 4,
+          "runtime_step_id": "b75dff6d-f8ba-4654-b4ce-f8986d90dbcc",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 4,
+      "department_scope": "transfer_department_scope"
+    },
+    "SR-20260727-88D885F0|registrar_apply": {
+      "request_type": "department_transfer",
+      "step_order": 6,
+      "runtime_step_id": "ab2ee336-a6c0-4c86-a9b1-a8a31aa476c4",
+      "runtime_status": "pending",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 5,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "6ae588d1-b8e4-4686-b4a4-78857ce04e22",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "6b224eb7-7720-42e4-bb08-ad3c2bd1c0f3",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "target_department_head_approval",
+          "step_order": 3,
+          "runtime_step_id": "dd1360de-d3a1-49e8-9a67-876506b27150",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "dean_approval",
+          "step_order": 4,
+          "runtime_step_id": "b75dff6d-f8ba-4654-b4ce-f8986d90dbcc",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "payment_confirmation",
+          "step_order": 5,
+          "runtime_step_id": "4b55d00e-1827-4347-8a61-ed4658f63fa5",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 5,
+      "department_scope": "transfer_department_scope"
+    },
+    "SR-20260727-50BEDCE2|initial_review": {
+      "request_type": "enrollment_suspension",
+      "step_order": 1,
+      "runtime_step_id": "6e7855cb-ed60-4c24-8f82-7fe9c69b4216",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_specialist",
+      "configured_action_type": "review",
+      "direct_assignee_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "predecessor_incomplete_expected": 0,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [],
+      "predecessor_total_expected": 0,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-50BEDCE2|manager_approval": {
+      "request_type": "enrollment_suspension",
+      "step_order": 2,
+      "runtime_step_id": "70614d9a-d916-4b33-a7e0-b3ceae082705",
+      "runtime_status": "pending",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 1,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "initial_review",
+          "step_order": 1,
+          "runtime_step_id": "6e7855cb-ed60-4c24-8f82-7fe9c69b4216",
+          "runtime_status": "active"
+        }
+      ],
+      "predecessor_total_expected": 1,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-50BEDCE2|registrar_apply": {
+      "request_type": "enrollment_suspension",
+      "step_order": 3,
+      "runtime_step_id": "53f1aeb6-0475-4753-8c44-3495962cbe3a",
+      "runtime_status": "pending",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 2,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "initial_review",
+          "step_order": 1,
+          "runtime_step_id": "6e7855cb-ed60-4c24-8f82-7fe9c69b4216",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "manager_approval",
+          "step_order": 2,
+          "runtime_step_id": "70614d9a-d916-4b33-a7e0-b3ceae082705",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 2,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-695EC35B|student_affairs_intake": {
+      "request_type": "excused_absence",
+      "step_order": 1,
+      "runtime_step_id": "44b1d694-2015-412e-86e3-235116a710b2",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_specialist",
+      "configured_action_type": "review",
+      "direct_assignee_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "predecessor_incomplete_expected": 0,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [],
+      "predecessor_total_expected": 0,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-695EC35B|manager_review": {
+      "request_type": "excused_absence",
+      "step_order": 2,
+      "runtime_step_id": "7db4eacc-d542-459b-a066-46a54c2e325b",
+      "runtime_status": "pending",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 1,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "44b1d694-2015-412e-86e3-235116a710b2",
+          "runtime_status": "active"
+        }
+      ],
+      "predecessor_total_expected": 1,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-695EC35B|record_apply": {
+      "request_type": "excused_absence",
+      "step_order": 3,
+      "runtime_step_id": "b7c0f4d2-1565-4af7-9196-45bf87a1baed",
+      "runtime_status": "pending",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_specialist",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "predecessor_incomplete_expected": 2,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "44b1d694-2015-412e-86e3-235116a710b2",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "7db4eacc-d542-459b-a066-46a54c2e325b",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 2,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-42393846|student_affairs_intake": {
+      "request_type": "file_withdrawal",
+      "step_order": 1,
+      "runtime_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_specialist",
+      "configured_action_type": "review",
+      "direct_assignee_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "predecessor_incomplete_expected": 0,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [],
+      "predecessor_total_expected": 0,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-42393846|library_clearance": {
+      "request_type": "file_withdrawal",
+      "step_order": 2,
+      "runtime_step_id": "1830c0f2-3503-4cf8-af49-246623b2be33",
+      "runtime_status": "pending",
+      "processing_unit_code": "library",
+      "processing_role_code": "library_officer",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "e7a93314-bb06-4525-b412-5315198c668a",
+      "predecessor_incomplete_expected": 1,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+          "runtime_status": "active"
+        }
+      ],
+      "predecessor_total_expected": 1,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-42393846|labs_clearance": {
+      "request_type": "file_withdrawal",
+      "step_order": 3,
+      "runtime_step_id": "c00ce6ba-9c3f-440d-9664-f18341bc52e5",
+      "runtime_status": "pending",
+      "processing_unit_code": "labs",
+      "processing_role_code": "labs_manager",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "67b39ee4-4918-4b00-b4cc-0d5046ac8a5a",
+      "predecessor_incomplete_expected": 2,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "1830c0f2-3503-4cf8-af49-246623b2be33",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 2,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-42393846|activities_clearance": {
+      "request_type": "file_withdrawal",
+      "step_order": 4,
+      "runtime_step_id": "884ec9d9-4b55-49af-bc12-478b53ae5e2a",
+      "runtime_status": "pending",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 3,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "1830c0f2-3503-4cf8-af49-246623b2be33",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "c00ce6ba-9c3f-440d-9664-f18341bc52e5",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 3,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-42393846|finance_clearance": {
+      "request_type": "file_withdrawal",
+      "step_order": 5,
+      "runtime_step_id": "80f23452-2505-4a0d-9a0c-53469645ed4d",
+      "runtime_status": "pending",
+      "processing_unit_code": "finance",
+      "processing_role_code": "revenue_finance_officer",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "predecessor_incomplete_expected": 4,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "1830c0f2-3503-4cf8-af49-246623b2be33",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "c00ce6ba-9c3f-440d-9664-f18341bc52e5",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "activities_clearance",
+          "step_order": 4,
+          "runtime_step_id": "884ec9d9-4b55-49af-bc12-478b53ae5e2a",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 4,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-42393846|registrar_apply": {
+      "request_type": "file_withdrawal",
+      "step_order": 6,
+      "runtime_step_id": "0111b914-4783-4418-b6ac-587cab06fed1",
+      "runtime_status": "pending",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 5,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "1830c0f2-3503-4cf8-af49-246623b2be33",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "c00ce6ba-9c3f-440d-9664-f18341bc52e5",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "activities_clearance",
+          "step_order": 4,
+          "runtime_step_id": "884ec9d9-4b55-49af-bc12-478b53ae5e2a",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "finance_clearance",
+          "step_order": 5,
+          "runtime_step_id": "80f23452-2505-4a0d-9a0c-53469645ed4d",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 5,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-42393846|archive": {
+      "request_type": "file_withdrawal",
+      "step_order": 7,
+      "runtime_step_id": "39daa476-4014-4403-a925-41da710180ee",
+      "runtime_status": "pending",
+      "processing_unit_code": "archive",
+      "processing_role_code": "archive_officer",
+      "configured_action_type": "archive",
+      "direct_assignee_user_id": "aec1303e-de6a-4580-94cf-7205c17b5535",
+      "predecessor_incomplete_expected": 6,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "38fffaa0-6240-4d67-a47a-6cf1f450a46c",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "1830c0f2-3503-4cf8-af49-246623b2be33",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "c00ce6ba-9c3f-440d-9664-f18341bc52e5",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "activities_clearance",
+          "step_order": 4,
+          "runtime_step_id": "884ec9d9-4b55-49af-bc12-478b53ae5e2a",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "finance_clearance",
+          "step_order": 5,
+          "runtime_step_id": "80f23452-2505-4a0d-9a0c-53469645ed4d",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "registrar_apply",
+          "step_order": 6,
+          "runtime_step_id": "0111b914-4783-4418-b6ac-587cab06fed1",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 6,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-3C550070|student_affairs_intake": {
+      "request_type": "final_chance",
+      "step_order": 1,
+      "runtime_step_id": "39931cd9-c0ca-4a0c-bdba-16dde7ae1145",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_specialist",
+      "configured_action_type": "review",
+      "direct_assignee_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "predecessor_incomplete_expected": 0,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [],
+      "predecessor_total_expected": 0,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-3C550070|manager_review": {
+      "request_type": "final_chance",
+      "step_order": 2,
+      "runtime_step_id": "12d31b1b-c84a-47ac-ac0b-ce4027d4fa4e",
+      "runtime_status": "pending",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 1,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "39931cd9-c0ca-4a0c-bdba-16dde7ae1145",
+          "runtime_status": "active"
+        }
+      ],
+      "predecessor_total_expected": 1,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-3C550070|dean_decision": {
+      "request_type": "final_chance",
+      "step_order": 3,
+      "runtime_step_id": "4a9bfb3f-18f2-4cf8-bcf1-7051420c8dcc",
+      "runtime_status": "pending",
+      "processing_unit_code": "dean",
+      "processing_role_code": "dean",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
+      "predecessor_incomplete_expected": 2,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "39931cd9-c0ca-4a0c-bdba-16dde7ae1145",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "12d31b1b-c84a-47ac-ac0b-ce4027d4fa4e",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 2,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-3C550070|payment_confirmation": {
+      "request_type": "final_chance",
+      "step_order": 4,
+      "runtime_step_id": "55c927de-6b10-4e48-ad56-df3b406a10dd",
+      "runtime_status": "pending",
+      "processing_unit_code": "finance",
+      "processing_role_code": "revenue_finance_officer",
+      "configured_action_type": "confirm_payment",
+      "direct_assignee_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "predecessor_incomplete_expected": 3,
+      "rpc": "record_external_university_payment_confirmation",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "39931cd9-c0ca-4a0c-bdba-16dde7ae1145",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "12d31b1b-c84a-47ac-ac0b-ce4027d4fa4e",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "dean_decision",
+          "step_order": 3,
+          "runtime_step_id": "4a9bfb3f-18f2-4cf8-bcf1-7051420c8dcc",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 3,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260727-3C550070|registrar_apply": {
+      "request_type": "final_chance",
+      "step_order": 5,
+      "runtime_step_id": "6761a1c5-eb21-4e7a-9cc0-a9c1e011d5b4",
+      "runtime_status": "pending",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 4,
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "39931cd9-c0ca-4a0c-bdba-16dde7ae1145",
+          "runtime_status": "active"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "12d31b1b-c84a-47ac-ac0b-ce4027d4fa4e",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "dean_decision",
+          "step_order": 3,
+          "runtime_step_id": "4a9bfb3f-18f2-4cf8-bcf1-7051420c8dcc",
+          "runtime_status": "pending"
+        },
+        {
+          "step_key": "payment_confirmation",
+          "step_order": 4,
+          "runtime_step_id": "55c927de-6b10-4e48-ad56-df3b406a10dd",
+          "runtime_status": "pending"
+        }
+      ],
+      "predecessor_total_expected": 4,
+      "department_scope": "not_applicable"
+    },
+    "SR-20260801-13000001|source_department_head_approval": {
+      "request_type": "department_transfer",
+      "request_id": "f1300000-0000-4000-8000-000000000001",
+      "step_order": 2,
+      "runtime_step_id": "f1300001-0000-4000-8000-000001000002",
+      "runtime_status": "active",
+      "processing_unit_code": "department",
+      "processing_role_code": "department_head",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 1,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000001000001",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "transfer_department_scope",
+      "fixture_ordinal": 1,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8"
+    },
+    "SR-20260801-13000002|target_department_head_approval": {
+      "request_type": "department_transfer",
+      "request_id": "f1300000-0000-4000-8000-000000000002",
+      "step_order": 3,
+      "runtime_step_id": "f1300001-0000-4000-8000-000002000003",
+      "runtime_status": "active",
+      "processing_unit_code": "department",
+      "processing_role_code": "department_head",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "97acbe02-c59c-409c-8d51-7d4ef72e6db7",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 2,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000002000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000002000002",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "transfer_department_scope",
+      "fixture_ordinal": 2,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": "11111111-1111-4111-8111-111111111111"
+    },
+    "SR-20260801-13000003|dean_approval": {
+      "request_type": "department_transfer",
+      "request_id": "f1300000-0000-4000-8000-000000000003",
+      "step_order": 4,
+      "runtime_step_id": "f1300001-0000-4000-8000-000003000004",
+      "runtime_status": "active",
+      "processing_unit_code": "dean",
+      "processing_role_code": "dean",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 3,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000003000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000003000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "target_department_head_approval",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000003000003",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "transfer_department_scope",
+      "fixture_ordinal": 3,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000004|payment_confirmation": {
+      "request_type": "department_transfer",
+      "request_id": "f1300000-0000-4000-8000-000000000004",
+      "step_order": 5,
+      "runtime_step_id": "f1300001-0000-4000-8000-000004000005",
+      "runtime_status": "active",
+      "processing_unit_code": "finance",
+      "processing_role_code": "revenue_finance_officer",
+      "configured_action_type": "confirm_payment",
+      "direct_assignee_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 4,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000004000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000004000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "target_department_head_approval",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000004000003",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "dean_approval",
+          "step_order": 4,
+          "runtime_step_id": "f1300001-0000-4000-8000-000004000004",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "record_external_university_payment_confirmation",
+      "department_scope": "transfer_department_scope",
+      "fixture_ordinal": 4,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000005|registrar_apply": {
+      "request_type": "department_transfer",
+      "request_id": "f1300000-0000-4000-8000-000000000005",
+      "step_order": 6,
+      "runtime_step_id": "f1300001-0000-4000-8000-000005000006",
+      "runtime_status": "active",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 5,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000005000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "source_department_head_approval",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000005000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "target_department_head_approval",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000005000003",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "dean_approval",
+          "step_order": 4,
+          "runtime_step_id": "f1300001-0000-4000-8000-000005000004",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "payment_confirmation",
+          "step_order": 5,
+          "runtime_step_id": "f1300001-0000-4000-8000-000005000005",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "transfer_department_scope",
+      "fixture_ordinal": 5,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000006|manager_approval": {
+      "request_type": "enrollment_suspension",
+      "request_id": "f1300000-0000-4000-8000-000000000006",
+      "step_order": 2,
+      "runtime_step_id": "f1300001-0000-4000-8000-000006000002",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 1,
+      "predecessor_set": [
+        {
+          "step_key": "initial_review",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000006000001",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 6,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000007|registrar_apply": {
+      "request_type": "enrollment_suspension",
+      "request_id": "f1300000-0000-4000-8000-000000000007",
+      "step_order": 3,
+      "runtime_step_id": "f1300001-0000-4000-8000-000007000003",
+      "runtime_status": "active",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 2,
+      "predecessor_set": [
+        {
+          "step_key": "initial_review",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000007000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "manager_approval",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000007000002",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 7,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000008|manager_review": {
+      "request_type": "excused_absence",
+      "request_id": "f1300000-0000-4000-8000-000000000008",
+      "step_order": 2,
+      "runtime_step_id": "f1300001-0000-4000-8000-000008000002",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 1,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000008000001",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 8,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000009|record_apply": {
+      "request_type": "excused_absence",
+      "request_id": "f1300000-0000-4000-8000-000000000009",
+      "step_order": 3,
+      "runtime_step_id": "f1300001-0000-4000-8000-000009000003",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_specialist",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "c8a94548-4782-4252-86f9-23559d3b95bd",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 2,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000009000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000009000002",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 9,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000010|library_clearance": {
+      "request_type": "file_withdrawal",
+      "request_id": "f1300000-0000-4000-8000-000000000010",
+      "step_order": 2,
+      "runtime_step_id": "f1300001-0000-4000-8000-000010000002",
+      "runtime_status": "active",
+      "processing_unit_code": "library",
+      "processing_role_code": "library_officer",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "e7a93314-bb06-4525-b412-5315198c668a",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 1,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000010000001",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 10,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000011|labs_clearance": {
+      "request_type": "file_withdrawal",
+      "request_id": "f1300000-0000-4000-8000-000000000011",
+      "step_order": 3,
+      "runtime_step_id": "f1300001-0000-4000-8000-000011000003",
+      "runtime_status": "active",
+      "processing_unit_code": "labs",
+      "processing_role_code": "labs_manager",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "67b39ee4-4918-4b00-b4cc-0d5046ac8a5a",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 2,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000011000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000011000002",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 11,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000012|activities_clearance": {
+      "request_type": "file_withdrawal",
+      "request_id": "f1300000-0000-4000-8000-000000000012",
+      "step_order": 4,
+      "runtime_step_id": "f1300001-0000-4000-8000-000012000004",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 3,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000012000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000012000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000012000003",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 12,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000013|finance_clearance": {
+      "request_type": "file_withdrawal",
+      "request_id": "f1300000-0000-4000-8000-000000000013",
+      "step_order": 5,
+      "runtime_step_id": "f1300001-0000-4000-8000-000013000005",
+      "runtime_status": "active",
+      "processing_unit_code": "finance",
+      "processing_role_code": "revenue_finance_officer",
+      "configured_action_type": "clear",
+      "direct_assignee_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 4,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000013000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000013000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000013000003",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "activities_clearance",
+          "step_order": 4,
+          "runtime_step_id": "f1300001-0000-4000-8000-000013000004",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 13,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000014|registrar_apply": {
+      "request_type": "file_withdrawal",
+      "request_id": "f1300000-0000-4000-8000-000000000014",
+      "step_order": 6,
+      "runtime_step_id": "f1300001-0000-4000-8000-000014000006",
+      "runtime_status": "active",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 5,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000014000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000014000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000014000003",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "activities_clearance",
+          "step_order": 4,
+          "runtime_step_id": "f1300001-0000-4000-8000-000014000004",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "finance_clearance",
+          "step_order": 5,
+          "runtime_step_id": "f1300001-0000-4000-8000-000014000005",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 14,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000015|archive": {
+      "request_type": "file_withdrawal",
+      "request_id": "f1300000-0000-4000-8000-000000000015",
+      "step_order": 7,
+      "runtime_step_id": "f1300001-0000-4000-8000-000015000007",
+      "runtime_status": "active",
+      "processing_unit_code": "archive",
+      "processing_role_code": "archive_officer",
+      "configured_action_type": "archive",
+      "direct_assignee_user_id": "aec1303e-de6a-4580-94cf-7205c17b5535",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 6,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000015000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "library_clearance",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000015000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "labs_clearance",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000015000003",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "activities_clearance",
+          "step_order": 4,
+          "runtime_step_id": "f1300001-0000-4000-8000-000015000004",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "finance_clearance",
+          "step_order": 5,
+          "runtime_step_id": "f1300001-0000-4000-8000-000015000005",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "registrar_apply",
+          "step_order": 6,
+          "runtime_step_id": "f1300001-0000-4000-8000-000015000006",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 15,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000016|manager_review": {
+      "request_type": "final_chance",
+      "request_id": "f1300000-0000-4000-8000-000000000016",
+      "step_order": 2,
+      "runtime_step_id": "f1300001-0000-4000-8000-000016000002",
+      "runtime_status": "active",
+      "processing_unit_code": "student_affairs",
+      "processing_role_code": "student_affairs_manager",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "aac0e62d-4e8b-4440-b649-caa388d34837",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 1,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000016000001",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 16,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000017|dean_decision": {
+      "request_type": "final_chance",
+      "request_id": "f1300000-0000-4000-8000-000000000017",
+      "step_order": 3,
+      "runtime_step_id": "f1300001-0000-4000-8000-000017000003",
+      "runtime_status": "active",
+      "processing_unit_code": "dean",
+      "processing_role_code": "dean",
+      "configured_action_type": "approve",
+      "direct_assignee_user_id": "b3dd71e6-3794-4fae-abd5-0d7c9e7e0bf0",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 2,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000017000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000017000002",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 17,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000018|payment_confirmation": {
+      "request_type": "final_chance",
+      "request_id": "f1300000-0000-4000-8000-000000000018",
+      "step_order": 4,
+      "runtime_step_id": "f1300001-0000-4000-8000-000018000004",
+      "runtime_status": "active",
+      "processing_unit_code": "finance",
+      "processing_role_code": "revenue_finance_officer",
+      "configured_action_type": "confirm_payment",
+      "direct_assignee_user_id": "79783c0f-8d95-4110-8239-0ac504d63a24",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 3,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000018000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000018000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "dean_decision",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000018000003",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "record_external_university_payment_confirmation",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 18,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    },
+    "SR-20260801-13000019|registrar_apply": {
+      "request_type": "final_chance",
+      "request_id": "f1300000-0000-4000-8000-000000000019",
+      "step_order": 5,
+      "runtime_step_id": "f1300001-0000-4000-8000-000019000005",
+      "runtime_status": "active",
+      "processing_unit_code": "registrar",
+      "processing_role_code": "registrar_general",
+      "configured_action_type": "apply_decision",
+      "direct_assignee_user_id": "4c261c1c-97fb-42da-a544-e8a59853ebe3",
+      "predecessor_incomplete_expected": 0,
+      "predecessor_total_expected": 4,
+      "predecessor_set": [
+        {
+          "step_key": "student_affairs_intake",
+          "step_order": 1,
+          "runtime_step_id": "f1300001-0000-4000-8000-000019000001",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "manager_review",
+          "step_order": 2,
+          "runtime_step_id": "f1300001-0000-4000-8000-000019000002",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "dean_decision",
+          "step_order": 3,
+          "runtime_step_id": "f1300001-0000-4000-8000-000019000003",
+          "runtime_status": "completed"
+        },
+        {
+          "step_key": "payment_confirmation",
+          "step_order": 4,
+          "runtime_step_id": "f1300001-0000-4000-8000-000019000004",
+          "runtime_status": "completed"
+        }
+      ],
+      "rpc": "act_on_b1_student_request_step_atomic",
+      "department_scope": "not_applicable",
+      "fixture_ordinal": 19,
+      "fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+      "department_scope_department_id": null
+    }
+  },
+  "transfer_scope_execution": {
+    "status": "EXECUTABLE_PENDING_FIXTURE_APPLY",
+    "blocked_cases": 0,
+    "bound_fixture_package": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13",
+    "note": "Bound to deterministic ACTIVE transfer fixtures (IT source, CS target, CIS unrelated). Cases execute only after the fixture package is applied; until then the harness fails closed on the fixture-state preflight."
+  },
+  "blocked_execution": {
+    "token": null,
+    "total": 0,
+    "classes": {},
+    "required_fixture": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13 (19 active TEST_ONLY steps)",
+    "rule": "No case may be rendered as BLOCKED. All 267 negative cases are bound to an ACTIVE step. If the fixture package is not applied, the harness aborts on the fixture-state preflight instead of rendering blocked cases.",
+    "hold_token": "HOLD_B1_NEGATIVE_RPC_MATRIX_FIXTURE_PACKAGE_NOT_APPLIED"
+  },
+  "fixture_package": {
+    "package_id": "B1-FIVE-SERVICES-SAFE-RPC-FIXTURES-13 (remediation-15)",
+    "status": "NOT_APPLIED",
+    "marker": "TEST_ONLY_B1_FIXTURE_13",
+    "student_profile_id": "b1e20002-0000-4000-8000-000000000002",
+    "request_id_pattern": "f1300000-0000-4000-8000-<ordinal:12>",
+    "step_id_pattern": "f1300001-0000-4000-8000-<ordinal:6><step_order:6>",
+    "detail_id_pattern": "f1300002-0000-4000-8000-<ordinal:12>",
+    "request_number_pattern": "SR-20260801-13<ordinal:6>",
+    "requests": 19,
+    "runtime_steps": 104,
+    "active_steps": 19,
+    "transfer_detail_rows": 5,
+    "department_model": {
+      "source_department_id": "ce485c67-5f7c-498d-b120-4b1130a86ae8",
+      "target_department_id": "11111111-1111-4111-8111-111111111111",
+      "unrelated_department_id": "22222222-2222-4222-8222-222222222222",
+      "source_head_user_id": "d4aaa5c9-72d1-4996-b0e8-d30c6327da6e",
+      "target_head_user_id": "97acbe02-c59c-409c-8d51-7d4ef72e6db7",
+      "unrelated_head_user_id": "f602b62c-194b-4591-8e9c-956e5cbb347d"
+    },
+    "fixtures": [
+      {
+        "ordinal": 1,
+        "service": "department_transfer",
+        "request_id": "f1300000-0000-4000-8000-000000000001",
+        "request_number": "SR-20260801-13000001",
+        "active_step_order": 2,
+        "active_step_key": "source_department_head_approval",
+        "active_step_id": "f1300001-0000-4000-8000-000001000002",
+        "transfer_detail_id": "f1300002-0000-4000-8000-000000000001"
+      },
+      {
+        "ordinal": 2,
+        "service": "department_transfer",
+        "request_id": "f1300000-0000-4000-8000-000000000002",
+        "request_number": "SR-20260801-13000002",
+        "active_step_order": 3,
+        "active_step_key": "target_department_head_approval",
+        "active_step_id": "f1300001-0000-4000-8000-000002000003",
+        "transfer_detail_id": "f1300002-0000-4000-8000-000000000002"
+      },
+      {
+        "ordinal": 3,
+        "service": "department_transfer",
+        "request_id": "f1300000-0000-4000-8000-000000000003",
+        "request_number": "SR-20260801-13000003",
+        "active_step_order": 4,
+        "active_step_key": "dean_approval",
+        "active_step_id": "f1300001-0000-4000-8000-000003000004",
+        "transfer_detail_id": "f1300002-0000-4000-8000-000000000003"
+      },
+      {
+        "ordinal": 4,
+        "service": "department_transfer",
+        "request_id": "f1300000-0000-4000-8000-000000000004",
+        "request_number": "SR-20260801-13000004",
+        "active_step_order": 5,
+        "active_step_key": "payment_confirmation",
+        "active_step_id": "f1300001-0000-4000-8000-000004000005",
+        "transfer_detail_id": "f1300002-0000-4000-8000-000000000004"
+      },
+      {
+        "ordinal": 5,
+        "service": "department_transfer",
+        "request_id": "f1300000-0000-4000-8000-000000000005",
+        "request_number": "SR-20260801-13000005",
+        "active_step_order": 6,
+        "active_step_key": "registrar_apply",
+        "active_step_id": "f1300001-0000-4000-8000-000005000006",
+        "transfer_detail_id": "f1300002-0000-4000-8000-000000000005"
+      },
+      {
+        "ordinal": 6,
+        "service": "enrollment_suspension",
+        "request_id": "f1300000-0000-4000-8000-000000000006",
+        "request_number": "SR-20260801-13000006",
+        "active_step_order": 2,
+        "active_step_key": "manager_approval",
+        "active_step_id": "f1300001-0000-4000-8000-000006000002",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 7,
+        "service": "enrollment_suspension",
+        "request_id": "f1300000-0000-4000-8000-000000000007",
+        "request_number": "SR-20260801-13000007",
+        "active_step_order": 3,
+        "active_step_key": "registrar_apply",
+        "active_step_id": "f1300001-0000-4000-8000-000007000003",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 8,
+        "service": "excused_absence",
+        "request_id": "f1300000-0000-4000-8000-000000000008",
+        "request_number": "SR-20260801-13000008",
+        "active_step_order": 2,
+        "active_step_key": "manager_review",
+        "active_step_id": "f1300001-0000-4000-8000-000008000002",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 9,
+        "service": "excused_absence",
+        "request_id": "f1300000-0000-4000-8000-000000000009",
+        "request_number": "SR-20260801-13000009",
+        "active_step_order": 3,
+        "active_step_key": "record_apply",
+        "active_step_id": "f1300001-0000-4000-8000-000009000003",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 10,
+        "service": "file_withdrawal",
+        "request_id": "f1300000-0000-4000-8000-000000000010",
+        "request_number": "SR-20260801-13000010",
+        "active_step_order": 2,
+        "active_step_key": "library_clearance",
+        "active_step_id": "f1300001-0000-4000-8000-000010000002",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 11,
+        "service": "file_withdrawal",
+        "request_id": "f1300000-0000-4000-8000-000000000011",
+        "request_number": "SR-20260801-13000011",
+        "active_step_order": 3,
+        "active_step_key": "labs_clearance",
+        "active_step_id": "f1300001-0000-4000-8000-000011000003",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 12,
+        "service": "file_withdrawal",
+        "request_id": "f1300000-0000-4000-8000-000000000012",
+        "request_number": "SR-20260801-13000012",
+        "active_step_order": 4,
+        "active_step_key": "activities_clearance",
+        "active_step_id": "f1300001-0000-4000-8000-000012000004",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 13,
+        "service": "file_withdrawal",
+        "request_id": "f1300000-0000-4000-8000-000000000013",
+        "request_number": "SR-20260801-13000013",
+        "active_step_order": 5,
+        "active_step_key": "finance_clearance",
+        "active_step_id": "f1300001-0000-4000-8000-000013000005",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 14,
+        "service": "file_withdrawal",
+        "request_id": "f1300000-0000-4000-8000-000000000014",
+        "request_number": "SR-20260801-13000014",
+        "active_step_order": 6,
+        "active_step_key": "registrar_apply",
+        "active_step_id": "f1300001-0000-4000-8000-000014000006",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 15,
+        "service": "file_withdrawal",
+        "request_id": "f1300000-0000-4000-8000-000000000015",
+        "request_number": "SR-20260801-13000015",
+        "active_step_order": 7,
+        "active_step_key": "archive",
+        "active_step_id": "f1300001-0000-4000-8000-000015000007",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 16,
+        "service": "final_chance",
+        "request_id": "f1300000-0000-4000-8000-000000000016",
+        "request_number": "SR-20260801-13000016",
+        "active_step_order": 2,
+        "active_step_key": "manager_review",
+        "active_step_id": "f1300001-0000-4000-8000-000016000002",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 17,
+        "service": "final_chance",
+        "request_id": "f1300000-0000-4000-8000-000000000017",
+        "request_number": "SR-20260801-13000017",
+        "active_step_order": 3,
+        "active_step_key": "dean_decision",
+        "active_step_id": "f1300001-0000-4000-8000-000017000003",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 18,
+        "service": "final_chance",
+        "request_id": "f1300000-0000-4000-8000-000000000018",
+        "request_number": "SR-20260801-13000018",
+        "active_step_order": 4,
+        "active_step_key": "payment_confirmation",
+        "active_step_id": "f1300001-0000-4000-8000-000018000004",
+        "transfer_detail_id": null
+      },
+      {
+        "ordinal": 19,
+        "service": "final_chance",
+        "request_id": "f1300000-0000-4000-8000-000000000019",
+        "request_number": "SR-20260801-13000019",
+        "active_step_order": 5,
+        "active_step_key": "registrar_apply",
+        "active_step_id": "f1300001-0000-4000-8000-000019000005",
+        "transfer_detail_id": null
+      }
+    ]
+  },
+  "fixture_rebind": {
+    "mission": "PORTAL-B1-FIVE-SERVICES-SAFE-RPC-FIXTURE-PACKAGE-RUNTIME-CONTRACT-REMEDIATION-15",
+    "rebound_cases": 22,
+    "expected_rebound_cases": 22
   }
 }

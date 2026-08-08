@@ -1,1 +1,25 @@
 src/routeTree.gen.ts text eol=lf
+
+# PORTAL-B1 packages 65/66: SQL and test sources are EOL-normalized to LF so the
+# structural/post verifiers and the offline package tests behave identically on
+# every platform. Scope is intentionally limited to these paths.
+docs/migration-drafts/B1-ATOMIC-RPC-LITERAL-CONFIGURED-ACTION-PRODUCTION-66*.sql text eol=lf
+scripts/b1-atomic-rpc-literal-configured-action-66/*.sql text eol=lf
+scripts/b1-isolated-authorization-env-65/*.sql text eol=lf
+scripts/b1-isolated-authorization-env-65/*.json text eol=lf
+tests/b1-five-services-rpc-authorization-preflight-01/*.ts text eol=lf
+scripts/b1-isolated-authorization-env-65/*.py text eol=lf
+tests/b1-five-services-rpc-authorization-preflight-01/*.sql text eol=lf
+tests/b1-five-services-rpc-authorization-preflight-01/*.json text eol=lf
+
+# PORTAL-B1 negative RPC matrix operator package (LONGRUN-08 G1): LF-normalized so
+# LF and CRLF checkouts render identical hashes.
+scripts/b1-rpc-principal-harness-01/*.ts text eol=lf
+scripts/b1-rpc-principal-harness-01/*.ps1 text eol=lf
+scripts/b1-rpc-principal-harness-01/*.sql text eol=lf
+scripts/b1-rpc-principal-harness-01/*.json text eol=lf
+scripts/b1-rpc-principal-harness-01/*.md text eol=lf
+scripts/b1-rpc-principal-harness-01/readonly-attestation/** text eol=lf
+scripts/b1-rpc-principal-harness-01/local-operator-simulation/** text eol=lf
+scripts/b1-rpc-principal-harness-01/baseline/** text eol=lf
+scripts/b1-rpc-principal-harness-01/authorization/** text eol=lf

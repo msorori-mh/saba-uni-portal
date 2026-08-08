@@ -1,0 +1,50 @@
+{
+  "mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08",
+  "mode": "SOURCE_PACKAGE_BASELINE_SLOT_PENDING",
+  "status": "PENDING",
+  "execution_authorized": false,
+  "fingerprint": null,
+  "fingerprint_recomputed_in_transaction": null,
+  "drift": "N_A_PENDING",
+  "captured_at_utc": null,
+  "valid_for_minutes": null,
+  "reviewed_package_sha": null,
+  "migration_head": "20260801021541",
+  "expected_migration_head": "20260801021541",
+  "previous_migration_head": "20260731203030",
+  "function_graph": {
+    "closure_entries": 29,
+    "resolved": 29,
+    "matching": 29,
+    "mismatched": 0,
+    "owner_violations": 0,
+    "search_path_violations": 0,
+    "entrypoint_signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
+    "entrypoint_sha256_normalized": "10f065422577aac2caefbbd6fc70286d757e9c58fc8a6019141f962180f5ff7c",
+    "reattestation_mission_id": "PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-CLOSURE-LONGRUN-08"
+  },
+  "fixture_state": null,
+  "protected_state": null,
+  "state_pins": null,
+  "scope": [
+    "SR-20260713-2DE64041",
+    "SR-20260715-FEDCB3E1",
+    "SR-20260716-26BAD4C8",
+    "SR-20260727-3C550070",
+    "SR-20260727-42393846",
+    "SR-20260727-50BEDCE2",
+    "SR-20260727-695EC35B",
+    "SR-20260727-88D885F0"
+  ],
+  "operator_preflight_executed": false,
+  "negative_cases_executed": 0,
+  "contains_secrets": false,
+  "canonical_active_path": "scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json",
+  "archived_predecessor": {
+    "path": "scripts/b1-rpc-principal-harness-01/baseline/archive/AUTHORITATIVE-BASELINE-20260729-STALE.json",
+    "status": "STALE",
+    "selectable_by_launcher": false
+  },
+  "on_mismatch": "HOLD_STALE_OR_MISMATCHED_AUTHORITATIVE_BASELINE",
+  "note": "G11 LONGRUN-08: authoritative_baseline remains PENDING with fingerprint=null until a later explicit baseline capture stage. No production baseline execution in this package."
+}
