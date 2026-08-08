@@ -15,37 +15,43 @@
 
 ---
 
-## ⚠️ Hash-Contract Exception
+## ✅ Hash-Contract Exception — CLOSED (LONGRUN-15)
 
-| Artifact | Canonical Hash Supplied by Mission | Actual LF-Normalized SHA256 of Promoted File at PR #299 |
+**Superseded by:** `docs/migration-evidence/graduates-affairs/GA_RELEASE_HASH_MANIFEST.txt`
+**Status:** `HASH_EXCEPTION_STATUS=CLOSED`
+
+The apparent AUTH04 hash conflict was a **terminology mix-up**, not a semantic mismatch:
+
+| Dimension | Value | Meaning |
 |---|---|---|
-| `20260808210200_ga_authorization_04.sql` | `3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd` | `212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c` |
+| `AUTH04_BODY_SHA256_LF` | `3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd` | SHA256 of LF-normalized bytes from first `begin;` through EOF |
+| `AUTH04_FULL_FILE_SHA256_LF` | `212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c` | SHA256 of entire LF-normalized file (promotion header + body) |
 
-The supplied AUTH04 body hash does **not** match the promoted migration file at the stated promotion-package SHA (`5ae9b53c`). The current file includes the follow-up authority-loss concurrency locks (`graduate_affairs_lock_authorized_staff_profile_id` / `graduate_affairs_lock_caller_authorized_staff_profile`) that were merged into the canonical source via PR #291 (`f799608a`) and then promoted into the migration via PR #299 (`5ae9b53c`). The supplied hash appears to pre-date that semantic sync.
+Both hashes are correct for different dimensions. Do **not** compare FULL to BODY.
 
-**Decision:** The promotion package SHA is treated as authoritative. No source code was modified to force-match the stale hash, because doing so would remove the authority-lock follow-up and regress the security posture. This exception is recorded as a HOLD/risk item for human review before final approval.
+Canonical promoted pins (`SHA256_LF_NORMALIZED_V1`):
 
-Actual LF-normalized hashes of the three promoted migrations:
+| Sequence | Migration | FULL_FILE_SHA256_LF | BODY_SHA256_LF |
+|---|---|---|---|
+| `20260808210000` | `supabase/migrations/20260808210000_ga_mvp_foundation_01.sql` | `3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43` | `43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819` |
+| `20260808210100` | `supabase/migrations/20260808210100_ga_mvp_completion_01.sql` | `3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa` | `834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc` |
+| `20260808210200` | `supabase/migrations/20260808210200_ga_authorization_04.sql` | `212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c` | `3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd` |
 
-| Sequence | Migration | SHA256_LF_NORMALIZED_V1 |
-|---|---|---|
-| `20260808210000` | `supabase/migrations/20260808210000_ga_mvp_foundation_01.sql` | `3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43` |
-| `20260808210100` | `supabase/migrations/20260808210100_ga_mvp_completion_01.sql` | `3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa` |
-| `20260808210200` | `supabase/migrations/20260808210200_ga_authorization_04.sql` | `212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c` |
+AUTH04 semantic core matches PR #291 draft (`f799608a`), including follow-up authority-loss locks.
 
 ---
 
 ## A — Freeze Release Contract
 
-Frozen artifacts:
+Frozen artifacts (see LONGRUN-15 manifest for authoritative FULL vs BODY):
 
 - PR #291 SHA: `f799608a5d5fb167d66e5615d3f7b50692295f30` ✅
-- PR #299 SHA: `5ae9b53ce7e69bd8b98fd06c8e3736f040514c92` ✅
-- Foundation body hash: `3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43` (actual)
-- Completion body hash: `3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa` (actual)
-- AUTH04 body hash: `212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c` (actual; exception noted above)
+- PR #299 baseline SHA: `5ae9b53ce7e69bd8b98fd06c8e3736f040514c92` ✅
+- Foundation FULL / BODY: `3248cf64…` / `43bf602f…`
+- Completion FULL / BODY: `3e37afba…` / `834e454f…`
+- AUTH04 FULL / BODY: `212865fb…` / `3a85f54d…`
 
-Source drift relative to the promotion-package commit: **none** (working tree matches `5ae9b53c`).
+Source drift relative to the promotion-package commit: **none** for migration SQL.
 
 ---
 
@@ -293,4 +299,4 @@ scripts/ga-failure-matrix-rehearsal.sh
 
 ## Decision
 
-`PASS` — the Graduates Affairs final production-readiness package is prepared. The stacked PR is open, all local verifiers pass, and no production mutation has occurred. The AUTH04 hash exception must be explicitly acknowledged by the approving reviewer before merge.
+`PASS` — the Graduates Affairs final production-readiness package is prepared. The stacked PR is open, all local verifiers pass, and no production mutation has occurred. The AUTH04 FULL-vs-BODY hash exception is CLOSED in LONGRUN-15 (terminology reconciliation; no semantic drift).

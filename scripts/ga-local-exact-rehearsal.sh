@@ -43,5 +43,6 @@ exec_sql "COMPLETION" "$ROOT/supabase/migrations/20260808210100_ga_mvp_completio
 exec_sql "COMPLETION VERIFIER" "$ROOT/tests/graduates-affairs/ga-production-promotion-post-verifier-completion.sql"
 exec_sql "AUTH04" "$ROOT/supabase/migrations/20260808210200_ga_authorization_04.sql"
 exec_sql "AUTH04 VERIFIER" "$ROOT/tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql"
+exec_sql "AUTHORITY RACE MATRIX" "$ROOT/tests/graduates-affairs/graduates-affairs-followup-authority-race-01.pg-verify.sql"
 
 echo "==> LOCAL_EXACT_APPLY_REHEARSAL_PASS"

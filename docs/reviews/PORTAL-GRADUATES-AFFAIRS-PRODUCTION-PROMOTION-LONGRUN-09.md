@@ -14,11 +14,13 @@
 
 ## A — Promoted Canonical GA Migrations
 
-| Sequence | Migration | SHA256 (LF-normalized body) |
-|---|---|---|
-| `20260808210000` | `supabase/migrations/20260808210000_ga_mvp_foundation_01.sql` | `43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819` |
-| `20260808210100` | `supabase/migrations/20260808210100_ga_mvp_completion_01.sql` | `834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc` |
-| `20260808210200` | `supabase/migrations/20260808210200_ga_authorization_04.sql` | `3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd` |
+| Sequence | Migration | FULL_FILE_SHA256_LF | BODY_SHA256_LF (from `begin;`) |
+|---|---|---|---|
+| `20260808210000` | `supabase/migrations/20260808210000_ga_mvp_foundation_01.sql` | `3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43` | `43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819` |
+| `20260808210100` | `supabase/migrations/20260808210100_ga_mvp_completion_01.sql` | `3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa` | `834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc` |
+| `20260808210200` | `supabase/migrations/20260808210200_ga_authorization_04.sql` | `212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c` | `3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd` |
+
+Canonical freeze: `docs/migration-evidence/graduates-affairs/GA_RELEASE_HASH_MANIFEST.txt` (LONGRUN-15). Do not compare FULL to BODY.
 
 - Timestamp collision was checked: no existing migration uses these timestamps.
 - Each migration carries a promotion header, idempotent prestate reconciliation, and environment guards.
