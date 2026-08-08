@@ -8,7 +8,7 @@
 --   2) Split review authority: secretary prepare / chair final
 --   3) Canonical topic lifecycle enforcement (trigger + RPC)
 --   4) Replace C0 topic RPCs to require meeting intake + exact transitions
---   5) Keep write surface RPC-only (no DROP POLICY; deny-all policies untouched)
+--   5) Keep write surface RPC-only (deny-all write policies untouched; no policy object removal)
 --
 -- Non-goals:
 --   production apply / deploy / publish / feature flags
