@@ -1,0 +1,201 @@
+{
+  "current_main": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
+  "graduation_projects": {
+    "name": "Graduation Projects",
+    "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
+    "operator_package_sha": "61952df385eea12f57720ea33b2d10b5b6621247",
+    "L4_migration": {
+      "path": "supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql",
+      "full_hash": "5815d99f2556336e4029dc1dda7dba4ded0e495d58cdb0fa7ecc46b40ea6ff3c",
+      "body_hash": "9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3"
+    },
+    "candidate_shas": {
+      "#293_operator_package": "61952df385eea12f57720ea33b2d10b5b6621247",
+      "#290_l4_eligibility": "df4c08b4c601303cc5d18064a8c8c5b9f0d8805d",
+      "#292_reconciliation": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496"
+    },
+    "migration_sequence": [
+      {
+        "path": "supabase/migrations/20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql"
+      },
+      {
+        "path": "supabase/migrations/20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql"
+      },
+      {
+        "path": "supabase/migrations/20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql"
+      },
+      {
+        "path": "supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql",
+        "full_hash": "5815d99f2556336e4029dc1dda7dba4ded0e495d58cdb0fa7ecc46b40ea6ff3c",
+        "body_hash": "9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3"
+      }
+    ],
+    "required_tests": [
+      "tests/graduation-projects/gp-migration-hash-portability.test.ts",
+      "tests/graduation-projects/graduation-projects-student-level4-eligibility-guard.test.ts"
+    ],
+    "required_reviewers": [
+      "@owner"
+    ],
+    "production_gates": [
+      "OWNER_APPROVAL_MIGRATION_APPLY"
+    ],
+    "feature_flags": [],
+    "post_verifiers": [
+      "docs/production-preflight/GP-STUDENT-LEVEL4-ELIGIBILITY-GUARD-01-PRODUCTION-READONLY-POST-VERIFIER.sql"
+    ],
+    "rollback_references": [
+      "docs/migration-drafts/GRADUATION-PROJECTS-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01-ROLLBACK-BY-FORWARD.sql"
+    ]
+  },
+  "graduates_affairs": {
+    "name": "Graduates Affairs",
+    "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
+    "source_sha": "f799608a5d5fb167d66e5615d3f7b50692295f30",
+    "promotion_package_sha": "5ae9b53ce7e69bd8b98fd06c8e3736f040514c92",
+    "ga_final_security_review": "HOLD",
+    "candidate_shas": {
+      "#291_source_sha": "f799608a5d5fb167d66e5615d3f7b50692295f30",
+      "#299_promotion_package": "5ae9b53ce7e69bd8b98fd06c8e3736f040514c92"
+    },
+    "three_migration_sequence": [
+      {
+        "path": "supabase/migrations/20260808210000_ga_mvp_foundation_01.sql",
+        "body_hash": "43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819"
+      },
+      {
+        "path": "supabase/migrations/20260808210100_ga_mvp_completion_01.sql",
+        "body_hash": "834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc"
+      },
+      {
+        "path": "supabase/migrations/20260808210200_ga_authorization_04.sql",
+        "body_hash": "3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd"
+      }
+    ],
+    "migration_sequence": [
+      {
+        "path": "supabase/migrations/20260808210000_ga_mvp_foundation_01.sql",
+        "body_hash": "43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819"
+      },
+      {
+        "path": "supabase/migrations/20260808210100_ga_mvp_completion_01.sql",
+        "body_hash": "834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc"
+      },
+      {
+        "path": "supabase/migrations/20260808210200_ga_authorization_04.sql",
+        "body_hash": "3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd"
+      }
+    ],
+    "required_tests": [
+      "tests/graduates-affairs/graduates-affairs-foundation-01.test.ts",
+      "tests/graduates-affairs/graduates-affairs-completion-01.test.ts",
+      "tests/graduates-affairs/graduates-affairs-authorization-04.test.ts"
+    ],
+    "required_reviewers": [
+      "@owner"
+    ],
+    "production_gates": [
+      "OWNER_APPROVAL_MIGRATION_APPLY",
+      "OWNER_APPROVAL_FEATURE_FLAG_ENABLE",
+      "GA_FINAL_SECURITY_REVIEW_REQUIRED"
+    ],
+    "feature_flags": [
+      "staffGraduatesAffairs",
+      "studentGraduatesAffairs"
+    ],
+    "post_verifiers": [
+      "tests/graduates-affairs/graduates-affairs-foundation-01.pg-verify.sql",
+      "tests/graduates-affairs/graduates-affairs-completion-01.pg-verify.sql",
+      "tests/graduates-affairs/graduates-affairs-authorization-04.pg-verify.sql"
+    ],
+    "rollback_references": [
+      "docs/migration-drafts/GA-PRODUCTION-PROMOTION-ROLLBACK-BY-FORWARD-01.sql"
+    ]
+  },
+  "academic_councils": {
+    "name": "Academic Councils",
+    "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
+    "c0_c3_sha": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
+    "c4_c8_sha": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
+    "eventual_final_integrated_sha": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85",
+    "councils_final_security_review": "HOLD",
+    "councils_final_security_sha": "PENDING",
+    "c9_integrated_sha": "PENDING",
+    "c9_extension_sha": "7d5d607d610f4b319c06b3e1cf8a37d69e18517f",
+    "c9_status": "C9_CANDIDATE_PRESENT",
+    "security_review_findings": [
+      "vote/close serialization",
+      "decision relationship",
+      "decision FSM",
+      "archive/follow-up"
+    ],
+    "candidate_shas": {
+      "#298_c0_c3_superseded": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
+      "#297_c4_c8_superseded": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
+      "#300_final_integrated": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85",
+      "#302_c9_extension": "7d5d607d610f4b319c06b3e1cf8a37d69e18517f"
+    },
+    "migration_sequence": [
+      {
+        "path": "supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808140000_councils_c4_session_voting_01.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql"
+      },
+      {
+        "path": "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql"
+      }
+    ],
+    "required_tests": [
+      "tests/academic-councils/councils-c0-write-surface-hardening.test.ts",
+      "tests/academic-councils/councils-c1-meeting-state-machine.test.ts",
+      "tests/academic-councils/councils-c2-topic-intake-review.test.ts",
+      "tests/academic-councils/councils-c3-attendance-quorum.test.ts",
+      "tests/academic-councils/councils-c4-c8-late-lifecycle.test.ts"
+    ],
+    "required_verifications": [
+      "WEB_CI",
+      "MIGRATION_REVIEW",
+      "INDEPENDENT_SECURITY_REVIEW"
+    ],
+    "required_reviewers": [
+      "@owner"
+    ],
+    "production_gates": [
+      "OWNER_APPROVAL_MIGRATION_APPLY",
+      "OWNER_APPROVAL_FEATURE_FLAG_ENABLE",
+      "OWNER_APPROVAL_INTEGRATION_MERGE",
+      "COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED",
+      "COUNCILS_C9_INTEGRATION_REQUIRED"
+    ],
+    "feature_flags": [
+      "academicCouncils"
+    ],
+    "post_verifiers": [
+      "tests/academic-councils/postgres-c0-write-surface-verifier.sql",
+      "tests/academic-councils/postgres-c1-meeting-state-machine-verifier.sql",
+      "tests/academic-councils/postgres-c2-topic-intake-review-verifier.sql",
+      "tests/academic-councils/postgres-c3-attendance-quorum-verifier.sql",
+      "tests/academic-councils/postgres-c4-c8-verifier.sql"
+    ],
+    "rollback_references": []
+  }
+}
