@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -52,6 +52,7 @@ import {
   updateAgendaItem,
   reorderAgendaItems,
   finalizeMeetingAgenda,
+  reviewCouncilTopic,
   type CouncilLinkMemberRole,
   type CouncilAgendaItem,
   type AvailableTopicForAgenda,
@@ -65,10 +66,15 @@ import {
   getAgendaItemsForMeeting,
   prepareCouncilTopicAttachmentUpload,
   submitCouncilTopic,
+  getOpenIntakeMeetingsForMember,
+  getCouncilTopicReviewQueue,
+  editCouncilTopic,
   type CouncilTopicAttachmentItem,
   type MyCouncilMembershipV2,
   type CouncilMeetingV2Item,
   type MyCouncilTopicItem,
+  type OpenIntakeMeetingItem,
+  type CouncilTopicReviewQueueItem,
 } from "@/lib/faculty-councils.functions";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
@@ -246,6 +252,60 @@ function mapAttachmentError(message: string): string {
   }
   if (message.trim().length > 0) return message;
   return ATTACHMENT_OPEN_ERROR_MESSAGE;
+}
+
+const TOPIC_REVIEW_DENIED_UI = "لا تملك صلاحية مراجعة هذا الموضوع.";
+const TOPIC_REVIEW_FINAL_DENIED_UI = "قرار القبول النهائي أو الرفض يعود لرئيس المجلس فقط.";
+const TOPIC_REVIEW_STATUS_SKIP_UI = "انتقال الحالة غير مسموح به في دورة حياة الموضوع.";
+const TOPIC_REVIEW_FAILED_UI = "تعذّر حفظ حالة المراجعة.";
+const TOPIC_EDIT_DENIED_UI = "لا يمكن تعديل هذا الموضوع.";
+const TOPIC_EDIT_FAILED_UI = "تعذّر تعديل الموضوع.";
+
+function mapReviewError(message: string): string {
+  if (isSessionExpiredError(message)) return SESSION_EXPIRED_MESSAGE;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("لا تملك صلاحية") ||
+    lower.includes("مراجعة") ||
+    lower.includes("permission") ||
+    lower.includes("policy") ||
+    lower.includes("row-level security")
+  ) {
+    return TOPIC_REVIEW_DENIED_UI;
+  }
+  if (lower.includes("رئيس المجلس فقط") || lower.includes("final approval")) {
+    return TOPIC_REVIEW_FINAL_DENIED_UI;
+  }
+  if (lower.includes("دورة حياة") || lower.includes("lifecycle") || lower.includes("skip")) {
+    return TOPIC_REVIEW_STATUS_SKIP_UI;
+  }
+  if (isRawTechnicalMessage(message)) {
+    return TOPIC_REVIEW_FAILED_UI;
+  }
+  if (message.trim().length > 0) return message;
+  return TOPIC_REVIEW_FAILED_UI;
+}
+
+function mapEditError(message: string): string {
+  if (isSessionExpiredError(message)) return SESSION_EXPIRED_MESSAGE;
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("لا يمكن تعديل") ||
+    lower.includes("صلاحية") ||
+    lower.includes("permission") ||
+    lower.includes("policy") ||
+    lower.includes("row-level security")
+  ) {
+    return TOPIC_EDIT_DENIED_UI;
+  }
+  if (lower.includes("jwt") || lower.includes("authapi") || lower.includes("refresh token")) {
+    return SESSION_EXPIRED_MESSAGE;
+  }
+  if (isRawTechnicalMessage(message)) {
+    return TOPIC_EDIT_FAILED_UI;
+  }
+  if (message.trim().length > 0) return message;
+  return TOPIC_EDIT_FAILED_UI;
 }
 
 function mimeLabel(mime: string, ext: string): string {
@@ -433,6 +493,17 @@ function FacultyAcademicCouncilsPage() {
     refetchOnWindowFocus: false,
   });
 
+  const userIdQuery = useQuery({
+    queryKey: ["auth", "session-user"],
+    queryFn: async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return data.session?.user.id ?? null;
+    },
+    staleTime: 300_000,
+    refetchOnWindowFocus: false,
+  });
+
   const currentMemberships = membershipsQuery.data?.currentMemberships ?? [];
   const previousMemberships = membershipsQuery.data?.previousMemberships ?? [];
   const upcomingMeetings = meetingsQuery.data?.upcomingMeetings ?? [];
@@ -459,6 +530,16 @@ function FacultyAcademicCouncilsPage() {
     () => currentMemberships.filter((m) => m.role === "chair" || m.role === "secretary"),
     [currentMemberships],
   );
+
+  const roleByCouncilId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of currentMemberships) {
+      map.set(m.council_id, m.role);
+    }
+    return map;
+  }, [currentMemberships]);
+
+  const userId = userIdQuery.data ?? null;
 
   const viewerOnly =
     currentMemberships.length > 0 && currentMemberships.every((m) => m.role === "viewer");
@@ -594,11 +675,24 @@ function FacultyAcademicCouncilsPage() {
               ) : (
                 <ul className="space-y-3">
                   {mySubmittedTopics.map((t) => (
-                    <TopicCard key={t.topic_id} topic={t} showDescription />
+                    <TopicCard
+                      key={t.topic_id}
+                      topic={t}
+                      showDescription
+                      userId={userId}
+                      onUpdated={() => void topicsQuery.refetch()}
+                    />
                   ))}
                 </ul>
               )}
             </SectionShell>
+
+            {agendaWriteMemberships.length > 0 ? (
+              <TopicReviewQueue
+                roleByCouncilId={roleByCouncilId}
+                onUpdated={() => void topicsQuery.refetch()}
+              />
+            ) : null}
 
             <SectionShell icon={ScrollText} title="موضوعات المجلس">
               {topicsQuery.isLoading ? (
@@ -621,7 +715,7 @@ function FacultyAcademicCouncilsPage() {
                 صلاحيتك الحالية قراءة فقط، ولا يمكنك تقديم موضوعات لهذا المجلس.
               </div>
             ) : submitEligibleMemberships.length > 0 ? (
-              <SubmitTopicForm eligibleMemberships={submitEligibleMemberships} />
+              <SubmitTopicForm />
             ) : null}
           </>
         )}
@@ -1563,10 +1657,57 @@ function ChairMeetingScheduleSection({
 function TopicCard({
   topic,
   showDescription,
+  userId,
+  onUpdated,
 }: {
   topic: MyCouncilTopicItem;
   showDescription: boolean;
+  userId?: string | null;
+  onUpdated?: () => void;
 }) {
+  const doEdit = useServerFn(editCouncilTopic);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editBusy, setEditBusy] = useState(false);
+
+  const canEdit =
+    userId != null &&
+    topic.submitted_by === userId &&
+    (topic.status === "draft" || topic.status === "needs_completion");
+
+  const openEdit = () => {
+    setEditTitle(topic.title);
+    setEditDescription(topic.description ?? "");
+    setEditOpen(true);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = editTitle.trim();
+    if (title.length < 5) {
+      toast.error("عنوان الموضوع يجب أن لا يقل عن 5 أحرف");
+      return;
+    }
+    setEditBusy(true);
+    try {
+      await doEdit({
+        data: {
+          topic_id: topic.topic_id,
+          title,
+          description: editDescription.trim() || undefined,
+        },
+      });
+      toast.success("تم تعديل الموضوع بنجاح");
+      setEditOpen(false);
+      onUpdated?.();
+    } catch (err) {
+      toast.error(mapEditError(extractErrorMessage(err)));
+    } finally {
+      setEditBusy(false);
+    }
+  };
+
   return (
     <li className="rounded-lg border border-border bg-background p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -1574,9 +1715,23 @@ function TopicCard({
           <h3 className="font-bold text-primary text-sm">{topic.title}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{topic.council_name}</p>
         </div>
-        <Badge variant="secondary" className="text-[10px] shrink-0">
-          {topicStatusLabel(topic.status)}
-        </Badge>
+        <div className="flex items-center gap-2 shrink-0">
+          {canEdit ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1 text-[10px]"
+              onClick={openEdit}
+            >
+              <Pencil className="h-3 w-3" />
+              تعديل
+            </Button>
+          ) : null}
+          <Badge variant="secondary" className="text-[10px] shrink-0">
+            {topicStatusLabel(topic.status)}
+          </Badge>
+        </div>
       </div>
       <dl className="mt-3 grid gap-2 text-xs">
         <div className="grid gap-2 sm:grid-cols-2">
@@ -1617,6 +1772,44 @@ function TopicCard({
         ) : null}
         <TopicAttachmentsList topicId={topic.topic_id} />
       </dl>
+
+      <Dialog open={editOpen} onOpenChange={(open) => !open && !editBusy && setEditOpen(false)}>
+        <DialogContent dir="rtl" className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>تعديل الموضوع</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => void handleEdit(e)} className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">العنوان</label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                dir="rtl"
+                maxLength={500}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">الوصف</label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={4}
+                dir="rtl"
+                maxLength={8000}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button type="button" variant="outline" disabled={editBusy} onClick={() => setEditOpen(false)}>
+                إلغاء
+              </Button>
+              <Button type="submit" disabled={editBusy} className="gap-1.5">
+                {editBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                حفظ التعديلات
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </li>
   );
 }
@@ -1693,21 +1886,271 @@ function TopicAttachmentsList({ topicId }: { topicId: string }) {
   );
 }
 
-function SubmitTopicForm({
-  eligibleMemberships,
+const REVIEW_QUEUE_STATUS_TABS = [
+  { value: "submitted", label: "مقدّم" },
+  { value: "under_review", label: "قيد المراجعة" },
+  { value: "needs_completion", label: "مطلوب استكمال" },
+  { value: "accepted_for_agenda", label: "مقبول للجدول" },
+  { value: "rejected", label: "مرفوض" },
+] as const;
+
+function TopicReviewQueue({
+  roleByCouncilId,
+  onUpdated,
 }: {
-  eligibleMemberships: MyCouncilMembershipV2[];
+  roleByCouncilId: Map<string, string>;
+  onUpdated: () => void;
 }) {
+  const qc = useQueryClient();
+  const fetchQueue = useServerFn(getCouncilTopicReviewQueue);
+  const reviewTopic = useServerFn(reviewCouncilTopic);
+
+  const queueQuery = useQuery({
+    queryKey: ["faculty", "council-topic-review-queue"],
+    queryFn: () => fetchQueue(),
+    staleTime: 15_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const [activeStatus, setActiveStatus] = useState<string>("submitted");
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
+  const [busyByTopic, setBusyByTopic] = useState<Record<string, boolean>>({});
+
+  const queue = queueQuery.data?.queue ?? [];
+  const filtered = queue.filter((t) => t.status === activeStatus);
+
+  const handleReview = async (
+    topic: CouncilTopicReviewQueueItem,
+    status: "under_review" | "needs_completion" | "accepted_for_agenda" | "rejected",
+  ) => {
+    const role = roleByCouncilId.get(topic.council_id);
+    const isChair = role === "chair";
+    const isSecretary = role === "secretary";
+
+    if (!isChair && !isSecretary) {
+      toast.error(TOPIC_REVIEW_DENIED_UI);
+      return;
+    }
+    if ((status === "accepted_for_agenda" || status === "rejected") && !isChair) {
+      toast.error(TOPIC_REVIEW_FINAL_DENIED_UI);
+      return;
+    }
+
+    setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: true }));
+    try {
+      await reviewTopic({
+        data: {
+          topicId: topic.topic_id,
+          status,
+          reviewNote: reviewNotes[topic.topic_id]?.trim() || undefined,
+        },
+      });
+      toast.success("تم تحديث حالة الموضوع");
+      setReviewNotes((prev) => ({ ...prev, [topic.topic_id]: "" }));
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["faculty", "council-topic-review-queue"] }),
+        qc.invalidateQueries({ queryKey: ["faculty", "my-council-topics"] }),
+      ]);
+      onUpdated();
+    } catch (err) {
+      toast.error(mapReviewError(extractErrorMessage(err)));
+    } finally {
+      setBusyByTopic((prev) => ({ ...prev, [topic.topic_id]: false }));
+    }
+  };
+
+  return (
+    <SectionShell icon={ListChecks} title="قائمة مراجعة الموضوعات">
+      {queueQuery.isLoading ? (
+        <LoadingBlock />
+      ) : queueQuery.isError ? (
+        <ErrorBlock message="تعذّر تحميل قائمة مراجعة الموضوعات." />
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {REVIEW_QUEUE_STATUS_TABS.map((tab) => {
+              const count = queue.filter((t) => t.status === tab.value).length;
+              return (
+                <Button
+                  key={tab.value}
+                  type="button"
+                  size="sm"
+                  variant={activeStatus === tab.value ? "default" : "outline"}
+                  className="h-8 text-[11px] gap-1"
+                  onClick={() => setActiveStatus(tab.value)}
+                >
+                  {tab.label}
+                  {count > 0 ? (
+                    <span className="rounded-full bg-background/20 px-1.5 py-0.5 text-[10px]">
+                      {count}
+                    </span>
+                  ) : null}
+                </Button>
+              );
+            })}
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyBlock text="لا توجد موضوعات في هذه الحالة حالياً." />
+          ) : (
+            <ul className="space-y-3">
+              {filtered.map((topic) => {
+                const role = roleByCouncilId.get(topic.council_id);
+                const isChair = role === "chair";
+                const isSecretary = role === "secretary";
+                const busy = busyByTopic[topic.topic_id] ?? false;
+                const note = reviewNotes[topic.topic_id] ?? "";
+                return (
+                  <li
+                    key={topic.topic_id}
+                    className="rounded-lg border border-border bg-background p-4 space-y-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-primary text-sm">{topic.title}</h3>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {topic.council_name}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                        {topicStatusLabel(topic.status)}
+                      </Badge>
+                    </div>
+
+                    <dl className="grid gap-2 text-xs sm:grid-cols-2">
+                      <div>
+                        <dt className="text-muted-foreground">مقدّم من</dt>
+                        <dd className="font-medium text-foreground mt-0.5">
+                          {topic.submitted_by_name ?? "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">تاريخ التقديم</dt>
+                        <dd className="font-medium text-foreground mt-0.5">
+                          {topic.submitted_at ? formatDateTime(topic.submitted_at) : "—"}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    {topic.admin_notes ? (
+                      <div className="rounded-md border border-amber-200 bg-amber-50/80 p-2 text-xs">
+                        <span className="font-medium text-amber-800">ملاحظات المراجعة: </span>
+                        <span className="text-amber-900">{topic.admin_notes}</span>
+                      </div>
+                    ) : null}
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">ملاحظة المراجعة (اختياري)</label>
+                      <Textarea
+                        value={note}
+                        onChange={(e) =>
+                          setReviewNotes((prev) => ({
+                            ...prev,
+                            [topic.topic_id]: e.target.value,
+                          }))
+                        }
+                        rows={2}
+                        dir="rtl"
+                        maxLength={4000}
+                        disabled={busy}
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {(isChair || isSecretary) && topic.status !== "under_review" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-[11px]"
+                          disabled={busy}
+                          onClick={() => void handleReview(topic, "under_review")}
+                        >
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          تحت المراجعة
+                        </Button>
+                      ) : null}
+                      {(isChair || isSecretary) && topic.status !== "needs_completion" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 text-[11px]"
+                          disabled={busy}
+                          onClick={() => void handleReview(topic, "needs_completion")}
+                        >
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          طلب استكمال
+                        </Button>
+                      ) : null}
+                      {isChair && topic.status !== "accepted_for_agenda" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="default"
+                          className="h-8 text-[11px]"
+                          disabled={busy}
+                          onClick={() => void handleReview(topic, "accepted_for_agenda")}
+                        >
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          قبول للجدول
+                        </Button>
+                      ) : null}
+                      {isChair && topic.status !== "rejected" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          className="h-8 text-[11px]"
+                          disabled={busy}
+                          onClick={() => void handleReview(topic, "rejected")}
+                        >
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          رفض
+                        </Button>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </SectionShell>
+  );
+}
+
+function SubmitTopicForm() {
   const qc = useQueryClient();
   const submitTopic = useServerFn(submitCouncilTopic);
   const prepareUpload = useServerFn(prepareCouncilTopicAttachmentUpload);
+  const fetchOpenMeetings = useServerFn(getOpenIntakeMeetingsForMember);
 
-  const [councilId, setCouncilId] = useState(eligibleMemberships[0]?.council_id ?? "");
+  const openMeetingsQuery = useQuery({
+    queryKey: ["faculty", "open-intake-meetings"],
+    queryFn: () => fetchOpenMeetings(),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const openMeetings = openMeetingsQuery.data ?? [];
+
+  const [meetingId, setMeetingId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [sessionExpiredHint, setSessionExpiredHint] = useState(false);
+
+  useEffect(() => {
+    if (openMeetings.length > 0 && !meetingId) {
+      setMeetingId(openMeetings[0].meeting_id);
+    }
+  }, [openMeetings, meetingId]);
+
+  const selectedMeeting = openMeetings.find((m) => m.meeting_id === meetingId) ?? null;
+  const councilId = selectedMeeting?.council_id ?? "";
 
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const incoming = Array.from(e.target.files ?? []);
@@ -1735,6 +2178,7 @@ function SubmitTopicForm({
   };
 
   const uploadTopicAttachments = async (topicId: string, files: File[]) => {
+    if (!councilId) return files.length;
     let failures = 0;
     for (const file of files) {
       try {
@@ -1776,8 +2220,8 @@ function SubmitTopicForm({
       toast.error("عنوان الموضوع يجب أن لا يقل عن 5 أحرف");
       return;
     }
-    if (!councilId) {
-      toast.error("اختر المجلس أولاً");
+    if (!meetingId) {
+      toast.error("اختر اجتماعاً مفتوح الاستقبال أولاً");
       return;
     }
     if (selectedFiles.length > MAX_TOPIC_ATTACHMENTS) {
@@ -1789,7 +2233,7 @@ function SubmitTopicForm({
     try {
       const result = await submitTopic({
         data: {
-          council_id: councilId,
+          meeting_id: meetingId,
           title: trimmedTitle,
           description: description.trim() || undefined,
         },
@@ -1818,6 +2262,8 @@ function SubmitTopicForm({
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["faculty", "my-council-topics"] }),
         qc.invalidateQueries({ queryKey: ["faculty", "council-topic-attachments"] }),
+        qc.invalidateQueries({ queryKey: ["faculty", "open-intake-meetings"] }),
+        qc.invalidateQueries({ queryKey: ["faculty", "council-topic-review-queue"] }),
       ]);
     } catch (err) {
       const raw = extractErrorMessage(err);
@@ -1831,117 +2277,125 @@ function SubmitTopicForm({
 
   return (
     <SectionShell icon={Send} title="تقديم موضوع جديد للمجلس">
-      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
-        {sessionExpiredHint ? (
-          <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-2">
-            <p>{SESSION_EXPIRED_MESSAGE}</p>
-            <Link
-              to="/portal-login"
-              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-            >
-              العودة إلى تسجيل الدخول
-            </Link>
-          </div>
-        ) : null}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">المجلس</label>
-          <Select value={councilId} onValueChange={setCouncilId} dir="rtl">
-            <SelectTrigger>
-              <SelectValue placeholder="اختر المجلس" />
-            </SelectTrigger>
-            <SelectContent dir="rtl">
-              {eligibleMemberships.map((m) => (
-                <SelectItem key={m.membership_id} value={m.council_id}>
-                  {m.council_name} — {roleLabel(m.role)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">عنوان الموضوع</label>
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="أدخل عنوان الموضوع (5 أحرف على الأقل)"
-            dir="rtl"
-            maxLength={500}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-foreground">
-            وصف الموضوع <span className="text-muted-foreground">(اختياري)</span>
-          </label>
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="اشرح الموضوع المقترح للمجلس"
-            dir="rtl"
-            rows={4}
-            maxLength={8000}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="text-xs font-medium text-foreground">
-              المرفقات الداعمة{" "}
-              <span className="text-muted-foreground">
-                (اختياري — حتى {MAX_TOPIC_ATTACHMENTS} ملفات)
-              </span>
-            </label>
-            <span className="text-[10px] text-muted-foreground">
-              {selectedFiles.length}/{MAX_TOPIC_ATTACHMENTS}
-            </span>
-          </div>
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            {policyHint("council_topic_attachment")}
-          </p>
-          <Input
-            type="file"
-            multiple
-            accept={ATTACHMENT_ACCEPT}
-            disabled={busy || selectedFiles.length >= MAX_TOPIC_ATTACHMENTS}
-            onChange={handleFilesSelected}
-            className="text-xs cursor-pointer"
-          />
-          {selectedFiles.length > 0 ? (
-            <ul className="space-y-2 rounded-lg border border-border/70 bg-muted/10 p-2">
-              {selectedFiles.map((file, index) => (
-                <li
-                  key={`${file.name}-${file.size}-${index}`}
-                  className="flex flex-wrap items-center justify-between gap-2 text-[11px]"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">{file.name}</p>
-                    <p className="text-muted-foreground mt-0.5">
-                      {formatBytes(file.size)} · {mimeLabel(file.type, getExt(file.name))}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-[10px] text-destructive hover:text-destructive gap-1"
-                    disabled={busy}
-                    onClick={() => removeSelectedFile(index)}
-                  >
-                    <X className="h-3 w-3" />
-                    إزالة
-                  </Button>
-                </li>
-              ))}
-            </ul>
+      {openMeetingsQuery.isLoading ? (
+        <LoadingBlock />
+      ) : openMeetingsQuery.isError ? (
+        <ErrorBlock message="تعذّر تحميل الاجتماعات المفتوحة للاستقبال." />
+      ) : openMeetings.length === 0 ? (
+        <EmptyBlock text="لا توجد اجتماعات مفتوحة لاستقبال الموضوعات في مجالسك حالياً." />
+      ) : (
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+          {sessionExpiredHint ? (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 space-y-2">
+              <p>{SESSION_EXPIRED_MESSAGE}</p>
+              <Link
+                to="/portal-login"
+                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+              >
+                العودة إلى تسجيل الدخول
+              </Link>
+            </div>
           ) : null}
-        </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">الاجتماع</label>
+            <Select value={meetingId} onValueChange={setMeetingId} dir="rtl">
+              <SelectTrigger>
+                <SelectValue placeholder="اختر اجتماعاً" />
+              </SelectTrigger>
+              <SelectContent dir="rtl">
+                {openMeetings.map((m) => (
+                  <SelectItem key={m.meeting_id} value={m.meeting_id}>
+                    {m.council_name} — {m.meeting_title} — {formatDate(m.scheduled_at)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <Button type="submit" className="gap-2" disabled={busy}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          إرسال الموضوع
-        </Button>
-      </form>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">عنوان الموضوع</label>
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="أدخل عنوان الموضوع (5 أحرف على الأقل)"
+              dir="rtl"
+              maxLength={500}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">
+              وصف الموضوع <span className="text-muted-foreground">(اختياري)</span>
+            </label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="اشرح الموضوع المقترح للمجلس"
+              dir="rtl"
+              rows={4}
+              maxLength={8000}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-xs font-medium text-foreground">
+                المرفقات الداعمة{" "}
+                <span className="text-muted-foreground">
+                  (اختياري — حتى {MAX_TOPIC_ATTACHMENTS} ملفات)
+                </span>
+              </label>
+              <span className="text-[10px] text-muted-foreground">
+                {selectedFiles.length}/{MAX_TOPIC_ATTACHMENTS}
+              </span>
+            </div>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              {policyHint("council_topic_attachment")}
+            </p>
+            <Input
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              disabled={busy || selectedFiles.length >= MAX_TOPIC_ATTACHMENTS}
+              onChange={handleFilesSelected}
+              className="text-xs cursor-pointer"
+            />
+            {selectedFiles.length > 0 ? (
+              <ul className="space-y-2 rounded-lg border border-border/70 bg-muted/10 p-2">
+                {selectedFiles.map((file, index) => (
+                  <li
+                    key={`${file.name}-${file.size}-${index}`}
+                    className="flex flex-wrap items-center justify-between gap-2 text-[11px]"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground truncate">{file.name}</p>
+                      <p className="text-muted-foreground mt-0.5">
+                        {formatBytes(file.size)} · {mimeLabel(file.type, getExt(file.name))}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-[10px] text-destructive hover:text-destructive gap-1"
+                      disabled={busy}
+                      onClick={() => removeSelectedFile(index)}
+                    >
+                      <X className="h-3 w-3" />
+                      إزالة
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <Button type="submit" className="gap-2" disabled={busy}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            إرسال الموضوع
+          </Button>
+        </form>
+      )}
     </SectionShell>
   );
 }

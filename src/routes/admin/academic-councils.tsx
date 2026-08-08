@@ -47,6 +47,7 @@ import {
   getCouncilMeetingsForAdmin,
   scheduleCouncilMeeting,
   updateCouncilMeeting,
+  getCouncilTopicReviewQueueForAdmin,
   getAgendaItemsForMeeting,
   getAvailableTopicsForAgenda,
   addTopicToAgenda,
@@ -61,6 +62,7 @@ import {
   type AcademicLinkCandidate,
   type CouncilLinkMemberRole,
   type AdminCouncilMeetingItem,
+  type AdminTopicReviewQueueItem,
   type CouncilAgendaItem,
   type AvailableTopicForAgenda,
 } from "@/lib/admin-councils.functions";
@@ -1016,6 +1018,132 @@ function CouncilMeetingsPanel({
 }
 
 // ============================================================================
+// TOPIC REVIEW QUEUE — READ ONLY
+// ============================================================================
+
+const TOPIC_REVIEW_STATUS_TABS: { value: string; label: string }[] = [
+  { value: "all", label: "الكل" },
+  { value: "submitted", label: "مقدّم" },
+  { value: "under_review", label: "قيد المراجعة" },
+  { value: "needs_completion", label: "يحتاج استكمالاً" },
+  { value: "accepted_for_agenda", label: "مقبول للجدول" },
+  { value: "rejected", label: "مرفوض" },
+];
+
+function CouncilTopicReviewQueuePanel({
+  council,
+}: {
+  council: CouncilsOverviewItem;
+}) {
+  const fetchQueue = useServerFn(getCouncilTopicReviewQueueForAdmin);
+  const [activeStatus, setActiveStatus] = useState<string>("all");
+
+  const {
+    data: queueData,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["admin", "academic-councils", "topic-review-queue", council.id],
+    queryFn: () => fetchQueue({ data: { councilId: council.id } }),
+    staleTime: 15_000,
+  });
+
+  const queue = queueData?.queue ?? [];
+  const filtered = useMemo(() => {
+    if (activeStatus === "all") return queue;
+    return queue.filter((t) => t.status === activeStatus);
+  }, [queue, activeStatus]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: queue.length };
+    for (const item of queue) {
+      map[item.status] = (map[item.status] ?? 0) + 1;
+    }
+    return map;
+  }, [queue]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {TOPIC_REVIEW_STATUS_TABS.map((tab) => (
+          <Button
+            key={tab.value}
+            type="button"
+            size="sm"
+            variant={activeStatus === tab.value ? "default" : "outline"}
+            className="text-xs gap-1.5"
+            onClick={() => setActiveStatus(tab.value)}
+          >
+            {tab.label}
+            <span
+              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                activeStatus === tab.value
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {counts[tab.value] ?? 0}
+            </span>
+          </Button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="p-6 grid place-items-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        <div className="p-4 text-xs text-destructive">
+          تعذر تحميل قائمة مراجعة الموضوعات. قد تتطلب صلاحيات إضافية على هذا المجلس.
+        </div>
+      ) : filtered.length === 0 ? (
+        <EmptyState text="لا توجد موضوعات مطابقة للحالة المحددة في هذا المجلس." />
+      ) : (
+        <div className="grid gap-3">
+          {filtered.map((topic) => (
+            <TopicReviewQueueCard key={topic.topic_id} topic={topic} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TopicReviewQueueCard({ topic }: { topic: AdminTopicReviewQueueItem }) {
+  return (
+    <div className="rounded-lg border border-border bg-background p-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-bold text-primary text-sm leading-relaxed">{topic.title}</h3>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            <span>المرسل: {topic.submitted_by}</span>
+            <span className="mx-2">·</span>
+            <span>تاريخ التقديم: {formatDateTime(topic.submitted_at)}</span>
+          </div>
+        </div>
+        <Badge variant="outline" className="text-[10px] shrink-0">
+          {topicStatusLabelAdmin(topic.status)}
+        </Badge>
+      </div>
+
+      {topic.review_note ? (
+        <div className="rounded-md bg-muted/30 p-2.5 text-xs text-muted-foreground leading-relaxed">
+          <span className="font-medium text-foreground">ملاحظة المراجعة:</span>{" "}
+          {topic.review_note}
+        </div>
+      ) : null}
+
+      {topic.meeting_id ? (
+        <div className="text-[11px] text-muted-foreground">
+          مرتبط باجتماع:{" "}
+          <span className="font-mono text-foreground">{topic.meeting_id}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// ============================================================================
 // AGENDA ADMIN
 // ============================================================================
 
@@ -1543,9 +1671,11 @@ function CouncilAgendaPanel({
 
 function topicStatusLabelAdmin(status: string): string {
   const labels: Record<string, string> = {
-    accepted_for_agenda: "مقبول للجدول",
     submitted: "مقدّم",
     under_review: "قيد المراجعة",
+    needs_completion: "يحتاج استكمالاً",
+    accepted_for_agenda: "مقبول للجدول",
+    rejected: "مرفوض",
   };
   return labels[status] ?? status;
 }
@@ -1843,16 +1973,22 @@ function AcademicCouncilsPage() {
         )}
       </SectionCard>
 
-      {/* Submit topic */}
+      {/* Topic review queue — read only */}
       <SectionCard
-        icon={FilePlus2}
-        title="رفع موضوع جديد"
-        subtitle="استقبال الموضوعات المقترحة للإدراج في جدول الأعمال."
+        icon={ScrollText}
+        title="مراجعة الموضوعات (قراءة فقط)"
+        subtitle="عرض حالة الموضوعات المقدمة للمجلس المحدد دون إمكانية تعديل الحالة."
       >
-        <EmptyState text="نموذج رفع الموضوع سيتاح بعد اعتماد مرحلة الكتابة." />
-        <div className="mt-4">
-          <LockedAction label="رفع موضوع جديد" />
-        </div>
+        {selectedCouncil ? (
+          <p className="mb-4 text-xs text-muted-foreground">
+            المجلس المحدد: <span className="font-bold text-primary">{selectedCouncil.name}</span>
+          </p>
+        ) : null}
+        {!selectedCouncil ? (
+          <EmptyState text="اختر مجلساً من القائمة أعلاه لعرض موضوعاته المقدمة." />
+        ) : (
+          <CouncilTopicReviewQueuePanel council={selectedCouncil} />
+        )}
       </SectionCard>
 
       {/* Agenda */}

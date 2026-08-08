@@ -1001,6 +1001,13 @@ const AGENDA_SAVE_FAILED_MESSAGE = "تعذر حفظ جدول الأعمال.";
 const TOPIC_REVIEW_DENIED_MESSAGE =
   "لا تملك صلاحية مراجعة هذا الموضوع.";
 
+import {
+  getReviewAuthorityError,
+  isAllowedTopicTransition,
+  REVIEW_ERRORS,
+  TOPIC_STATUS_SKIP_MESSAGE,
+} from "@/lib/council-topic-lifecycle";
+
 const meetingIdSchema = z.string().uuid("معرّف الاجتماع غير صالح");
 const topicIdSchema = z.string().uuid("معرّف الموضوع غير صالح");
 const agendaItemIdSchema = z.string().uuid("معرّف بند الأجندة غير صالح");
@@ -1009,7 +1016,6 @@ const TOPIC_REVIEW_STATUS_VALUES = [
   "under_review",
   "needs_completion",
   "accepted_for_agenda",
-  "deferred",
   "rejected",
 ] as const;
 
@@ -1225,6 +1231,23 @@ export type ReviewCouncilTopicResult = {
   status: TopicReviewStatus;
 };
 
+export type AdminTopicReviewQueueItem = {
+  topic_id: string;
+  council_id: string;
+  council_name: string;
+  meeting_id: string | null;
+  title: string;
+  status: string;
+  submitted_by: string;
+  submitted_at: string | null;
+  updated_at: string;
+  review_note: string | null;
+};
+
+export type GetCouncilTopicReviewQueueForAdminResult = {
+  queue: AdminTopicReviewQueueItem[];
+};
+
 export type AddTopicToAgendaResult = {
   ok: true;
   agenda_item_id: string;
@@ -1371,6 +1394,35 @@ export const getAvailableTopicsForAgenda = createServerFn({ method: "POST" })
     return { meeting, topics };
   });
 
+type CouncilMemberRoleResult = {
+  isActive: boolean;
+  role: string | null;
+};
+
+async function getUserCouncilRole(
+  sb: SupabaseClient<Database>,
+  userId: string,
+  councilId: string,
+): Promise<CouncilMemberRoleResult> {
+  const { data, error } = await sb
+    .from("academic_council_members")
+    .select("member_role, is_active, active_to")
+    .eq("user_id", userId)
+    .eq("council_id", councilId)
+    .eq("is_active", true)
+    .is("active_to", null)
+    .maybeSingle();
+  if (error) mapAgendaDbError(error, "review");
+  if (!data) return { isActive: false, role: null };
+  return {
+    isActive: isActiveMembership({
+      is_active: Boolean(data.is_active),
+      active_to: (data.active_to as string | null) ?? null,
+    }),
+    role: data.member_role as string,
+  };
+}
+
 const reviewCouncilTopicSchema = z.object({
   topicId: topicIdSchema,
   status: z.enum(TOPIC_REVIEW_STATUS_VALUES, {
@@ -1390,6 +1442,10 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
       "councilId",
       "created_by",
       "createdBy",
+      "title",
+      "body",
+      "meeting_id",
+      "meetingId",
     ]);
     return reviewCouncilTopicSchema.parse(input);
   })
@@ -1398,21 +1454,32 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
 
     const { data: existing, error: readErr } = await sb
       .from("academic_council_topics")
-      .select("id, council_id, status")
+      .select("id, council_id, status, meeting_id, submitted_by")
       .eq("id", data.topicId)
       .maybeSingle();
     if (readErr) mapAgendaDbError(readErr, "review");
     if (!existing) throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
 
-    await assertCanWriteCouncilAgenda(
-      sb,
-      context.userId,
-      existing.council_id as string,
-    );
+    const councilId = existing.council_id as string;
+    const currentStatus = existing.status as string;
+
+    if (!isAllowedTopicTransition(currentStatus, data.status)) {
+      throw new Error(TOPIC_STATUS_SKIP_MESSAGE);
+    }
+
+    const { isActive, role } = await getUserCouncilRole(sb, context.userId, councilId);
+    const authorityError = getReviewAuthorityError({
+      role,
+      isActiveMember: isActive,
+      targetStatus: data.status,
+    });
+    if (authorityError) {
+      throw new Error(authorityError);
+    }
 
     if (data.meetingId) {
       const meeting = await loadMeetingAgendaContext(sb, data.meetingId);
-      if (meeting.council_id !== existing.council_id) {
+      if (meeting.council_id !== councilId) {
         throw new Error(AGENDA_TOPIC_COUNCIL_MISMATCH_MESSAGE);
       }
     }
@@ -1443,6 +1510,51 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
       topic_id: updated.id as string,
       status: updated.status as TopicReviewStatus,
     };
+  });
+
+export const getCouncilTopicReviewQueueForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ councilId: councilIdSchema.optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<GetCouncilTopicReviewQueueForAdminResult> => {
+    await assertCouncilsReader(context.userId);
+    const sb = context.supabase;
+
+    let query = sb
+      .from("academic_council_topics")
+      .select(
+        "id, council_id, meeting_id, title, status, submitted_by, submitted_at, updated_at, review_note, council:academic_councils(name)",
+      )
+      .in("status", ["submitted", "under_review", "needs_completion", "accepted_for_agenda", "rejected"] as never)
+      .order("updated_at", { ascending: false });
+
+    if (data.councilId) {
+      query = query.eq("council_id", data.councilId);
+    }
+
+    const { data: rows, error } = await query;
+    if (error) mapAgendaDbError(error, "review");
+
+    const queue: AdminTopicReviewQueueItem[] = (rows ?? []).map((row) => {
+      const council = unwrapCouncilName(
+        row.council as { name: string; council_type: string } | { name: string; council_type: string }[] | null,
+      );
+      return {
+        topic_id: row.id as string,
+        council_id: row.council_id as string,
+        council_name: council?.name ?? "",
+        meeting_id: (row.meeting_id as string | null) ?? null,
+        title: row.title as string,
+        status: row.status as string,
+        submitted_by: row.submitted_by as string,
+        submitted_at: (row.submitted_at as string | null) ?? null,
+        updated_at: row.updated_at as string,
+        review_note: (row.review_note as string | null) ?? null,
+      };
+    });
+
+    return { queue };
   });
 
 const addTopicToAgendaSchema = z.object({

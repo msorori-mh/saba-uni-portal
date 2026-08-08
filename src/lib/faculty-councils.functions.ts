@@ -30,6 +30,11 @@ const VIEWER_UPLOAD_DENIED_MESSAGE =
 const ATTACHMENT_READ_DENIED_MESSAGE =
   "لا تملك صلاحية فتح هذا المرفق.";
 const MAX_TOPIC_ATTACHMENTS = 5;
+
+import {
+  getIntakeValidationError,
+  INTAKE_ERRORS,
+} from "@/lib/council-topic-lifecycle";
 const COUNCIL_TOPIC_ATTACHMENTS_BUCKET = "council-topic-attachments";
 const SIGNED_URL_EXPIRES_SECONDS = 300;
 
@@ -154,6 +159,30 @@ export type SubmitCouncilTopicResult = {
   ok: true;
   topic_id: string;
   status: "submitted";
+};
+
+export type EditCouncilTopicResult = {
+  ok: true;
+  topic_id: string;
+  status: string;
+};
+
+export type CouncilTopicReviewQueueItem = MyCouncilTopicItem & {
+  submitted_by_name: string | null;
+};
+
+export type GetCouncilTopicReviewQueueResult = {
+  queue: CouncilTopicReviewQueueItem[];
+};
+
+export type OpenIntakeMeetingItem = {
+  meeting_id: string;
+  council_id: string;
+  council_name: string;
+  meeting_title: string;
+  scheduled_at: string;
+  intake_opens_at: string | null;
+  intake_closes_at: string | null;
 };
 
 export type CouncilTopicAttachmentItem = {
@@ -461,6 +490,70 @@ async function assertCanSubmitCouncilTopic(
   }
 }
 
+type MeetingIntakeContext = {
+  meeting_id: string;
+  council_id: string;
+  status: string;
+  intake_opens_at: string | null;
+  intake_closes_at: string | null;
+};
+
+async function loadMeetingIntakeContext(
+  sb: FacultySupabase,
+  meetingId: string,
+): Promise<MeetingIntakeContext | null> {
+  const { data, error } = await sb
+    .from("academic_council_meetings")
+    .select("id, council_id, status, intake_opens_at, intake_closes_at")
+    .eq("id", meetingId)
+    .maybeSingle();
+  if (error) throwDbError(error);
+  if (!data) return null;
+  return {
+    meeting_id: data.id as string,
+    council_id: data.council_id as string,
+    status: data.status as string,
+    intake_opens_at: (data.intake_opens_at as string | null) ?? null,
+    intake_closes_at: (data.intake_closes_at as string | null) ?? null,
+  };
+}
+
+async function assertCanSubmitToMeetingIntake(
+  sb: FacultySupabase,
+  userId: string,
+  meetingId: string,
+): Promise<MeetingIntakeContext> {
+  const meeting = await loadMeetingIntakeContext(sb, meetingId);
+  if (!meeting) throw new Error(INTAKE_ERRORS.NOT_ACTIVE_MEMBER);
+
+  const { data: membership, error: membershipErr } = await sb
+    .from("academic_council_members")
+    .select("member_role, is_active, active_to")
+    .eq("user_id", userId)
+    .eq("council_id", meeting.council_id)
+    .eq("is_active", true)
+    .is("active_to", null)
+    .maybeSingle();
+  if (membershipErr) throwDbError(membershipErr);
+
+  const isActive = Boolean(membership) && isActiveMembership({
+    is_active: Boolean(membership?.is_active),
+    active_to: (membership?.active_to as string | null) ?? null,
+  });
+
+  const error = getIntakeValidationError({
+    meetingStatus: meeting.status,
+    intakeOpensAt: meeting.intake_opens_at,
+    intakeClosesAt: meeting.intake_closes_at,
+    nowIso: new Date().toISOString(),
+    memberRole: (membership?.member_role as string | null) ?? null,
+    isActiveMember: isActive,
+  });
+  if (error) throw new Error(error);
+
+  return meeting;
+}
+
 function mapAttachmentDbError(error: { code?: string; message: string }): never {
   const msg = error.message.toLowerCase();
   if (
@@ -559,12 +652,27 @@ const prepareCouncilTopicAttachmentUploadSchema = z.object({
 });
 
 const submitCouncilTopicSchema = z.object({
-  council_id: z.string().uuid("معرّف المجلس غير صالح"),
+  meeting_id: z.string().uuid("معرّف الاجتماع غير صالح"),
   title: z
     .string()
     .trim()
     .min(5, "عنوان الموضوع يجب أن لا يقل عن 5 أحرف")
     .max(500, "عنوان الموضوع طويل جداً"),
+  description: z
+    .string()
+    .trim()
+    .max(8000, "وصف الموضوع طويل جداً")
+    .optional(),
+});
+
+const editCouncilTopicSchema = z.object({
+  topic_id: z.string().uuid("معرّف الموضوع غير صالح"),
+  title: z
+    .string()
+    .trim()
+    .min(5, "عنوان الموضوع يجب أن لا يقل عن 5 أحرف")
+    .max(500, "عنوان الموضوع طويل جداً")
+    .optional(),
   description: z
     .string()
     .trim()
@@ -855,8 +963,16 @@ export const submitCouncilTopic = createServerFn({ method: "POST" })
     const parsed = submitCouncilTopicSchema.parse(input);
     if (typeof input === "object" && input !== null) {
       const raw = input as Record<string, unknown>;
-      if ("meeting_id" in raw || "status" in raw || "admin_notes" in raw || "review_note" in raw) {
-        throw new Error("لا يمكن تمرير meeting_id أو status أو ملاحظات الإدارة من الواجهة");
+      if (
+        "council_id" in raw ||
+        "status" in raw ||
+        "admin_notes" in raw ||
+        "review_note" in raw ||
+        "reviewed_by" in raw ||
+        "submitted_by" in raw ||
+        "submitted_at" in raw
+      ) {
+        throw new Error("لا يمكن تمرير council_id أو status أو حقول المراجعة أو الإرسال من الواجهة");
       }
     }
     return parsed;
@@ -864,7 +980,7 @@ export const submitCouncilTopic = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<SubmitCouncilTopicResult> => {
     const sb = context.supabase;
     await assertActiveFacultyProfile(sb, context.userId);
-    await assertCanSubmitCouncilTopic(sb, context.userId, data.council_id);
+    const meeting = await assertCanSubmitToMeetingIntake(sb, context.userId, data.meeting_id);
 
     const body = data.description?.trim() || data.title;
     const submittedAt = new Date().toISOString();
@@ -872,13 +988,13 @@ export const submitCouncilTopic = createServerFn({ method: "POST" })
     const { data: inserted, error } = await sb
       .from("academic_council_topics")
       .insert({
-        council_id: data.council_id,
+        council_id: meeting.council_id,
         title: data.title,
         body,
         submitted_by: context.userId,
         status: "submitted",
         submitted_at: submittedAt,
-        meeting_id: null,
+        meeting_id: data.meeting_id,
       })
       .select("id, status")
       .maybeSingle();
@@ -891,6 +1007,240 @@ export const submitCouncilTopic = createServerFn({ method: "POST" })
       topic_id: inserted.id as string,
       status: "submitted",
     };
+  });
+
+// ============================================================================
+// EDIT TOPIC — owner can only edit title/body in draft or needs_completion
+// ============================================================================
+
+export const editCouncilTopic = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => {
+    const parsed = editCouncilTopicSchema.parse(input);
+    if (typeof input === "object" && input !== null) {
+      const raw = input as Record<string, unknown>;
+      if (
+        "council_id" in raw ||
+        "meeting_id" in raw ||
+        "status" in raw ||
+        "review_note" in raw ||
+        "reviewed_by" in raw ||
+        "submitted_by" in raw ||
+        "submitted_at" in raw
+      ) {
+        throw new Error("لا يمكن تعديل معرّف المجلس أو الاجتماع أو الحالة أو حقول المراجعة");
+      }
+    }
+    return parsed;
+  })
+  .handler(async ({ data, context }): Promise<EditCouncilTopicResult> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: existing, error: readErr } = await sb
+      .from("academic_council_topics")
+      .select("id, submitted_by, status")
+      .eq("id", data.topic_id)
+      .maybeSingle();
+    if (readErr) throwDbError(readErr);
+    if (!existing) throw new Error(RLS_DENIED_MESSAGE);
+    if (existing.submitted_by !== context.userId) {
+      throw new Error("لا يمكن تعديل موضوع لم تقم أنت بتقديمه.");
+    }
+    if (!["draft", "needs_completion"].includes(existing.status as string)) {
+      throw new Error("لا يمكن تعديل الموضوع في حالته الحالية.");
+    }
+
+    const patch: Database["public"]["Tables"]["academic_council_topics"]["Update"] = {};
+    if (data.title !== undefined) patch.title = data.title;
+    if (data.description !== undefined) patch.body = data.description.trim() || data.title;
+
+    if (Object.keys(patch).length === 0) {
+      return {
+        ok: true,
+        topic_id: existing.id as string,
+        status: existing.status as string,
+      };
+    }
+
+    const { data: updated, error } = await sb
+      .from("academic_council_topics")
+      .update(patch)
+      .eq("id", data.topic_id)
+      .eq("submitted_by", context.userId)
+      .select("id, status")
+      .maybeSingle();
+
+    if (error) throwDbError(error);
+    if (!updated) throw new Error(RLS_DENIED_MESSAGE);
+
+    return {
+      ok: true,
+      topic_id: updated.id as string,
+      status: updated.status as string,
+    };
+  });
+
+// ============================================================================
+// OPEN INTAKE MEETINGS — for topic submission dropdown
+// ============================================================================
+
+export const getOpenIntakeMeetingsForMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<OpenIntakeMeetingItem[]> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const nowIso = new Date().toISOString();
+
+    const { data: membershipRows, error: membershipErr } = await sb
+      .from("academic_council_members")
+      .select("council_id, member_role")
+      .eq("user_id", context.userId)
+      .eq("is_active", true)
+      .is("active_to", null);
+    if (membershipErr) throwDbError(membershipErr);
+
+    const eligibleCouncilIds = (membershipRows ?? [])
+      .filter((m) => {
+        const role = m.member_role as string;
+        return role !== "viewer" && TOPIC_SUBMIT_ROLES.has(role);
+      })
+      .map((m) => m.council_id as string);
+
+    if (eligibleCouncilIds.length === 0) return [];
+
+    const { data: rows, error } = await sb
+      .from("academic_council_meetings")
+      .select(
+        "id, council_id, title, scheduled_at, intake_opens_at, intake_closes_at, council:academic_councils(name)",
+      )
+      .in("council_id", eligibleCouncilIds)
+      .eq("status", "intake_open")
+      .order("scheduled_at", { ascending: true });
+    if (error) throwDbError(error);
+
+    return (rows ?? [])
+      .filter((row) => {
+        const opens = (row.intake_opens_at as string | null) ?? null;
+        const closes = (row.intake_closes_at as string | null) ?? null;
+        if (opens && opens > nowIso) return false;
+        if (closes && closes < nowIso) return false;
+        return true;
+      })
+      .map((row) => {
+        const council = unwrapCouncil(row.council as { name: string } | { name: string }[] | null);
+        return {
+          meeting_id: row.id as string,
+          council_id: row.council_id as string,
+          council_name: council?.name ?? "",
+          meeting_title: row.title as string,
+          scheduled_at: row.scheduled_at as string,
+          intake_opens_at: (row.intake_opens_at as string | null) ?? null,
+          intake_closes_at: (row.intake_closes_at as string | null) ?? null,
+        };
+      });
+  });
+
+// ============================================================================
+// TOPIC REVIEW QUEUE — chair/secretary only
+// ============================================================================
+
+export const getCouncilTopicReviewQueue = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<GetCouncilTopicReviewQueueResult> => {
+    const sb = context.supabase;
+    await assertActiveFacultyProfile(sb, context.userId);
+
+    const { data: membershipRows, error: membershipErr } = await sb
+      .from("academic_council_members")
+      .select("council_id, member_role")
+      .eq("user_id", context.userId)
+      .eq("is_active", true)
+      .is("active_to", null);
+    if (membershipErr) throwDbError(membershipErr);
+
+    const reviewableCouncilIds = (membershipRows ?? [])
+      .filter((m) => {
+        const role = m.member_role as string;
+        return role === "chair" || role === "secretary";
+      })
+      .map((m) => m.council_id as string);
+
+    if (reviewableCouncilIds.length === 0) {
+      return { queue: [] };
+    }
+
+    const { data: rows, error } = await sb
+      .from("academic_council_topics")
+      .select(
+        "id, council_id, meeting_id, title, body, status, submitted_by, submitted_at, created_at, updated_at, review_note, council:academic_councils(name)",
+      )
+      .in("council_id", reviewableCouncilIds)
+      .in("status", ["submitted", "under_review", "needs_completion"])
+      .order("submitted_at", { ascending: false });
+    if (error) throwDbError(error);
+
+    const topicIds = (rows ?? []).map((r) => r.id as string);
+    const agendaOrderByTopic = new Map<string, number>();
+
+    if (topicIds.length > 0) {
+      const { data: agendaRows, error: agendaErr } = await sb
+        .from("academic_council_agenda_items")
+        .select("topic_id, order_index")
+        .in("topic_id", topicIds);
+      if (agendaErr) throwDbError(agendaErr);
+
+      for (const item of agendaRows ?? []) {
+        const topicId = item.topic_id as string | null;
+        if (!topicId) continue;
+        const order = item.order_index as number;
+        const existing = agendaOrderByTopic.get(topicId);
+        if (existing === undefined || order < existing) {
+          agendaOrderByTopic.set(topicId, order);
+        }
+      }
+    }
+
+    const submitterIds = Array.from(
+      new Set((rows ?? []).map((r) => r.submitted_by as string)),
+    );
+    const profileByUser = new Map<string, string>();
+    if (submitterIds.length > 0) {
+      const { data: profiles, error: profileErr } = await sb
+        .from("faculty_profiles")
+        .select("user_id, full_name_ar")
+        .in("user_id", submitterIds);
+      if (profileErr) throwDbError(profileErr);
+      for (const p of profiles ?? []) {
+        profileByUser.set(p.user_id as string, p.full_name_ar as string);
+      }
+    }
+
+    const queue: CouncilTopicReviewQueueItem[] = (rows ?? []).map((row) => {
+      const council = unwrapCouncil(
+        row.council as { name: string } | { name: string }[] | null,
+      );
+      const topicId = row.id as string;
+      return {
+        topic_id: topicId,
+        council_id: row.council_id as string,
+        council_name: council?.name ?? "",
+        meeting_id: (row.meeting_id as string | null) ?? null,
+        title: row.title as string,
+        description: row.body as string,
+        status: row.status as string,
+        submitted_by: row.submitted_by as string,
+        submitted_by_name: profileByUser.get(row.submitted_by as string) ?? null,
+        submitted_at: (row.submitted_at as string | null) ?? null,
+        created_at: row.created_at as string,
+        updated_at: row.updated_at as string,
+        admin_notes: (row.review_note as string | null) ?? null,
+        agenda_order: agendaOrderByTopic.get(topicId) ?? null,
+      };
+    });
+
+    return { queue };
   });
 
 // ============================================================================
