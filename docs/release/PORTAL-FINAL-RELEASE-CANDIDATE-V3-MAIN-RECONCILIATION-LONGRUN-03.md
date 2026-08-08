@@ -2,7 +2,7 @@
 
 **Decision:** `PASS_PORTAL_FINAL_RELEASE_CANDIDATE_V3_MAIN_RECONCILED`
 
-**FINAL_SHA:** `55afee941e51cf29aa68102ca2240d6d0883bb55`  
+**FINAL_SHA:** `936cc798e5b8512ebb124b0e0ae307fa64bd7d4d`  
 **DRAFT_PR:** [#309](https://github.com/msorori-mh/saba-uni-portal/pull/309)  
 **Branch:** `integration/portal-final-release-candidate-v3-01`  
 **Mission date:** 2026-08-09  
