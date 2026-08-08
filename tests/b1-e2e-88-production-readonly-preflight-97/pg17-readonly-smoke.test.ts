@@ -207,15 +207,28 @@ describe("Package 97 — real PG17 UUID/text + privileged-schema preflight", () 
         { encoding: "utf8" },
       );
       if (r.status === 0) {
-        ready = true;
-        break;
+        const probe = psql("select 1;");
+        if (probe.status === 0) {
+          ready = true;
+          break;
+        }
       }
       await Bun.sleep(500);
     }
     expect(ready).toBe(true);
+    // Brief settle — CI runners can race between pg_isready and first SQL apply.
+    await Bun.sleep(1000);
+    {
+      const probe = psql("select 1;");
+      expect(probe.status).toBe(0);
+    }
 
     const stub = readFileSync(STUB, "utf8");
-    const stubRun = psql(stub);
+    let stubRun = psql(stub);
+    if (stubRun.status !== 0) {
+      await Bun.sleep(1000);
+      stubRun = psql(stub);
+    }
     expect(stubRun.status).toBe(0);
     setupRestrictedRole();
 

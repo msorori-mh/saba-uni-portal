@@ -8,7 +8,7 @@ const migrationPath = join(
   root,
   "supabase",
   "migrations",
-  "20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
+  "20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql",
 );
 const verifierPath = join(
   root,
@@ -26,19 +26,19 @@ const a1Path = join(
   root,
   "supabase",
   "migrations",
-  "20260806120000_gp_mvp_package_a1_foundation_01.sql",
+  "20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql",
 );
 const a2Path = join(
   root,
   "supabase",
   "migrations",
-  "20260806120100_gp_mvp_package_a2_storage_01.sql",
+  "20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql",
 );
 const a3Path = join(
   root,
   "supabase",
   "migrations",
-  "20260806120200_gp_mvp_package_a3_lifecycle_01.sql",
+  "20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql",
 );
 const foundationVerifierPath = join(
   root,
@@ -204,10 +204,11 @@ describe("GP MVP storage insert policy remediation (forward fix)", () => {
     expect(verifier).toContain("A_GP_TABLE_SELECT_DENIED");
   });
 
-  it("remediation migration is byte-identical to reviewed SHA fe4da88a", () => {
-    // Pin the reviewed blob directly so shallow CI checkouts (fetch-depth: 1)
-    // still prove byte-identity without requiring commit fe4da88a locally.
-    const reviewedBlob = "2f16cc45a3d7a0b91c71cfcea93a19ff2cdd1f7b";
+  it("canonical SET U remediation migration is byte-identical to reviewed blob", () => {
+    // Production scenario P1-U: U4 is the applied/canonical storage fix.
+    // Pin the reviewed blob directly so shallow CI checkouts still prove
+    // byte-identity without requiring the introducing commit locally.
+    const reviewedBlob = "177eaf08b55a81c7cecde7c619cce2afbc085605";
     const currentHash = execSync(`git hash-object ${migrationPath}`, {
       encoding: "utf8",
     }).trim();

@@ -36,25 +36,31 @@ const a1Path = join(
   root,
   "supabase",
   "migrations",
-  "20260806120000_gp_mvp_package_a1_foundation_01.sql",
+  "20260806235348_8f36000d-c62c-416f-a84b-eeee7d400dd8.sql",
 );
 const a2Path = join(
   root,
   "supabase",
   "migrations",
-  "20260806120100_gp_mvp_package_a2_storage_01.sql",
+  "20260807000230_a6771356-c3f3-4cba-9b90-e3f70afbb72b.sql",
 );
 const a3Path = join(
   root,
   "supabase",
   "migrations",
-  "20260806120200_gp_mvp_package_a3_lifecycle_01.sql",
+  "20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql",
 );
 const storageFixPath = join(
   root,
   "supabase",
   "migrations",
-  "20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
+  "20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql",
+);
+const promotedL4Path = join(
+  root,
+  "supabase",
+  "migrations",
+  "20260808010000_gp_student_level4_only_eligibility_guard_01.sql",
 );
 const studentIndexPath = join(root, "src", "routes", "student.index.tsx");
 const studentGpRoutePath = join(
@@ -235,13 +241,17 @@ describe("GP student Level-4-only eligibility guard", () => {
     expect(adminShell).toContain("/admin/graduation-projects");
   });
 
-  it("CI PG17 chains use Package A migrations so A3 lifecycle RPCs exist", () => {
+  it("CI PG17 chains use canonical SET U migrations and promoted L4", () => {
     expect(ciYml).toContain(
-      "20260806120200_gp_mvp_package_a3_lifecycle_01.sql",
+      "20260807001114_c22e6009-1472-43ef-9443-b002872bbba5.sql",
     );
     expect(ciYml).toContain(
-      "20260807003000_gp_mvp_storage_insert_policy_predicate_fix_01.sql",
+      "20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql",
     );
+    expect(ciYml).toContain(
+      "20260808010000_gp_student_level4_only_eligibility_guard_01.sql",
+    );
+    expect(ciYml).toContain("graduation-projects-level4");
     expect(ciYml).not.toMatch(
       /graduation-projects-foundation:[\s\S]*GRADUATION-PROJECTS-MVP-FOUNDATION-01\.sql/,
     );
@@ -319,17 +329,34 @@ describe("GP student Level-4-only eligibility guard", () => {
     );
     const ready = await waitReady();
     expect(ready).toBe(true);
+    // Brief settle — CI runners can race between pg_isready and first SQL apply.
+    await Bun.sleep(1000);
+    const settled = await waitReady();
+    expect(settled).toBe(true);
+
+    const promotedL4 = readFileSync(promotedL4Path, "utf8");
+    expect(promotedL4).toContain("PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION");
+    expect(promotedL4).not.toContain("DRAFT ONLY");
+    expect(promotedL4).toContain("student_is_current_fourth_academic_level");
 
     const applied: string[] = [];
     for (const [label, path] of [
       ["minimal-schema", minimalSchemaPath],
-      ["A1", a1Path],
-      ["A2", a2Path],
-      ["A3", a3Path],
-      ["storage-fix", storageFixPath],
-      ["L4-draft", draftPath],
+      ["U1-A1", a1Path],
+      ["U2-A2", a2Path],
+      ["U3-A3", a3Path],
+      ["U4-storage-fix", storageFixPath],
+      ["L4-promoted", promotedL4Path],
     ] as const) {
-      const result = psqlFile(path);
+      let result = psqlFile(path);
+      if (!result.ok) {
+        // One retry after a short settle for transient docker socket races.
+        await Bun.sleep(1000);
+        if (!(await waitReady())) {
+          throw new Error(`${label} failed (postgres not ready):\n${result.out}`);
+        }
+        result = psqlFile(path);
+      }
       if (!result.ok) {
         throw new Error(`${label} failed:\n${result.out}`);
       }
@@ -337,11 +364,11 @@ describe("GP student Level-4-only eligibility guard", () => {
     }
     expect(applied).toEqual([
       "minimal-schema",
-      "A1",
-      "A2",
-      "A3",
-      "storage-fix",
-      "L4-draft",
+      "U1-A1",
+      "U2-A2",
+      "U3-A3",
+      "U4-storage-fix",
+      "L4-promoted",
     ]);
 
     const noticeCheck = psqlFile(verifierPath);
