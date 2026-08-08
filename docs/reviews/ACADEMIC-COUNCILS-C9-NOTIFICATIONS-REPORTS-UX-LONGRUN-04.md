@@ -126,9 +126,9 @@ git diff --check                          → PASS
 ## FINAL
 
 ```text
-FINAL_SHA:        <TBD after commit>
-PR_NUMBER:        <TBD after PR creation>
-PR_URL:           <TBD after PR creation>
+FINAL_SHA:        f314910a90417d3d6d1de526e319c7749a74debf
+PR_NUMBER:        302
+PR_URL:           https://github.com/msorori-mh/saba-uni-portal/pull/302
 ```
 
 ---
