@@ -1,12 +1,15 @@
 # ACADEMIC-COUNCILS-C0-C9-SECURITY-AND-PRODUCTION-READINESS-LONGRUN-10
 
 ## Verdict
-`PASS_ACADEMIC_COUNCILS_C0_C9_SECURITY_AND_PRODUCTION_READINESS_PR_READY` (pending final CI pins)
+`PASS_ACADEMIC_COUNCILS_C0_C9_SECURITY_AND_PRODUCTION_READINESS_PR_READY`
 
 ## Identity
 - **Base PR / SHA:** #304 / `2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb`
 - **Branch:** `fix/councils-c9-security-production-readiness-longrun-01`
 - **Stacked on:** `fix/councils-c0-c9-final-security-closure-01`
+- **FINAL_SHA:** `e853587fd0cc3c82d41c5136ceb9bece047456e1`
+- **PR:** #306
+- **PR_URL:** https://github.com/msorori-mh/saba-uni-portal/pull/306
 
 ## Phase A — C9 HIGH reproduction (pre-fix, PG17)
 Independent finding confirmed on disposable Postgres 17 with C0→C9 applied as shipped on #304 tip:
