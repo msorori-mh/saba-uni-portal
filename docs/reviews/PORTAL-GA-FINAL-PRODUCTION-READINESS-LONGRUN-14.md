@@ -5,7 +5,8 @@
 **Repository:** `msorori-mh/saba-uni-portal`
 **Canonical Source PR:** `#291` — `f799608a5d5fb167d66e5615d3f7b50692295f30`
 **Promotion Package PR:** `#299` — `5ae9b53ce7e69bd8b98fd06c8e3736f040514c92`
-**Final SHA:** `5ae9b53ce7e69bd8b98fd06c8e3736f040514c92`
+**Promotion Package Baseline SHA:** `5ae9b53ce7e69bd8b98fd06c8e3736f040514c92`
+**Final SHA:** see branch tip returned in final mission output below
 **Branch:** `prep/ga-production-promotion-longrun-01`
 **Stacked PR:** [#299](https://github.com/msorori-mh/saba-uni-portal/pull/299)
 **Base:** `fix/graduates-affairs-multimodel-remediation-01`
@@ -260,7 +261,10 @@ This mission adds the following source-only artifacts to the promotion package b
 - `scripts/ga-local-exact-rehearsal.sh`
 - `scripts/ga-failure-matrix-rehearsal.sh`
 
-CI will be triggered by push; routine failures will be fixed automatically.
+**CI Run:** https://github.com/msorori-mh/saba-uni-portal/actions/runs/31277429566
+- Conclusion: `success`
+- All jobs passed, including the three promoted GA migration post-verifier legs and the follow-up authority-race verifier.
+- Only annotations are non-blocking Node.js 20 deprecation warnings from `actions/checkout@v4`.
 
 ---
 
