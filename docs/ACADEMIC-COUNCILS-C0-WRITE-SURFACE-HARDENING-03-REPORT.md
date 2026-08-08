@@ -14,8 +14,9 @@
 Migration: `supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql`
 - `REVOKE INSERT, UPDATE, DELETE` from `PUBLIC/anon/authenticated` on all 7 target tables.
 - `GRANT SELECT` retained for authenticated + service_role.
-- Write RLS policies dropped; SELECT policies retained.
+- Write RLS policies kept and converted to explicit deny-all (`WITH CHECK (false)` / `USING (false)`); SELECT policies retained.
 - No anon grants.
+- Remediation-04: no policy-object removal (Migration Review compliant).
 
 ## Phase C — Minimal action RPCs
 Auth via `auth.uid()` only; pinned `search_path = public, pg_temp`; action-specific params:

@@ -6,8 +6,9 @@
 -- Scope:
 --   1) Revoke authenticated direct INSERT/UPDATE/DELETE on council lifecycle tables
 --   2) Keep SELECT (RLS-scoped)
---   3) Remove system_admin/admin automatic academic-decision bypass from operational helpers
---   4) Expose narrow action RPCs for existing operational capabilities only
+--   3) Convert existing write RLS policies to explicit deny-all (no policy object removal)
+--   4) Remove system_admin/admin automatic academic-decision bypass from operational helpers
+--   5) Expose narrow action RPCs for existing operational capabilities only
 --
 -- Non-goals:
 --   attendance / voting / minutes / decisions lifecycle RPCs
@@ -108,27 +109,113 @@ GRANT ALL ON TABLE public.academic_council_agenda_items TO service_role;
 GRANT ALL ON TABLE public.academic_council_minutes TO service_role;
 GRANT ALL ON TABLE public.academic_council_decisions TO service_role;
 
--- Drop write policies so direct grants cannot be reintroduced without also re-adding policy surface.
-DROP POLICY IF EXISTS "councils_insert_admin" ON public.academic_councils;
-DROP POLICY IF EXISTS "councils_update_admin_or_chair" ON public.academic_councils;
+-- ---------------------------------------------------------------------
+-- 2b) Write RLS: keep policy objects, convert to explicit deny-all
+--     Defense in depth with table REVOKE above. Fail closed if any
+--     expected predecessor write policy is absent or mistyped.
+--     SELECT policies are intentionally untouched.
+-- ---------------------------------------------------------------------
+DO $$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT * FROM (VALUES
+      ('academic_councils',              'councils_insert_admin',           'INSERT'),
+      ('academic_councils',              'councils_update_admin_or_chair',  'UPDATE'),
+      ('academic_council_members',       'council_members_insert',          'INSERT'),
+      ('academic_council_members',       'council_members_update',          'UPDATE'),
+      ('academic_council_meetings',      'meetings_insert',                 'INSERT'),
+      ('academic_council_meetings',      'meetings_update',                 'UPDATE'),
+      ('academic_council_topics',        'topics_insert_member',            'INSERT'),
+      ('academic_council_topics',        'topics_update_owner_draft',       'UPDATE'),
+      ('academic_council_agenda_items',  'agenda_insert',                   'INSERT'),
+      ('academic_council_agenda_items',  'agenda_update',                   'UPDATE'),
+      ('academic_council_minutes',       'minutes_insert_secretary',        'INSERT'),
+      ('academic_council_minutes',       'minutes_update_before_lock',      'UPDATE'),
+      ('academic_council_decisions',     'decisions_insert',                'INSERT'),
+      ('academic_council_decisions',     'decisions_update',                'UPDATE')
+    ) AS t(tablename, policyname, cmd)
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_policies p
+      WHERE p.schemaname = 'public'
+        AND p.tablename = r.tablename
+        AND p.policyname = r.policyname
+        AND p.cmd = r.cmd
+    ) THEN
+      RAISE EXCEPTION
+        'councils C0 hardening fail-closed: expected write policy % on public.% (cmd %) absent or unexpected identity',
+        r.policyname, r.tablename, r.cmd;
+    END IF;
+  END LOOP;
+END $$;
 
-DROP POLICY IF EXISTS "council_members_insert" ON public.academic_council_members;
-DROP POLICY IF EXISTS "council_members_update" ON public.academic_council_members;
+-- INSERT policies → WITH CHECK (false)
+ALTER POLICY "councils_insert_admin"
+  ON public.academic_councils
+  WITH CHECK (false);
 
-DROP POLICY IF EXISTS "meetings_insert" ON public.academic_council_meetings;
-DROP POLICY IF EXISTS "meetings_update" ON public.academic_council_meetings;
+ALTER POLICY "council_members_insert"
+  ON public.academic_council_members
+  WITH CHECK (false);
 
-DROP POLICY IF EXISTS "topics_insert_member" ON public.academic_council_topics;
-DROP POLICY IF EXISTS "topics_update_owner_draft" ON public.academic_council_topics;
+ALTER POLICY "meetings_insert"
+  ON public.academic_council_meetings
+  WITH CHECK (false);
 
-DROP POLICY IF EXISTS "agenda_insert" ON public.academic_council_agenda_items;
-DROP POLICY IF EXISTS "agenda_update" ON public.academic_council_agenda_items;
+ALTER POLICY "topics_insert_member"
+  ON public.academic_council_topics
+  WITH CHECK (false);
 
-DROP POLICY IF EXISTS "minutes_insert_secretary" ON public.academic_council_minutes;
-DROP POLICY IF EXISTS "minutes_update_before_lock" ON public.academic_council_minutes;
+ALTER POLICY "agenda_insert"
+  ON public.academic_council_agenda_items
+  WITH CHECK (false);
 
-DROP POLICY IF EXISTS "decisions_insert" ON public.academic_council_decisions;
-DROP POLICY IF EXISTS "decisions_update" ON public.academic_council_decisions;
+ALTER POLICY "minutes_insert_secretary"
+  ON public.academic_council_minutes
+  WITH CHECK (false);
+
+ALTER POLICY "decisions_insert"
+  ON public.academic_council_decisions
+  WITH CHECK (false);
+
+-- UPDATE policies → USING (false) WITH CHECK (false)
+ALTER POLICY "councils_update_admin_or_chair"
+  ON public.academic_councils
+  USING (false)
+  WITH CHECK (false);
+
+ALTER POLICY "council_members_update"
+  ON public.academic_council_members
+  USING (false)
+  WITH CHECK (false);
+
+ALTER POLICY "meetings_update"
+  ON public.academic_council_meetings
+  USING (false)
+  WITH CHECK (false);
+
+ALTER POLICY "topics_update_owner_draft"
+  ON public.academic_council_topics
+  USING (false)
+  WITH CHECK (false);
+
+ALTER POLICY "agenda_update"
+  ON public.academic_council_agenda_items
+  USING (false)
+  WITH CHECK (false);
+
+ALTER POLICY "minutes_update_before_lock"
+  ON public.academic_council_minutes
+  USING (false)
+  WITH CHECK (false);
+
+ALTER POLICY "decisions_update"
+  ON public.academic_council_decisions
+  USING (false)
+  WITH CHECK (false);
 
 -- ---------------------------------------------------------------------
 -- 3) Internal auth helper (not granted to clients)
