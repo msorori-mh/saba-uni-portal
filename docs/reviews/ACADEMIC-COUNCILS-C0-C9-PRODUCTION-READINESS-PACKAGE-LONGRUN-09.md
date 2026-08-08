@@ -6,8 +6,26 @@
 **Base:** PR #304 / `2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb`  
 **Base branch:** `fix/councils-c0-c9-final-security-closure-01`  
 **Package branch:** `prep/councils-c0-c9-production-readiness-01`  
+**FINAL_SHA:** `a66baa499dd4b80ab0df680cd013a3235a43390c`  
+**Stacked PR:** [#305](https://github.com/msorori-mh/saba-uni-portal/pull/305)  
 **Mode:** SOURCE-ONLY production readiness + preflight + post-verifiers + E2E package  
-**Verdict:** see final mission output after CI
+**Verdict:** `PASS_ACADEMIC_COUNCILS_C0_C9_PRODUCTION_READINESS_PACKAGE_PR_READY`
+
+### Local gates
+| Gate | Result |
+|---|---|
+| PG17 rehearsal (preflight→C0–C9→verifiers→dry-run→zero residue→observability) | PASS |
+| `bun test tests/academic-councils` | PASS (46) |
+| `bun test tests/student-requests` | PASS (1066) |
+| `bunx tsc --noEmit` | PASS |
+| `bun run build` | PASS |
+| `git diff --check` | PASS |
+
+### CI
+Stacked PR base is `fix/councils-c0-c9-final-security-closure-01` (not `main`).  
+Repo workflows `Web CI` / `Migration Review` only trigger on `pull_request.branches: [main]`, so no Actions run is expected on #305.  
+No migration SQL under `supabase/migrations/**` changed in this package (docs/tests only) — Migration Review would be a no-op even on main.  
+Local gates above are the authoritative readiness evidence for this stacked PR.
 
 ---
 
@@ -95,5 +113,5 @@ canonical predecessor equivalent → C0–C9 candidates → structural post-veri
 
 ## Decision
 
-Pending local gates + stacked PR CI. Target verdict:  
-`PASS_ACADEMIC_COUNCILS_C0_C9_PRODUCTION_READINESS_PACKAGE_PR_READY`
+**PASS** — `PASS_ACADEMIC_COUNCILS_C0_C9_PRODUCTION_READINESS_PACKAGE_PR_READY`  
+Stacked PR #305 opened on PR #304 base. Local gates green. GitHub Actions intentionally not triggered for non-`main` stacked base.
