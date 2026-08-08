@@ -168,3 +168,11 @@ C0–C7 filenames/timestamps are unique and ordered. No scanner bypass introduce
 ## Decision
 
 **PASS**
+
+## Final SHA
+
+`ba3dd3a1b0f2a2e18d8b76e1681eeb64aac30aea`
+
+## PR
+
+https://github.com/msorori-mh/saba-uni-portal/pull/300
