@@ -1,4 +1,4 @@
--- Disposable PG17 stub schema for Academic Councils C0 write-surface hardening.
+-- Disposable PG17 stub schema for Academic Councils C0–C3 integrated harness.
 -- Synthetic identities only. No production connection.
 
 create extension if not exists pgcrypto;
@@ -59,11 +59,12 @@ insert into auth.users(id) values
  ('a1000000-0000-0000-0000-000000000011'), -- chair same council
  ('a1000000-0000-0000-0000-000000000012'), -- chair other council
  ('a1000000-0000-0000-0000-000000000013'), -- secretary same
- ('a1000000-0000-0000-0000-000000000014'), -- member same
+ ('a1000000-0000-0000-0000-000000000014'), -- member A
  ('a1000000-0000-0000-0000-000000000015'), -- viewer same
  ('a1000000-0000-0000-0000-000000000016'), -- unrelated faculty
  ('a1000000-0000-0000-0000-000000000017'), -- student
- ('a1000000-0000-0000-0000-000000000018')  -- membership link target
+ ('a1000000-0000-0000-0000-000000000018'), -- member B / membership link target
+ ('a1000000-0000-0000-0000-000000000019')  -- member C
 on conflict do nothing;
 
 insert into public.departments(id) values ('d1000000-0000-0000-0000-000000000001') on conflict do nothing;
@@ -80,5 +81,6 @@ insert into public.user_roles(user_id, role) values
  ('a1000000-0000-0000-0000-000000000015', 'faculty_member'),
  ('a1000000-0000-0000-0000-000000000016', 'faculty_member'),
  ('a1000000-0000-0000-0000-000000000017', 'student'),
- ('a1000000-0000-0000-0000-000000000018', 'faculty_member')
+ ('a1000000-0000-0000-0000-000000000018', 'faculty_member'),
+ ('a1000000-0000-0000-0000-000000000019', 'faculty_member')
 on conflict do nothing;
