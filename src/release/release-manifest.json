@@ -1,8 +1,8 @@
 {
-  "current_main": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
+  "current_main": "855a4f17de42361b92bc9e0d96ebfa36aff06ff1",
   "graduation_projects": {
     "name": "Graduation Projects",
-    "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
+    "expected_base": "855a4f17de42361b92bc9e0d96ebfa36aff06ff1",
     "operator_package_sha": "61952df385eea12f57720ea33b2d10b5b6621247",
     "L4_migration": {
       "path": "supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql",
@@ -49,43 +49,52 @@
     ],
     "rollback_references": [
       "docs/migration-drafts/GRADUATION-PROJECTS-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01-ROLLBACK-BY-FORWARD.sql"
-    ]
+    ],
+    "source_ready": "PASS",
+    "production_readonly_ready": "OWNER_APPROVAL_REQUIRED",
+    "owner_approval_required": true
   },
   "graduates_affairs": {
     "name": "Graduates Affairs",
-    "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
+    "expected_base": "855a4f17de42361b92bc9e0d96ebfa36aff06ff1",
     "source_sha": "f799608a5d5fb167d66e5615d3f7b50692295f30",
-    "promotion_package_sha": "5ae9b53ce7e69bd8b98fd06c8e3736f040514c92",
+    "promotion_package_sha": "19b412e655079697ea03e016f311151f74673480",
     "ga_final_security_review": "HOLD",
     "candidate_shas": {
       "#291_source_sha": "f799608a5d5fb167d66e5615d3f7b50692295f30",
-      "#299_promotion_package": "5ae9b53ce7e69bd8b98fd06c8e3736f040514c92"
+      "#299_promotion_package": "19b412e655079697ea03e016f311151f74673480"
     },
     "three_migration_sequence": [
       {
         "path": "supabase/migrations/20260808210000_ga_mvp_foundation_01.sql",
+        "full_hash": "3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43",
         "body_hash": "43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819"
       },
       {
         "path": "supabase/migrations/20260808210100_ga_mvp_completion_01.sql",
+        "full_hash": "3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa",
         "body_hash": "834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc"
       },
       {
         "path": "supabase/migrations/20260808210200_ga_authorization_04.sql",
+        "full_hash": "212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c",
         "body_hash": "3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd"
       }
     ],
     "migration_sequence": [
       {
         "path": "supabase/migrations/20260808210000_ga_mvp_foundation_01.sql",
+        "full_hash": "3248cf641add2dde7f249eb366f5b7b9668ef028130d6f0caffb0936969e2f43",
         "body_hash": "43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819"
       },
       {
         "path": "supabase/migrations/20260808210100_ga_mvp_completion_01.sql",
+        "full_hash": "3e37afbadd9b4c2ca4ec593ad47fae77b4333e62770f926598fcbf51336806fa",
         "body_hash": "834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc"
       },
       {
         "path": "supabase/migrations/20260808210200_ga_authorization_04.sql",
+        "full_hash": "212865fb7c4077ce313a9b4707700520be275360b54470fd62fc08edd539060c",
         "body_hash": "3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd"
       }
     ],
@@ -113,19 +122,22 @@
     ],
     "rollback_references": [
       "docs/migration-drafts/GA-PRODUCTION-PROMOTION-ROLLBACK-BY-FORWARD-01.sql"
-    ]
+    ],
+    "source_ready": "PASS",
+    "production_readonly_ready": "OWNER_APPROVAL_REQUIRED",
+    "owner_approval_required": true
   },
   "academic_councils": {
     "name": "Academic Councils",
-    "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
-    "c0_c3_sha": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
-    "c4_c8_sha": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
-    "eventual_final_integrated_sha": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85",
+    "expected_base": "855a4f17de42361b92bc9e0d96ebfa36aff06ff1",
+    "c0_c3_sha": "1f50e7dcc8042cf15780c7817ecefa579c49f431",
+    "c4_c8_sha": "1f50e7dcc8042cf15780c7817ecefa579c49f431",
+    "eventual_final_integrated_sha": "1f50e7dcc8042cf15780c7817ecefa579c49f431",
     "councils_final_security_review": "HOLD",
-    "councils_final_security_sha": "PENDING",
-    "c9_integrated_sha": "PENDING",
-    "c9_extension_sha": "7d5d607d610f4b319c06b3e1cf8a37d69e18517f",
-    "c9_status": "C9_CANDIDATE_PRESENT",
+    "councils_final_security_sha": "1f50e7dcc8042cf15780c7817ecefa579c49f431",
+    "c9_integrated_sha": "1f50e7dcc8042cf15780c7817ecefa579c49f431",
+    "c9_extension_sha": "1f50e7dcc8042cf15780c7817ecefa579c49f431",
+    "c9_status": "INTEGRATED",
     "security_review_findings": [
       "vote/close serialization",
       "decision relationship",
@@ -133,35 +145,58 @@
       "archive/follow-up"
     ],
     "candidate_shas": {
-      "#298_c0_c3_superseded": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
-      "#297_c4_c8_superseded": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
-      "#300_final_integrated": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85",
-      "#302_c9_extension": "7d5d607d610f4b319c06b3e1cf8a37d69e18517f"
+      "#306_canonical_councils": "1f50e7dcc8042cf15780c7817ecefa579c49f431"
     },
     "migration_sequence": [
       {
-        "path": "supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql"
+        "path": "supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql",
+        "full_hash": "cca51386d7c3bfe1a3b9ce5ec2cdfb3cd124e3e5eeef01f6270e4299c715dc13",
+        "body_hash": "ac715a4ec7cd86a365eefab4c938844b178fb23e47cb954423e07a3a7156c213"
       },
       {
-        "path": "supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql"
+        "path": "supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql",
+        "full_hash": "498a8d8c274277ff3ffc96e95fa30202e859aa2a2cfd74bcfaaa9f5d39a033d5",
+        "body_hash": "60b492d86308feb3d12ef2e085a25bf576425f15b8d5d0bce6d62428be344440"
       },
       {
-        "path": "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql"
+        "path": "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql",
+        "full_hash": "f969c6c0f63a4758944cc59f6c78292f56f3a4ac360ae77f0b386bf72e0e364e",
+        "body_hash": "0f7d37e86c40cfe69e16570b443ac2e39dad4559ef5e9175ebad7e2bbbb502b2"
       },
       {
-        "path": "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql"
+        "path": "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql",
+        "full_hash": "e7361f6c85014fb37b6f8d97bd468dc1205700748a526cb7a8063f82ff6c0de6",
+        "body_hash": "3f1e03b07f647085c3b11ba1ad1b23eda83aab96c47517d1ca3c9cc64b50acdb"
       },
       {
-        "path": "supabase/migrations/20260808140000_councils_c4_session_voting_01.sql"
+        "path": "supabase/migrations/20260808140000_councils_c4_session_voting_01.sql",
+        "full_hash": "d0825e1ddcce82c0e1123ea04cba2777e3b726bc0e4ae514940a714d322b05cd",
+        "body_hash": "e977c252e9eb4dca8bbaae17a349b830ef8bb945ed6ee13486f94310858e83c9"
       },
       {
-        "path": "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql"
+        "path": "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql",
+        "full_hash": "85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25",
+        "body_hash": "b365180e09b863f428fa74ca2b32139976d027cc5da2362599131b431055029e"
       },
       {
-        "path": "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql"
+        "path": "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql",
+        "full_hash": "1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43",
+        "body_hash": "b12999821261acff5ec60f56c6650352ae32395f995b93a08e77fb79705c6c74"
       },
       {
-        "path": "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql"
+        "path": "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql",
+        "full_hash": "3fd74518d57722b7018b06ba9ce50f7fb9033c2d8527fe515d5ad133a4081f6a",
+        "body_hash": "5b49f75f70736caae0ccca702ad337ffe1bb510936f3f594322ca6f896130be8"
+      },
+      {
+        "path": "supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql",
+        "full_hash": "6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3",
+        "body_hash": "d8ac539c9b5293d41cb9f556441d0fcab9ff971c47fa57842eeb205ffc79430a"
+      },
+      {
+        "path": "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+        "full_hash": "c15f3378d12de10a0ef04d93ce033adca06f70fd7d9d53b764a21e828c329d4e",
+        "body_hash": "ddadd08660f6d14d28eca0654084c4b23954923a2b72c9d3f32fd5aa768c62fd"
       }
     ],
     "required_tests": [
@@ -169,7 +204,8 @@
       "tests/academic-councils/councils-c1-meeting-state-machine.test.ts",
       "tests/academic-councils/councils-c2-topic-intake-review.test.ts",
       "tests/academic-councils/councils-c3-attendance-quorum.test.ts",
-      "tests/academic-councils/councils-c4-c8-late-lifecycle.test.ts"
+      "tests/academic-councils/councils-c4-c8-late-lifecycle.test.ts",
+      "tests/academic-councils/councils-c9-notifications-reporting.test.ts"
     ],
     "required_verifications": [
       "WEB_CI",
@@ -183,8 +219,7 @@
       "OWNER_APPROVAL_MIGRATION_APPLY",
       "OWNER_APPROVAL_FEATURE_FLAG_ENABLE",
       "OWNER_APPROVAL_INTEGRATION_MERGE",
-      "COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED",
-      "COUNCILS_C9_INTEGRATION_REQUIRED"
+      "COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED"
     ],
     "feature_flags": [
       "academicCouncils"
@@ -194,8 +229,34 @@
       "tests/academic-councils/postgres-c1-meeting-state-machine-verifier.sql",
       "tests/academic-councils/postgres-c2-topic-intake-review-verifier.sql",
       "tests/academic-councils/postgres-c3-attendance-quorum-verifier.sql",
-      "tests/academic-councils/postgres-c4-c8-verifier.sql"
+      "tests/academic-councils/postgres-c4-c8-verifier.sql",
+      "tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"
     ],
-    "rollback_references": []
+    "rollback_references": [],
+    "source_ready": "PASS",
+    "production_readonly_ready": "OWNER_APPROVAL_REQUIRED",
+    "owner_approval_required": true
+  },
+  "b1_negative_matrix": {
+    "name": "B1 Negative RPC Matrix",
+    "expected_base": "855a4f17de42361b92bc9e0d96ebfa36aff06ff1",
+    "source_package_sha": "3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6",
+    "candidate_shas": {
+      "#307_b1_negative_package": "3617a8a1eac69528b1dfacc988fc6d4cfbe9dec6"
+    },
+    "required_tests": [
+      "tests/b1-five-services-rpc-authorization-preflight-01/execution-authorization-fail-closed-26.test.ts",
+      "tests/b1-five-services-rpc-authorization-preflight-01/local-operator-simulation-13.test.ts",
+      "tests/b1-five-services-rpc-authorization-preflight-01/operator-execution-package-01.test.ts",
+      "tests/b1-five-services-rpc-authorization-preflight-01/stale-baseline-invalidation-09.test.ts"
+    ],
+    "source_ready": "PASS",
+    "production_readonly_ready": "OWNER_APPROVAL_REQUIRED",
+    "owner_approval_required": true
+  },
+  "gate_separation": {
+    "SOURCE_READY": "Integrated candidate source review complete for GP/GA/Councils/B1 on current main",
+    "PRODUCTION_READONLY_READY": "Requires owner-authorized production readonly evidence; not auto-passed",
+    "OWNER_APPROVAL_REQUIRED": "Migration apply, flags, deploy, publish, and production fixture execution remain owner-gated"
   }
 }

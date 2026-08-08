@@ -115,7 +115,7 @@ export const PRODUCTION_GATES: ProductionGateDefinition[] = [
 ];
 
 export const AUTHORITATIVE_GP_PACKAGE_PIN = '61952df385eea12f57720ea33b2d10b5b6621247';
-export const COUNCILS_300_INTEGRATED_PIN = 'd3ddce61f1d339d418d9c494fc8b456d4a5f6d85';
+export const COUNCILS_300_INTEGRATED_PIN = '1f50e7dcc8042cf15780c7817ecefa579c49f431';
 
 // Shared static cache across instances for git operations to accelerate testing
 const STATIC_FILE_EXISTS_CACHE = new Map<string, boolean>();
