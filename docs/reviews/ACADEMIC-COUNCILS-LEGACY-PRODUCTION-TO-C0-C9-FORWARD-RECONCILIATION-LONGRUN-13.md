@@ -12,11 +12,11 @@
 | Base PR | #306 |
 | Base SHA | `1f50e7dcc8042cf15780c7817ecefa579c49f431` |
 | Branch | `fix/councils-legacy-production-reconciliation-longrun-13` |
-| FINAL_SHA | `20af537b49c9d84ebedbb5c95a4af46225322ad5` |
+| FINAL_SHA | `22bd45cbb33644890edda6552402daf6f5471a5d` |
 | PR_NUMBER | #311 |
 | PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/311 |
-| WEB_CI | `TBD` |
-| MIGRATION_REVIEW | `TBD` |
+| WEB_CI | PASS — https://github.com/msorori-mh/saba-uni-portal/actions/runs/31281354962 |
+| MIGRATION_REVIEW | SKIPPED (no `supabase/migrations/` files changed in this PR) |
 
 ## Scope
 
@@ -249,6 +249,13 @@ New test/fixture files:
 - `tests/academic-councils/postgres-legacy-production-data-seed.sql`
 - `tests/academic-councils/postgres-storage-stub.sql`
 - `tests/academic-councils/postgres-departments-stub.sql`
+
+## CI / PR status
+
+- Stacked PR #311 targets `fix/councils-c9-security-production-readiness-longrun-01` (PR #306).
+- `.github/workflows/ci.yml` and `.github/workflows/migration-review.yml` were updated to run on pull requests targeting any base branch, so Web CI now fires for stacked PRs.
+- Web CI run `31281354962`: all jobs pass.
+- Migration Review: skipped because no `supabase/migrations/*.sql` files changed.
 
 ## Local verification
 
