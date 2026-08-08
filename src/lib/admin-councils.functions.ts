@@ -7,6 +7,12 @@ import { assertAnyRole } from "@/lib/authz.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  REVIEW_ERRORS,
+  TOPIC_STATUS_SKIP_MESSAGE,
+  getReviewAuthorityError,
+  isAllowedTopicTransition,
+} from "@/lib/council-topic-lifecycle";
 
 export const COUNCILS_READ_ROLES = ["system_admin", "admin", "dean"] as const;
 
@@ -1093,8 +1099,12 @@ const AGENDA_REORDER_FAILED_MESSAGE = "تعذر حفظ ترتيب جدول ال�
 const AGENDA_FINALIZE_DENIED_MESSAGE =
   "لا تملك صلاحية اعتماد جدول الأعمال.";
 const AGENDA_SAVE_FAILED_MESSAGE = "تعذر حفظ جدول الأعمال.";
-const TOPIC_REVIEW_DENIED_MESSAGE =
-  "لا تملك صلاحية مراجعة هذا الموضوع.";
+const TOPIC_REVIEW_DENIED_MESSAGE = REVIEW_ERRORS.NOT_ACTIVE_MEMBER;
+const TOPIC_REVIEW_NOTE_REQUIRED_MESSAGE =
+  "ملاحظة المراجعة مطلوبة عند طلب استكمال الموضوع.";
+const TOPIC_REVIEW_STALE_MESSAGE =
+  "تم تغيير حالة الموضوع من مستخدم آخر. حدّث القائمة ثم أعد المحاولة.";
+const TOPIC_REVIEW_FAILED_MESSAGE = "تعذّر حفظ حالة المراجعة.";
 
 const meetingIdSchema = z.string().uuid("معرّف الاجتماع غير صالح");
 const topicIdSchema = z.string().uuid("معرّف الموضوع غير صالح");
@@ -1104,7 +1114,6 @@ const TOPIC_REVIEW_STATUS_VALUES = [
   "under_review",
   "needs_completion",
   "accepted_for_agenda",
-  "deferred",
   "rejected",
 ] as const;
 
@@ -1112,10 +1121,45 @@ const AVAILABLE_TOPIC_STATUS_VALUES = ["accepted_for_agenda"] as const;
 
 type TopicReviewStatus = (typeof TOPIC_REVIEW_STATUS_VALUES)[number];
 
+function mapTopicReviewDbError(error: { code?: string; message: string }): never {
+  if (isSessionExpiredError(error)) {
+    throw new Error(SESSION_EXPIRED_MESSAGE);
+  }
+  const msg = error.message;
+  const lower = msg.toLowerCase();
+  if (msg.includes("COUNCIL_TOPIC_FINAL_DENIED") || lower.includes("final_denied")) {
+    throw new Error(REVIEW_ERRORS.FINAL_DENIED);
+  }
+  if (msg.includes("COUNCIL_TOPIC_INVALID_TRANSITION") || lower.includes("invalid_transition")) {
+    throw new Error(TOPIC_STATUS_SKIP_MESSAGE);
+  }
+  if (msg.includes("COUNCIL_TOPIC_STALE_STATE") || lower.includes("stale_state")) {
+    throw new Error(TOPIC_REVIEW_STALE_MESSAGE);
+  }
+  if (msg.includes("COUNCIL_TOPIC_REVIEW_NOTE_REQUIRED") || lower.includes("review_note_required")) {
+    throw new Error(TOPIC_REVIEW_NOTE_REQUIRED_MESSAGE);
+  }
+  if (
+    msg.includes("COUNCIL_TOPIC_REVIEW_DENIED") ||
+    msg.includes("COUNCIL_TOPIC_REVIEW_STATUS_DENIED") ||
+    error.code === "42501" ||
+    lower.includes("policy") ||
+    lower.includes("permission denied") ||
+    lower.includes("row-level security") ||
+    lower.includes("council_")
+  ) {
+    throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
+  }
+  throw new Error(TOPIC_REVIEW_FAILED_MESSAGE);
+}
+
 function mapAgendaDbError(
   error: { code?: string; message: string },
   mode: "load" | "topics_load" | "write" | "reorder" | "finalize" | "review",
 ): never {
+  if (mode === "review") {
+    mapTopicReviewDbError(error);
+  }
   if (isSessionExpiredError(error)) {
     throw new Error(SESSION_EXPIRED_MESSAGE);
   }
@@ -1129,7 +1173,6 @@ function mapAgendaDbError(
     msg.includes("council_")
   ) {
     if (mode === "finalize") throw new Error(AGENDA_FINALIZE_DENIED_MESSAGE);
-    if (mode === "review") throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
     if (mode === "load") throw new Error(AGENDA_LOAD_FAILED_MESSAGE);
     if (mode === "topics_load") throw new Error(AGENDA_TOPICS_LOAD_FAILED_MESSAGE);
     if (mode === "reorder") throw new Error(AGENDA_REORDER_FAILED_MESSAGE);
@@ -1140,7 +1183,6 @@ function mapAgendaDbError(
   if (mode === "topics_load") throw new Error(AGENDA_TOPICS_LOAD_FAILED_MESSAGE);
   if (mode === "reorder") throw new Error(AGENDA_REORDER_FAILED_MESSAGE);
   if (mode === "finalize") throw new Error(AGENDA_FINALIZE_DENIED_MESSAGE);
-  if (mode === "review") throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
   throw new Error(AGENDA_SAVE_FAILED_MESSAGE);
 }
 
@@ -1299,6 +1341,25 @@ export type ReviewCouncilTopicResult = {
   status: TopicReviewStatus;
 };
 
+export type AdminTopicReviewQueueItem = {
+  topic_id: string;
+  council_id: string;
+  council_name: string;
+  meeting_id: string | null;
+  title: string;
+  status: string;
+  submitted_by: string;
+  submitted_at: string | null;
+  updated_at: string;
+  review_note: string | null;
+};
+
+export type GetCouncilTopicReviewQueueForAdminResult = {
+  queue: AdminTopicReviewQueueItem[];
+  /** Active membership role of the current user on the selected council (null if none). */
+  actorRole: string | null;
+};
+
 export type AddTopicToAgendaResult = {
   ok: true;
   agenda_item_id: string;
@@ -1446,13 +1507,46 @@ export const getAvailableTopicsForAgenda = createServerFn({ method: "POST" })
     return { meeting, topics };
   });
 
+type CouncilMemberRoleResult = {
+  isActive: boolean;
+  role: string | null;
+};
+
+async function getUserCouncilRole(
+  sb: SupabaseClient<Database>,
+  userId: string,
+  councilId: string,
+): Promise<CouncilMemberRoleResult> {
+  const { data, error } = await sb
+    .from("academic_council_members")
+    .select("member_role, is_active, active_to")
+    .eq("user_id", userId)
+    .eq("council_id", councilId)
+    .eq("is_active", true)
+    .is("active_to", null)
+    .maybeSingle();
+  if (error) mapAgendaDbError(error, "review");
+  if (!data) return { isActive: false, role: null };
+  return {
+    isActive: isActiveMembership({
+      is_active: Boolean(data.is_active),
+      active_to: (data.active_to as string | null) ?? null,
+    }),
+    role: data.member_role as string,
+  };
+}
+
 const reviewCouncilTopicSchema = z.object({
   topicId: topicIdSchema,
   status: z.enum(TOPIC_REVIEW_STATUS_VALUES, {
     message: "حالة المراجعة غير مسموحة",
   }),
   reviewNote: z.string().trim().max(4000).optional(),
-  meetingId: meetingIdSchema.optional(),
+  expectedStatus: z
+    .enum(["submitted", "under_review", "needs_completion", "accepted_for_agenda", "rejected"], {
+      message: "الحالة المتوقعة غير مسموحة",
+    })
+    .optional(),
 });
 
 export const reviewCouncilTopic = createServerFn({ method: "POST" })
@@ -1465,6 +1559,10 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
       "councilId",
       "created_by",
       "createdBy",
+      "title",
+      "body",
+      "meeting_id",
+      "meetingId",
     ]);
     return reviewCouncilTopicSchema.parse(input);
   })
@@ -1479,17 +1577,25 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
     if (readErr) mapAgendaDbError(readErr, "review");
     if (!existing) throw new Error(TOPIC_REVIEW_DENIED_MESSAGE);
 
-    await assertCanWriteCouncilAgenda(
-      sb,
-      context.userId,
-      existing.council_id as string,
-    );
+    const councilId = existing.council_id as string;
+    const currentStatus = existing.status as string;
 
-    if (data.meetingId) {
-      const meeting = await loadMeetingAgendaContext(sb, data.meetingId);
-      if (meeting.council_id !== existing.council_id) {
-        throw new Error(AGENDA_TOPIC_COUNCIL_MISMATCH_MESSAGE);
-      }
+    if (!isAllowedTopicTransition(currentStatus, data.status)) {
+      throw new Error(TOPIC_STATUS_SKIP_MESSAGE);
+    }
+
+    const { isActive, role } = await getUserCouncilRole(sb, context.userId, councilId);
+    const authorityError = getReviewAuthorityError({
+      role,
+      isActiveMember: isActive,
+      targetStatus: data.status,
+    });
+    if (authorityError) {
+      throw new Error(authorityError);
+    }
+
+    if (data.status === "needs_completion" && !data.reviewNote?.trim()) {
+      throw new Error(TOPIC_REVIEW_NOTE_REQUIRED_MESSAGE);
     }
 
     const { data: updatedRpc, error } = await sb.rpc(
@@ -1497,8 +1603,8 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
       {
         p_topic_id: data.topicId,
         p_status: data.status,
-        p_review_note: data.reviewNote,
-        p_meeting_id: data.meetingId ?? null,
+        p_review_note: data.reviewNote ?? null,
+        p_expected_status: data.expectedStatus ?? currentStatus,
       } as never,
     );
 
@@ -1513,6 +1619,66 @@ export const reviewCouncilTopic = createServerFn({ method: "POST" })
       topic_id: payload.topic_id,
       status: payload.status as TopicReviewStatus,
     };
+  });
+
+export const getCouncilTopicReviewQueueForAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ councilId: councilIdSchema.optional() }).parse(input ?? {}),
+  )
+  .handler(async ({ data, context }): Promise<GetCouncilTopicReviewQueueForAdminResult> => {
+    await assertCouncilsReader(context.userId);
+    const sb = context.supabase;
+
+    let query = sb
+      .from("academic_council_topics")
+      .select(
+        "id, council_id, meeting_id, title, status, submitted_by, submitted_at, updated_at, review_note, council:academic_councils(name)",
+      )
+      .in("status", [
+        "submitted",
+        "under_review",
+        "needs_completion",
+        "accepted_for_agenda",
+        "rejected",
+      ] as never)
+      .order("updated_at", { ascending: false });
+
+    if (data.councilId) {
+      query = query.eq("council_id", data.councilId);
+    }
+
+    const { data: rows, error } = await query;
+    if (error) mapAgendaDbError(error, "review");
+
+    let actorRole: string | null = null;
+    if (data.councilId) {
+      const membership = await getUserCouncilRole(sb, context.userId, data.councilId);
+      actorRole = membership.isActive ? membership.role : null;
+    }
+
+    const queue: AdminTopicReviewQueueItem[] = (rows ?? []).map((row) => {
+      const council = unwrapCouncilName(
+        row.council as
+          | { name: string; council_type: string }
+          | { name: string; council_type: string }[]
+          | null,
+      );
+      return {
+        topic_id: row.id as string,
+        council_id: row.council_id as string,
+        council_name: council?.name ?? "",
+        meeting_id: (row.meeting_id as string | null) ?? null,
+        title: row.title as string,
+        status: row.status as string,
+        submitted_by: row.submitted_by as string,
+        submitted_at: (row.submitted_at as string | null) ?? null,
+        updated_at: row.updated_at as string,
+        review_note: (row.review_note as string | null) ?? null,
+      };
+    });
+
+    return { queue, actorRole };
   });
 
 const addTopicToAgendaSchema = z.object({
