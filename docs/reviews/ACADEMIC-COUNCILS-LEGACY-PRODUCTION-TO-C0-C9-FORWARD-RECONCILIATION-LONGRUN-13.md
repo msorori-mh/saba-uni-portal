@@ -12,9 +12,9 @@
 | Base PR | #306 |
 | Base SHA | `1f50e7dcc8042cf15780c7817ecefa579c49f431` |
 | Branch | `fix/councils-legacy-production-reconciliation-longrun-13` |
-| FINAL_SHA | `TBD_AFTER_COMMIT` |
-| PR_NUMBER | `TBD` |
-| PR_URL | `TBD` |
+| FINAL_SHA | `20af537b49c9d84ebedbb5c95a4af46225322ad5` |
+| PR_NUMBER | #311 |
+| PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/311 |
 | WEB_CI | `TBD` |
 | MIGRATION_REVIEW | `TBD` |
 
@@ -254,13 +254,13 @@ New test/fixture files:
 
 | Gate | Command | Result |
 |---|---|---|
-| Academic councils tests | `bun test tests/academic-councils` | `TBD` |
-| Student requests tests | `bun test tests/student-requests` | `TBD` |
-| TypeScript | `bunx tsc --noEmit` | `TBD` |
-| Build | `bun run build` | `TBD` |
-| Git diff check | `git diff --check` | `TBD` |
+| Academic councils tests | `bun test tests/academic-councils` | 52 pass, 0 fail |
+| Student requests tests | `bun test tests/student-requests` | 1066 pass, 0 fail |
+| TypeScript | `bunx tsc --noEmit` | PASS |
+| Build | `bun run build` | PASS |
+| Git diff check | `git diff --check` | PASS |
 | PG17 legacy → C9 | `bun test tests/academic-councils/councils-legacy-production-to-c0-c9-reconciliation.test.ts` | PASS |
-| PostgREST auth matrix | included in `bun test tests/academic-councils` | `TBD` |
+| PostgREST auth matrix | included in `bun test tests/academic-councils` | PASS (53 deny labels, zero mutation) |
 
 ## Production boundaries
 
