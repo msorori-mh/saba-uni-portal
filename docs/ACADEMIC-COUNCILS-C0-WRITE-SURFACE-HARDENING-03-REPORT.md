@@ -65,7 +65,7 @@ Actors: system_admin, admin, dean, chair same, chair other, secretary, member, v
 | Field | Value |
 |---|---|
 | BRANCH | `fix/councils-c0-write-surface-hardening-01` |
-| SHA | `1835713ef426b8a633eabe96fcd5c26672698bce` |
+| SHA | `c875dbf9264705036f3e04d0e03c5672426adc8d` |
 | PR_NUMBER | 294 |
 | PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/294 |
 | DIRECT_WRITE_VERDICT | DENIED (authenticated/anon INSERT/UPDATE/DELETE revoked; zero mutation) |
