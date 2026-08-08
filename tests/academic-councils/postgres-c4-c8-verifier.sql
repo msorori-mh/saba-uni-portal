@@ -195,6 +195,10 @@ declare
   v_item1 uuid;
   v_item2 uuid;
   v_dec uuid;
+  v_dec2 uuid;
+  v_other_meeting uuid;
+  v_other_topic uuid;
+  v_other_item uuid;
   v_res jsonb;
   v_status text;
   v_neg int := 0;
@@ -457,8 +461,43 @@ begin
   v_neg := v_neg + 1;
   raise notice 'MINUTES_IMMUTABILITY_PASS';
 
-  -- 23-26 decisions
+  -- 23-26 decisions + H2 source integrity + H3 FSM
   perform pg_temp.as_user(v_chair);
+
+  -- Build a second meeting with a resolved agenda item for cross-meeting forge proofs.
+  v_res := public.council_schedule_meeting(
+    v_council, 'Forge Source Meeting', now() + interval '9 days',
+    null, now() - interval '1 hour', now() + interval '1 day'
+  );
+  v_other_meeting := (v_res->>'meeting_id')::uuid;
+  perform public.council_transition_meeting(v_other_meeting,'scheduled','intake_open','{}'::jsonb);
+  perform pg_temp.as_user(v_mem_a);
+  v_res := public.council_submit_topic(v_council, v_other_meeting, 'Forge Topic', 'Body');
+  v_other_topic := (v_res->>'topic_id')::uuid;
+  perform pg_temp.as_user(v_sec);
+  perform public.council_review_topic(v_other_topic, 'under_review');
+  perform pg_temp.as_user(v_chair);
+  perform public.council_review_topic(v_other_topic, 'accepted_for_agenda');
+  perform public.council_transition_meeting(v_other_meeting,'intake_open','intake_closed','{}'::jsonb);
+  perform pg_temp.as_user(v_sec);
+  v_res := public.council_add_topic_to_agenda(v_other_meeting, v_other_topic, 1);
+  v_other_item := (v_res->>'agenda_item_id')::uuid;
+
+  -- H2: agenda item belonging to another meeting must be rejected (zero mutation)
+  perform pg_temp.as_user(v_chair);
+  perform pg_temp.deny_zero('H2_CROSS_MEETING_AGENDA_ITEM',
+    format($q$select public.issue_council_decision('%s','%s','Bad','Body',null,null,null)$q$,
+      v_meeting, v_other_item));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('H2_FORGED_MEETING_ID',
+    format($q$select public.issue_council_decision('%s','%s','Bad','Body',null,null,null)$q$,
+      'b1000000-0000-0000-0000-000000000099', v_item1));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('H2_FORGED_AGENDA_ITEM_UUID',
+    format($q$select public.issue_council_decision('%s','%s','Bad','Body',null,null,null)$q$,
+      v_meeting, 'b1000000-0000-0000-0000-000000000098'));
+  v_neg := v_neg + 1;
+
   v_res := public.issue_council_decision(
     v_meeting, v_item1, 'Execute Topic A Plan',
     'Department shall implement Topic A recommendations by due date.',
@@ -466,6 +505,15 @@ begin
   );
   v_dec := (v_res->>'decision_id')::uuid;
   if v_dec is null then raise exception 'DECISION_ISSUANCE_FAILED'; end if;
+
+  -- H3: illegal skip issued → completed
+  perform pg_temp.as_user(v_mem_a);
+  perform pg_temp.deny_zero('H3_ISSUED_TO_COMPLETED_SKIP',
+    format($q$select public.update_council_decision_followup('%s','completed')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('H3_COMPLETE_FROM_ISSUED_SKIP',
+    format($q$select public.complete_council_decision('%s','skip')$q$, v_dec));
+  v_neg := v_neg + 1;
 
   perform pg_temp.deny_zero('MUTATE_LOCKED_DECISION_TEXT',
     format($q$update public.academic_council_decisions set title = 'tampered' where id = '%s'$q$, v_dec));
@@ -479,14 +527,62 @@ begin
   perform pg_temp.deny_zero('ADMIN_FOLLOWUP_BYPASS',
     format($q$select public.update_council_decision_followup('%s','in_progress')$q$, v_dec));
   v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_sys);
+  perform pg_temp.deny_zero('SYSADMIN_FOLLOWUP_BYPASS',
+    format($q$select public.update_council_decision_followup('%s','in_progress')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_dean);
+  perform pg_temp.deny_zero('DEAN_FOLLOWUP_BYPASS',
+    format($q$select public.update_council_decision_followup('%s','in_progress')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_sec);
+  perform pg_temp.deny_zero('SECRETARY_FOLLOWUP_BYPASS',
+    format($q$select public.update_council_decision_followup('%s','in_progress')$q$, v_dec));
+  v_neg := v_neg + 1;
 
   perform pg_temp.as_user(v_mem_a);
   perform public.update_council_decision_followup(v_dec, 'in_progress', 'Work started.');
+
+  -- H3: illegal regression in_progress → issued
+  perform pg_temp.deny_zero('H3_IN_PROGRESS_TO_ISSUED',
+    format($q$select public.update_council_decision_followup('%s','issued')$q$, v_dec));
+  v_neg := v_neg + 1;
+
+  -- Controlled blocked path
+  perform public.update_council_decision_followup(v_dec, 'blocked', 'Blocked on dependency.');
+  perform pg_temp.deny_zero('H3_BLOCKED_TO_ISSUED',
+    format($q$select public.update_council_decision_followup('%s','issued')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('H3_BLOCKED_TO_COMPLETED_SKIP',
+    format($q$select public.update_council_decision_followup('%s','completed')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform public.update_council_decision_followup(v_dec, 'in_progress', 'Unblocked.');
   perform public.complete_council_decision(v_dec, 'Execution completed.');
   perform pg_temp.deny_zero('COMPLETED_DECISION_BACKWARD',
     format($q$select public.update_council_decision_followup('%s','issued')$q$, v_dec));
   v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('H3_COMPLETED_TO_IN_PROGRESS',
+    format($q$select public.update_council_decision_followup('%s','in_progress')$q$, v_dec));
+  v_neg := v_neg + 1;
   raise notice 'DECISION_FOLLOWUP_PASS';
+  raise notice 'H2_DECISION_SOURCE_INTEGRITY_PASS';
+  raise notice 'H3_DECISION_FSM_PASS';
+
+  -- H4: archive denied while open decision exists (issue a second decision first)
+  perform pg_temp.as_user(v_chair);
+  v_res := public.issue_council_decision(
+    v_meeting, v_item2, 'Track Topic B',
+    'Follow-up tracking for Topic B notes.',
+    v_mem_a, null, (current_date + 14)::date
+  );
+  v_dec2 := (v_res->>'decision_id')::uuid;
+  perform pg_temp.deny_zero('H4_ARCHIVE_WITH_OPEN_DECISION',
+    format($q$select public.archive_council_meeting('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  -- Complete the open decision so archive can proceed
+  perform pg_temp.as_user(v_mem_a);
+  perform public.update_council_decision_followup(v_dec2, 'in_progress', 'start');
+  perform public.complete_council_decision(v_dec2, 'done');
 
   -- 27 archive
   perform pg_temp.as_user(v_sec);
@@ -517,7 +613,22 @@ begin
   perform pg_temp.deny_zero('POST_ARCHIVE_DECISION_MUTATION',
     format($q$update public.academic_council_decisions set title = 'x' where id = '%s'$q$, v_dec));
   v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_mem_a);
+  perform pg_temp.deny_zero('H4_POST_ARCHIVE_FOLLOWUP_RPC',
+    format($q$select public.update_council_decision_followup('%s','in_progress','x')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('H4_POST_ARCHIVE_COMPLETE_RPC',
+    format($q$select public.complete_council_decision('%s','x')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_chair);
+  perform pg_temp.deny_zero('H4_POST_ARCHIVE_ISSUE_DECISION',
+    format($q$select public.issue_council_decision('%s','%s','x','y',null,null,null)$q$, v_meeting, v_item1));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('H4_POST_ARCHIVE_VOTE_RPC',
+    format($q$select public.cast_council_vote('%s','yes')$q$, v_item1));
+  v_neg := v_neg + 1;
   raise notice 'ARCHIVE_IMMUTABILITY_PASS';
+  raise notice 'H4_ARCHIVE_FOLLOWUP_PASS';
 
   -- 28 historical read
   v_res := public.get_council_archive_summary(v_council);

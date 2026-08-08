@@ -19,6 +19,7 @@ const paths = {
   c5: join(root, "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql"),
   c6: join(root, "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql"),
   c7: join(root, "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql"),
+  closure: join(root, "supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql"),
   verifier: join(root, "tests/academic-councils/postgres-c4-c8-verifier.sql"),
   shim: join(root, "tests/academic-councils/postgres-c1-contract-shim.sql"),
 };
@@ -27,6 +28,7 @@ const migrationC4 = readFileSync(paths.c4, "utf8");
 const migrationC5 = readFileSync(paths.c5, "utf8");
 const migrationC6 = readFileSync(paths.c6, "utf8");
 const migrationC7 = readFileSync(paths.c7, "utf8");
+const migrationClosure = readFileSync(paths.closure, "utf8");
 const migrationC1 = readFileSync(paths.c1, "utf8");
 const verifier = readFileSync(paths.verifier, "utf8");
 const shim = readFileSync(paths.shim, "utf8");
@@ -115,6 +117,15 @@ describe("Academic Councils C4-C8 Final Integration (real C0-C7)", () => {
     expect(migrationC7).toContain("get_council_archive_summary");
     expect(migrationC7).toContain("get_council_historical_minutes");
 
+    expect(migrationClosure).toContain("PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION");
+    expect(migrationClosure).toContain("cast_council_vote");
+    expect(migrationClosure).toContain("FOR UPDATE");
+    expect(migrationClosure).toContain("council_decision_transition_is_legal");
+    expect(migrationClosure).toContain("COUNCIL_DECISION_SOURCE_MEETING_MISMATCH");
+    expect(migrationClosure).toContain("COUNCIL_DECISION_FSM_TRANSITION_DENIED");
+    expect(migrationClosure).toContain("unresolved decision follow-up");
+    expect(migrationClosure).toContain("trg_ac_archived_decisions_guard");
+
     // Shim may remain as isolated unit artifact but must not be the C1 contract.
     expect(shim).toContain("TEST_ONLY");
     expect(shim).toContain("can_transition_council_meeting_state");
@@ -127,12 +138,19 @@ describe("Academic Councils C4-C8 Final Integration (real C0-C7)", () => {
     expect(verifier).toContain("VOTING_SECURITY_PASS");
     expect(verifier).toContain("MINUTES_IMMUTABILITY_PASS");
     expect(verifier).toContain("DECISION_FOLLOWUP_PASS");
+    expect(verifier).toContain("H2_DECISION_SOURCE_INTEGRITY_PASS");
+    expect(verifier).toContain("H3_DECISION_FSM_PASS");
+    expect(verifier).toContain("H4_ARCHIVE_FOLLOWUP_PASS");
     expect(verifier).toContain("ARCHIVE_IMMUTABILITY_PASS");
     expect(verifier).toContain("CONCURRENCY_PASS");
+    expect(verifier).toContain("deny_zero");
     expect(verifier).toContain("ACADEMIC_COUNCILS_C4_C8_VERIFIER_PASS");
     expect(verifier).not.toMatch(/postgres-c1-contract-shim/i);
     expect(verifier).toMatch(/^\s*begin;/im);
     expect(verifier).toMatch(/^\s*rollback;/im);
+    // Static contract: every deny_zero label is paired with fingerprint equality.
+    expect(verifier).toContain("_MUTATED_STATE");
+    expect(verifier).toContain("pg_temp.deny_zero");
   });
 
   it("launches disposable PG17 and validates full C0→C7 chain without C1 shim", async () => {
@@ -164,6 +182,7 @@ describe("Academic Councils C4-C8 Final Integration (real C0-C7)", () => {
       ["councils-c5", paths.c5],
       ["councils-c6", paths.c6],
       ["councils-c7", paths.c7],
+      ["councils-c0-c8-security-closure", paths.closure],
     ] as const;
 
     const applied: string[] = [];
@@ -206,6 +225,9 @@ describe("Academic Councils C4-C8 Final Integration (real C0-C7)", () => {
       "VOTING_SECURITY_PASS",
       "MINUTES_IMMUTABILITY_PASS",
       "DECISION_FOLLOWUP_PASS",
+      "H2_DECISION_SOURCE_INTEGRITY_PASS",
+      "H3_DECISION_FSM_PASS",
+      "H4_ARCHIVE_FOLLOWUP_PASS",
       "ARCHIVE_IMMUTABILITY_PASS",
       "CONCURRENCY_PASS",
       "ZERO_MUTATION_DENIALS_COUNTED",

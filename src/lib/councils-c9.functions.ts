@@ -1,134 +1,81 @@
-// Academic Councils C9 — notifications, reports, dashboards, operational UX.
-// All heavy lifting is performed by security-definer RPCs in the C9 migration.
+// C9 server functions: notifications, reports, dashboards, responsible actor workspace.
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-// ========================================================================
+const councilIdSchema = z.string().uuid("معرّف المجلس غير صالح");
+
+function mapCouncilError(error: { code?: string; message: string }): string {
+  const msg = error.message.toLowerCase();
+  if (
+    error.code === "42501" ||
+    msg.includes("council_access_denied") ||
+    msg.includes("council_chair_authority_required") ||
+    msg.includes("council_secretary_authority_required") ||
+    msg.includes("permission") ||
+    msg.includes("policy") ||
+    msg.includes("row-level security")
+  ) {
+    return "لا تملك صلاحية الوصول إلى هذا المحتوى. الصلاحيات النهائية يحددها الخادم.";
+  }
+  if (msg.includes("jwt") || msg.includes("auth") || msg.includes("session")) {
+    return "انتهت جلسة تسجيل الدخول، يرجى تسجيل الدخول مرة أخرى.";
+  }
+  return error.message || "تعذر تنفيذ العملية.";
+}
+
+// -----------------------------------------------------------------------------
 // NOTIFICATIONS
-// ========================================================================
-
-export type CouncilNotificationItem = {
-  notification_id: string;
-  event_type: string;
-  council_id: string;
-  meeting_id: string | null;
-  entity_type: string;
-  entity_id: string | null;
-  title: string;
-  body: string;
-  metadata: Record<string, unknown>;
-  is_read: boolean;
-  created_at: string;
-  read_at: string | null;
-};
-
-export type MyCouncilNotificationsResult = {
-  notifications: CouncilNotificationItem[];
-  unread_count: number;
-};
+// -----------------------------------------------------------------------------
 
 export const getMyCouncilNotificationsFn = createServerFn({ method: "GET" })
-  .validator((d: { unread_only?: boolean; limit?: number }) => d)
-  .handler(async ({ data, request }): Promise<MyCouncilNotificationsResult> => {
+  .validator((d: { limit?: number }) => d)
+  .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
     const { data: res, error } = await supabase.rpc("get_my_council_notifications", {
-      p_unread_only: data.unread_only ?? false,
       p_limit: data.limit ?? 50,
     });
-    if (error) throw new Error(error.message);
-    return (res as MyCouncilNotificationsResult) ?? { notifications: [], unread_count: 0 };
+    if (error) throw new Error(mapCouncilError(error));
+    return (res as { notifications: unknown[]; unread_count: number }) ?? { notifications: [], unread_count: 0 };
   });
 
-export const markCouncilNotificationReadFn = createServerFn({ method: "POST" })
-  .validator((d: { notification_id: string; is_read?: boolean }) => d)
+export const acknowledgeCouncilNotificationFn = createServerFn({ method: "POST" })
+  .validator((d: { notification_id: string }) => d)
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("mark_council_notification_read", {
+    const { data: res, error } = await supabase.rpc("acknowledge_council_notification", {
       p_notification_id: data.notification_id,
-      p_is_read: data.is_read ?? true,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const processCouncilNotificationOutboxFn = createServerFn({ method: "POST" })
-  .validator((d: { batch_size?: number }) => d)
-  .handler(async ({ data, request }) => {
-    const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("process_council_notification_outbox", {
-      p_outbox_id: null,
-      p_batch_size: data.batch_size ?? 100,
-    });
-    if (error) throw new Error(error.message);
-    return res;
-  });
-
-export const notifyCouncilDecisionDueDatesFn = createServerFn({ method: "POST" })
-  .validator((d: { approach_days?: number }) => d)
-  .handler(async ({ data, request }) => {
-    const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("notify_council_decision_due_dates", {
-      p_approach_days: data.approach_days ?? 3,
-    });
-    if (error) throw new Error(error.message);
-    return res;
-  });
-
-// ========================================================================
+// -----------------------------------------------------------------------------
 // REPORTS
-// ========================================================================
+// -----------------------------------------------------------------------------
 
-export type CouncilReportMeetingSummary = {
-  council_id: string;
-  period_from: string | null;
-  period_to: string | null;
-  total_meetings: number;
-  by_status: Record<string, number>;
-  meetings: Array<{
-    meeting_id: string;
-    meeting_number: number;
-    title: string;
-    scheduled_at: string;
-    status: string;
-  }>;
-};
-
-export const getCouncilReportMeetingSummaryFn = createServerFn({ method: "GET" })
-  .validator((d: { council_id: string; from?: string; to?: string }) => d)
-  .handler(async ({ data, request }): Promise<CouncilReportMeetingSummary> => {
+export const getCouncilReportMeetingsByPeriodFn = createServerFn({ method: "GET" })
+  .validator((d: { council_id: string; from?: string | null; to?: string | null }) => d)
+  .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_report_meeting_summary", {
+    const { data: res, error } = await supabase.rpc("get_council_report_meetings_by_period", {
       p_council_id: data.council_id,
       p_from: data.from ?? null,
       p_to: data.to ?? null,
     });
-    if (error) throw new Error(error.message);
-    return res as CouncilReportMeetingSummary;
+    if (error) throw new Error(mapCouncilError(error));
+    return res;
   });
-
-export type CouncilReportAttendanceRate = {
-  council_id: string;
-  total_evaluated_sessions: number;
-  average_attendance_rate: number;
-  meetings: Array<{
-    meeting_id: string;
-    meeting_number: number;
-    scheduled_at: string;
-    eligible: number;
-    present: number;
-    rate: number;
-  }>;
-};
 
 export const getCouncilReportAttendanceRateFn = createServerFn({ method: "GET" })
   .validator((d: { council_id: string }) => d)
-  .handler(async ({ data, request }): Promise<CouncilReportAttendanceRate> => {
+  .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
     const { data: res, error } = await supabase.rpc("get_council_report_attendance_rate", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
-    return res as CouncilReportAttendanceRate;
+    if (error) throw new Error(mapCouncilError(error));
+    return res;
   });
 
 export const getCouncilReportQuorumHistoryFn = createServerFn({ method: "GET" })
@@ -138,34 +85,19 @@ export const getCouncilReportQuorumHistoryFn = createServerFn({ method: "GET" })
     const { data: res, error } = await supabase.rpc("get_council_report_quorum_history", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export type CouncilReportTopicDisposition = {
-  council_id: string;
-  total_topics: number;
-  by_status: Record<string, number>;
-  topics: Array<{
-    topic_id: string;
-    title: string;
-    status: string;
-    submitted_at: string | null;
-    submitted_by: string;
-  }>;
-};
-
 export const getCouncilReportTopicDispositionFn = createServerFn({ method: "GET" })
-  .validator((d: { council_id: string; from?: string; to?: string }) => d)
-  .handler(async ({ data, request }): Promise<CouncilReportTopicDisposition> => {
+  .validator((d: { council_id: string }) => d)
+  .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
     const { data: res, error } = await supabase.rpc("get_council_report_topic_disposition", {
       p_council_id: data.council_id,
-      p_from: data.from ?? null,
-      p_to: data.to ?? null,
     });
-    if (error) throw new Error(error.message);
-    return res as CouncilReportTopicDisposition;
+    if (error) throw new Error(mapCouncilError(error));
+    return res;
   });
 
 export const getCouncilReportAgendaCompletionFn = createServerFn({ method: "GET" })
@@ -175,70 +107,79 @@ export const getCouncilReportAgendaCompletionFn = createServerFn({ method: "GET"
     const { data: res, error } = await supabase.rpc("get_council_report_agenda_completion", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const getCouncilReportVotingSummaryFn = createServerFn({ method: "GET" })
+export const getCouncilReportVoteResultSummaryFn = createServerFn({ method: "GET" })
   .validator((d: { council_id: string }) => d)
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_report_voting_summary", {
+    const { data: res, error } = await supabase.rpc("get_council_report_vote_result_summary", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const getCouncilReportDecisionStatusFn = createServerFn({ method: "GET" })
+export const getCouncilReportDecisionExecutionStatusFn = createServerFn({ method: "GET" })
   .validator((d: { council_id: string }) => d)
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_report_decision_status", {
+    const { data: res, error } = await supabase.rpc("get_council_report_decision_execution_status", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const getCouncilReportDecisionOverdueFn = createServerFn({ method: "GET" })
+export const getCouncilReportOverdueDecisionsFn = createServerFn({ method: "GET" })
   .validator((d: { council_id: string }) => d)
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_report_decision_overdue", {
+    const { data: res, error } = await supabase.rpc("get_council_report_overdue_decisions", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const getCouncilReportMeetingArchiveFn = createServerFn({ method: "GET" })
+export const getCouncilReportMeetingDurationFn = createServerFn({ method: "GET" })
   .validator((d: { council_id: string }) => d)
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_report_meeting_archive", {
+    const { data: res, error } = await supabase.rpc("get_council_report_meeting_duration", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const getCouncilActivityPeriodFn = createServerFn({ method: "GET" })
-  .validator((d: { council_id: string; from?: string; to?: string }) => d)
+export const getCouncilReportArchiveStatusFn = createServerFn({ method: "GET" })
+  .validator((d: { council_id: string }) => d)
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_activity_period", {
+    const { data: res, error } = await supabase.rpc("get_council_report_archive_status", {
       p_council_id: data.council_id,
-      p_from: data.from ?? null,
-      p_to: data.to ?? null,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-// ========================================================================
+export const getCouncilReportCouncilActivityFn = createServerFn({ method: "GET" })
+  .validator((d: { council_id: string }) => d)
+  .handler(async ({ data, request }) => {
+    const { supabase } = await requireSupabaseAuth(request);
+    const { data: res, error } = await supabase.rpc("get_council_report_council_activity", {
+      p_council_id: data.council_id,
+    });
+    if (error) throw new Error(mapCouncilError(error));
+    return res;
+  });
+
+// -----------------------------------------------------------------------------
 // DASHBOARDS
-// ========================================================================
+// -----------------------------------------------------------------------------
 
 export const getCouncilChairDashboardFn = createServerFn({ method: "GET" })
   .validator((d: { council_id: string }) => d)
@@ -247,7 +188,7 @@ export const getCouncilChairDashboardFn = createServerFn({ method: "GET" })
     const { data: res, error } = await supabase.rpc("get_council_chair_dashboard", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
@@ -258,28 +199,28 @@ export const getCouncilSecretaryDashboardFn = createServerFn({ method: "GET" })
     const { data: res, error } = await supabase.rpc("get_council_secretary_dashboard", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const getCouncilMemberDashboardFn = createServerFn({ method: "GET" })
+export const getCouncilMemberWorkspaceFn = createServerFn({ method: "GET" })
   .validator((d: { council_id: string }) => d)
   .handler(async ({ data, request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_member_dashboard", {
+    const { data: res, error } = await supabase.rpc("get_council_member_workspace", {
       p_council_id: data.council_id,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(mapCouncilError(error));
     return res;
   });
 
-export const getCouncilAdminOperationalDashboardFn = createServerFn({ method: "GET" })
-  .validator((d: { council_id: string }) => d)
-  .handler(async ({ data, request }) => {
+export const getCouncilResponsibleDecisionsFn = createServerFn({ method: "GET" })
+  .validator((d: Record<string, unknown>) => d)
+  .handler(async ({ request }) => {
     const { supabase } = await requireSupabaseAuth(request);
-    const { data: res, error } = await supabase.rpc("get_council_admin_operational_dashboard", {
-      p_council_id: data.council_id,
+    const { data: res, error } = await supabase.rpc("get_council_responsible_decisions", {
+      p_user_id: null,
     });
-    if (error) throw new Error(error.message);
-    return res;
+    if (error) throw new Error(mapCouncilError(error));
+    return (res as unknown[]) ?? [];
   });

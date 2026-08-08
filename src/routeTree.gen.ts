@@ -91,7 +91,7 @@ import { Route as StudentProgressRouteImport } from './routes/student.progress'
 import { Route as StudentRequestsRouteImport } from './routes/student.requests'
 import { Route as StudentScheduleRouteImport } from './routes/student.schedule'
 import { Route as StudentStudyPlanRouteImport } from './routes/student.study-plan'
-import { Route as FacultyPortalAcademicCouncilsMeetingIdRouteImport } from './routes/faculty-portal.academic-councils.$meetingId'
+import { Route as FacultyPortalAcademicCouncilsReportsRouteImport } from './routes/faculty-portal.academic-councils.reports'
 import { Route as FacultyPortalGraduationProjectsIndexRouteImport } from './routes/faculty-portal.graduation-projects.index'
 import { Route as FacultyPortalGraduationProjectsProjectIdRouteImport } from './routes/faculty-portal.graduation-projects.$projectId'
 import { Route as FacultyPortalMaterialsIndexRouteImport } from './routes/faculty-portal.materials.index'
@@ -596,10 +596,10 @@ const StudentStudyPlanRoute = StudentStudyPlanRouteImport.update({
   path: '/study-plan',
   getParentRoute: () => StudentRoute,
 } as any)
-const FacultyPortalAcademicCouncilsMeetingIdRoute =
-  FacultyPortalAcademicCouncilsMeetingIdRouteImport.update({
-    id: '/$meetingId',
-    path: '/$meetingId',
+const FacultyPortalAcademicCouncilsReportsRoute =
+  FacultyPortalAcademicCouncilsReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
     getParentRoute: () => FacultyPortalAcademicCouncilsRoute,
   } as any)
 const FacultyPortalGraduationProjectsIndexRoute =
@@ -815,7 +815,7 @@ export interface FileRoutesByFullPath {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
-  '/faculty-portal/academic-councils/$meetingId': typeof FacultyPortalAcademicCouncilsMeetingIdRoute
+  '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
@@ -921,7 +921,7 @@ export interface FileRoutesByTo {
   '/staff': typeof StaffIndexRoute
   '/student': typeof StudentIndexRoute
   '/admin': typeof AdminIndexLazyRoute
-  '/faculty-portal/academic-councils/$meetingId': typeof FacultyPortalAcademicCouncilsMeetingIdRoute
+  '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
@@ -1036,7 +1036,7 @@ export interface FileRoutesById {
   '/staff/': typeof StaffIndexRoute
   '/student/': typeof StudentIndexRoute
   '/admin/': typeof AdminIndexLazyRoute
-  '/faculty-portal/academic-councils/$meetingId': typeof FacultyPortalAcademicCouncilsMeetingIdRoute
+  '/faculty-portal/academic-councils/reports': typeof FacultyPortalAcademicCouncilsReportsRoute
   '/faculty-portal/graduation-projects/$projectId': typeof FacultyPortalGraduationProjectsProjectIdRoute
   '/faculty-portal/materials/$sectionId': typeof FacultyPortalMaterialsSectionIdRoute
   '/faculty-portal/student-progress/$studentId': typeof FacultyPortalStudentProgressStudentIdRoute
@@ -1152,7 +1152,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
-    | '/faculty-portal/academic-councils/$meetingId'
+    | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
@@ -1258,7 +1258,7 @@ export interface FileRouteTypes {
     | '/staff'
     | '/student'
     | '/admin'
-    | '/faculty-portal/academic-councils/$meetingId'
+    | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
@@ -1372,7 +1372,7 @@ export interface FileRouteTypes {
     | '/staff/'
     | '/student/'
     | '/admin/'
-    | '/faculty-portal/academic-councils/$meetingId'
+    | '/faculty-portal/academic-councils/reports'
     | '/faculty-portal/graduation-projects/$projectId'
     | '/faculty-portal/materials/$sectionId'
     | '/faculty-portal/student-progress/$studentId'
@@ -2047,11 +2047,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentStudyPlanRouteImport
       parentRoute: typeof StudentRoute
     }
-    '/faculty-portal/academic-councils/$meetingId': {
-      id: '/faculty-portal/academic-councils/$meetingId'
-      path: '/$meetingId'
-      fullPath: '/faculty-portal/academic-councils/$meetingId'
-      preLoaderRoute: typeof FacultyPortalAcademicCouncilsMeetingIdRouteImport
+    '/faculty-portal/academic-councils/reports': {
+      id: '/faculty-portal/academic-councils/reports'
+      path: '/reports'
+      fullPath: '/faculty-portal/academic-councils/reports'
+      preLoaderRoute: typeof FacultyPortalAcademicCouncilsReportsRouteImport
       parentRoute: typeof FacultyPortalAcademicCouncilsRoute
     }
     '/faculty-portal/graduation-projects/': {
@@ -2330,13 +2330,13 @@ const DepartmentsRouteWithChildren = DepartmentsRoute._addFileChildren(
 )
 
 interface FacultyPortalAcademicCouncilsRouteChildren {
-  FacultyPortalAcademicCouncilsMeetingIdRoute: typeof FacultyPortalAcademicCouncilsMeetingIdRoute
+  FacultyPortalAcademicCouncilsReportsRoute: typeof FacultyPortalAcademicCouncilsReportsRoute
 }
 
 const FacultyPortalAcademicCouncilsRouteChildren: FacultyPortalAcademicCouncilsRouteChildren =
   {
-    FacultyPortalAcademicCouncilsMeetingIdRoute:
-      FacultyPortalAcademicCouncilsMeetingIdRoute,
+    FacultyPortalAcademicCouncilsReportsRoute:
+      FacultyPortalAcademicCouncilsReportsRoute,
   }
 
 const FacultyPortalAcademicCouncilsRouteWithChildren =

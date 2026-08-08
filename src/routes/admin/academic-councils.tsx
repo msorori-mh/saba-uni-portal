@@ -9,8 +9,6 @@ import {
   AlertTriangle, ArrowRight, Loader2, UserPlus, UserMinus, Search, Pencil,
   ChevronUp, ChevronDown, CheckCircle2, Plus,
 } from "lucide-react";
-import { CouncilReportsPanel } from "@/components/councils/CouncilReportsPanel";
-import { CouncilDashboardsPanel } from "@/components/councils/CouncilDashboardsPanel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1642,9 +1640,8 @@ function CouncilAgendaPanel({
                             className="h-7 w-7"
                             disabled={reorderBusy || idx === 0}
                             onClick={() => handleMove(item.id, "up")}
-                            aria-label="نقل البند للأعلى"
                           >
-                            <ChevronUp className="h-4 w-4" aria-hidden />
+                            <ChevronUp className="h-4 w-4" />
                           </Button>
                           <Button
                             type="button"
@@ -1653,9 +1650,8 @@ function CouncilAgendaPanel({
                             className="h-7 w-7"
                             disabled={reorderBusy || idx === agendaItems.length - 1}
                             onClick={() => handleMove(item.id, "down")}
-                            aria-label="نقل البند للأسفل"
                           >
-                            <ChevronDown className="h-4 w-4" aria-hidden />
+                            <ChevronDown className="h-4 w-4" />
                           </Button>
                           <Button
                             type="button"
@@ -1988,12 +1984,12 @@ function AcademicCouncilsPage() {
 
       {/* Notice */}
       <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-4 flex items-start gap-3 text-emerald-900">
-        <Info className="h-5 w-5 shrink-0 mt-0.5 text-emerald-700" aria-hidden />
+        <Info className="h-5 w-5 shrink-0 mt-0.5 text-emerald-700" />
         <div className="text-sm">
           <div className="font-bold">إدارة العضويات والاجتماعات وجدول الأعمال مفعّلة</div>
           <div className="mt-0.5 leading-relaxed">
             يمكنك اختيار مجلس وإدارة عضوياته وجدولة اجتماعاته وإعداد جدول الأعمال.
-            التقارير ولوحة الإدارة التشغيلية متاحة للاطلاع، دون اتخاذ إجراءات أكاديمية نيابة عن المجلس.
+            عمليات رفع الموضوعات والقرارات والتنبيهات لا تزال في وضع القراءة فقط.
           </div>
         </div>
       </div>
@@ -2171,32 +2167,15 @@ function AcademicCouncilsPage() {
         )}
       </SectionCard>
 
-      {/* Operational dashboard */}
-      <SectionCard
-        icon={LayoutDashboard}
-        title="لوحة الإدارة التشغيلية"
-        subtitle="مؤشرات فنية وتشغيلية للمجلس المحدد — لا تتيح اتخاذ إجراءات أكاديمية."
-      >
-        {selectedCouncil ? (
-          <CouncilDashboardsPanel
-            councilId={selectedCouncil.id}
-            availableRoles={[]}
-            isAdmin={true}
-          />
-        ) : (
-          <EmptyState text="اختر مجلساً من القائمة أعلاه لعرض لوحة الإدارة التشغيلية." />
-        )}
-      </SectionCard>
-
-      {/* Minutes & decisions (read-only operational view) */}
+      {/* Minutes & decisions */}
       <SectionCard
         icon={FileText}
         title="المحاضر والقرارات"
-        subtitle="اطلاع تشغيلي فقط؛ لا يمكن إصدار قرارات أو اعتماد محاضر من هنا."
+        subtitle="توثيق المحاضر واعتماد القرارات رسمياً."
       >
         <EmptyState text="لا توجد محاضر أو قرارات لعرضها حالياً." />
         <div className="mt-4">
-          <LockedAction label="إصدار قرار" hint="الإجراءات الأكاديمية تتم عبر بوابة رئيس المجلس." />
+          <LockedAction label="إصدار قرار" />
         </div>
       </SectionCard>
 
@@ -2233,11 +2212,7 @@ function AcademicCouncilsPage() {
           title="التقارير"
           subtitle="تقارير أداء المجالس ونسب تنفيذ التوصيات."
         >
-          {selectedCouncil ? (
-            <CouncilReportsPanel councilId={selectedCouncil.id} />
-          ) : (
-            <EmptyState text="اختر مجلساً من القائمة أعلاه لعرض تقاريره." />
-          )}
+          <EmptyState text="ستُتاح التقارير بعد تفعيل مرحلة الكتابة والقرارات." />
         </SectionCard>
       </div>
 

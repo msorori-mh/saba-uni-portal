@@ -21,7 +21,6 @@ import {
   CheckCircle2,
   ListChecks,
   ShieldCheck,
-  LayoutDashboard,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
@@ -80,8 +79,11 @@ import {
   type CouncilTopicReviewQueueItem,
 } from "@/lib/faculty-councils.functions";
 import { CouncilSessionAndGovernanceWorkspace } from "@/components/councils/CouncilSessionAndGovernanceWorkspace";
-import { CouncilNotificationsBell } from "@/components/councils/CouncilNotificationsBell";
-import { CouncilDashboardsPanel } from "@/components/councils/CouncilDashboardsPanel";
+import { CouncilNotificationBell } from "@/components/councils/CouncilNotificationBell";
+import { CouncilChairDashboard } from "@/components/councils/CouncilChairDashboard";
+import { CouncilSecretaryDashboard } from "@/components/councils/CouncilSecretaryDashboard";
+import { CouncilMemberWorkspace } from "@/components/councils/CouncilMemberWorkspace";
+import { CouncilResponsibleActorView } from "@/components/councils/CouncilResponsibleActorView";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
   head: () => ({
@@ -572,7 +574,12 @@ function FacultyAcademicCouncilsPage() {
               </p>
             </div>
           </div>
-          <CouncilNotificationsBell />
+          <div className="flex items-center gap-2">
+            <CouncilNotificationBell />
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/faculty-portal/academic-councils/reports">التقارير</Link>
+            </Button>
+          </div>
         </div>
 
         {pageLoading ? (
@@ -597,16 +604,6 @@ function FacultyAcademicCouncilsPage() {
               )}
             </SectionShell>
 
-            {currentMemberships.length > 0 ? (
-              <SectionShell icon={LayoutDashboard} title="لوحة المعلومات">
-                <CouncilDashboardsPanel
-                  councilId={currentMemberships[0].council_id}
-                  availableRoles={currentMemberships.map((m) => m.role)}
-                  isAdmin={false}
-                />
-              </SectionShell>
-            ) : null}
-
             <SectionShell icon={Archive} title="مجالسي السابقة / الأرشيف">
               {membershipsQuery.isLoading ? (
                 <LoadingBlock />
@@ -622,6 +619,15 @@ function FacultyAcademicCouncilsPage() {
                 </ul>
               )}
             </SectionShell>
+
+            {currentMemberships.length > 0 ? (
+              <SectionShell icon={ShieldCheck} title="لوحة العمل والمتابعة">
+                <CouncilWorkspacesSection
+                  memberships={currentMemberships}
+                  userId={userId}
+                />
+              </SectionShell>
+            ) : null}
 
             {chairMemberships.length > 0 ? (
               <ChairMeetingScheduleSection
@@ -1420,17 +1426,6 @@ function MeetingCard({
           <Badge variant="outline" className="text-[10px]">
             {meetingStatusLabel(meeting.status)}
           </Badge>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="h-7 gap-1 text-[10px]"
-            asChild
-          >
-            <Link to="/faculty-portal/academic-councils/$meetingId" params={{ meetingId: meeting.meeting_id }}>
-              عرض التفاصيل
-            </Link>
-          </Button>
           {canEdit ? (
             <Button
               type="button"
@@ -1438,9 +1433,8 @@ function MeetingCard({
               variant="outline"
               className="h-7 gap-1 text-[10px]"
               onClick={openEdit}
-              aria-label="تعديل الاجتماع"
             >
-              <Pencil className="h-3 w-3" aria-hidden />
+              <Pencil className="h-3 w-3" />
               تعديل
             </Button>
           ) : null}
@@ -2511,5 +2505,71 @@ function SubmitTopicForm() {
         </form>
       )}
     </SectionShell>
+  );
+}
+
+
+function CouncilWorkspacesSection({
+  memberships,
+  userId,
+}: {
+  memberships: MyCouncilMembershipV2[];
+  userId: string | null;
+}) {
+  const [selectedId, setSelectedId] = useState(memberships[0]?.council_id ?? "");
+  const selected = memberships.find((m) => m.council_id === selectedId) ?? memberships[0];
+
+  if (!selected) {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+        لا توجد عضويات متاحة.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <Select value={selectedId} onValueChange={setSelectedId} dir="rtl">
+          <SelectTrigger className="sm:max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            {memberships.map((m) => (
+              <SelectItem key={m.council_id} value={m.council_id}>
+                {m.council_name} · {MEMBER_ROLE_LABELS[m.role as CouncilLinkMemberRole] ?? m.role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          الصلاحيات النهائية يحددها الخادم وليس واجهة الأزرار فقط.
+        </p>
+      </div>
+
+      {selected.role === "chair" ? (
+        <CouncilChairDashboard councilId={selected.council_id} councilName={selected.council_name} />
+      ) : selected.role === "secretary" ? (
+        <CouncilSecretaryDashboard
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+        />
+      ) : selected.role === "viewer" ? (
+        <CouncilMemberWorkspace
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+          readOnly
+        />
+      ) : (
+        <CouncilMemberWorkspace
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+        />
+      )}
+
+      {userId && selected.role !== "viewer" ? (
+        <CouncilResponsibleActorView userId={userId} />
+      ) : null}
+    </div>
   );
 }

@@ -241,6 +241,27 @@ export function CouncilSessionAndGovernanceWorkspace({
   const minutesData = minutesQuery.data;
   const isMinutesLocked = minutesData?.is_locked || meetingStatus === "minutes_locked" || meetingStatus === "archived";
 
+  const followupOptions = (() => {
+    const status = selectedDecisionForFollowup?.status as string | undefined;
+    if (status === "issued") {
+      return [
+        { value: "in_progress", label: "قيد التنفيذ" },
+        { value: "blocked", label: "متعثّر / معطّل" },
+      ];
+    }
+    if (status === "in_progress") {
+      return [
+        { value: "in_progress", label: "قيد التنفيذ" },
+        { value: "completed", label: "مكتمل ومُنفّذ" },
+        { value: "blocked", label: "متعثّر / معطّل" },
+      ];
+    }
+    if (status === "blocked") {
+      return [{ value: "in_progress", label: "استئناف التنفيذ" }];
+    }
+    return [];
+  })();
+
   const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
   const agendaQuery = useQuery({
     queryKey: ["council-session-agenda", meetingId],
@@ -578,7 +599,15 @@ export function CouncilSessionAndGovernanceWorkspace({
                   onClick={() => {
                     setSelectedDecisionForFollowup(dec);
                     setFollowupNote(dec.execution_note || "");
-                    setFollowupStatus(dec.status);
+                    setFollowupStatus(
+                      dec.status === "issued"
+                        ? "in_progress"
+                        : dec.status === "blocked"
+                          ? "in_progress"
+                          : dec.status === "in_progress"
+                            ? "completed"
+                            : dec.status,
+                    );
                   }}
                   size="sm"
                   variant="outline"
@@ -692,13 +721,15 @@ export function CouncilSessionAndGovernanceWorkspace({
                 حالة التنفيذ
               </label>
               <Select value={followupStatus} onValueChange={setFollowupStatus} dir="rtl">
-                <SelectTrigger>
+                <SelectTrigger aria-label="حالة تنفيذ القرار">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent dir="rtl">
-                  <SelectItem value="in_progress">قيد التنفيذ</SelectItem>
-                  <SelectItem value="completed">مكتمل ومُنفّذ</SelectItem>
-                  <SelectItem value="blocked">متعثّر / معطّل</SelectItem>
+                  {followupOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
