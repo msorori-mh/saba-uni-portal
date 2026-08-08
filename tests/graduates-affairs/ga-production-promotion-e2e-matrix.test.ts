@@ -43,6 +43,12 @@ const verifierPaths = {
     "graduates-affairs",
     "graduates-affairs-remediation-concurrency-01.pg-verify.sql",
   ),
+  followupAuthorityRace: join(
+    root,
+    "tests",
+    "graduates-affairs",
+    "graduates-affairs-followup-authority-race-01.pg-verify.sql",
+  ),
   codex: join(
     root,
     "tests",
@@ -189,6 +195,15 @@ describe("GA production promotion package — full auth/E2E matrix", () => {
     });
     expect(result.ok).toBe(true);
   }, 120_000);
+
+  it("follow-up authority-loss race verifier passes against promoted migrations", async () => {
+    if (!dockerReady) throw new Error("docker is required");
+    const result = await runChain("followup-authority-race", {
+      path: verifierPaths.followupAuthorityRace,
+      passToken: "graduates-affairs-followup-authority-race-01 pg-verify: PASS",
+    });
+    expect(result.ok).toBe(true);
+  }, 180_000);
 
   it("codex high-profile binding verifier passes against promoted migrations", async () => {
     if (!dockerReady) throw new Error("docker is required");

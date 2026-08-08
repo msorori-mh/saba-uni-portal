@@ -11,6 +11,8 @@ DECLARE
     'graduate_affairs_audit',
     'graduate_affairs_resolve_authorized_staff_profile_id',
     'graduate_affairs_resolve_caller_authorized_staff_profile_id',
+    'graduate_affairs_lock_authorized_staff_profile_id',
+    'graduate_affairs_lock_caller_authorized_staff_profile',
     'graduate_affairs_is_manager',
     'graduate_affairs_is_specialist',
     'graduate_affairs_specialist_department_ids',
@@ -63,6 +65,8 @@ DECLARE
     'graduate_affairs_audit',
     'graduate_affairs_resolve_authorized_staff_profile_id',
     'graduate_affairs_resolve_caller_authorized_staff_profile_id',
+    'graduate_affairs_lock_authorized_staff_profile_id',
+    'graduate_affairs_lock_caller_authorized_staff_profile',
     'graduate_affairs_is_manager',
     'graduate_affairs_is_specialist',
     'graduate_affairs_specialist_department_ids',
@@ -160,16 +164,37 @@ BEGIN
     RAISE EXCEPTION 'AUTH04 verifier HOLD: mutating policies exist on GA tables';
   END IF;
 
-  -- Moderation authority is manager-only.
+  -- Moderation authority is manager-only under the locked authority boundary.
   IF (SELECT prosrc FROM pg_proc WHERE proname = 'graduate_affairs_moderate_opportunity' AND pronamespace = 'public'::regnamespace)
-     NOT LIKE '%graduate_affairs_is_manager()%'
+     NOT LIKE '%graduate_affairs_lock_caller_authorized_staff_profile%'
+     OR (SELECT prosrc FROM pg_proc WHERE proname = 'graduate_affairs_moderate_opportunity' AND pronamespace = 'public'::regnamespace)
+     NOT LIKE '%graduate_affairs_manager%'
   THEN
     RAISE EXCEPTION 'AUTH04 verifier HOLD: moderate_opportunity does not gate on manager';
   END IF;
   IF (SELECT prosrc FROM pg_proc WHERE proname = 'graduate_affairs_set_employer_verification' AND pronamespace = 'public'::regnamespace)
-     NOT LIKE '%graduate_affairs_is_manager()%'
+     NOT LIKE '%graduate_affairs_lock_caller_authorized_staff_profile%'
+     OR (SELECT prosrc FROM pg_proc WHERE proname = 'graduate_affairs_set_employer_verification' AND pronamespace = 'public'::regnamespace)
+     NOT LIKE '%graduate_affairs_manager%'
   THEN
     RAISE EXCEPTION 'AUTH04 verifier HOLD: set_employer_verification does not gate on manager';
+  END IF;
+
+  -- Follow-up mutations must lock exact authority rows (FOR SHARE).
+  IF (SELECT prosrc FROM pg_proc WHERE proname = 'graduate_affairs_lock_authorized_staff_profile_id' AND pronamespace = 'public'::regnamespace)
+     NOT LIKE '%FOR SHARE OF a%'
+  THEN
+    RAISE EXCEPTION 'AUTH04 verifier HOLD: authority lock helper missing FOR SHARE on assignments';
+  END IF;
+  IF (SELECT prosrc FROM pg_proc WHERE proname = 'graduate_affairs_transition_followup' AND pronamespace = 'public'::regnamespace)
+     NOT LIKE '%graduate_affairs_lock_caller_authorized_staff_profile%'
+  THEN
+    RAISE EXCEPTION 'AUTH04 verifier HOLD: transition_followup missing locked authority boundary';
+  END IF;
+  IF (SELECT prosrc FROM pg_proc WHERE proname = 'graduate_affairs_create_followup' AND pronamespace = 'public'::regnamespace)
+     NOT LIKE '%graduate_affairs_lock_caller_authorized_staff_profile%'
+  THEN
+    RAISE EXCEPTION 'AUTH04 verifier HOLD: create_followup missing locked authority boundary';
   END IF;
 
   -- Context RPCs exist.

@@ -3,7 +3,7 @@
 ## Mission Report — Graduates Affairs Production Promotion Package
 
 **Repository:** `msorori-mh/saba-uni-portal`
-**Source SHA:** `ef73881fbf7b8a12729c0f04b46fb346c47e7fb8`
+**Source SHA:** `f799608a5d5fb167d66e5615d3f7b50692295f30`
 **Final SHA:** see branch tip returned in final mission output
 **Branch:** `prep/ga-production-promotion-longrun-01`
 **Stacked PR:** [#299](https://github.com/msorori-mh/saba-uni-portal/pull/299)
@@ -18,7 +18,7 @@
 |---|---|---|
 | `20260808210000` | `supabase/migrations/20260808210000_ga_mvp_foundation_01.sql` | `43bf602fa223122b9a1c5bf6e1387a2aa7255a79483c75e796664b636e1cc819` |
 | `20260808210100` | `supabase/migrations/20260808210100_ga_mvp_completion_01.sql` | `834e454fe79af90318c51492c37a0f15cdfc8341fb9020611412a72f4e9158fc` |
-| `20260808210200` | `supabase/migrations/20260808210200_ga_authorization_04.sql` | `05e411a195a2ff079b2ffe7cb485993f69d1f46a06f1165dead45c547f32805d` |
+| `20260808210200` | `supabase/migrations/20260808210200_ga_authorization_04.sql` | `3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd` |
 
 - Timestamp collision was checked: no existing migration uses these timestamps.
 - Each migration carries a promotion header, idempotent prestate reconciliation, and environment guards.
@@ -222,6 +222,15 @@ Web CI was triggered manually via `workflow_dispatch` against the stacked branch
 | `PUBLISH` | NO |
 | `MERGE` | NO — PR #299 remains open and unmerged |
 
+## Follow-up authority concurrency closure (LONGRUN-11)
+
+Source tip `f799608a` adds `graduate_affairs_lock_authorized_staff_profile_id` /
+`graduate_affairs_lock_caller_authorized_staff_profile` and wires them into
+create/transition follow-up plus manager-only mutating RPCs. AUTH04 body hash
+above was recomputed after semantic sync. Disposable PG17 proves forward
+serialization (authority FOR SHARE blocks revoke/expiry/profile loss) and
+reverse deny-with-zero-mutation for authority-loss races.
+
 ## Files Changed
 
 ```
@@ -237,6 +246,7 @@ tests/graduates-affairs/ga-production-promotion-e2e-matrix.test.ts
 tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql
 tests/graduates-affairs/ga-production-promotion-post-verifier-completion.sql
 tests/graduates-affairs/ga-production-promotion-post-verifier-foundation.sql
+tests/graduates-affairs/graduates-affairs-followup-authority-race-01.pg-verify.sql
 ```
 
 ## Decision

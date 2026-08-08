@@ -266,6 +266,14 @@ jobs:
               supabase/migrations/20260808210100_ga_mvp_completion_01.sql
               supabase/migrations/20260808210200_ga_authorization_04.sql
               tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql
+          # Promoted AUTH04 + follow-up authority-loss concurrency (forward/reverse).
+          - name: graduates-affairs-promotion-followup-authority-race
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              supabase/migrations/20260808210100_ga_mvp_completion_01.sql
+              supabase/migrations/20260808210200_ga_authorization_04.sql
+              tests/graduates-affairs/graduates-affairs-followup-authority-race-01.pg-verify.sql
           # Chain: minimal schema -> 20260721000000_materials_secure_activation
           # draft -> secure activation verifier (38 assertion groups).
           - name: materials-secure-activation
