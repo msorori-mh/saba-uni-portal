@@ -125,3 +125,22 @@ No semantic SQL edits.
 - CONFIG_EXECUTED_PRODUCTION: NO
 - FLAGS_ENABLED: NO
 - MERGE: NO
+
+---
+
+## Execution evidence (local)
+
+| Gate | Result |
+|---|---|
+| `pwsh -File scripts/ga-failure-matrix-rehearsal.ps1` | **10/10 PASS** + recovery drills |
+| `pwsh -File scripts/ga-local-exact-rehearsal.ps1` | `LOCAL_EXACT_APPLY_REHEARSAL_PASS` + config DRY RUN HOLD |
+| `bun test tests/graduates-affairs` | 175 pass / 0 fail |
+| `bun test tests/graduation-projects` | 115 pass / 0 fail |
+| `bun test tests/student-requests` | 1066 pass / 0 fail |
+| `bunx tsc --noEmit` | PASS |
+| `bun run build` | PASS |
+| `git diff --check` | PASS |
+| Frozen Foundation/Completion/AUTH04 FULL+BODY | unchanged |
+| CI Web CI run | https://github.com/msorori-mh/saba-uni-portal/actions/runs/31282542134 |
+
+**NEW_SHA:** `8fa9172a941f64635c8d87787ba5a49a5d1dc32e`
