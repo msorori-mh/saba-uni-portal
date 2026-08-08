@@ -1,4 +1,4 @@
-export type StatusVerdict = 'PASS' | 'HOLD' | 'WAITING';
+export type StatusVerdict = 'PASS' | 'HOLD' | 'WAITING' | 'OWNER_APPROVAL_REQUIRED';
 
 export interface MigrationArtifactSpec {
   path: string;
@@ -28,12 +28,16 @@ export interface GraduatesAffairsManifestSpec extends ComponentSpec {
   source_sha: string;
   promotion_package_sha: string;
   three_migration_sequence: MigrationArtifactSpec[];
+  ga_final_security_review: string;
 }
 
 export interface AcademicCouncilsManifestSpec extends ComponentSpec {
   c0_c3_sha: string;
   c4_c8_sha: string;
   eventual_final_integrated_sha: string;
+  c9_extension_sha: string;
+  c9_status: string;
+  required_verifications: string[];
 }
 
 export interface ReleaseManifest {
@@ -52,6 +56,7 @@ export interface SubsystemStatus {
   e2e: StatusVerdict;
   production: StatusVerdict;
   flags_deploy: StatusVerdict;
+  stages?: Record<string, StatusVerdict>;
   details: string[];
 }
 
@@ -66,6 +71,7 @@ export interface ReleaseStatusReport {
 export type OrchestratorMode =
   | 'status'
   | 'source-check'
+  | 'candidate-refresh'
   | 'merge-simulation'
   | 'migration-chain'
   | 'preflight-package-check'

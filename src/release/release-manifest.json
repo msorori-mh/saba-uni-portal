@@ -3,14 +3,14 @@
   "graduation_projects": {
     "name": "Graduation Projects",
     "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
-    "operator_package_sha": "30fbceecddb40ac8f123a97a84ffeebf624a5e48",
+    "operator_package_sha": "61952df385eea12f57720ea33b2d10b5b6621247",
     "L4_migration": {
       "path": "supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql",
       "full_hash": "5815d99f2556336e4029dc1dda7dba4ded0e495d58cdb0fa7ecc46b40ea6ff3c",
       "body_hash": "9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3"
     },
     "candidate_shas": {
-      "#293_operator_package": "30fbceecddb40ac8f123a97a84ffeebf624a5e48",
+      "#293_operator_package": "61952df385eea12f57720ea33b2d10b5b6621247",
       "#290_l4_eligibility": "df4c08b4c601303cc5d18064a8c8c5b9f0d8805d",
       "#292_reconciliation": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496"
     },
@@ -56,6 +56,7 @@
     "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
     "source_sha": "ef73881fbf7b8a12729c0f04b46fb346c47e7fb8",
     "promotion_package_sha": "c016b4c287825ea28d76aff6b44e53fa68f66f2b",
+    "ga_final_security_review": "PENDING",
     "candidate_shas": {
       "#291_source_sha": "ef73881fbf7b8a12729c0f04b46fb346c47e7fb8",
       "#299_promotion_package": "c016b4c287825ea28d76aff6b44e53fa68f66f2b"
@@ -98,7 +99,8 @@
     ],
     "production_gates": [
       "OWNER_APPROVAL_MIGRATION_APPLY",
-      "OWNER_APPROVAL_FEATURE_FLAG_ENABLE"
+      "OWNER_APPROVAL_FEATURE_FLAG_ENABLE",
+      "GA_FINAL_SECURITY_REVIEW_REQUIRED"
     ],
     "feature_flags": [
       "staffGraduatesAffairs",
@@ -118,10 +120,13 @@
     "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
     "c0_c3_sha": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
     "c4_c8_sha": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
-    "eventual_final_integrated_sha": "PENDING",
+    "eventual_final_integrated_sha": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85",
+    "c9_extension_sha": "PENDING",
+    "c9_status": "PENDING",
     "candidate_shas": {
-      "#298_c0_c3": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
-      "#297_c4_c8": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec"
+      "#298_c0_c3_superseded": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
+      "#297_c4_c8_superseded": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
+      "#300_final_integrated": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85"
     },
     "migration_sequence": [
       {
@@ -150,7 +155,16 @@
       }
     ],
     "required_tests": [
+      "tests/academic-councils/councils-c0-write-surface-hardening.test.ts",
+      "tests/academic-councils/councils-c1-meeting-state-machine.test.ts",
+      "tests/academic-councils/councils-c2-topic-intake-review.test.ts",
+      "tests/academic-councils/councils-c3-attendance-quorum.test.ts",
       "tests/academic-councils/councils-c4-c8-late-lifecycle.test.ts"
+    ],
+    "required_verifications": [
+      "WEB_CI",
+      "MIGRATION_REVIEW",
+      "INDEPENDENT_SECURITY_REVIEW"
     ],
     "required_reviewers": [
       "@owner"
@@ -164,6 +178,10 @@
       "academicCouncils"
     ],
     "post_verifiers": [
+      "tests/academic-councils/postgres-c0-write-surface-verifier.sql",
+      "tests/academic-councils/postgres-c1-meeting-state-machine-verifier.sql",
+      "tests/academic-councils/postgres-c2-topic-intake-review-verifier.sql",
+      "tests/academic-councils/postgres-c3-attendance-quorum-verifier.sql",
       "tests/academic-councils/postgres-c4-c8-verifier.sql"
     ],
     "rollback_references": []

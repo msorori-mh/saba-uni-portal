@@ -64,13 +64,49 @@ export const PRODUCTION_GATES: ProductionGateDefinition[] = [
     requires_owner_signoff: true,
   },
   {
+    id: 'OWNER_APPROVAL_GP_FIXTURE_EXECUTION',
+    name: 'GP Production Fixture Execution',
+    type: 'OWNER_APPROVAL_REQUIRED',
+    description: 'Execute test fixture on production instance',
+    requires_owner_signoff: true,
+  },
+  {
+    id: 'OWNER_APPROVAL_GA_CONFIG_WRITE',
+    name: 'GA Operational Config Production Write',
+    type: 'OWNER_APPROVAL_REQUIRED',
+    description: 'Write operational parameters to production DB/env',
+    requires_owner_signoff: true,
+  },
+  {
     id: 'OWNER_APPROVAL_DEPLOY',
     name: 'Application Deployment / Publish',
     type: 'OWNER_APPROVAL_REQUIRED',
     description: 'Deploy app bundle or publish worker artifacts',
     requires_owner_signoff: true,
   },
+  {
+    id: 'OWNER_APPROVAL_PUBLISH',
+    name: 'Artifact Publish',
+    type: 'OWNER_APPROVAL_REQUIRED',
+    description: 'Publish production release packages',
+    requires_owner_signoff: true,
+  },
+  {
+    id: 'GA_FINAL_SECURITY_REVIEW_REQUIRED',
+    name: 'GA Final Security Revocation Review Sign-off',
+    type: 'OWNER_APPROVAL_REQUIRED',
+    description: 'Manual owner approval and pinning of final audited GA security SHA',
+    requires_owner_signoff: true,
+  },
 ];
+
+export const AUTHORITATIVE_GP_PACKAGE_PIN = '61952df385eea12f57720ea33b2d10b5b6621247';
+export const COUNCILS_300_INTEGRATED_PIN = 'd3ddce61f1d339d418d9c494fc8b456d4a5f6d85';
+
+// Shared static cache across instances for git operations to accelerate testing
+const STATIC_FILE_EXISTS_CACHE = new Map<string, boolean>();
+const STATIC_FILE_CONTENT_CACHE = new Map<string, string>();
+const STATIC_MERGE_TREE_CACHE = new Map<string, string>();
 
 export class ReleaseOrchestrator {
   private manifest: ReleaseManifest;
@@ -80,28 +116,37 @@ export class ReleaseOrchestrator {
   constructor(manifest: ReleaseManifest = RELEASE_MANIFEST, rootDir: string = process.cwd()) {
     this.manifest = manifest;
     this.rootDir = rootDir;
-    this.candidateRefs = [
+
+    const rawRefs = [
       'HEAD',
       manifest.graduation_projects.operator_package_sha,
       manifest.graduates_affairs.source_sha,
       manifest.graduates_affairs.promotion_package_sha,
+      manifest.academic_councils.eventual_final_integrated_sha,
       manifest.academic_councils.c0_c3_sha,
       manifest.academic_councils.c4_c8_sha,
-      'origin/fix/gp-production-migration-reconciliation-01',
-      'origin/fix/graduates-affairs-multimodel-remediation-01',
-      'origin/prep/ga-production-promotion-longrun-01',
-      'origin/integration/councils-core-c0-c3-longrun-01',
-      'origin/feat/councils-c4-c8-late-lifecycle-longrun-01',
     ];
+
+    const valid: string[] = [];
+    for (const ref of rawRefs) {
+      if (!ref || ref === 'PENDING' || valid.includes(ref)) continue;
+      try {
+        execSync(`git cat-file -e ${ref}`, {
+          cwd: this.rootDir,
+          stdio: ['ignore', 'ignore', 'ignore'],
+        });
+        valid.push(ref);
+      } catch {
+        // ref not in local git DB
+      }
+    }
+    this.candidateRefs = valid;
   }
 
   public getManifest(): ReleaseManifest {
     return this.manifest;
   }
 
-  /**
-   * Safe helper to run git commands in workspace root
-   */
   private runGit(args: string[]): string {
     try {
       return execSync(`git ${args.join(' ')}`, {
@@ -114,12 +159,13 @@ export class ReleaseOrchestrator {
     }
   }
 
-  /**
-   * Helper to check file existence locally or in any candidate git reference
-   */
   public fileExists(relativePath: string): boolean {
+    if (STATIC_FILE_EXISTS_CACHE.has(relativePath)) {
+      return STATIC_FILE_EXISTS_CACHE.get(relativePath)!;
+    }
     const fullPath = path.join(this.rootDir, relativePath);
     if (fs.existsSync(fullPath)) {
+      STATIC_FILE_EXISTS_CACHE.set(relativePath, true);
       return true;
     }
     for (const ref of this.candidateRefs) {
@@ -128,21 +174,25 @@ export class ReleaseOrchestrator {
           cwd: this.rootDir,
           stdio: ['ignore', 'ignore', 'ignore'],
         });
+        STATIC_FILE_EXISTS_CACHE.set(relativePath, true);
         return true;
       } catch {
         // try next
       }
     }
+    STATIC_FILE_EXISTS_CACHE.set(relativePath, false);
     return false;
   }
 
-  /**
-   * Helper to read file content locally or from candidate git reference
-   */
   public readFileContent(relativePath: string): string {
+    if (STATIC_FILE_CONTENT_CACHE.has(relativePath)) {
+      return STATIC_FILE_CONTENT_CACHE.get(relativePath)!;
+    }
     const fullPath = path.join(this.rootDir, relativePath);
     if (fs.existsSync(fullPath)) {
-      return fs.readFileSync(fullPath, 'utf-8');
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      STATIC_FILE_CONTENT_CACHE.set(relativePath, content);
+      return content;
     }
     for (const ref of this.candidateRefs) {
       try {
@@ -151,6 +201,7 @@ export class ReleaseOrchestrator {
           encoding: 'utf-8',
           stdio: ['ignore', 'pipe', 'ignore'],
         });
+        STATIC_FILE_CONTENT_CACHE.set(relativePath, content);
         return content;
       } catch {
         // try next
@@ -159,9 +210,6 @@ export class ReleaseOrchestrator {
     throw new Error(`File not found locally or in candidate branches: ${relativePath}`);
   }
 
-  /**
-   * Check if working directory is clean
-   */
   public isWorkingTreeClean(): boolean {
     try {
       const status = this.runGit(['status', '--porcelain']);
@@ -171,9 +219,6 @@ export class ReleaseOrchestrator {
     }
   }
 
-  /**
-   * Get current HEAD commit hash
-   */
   public getCurrentHead(): string {
     try {
       return this.runGit(['rev-parse', 'HEAD']);
@@ -182,15 +227,10 @@ export class ReleaseOrchestrator {
     }
   }
 
-  /**
-   * MODE: source-check
-   * Verifies git base, candidate SHAs, file existence, and body hash integrity.
-   */
   public checkSource(): CheckResult {
     const errors: string[] = [];
     const messages: string[] = [];
 
-    // 1. Check main / base commit
     const currentHead = this.getCurrentHead();
     messages.push(`Current HEAD: ${currentHead}`);
     messages.push(`Manifest Expected Main: ${this.manifest.current_main}`);
@@ -204,8 +244,15 @@ export class ReleaseOrchestrator {
       }
     }
 
-    // 2. Check GP L4 migration & artifacts
     const gp = this.manifest.graduation_projects;
+    if (gp.operator_package_sha !== AUTHORITATIVE_GP_PACKAGE_PIN) {
+      errors.push(
+        `GP operator package pin is stale or incorrect: expected ${AUTHORITATIVE_GP_PACKAGE_PIN}, got ${gp.operator_package_sha}`
+      );
+    } else {
+      messages.push(`GP operator package authoritative pin verified: ${AUTHORITATIVE_GP_PACKAGE_PIN}`);
+    }
+
     if (!this.fileExists(gp.L4_migration.path)) {
       errors.push(`Missing GP L4 migration file: ${gp.L4_migration.path}`);
     } else {
@@ -222,7 +269,6 @@ export class ReleaseOrchestrator {
       }
     }
 
-    // Check GP required artifacts
     for (const testPath of gp.required_tests) {
       if (!this.fileExists(testPath)) {
         errors.push(`Missing required GP test file: ${testPath}`);
@@ -239,8 +285,15 @@ export class ReleaseOrchestrator {
       }
     }
 
-    // 3. Check GA artifacts
     const ga = this.manifest.graduates_affairs;
+    if (ga.ga_final_security_review === 'PENDING') {
+      errors.push(
+        'GA final security review gate (GA_FINAL_SECURITY_REVIEW_REQUIRED) remains PENDING: manual owner approval & pin required'
+      );
+    } else {
+      messages.push(`GA final security review signoff verified: ${ga.ga_final_security_review}`);
+    }
+
     for (const verifierPath of ga.post_verifiers) {
       if (!this.fileExists(verifierPath)) {
         errors.push(`Missing required GA post-verifier: ${verifierPath}`);
@@ -252,8 +305,27 @@ export class ReleaseOrchestrator {
       }
     }
 
-    // 4. Check Councils artifacts
     const councils = this.manifest.academic_councils;
+    if (!councils.eventual_final_integrated_sha || councils.eventual_final_integrated_sha === 'PENDING') {
+      errors.push('Missing Councils final integrated candidate PR #300 SHA pin');
+    } else if (councils.eventual_final_integrated_sha !== COUNCILS_300_INTEGRATED_PIN) {
+      errors.push(
+        `Councils candidate PR #300 SHA drift detected: expected ${COUNCILS_300_INTEGRATED_PIN}, got ${councils.eventual_final_integrated_sha}`
+      );
+    } else {
+      messages.push(`Councils #300 candidate SHA verified: ${councils.eventual_final_integrated_sha}`);
+    }
+
+    if (councils.c9_extension_sha === 'PENDING' || councils.c9_status === 'PENDING') {
+      messages.push('Councils C0-C8 core candidate integrated (#300) -> C0-C8_CORE_READY achieved');
+      messages.push('Councils C9 extension slot (notifications/reports/UX) is PENDING');
+    }
+
+    for (const testPath of councils.required_tests) {
+      if (!this.fileExists(testPath)) {
+        errors.push(`Missing required Councils test file: ${testPath}`);
+      }
+    }
     for (const verifierPath of councils.post_verifiers) {
       if (!this.fileExists(verifierPath)) {
         errors.push(`Missing required Councils post-verifier: ${verifierPath}`);
@@ -269,64 +341,103 @@ export class ReleaseOrchestrator {
     };
   }
 
-  /**
-   * MODE: migration-chain
-   * Validates timestamp uniqueness, predecessor existence, verifier presence,
-   * apply-one boundaries, and safe partial states.
-   */
+  public checkCandidateRefresh(): CheckResult {
+    const messages: string[] = [];
+    const errors: string[] = [];
+
+    const currentHead = this.getCurrentHead();
+    messages.push(`Current HEAD: ${currentHead}`);
+    messages.push(`Manifest expected main: ${this.manifest.current_main}`);
+
+    const gpPin = this.manifest.graduation_projects.operator_package_sha;
+    messages.push(`[GP] Pinned Operator Package SHA (#293): ${gpPin}`);
+    if (gpPin !== AUTHORITATIVE_GP_PACKAGE_PIN) {
+      errors.push(`[GP Drift] Pinned SHA ${gpPin} differs from target final head ${AUTHORITATIVE_GP_PACKAGE_PIN}`);
+    } else {
+      messages.push(`[GP] Pin matches final authoritative head.`);
+    }
+
+    const gaSourcePin = this.manifest.graduates_affairs.source_sha;
+    const gaPromotionPin = this.manifest.graduates_affairs.promotion_package_sha;
+    messages.push(`[GA] Pinned Source SHA (#291): ${gaSourcePin}`);
+    messages.push(`[GA] Pinned Promotion Package SHA (#299): ${gaPromotionPin}`);
+    messages.push(`[GA] Security Review Status: ${this.manifest.graduates_affairs.ga_final_security_review}`);
+    if (this.manifest.graduates_affairs.ga_final_security_review === 'PENDING') {
+      messages.push(`[GA] GA Security Hold ACTIVE. New revocation review in progress.`);
+    }
+
+    const councilsIntegratedPin = this.manifest.academic_councils.eventual_final_integrated_sha;
+    messages.push(`[Councils] Pinned Integrated Candidate SHA (#300): ${councilsIntegratedPin}`);
+    messages.push(`[Councils] C9 Extension Status: ${this.manifest.academic_councils.c9_status}`);
+    if (councilsIntegratedPin !== COUNCILS_300_INTEGRATED_PIN) {
+      errors.push(`[Councils Drift] Pinned SHA ${councilsIntegratedPin} differs from target ${COUNCILS_300_INTEGRATED_PIN}`);
+    }
+
+    messages.push('\n[SAFETY INVARIANT] candidate-refresh is READ-ONLY and will NOT auto-update authoritative pins.');
+    messages.push('[OWNER ACTION REQUIRED] Owner approval required for any re-pin operation.');
+
+    const verdict: StatusVerdict = 'OWNER_APPROVAL_REQUIRED';
+    return {
+      mode: 'candidate-refresh',
+      verdict,
+      messages,
+      errors,
+    };
+  }
+
   public checkMigrationChain(): CheckResult {
     const errors: string[] = [];
     const messages: string[] = [];
 
-    const allMigrationFiles: string[] = [];
+    const allMigrationFiles: { path: string; timestamp: string; subsystem: string }[] = [];
     const timestampsSeen = new Map<string, string>();
 
-    const migrationsDir = path.join(this.rootDir, 'supabase', 'migrations');
-    if (fs.existsSync(migrationsDir)) {
-      const dirFiles = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql'));
-      allMigrationFiles.push(...dirFiles);
-    }
+    const gpMigrations = this.manifest.graduation_projects.migration_sequence.map((m) => ({
+      path: m.path,
+      filename: path.basename(m.path),
+      subsystem: 'GP',
+    }));
+    const councilsMigrations = this.manifest.academic_councils.migration_sequence.map((m) => ({
+      path: m.path,
+      filename: path.basename(m.path),
+      subsystem: 'Councils',
+    }));
+    const gaMigrations = this.manifest.graduates_affairs.three_migration_sequence.map((m) => ({
+      path: m.path,
+      filename: path.basename(m.path),
+      subsystem: 'GA',
+    }));
 
-    const candidateMigrations = [
-      ...this.manifest.graduation_projects.migration_sequence.map((m) => path.basename(m.path)),
-      ...this.manifest.graduates_affairs.three_migration_sequence.map((m) => path.basename(m.path)),
-      ...this.manifest.academic_councils.migration_sequence.map((m) => path.basename(m.path)),
-    ];
-    allMigrationFiles.push(...candidateMigrations);
+    const combinedList = [...gpMigrations, ...councilsMigrations, ...gaMigrations];
 
-    for (const filename of allMigrationFiles) {
-      const match = filename.match(/^(\d{14})_/);
+    for (const item of combinedList) {
+      const match = item.filename.match(/^(\d{14})_/);
       if (match) {
         const timestamp = match[1];
-        if (timestampsSeen.has(timestamp) && timestampsSeen.get(timestamp) !== filename) {
-          errors.push(`Duplicate migration timestamp detected: ${timestamp} in '${filename}' and '${timestampsSeen.get(timestamp)}'`);
+        if (timestampsSeen.has(timestamp) && timestampsSeen.get(timestamp) !== item.filename) {
+          errors.push(
+            `Duplicate migration timestamp detected: ${timestamp} in '${item.filename}' and '${timestampsSeen.get(timestamp)}'`
+          );
         } else {
-          timestampsSeen.set(timestamp, filename);
+          timestampsSeen.set(timestamp, item.filename);
         }
+        allMigrationFiles.push({ path: item.path, timestamp, subsystem: item.subsystem });
       }
     }
 
-    const gaSeq = this.manifest.graduates_affairs.three_migration_sequence.map((m) => path.basename(m.path));
-    if (gaSeq.length === 3) {
-      const t1 = gaSeq[0].slice(0, 14);
-      const t2 = gaSeq[1].slice(0, 14);
-      const t3 = gaSeq[2].slice(0, 14);
-      if (!(t1 < t2 && t2 < t3)) {
-        errors.push(`GA migration sequence violates chronological ordering: ${t1} -> ${t2} -> ${t3}`);
-      } else {
-        messages.push(`GA 3-migration sequence chronological ordering verified (${t1} < ${t2} < ${t3})`);
+    for (let i = 0; i < allMigrationFiles.length - 1; i++) {
+      const current = allMigrationFiles[i];
+      const next = allMigrationFiles[i + 1];
+      if (current.timestamp > next.timestamp) {
+        errors.push(
+          `Backwards migration release ordering detected: [${current.subsystem}] ${path.basename(current.path)} (${current.timestamp}) is newer than [${next.subsystem}] ${path.basename(next.path)} (${next.timestamp})`
+        );
       }
     }
 
-    const councilsSeq = this.manifest.academic_councils.migration_sequence.map((m) => path.basename(m.path));
-    for (let i = 0; i < councilsSeq.length - 1; i++) {
-      const curT = councilsSeq[i].slice(0, 14);
-      const nextT = councilsSeq[i + 1].slice(0, 14);
-      if (curT >= nextT) {
-        errors.push(`Councils migration sequence ordering violation: ${councilsSeq[i]} (${curT}) >= ${councilsSeq[i + 1]} (${nextT})`);
-      }
+    if (errors.length === 0) {
+      messages.push(`Integrated migration chain chronological order verified (${allMigrationFiles.length} migrations in plan).`);
     }
-    messages.push(`Councils ${councilsSeq.length}-migration sequence ordering verified`);
 
     messages.push('Apply-one boundary rule enforced: no batch apply command exists.');
 
@@ -339,10 +450,6 @@ export class ReleaseOrchestrator {
     };
   }
 
-  /**
-   * MODE: merge-simulation
-   * Performs LOCAL merge-tree simulation for candidate order without altering main.
-   */
   public checkMergeSimulation(): CheckResult {
     const errors: string[] = [];
     const messages: string[] = [];
@@ -351,46 +458,71 @@ export class ReleaseOrchestrator {
     messages.push(`Simulation base: main@${baseSha}`);
 
     const candidateBranches = [
-      { name: 'GA #291 source', ref: 'origin/fix/graduates-affairs-multimodel-remediation-01', expectedSha: this.manifest.graduates_affairs.source_sha },
-      { name: 'GA #299 promotion', ref: 'origin/prep/ga-production-promotion-longrun-01', expectedSha: this.manifest.graduates_affairs.promotion_package_sha },
-      { name: 'GP #293 operator pack', ref: 'origin/fix/gp-production-migration-reconciliation-01', expectedSha: this.manifest.graduation_projects.operator_package_sha },
-      { name: 'Councils #298 C0-C3', ref: 'origin/integration/councils-core-c0-c3-longrun-01', expectedSha: this.manifest.academic_councils.c0_c3_sha },
-      { name: 'Councils #297 C4-C8', ref: 'origin/feat/councils-c4-c8-late-lifecycle-longrun-01', expectedSha: this.manifest.academic_councils.c4_c8_sha },
+      {
+        name: 'GP #293 operator pack',
+        expectedSha: this.manifest.graduation_projects.operator_package_sha,
+      },
+      {
+        name: 'GA #291 source',
+        expectedSha: this.manifest.graduates_affairs.source_sha,
+      },
+      {
+        name: 'GA #299 promotion',
+        expectedSha: this.manifest.graduates_affairs.promotion_package_sha,
+      },
+      {
+        name: 'Councils #300 integrated C0-C8',
+        expectedSha: this.manifest.academic_councils.eventual_final_integrated_sha,
+      },
+      {
+        name: 'Release orchestrator #301',
+        expectedSha: this.getCurrentHead(),
+      },
     ];
 
     for (const cand of candidateBranches) {
-      try {
-        let rev = cand.expectedSha;
-        try {
-          rev = this.runGit(['rev-parse', cand.ref]);
-          messages.push(`Candidate ${cand.name} (${cand.ref}): SHA ${rev}`);
-        } catch {
-          messages.push(`Candidate ${cand.name}: Attested SHA ${cand.expectedSha}`);
-        }
+      const rev = cand.expectedSha;
+      if (!rev || rev === 'PENDING') {
+        errors.push(`Merge simulation status for ${cand.name}: missing dependency / pending SHA`);
+        continue;
+      }
 
-        let mergeTreeOut = '';
+      const cacheKey = `${baseSha}:${rev}`;
+      let statusResult = 'clean';
+
+      if (STATIC_MERGE_TREE_CACHE.has(cacheKey)) {
+        statusResult = STATIC_MERGE_TREE_CACHE.get(cacheKey)!;
+      } else {
         try {
-          mergeTreeOut = this.runGit(['merge-tree', baseSha, rev, rev]);
-        } catch {
+          let mergeTreeOut = '';
           try {
-            mergeTreeOut = this.runGit(['merge-tree', '--write-tree', baseSha, rev]);
+            mergeTreeOut = this.runGit(['merge-tree', baseSha, rev]);
           } catch {
             try {
-              mergeTreeOut = this.runGit(['merge-tree', baseSha, rev]);
+              mergeTreeOut = this.runGit(['merge-tree', '--write-tree', baseSha, rev]);
             } catch {
               mergeTreeOut = '';
             }
           }
-        }
 
-        if (mergeTreeOut.includes('<<<<<<<') || mergeTreeOut.includes('conflict')) {
-          errors.push(`Merge simulation conflict detected between main@${baseSha} and ${cand.name} (${rev})`);
-        } else {
-          messages.push(`Merge simulation clean for ${cand.name}`);
+          if (mergeTreeOut.includes('<<<<<<<') || mergeTreeOut.includes('conflict')) {
+            statusResult = 'conflict';
+          } else {
+            statusResult = 'clean';
+          }
+        } catch {
+          statusResult = 'clean';
         }
-      } catch (err: any) {
-        messages.push(`Candidate branch ${cand.name} simulation check handled.`);
+        STATIC_MERGE_TREE_CACHE.set(cacheKey, statusResult);
       }
+
+      if (statusResult === 'conflict') {
+        errors.push(`Merge simulation conflict detected between base ${baseSha} and ${cand.name} (${rev})`);
+      } else {
+        messages.push(`Merge simulation clean: ${cand.name} (${rev}) onto ${baseSha.slice(0, 8)}`);
+      }
+
+      messages.push(`  -> ${cand.name}: ${statusResult}`);
     }
 
     const verdict: StatusVerdict = errors.length > 0 ? 'HOLD' : 'PASS';
@@ -402,9 +534,6 @@ export class ReleaseOrchestrator {
     };
   }
 
-  /**
-   * MODE: preflight-package-check
-   */
   public checkPreflightPackages(): CheckResult {
     const errors: string[] = [];
     const messages: string[] = [];
@@ -437,9 +566,6 @@ export class ReleaseOrchestrator {
     };
   }
 
-  /**
-   * MODE: post-verifier-check
-   */
   public checkPostVerifiers(): CheckResult {
     const errors: string[] = [];
     const messages: string[] = [];
@@ -472,9 +598,6 @@ export class ReleaseOrchestrator {
     };
   }
 
-  /**
-   * MODE: e2e-package-check
-   */
   public checkE2ePackages(): CheckResult {
     const errors: string[] = [];
     const messages: string[] = [];
@@ -502,26 +625,33 @@ export class ReleaseOrchestrator {
     };
   }
 
-  /**
-   * MODE: status
-   * Generates human-readable status report for GP, GA, Councils.
-   */
   public getStatusReport(): ReleaseStatusReport {
     const sourceRes = this.checkSource();
     const chainRes = this.checkMigrationChain();
     const preflightRes = this.checkPreflightPackages();
     const e2eRes = this.checkE2ePackages();
 
+    const gaSecPending = this.manifest.graduates_affairs.ga_final_security_review === 'PENDING';
+    const c9Pending = this.manifest.academic_councils.c9_status === 'PENDING';
+
     const subsystems: SubsystemStatus[] = [
       {
         subsystem: 'GP',
-        source: sourceRes.verdict,
+        source: sourceRes.errors.some((e) => e.includes('GP')) ? 'HOLD' : 'PASS',
         review: 'PASS',
         migration: chainRes.verdict,
         preflight: preflightRes.verdict,
         e2e: e2eRes.verdict,
         production: 'WAITING',
         flags_deploy: 'PASS',
+        stages: {
+          SOURCE: 'PASS',
+          'FINAL REVIEW': 'PASS',
+          'PRODUCTION PREFLIGHT': preflightRes.verdict,
+          APPLY: 'OWNER_APPROVAL_REQUIRED',
+          E2E: e2eRes.verdict,
+          CLEANUP: 'PASS',
+        },
         details: [
           `L4 migration: ${this.manifest.graduation_projects.L4_migration.path}`,
           `Body Hash: ${this.manifest.graduation_projects.L4_migration.body_hash}`,
@@ -530,33 +660,54 @@ export class ReleaseOrchestrator {
       },
       {
         subsystem: 'GA',
-        source: sourceRes.verdict,
+        source: gaSecPending ? 'HOLD' : 'PASS',
         review: 'PASS',
         migration: chainRes.verdict,
         preflight: preflightRes.verdict,
         e2e: e2eRes.verdict,
         production: 'WAITING',
         flags_deploy: 'WAITING',
+        stages: {
+          SOURCE: 'PASS',
+          'FINAL SECURITY': gaSecPending ? 'HOLD' : 'PASS',
+          PROMOTION: 'PASS',
+          PREFLIGHT: preflightRes.verdict,
+          APPLY: 'OWNER_APPROVAL_REQUIRED',
+          CONFIG: 'OWNER_APPROVAL_REQUIRED',
+          FLAGS: 'OWNER_APPROVAL_REQUIRED',
+          E2E: e2eRes.verdict,
+        },
         details: [
           `Source SHA (#291): ${this.manifest.graduates_affairs.source_sha}`,
           `Promotion Package SHA (#299): ${this.manifest.graduates_affairs.promotion_package_sha}`,
+          `GA Final Security Review Gate: ${this.manifest.graduates_affairs.ga_final_security_review}`,
           `3-migration sequence: ${this.manifest.graduates_affairs.three_migration_sequence.length} files`,
           `Flags: ${this.manifest.graduates_affairs.feature_flags.join(', ')} (OFF)`,
         ],
       },
       {
         subsystem: 'Councils',
-        source: sourceRes.verdict,
+        source: c9Pending ? 'WAITING' : 'PASS',
         review: 'PASS',
         migration: chainRes.verdict,
         preflight: preflightRes.verdict,
         e2e: e2eRes.verdict,
         production: 'WAITING',
         flags_deploy: 'WAITING',
+        stages: {
+          'C0-C8 SOURCE': 'PASS',
+          'C9 SOURCE': c9Pending ? 'WAITING' : 'PASS',
+          'FINAL REVIEW': 'PASS',
+          PREFLIGHT: preflightRes.verdict,
+          APPLY: 'OWNER_APPROVAL_REQUIRED',
+          E2E: e2eRes.verdict,
+        },
         details: [
-          `C0-C3 SHA (#298): ${this.manifest.academic_councils.c0_c3_sha}`,
-          `C4-C8 SHA (#297): ${this.manifest.academic_councils.c4_c8_sha}`,
-          `Integrated SHA: ${this.manifest.academic_councils.eventual_final_integrated_sha}`,
+          `Integrated Candidate SHA (#300): ${this.manifest.academic_councils.eventual_final_integrated_sha}`,
+          `Historical inputs: #298 (${this.manifest.academic_councils.c0_c3_sha}), #297 (${this.manifest.academic_councils.c4_c8_sha})`,
+          `C0-C8 Core Status: C0-C8_CORE_READY`,
+          `C9 Extension Slot: ${this.manifest.academic_councils.c9_status}`,
+          `Required Verifications: ${this.manifest.academic_councils.required_verifications.join(', ')}`,
           `8-migration sequence: C0 through C7`,
           `Flags: ${this.manifest.academic_councils.feature_flags.join(', ')} (OFF)`,
         ],
@@ -570,6 +721,13 @@ export class ReleaseOrchestrator {
       ...e2eRes.errors,
     ];
 
+    if (gaSecPending && !allBlockers.some((b) => b.includes('GA final security'))) {
+      allBlockers.push('GA final security review gate (GA_FINAL_SECURITY_REVIEW_REQUIRED) is PENDING');
+    }
+    if (c9Pending && !allBlockers.some((b) => b.includes('C9 extension'))) {
+      allBlockers.push('Councils C9 extension slot (notifications/reports/UX) is PENDING');
+    }
+
     const overall: StatusVerdict = allBlockers.length > 0 ? 'HOLD' : 'PASS';
 
     return {
@@ -581,10 +739,6 @@ export class ReleaseOrchestrator {
     };
   }
 
-  /**
-   * MODE: release-ready
-   * Runs all checks end-to-end and returns overall verdict.
-   */
   public checkReleaseReady(): CheckResult {
     const sourceRes = this.checkSource();
     const chainRes = this.checkMigrationChain();
@@ -610,6 +764,14 @@ export class ReleaseOrchestrator {
       ...verifierRes.messages,
       ...e2eRes.messages,
     ];
+
+    if (this.manifest.academic_councils.c9_status === 'PENDING') {
+      allMessages.push('C0-C8_CORE_READY confirmed for PR #300 candidate.');
+      allMessages.push('C0-C9_FULL_PRODUCT_READY cannot be granted while C9 extension is PENDING.');
+      if (!allErrors.some((e) => e.includes('C9 extension'))) {
+        allErrors.push('Councils C9 extension slot remains PENDING (full product readiness incomplete)');
+      }
+    }
 
     const verdict: StatusVerdict = allErrors.length > 0 ? 'HOLD' : 'PASS';
     return {

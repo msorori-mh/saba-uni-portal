@@ -18,6 +18,7 @@ function parseMode(args: string[]): OrchestratorMode {
       [
         'status',
         'source-check',
+        'candidate-refresh',
         'merge-simulation',
         'migration-chain',
         'preflight-package-check',
@@ -51,25 +52,15 @@ async function main() {
     console.log('----------------------------------------------------------------------');
     console.log('Subsystem Status Matrix:');
     console.log('----------------------------------------------------------------------');
-    console.log(
-      'Subsystem | Source | Review | Migration | Preflight | E2E  | Prod Gate | Flags/Deploy'
-    );
-    console.log(
-      '----------+--------+--------+-----------+-----------+------+-----------+-------------'
-    );
     for (const sub of report.subsystems) {
-      const pad = (s: string, len: number) => s.padEnd(len, ' ');
-      console.log(
-        `${pad(sub.subsystem, 9)} | ${pad(sub.source, 6)} | ${pad(sub.review, 6)} | ${pad(
-          sub.migration,
-          9
-        )} | ${pad(sub.preflight, 9)} | ${pad(sub.e2e, 4)} | ${pad(
-          sub.production,
-          9
-        )} | ${pad(sub.flags_deploy, 12)}`
-      );
+      console.log(`\n[ ${sub.subsystem} Status Breakdown ]`);
+      if (sub.stages) {
+        for (const [stage, verdict] of Object.entries(sub.stages)) {
+          console.log(`  - ${stage.padEnd(22)}: ${verdict}`);
+        }
+      }
     }
-    console.log('----------------------------------------------------------------------\n');
+    console.log('\n----------------------------------------------------------------------');
 
     console.log('Subsystem Details:');
     for (const sub of report.subsystems) {
@@ -106,6 +97,9 @@ async function main() {
   switch (mode) {
     case 'source-check':
       result = orchestrator.checkSource();
+      break;
+    case 'candidate-refresh':
+      result = orchestrator.checkCandidateRefresh();
       break;
     case 'migration-chain':
       result = orchestrator.checkMigrationChain();
@@ -147,7 +141,6 @@ async function main() {
     process.exit(1);
   }
 
-  // Always output human readable status summary for release-ready
   if (mode === 'release-ready') {
     const report = orchestrator.getStatusReport();
     console.log('\n----------------------------------------------------------------------');
