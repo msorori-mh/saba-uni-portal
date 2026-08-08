@@ -1,10 +1,24 @@
 # Academic Councils C0–C9 — Partial Safe HOLD States
 
-**Mission:** `ACADEMIC-COUNCILS-C0-C9-PRODUCTION-READINESS-PACKAGE-LONGRUN-09`  
-**Rule:** Stopping mid-chain is a **safe HOLD**. No destructive rollback required.  
+**Mission:** `ACADEMIC-COUNCILS-LEGACY-PRODUCTION-TO-C0-C9-FORWARD-RECONCILIATION-LONGRUN-13`\
+**Rule:** Stopping mid-chain is a **safe HOLD**. No destructive rollback required.\
 **Flags:** remain OFF. **UI kill-switch:** see FLAGS package (currently ungated).
 
 Companion: `docs/migration-drafts/COUNCILS-C0-C9-ROLLBACK-BY-FORWARD-01.sql`
+
+---
+
+## Starting state (before C0)
+
+| Classification | Meaning | Resume |
+|---|---|---|
+| `LEGACY_SUPPORTED` | Exact production predecessor schema present; C0+ objects absent. Safe to apply C0. | C0 |
+| `C0_PARTIAL` | Some C0+ RPCs exist but no C1+ tables. Investigate before continuing. | HOLD |
+| `C0-Cn_PARTIAL` | Some C1+ extension tables exist without complete ledger. Mixed state. | HOLD |
+| `C0-C9_COMPLETE` | All ten promoted migrations already applied. Nothing to do. | N/A |
+| `UNKNOWN_UNSAFE` | Does not match any known supported prestate. | HOLD |
+
+Preflight V2 emits the classification and raises `HOLD:` for any state other than `LEGACY_SUPPORTED` or `C0-C9_COMPLETE`.
 
 ---
 

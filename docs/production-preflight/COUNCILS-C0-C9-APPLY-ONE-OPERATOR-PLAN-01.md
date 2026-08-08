@@ -1,9 +1,10 @@
 # Academic Councils C0–C9 — Apply-One Operator Plan
 
-- **Mission:** `ACADEMIC-COUNCILS-C0-C9-PRODUCTION-READINESS-PACKAGE-LONGRUN-09`
-- **Base:** PR #304 / `2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb`
+- **Mission:** `ACADEMIC-COUNCILS-LEGACY-PRODUCTION-TO-C0-C9-FORWARD-RECONCILIATION-LONGRUN-13`
+- **Base:** PR #306 / `1f50e7dcc8042cf15780c7817ecefa579c49f431`
 - **Hash contract:** `SHA256_LF_NORMALIZED_V1` (FULL file LF hash — authoritative)
 - **Rule:** **ONE migration per session.** No batch. No parallel. No CI auto-apply.
+- **Supported prestates (V2 preflight):** `LEGACY_SUPPORTED` only. Unknown variation = HOLD.
 - **Status:** SOURCE READY — **NOT APPLIED**
 
 Pinned hashes: `docs/migration-evidence/academic-councils/HASHES.txt`  
@@ -136,7 +137,7 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 | Field | Value |
 |---|---|
 | Migration | `supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql` |
-| FULL_SHA256_LF | `f7b6133ced9d7b1ab56a7fc2b40c059986d4c70f0ddc6ca90b6e1b8de5c7d051` |
+| FULL_SHA256_LF | `c15f3378d12de10a0ef04d93ce033adca06f70fd7d9d53b764a21e828c329d4e` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C9.sql` |
 | Pass marker | `COUNCILS_C9_PRODUCTION_POST_VERIFIER_PASS` |
 

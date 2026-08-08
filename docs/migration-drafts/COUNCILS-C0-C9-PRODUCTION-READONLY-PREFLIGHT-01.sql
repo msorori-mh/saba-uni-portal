@@ -1,7 +1,8 @@
--- ACADEMIC-COUNCILS-PR306-RELEASE-QUALIFICATION-REMEDIATION-LONGRUN-12
+-- ACADEMIC-COUNCILS-LEGACY-PRODUCTION-TO-C0-C9-RECONCILIATION-LONGRUN-13
+-- COUNCILS-C0-C9-PRODUCTION-READONLY-PREFLIGHT-V2
 -- ============================================================================
--- Production READ-ONLY preflight BEFORE C0 apply
--- (or disposable PG17 with predecessors only).
+-- Production READ-ONLY preflight BEFORE reconciliation/C0 apply.
+-- (or disposable PG17 with full legacy predecessors).
 --
 -- MODE: catalog reads + assertions only. No DML.
 -- Zero INSERT/UPDATE/DELETE/TRUNCATE/MERGE.
@@ -10,19 +11,28 @@
 -- Fail-closed: any unexpected council object/policy/function drift
 -- raises EXCEPTION 'HOLD: ...'.
 --
+-- Supported prestates:
+--   LEGACY_SUPPORTED   -> exact production schema created by predecessor
+--                         migrations; safe to apply reconciliation/C0.
+--   C0_PARTIAL         -> some C0+ RPCs/functions exist but no C1+ tables.
+--   C0-Cn_PARTIAL      -> some C1+ extension tables exist.
+--   C0-C9_COMPLETE     -> promoted chain already recorded in ledger.
+--   UNKNOWN_UNSAFE     -> anything else (HOLD).
+--
 -- Predecessor sources (inventory pins):
---   20260703192337_*  MVP create (tables, helpers, policies, indexes)
+--   20260703192337_*  MVP create (tables, enums, helpers, policies, indexes)
 --   20260703194033_*  MVP harden (ACL tighten; NO FORCE RLS)
---   20260704200326_*  membership-on-date / topic submit helpers (policy body refresh)
+--   20260704200326_*  membership-on-date / topic submit helpers (policy refresh)
 --   20260705012437_* / 20260708120000_*  topic attachments (optional predecessor)
 --   20260705232119_* / 20260710120000_*  schedule helpers
+--   20260705023313_* / 20260709120000_*  department council seed (idempotent)
 --
 -- Post-C9 ACL contract (document only; objects must NOT exist yet):
 --   create_council_notification / get_council_notification_recipients /
---   dispatch_council_notification → EXECUTE service_role only
+--   dispatch_council_notification -> EXECUTE service_role only
 --     (REVOKED from PUBLIC, anon, authenticated)
 --   get_my_council_notifications / acknowledge_council_notification /
---   get_council_report_% / dashboard helpers → EXECUTE authenticated + service_role
+--   get_council_report_% / dashboard helpers -> EXECUTE authenticated + service_role
 --     (REVOKED from PUBLIC, anon)
 -- ============================================================================
 
@@ -42,6 +52,23 @@ DECLARE
   v_attachments_present boolean;
   v_exp_count int;
   v_hit_count int;
+  v_state_classification text;
+  v_enum_name text;
+  v_expected_labels text[];
+
+  -- Promoted C0-C9 migration names (for ledger classification).
+  v_promoted_migrations text[] := ARRAY[
+    '20260808120000_councils_c0_write_surface_hardening_01',
+    '20260808121000_councils_c1_meeting_state_machine_01',
+    '20260808122000_councils_c2_topic_intake_review_01',
+    '20260808130000_councils_c3_attendance_quorum_01',
+    '20260808140000_councils_c4_session_voting_01',
+    '20260808150000_councils_c5_minutes_lifecycle_01',
+    '20260808160000_councils_c6_decisions_followup_01',
+    '20260808170000_councils_c7_audit_archive_01',
+    '20260808171000_councils_c0_c8_final_security_closure_01',
+    '20260808180000_councils_c9_notifications_reporting_01'
+  ];
 
   -- Required predecessor tables (MVP create).
   v_required_tables text[] := ARRAY[
@@ -145,26 +172,95 @@ DECLARE
     'academic_council_decisions|decisions_insert|INSERT',
     'academic_council_decisions|decisions_update|UPDATE'
   ];
+
+  -- Required legacy enums and exact label inventories.
+  v_required_enums jsonb := jsonb_build_array(
+    jsonb_build_object('name', 'academic_council_type', 'labels', jsonb_build_array('college', 'department')),
+    jsonb_build_object('name', 'academic_council_member_role', 'labels', jsonb_build_array('chair', 'vice_chair', 'secretary', 'member', 'viewer')),
+    jsonb_build_object('name', 'academic_council_meeting_status', 'labels', jsonb_build_array('scheduled', 'intake_open', 'intake_closed', 'agenda_ready', 'in_session', 'minutes_draft', 'minutes_locked', 'archived', 'cancelled')),
+    jsonb_build_object('name', 'academic_council_topic_status', 'labels', jsonb_build_array('draft', 'submitted', 'under_review', 'needs_completion', 'accepted_for_agenda', 'deferred', 'rejected', 'decided', 'closed')),
+    jsonb_build_object('name', 'academic_council_decision_status', 'labels', jsonb_build_array('issued', 'assigned', 'in_progress', 'partially_completed', 'completed', 'delayed', 'cancelled'))
+  );
 BEGIN
   -- -------------------------------------------------------------------------
-  -- 1) Migration ledger: none of promoted C0–C9 names may be present.
+  -- 0) State classification before detailed assertions.
+  -- -------------------------------------------------------------------------
+  v_hit_count := 0;
+
+  IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
+    SELECT count(*)::int
+    INTO v_hit_count
+    FROM unnest(v_promoted_migrations) AS m(name)
+    WHERE EXISTS (
+      SELECT 1
+      FROM supabase_migrations.schema_migrations sm
+      WHERE sm.name = m.name
+    );
+  END IF;
+
+  IF v_hit_count = cardinality(v_promoted_migrations) THEN
+    v_state_classification := 'C0-C9_COMPLETE';
+  ELSIF v_hit_count > 0 THEN
+    v_state_classification := 'C0-Cn_PARTIAL';
+  ELSE
+    SELECT count(*)::int
+    INTO v_hit_count
+    FROM unnest(v_forbidden_tables) AS t
+    WHERE to_regclass('public.' || t) IS NOT NULL;
+
+    IF v_hit_count > 0 THEN
+      v_state_classification := 'C0-Cn_PARTIAL';
+    ELSE
+      SELECT count(*)::int
+      INTO v_hit_count
+      FROM unnest(v_forbidden_fns) AS f
+      WHERE EXISTS (
+        SELECT 1
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = f
+      );
+
+      IF v_hit_count > 0 THEN
+        v_state_classification := 'C0_PARTIAL';
+      ELSE
+        SELECT count(*)::int
+        INTO v_hit_count
+        FROM unnest(v_required_tables) AS t
+        WHERE to_regclass('public.' || t) IS NOT NULL;
+
+        IF v_hit_count = cardinality(v_required_tables) THEN
+          v_state_classification := 'LEGACY_SUPPORTED';
+        ELSE
+          v_state_classification := 'UNKNOWN_UNSAFE';
+        END IF;
+      END IF;
+    END IF;
+  END IF;
+
+  RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: %', v_state_classification;
+
+  IF v_state_classification NOT IN ('LEGACY_SUPPORTED', 'C0-C9_COMPLETE') THEN
+    RAISE EXCEPTION
+      'HOLD: unsupported prestate classification %; only LEGACY_SUPPORTED or C0-C9_COMPLETE may proceed',
+      v_state_classification;
+  END IF;
+
+  -- If already complete, no further assertions are needed.
+  IF v_state_classification = 'C0-C9_COMPLETE' THEN
+    RAISE NOTICE 'READY_FOR_APPLY_C0 (C0-C9_COMPLETE: nothing to do)';
+    RETURN;
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 1) Migration ledger: none of promoted C0-C9 names may be present.
   -- -------------------------------------------------------------------------
   IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
     SELECT array_agg(name ORDER BY name)
     INTO v_promoted_in_ledger
     FROM supabase_migrations.schema_migrations
-    WHERE name IN (
-      '20260808120000_councils_c0_write_surface_hardening_01',
-      '20260808121000_councils_c1_meeting_state_machine_01',
-      '20260808122000_councils_c2_topic_intake_review_01',
-      '20260808130000_councils_c3_attendance_quorum_01',
-      '20260808140000_councils_c4_session_voting_01',
-      '20260808150000_councils_c5_minutes_lifecycle_01',
-      '20260808160000_councils_c6_decisions_followup_01',
-      '20260808170000_councils_c7_audit_archive_01',
-      '20260808171000_councils_c0_c8_final_security_closure_01',
-      '20260808180000_councils_c9_notifications_reporting_01'
-    );
+    WHERE name = ANY (v_promoted_migrations);
+
     IF v_promoted_in_ledger IS NOT NULL THEN
       RAISE EXCEPTION
         'HOLD: promoted C0-C9 migration(s) already in ledger: %',
@@ -472,7 +568,7 @@ BEGIN
   END IF;
 
   -- -------------------------------------------------------------------------
-  -- 9) Unknown public functions with proname LIKE '%council%' → HOLD.
+  -- 9) Unknown public functions with proname LIKE '%council%' -> HOLD.
   -- -------------------------------------------------------------------------
   SELECT array_agg(DISTINCT p.proname ORDER BY p.proname)
   INTO v_extra
@@ -489,7 +585,60 @@ BEGIN
   END IF;
 
   -- -------------------------------------------------------------------------
-  -- 10) C9 internal-helper ACL drift:
+  -- 10) Legacy enum inventory: required enums must exist with exact labels.
+  -- -------------------------------------------------------------------------
+  FOR v_enum_name, v_expected_labels IN
+    SELECT e->>'name' AS enum_name,
+           ARRAY(SELECT jsonb_array_elements_text(e->'labels') ORDER BY 1) AS expected_labels
+    FROM jsonb_array_elements(v_required_enums) AS e
+  LOOP
+    IF to_regtype(format('public.%I', v_enum_name)) IS NULL THEN
+      RAISE EXCEPTION 'HOLD: required legacy enum % missing', v_enum_name;
+    END IF;
+
+    SELECT array_agg(enumlabel ORDER BY enumlabel)
+    INTO v_missing
+    FROM pg_enum
+    WHERE enumtypid = format('public.%I', v_enum_name)::regtype;
+
+    IF v_missing IS DISTINCT FROM v_expected_labels THEN
+      RAISE EXCEPTION
+        'HOLD: legacy enum % labels drift: expected %, found %',
+        v_enum_name, v_expected_labels, v_missing;
+    END IF;
+  END LOOP;
+
+  -- -------------------------------------------------------------------------
+  -- 11) Storage bucket dependency for attachments (optional but present in prod).
+  -- -------------------------------------------------------------------------
+  IF v_attachments_present THEN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM storage.buckets
+      WHERE id = 'council-topic-attachments'
+    ) THEN
+      RAISE EXCEPTION
+        'HOLD: academic_council_topic_attachments exists but storage bucket council-topic-attachments is missing';
+    END IF;
+
+    SELECT array_agg(p.policyname ORDER BY p.policyname)
+    INTO v_missing
+    FROM pg_policies p
+    WHERE p.schemaname = 'storage'
+      AND p.tablename = 'objects'
+      AND p.policyname IN ('acta_storage_select', 'acta_storage_insert');
+
+    IF v_missing IS NULL OR array_length(v_missing, 1) <> 2 THEN
+      RAISE EXCEPTION
+        'HOLD: storage.objects policies for council-topic-attachments missing or drifted: %',
+        coalesce(array_to_string(v_missing, ', '), '<none>');
+    END IF;
+
+    RAISE NOTICE 'PREFLIGHT_ATTACHMENTS_STORAGE: bucket and policies present';
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 12) C9 internal-helper ACL drift:
   --     Absence already enforced in (7). Expected post-C9 ACL documented
   --     in file header (service_role-only internals; authenticated reports).
   -- -------------------------------------------------------------------------
@@ -497,7 +646,7 @@ BEGIN
     'PREFLIGHT_C9_ACL_CONTRACT: create/dispatch/recipients = service_role only after C9; get_my/acknowledge/reports = authenticated+service_role; objects must be absent now';
 
   -- -------------------------------------------------------------------------
-  -- 11) Constraints / indexes needed by next migration.
+  -- 13) Constraints / indexes needed by next migration.
   -- -------------------------------------------------------------------------
   -- Primary keys on all required predecessor tables.
   SELECT array_agg(t ORDER BY t)
@@ -548,14 +697,14 @@ BEGIN
   END IF;
 
   -- -------------------------------------------------------------------------
-  -- 12) Feature flag contract (cannot read TypeScript from SQL).
+  -- 14) Feature flag contract (cannot read TypeScript from SQL).
   -- -------------------------------------------------------------------------
   RAISE NOTICE
     'PREFLIGHT_FLAGS: % — flags remain OFF; activation package docs/migration-drafts/COUNCILS-C0-C9-FLAGS-01.md',
     v_flag_note;
 
   -- -------------------------------------------------------------------------
-  -- 13) Success
+  -- 15) Success
   -- -------------------------------------------------------------------------
   RAISE NOTICE 'READY_FOR_APPLY_C0';
 END $$;

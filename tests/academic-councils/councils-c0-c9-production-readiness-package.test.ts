@@ -123,14 +123,18 @@ describe("Academic Councils C0-C9 production readiness package", () => {
 
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     expect(manifest.hash_contract).toBe("SHA256_LF_NORMALIZED_V1");
-    expect(manifest.mission).toBe("ACADEMIC-COUNCILS-PR306-RELEASE-QUALIFICATION-REMEDIATION-LONGRUN-12");
-    expect(manifest.base_pr).toBe(304);
-    expect(manifest.pr_number).toBe(306);
-    expect(manifest.base_sha).toBe("2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb");
+    expect(manifest.mission).toBe("ACADEMIC-COUNCILS-LEGACY-PRODUCTION-TO-C0-C9-FORWARD-RECONCILIATION-LONGRUN-13");
+    expect(manifest.base_pr).toBe(306);
+    expect(manifest.base_sha).toBe("1f50e7dcc8042cf15780c7817ecefa579c49f431");
     expect(manifest.release_qualification?.postgrest_http_auth_matrix).toBe(true);
+    expect(manifest.release_qualification?.legacy_reconciliation_test).toBe(
+      "tests/academic-councils/councils-legacy-production-to-c0-c9-reconciliation.test.ts",
+    );
     expect(manifest.max_migrations_per_apply_session).toBe(1);
     expect(manifest.promoted_chain).toHaveLength(10);
     expect(manifest.production_apply).toBe(false);
+    expect(manifest.legacy_reconciliation?.supported_prestate).toBe("LEGACY_SUPPORTED");
+    expect(manifest.preflight_sha256_lf).toBeDefined();
 
     const c9Verifier = readFileSync(join(root, "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C9.sql"), "utf8");
     expect(c9Verifier).toContain("INTERNAL_ONLY");
