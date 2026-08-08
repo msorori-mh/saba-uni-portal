@@ -1,0 +1,199 @@
+{
+  "mission": "ACADEMIC-COUNCILS-C0-C9-PRODUCTION-READINESS-PACKAGE-LONGRUN-09",
+  "base_pr": 304,
+  "base_sha": "2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb",
+  "base_branch": "fix/councils-c0-c9-final-security-closure-01",
+  "hash_contract": "SHA256_LF_NORMALIZED_V1",
+  "hash_authority": "FULL_SHA256_LF",
+  "hash_note": "Councils migrations use uppercase BEGIN; FULL file LF hash is authoritative. Do not use platform-native file hashes.",
+  "status": "SOURCE_READY_NOT_APPLIED",
+  "max_migrations_per_apply_session": 1,
+  "batch_apply_forbidden": true,
+  "production_apply": false,
+  "predecessors": [
+    {
+      "role": "mvp_create",
+      "path": "supabase/migrations/20260703192337_3ef2f7b2-cf46-4407-9f1a-60c25b46c211.sql",
+      "ledger_version": "20260703192337",
+      "sha256_lf": "84ea64206c9816350d324fea15293e7303c0f4d1b14d5bdfdd62674615c2c79e"
+    },
+    {
+      "role": "mvp_harden_anon",
+      "path": "supabase/migrations/20260703194033_cccf45a9-50ed-4a72-bb11-7e5d1627b5a2.sql",
+      "ledger_version": "20260703194033",
+      "sha256_lf": "c5f458f73e8b14385decadd67b8345b66aa87836debc55b7ed4d063a6f68d13f"
+    },
+    {
+      "role": "faculty_history_rls",
+      "path": "supabase/migrations/20260704200326_b0736829-500e-456c-aa9b-6dc7ccd10012.sql",
+      "ledger_version": "20260704200326",
+      "sha256_lf": "f074dfadf7801d377ad71c5ec40b3c939c78969e7672f55afbec3afdba6d18ec"
+    },
+    {
+      "role": "schedule_helpers_core",
+      "path": "supabase/migrations/20260705232119_84b04a88-50be-4c5c-b9c3-11aeb54fa119.sql",
+      "ledger_version": "20260705232119",
+      "sha256_lf": "831b2d878670d603cc301b4244527e859b8ca6db7ba9b93d950ec1d73f8ac52d"
+    },
+    {
+      "role": "topic_attachments",
+      "path": "supabase/migrations/20260708120000_council_topic_attachments.sql",
+      "ledger_version": "20260708120000",
+      "sha256_lf": "59ad0f11bdd73753fece81e09b8650d6c6d4e4921c2d08b0a2a85d6a8c74514e"
+    },
+    {
+      "role": "department_councils_seed",
+      "path": "supabase/migrations/20260709120000_department_councils_seed.sql",
+      "ledger_version": "20260709120000",
+      "sha256_lf": "a026966e3f4fd2469bd54bafec6cb8469663d1673def8665428d153c83b61f67"
+    },
+    {
+      "role": "meeting_schedule_helpers",
+      "path": "supabase/migrations/20260710120000_council_meeting_schedule_helpers.sql",
+      "ledger_version": "20260710120000",
+      "sha256_lf": "793d3b8346f2ae6b662ef23d00a2200f25b6ed37df22524f1ba92f0a3292ae06"
+    }
+  ],
+  "promoted_chain": [
+    {
+      "step": "C0",
+      "sequence_order": 1,
+      "canonical_id": "COUNCILS-C0-WRITE-SURFACE",
+      "path": "supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql",
+      "ledger_name": "20260808120000_councils_c0_write_surface_hardening_01",
+      "timestamp": "20260808120000",
+      "sha256_lf": "cca51386d7c3bfe1a3b9ce5ec2cdfb3cd124e3e5eeef01f6270e4299c715dc13",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C0.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c0-write-surface-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C1",
+      "sequence_order": 2,
+      "canonical_id": "COUNCILS-C1-MEETING-STATE-MACHINE",
+      "path": "supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql",
+      "ledger_name": "20260808121000_councils_c1_meeting_state_machine_01",
+      "timestamp": "20260808121000",
+      "sha256_lf": "498a8d8c274277ff3ffc96e95fa30202e859aa2a2cfd74bcfaaa9f5d39a033d5",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C1.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c1-meeting-state-machine-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C2",
+      "sequence_order": 3,
+      "canonical_id": "COUNCILS-C2-TOPIC-INTAKE-REVIEW",
+      "path": "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql",
+      "ledger_name": "20260808122000_councils_c2_topic_intake_review_01",
+      "timestamp": "20260808122000",
+      "sha256_lf": "f969c6c0f63a4758944cc59f6c78292f56f3a4ac360ae77f0b386bf72e0e364e",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C2.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c2-topic-intake-review-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C3",
+      "sequence_order": 4,
+      "canonical_id": "COUNCILS-C3-ATTENDANCE-QUORUM",
+      "path": "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql",
+      "ledger_name": "20260808130000_councils_c3_attendance_quorum_01",
+      "timestamp": "20260808130000",
+      "sha256_lf": "e7361f6c85014fb37b6f8d97bd468dc1205700748a526cb7a8063f82ff6c0de6",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C3.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c3-attendance-quorum-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C4",
+      "sequence_order": 5,
+      "canonical_id": "COUNCILS-C4-SESSION-VOTING",
+      "path": "supabase/migrations/20260808140000_councils_c4_session_voting_01.sql",
+      "ledger_name": "20260808140000_councils_c4_session_voting_01",
+      "timestamp": "20260808140000",
+      "sha256_lf": "d0825e1ddcce82c0e1123ea04cba2777e3b726bc0e4ae514940a714d322b05cd",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C4.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c4-c8-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C5",
+      "sequence_order": 6,
+      "canonical_id": "COUNCILS-C5-MINUTES-LIFECYCLE",
+      "path": "supabase/migrations/20260808150000_councils_c5_minutes_lifecycle_01.sql",
+      "ledger_name": "20260808150000_councils_c5_minutes_lifecycle_01",
+      "timestamp": "20260808150000",
+      "sha256_lf": "85c5db5e273f529bac300a6f983098eea30add602ed7a51fbe4635addb353c25",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C5.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c4-c8-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C6",
+      "sequence_order": 7,
+      "canonical_id": "COUNCILS-C6-DECISIONS-FOLLOWUP",
+      "path": "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql",
+      "ledger_name": "20260808160000_councils_c6_decisions_followup_01",
+      "timestamp": "20260808160000",
+      "sha256_lf": "1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C6.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c4-c8-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C7",
+      "sequence_order": 8,
+      "canonical_id": "COUNCILS-C7-AUDIT-ARCHIVE",
+      "path": "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql",
+      "ledger_name": "20260808170000_councils_c7_audit_archive_01",
+      "timestamp": "20260808170000",
+      "sha256_lf": "3fd74518d57722b7018b06ba9ce50f7fb9033c2d8527fe515d5ad133a4081f6a",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C7.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c4-c8-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C8",
+      "sequence_order": 9,
+      "canonical_id": "COUNCILS-C8-FINAL-SECURITY-CLOSURE",
+      "note": "Required security closure between C7 and C9 (H1–H4). Included in apply-one chain; mission letters list C0–C7 then C9 with this as the before-C9 gate.",
+      "path": "supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql",
+      "ledger_name": "20260808171000_councils_c0_c8_final_security_closure_01",
+      "timestamp": "20260808171000",
+      "sha256_lf": "6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C8.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c4-c8-verifier.sql",
+      "status": "NOT_APPLIED"
+    },
+    {
+      "step": "C9",
+      "sequence_order": 10,
+      "canonical_id": "COUNCILS-C9-NOTIFICATIONS-REPORTING",
+      "path": "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "ledger_name": "20260808180000_councils_c9_notifications_reporting_01",
+      "timestamp": "20260808180000",
+      "sha256_lf": "f7b6133ced9d7b1ab56a7fc2b40c059986d4c70f0ddc6ca90b6e1b8de5c7d051",
+      "timestamp_unique": true,
+      "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C9.sql",
+      "behavioral_verifier_local_only": "tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql",
+      "status": "NOT_APPLIED"
+    }
+  ],
+  "preflight": "docs/migration-drafts/COUNCILS-C0-C9-PRODUCTION-READONLY-PREFLIGHT-01.sql",
+  "apply_one_plan": "docs/production-preflight/COUNCILS-C0-C9-APPLY-ONE-OPERATOR-PLAN-01.md",
+  "partial_states": "docs/migration-drafts/COUNCILS-C0-C9-PARTIAL-SAFE-HOLD-STATES-01.md",
+  "rollback_by_forward": "docs/migration-drafts/COUNCILS-C0-C9-ROLLBACK-BY-FORWARD-01.sql",
+  "e2e_fixture": "docs/migration-drafts/COUNCILS-C0-C9-TESTONLY-E2E-FIXTURE-01.sql",
+  "cleanup": "docs/migration-drafts/COUNCILS-C0-C9-TESTONLY-CLEANUP-01.sql",
+  "zero_residue": "docs/migration-drafts/COUNCILS-C0-C9-ZERO-RESIDUE-VERIFIER-01.sql",
+  "observability": "docs/migration-drafts/COUNCILS-C0-C9-OBSERVABILITY-READONLY-01.sql",
+  "flags_package": "docs/migration-drafts/COUNCILS-C0-C9-FLAGS-01.md"
+}
