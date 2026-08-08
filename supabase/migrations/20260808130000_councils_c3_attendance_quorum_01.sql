@@ -257,7 +257,62 @@ GRANT ALL ON TABLE public.academic_council_meeting_quorum_evaluations TO service
 GRANT ALL ON TABLE public.academic_council_attendance_audit_events TO service_role;
 
 -- SELECT policies (no write policies — RPC-only mutations)
-DROP POLICY IF EXISTS "ac_quorum_policies_select" ON public.academic_council_quorum_policies;
+-- Newly created C3 tables: fail-closed if an unexpected predecessor policy exists.
+-- Catalog assert then CREATE once; unknown prestate aborts the migration.
+DO $c3_policy_prestate$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_quorum_policies'
+      AND policyname = 'ac_quorum_policies_select'
+  ) THEN
+    RAISE EXCEPTION 'C3_POLICY_UNEXPECTEDLY_EXISTS:ac_quorum_policies_select';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_meeting_attendance_rolls'
+      AND policyname = 'ac_attendance_rolls_select'
+  ) THEN
+    RAISE EXCEPTION 'C3_POLICY_UNEXPECTEDLY_EXISTS:ac_attendance_rolls_select';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_meeting_attendance'
+      AND policyname = 'ac_meeting_attendance_select'
+  ) THEN
+    RAISE EXCEPTION 'C3_POLICY_UNEXPECTEDLY_EXISTS:ac_meeting_attendance_select';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_meeting_quorum_evaluations'
+      AND policyname = 'ac_quorum_evaluations_select'
+  ) THEN
+    RAISE EXCEPTION 'C3_POLICY_UNEXPECTEDLY_EXISTS:ac_quorum_evaluations_select';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'academic_council_attendance_audit_events'
+      AND policyname = 'ac_attendance_audit_select'
+  ) THEN
+    RAISE EXCEPTION 'C3_POLICY_UNEXPECTEDLY_EXISTS:ac_attendance_audit_select';
+  END IF;
+END
+$c3_policy_prestate$;
+
 CREATE POLICY "ac_quorum_policies_select"
   ON public.academic_council_quorum_policies
   FOR SELECT TO authenticated
@@ -266,7 +321,6 @@ CREATE POLICY "ac_quorum_policies_select"
     OR public.is_council_member(auth.uid(), council_id)
   );
 
-DROP POLICY IF EXISTS "ac_attendance_rolls_select" ON public.academic_council_meeting_attendance_rolls;
 CREATE POLICY "ac_attendance_rolls_select"
   ON public.academic_council_meeting_attendance_rolls
   FOR SELECT TO authenticated
@@ -275,7 +329,6 @@ CREATE POLICY "ac_attendance_rolls_select"
     OR public.is_council_member(auth.uid(), council_id)
   );
 
-DROP POLICY IF EXISTS "ac_meeting_attendance_select" ON public.academic_council_meeting_attendance;
 CREATE POLICY "ac_meeting_attendance_select"
   ON public.academic_council_meeting_attendance
   FOR SELECT TO authenticated
@@ -290,7 +343,6 @@ CREATE POLICY "ac_meeting_attendance_select"
     )
   );
 
-DROP POLICY IF EXISTS "ac_quorum_evaluations_select" ON public.academic_council_meeting_quorum_evaluations;
 CREATE POLICY "ac_quorum_evaluations_select"
   ON public.academic_council_meeting_quorum_evaluations
   FOR SELECT TO authenticated
@@ -304,7 +356,6 @@ CREATE POLICY "ac_quorum_evaluations_select"
     )
   );
 
-DROP POLICY IF EXISTS "ac_attendance_audit_select" ON public.academic_council_attendance_audit_events;
 CREATE POLICY "ac_attendance_audit_select"
   ON public.academic_council_attendance_audit_events
   FOR SELECT TO authenticated

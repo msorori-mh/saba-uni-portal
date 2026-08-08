@@ -146,6 +146,13 @@ describe("Academic Councils C3 attendance and quorum foundation", () => {
     expect(migration).toContain("'absent'");
     expect(migration).toContain("COUNCIL_QUORUM_POLICY_REQUIRED");
     expect(migration).toContain("in_session");
+    expect(migration).not.toMatch(/DROP\s+POLICY/i);
+    expect(migration).toContain("C3_POLICY_UNEXPECTEDLY_EXISTS");
+    expect(migration).toContain("ac_quorum_policies_select");
+    expect(migration).toContain("ac_attendance_rolls_select");
+    expect(migration).toContain("ac_meeting_attendance_select");
+    expect(migration).toContain("ac_quorum_evaluations_select");
+    expect(migration).toContain("ac_attendance_audit_select");
   });
 
   it("keeps quorum evaluation server-side and fail-closed without approved policy", () => {

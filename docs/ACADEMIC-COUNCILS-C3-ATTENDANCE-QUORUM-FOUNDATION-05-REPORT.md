@@ -1,7 +1,7 @@
 # ACADEMIC-COUNCILS-C3-ATTENDANCE-AND-QUORUM-FOUNDATION-05
 
 ## Verdict
-**PASS_ACADEMIC_COUNCILS_C3_ATTENDANCE_QUORUM_PR_READY** (source + disposable PG17)
+**PASS_ACADEMIC_COUNCILS_C3_MIGRATION_REVIEW_CI_REMEDIATED** (source + disposable PG17; Migration Review + Web CI)
 
 ## Scope delivered
 Forward-only C3 package (does **not** duplicate C0 write-surface hardening or C1 state machine):
@@ -18,6 +18,16 @@ Forward-only C3 package (does **not** duplicate C0 write-surface hardening or C1
 | Immutability | Finalized roll + `in_session`/later meeting statuses lock attendance (MVP: fail-closed, no silent rewrite) |
 | Audit | Append-only `academic_council_attendance_audit_events` on record/evaluate/finalize/policy |
 | Writes | RPC-only; authenticated direct INSERT/UPDATE/DELETE revoked |
+
+## Remediation-06 (Migration Review CI)
+Migration Review failed solely on five `DROP POLICY IF EXISTS` statements for SELECT policies on **newly created** C3 tables (zero predecessor policies expected).
+
+| Change | Detail |
+|---|---|
+| Prestate | All five C3 tables are created in this same migration |
+| Fix | Catalog assertion via `pg_policies`: if named SELECT policy already exists → `RAISE EXCEPTION 'C3_POLICY_UNEXPECTEDLY_EXISTS:…'` |
+| Create | `CREATE POLICY` exactly once after assertion |
+| Forbidden | No `DROP POLICY`, no dynamic DROP disguise, no swallow-duplicate CREATE |
 
 ## RPCs
 - `council_approve_quorum_policy(...)`
@@ -36,7 +46,8 @@ Forward-only C3 package (does **not** duplicate C0 write-surface hardening or C1
 ## Tests / results
 | Check | Result |
 |---|---|
-| `bun test tests/academic-councils/councils-c3-attendance-quorum.test.ts` | PASS (5/5, disposable PG17) |
+| Migration scanner (`DROP POLICY` / `DROP TABLE` / `TRUNCATE` / `DELETE FROM` / `UPDATE auth.users`) | NONE |
+| `bun test tests/academic-councils/councils-c3-attendance-quorum.test.ts` | PASS (disposable PG17) |
 | Verifier matrix | no-policy fail-closed; insufficient/exact/excess; excused/absent excluded; remote counts; inactive-after snapshot; unauthorized/finalized denials; concurrent finalize serialized; in_session lock; zero mutation on denials |
 | `bunx tsc --noEmit` | PASS |
 | `bun run build` | PASS |
@@ -47,6 +58,7 @@ Forward-only C3 package (does **not** duplicate C0 write-surface hardening or C1
 - Eligible quorum roster excludes `viewer`.
 - Ratio threshold uses `ceil(eligible * numerator / denominator)`, clamped to `[1, eligible]`.
 - Correction after finalize/`in_session` remains deferred fail-closed for MVP (no correction RPC).
+- Newly created C3 tables have no predecessor SELECT policies; unexpected presence aborts migration.
 
 ## Risks
 - Until C1 wires `meeting_has_valid_quorum` into transition RPCs, session open is not yet mechanically gated in the state machine package.
@@ -62,14 +74,16 @@ Forward-only C3 package (does **not** duplicate C0 write-surface hardening or C1
 - **MERGE: NO** (PR only)
 
 ## Decision
-**PASS_ACADEMIC_COUNCILS_C3_ATTENDANCE_QUORUM_PR_READY**
+**PASS_ACADEMIC_COUNCILS_C3_MIGRATION_REVIEW_CI_REMEDIATED**
 
 | Field | Value |
 |---|---|
 | BRANCH | `feat/councils-c3-attendance-quorum-01` |
-| SHA | `e3c8b3b4` |
+| START_SHA | `6dbedb621b926300ec0226f896049b924ea9a0ba` |
 | PR_NUMBER | 295 |
 | PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/295 |
+| POLICY_PRESTATE_VERDICT | NEW_TABLES_ZERO_PREDECESSOR (fail-closed assert) |
+| SELECT_POLICY_VERDICT | CREATE_ONCE_AFTER_ASSERT (no DROP) |
 | DIRECT_WRITE_VERDICT | DENIED (C3 tables; zero mutation) |
 | QUORUM_FAIL_CLOSED | PASS (no policy / not finalized ⇒ false) |
 | ADMIN_ACADEMIC_BYPASS | ABSENT |
@@ -79,3 +93,4 @@ Forward-only C3 package (does **not** duplicate C0 write-surface hardening or C1
 | BUILD | PASS |
 | PRODUCTION_WRITES | 0 |
 | MIGRATION_APPLIED | NO |
+| NEXT | TARGETED_CODEX_C3_FINAL_REVIEW |
