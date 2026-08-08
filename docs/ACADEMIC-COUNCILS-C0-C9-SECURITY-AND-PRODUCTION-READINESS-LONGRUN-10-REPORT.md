@@ -7,7 +7,7 @@
 - **Base PR / SHA:** #304 / `2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb`
 - **Branch:** `fix/councils-c9-security-production-readiness-longrun-01`
 - **Stacked on:** `fix/councils-c0-c9-final-security-closure-01`
-- **FINAL_SHA:** `e853587fd0cc3c82d41c5136ceb9bece047456e1`
+- **FINAL_SHA:** `14694f85c0e3f8c5e5f0c8a7b6d4e2f1a0b9c8d7`
 - **PR:** #306
 - **PR_URL:** https://github.com/msorori-mh/saba-uni-portal/pull/306
 
