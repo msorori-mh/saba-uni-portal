@@ -1,207 +1,68 @@
-# GP Level-4 Production TEST_ONLY Fixture Package — E2E Runbook
+# GP Level-4 post-apply operator runbook
 
-- **Mission:** `GP-LEVEL4-PRODUCTION-TESTONLY-FIXTURE-PACKAGE-01`
-- **Marker:** `TEST_ONLY_GP_LEVEL4_RECLOSURE_01`
-- **Mode:** SOURCE package for **post-apply** operator testing only
-- **This document does not authorize production writes.** Each gate must PASS before the next begins. Failure → **STOP**.
+Mission marker: `TEST_ONLY_GP_LEVEL4_RECLOSURE_01`. This is a SOURCE-ONLY operator flow. It does not authorize migration apply, production fixture execution, deploy, publish, or writes outside the explicitly gated TEST_ONLY window. Every STOP ends the run; do not skip forward.
 
-## Package files
+## Authoritative touch inventory
 
-| Artifact | Path |
-|---|---|
-| Provisioning | `docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-FIXTURES-01.sql` |
-| Cleanup | `docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-CLEANUP-01.sql` |
-| Fingerprint | `docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-FINGERPRINT-01.sql` |
-| Local Bun proof | `tests/graduation-projects/gp-level4-production-fixture-package.test.ts` |
+Derived from `GP-LEVEL4-PRODUCTION-TESTONLY-FIXTURES-01.sql`, not prior documentation.
 
-## Actor roster (15)
-
-| Code | Role |
-|---|---|
-| `GP_L4_TEST_LEADER` | Current Level 4 leader (P1) |
-| `GP_L4_TEST_MEMBER` | Current Level 4 member (P1) |
-| `GP_L1_NEGATIVE` | Level 1 deny |
-| `GP_L2_NEGATIVE` | Level 2 deny |
-| `GP_L3_NEGATIVE` | Level 3 deny |
-| `GP_LEVEL_UNKNOWN_NEGATIVE` | No academic-status row |
-| `GP_LEVEL_AMBIGUOUS_NEGATIVE` | Tied top academic-status rows |
-| `GP_DUAL_ROLE` | Student on P2 (non-L4 DENY) + coordinator on P3 (ALLOW) |
-| `GP_TEST_COORDINATOR` | Coordinator |
-| `GP_TEST_SUPERVISOR` | Supervisor (accepted on P1) |
-| `GP_TEST_UNRELATED_SUPERVISOR` | Unrelated supervisor (no rights) |
-| `GP_TEST_PANEL_1` / `GP_TEST_PANEL_2` | Panel members |
-| `GP_TEST_UNAUTHORIZED_STAFF` | Unauthorized staff |
-| `GP_TEST_ADMIN_VIEWER` | Department-coordinator overview capability (no separate enum role) |
-
-UUID band: `a4e40100-0000-4000-*` (synthetic; do not reuse real identities).
-
-## Projects (4)
-
-| ID | Purpose |
-|---|---|
-| P1 | Positive Level-4 lifecycle + storage/download probes |
-| P2 | Dual-role student-path DENY |
-| P3 | Dual-role staff-path ALLOW |
-| P4 | Archive immutability evidence |
-
-## Storage plan (no fake bytes in source)
-
-Object-key prefix embeds the marker:
-
-```text
-graduation-projects/<project_id>/<category>/TEST_ONLY_GP_LEVEL4_RECLOSURE_01-<file_id>-<purpose>.pdf
-```
-
-| Intent | File purpose |
-|---|---|
-| Positive L4 upload | Operator creates new intent as L4 leader/member at E2E time |
-| Pending → demotion deny | Pre-seeded pending proposal on P1 owned by member; demote member academic status then probe upload/finalize |
-| Signed-download positive | Pre-seeded active clean proposal on P1 |
-| Replay cross-actor deny | Same file + correlation; second actor must fail with actor mismatch |
-
-Cleanup identifies objects by marker substring **and** package project UUID prefixes only.
-
----
-
-## Gates (stop on first failure)
-
-### GATE 1 — Production L4 migration applied + post-verifier PASS
-
-- Apply path is **out of scope** for this package.
-- Require prior PASS of:
-  - `docs/production-preflight/GP-STUDENT-LEVEL4-ELIGIBILITY-GUARD-01-PRODUCTION-READONLY-POST-VERIFIER.sql`
-- Expect notice: `GP_L4_PRODUCTION_POST_VERIFIER_PASS`
-- **STOP** if predicate `student_is_current_fourth_academic_level` is missing.
-
-### GATE 2 — Schema hash / GP object contract
-
-- Confirm SET U + L4 objects present (foundation/storage/lifecycle + L4 helpers).
-- Confirm private bucket `graduation-projects` (`public=false`).
-- **STOP** on drift.
-
-### GATE 3 — Fixture dry-run PASS
-
-```sql
--- default: do NOT set execute
-\i docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-FIXTURES-01.sql
-```
-
-Expect:
-
-- notice `GP_L4_FIXTURE_PROVISION_BUILT`
-- exception `GP_L4_FIXTURE_DRY_RUN` (transaction rolls back)
-
-If Auth cannot accept `INSERT INTO auth.users(id)`:
-
-1. Pre-create the 15 deterministic auth user UUIDs via Auth Admin API
-2. `SET gp.l4_fixture.auth_users_preprovisioned = 'true';`
-3. Re-run dry-run
-
-**STOP** on any other exception.
-
-### GATE 4 — Fixture provisioning (explicit approval)
-
-```sql
-SET gp.l4_fixture.execute = 'true';
--- optional after Auth Admin pre-create:
--- SET gp.l4_fixture.auth_users_preprovisioned = 'true';
-\i docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-FIXTURES-01.sql
-```
-
-Expect notice `GP_L4_FIXTURE_PROVISION_COMMIT`.
-
-Then:
-
-```sql
-SET gp.l4_fixture.fingerprint_phase = 'PRE_E2E';
-\i docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-FINGERPRINT-01.sql
-```
-
-Expect `GP_L4_FINGERPRINT_PASS phase=PRE_E2E`.
-
-### GATE 5 — Negative matrix (ZERO side effects)
-
-For each actor, capture fingerprint counts (projects/assignments/events/files) **before** and **after**. Must be equal on denial.
-
-| Actor | Probe | Expected |
+| Surface | Classification | Constraint/evidence |
 |---|---|---|
-| L1 / L2 / L3 | `create_graduation_project_team` / `list_my_graduation_projects` | `fourth-level student eligibility required` |
-| UNKNOWN | same | deny |
-| AMBIGUOUS | same | deny (tied top rows) |
-| DUAL on P2 | `get_graduation_project_detail(P2)` | student-path deny |
+| `auth.users` | CREATED_TEST_ONLY | 15 exact `a4e40100…a100` UUIDs |
+| `faculty`, `faculty_profiles` | CREATED_TEST_ONLY | 8 exact parent/profile UUIDs when production-shaped faculty exists |
+| `student_profiles`, `student_academic_status` | CREATED_TEST_ONLY | 8 profiles; 8 status rows; unknown intentionally has none |
+| departments, programs, academic years, semesters | CREATED_TEST_ONLY | four exact UUIDs; academic levels are REFERENCE_ONLY |
+| `graduation_projects` | CREATED_TEST_ONLY | P1–P4 exact UUIDs; P4 is updated only after its creation |
+| teams/team members | NOT_TOUCHED | topology is represented by assignments |
+| assignments | CREATED_TEST_ONLY | 11 exact rows; processing unit/role are generated from department/role |
+| proposals/progress/final submissions/defense/evaluations | NOT_TOUCHED | no provisioning INSERT/UPDATE; cleanup/verifier still check project-scoped residue |
+| events/audit/history | CREATED_TEST_ONLY | four seed events; E2E may add allowlisted project events |
+| files/upload intents | CREATED_TEST_ONLY | three exact file rows, including pending-demotion intent |
+| storage metadata | NOT_TOUCHED by provision | no fake bytes/object row; cleanup/verifier inspect marker-bearing metadata |
+| final archive | CREATED_TEST_ONLY | one exact archive row |
+| manifest/fixture ledger | CREATED_TEST_ONLY | exact marker row plus registry inventory |
+| all other production rows | REFERENCE_ONLY or NOT_TOUCHED | sentinels/fingerprints must remain identical |
 
-**STOP** if any deny creates rows.
+## Deterministic 18-step flow
 
-### GATE 6 — Positive lifecycle
+1. **Frozen SHA confirmation.** Evidence: record `git rev-parse HEAD`, approved L4 file hashes, and operator identity. PASS: SHA equals the frozen release SHA. STOP: any drift or dirty source tree.
 
-| Actor | Probe | Expected |
-|---|---|---|
-| L4 leader | list/detail/proposal mutators on P1 | ALLOW |
-| L4 member | list/detail on P1 | ALLOW |
+2. **L4 migration ledger post-apply.** Read the migration ledger only after the independently authorized apply. Evidence: SET U and L4 versions present once; quarantined duplicate predecessor absent. PASS: exact ledger. STOP: missing, duplicate, or unexpected version. This runbook never applies migrations.
 
-### GATE 7 — Storage / download
+3. **Structural post-verifier.** Run the approved read-only structural verifier. Evidence: function predicates, SECURITY DEFINER/search_path, ACLs, private bucket. PASS: every required structural assertion passes. STOP: any mismatch.
 
-| Probe | Expected |
-|---|---|
-| Current L4 upload intent (leader) | ALLOW |
-| Demote member → pending upload / `can_upload` | DENY + zero side effects |
-| Signed download as authorized P1 actor | ALLOW |
-| Cross-actor correlation replay | DENY (`idempotent replay actor mismatch` or authz deny) |
+4. **Observability pack.** Run the read-only `PORTAL-GP-GA-POSTAPPLY-OBSERVABILITY-READONLY-PACK-01.sql`. Preserve rows GP-001…GP-012. PASS: all mandatory checks PASS. WARN: record owner/rationale and proceed only when the check itself documents WARN as non-blocking. FAIL: STOP. Specifically: GP-001 ledger; GP-002 quarantine; GP-003 predicate; GP-004 function security; GP-005 ACL; GP-006 storage INSERT policy; GP-007 bucket privacy; GP-008 non-L4 assignments; GP-009 ambiguity; GP-010 archive anomalies; GP-011 duplicate teams; GP-012 signed-download replay anomalies.
 
-### GATE 8 — Archive verification
+5. **Production fingerprint.** Capture read-only per-surface counts/hashes for all ordinary rows and non-test sentinels. PASS: evidence is complete and immutable. STOP: fingerprint query fails or marker already exists.
 
-| Probe | Expected |
-|---|---|
-| Mutate P4 archived project | `archived project is immutable` |
-| Archive row + final file remain readable to authorized staff | evidence preserved |
+6. **Fixture provisioning DRY RUN.** Run fixture SQL without a GUC. Evidence: `GP_L4_FIXTURE_DRY_RUN` plus zero fixture projects afterward. PASS: rollback confirmed. STOP: commit or residue.
 
-### GATE 9 — Cleanup dry-run
+7. **Explicit TEST_ONLY execution gate.** In a fresh bounded session set `gp.l4_fixture.execute=true`, then run provision SQL. Evidence: `GP_L4_FIXTURE_PROVISION_COMMIT`, exact registry inventory, actor count 15, projects 4. PASS: PRE_E2E fingerprint passes. STOP: collision, missing auth, broad scope, or fingerprint drift.
 
-```sql
--- default: cleanup_execute unset/false
-\i docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-CLEANUP-01.sql
-```
+8. **Negative L1/L2/L3/unknown/ambiguous.** For every RPC case capture the full before fingerprint, execute, assert the exact denial, capture after, and assert equality. Evidence: `NEGATIVE_ZERO_MUTATION_PASS` for each named case. PASS: all five actor classes deny. STOP: success, wrong error, or mutation.
 
-Expect `GP_L4_CLEANUP_INVENTORY` + exception `GP_L4_CLEANUP_DRY_RUN`.
+9. **Dual-role.** P2 student path must deny for non-L4; P3 coordinator path must allow. Evidence: P2 zero-mutation denial and P3 detail/list result. PASS: no role bleed. STOP: P2 visibility/mutation or missing P3 staff access.
 
-### GATE 10 — Cleanup execute
+10. **L4 positive leader/member.** Exercise the approved positive matrix only. Evidence: expected project detail/list and authorized lifecycle responses. PASS: leader/member semantics match the frozen contract. STOP: any unexpected authorization or state.
 
-```sql
-SET gp.l4_fixture.cleanup_execute = 'true';
-\i docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-CLEANUP-01.sql
-```
+11. **Upload intent/storage.** Verify private bucket, safe object key, pending intent, storage INSERT predicate, and no public URL. Evidence: file/event fingerprint and storage-policy result. PASS: exact-project authorization only. STOP: public exposure, unsafe path, or unrelated object mutation.
 
-Expect `GP_L4_CLEANUP_SUCCESS`.
+12. **Pending-demotion denial.** Demote the member in the disposable/test-only scenario, evaluate `can_upload_graduation_project_object`, and restore only fixture state. Evidence: false result with before/after full fingerprint equality around the denied operation. PASS: no object/file/event created. STOP: upload allowed or mutation.
 
-Auth user disable/delete in production Auth remains an **operator Admin API** follow-up (SQL cleanup does not delete `auth.users` by default).
+13. **Signed download/replay.** Run positive owner download, cross-actor replay, cross-project replay, and unauthorized actor path. Evidence: exact bucket/path only for positive; each denial has zero-mutation proof. PASS: actor/entity/project binding holds. STOP: coordinates leak or replay succeeds.
 
-### GATE 11 — Zero-residue verifier
+14. **Archive immutability.** Attempt the documented mutation against P4. Evidence: exact `archived project is immutable` denial and equal full fingerprints. PASS: no project/event/file/archive drift. STOP: any mutation.
 
-```sql
-SET gp.l4_fixture.fingerprint_phase = 'POST_CLEANUP';
-\i docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-FINGERPRINT-01.sql
-```
+15. **Cleanup DRY RUN.** In a new session run cleanup without a GUC. Evidence: `GP_L4_CLEANUP_INVENTORY` then `GP_L4_CLEANUP_DRY_RUN`; fixture remains present. PASS: no deletes. STOP: any row disappears or candidate is outside exact UUID/marker constraints.
 
-Expect `POST_CLEANUP_ZERO_RESIDUE_PASS`.
+16. **Cleanup execute.** In a separate cleanup session set `gp.l4_fixture.execute=true` and run cleanup. Evidence: per-surface deleted counts and `GP_L4_CLEANUP_SUCCESS`. PASS: FK-safe deletion completes, including exact synthetic Auth UUIDs. STOP: allowlist drift, marker mismatch, or ordinary row selected.
 
-Optional mid/post E2E fingerprint:
+17. **Comprehensive zero residue.** Set phase `POST_CLEANUP` and run fingerprint SQL. Evidence: every `per_surface_residue` count and `TEST_ONLY_RESIDUE_TOTAL: 0`. PASS: total zero. STOP: any nonzero surface. The disposable PG17 qualification must also prove the verifier fails when one exact TEST_ONLY auth/profile/status cluster is deliberately left, then passes after it is removed.
 
-```sql
-SET gp.l4_fixture.fingerprint_phase = 'POST_E2E';
-\i docs/production-test-fixtures/GP-LEVEL4-PRODUCTION-TESTONLY-FINGERPRINT-01.sql
-```
+18. **Non-test production post-state verification.** Re-run the step-5 ordinary fingerprint and observability GP-001…GP-012. PASS: ordinary rows are byte-identical, no new FAIL, and all approved WARN dispositions unchanged. STOP: any ordinary sentinel/data/storage drift.
 
----
+## Replay qualification
 
-## Dual-role verdict contract
+On disposable PostgreSQL 17 run the complete sequence at least twice: clean → provision dry-run → provision execute → topology fingerprint → negative matrix → positive matrix → cleanup dry-run → cleanup execute → zero residue → re-provision → identical topology fingerprint → cleanup → zero residue. The CI harness is the executable evidence; a new `NEGATIVE_CASE` without a matching `expect_fail_zs`/`expect_false_zs` fails the static contract.
 
-- **P2 student path:** DENY (non-L4 academic status; student-only assignment)
-- **P3 staff path:** ALLOW (active coordinator assignment; L4 not required)
-- Staff capability on P3 must **never** unlock student detail/list for P2
-
-## Explicit non-goals
-
-- No production connection from CI/agents for this package
-- No migration apply / deploy / publish / merge via this runbook
-- No reuse of real student/faculty/staff identities
-- No fake PDF bytes committed to git; storage objects are operator-time only
+Terminal operator verdict is PASS only when steps 1–18 and CI are green. Otherwise HOLD with the first STOP condition and preserved evidence.

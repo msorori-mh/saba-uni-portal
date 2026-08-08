@@ -50,6 +50,9 @@ DECLARE
   v_dual_student boolean;
   v_dual_staff boolean;
   v_collision integer;
+  v_residue jsonb;
+  v_residue_total bigint;
+  v_faculty_residue bigint := 0;
   v_fp jsonb;
 BEGIN
   IF v_phase NOT IN ('PRE_E2E', 'POST_E2E', 'POST_CLEANUP') THEN
@@ -57,29 +60,46 @@ BEGIN
   END IF;
 
   IF v_phase = 'POST_CLEANUP' THEN
-    SELECT count(*) INTO v_project_count
-    FROM public.graduation_projects WHERE id IN (c_p1, c_p2, c_p3, c_p4);
-    SELECT count(*) INTO v_actor_count
-    FROM public.student_profiles
-    WHERE id IN (c_sp_leader, c_sp_member, c_sp_l1, c_sp_l2, c_sp_l3, c_sp_unknown, c_sp_ambiguous, c_sp_dual);
-    IF to_regclass('public.gp_l4_testonly_fixture_registry') IS NOT NULL THEN
-      SELECT count(*) INTO v_events
-      FROM public.gp_l4_testonly_fixture_registry WHERE marker = c_marker;
-    ELSE
-      v_events := 0;
+    -- Every CREATED_TEST_ONLY / MUTATED_TEST_ONLY surface derived from the
+    -- provisioning SQL is counted independently. UUID predicates are exact;
+    -- marker predicates are used only for marker-bearing ledger/storage rows.
+    IF to_regclass('public.faculty') IS NOT NULL THEN
+      EXECUTE $q$SELECT count(*) FROM public.faculty WHERE id::text LIKE 'a4e40100-0000-4000-a410-0000000000__'$q$
+        INTO v_faculty_residue;
     END IF;
+    SELECT jsonb_build_object(
+      'auth_users', (SELECT count(*) FROM auth.users WHERE id::text LIKE 'a4e40100-0000-4000-a100-0000000000__'),
+      'faculty', v_faculty_residue,
+      'faculty_profiles', (SELECT count(*) FROM public.faculty_profiles WHERE id::text LIKE 'a4e40100-0000-4000-a400-0000000000__'),
+      'student_profiles', (SELECT count(*) FROM public.student_profiles WHERE id::text LIKE 'a4e40100-0000-4000-a300-0000000000__'),
+      'student_academic_status', (SELECT count(*) FROM public.student_academic_status WHERE id::text LIKE 'a4e40100-0000-4000-a510-0000000000__'),
+      'departments', (SELECT count(*) FROM public.departments WHERE id = 'a4e40100-0000-4000-a200-000000000001'::uuid),
+      'programs', (SELECT count(*) FROM public.programs WHERE id = 'a4e40100-0000-4000-a200-000000000002'::uuid),
+      'academic_years', (SELECT count(*) FROM public.academic_years WHERE id = 'a4e40100-0000-4000-a200-000000000003'::uuid),
+      'semesters', (SELECT count(*) FROM public.semesters WHERE id = 'a4e40100-0000-4000-a200-000000000004'::uuid),
+      'department_coordinators', (SELECT count(*) FROM public.graduation_project_department_coordinators WHERE department_id = 'a4e40100-0000-4000-a200-000000000001'::uuid),
+      'projects', (SELECT count(*) FROM public.graduation_projects WHERE id IN (c_p1,c_p2,c_p3,c_p4)),
+      'assignments', (SELECT count(*) FROM public.graduation_project_assignments WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'evaluations', (SELECT count(*) FROM public.graduation_project_evaluations WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'panel_members', (SELECT count(*) FROM public.graduation_project_panel_members WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'discussions', (SELECT count(*) FROM public.graduation_project_discussions WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'progress_entries', (SELECT count(*) FROM public.graduation_project_progress_entries WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'approvals', (SELECT count(*) FROM public.graduation_project_approvals WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'final_archives', (SELECT count(*) FROM public.graduation_project_final_archives WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'files_upload_intents', (SELECT count(*) FROM public.graduation_project_files WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'events_audit_history', (SELECT count(*) FROM public.graduation_project_events WHERE project_id IN (c_p1,c_p2,c_p3,c_p4)),
+      'storage_metadata', (SELECT count(*) FROM storage.objects WHERE bucket_id='graduation-projects' AND position(c_marker in name)>0),
+      'fixture_registry', (SELECT count(*) FROM public.gp_l4_testonly_fixture_registry WHERE marker=c_marker),
+      'manifest_ledger', (SELECT count(*) FROM public.gp_test_manifest_markers WHERE marker_tag=c_marker)
+    ) INTO v_residue;
+    SELECT coalesce(sum(value::text::bigint),0) INTO v_residue_total FROM jsonb_each(v_residue);
 
     v_fp := jsonb_build_object(
       'phase', v_phase,
       'marker', c_marker,
-      'project_count', v_project_count,
-      'student_profile_residue', v_actor_count,
-      'registry_residue', v_events,
-      'status', CASE
-        WHEN v_project_count = 0 AND v_actor_count = 0 AND v_events = 0
-          THEN 'POST_CLEANUP_ZERO_RESIDUE_PASS'
-        ELSE 'POST_CLEANUP_RESIDUE_FAIL'
-      END
+      'per_surface_residue', v_residue,
+      'TEST_ONLY_RESIDUE_TOTAL', v_residue_total,
+      'status', CASE WHEN v_residue_total = 0 THEN 'POST_CLEANUP_ZERO_RESIDUE_PASS' ELSE 'POST_CLEANUP_RESIDUE_FAIL' END
     );
     RAISE NOTICE 'GP_L4_FINGERPRINT %', v_fp;
     IF v_fp->>'status' <> 'POST_CLEANUP_ZERO_RESIDUE_PASS' THEN

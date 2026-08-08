@@ -6,7 +6,7 @@
 -- SOURCE-ONLY operator cleanup. NOT a schema migration.
 -- Default: DRY RUN (inventory only). Requires explicit execute switch to delete.
 --
---   SET gp.l4_fixture.cleanup_execute = 'true';  -- required for live delete
+--   SET gp.l4_fixture.execute = 'true';  -- independent cleanup-session gate
 --   SET gp.l4_fixture.cleanup_marker  = 'TEST_ONLY_GP_LEVEL4_RECLOSURE_01'; -- optional override refuse
 --
 -- Safety:
@@ -29,7 +29,7 @@ DECLARE
     nullif(current_setting('gp.l4_fixture.cleanup_marker', true), ''),
     c_marker_required
   );
-  v_execute         boolean := (coalesce(current_setting('gp.l4_fixture.cleanup_execute', true), '') = 'true');
+  v_execute         boolean := (coalesce(current_setting('gp.l4_fixture.execute', true), '') = 'true');
 
   c_p1 constant uuid := 'a4e40100-0000-4000-a500-000000000001';
   c_p2 constant uuid := 'a4e40100-0000-4000-a500-000000000002';
@@ -159,7 +159,7 @@ BEGIN
   RAISE NOTICE 'GP_L4_CLEANUP_INVENTORY %', v_inv;
 
   IF NOT v_execute THEN
-    RAISE EXCEPTION 'GP_L4_CLEANUP_DRY_RUN: inventory captured; no deletes. Set gp.l4_fixture.cleanup_execute=true to delete.';
+    RAISE EXCEPTION 'GP_L4_CLEANUP_DRY_RUN: inventory captured; no deletes. In an independent cleanup session set gp.l4_fixture.execute=true to delete.';
   END IF;
 
   -- Live delete (FK-safe order). Bypass append-only event trigger for allowlisted projects only.
@@ -243,10 +243,26 @@ BEGIN
   DELETE FROM public.programs p WHERE p.id = c_prog;
   DELETE FROM public.departments d WHERE d.id = c_dept;
 
-  -- Auth users: optional. Only delete stub-like rows we created when safe.
-  -- Production Auth users should be disabled via Admin API separately.
-  -- We do NOT delete auth.users here by default to avoid Auth FK hazards.
-  -- Registry documents them for operator follow-up.
+  -- Synthetic auth identities: exact registry UUIDs intersected with the fixed
+  -- TEST_ONLY auth allowlist. No email/name/domain predicate is permitted.
+  IF EXISTS (
+    SELECT 1 FROM unnest(v_users) u(id)
+    WHERE u.id NOT IN (
+      'a4e40100-0000-4000-a100-000000000001'::uuid, 'a4e40100-0000-4000-a100-000000000002'::uuid,
+      'a4e40100-0000-4000-a100-000000000003'::uuid, 'a4e40100-0000-4000-a100-000000000004'::uuid,
+      'a4e40100-0000-4000-a100-000000000005'::uuid, 'a4e40100-0000-4000-a100-000000000006'::uuid,
+      'a4e40100-0000-4000-a100-000000000007'::uuid, 'a4e40100-0000-4000-a100-000000000008'::uuid,
+      'a4e40100-0000-4000-a100-000000000009'::uuid, 'a4e40100-0000-4000-a100-00000000000a'::uuid,
+      'a4e40100-0000-4000-a100-00000000000b'::uuid, 'a4e40100-0000-4000-a100-00000000000c'::uuid,
+      'a4e40100-0000-4000-a100-00000000000d'::uuid, 'a4e40100-0000-4000-a100-00000000000e'::uuid,
+      'a4e40100-0000-4000-a100-00000000000f'::uuid
+    )
+  ) THEN
+    RAISE EXCEPTION 'GP_L4_CLEANUP_AUTH_ALLOWLIST_DRIFT: refuse auth delete';
+  END IF;
+  DELETE FROM auth.users u WHERE u.id = ANY (v_users);
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  v_deleted := v_deleted || jsonb_build_object('auth_users', v_n);
 
   DELETE FROM public.gp_l4_testonly_fixture_registry r WHERE r.marker = v_marker;
   DELETE FROM public.gp_test_manifest_markers m WHERE m.marker_tag = v_marker;

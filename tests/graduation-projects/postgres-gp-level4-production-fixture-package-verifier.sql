@@ -26,6 +26,52 @@ BEGIN
   RAISE EXCEPTION 'expected failure containing % but statement succeeded', p_frag;
 END $$;
 
+CREATE OR REPLACE FUNCTION pg_temp.full_fingerprint() RETURNS jsonb LANGUAGE sql STABLE AS $$
+  SELECT jsonb_build_object(
+    'projects', (SELECT coalesce(jsonb_agg(to_jsonb(p) ORDER BY p.id),'[]') FROM public.graduation_projects p WHERE p.id::text LIKE 'a4e40100-0000-4000-a500-%'),
+    'assignments', (SELECT coalesce(jsonb_agg(to_jsonb(a) ORDER BY a.id),'[]') FROM public.graduation_project_assignments a WHERE a.project_id::text LIKE 'a4e40100-0000-4000-a500-%'),
+    'files', (SELECT coalesce(jsonb_agg(to_jsonb(f) ORDER BY f.id),'[]') FROM public.graduation_project_files f WHERE f.project_id::text LIKE 'a4e40100-0000-4000-a500-%'),
+    'events', (SELECT coalesce(jsonb_agg(to_jsonb(e) ORDER BY e.id),'[]') FROM public.graduation_project_events e WHERE e.project_id::text LIKE 'a4e40100-0000-4000-a500-%'),
+    'all_projects', (SELECT count(*) FROM public.graduation_projects),
+    'all_assignments', (SELECT count(*) FROM public.graduation_project_assignments),
+    'all_files', (SELECT count(*) FROM public.graduation_project_files),
+    'all_events', (SELECT count(*) FROM public.graduation_project_events),
+    'all_progress', (SELECT count(*) FROM public.graduation_project_progress_entries),
+    'all_evaluations', (SELECT count(*) FROM public.graduation_project_evaluations),
+    'all_approvals', (SELECT count(*) FROM public.graduation_project_approvals),
+    'all_archives', (SELECT count(*) FROM public.graduation_project_final_archives),
+    'package_status', (SELECT count(*) FROM public.student_academic_status WHERE id::text LIKE 'a4e40100-0000-4000-a510-%'),
+    'package_registry', (SELECT count(*) FROM public.gp_l4_testonly_fixture_registry WHERE marker='TEST_ONLY_GP_LEVEL4_RECLOSURE_01')
+  )
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.expect_fail_zs(p_case text, p_sql text, p_frag text)
+RETURNS void LANGUAGE plpgsql AS $$
+DECLARE before_fp jsonb; after_fp jsonb;
+BEGIN
+  before_fp := pg_temp.full_fingerprint();
+  PERFORM pg_temp.expect_fail(p_sql, p_frag);
+  after_fp := pg_temp.full_fingerprint();
+  IF before_fp IS DISTINCT FROM after_fp THEN
+    RAISE EXCEPTION 'ZERO_MUTATION_FAILED case=% before=% after=%', p_case, before_fp, after_fp;
+  END IF;
+  RAISE NOTICE 'NEGATIVE_ZERO_MUTATION_PASS case=%', p_case;
+END $$;
+
+CREATE OR REPLACE FUNCTION pg_temp.expect_false_zs(p_case text, p_sql text)
+RETURNS void LANGUAGE plpgsql AS $$
+DECLARE before_fp jsonb; after_fp jsonb; denied boolean;
+BEGIN
+  before_fp := pg_temp.full_fingerprint();
+  EXECUTE p_sql INTO denied;
+  IF coalesce(denied, false) THEN RAISE EXCEPTION 'expected false denial case=%', p_case; END IF;
+  after_fp := pg_temp.full_fingerprint();
+  IF before_fp IS DISTINCT FROM after_fp THEN
+    RAISE EXCEPTION 'ZERO_MUTATION_FAILED case=% before=% after=%', p_case, before_fp, after_fp;
+  END IF;
+  RAISE NOTICE 'NEGATIVE_ZERO_MUTATION_PASS case=%', p_case;
+END $$;
+
 DO $$
 DECLARE
   c_marker text := 'TEST_ONLY_GP_LEVEL4_RECLOSURE_01';
@@ -48,6 +94,7 @@ DECLARE
   c_sp_l2 uuid := 'a4e40100-0000-4000-a300-000000000004';
   c_sp_l3 uuid := 'a4e40100-0000-4000-a300-000000000005';
   c_fid uuid := 'a4e40100-0000-4000-a700-000000000001';
+  c_pending_fid uuid := 'a4e40100-0000-4000-a700-000000000002';
   before_p bigint;
   after_p bigint;
   payload jsonb;
@@ -65,7 +112,8 @@ BEGIN
   before_p := (SELECT count(*) FROM public.graduation_projects);
   PERFORM pg_temp.set_uid('a4e40100-0000-4000-a100-000000000009'); -- coordinator
 
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: L1_CREATE
+  PERFORM pg_temp.expect_fail_zs('L1_CREATE',
     format(
       $q$SELECT public.create_graduation_project_team(%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid)$q$,
       c_dept, c_sp_l1, c_u_l1, c_prog, c_year, c_sem, 'a4e40100-0000-4000-ac00-000000000101'
@@ -73,7 +121,8 @@ BEGIN
     'fourth-level student eligibility required'
   );
 
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: L2_CREATE
+  PERFORM pg_temp.expect_fail_zs('L2_CREATE',
     format(
       $q$SELECT public.create_graduation_project_team(%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid)$q$,
       c_dept, c_sp_l2, c_u_l2, c_prog, c_year, c_sem, 'a4e40100-0000-4000-ac00-000000000102'
@@ -81,7 +130,8 @@ BEGIN
     'fourth-level student eligibility required'
   );
 
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: L3_CREATE
+  PERFORM pg_temp.expect_fail_zs('L3_CREATE',
     format(
       $q$SELECT public.create_graduation_project_team(%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid,%L::uuid)$q$,
       c_dept, c_sp_l3, c_u_l3, c_prog, c_year, c_sem, 'a4e40100-0000-4000-ac00-000000000103'
@@ -91,19 +141,22 @@ BEGIN
 
   -- Student-self denials on list
   PERFORM pg_temp.set_uid(c_u_unknown);
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: UNKNOWN_LIST
+  PERFORM pg_temp.expect_fail_zs('UNKNOWN_LIST',
     $q$SELECT public.list_my_graduation_projects()$q$,
     'fourth-level student eligibility required'
   );
 
   PERFORM pg_temp.set_uid(c_u_ambiguous);
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: AMBIGUOUS_LIST
+  PERFORM pg_temp.expect_fail_zs('AMBIGUOUS_LIST',
     $q$SELECT public.list_my_graduation_projects()$q$,
     'fourth-level student eligibility required'
   );
 
   PERFORM pg_temp.set_uid(c_u_l1);
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: L1_LIST
+  PERFORM pg_temp.expect_fail_zs('L1_LIST',
     $q$SELECT public.list_my_graduation_projects()$q$,
     'fourth-level student eligibility required'
   );
@@ -115,7 +168,8 @@ BEGIN
 
   -- Dual-role topology behavioral proof
   PERFORM pg_temp.set_uid(c_u_dual);
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: DUAL_ROLE_P2_STUDENT
+  PERFORM pg_temp.expect_fail_zs('DUAL_ROLE_P2_STUDENT',
     format($q$SELECT public.get_graduation_project_detail(%L::uuid)$q$, c_p2),
     'fourth-level student eligibility required'
   );
@@ -148,7 +202,8 @@ BEGIN
   END IF;
 
   PERFORM pg_temp.set_uid('a4e40100-0000-4000-a100-000000000002'); -- member
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: SIGNED_DOWNLOAD_CROSS_ACTOR_REPLAY
+  PERFORM pg_temp.expect_fail_zs('SIGNED_DOWNLOAD_CROSS_ACTOR_REPLAY',
     format(
       $q$SELECT public.create_graduation_project_signed_download(%L::uuid,%L::uuid)$q$,
       c_fid, 'a4e40100-0000-4000-ac00-000000000201'
@@ -156,9 +211,35 @@ BEGIN
     'idempotent replay actor mismatch'
   );
 
+  -- NEGATIVE_CASE: UNAUTHORIZED_PATH
+  PERFORM pg_temp.set_uid('a4e40100-0000-4000-a100-00000000000e');
+  PERFORM pg_temp.expect_fail_zs('UNAUTHORIZED_PATH',
+    format($q$SELECT public.create_graduation_project_signed_download(%L::uuid,%L::uuid)$q$,
+      c_fid, 'a4e40100-0000-4000-ac00-000000000202'),
+    'exact project assignment required'
+  );
+
+  -- NEGATIVE_CASE: CROSS_PROJECT_REPLAY
+  PERFORM pg_temp.set_uid(c_u_leader);
+  PERFORM pg_temp.expect_fail_zs('CROSS_PROJECT_REPLAY',
+    format($q$SELECT public.create_graduation_project_file_upload_intent(%L::uuid,'proposal','cross-project.pdf',100,%L::uuid,NULL)$q$,
+      c_p2, 'a4e40100-0000-4000-ac00-000000000201'),
+    'exact team leader assignment required'
+  );
+
+  -- NEGATIVE_CASE: PENDING_DEMOTION_UPLOAD
+  UPDATE public.graduation_project_assignments SET active=false, ended_at=clock_timestamp()
+  WHERE user_id='a4e40100-0000-4000-a100-000000000002'::uuid AND project_id=c_p1 AND role='student';
+  PERFORM pg_temp.set_uid('a4e40100-0000-4000-a100-000000000002');
+  PERFORM pg_temp.expect_false_zs('PENDING_DEMOTION_UPLOAD',
+    format($q$SELECT public.can_upload_graduation_project_object((SELECT object_key FROM public.graduation_project_files WHERE id=%L::uuid))$q$, c_pending_fid));
+  UPDATE public.graduation_project_assignments SET active=true, ended_at=NULL
+  WHERE user_id='a4e40100-0000-4000-a100-000000000002'::uuid AND project_id=c_p1 AND role='student';
+
   -- Archive immutability (coordinator path hits gp_assert_version)
   PERFORM pg_temp.set_uid('a4e40100-0000-4000-a100-000000000009'); -- coordinator
-  PERFORM pg_temp.expect_fail(
+  -- NEGATIVE_CASE: ARCHIVED_PROJECT_MUTATION
+  PERFORM pg_temp.expect_fail_zs('ARCHIVED_PROJECT_MUTATION',
     format(
       $q$SELECT public.conclude_graduation_project_result(%L::uuid,'passed',1::bigint,%L::uuid)$q$,
       c_p4,

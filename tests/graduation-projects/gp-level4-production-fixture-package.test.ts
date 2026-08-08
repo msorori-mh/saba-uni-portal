@@ -122,6 +122,23 @@ function psqlFile(filePath: string): { ok: boolean; out: string } {
   return psql(readFileSync(filePath, "utf8"));
 }
 
+function sentinelFingerprint(): string {
+  const result = psql(`
+    select jsonb_build_object(
+      'auth', (select to_jsonb(u) from auth.users u where id='90000000-0000-4000-a100-000000000001'),
+      'student', (select to_jsonb(s) from public.student_profiles s where id='90000000-0000-4000-a300-000000000001'),
+      'faculty', (select to_jsonb(f) from public.faculty_profiles f where id='40000000-0000-0000-0000-000000000011'),
+      'department', (select to_jsonb(d) from public.departments d where id='20000000-0000-0000-0000-000000000001'),
+      'project', (select to_jsonb(p) from public.graduation_projects p where id='90000000-0000-4000-a500-000000000001'),
+      'assignment', (select to_jsonb(a) from public.graduation_project_assignments a where id='90000000-0000-4000-a600-000000000001'),
+      'file', (select to_jsonb(f) from public.graduation_project_files f where id='90000000-0000-4000-a700-000000000001'),
+      'storage', (select to_jsonb(o) from storage.objects o where id='90000000-0000-4000-a900-000000000001')
+    )::text;
+  `);
+  if (!result.ok) throw new Error(`sentinel fingerprint failed:\n${result.out}`);
+  return result.out.replace(/\s+/g, " ").trim();
+}
+
 async function waitReady(): Promise<boolean> {
   for (let i = 0; i < 60; i++) {
     const r = spawnSync(
@@ -161,7 +178,7 @@ describe("GP Level-4 production TEST_ONLY fixture package", () => {
     );
 
     expect(cleanup).toContain(MARKER);
-    expect(cleanup).toContain("gp.l4_fixture.cleanup_execute");
+    expect(cleanup).toContain("gp.l4_fixture.execute");
     expect(cleanup).toContain("GP_L4_CLEANUP_DRY_RUN");
     expect(cleanup).toContain("GP_L4_CLEANUP_SUCCESS");
     expect(cleanup).toContain("refuse unmarked");
@@ -172,10 +189,10 @@ describe("GP Level-4 production TEST_ONLY fixture package", () => {
     expect(fingerprint).toContain("dual_role_student_deny_topology");
     expect(fingerprint).toContain("ROLLBACK");
 
-    expect(runbook).toContain("GATE 1");
-    expect(runbook).toContain("GATE 11");
-    expect(runbook).toContain("ZERO side effects");
-    expect(runbook).toContain("GATE 7 — Storage");
+    expect(runbook).toContain("Deterministic 18-step flow");
+    expect(runbook).toContain("TEST_ONLY_RESIDUE_TOTAL: 0");
+    expect(runbook).toContain("GP-001…GP-012");
+    expect(runbook).toContain("Pending-demotion denial");
   });
 
   it("defines the required actor/project/storage topology in source", () => {
@@ -206,7 +223,15 @@ describe("GP Level-4 production TEST_ONLY fixture package", () => {
     expect(fixtures).toContain("signed-download");
     expect(fixtures).toContain("updated_at DESC NULLS LAST");
     expect(localVerifier).toContain("DUAL_ROLE_STAFF_ALLOW_FAILED");
-    expect(localVerifier).toContain("ZERO_SIDE_EFFECT_DENIAL_FAILED");
+    expect(localVerifier).toContain("ZERO_MUTATION_FAILED");
+  });
+
+  it("requires every declared negative case to use a zero-mutation assertion", () => {
+    const cases = [...localVerifier.matchAll(/-- NEGATIVE_CASE:\s*([A-Z0-9_]+)/g)].map((m) => m[1]);
+    const guarded = [...localVerifier.matchAll(/expect_(?:fail|false)_zs\('([A-Z0-9_]+)'/g)].map((m) => m[1]);
+    expect(cases.length).toBeGreaterThanOrEqual(12);
+    expect(new Set(guarded)).toEqual(new Set(cases));
+    expect(guarded.length).toBe(cases.length);
   });
 
   it("replays provisioning/fingerprint/cleanup on disposable PG17", async () => {
@@ -241,6 +266,23 @@ describe("GP Level-4 production TEST_ONLY fixture package", () => {
         throw new Error(`${label} failed:\n${result.out}`);
       }
     }
+
+    // Ordinary non-TEST sentinel topology. Cleanup must preserve every byte.
+    const sentinelSetup = psql(`
+      insert into auth.users(id) values ('90000000-0000-4000-a100-000000000001');
+      insert into public.student_profiles(id,user_id,department_id)
+        values ('90000000-0000-4000-a300-000000000001','90000000-0000-4000-a100-000000000001','20000000-0000-0000-0000-000000000001');
+      insert into public.graduation_projects(id,department_id,program_id,academic_year_id,semester_id,title)
+        values ('90000000-0000-4000-a500-000000000001','20000000-0000-0000-0000-000000000001','21000000-0000-0000-0000-000000000001','22000000-0000-0000-0000-000000000001','23000000-0000-0000-0000-000000000001','Ordinary sentinel project');
+      insert into public.graduation_project_assignments(id,project_id,role,student_profile_id,user_id,department_id,is_leader,assigned_by)
+        values ('90000000-0000-4000-a600-000000000001','90000000-0000-4000-a500-000000000001','student','90000000-0000-4000-a300-000000000001','90000000-0000-4000-a100-000000000001','20000000-0000-0000-0000-000000000001',true,'90000000-0000-4000-a100-000000000001');
+      insert into public.graduation_project_files(id,project_id,category,object_key,original_name,media_type,byte_size,upload_status,scan_state,is_current,uploaded_by_assignment_id)
+        values ('90000000-0000-4000-a700-000000000001','90000000-0000-4000-a500-000000000001','proposal','graduation-projects/90000000-0000-4000-a500-000000000001/proposal/ordinary-sentinel.pdf','ordinary-sentinel.pdf','application/pdf',128,'active','clean',true,'90000000-0000-4000-a600-000000000001');
+      insert into storage.objects(id,bucket_id,name,metadata)
+        values ('90000000-0000-4000-a900-000000000001','graduation-projects','graduation-projects/90000000-0000-4000-a500-000000000001/proposal/ordinary-sentinel.pdf','{"ordinary":true}');
+    `);
+    if (!sentinelSetup.ok) throw new Error(`sentinel setup failed:\n${sentinelSetup.out}`);
+    const sentinelBefore = sentinelFingerprint();
 
     // GATE-style dry-run: must fail closed with DRY_RUN and leave zero package projects
     const dry = psqlFile(fixturesPath);
@@ -303,13 +345,30 @@ describe("GP Level-4 production TEST_ONLY fixture package", () => {
 
     // Cleanup execute
     const cleanupLive = psql(
-      "select set_config('gp.l4_fixture.cleanup_execute','true',false);\n" +
+      "select set_config('gp.l4_fixture.execute','true',false);\n" +
         readFileSync(cleanupPath, "utf8"),
     );
     if (!cleanupLive.ok) {
       throw new Error(`cleanup execute failed:\n${cleanupLive.out}`);
     }
     expect(cleanupLive.out).toContain("GP_L4_CLEANUP_SUCCESS");
+
+    expect(sentinelFingerprint()).toBe(sentinelBefore);
+
+    // Deliberate false-pass probe: one auth/profile/status TEST_ONLY cluster must fail.
+    const residueSetup = psql(`
+      insert into auth.users(id) values ('a4e40100-0000-4000-a100-000000000001');
+      insert into public.student_profiles(id,user_id,department_id)
+        values ('a4e40100-0000-4000-a300-000000000001','a4e40100-0000-4000-a100-000000000001','20000000-0000-0000-0000-000000000001');
+      insert into public.student_academic_status(id,student_profile_id,academic_year_id,semester_id,level_id,enrollment_status)
+        values ('a4e40100-0000-4000-a510-000000000001','a4e40100-0000-4000-a300-000000000001','22000000-0000-0000-0000-000000000001','23000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000004','enrolled');
+    `);
+    expect(residueSetup.ok).toBe(true);
+    const falsePass = psql("select set_config('gp.l4_fixture.fingerprint_phase','POST_CLEANUP',false);\n" + readFileSync(fingerprintPath, "utf8"));
+    expect(falsePass.ok).toBe(false);
+    expect(falsePass.out).toContain("POST_CLEANUP_RESIDUE_FAIL");
+    expect(falsePass.out).toContain("TEST_ONLY_RESIDUE_TOTAL");
+    expect(psql(`delete from public.student_academic_status where id='a4e40100-0000-4000-a510-000000000001'; delete from public.student_profiles where id='a4e40100-0000-4000-a300-000000000001'; delete from auth.users where id='a4e40100-0000-4000-a100-000000000001';`).ok).toBe(true);
 
     // POST_CLEANUP fingerprint
     const postFp = psql(
@@ -337,6 +396,17 @@ describe("GP Level-4 production TEST_ONLY fixture package", () => {
     );
     expect(preFp2.ok).toBe(true);
     expect(preFp2.out).toContain("GP_L4_FINGERPRINT_PASS");
+    const topology = (out: string) => out.match(/GP_L4_FINGERPRINT (\{.*\})/)?.[1]?.replace(/"phase": "[^"]+"/, '"phase": "TOPOLOGY"');
+    expect(topology(preFp2.out)).toBe(topology(preFp.out));
+
+    const cleanupLive2 = psql(
+      "select set_config('gp.l4_fixture.execute','true',false);\n" + readFileSync(cleanupPath, "utf8"),
+    );
+    if (!cleanupLive2.ok) throw new Error(`second cleanup failed:\n${cleanupLive2.out}`);
+    const postFp2 = psql("select set_config('gp.l4_fixture.fingerprint_phase','POST_CLEANUP',false);\n" + readFileSync(fingerprintPath, "utf8"));
+    expect(postFp2.ok).toBe(true);
+    expect(postFp2.out).toContain('"TEST_ONLY_RESIDUE_TOTAL": 0');
+    expect(sentinelFingerprint()).toBe(sentinelBefore);
 
     // Cleanup predicates must not select ordinary harness identities
     const nonTestLeak = psql(`
