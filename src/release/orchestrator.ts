@@ -98,6 +98,20 @@ export const PRODUCTION_GATES: ProductionGateDefinition[] = [
     description: 'Manual owner approval and pinning of final audited GA security SHA',
     requires_owner_signoff: true,
   },
+  {
+    id: 'COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED',
+    name: 'Academic Councils Final Security Review Sign-off',
+    type: 'OWNER_APPROVAL_REQUIRED',
+    description: 'Manual owner approval and pinning of final audited Councils security SHA (4 High risk findings: vote/close serialization, decision relationship, decision FSM, archive/follow-up)',
+    requires_owner_signoff: true,
+  },
+  {
+    id: 'COUNCILS_C9_INTEGRATION_REQUIRED',
+    name: 'Academic Councils C9 Integration Gate',
+    type: 'OWNER_APPROVAL_REQUIRED',
+    description: 'Integration of C9 extension candidate (#302) onto remediated Councils C0-C8 final base (#300)',
+    requires_owner_signoff: true,
+  },
 ];
 
 export const AUTHORITATIVE_GP_PACKAGE_PIN = '61952df385eea12f57720ea33b2d10b5b6621247';
@@ -123,6 +137,7 @@ export class ReleaseOrchestrator {
       manifest.graduates_affairs.source_sha,
       manifest.graduates_affairs.promotion_package_sha,
       manifest.academic_councils.eventual_final_integrated_sha,
+      manifest.academic_councils.c9_extension_sha,
       manifest.academic_councils.c0_c3_sha,
       manifest.academic_councils.c4_c8_sha,
     ];
@@ -286,9 +301,9 @@ export class ReleaseOrchestrator {
     }
 
     const ga = this.manifest.graduates_affairs;
-    if (ga.ga_final_security_review === 'PENDING') {
+    if (ga.ga_final_security_review !== 'PASS' && ga.ga_final_security_review !== 'APPROVED') {
       errors.push(
-        'GA final security review gate (GA_FINAL_SECURITY_REVIEW_REQUIRED) remains PENDING: manual owner approval & pin required'
+        `GA final security review gate (GA_FINAL_SECURITY_REVIEW_REQUIRED) remains ${ga.ga_final_security_review}: manual owner approval & pin required`
       );
     } else {
       messages.push(`GA final security review signoff verified: ${ga.ga_final_security_review}`);
@@ -316,9 +331,33 @@ export class ReleaseOrchestrator {
       messages.push(`Councils #300 candidate SHA verified: ${councils.eventual_final_integrated_sha}`);
     }
 
-    if (councils.c9_extension_sha === 'PENDING' || councils.c9_status === 'PENDING') {
+    if (councils.councils_final_security_review !== 'PASS' && councils.councils_final_security_review !== 'APPROVED') {
+      const findings = councils.security_review_findings?.join(', ') || '4 HIGH findings';
+      errors.push(
+        `Councils final security review gate (COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED) remains ${councils.councils_final_security_review} (${findings})`
+      );
+    } else {
+      messages.push(`Councils final security review signoff verified: ${councils.councils_final_security_review}`);
+    }
+
+    if (councils.c9_status === 'C9_CANDIDATE_PRESENT') {
+      messages.push(`Councils C9 extension candidate present (#302: ${councils.c9_extension_sha})`);
+      if (councils.c9_integrated_sha === 'PENDING') {
+        errors.push(
+          `Councils C9 extension candidate (#302: ${councils.c9_extension_sha}) present but NOT integrated onto remediated final councils (#300: ${councils.eventual_final_integrated_sha})`
+        );
+      }
+    } else if (councils.c9_status === 'PENDING') {
       messages.push('Councils C0-C8 core candidate integrated (#300) -> C0-C8_CORE_READY achieved');
       messages.push('Councils C9 extension slot (notifications/reports/UX) is PENDING');
+      errors.push('Councils C9 extension slot remains PENDING');
+    }
+
+    if (councils.councils_final_security_sha === 'PENDING') {
+      messages.push('Councils final security SHA pin is PENDING');
+    }
+    if (councils.c9_integrated_sha === 'PENDING') {
+      messages.push('Councils C9 integrated SHA pin is PENDING');
     }
 
     for (const testPath of councils.required_tests) {
@@ -362,13 +401,19 @@ export class ReleaseOrchestrator {
     messages.push(`[GA] Pinned Source SHA (#291): ${gaSourcePin}`);
     messages.push(`[GA] Pinned Promotion Package SHA (#299): ${gaPromotionPin}`);
     messages.push(`[GA] Security Review Status: ${this.manifest.graduates_affairs.ga_final_security_review}`);
-    if (this.manifest.graduates_affairs.ga_final_security_review === 'PENDING') {
+    if (this.manifest.graduates_affairs.ga_final_security_review !== 'PASS' && this.manifest.graduates_affairs.ga_final_security_review !== 'APPROVED') {
       messages.push(`[GA] GA Security Hold ACTIVE. New revocation review in progress.`);
     }
 
     const councilsIntegratedPin = this.manifest.academic_councils.eventual_final_integrated_sha;
+    const councilsC9Pin = this.manifest.academic_councils.c9_extension_sha;
     messages.push(`[Councils] Pinned Integrated Candidate SHA (#300): ${councilsIntegratedPin}`);
+    messages.push(`[Councils] Pinned C9 Extension SHA (#302): ${councilsC9Pin}`);
     messages.push(`[Councils] C9 Extension Status: ${this.manifest.academic_councils.c9_status}`);
+    messages.push(`[Councils] Security Review Status: ${this.manifest.academic_councils.councils_final_security_review}`);
+    messages.push(`[Councils] Security Findings: ${this.manifest.academic_councils.security_review_findings?.join(', ') || 'None'}`);
+    messages.push(`[Councils] Final Security SHA Slot: ${this.manifest.academic_councils.councils_final_security_sha}`);
+    messages.push(`[Councils] C9 Integrated SHA Slot: ${this.manifest.academic_councils.c9_integrated_sha}`);
     if (councilsIntegratedPin !== COUNCILS_300_INTEGRATED_PIN) {
       errors.push(`[Councils Drift] Pinned SHA ${councilsIntegratedPin} differs from target ${COUNCILS_300_INTEGRATED_PIN}`);
     }
@@ -475,6 +520,10 @@ export class ReleaseOrchestrator {
         expectedSha: this.manifest.academic_councils.eventual_final_integrated_sha,
       },
       {
+        name: 'Councils C9 #302 extension (provenance)',
+        expectedSha: this.manifest.academic_councils.c9_extension_sha,
+      },
+      {
         name: 'Release orchestrator #301',
         expectedSha: this.getCurrentHead(),
       },
@@ -485,6 +534,16 @@ export class ReleaseOrchestrator {
       if (!rev || rev === 'PENDING') {
         errors.push(`Merge simulation status for ${cand.name}: missing dependency / pending SHA`);
         continue;
+      }
+
+      if (cand.name.includes('#302')) {
+        if (this.manifest.academic_councils.c9_status === 'C9_CANDIDATE_PRESENT' && this.manifest.academic_councils.c9_integrated_sha === 'PENDING') {
+          errors.push(
+            `Merge simulation for ${cand.name} (${rev}): base is STALE (old base e71d9aa8cfc0f5ddefef08c16bb361413eb97496), requires integration onto remediated Councils #300 (${this.manifest.academic_councils.eventual_final_integrated_sha})`
+          );
+          messages.push(`  -> ${cand.name}: STALE_BASE_NEEDS_INTEGRATION`);
+          continue;
+        }
       }
 
       const cacheKey = `${baseSha}:${rev}`;
@@ -631,8 +690,10 @@ export class ReleaseOrchestrator {
     const preflightRes = this.checkPreflightPackages();
     const e2eRes = this.checkE2ePackages();
 
-    const gaSecPending = this.manifest.graduates_affairs.ga_final_security_review === 'PENDING';
-    const c9Pending = this.manifest.academic_councils.c9_status === 'PENDING';
+    const gaSecHold = this.manifest.graduates_affairs.ga_final_security_review !== 'PASS' && this.manifest.graduates_affairs.ga_final_security_review !== 'APPROVED';
+    const councilsSecHold = this.manifest.academic_councils.councils_final_security_review !== 'PASS' && this.manifest.academic_councils.councils_final_security_review !== 'APPROVED';
+    const c9CandidatePresent = this.manifest.academic_councils.c9_status === 'C9_CANDIDATE_PRESENT';
+    const c9IntegratedPending = this.manifest.academic_councils.c9_integrated_sha === 'PENDING';
 
     const subsystems: SubsystemStatus[] = [
       {
@@ -660,8 +721,8 @@ export class ReleaseOrchestrator {
       },
       {
         subsystem: 'GA',
-        source: gaSecPending ? 'HOLD' : 'PASS',
-        review: 'PASS',
+        source: 'PASS',
+        review: gaSecHold ? 'HOLD' : 'PASS',
         migration: chainRes.verdict,
         preflight: preflightRes.verdict,
         e2e: e2eRes.verdict,
@@ -669,8 +730,8 @@ export class ReleaseOrchestrator {
         flags_deploy: 'WAITING',
         stages: {
           SOURCE: 'PASS',
-          'FINAL SECURITY': gaSecPending ? 'HOLD' : 'PASS',
           PROMOTION: 'PASS',
+          'FINAL SECURITY': gaSecHold ? 'HOLD' : 'PASS',
           PREFLIGHT: preflightRes.verdict,
           APPLY: 'OWNER_APPROVAL_REQUIRED',
           CONFIG: 'OWNER_APPROVAL_REQUIRED',
@@ -681,23 +742,26 @@ export class ReleaseOrchestrator {
           `Source SHA (#291): ${this.manifest.graduates_affairs.source_sha}`,
           `Promotion Package SHA (#299): ${this.manifest.graduates_affairs.promotion_package_sha}`,
           `GA Final Security Review Gate: ${this.manifest.graduates_affairs.ga_final_security_review}`,
+          `AUTH04 Body Hash: ${this.manifest.graduates_affairs.three_migration_sequence[2]?.body_hash || 'UNKNOWN'}`,
           `3-migration sequence: ${this.manifest.graduates_affairs.three_migration_sequence.length} files`,
           `Flags: ${this.manifest.graduates_affairs.feature_flags.join(', ')} (OFF)`,
         ],
       },
       {
         subsystem: 'Councils',
-        source: c9Pending ? 'WAITING' : 'PASS',
-        review: 'PASS',
+        source: 'PASS',
+        review: councilsSecHold ? 'HOLD' : 'PASS',
         migration: chainRes.verdict,
         preflight: preflightRes.verdict,
         e2e: e2eRes.verdict,
         production: 'WAITING',
         flags_deploy: 'WAITING',
         stages: {
-          'C0-C8 SOURCE': 'PASS',
-          'C9 SOURCE': c9Pending ? 'WAITING' : 'PASS',
-          'FINAL REVIEW': 'PASS',
+          'C0-C8 SOURCE (#300)': 'PASS',
+          'COUNCILS FINAL SECURITY': councilsSecHold ? 'HOLD' : 'PASS',
+          'C9 CANDIDATE (#302)': c9CandidatePresent ? 'PASS' : 'WAITING',
+          'C9 INTEGRATION': c9IntegratedPending ? 'WAITING' : 'PASS',
+          'FULL PRODUCT READY': (councilsSecHold || c9IntegratedPending) ? 'HOLD' : 'PASS',
           PREFLIGHT: preflightRes.verdict,
           APPLY: 'OWNER_APPROVAL_REQUIRED',
           E2E: e2eRes.verdict,
@@ -705,8 +769,11 @@ export class ReleaseOrchestrator {
         details: [
           `Integrated Candidate SHA (#300): ${this.manifest.academic_councils.eventual_final_integrated_sha}`,
           `Historical inputs: #298 (${this.manifest.academic_councils.c0_c3_sha}), #297 (${this.manifest.academic_councils.c4_c8_sha})`,
-          `C0-C8 Core Status: C0-C8_CORE_READY`,
-          `C9 Extension Slot: ${this.manifest.academic_councils.c9_status}`,
+          `C0-C8 Core Status: C0-C8_SOURCE_READY`,
+          `Councils Security Review Gate: ${this.manifest.academic_councils.councils_final_security_review} (Findings: ${this.manifest.academic_councils.security_review_findings?.join(', ') || 'N/A'})`,
+          `Councils Final Security SHA Slot: ${this.manifest.academic_councils.councils_final_security_sha}`,
+          `C9 Extension Slot: ${this.manifest.academic_councils.c9_status} (#302: ${this.manifest.academic_councils.c9_extension_sha})`,
+          `C9 Integrated SHA Slot: ${this.manifest.academic_councils.c9_integrated_sha}`,
           `Required Verifications: ${this.manifest.academic_councils.required_verifications.join(', ')}`,
           `8-migration sequence: C0 through C7`,
           `Flags: ${this.manifest.academic_councils.feature_flags.join(', ')} (OFF)`,
@@ -721,11 +788,14 @@ export class ReleaseOrchestrator {
       ...e2eRes.errors,
     ];
 
-    if (gaSecPending && !allBlockers.some((b) => b.includes('GA final security'))) {
-      allBlockers.push('GA final security review gate (GA_FINAL_SECURITY_REVIEW_REQUIRED) is PENDING');
+    if (gaSecHold && !allBlockers.some((b) => b.includes('GA final security'))) {
+      allBlockers.push('GA final security review gate (GA_FINAL_SECURITY_REVIEW_REQUIRED) is HOLD');
     }
-    if (c9Pending && !allBlockers.some((b) => b.includes('C9 extension'))) {
-      allBlockers.push('Councils C9 extension slot (notifications/reports/UX) is PENDING');
+    if (councilsSecHold && !allBlockers.some((b) => b.includes('COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED'))) {
+      allBlockers.push('Councils final security review gate (COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED) is HOLD (4 High findings)');
+    }
+    if (c9IntegratedPending && !allBlockers.some((b) => b.includes('C9 extension'))) {
+      allBlockers.push('Councils C9 extension candidate (#302) is present but requires integration onto remediated final councils (#300)');
     }
 
     const overall: StatusVerdict = allBlockers.length > 0 ? 'HOLD' : 'PASS';
@@ -765,11 +835,11 @@ export class ReleaseOrchestrator {
       ...e2eRes.messages,
     ];
 
-    if (this.manifest.academic_councils.c9_status === 'PENDING') {
-      allMessages.push('C0-C8_CORE_READY confirmed for PR #300 candidate.');
-      allMessages.push('C0-C9_FULL_PRODUCT_READY cannot be granted while C9 extension is PENDING.');
+    if (this.manifest.academic_councils.c9_status === 'C9_CANDIDATE_PRESENT' || this.manifest.academic_councils.c9_integrated_sha === 'PENDING') {
+      allMessages.push('C0-C8_SOURCE_READY confirmed for PR #300 candidate.');
+      allMessages.push('C0-C9_FULL_PRODUCT_READY cannot be granted while C9 extension candidate (#302) is not integrated onto remediated #300.');
       if (!allErrors.some((e) => e.includes('C9 extension'))) {
-        allErrors.push('Councils C9 extension slot remains PENDING (full product readiness incomplete)');
+        allErrors.push('Councils C9 extension candidate (#302) is present but requires integration onto remediated final councils (#300)');
       }
     }
 

@@ -1,8 +1,7 @@
 # PORTAL GP / GA / COUNCILS RELEASE ORCHESTRATOR RUNBOOK
 
-**Mission:** `PORTAL-RELEASE-ORCHESTRATOR-FINAL-HEADS-AND-RC-HARDENING-LONGRUN-02`
+**Mission:** `PORTAL-RELEASE-ORCHESTRATOR-GA-RACE-C9-STATE-RECONCILIATION-LONGRUN-03`
 **PR:** `#301`
-**Head:** `cef393a064488338ee5a04da5a12d5ed0f02c897`
 **System:** Deterministic LOCAL Release Orchestration System
 **Scope:** Graduation Projects (GP), Graduates Affairs (GA), Academic Councils (Councils)
 **Safety Contract:** READ-ONLY / LOCAL ONLY — ZERO Production Mutation — FAIL-CLOSED
@@ -55,14 +54,18 @@ The orchestrator reads a machine-readable manifest defining:
   - Body Hash (`SHA256_LF_NORMALIZED_V1`): `9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3`
   - Authoritative Operator Package SHA (#293): `61952df385eea12f57720ea33b2d10b5b6621247`
 - **GA Subsystem:**
-  - Source SHA (#291): `ef73881fbf7b8a12729c0f04b46fb346c47e7fb8`
-  - Promotion Package SHA (#299): `c016b4c287825ea28d76aff6b44e53fa68f66f2b`
-  - Security Review Gate: `GA_FINAL_SECURITY_REVIEW_REQUIRED` (initially `PENDING`)
+  - Source SHA (#291): `f799608a5d5fb167d66e5615d3f7b50692295f30`
+  - Promotion Package SHA (#299): `5ae9b53ce7e69bd8b98fd06c8e3736f040514c92`
+  - Security Review Gate: `GA_FINAL_SECURITY_REVIEW_REQUIRED` (`HOLD` — waiting independent Codex final PASS)
+  - AUTH04 Migration Body Hash: `3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd`
   - 3-Migration Sequence: `20260808210000_ga_mvp_foundation_01.sql`, `20260808210100_ga_mvp_completion_01.sql`, `20260808210200_ga_authorization_04.sql`
 - **Academic Councils Subsystem:**
   - Final Integrated Candidate SHA (#300): `d3ddce61f1d339d418d9c494fc8b456d4a5f6d85`
-  - Historical Inputs (Superseded): #298 (`96fc02ee...`), #297 (`681192e3...`)
-  - Status Distinction: `C0-C8_CORE_READY` achieved vs `C0-C9_FULL_PRODUCT_READY` (C9 extension slot initial status: `PENDING`)
+  - Final Security Review Gate: `COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED` (`HOLD` — 4 HIGH findings: vote/close serialization, decision relationship, decision FSM, archive/follow-up)
+  - Councils Final Security SHA Slot: `PENDING`
+  - C9 Extension Candidate (#302): `7d5d607d610f4b319c06b3e1cf8a37d69e18517f` (Status: `C9_CANDIDATE_PRESENT`, provenance pinned, built on old base `e71d9aa8`, integration waiting)
+  - C9 Integrated SHA Slot: `PENDING`
+  - Status Distinction: `C0-C8_SOURCE_READY` achieved vs `C0-C9_FULL_PRODUCT_READY` (`HOLD`)
   - Required Verifications for #300: `WEB_CI`, `MIGRATION_REVIEW`, `INDEPENDENT_SECURITY_REVIEW`
   - 8-Migration Sequence: C0 through C7 (`20260808120000` to `20260808170000`)
 

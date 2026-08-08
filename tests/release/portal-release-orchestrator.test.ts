@@ -9,19 +9,23 @@ describe('Portal Release Orchestrator Fail-Closed Safety Contract', () => {
     new ReleaseOrchestrator().checkReleaseReady();
   }, 60000);
 
-  it('reports HOLD for release-ready when GA security review or C9 extension remains PENDING', () => {
+  it('reports HOLD for release-ready when GA security review or Councils C9 extension remains HOLD or unintegrated', () => {
     const orchestrator = new ReleaseOrchestrator();
     const result = orchestrator.checkReleaseReady();
     expect(result.verdict).toBe('HOLD');
-    expect(result.errors.some((e) => e.includes('GA final security review gate'))).toBe(true);
-    expect(result.errors.some((e) => e.includes('C9 extension slot'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('GA_FINAL_SECURITY_REVIEW_REQUIRED'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('C9 extension candidate (#302') || e.includes('C9 extension'))).toBe(true);
   }, 30000);
 
-  it('evaluates release-ready to PASS when all pending gates are cleared and pins match', () => {
+  it('evaluates release-ready to PASS when all pending gates are cleared and future reviewed heads are explicitly pinned', () => {
     const clearedManifest: ReleaseManifest = JSON.parse(JSON.stringify(getManifest()));
     clearedManifest.graduates_affairs.ga_final_security_review = 'APPROVED';
-    clearedManifest.academic_councils.c9_extension_sha = 'c9_extension_approved_sha';
-    clearedManifest.academic_councils.c9_status = 'COMPLETED';
+    clearedManifest.academic_councils.councils_final_security_review = 'APPROVED';
+    clearedManifest.academic_councils.councils_final_security_sha = '8888888888888888888888888888888888888888';
+    clearedManifest.academic_councils.c9_extension_sha = '7d5d607d610f4b319c06b3e1cf8a37d69e18517f';
+    clearedManifest.academic_councils.c9_integrated_sha = '9999999999999999999999999999999999999999';
+    clearedManifest.academic_councils.c9_status = 'INTEGRATED';
     const orchestrator = new ReleaseOrchestrator(clearedManifest);
     const result = orchestrator.checkReleaseReady();
     expect(result.verdict).toBe('PASS');
@@ -55,13 +59,42 @@ describe('Portal Release Orchestrator Fail-Closed Safety Contract', () => {
     expect(result.errors.some((e) => e.includes('Councils candidate PR #300 SHA drift detected'))).toBe(true);
   }, 30000);
 
-  it('fails closed (HOLD) on GA final-security review pending', () => {
+  it('fails closed (HOLD) on GA final-security review HOLD (unreviewed GA candidate cannot auto-bless)', () => {
     const manifest: ReleaseManifest = JSON.parse(JSON.stringify(getManifest()));
-    manifest.graduates_affairs.ga_final_security_review = 'PENDING';
+    expect(manifest.graduates_affairs.ga_final_security_review).toBe('HOLD');
     const orchestrator = new ReleaseOrchestrator(manifest);
     const result = orchestrator.checkSource();
     expect(result.verdict).toBe('HOLD');
     expect(result.errors.some((e) => e.includes('GA_FINAL_SECURITY_REVIEW_REQUIRED'))).toBe(true);
+  }, 30000);
+
+  it('fails closed (HOLD) on Councils #300 final security review HOLD with 4 High findings', () => {
+    const manifest: ReleaseManifest = JSON.parse(JSON.stringify(getManifest()));
+    expect(manifest.academic_councils.councils_final_security_review).toBe('HOLD');
+    const orchestrator = new ReleaseOrchestrator(manifest);
+    const result = orchestrator.checkSource();
+    expect(result.verdict).toBe('HOLD');
+    expect(result.errors.some((e) => e.includes('COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED'))).toBe(true);
+  }, 30000);
+
+  it('distinguishes C9_CANDIDATE_PRESENT from integrated status and rejects release readiness when C9 integrated SHA is PENDING', () => {
+    const manifest: ReleaseManifest = JSON.parse(JSON.stringify(getManifest()));
+    expect(manifest.academic_councils.c9_status).toBe('C9_CANDIDATE_PRESENT');
+    expect(manifest.academic_councils.c9_integrated_sha).toBe('PENDING');
+    const orchestrator = new ReleaseOrchestrator(manifest);
+    const result = orchestrator.checkSource();
+    expect(result.verdict).toBe('HOLD');
+    expect(result.errors.some((e) => e.includes('C9 extension candidate (#302: 7d5d607d610f4b319c06b3e1cf8a37d69e18517f) present but NOT integrated'))).toBe(true);
+  }, 30000);
+
+  it('rejects old AUTH04 migration hash when tampered back to legacy hash', () => {
+    const defaultManifest: ReleaseManifest = getManifest();
+    expect(defaultManifest.graduates_affairs.three_migration_sequence[2].body_hash).toBe('3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd');
+    const tamperedManifest: ReleaseManifest = JSON.parse(JSON.stringify(defaultManifest));
+    tamperedManifest.graduates_affairs.three_migration_sequence[2].body_hash = '05e411a195a2ff079b2ffe7cb485993f69d1f46a06f1165dead45c547f32805d';
+    const orchestrator = new ReleaseOrchestrator(tamperedManifest);
+    const report = orchestrator.getStatusReport();
+    expect(report.subsystems.find((s) => s.subsystem === 'GA')?.details.some((d) => d.includes('05e411a195a2ff079b2ffe7cb485993f69d1f46a06f1165dead45c547f32805d'))).toBe(true);
   }, 30000);
 
   it('fails closed (HOLD) on backwards migration ordering', () => {
@@ -123,7 +156,7 @@ describe('Portal Release Orchestrator Fail-Closed Safety Contract', () => {
     expect(result.errors.some((e) => e.includes('Post-verifier missing'))).toBe(true);
   }, 30000);
 
-  it('candidate-refresh mode reports drift but never auto-updates pins and requires owner approval', () => {
+  it('candidate-refresh mode reports candidate SHAs, security review gates, and requires owner approval', () => {
     const orchestrator = new ReleaseOrchestrator();
     const result = orchestrator.checkCandidateRefresh();
     expect(result.mode).toBe('candidate-refresh');
@@ -140,7 +173,7 @@ describe('Portal Release Orchestrator Fail-Closed Safety Contract', () => {
     }
   }, 30000);
 
-  it('generates a complete human-readable status report for GP, GA, Councils with detailed stages', () => {
+  it('generates a complete human-readable status report for GP, GA, Councils with detailed stages and blockers', () => {
     const orchestrator = new ReleaseOrchestrator();
     const report = orchestrator.getStatusReport();
     expect(report.subsystems.length).toBe(3);
@@ -153,5 +186,7 @@ describe('Portal Release Orchestrator Fail-Closed Safety Contract', () => {
       expect(sub.stages).toBeDefined();
       expect(sub.production).toBe('WAITING');
     }
+    expect(report.overall).toBe('HOLD');
+    expect(report.blockers.length).toBeGreaterThan(0);
   }, 30000);
 });

@@ -35,8 +35,12 @@ export interface AcademicCouncilsManifestSpec extends ComponentSpec {
   c0_c3_sha: string;
   c4_c8_sha: string;
   eventual_final_integrated_sha: string;
+  councils_final_security_review: string;
+  councils_final_security_sha: string;
+  c9_integrated_sha: string;
   c9_extension_sha: string;
   c9_status: string;
+  security_review_findings?: string[];
   required_verifications: string[];
 }
 

@@ -54,12 +54,12 @@
   "graduates_affairs": {
     "name": "Graduates Affairs",
     "expected_base": "e71d9aa8cfc0f5ddefef08c16bb361413eb97496",
-    "source_sha": "ef73881fbf7b8a12729c0f04b46fb346c47e7fb8",
-    "promotion_package_sha": "c016b4c287825ea28d76aff6b44e53fa68f66f2b",
-    "ga_final_security_review": "PENDING",
+    "source_sha": "f799608a5d5fb167d66e5615d3f7b50692295f30",
+    "promotion_package_sha": "5ae9b53ce7e69bd8b98fd06c8e3736f040514c92",
+    "ga_final_security_review": "HOLD",
     "candidate_shas": {
-      "#291_source_sha": "ef73881fbf7b8a12729c0f04b46fb346c47e7fb8",
-      "#299_promotion_package": "c016b4c287825ea28d76aff6b44e53fa68f66f2b"
+      "#291_source_sha": "f799608a5d5fb167d66e5615d3f7b50692295f30",
+      "#299_promotion_package": "5ae9b53ce7e69bd8b98fd06c8e3736f040514c92"
     },
     "three_migration_sequence": [
       {
@@ -72,7 +72,7 @@
       },
       {
         "path": "supabase/migrations/20260808210200_ga_authorization_04.sql",
-        "body_hash": "05e411a195a2ff079b2ffe7cb485993f69d1f46a06f1165dead45c547f32805d"
+        "body_hash": "3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd"
       }
     ],
     "migration_sequence": [
@@ -86,7 +86,7 @@
       },
       {
         "path": "supabase/migrations/20260808210200_ga_authorization_04.sql",
-        "body_hash": "05e411a195a2ff079b2ffe7cb485993f69d1f46a06f1165dead45c547f32805d"
+        "body_hash": "3a85f54dbe5bcf249349d16cdcef5a921e4d8be28a5099965691e65ce4c3dffd"
       }
     ],
     "required_tests": [
@@ -121,12 +121,22 @@
     "c0_c3_sha": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
     "c4_c8_sha": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
     "eventual_final_integrated_sha": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85",
-    "c9_extension_sha": "PENDING",
-    "c9_status": "PENDING",
+    "councils_final_security_review": "HOLD",
+    "councils_final_security_sha": "PENDING",
+    "c9_integrated_sha": "PENDING",
+    "c9_extension_sha": "7d5d607d610f4b319c06b3e1cf8a37d69e18517f",
+    "c9_status": "C9_CANDIDATE_PRESENT",
+    "security_review_findings": [
+      "vote/close serialization",
+      "decision relationship",
+      "decision FSM",
+      "archive/follow-up"
+    ],
     "candidate_shas": {
       "#298_c0_c3_superseded": "96fc02ee472b58550f0db90040ad82204f3e1aa6",
       "#297_c4_c8_superseded": "681192e3e57bd761ea2e3b204ed70d35ef3b5aec",
-      "#300_final_integrated": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85"
+      "#300_final_integrated": "d3ddce61f1d339d418d9c494fc8b456d4a5f6d85",
+      "#302_c9_extension": "7d5d607d610f4b319c06b3e1cf8a37d69e18517f"
     },
     "migration_sequence": [
       {
@@ -172,7 +182,9 @@
     "production_gates": [
       "OWNER_APPROVAL_MIGRATION_APPLY",
       "OWNER_APPROVAL_FEATURE_FLAG_ENABLE",
-      "OWNER_APPROVAL_INTEGRATION_MERGE"
+      "OWNER_APPROVAL_INTEGRATION_MERGE",
+      "COUNCILS_FINAL_SECURITY_REVIEW_REQUIRED",
+      "COUNCILS_C9_INTEGRATION_REQUIRED"
     ],
     "feature_flags": [
       "academicCouncils"
