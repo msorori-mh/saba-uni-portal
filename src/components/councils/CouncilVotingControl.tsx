@@ -194,8 +194,8 @@ export function CouncilVotingControl({
             </Button>
           </div>
           {userVote && (
-            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-              تم تسجيل صوتك الخيار: ({userVote})
+            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium" aria-live="polite">
+              تم تسجيل صوتك: {userVote === "yes" ? "موافق" : userVote === "no" ? "غير موافق" : "امتناع"}.
             </p>
           )}
         </div>

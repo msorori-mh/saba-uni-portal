@@ -20,6 +20,7 @@ import {
   Plus,
   CheckCircle2,
   ListChecks,
+  LayoutDashboard,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
@@ -72,6 +73,8 @@ import {
 } from "@/lib/faculty-councils.functions";
 import { CouncilSessionAndGovernanceWorkspace } from "@/components/councils/CouncilSessionAndGovernanceWorkspace";
 import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl";
+import { CouncilNotificationsBell } from "@/components/councils/CouncilNotificationsBell";
+import { CouncilDashboardsPanel } from "@/components/councils/CouncilDashboardsPanel";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
   head: () => ({
@@ -474,17 +477,20 @@ function FacultyAcademicCouncilsPage() {
       breadcrumbs={[{ label: "المجالس الأكاديمية" }]}
     >
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-            <ScrollText className="h-5 w-5" aria-hidden />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+              <ScrollText className="h-5 w-5" aria-hidden />
+            </div>
+            <div>
+              <h1 className="font-display text-xl font-extrabold text-primary">مجالسي الأكاديمية</h1>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+                من هذه الصفحة يمكنك الاطلاع على عضوياتك في المجالس الأكاديمية، متابعة الاجتماعات،
+                وتقديم موضوعات للعرض على المجلس حسب صلاحياتك.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display text-xl font-extrabold text-primary">مجالسي الأكاديمية</h1>
-            <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
-              من هذه الصفحة يمكنك الاطلاع على عضوياتك في المجالس الأكاديمية، متابعة الاجتماعات،
-              وتقديم موضوعات للعرض على المجلس حسب صلاحياتك.
-            </p>
-          </div>
+          <CouncilNotificationsBell />
         </div>
 
         {pageLoading ? (
@@ -508,6 +514,16 @@ function FacultyAcademicCouncilsPage() {
                 </ul>
               )}
             </SectionShell>
+
+            {currentMemberships.length > 0 ? (
+              <SectionShell icon={LayoutDashboard} title="لوحة المعلومات">
+                <CouncilDashboardsPanel
+                  councilId={currentMemberships[0].council_id}
+                  availableRoles={currentMemberships.map((m) => m.role)}
+                  isAdmin={false}
+                />
+              </SectionShell>
+            ) : null}
 
             <SectionShell icon={Archive} title="مجالسي السابقة / الأرشيف">
               {membershipsQuery.isLoading ? (
@@ -1264,6 +1280,17 @@ function MeetingCard({
           <Badge variant="outline" className="text-[10px]">
             {meetingStatusLabel(meeting.status)}
           </Badge>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 gap-1 text-[10px]"
+            asChild
+          >
+            <Link to="/faculty-portal/academic-councils/$meetingId" params={{ meetingId: meeting.meeting_id }}>
+              عرض التفاصيل
+            </Link>
+          </Button>
           {canEdit ? (
             <Button
               type="button"
@@ -1271,8 +1298,9 @@ function MeetingCard({
               variant="outline"
               className="h-7 gap-1 text-[10px]"
               onClick={openEdit}
+              aria-label="تعديل الاجتماع"
             >
-              <Pencil className="h-3 w-3" />
+              <Pencil className="h-3 w-3" aria-hidden />
               تعديل
             </Button>
           ) : null}
