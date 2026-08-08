@@ -1,7 +1,8 @@
 -- READ-ONLY production preflight for GP student Level-4 eligibility guard
 -- Mission: GP-PRODUCTION-MIGRATION-DUPLICATE-SET-RECONCILIATION-AND-PROMOTION-01
 -- Target migration: supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
--- Source draft SHA256: 9d85fb4b6d7cd5b1ad4c19fb99d913d13b48fce6c83fcde7fca10340a934f1d6
+-- HASH_CONTRACT: SHA256_LF_NORMALIZED_V1
+-- Source draft BODY SHA256_LF: 9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3
 --
 -- FAIL-CLOSED. SELECT / catalog probes only. No DML/DDL/RPC mutation.
 -- Expected production scenario at promotion time: P1-U
@@ -132,7 +133,7 @@ begin
     raise exception 'GP_L4_PREFLIGHT_LEVEL4_MISSING: academic_levels.level_number=4 required';
   end if;
 
-  raise notice 'GP_L4_PRODUCTION_PREFLIGHT_PASS scenario=P1-U draft_sha256=9d85fb4b6d7cd5b1ad4c19fb99d913d13b48fce6c83fcde7fca10340a934f1d6';
+  raise notice 'GP_L4_PRODUCTION_PREFLIGHT_PASS scenario=P1-U hash_contract=SHA256_LF_NORMALIZED_V1 draft_body_sha256_lf=9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3';
 end $$;
 
 -- Informational probes (do not fail). Operators should record results.

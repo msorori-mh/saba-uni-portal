@@ -1,10 +1,11 @@
 # GP Student Level-4 Eligibility Guard — Promotion / Apply Runbook
 
-**Mission:** `GP-PRODUCTION-MIGRATION-DUPLICATE-SET-RECONCILIATION-AND-PROMOTION-01`  
-**Scenario:** **P1-U** (production ledger has exactly SET U; SET N quarantined)  
-**Promoted migration:** `supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql`  
-**Draft SHA256:** `9d85fb4b6d7cd5b1ad4c19fb99d913d13b48fce6c83fcde7fca10340a934f1d6`  
-**Status:** SOURCE READY — **NOT APPLIED**
+- **Mission:** `GP-PRODUCTION-MIGRATION-DUPLICATE-SET-RECONCILIATION-AND-PROMOTION-01`
+- **Scenario:** **P1-U** (production ledger has exactly SET U; SET N quarantined)
+- **Promoted migration:** `supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql`
+- **Hash contract:** `SHA256_LF_NORMALIZED_V1` (SHA256 over UTF-8 after CRLF/CR → LF; not native checkout SHA256)
+- **Draft BODY SHA256_LF:** `9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3`
+- **Status:** SOURCE READY — **NOT APPLIED**
 
 ## Canonical predecessor set (production)
 
@@ -17,14 +18,45 @@
 
 SET N is evidence-only under `docs/migration-evidence/graduation-projects/duplicate-predecessor-set/`.
 
+## Cross-platform source hash verification (required before apply)
+
+Do **not** use platform-native `sha256sum` / `Get-FileHash` on the raw checkout bytes as the STOP signal.
+Checkout line endings (CRLF vs LF) can differ across Windows, Linux, and CI while the Git content is the same.
+
+Use the repository contract `SHA256_LF_NORMALIZED_V1`:
+
+```bash
+python scripts/sha256_lf_normalized_v1.py \
+  docs/migration-drafts/GRADUATION-PROJECTS-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01.sql \
+  --body
+
+python scripts/sha256_lf_normalized_v1.py \
+  supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql \
+  --body
+```
+
+Expect both to print:
+
+`BODY_SHA256_LF=9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3`
+
+Pinned evidence: `docs/migration-evidence/graduation-projects/L4_PROMOTION_HASHES.txt`
+
+Authoritative promotion equivalence: `DRAFT_BODY_SHA256_LF == PROMOTED_BODY_SHA256_LF` (`BODY_MATCH=true`).
+
+Optional self-check of the hasher itself:
+
+```bash
+python scripts/sha256_lf_normalized_v1.py --self-test
+```
+
 ## Apply-one procedure (P1-U)
 
 1. Confirm maintenance advisory (brief function catalog locks only; no data rewrite).
 2. Run **read-only** preflight:
    `docs/production-preflight/GP-STUDENT-LEVEL4-ELIGIBILITY-GUARD-01-PRODUCTION-READONLY-PREFLIGHT.sql`
    Expect notice: `GP_L4_PRODUCTION_PREFLIGHT_PASS scenario=P1-U ...`
-3. Verify source hash of promoted migration still matches the reviewed draft body
-   (header metadata may differ; SQL from `begin;` must match draft).
+3. Verify canonical LF-normalized BODY hashes match (procedure above).
+   Header metadata may differ; SQL from `begin;` must match the reviewed draft after LF normalization.
 4. Apply **only**:
    `supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql`
    Single-migration approval. No batching. No concurrent applies.
@@ -41,7 +73,7 @@ SET N is evidence-only under `docs/migration-evidence/graduation-projects/duplic
 - Ledger shows mixed N+U, partial U, or L4 already present (P2)
 - Bucket missing/public
 - Storage policy not predicate-bound
-- Source hash mismatch vs reviewed draft body
+- **Canonical LF-normalized BODY hash mismatch** (`DRAFT_BODY_SHA256_LF` ≠ `PROMOTED_BODY_SHA256_LF`, or either ≠ pinned evidence)
 
 ## Rollback-by-forward (source-only companion)
 

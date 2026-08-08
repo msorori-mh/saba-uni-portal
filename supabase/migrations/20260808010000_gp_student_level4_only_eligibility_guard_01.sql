@@ -3,7 +3,9 @@
 -- Package: GRADUATION-PROJECTS student Level-4-only eligibility guard
 -- Mission: GP-PRODUCTION-MIGRATION-DUPLICATE-SET-RECONCILIATION-AND-PROMOTION-01
 -- Source draft: docs/migration-drafts/GRADUATION-PROJECTS-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01.sql
--- Source draft SHA256: 9d85fb4b6d7cd5b1ad4c19fb99d913d13b48fce6c83fcde7fca10340a934f1d6
+-- HASH_CONTRACT: SHA256_LF_NORMALIZED_V1
+-- Source draft FULL SHA256_LF: 1a0b4558dc071f96948a1d6d7e7a7ee79b9ec2881b12a5c158ce379e5b789f4e
+-- Source draft BODY SHA256_LF: 9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3
 -- Production scenario: P1-U (SET U applied; SET N quarantined as evidence)
 -- Predecessor chain (canonical): U1 A1 -> U2 A2 -> U3 A3 -> U4 storage predicate fix
 -- DO NOT APPLY until production read-only preflight PASSes.

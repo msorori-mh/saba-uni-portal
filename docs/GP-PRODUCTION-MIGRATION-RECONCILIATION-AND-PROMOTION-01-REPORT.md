@@ -50,7 +50,9 @@ Differences are header banners, transaction wrappers, trailing newline only.
 - **Canonical predecessor set:** SET U (kept in `supabase/migrations`)
 - **Quarantined set:** SET N → `docs/migration-evidence/graduation-projects/duplicate-predecessor-set/` (+ `MANIFEST.json`)
 - **Promoted L4:** `supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql` (NOT APPLIED)
-- Draft SHA256: `9d85fb4b6d7cd5b1ad4c19fb99d913d13b48fce6c83fcde7fca10340a934f1d6`
+- Hash contract: `SHA256_LF_NORMALIZED_V1` (SHA256 over UTF-8 after CRLF/CR → LF; not native checkout SHA256)
+- Draft FULL SHA256_LF: `1a0b4558dc071f96948a1d6d7e7a7ee79b9ec2881b12a5c158ce379e5b789f4e`
+- Draft/Promoted BODY SHA256_LF: `9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3` (`BODY_MATCH=true`)
 
 ## Companion package
 
@@ -96,3 +98,13 @@ MIGRATION_APPLIED: NO
 DEPLOY: NO
 PUBLISH: NO
 ```
+
+## KIMI-FINAL-MEDIUM-HASH-PORTABILITY: CONFIRMED_FIXED
+
+Prior recorded SHA256 values for L4 draft / quarantine evidence were computed from Windows CRLF checkout bytes. Committed Git content is LF, so a Linux/CI operator using native physical-file SHA256 could hit a false production STOP even though the SQL was identical.
+
+- No SQL semantic defect existed; L4 SQL body from first `begin;` is unchanged vs START_SHA `7918bf4c`.
+- Canonical contract is now `SHA256_LF_NORMALIZED_V1` (`scripts/sha256_lf_normalized_v1.py`).
+- Authoritative promotion proof is LF-normalized BODY equality (`DRAFT_BODY_SHA256_LF == PROMOTED_BODY_SHA256_LF`).
+- Quarantine `MANIFEST.json` evidence/canonical hashes now use the same LF-normalized contract.
+- P1-U production evidence (ledger probes, SET U identity, SET N quarantine paths) remains unchanged; no production reads/writes in this remediation.

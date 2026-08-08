@@ -1,2 +1,12 @@
-DRAFT_SHA256=9d85fb4b6d7cd5b1ad4c19fb99d913d13b48fce6c83fcde7fca10340a934f1d6
-PROMOTED_SHA256=8bf084bcac2ebf8115893cc6795277df746d54192ebe7af1bd935b3e4317b5b0
+HASH_CONTRACT=SHA256_LF_NORMALIZED_V1
+# Canonical contract: SHA256 over UTF-8 bytes after CRLF/CR -> LF normalization.
+# NOT platform-native physical-file SHA256. Independent of core.autocrlf.
+DRAFT_PATH=docs/migration-drafts/GRADUATION-PROJECTS-STUDENT-LEVEL4-ONLY-ELIGIBILITY-GUARD-01.sql
+PROMOTED_PATH=supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
+DRAFT_FULL_SHA256_LF=1a0b4558dc071f96948a1d6d7e7a7ee79b9ec2881b12a5c158ce379e5b789f4e
+PROMOTED_FULL_SHA256_LF=5815d99f2556336e4029dc1dda7dba4ded0e495d58cdb0fa7ecc46b40ea6ff3c
+DRAFT_BODY_SHA256_LF=9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3
+PROMOTED_BODY_SHA256_LF=9e0422f84d7b5605a63c56b12be2428e97db1cf4fe44a48d0d6b894e2d1086c3
+BODY_MATCH=true
+# Authoritative promotion equivalence: DRAFT_BODY_SHA256_LF == PROMOTED_BODY_SHA256_LF
+# (headers intentionally differ; SQL from first begin; must match after LF normalization)
