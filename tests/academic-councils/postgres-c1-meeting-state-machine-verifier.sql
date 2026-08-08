@@ -128,6 +128,8 @@ returns void
 language plpgsql
 as $$
 begin
+  -- Temp fingerprint table is owned by the session bootstrap role; never mutate it as authenticated/anon.
+  perform pg_temp.reset_role();
   delete from c1_counts;
   insert into c1_counts
   select
@@ -151,6 +153,7 @@ declare
   v_now record;
   v_base record;
 begin
+  perform pg_temp.reset_role();
   select * into v_base from c1_counts;
   select
     (select count(*) from public.academic_council_meetings) as meetings,
@@ -391,7 +394,7 @@ begin
   returns boolean
   language sql
   stable
-  as $$ select true $$;
+  as $fn$ select true $fn$;
 
   perform pg_temp.as_user('a1000000-0000-0000-0000-000000000011');
   v := public.council_transition_meeting(
@@ -404,8 +407,10 @@ begin
     raise exception 'CONCURRENT_FIRST_TRANSITION_FAILED';
   end if;
 
+  perform pg_temp.reset_role();
   perform pg_temp.snapshot_counts();
   -- Second caller still holding stale expected agenda_ready must fail.
+  perform pg_temp.as_user('a1000000-0000-0000-0000-000000000011');
   perform pg_temp.expect_fail(
     'STALE_CONCURRENT',
     $q$select public.council_transition_meeting(
@@ -453,7 +458,9 @@ begin
   end if;
 
   -- Denied: cancel from in_session (meeting 1 is in_session)
+  perform pg_temp.reset_role();
   perform pg_temp.snapshot_counts();
+  perform pg_temp.as_user('a1000000-0000-0000-0000-000000000011');
   perform pg_temp.expect_fail(
     'CANCEL_FROM_IN_SESSION',
     $q$select public.council_transition_meeting(
@@ -487,6 +494,7 @@ begin
     raise exception 'MINUTES_REVIEW_FAILED';
   end if;
 
+  perform pg_temp.reset_role();
   drop function if exists public.meeting_has_valid_quorum(uuid);
 
   raise notice 'CANCEL_ONLY_BEFORE_IN_SESSION';
