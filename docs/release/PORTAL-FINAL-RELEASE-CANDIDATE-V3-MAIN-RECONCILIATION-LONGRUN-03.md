@@ -2,9 +2,10 @@
 
 **Decision:** `PASS_PORTAL_FINAL_RELEASE_CANDIDATE_V3_MAIN_RECONCILED`
 
+**FINAL_SHA:** `55afee941e51cf29aa68102ca2240d6d0883bb55`  
+**DRAFT_PR:** [#309](https://github.com/msorori-mh/saba-uni-portal/pull/309)  
 **Branch:** `integration/portal-final-release-candidate-v3-01`  
 **Mission date:** 2026-08-09  
-**FINAL_SHA:** branch tip after push (recorded in draft PR head; avoid self-referential docs pin)  
 
 ## Pins
 
@@ -144,8 +145,9 @@ V3 replays the same domain sources onto **current main** with the final candidat
 ## Phase L — Draft PR
 
 - Branch pushed: `integration/portal-final-release-candidate-v3-01`
-- One DRAFT PR to current main (not ready, not merged)
-- CI / Migration Review iterated until green
+- Draft PR: [#309](https://github.com/msorori-mh/saba-uni-portal/pull/309) (not ready, not merged)
+- Web CI: **PASS** (all jobs green, run `31280575025`)
+- Migration Review: **PASS** (run `31280575033`)
 
 ## Hard boundaries honored
 
