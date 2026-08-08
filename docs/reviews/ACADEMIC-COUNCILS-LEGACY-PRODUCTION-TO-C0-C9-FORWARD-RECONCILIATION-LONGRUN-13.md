@@ -16,10 +16,9 @@
 | PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/311 |
 | REVIEWED_SOURCE_SHA | `1f50e7dcc8042cf15780c7817ecefa579c49f431` (PR #306 base) |
 | MAIN_SHA_AT_FINALIZATION | `1b14201e5939cdbf17e7b5e5d79be7ad5b6b2149` |
-| PACKAGE_SHA | `bd70fcc75ce6803c09a8f6c117ec2112645b2cd2` |
-| FINAL_SHA | `bd70fcc75ce6803c09a8f6c117ec2112645b2cd2` (git rev-parse HEAD at mission completion) |
-| WEB_CI | https://github.com/msorori-mh/saba-uni-portal/actions/runs/31282995609 — success |
-| MIGRATION_REVIEW | https://github.com/msorori-mh/saba-uni-portal/actions/runs/31282995621 — success |
+| PACKAGE_SHA | `bd70fcc75ce6803c09a8f6c117ec2112645b2cd2` (functional reconciliation package) |
+| WEB_CI | https://github.com/msorori-mh/saba-uni-portal/actions/runs/31283180391 — success (HEAD `50114fa2`) |
+| MIGRATION_REVIEW | https://github.com/msorori-mh/saba-uni-portal/actions/runs/31283180385 — success (HEAD `50114fa2`) |
 
 ## Scope
 
@@ -280,8 +279,8 @@ New test/fixture files:
 
 - Stacked PR #311 targets `fix/councils-c9-security-production-readiness-longrun-01` (PR #306).
 - `.github/workflows/ci.yml` and `.github/workflows/migration-review.yml` were updated to run on pull requests targeting any base branch, so Web CI now fires for stacked PRs.
-- Web CI run on `bd70fcc75ce6803c09a8f6c117ec2112645b2cd2`: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31282995609 — success.
-- Migration Review run on `bd70fcc75ce6803c09a8f6c117ec2112645b2cd2`: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31282995621 — success (no dangerous patterns).
+- Web CI run on `50114fa2a3ecdc34ad5605706b3e1bf08874244d`: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31283180391 — success.
+- Migration Review run on `50114fa2a3ecdc34ad5605706b3e1bf08874244d`: https://github.com/msorori-mh/saba-uni-portal/actions/runs/31283180385 — success (no dangerous patterns).
 
 ## Local verification
 
