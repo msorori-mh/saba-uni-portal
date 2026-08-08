@@ -665,10 +665,10 @@
   "denial_class_contract": {
     "version": 3,
     "fail_closed": true,
-    "note": "REMEDIATION-07 G4. A negative case is PASS only when the observed (SQLSTATE, message family) pair matches the resolved authorization-denial rule EXACTLY. The pair is compared FIRST; only if it does not match is the outcome classified as CASE_INFRASTRUCTURE_OR_UNEXPECTED_DENIAL. SQLSTATE 42501 is an authorization SQLSTATE for this contract because the production RPCs raise their direct-assignee denials with ERRCODE 42501; a 42501 whose message is not in the resolved family is still a HOLD.",
+    "note": "LONGRUN-08 G4. Exact (SQLSTATE, message family) pair from live function source. Known authorization pair => PASS. Unknown 42501 => HOLD. Wrong state/message pair => HOLD.",
     "contract_source": [
-      "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql (public.act_on_b1_student_request_step_atomic)",
-      "supabase/migrations/20260725002135_13c05466-74a5-4a03-8c7d-8617be9e5353.sql (public.record_external_university_payment_confirmation)"
+      "production READ-ONLY pg_get_functiondef(public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)) @ 2026-08-08",
+      "production READ-ONLY pg_get_functiondef(public.record_external_university_payment_confirmation(uuid,text)) @ 2026-08-08"
     ],
     "authorization_sqlstates": [
       "28000",
@@ -772,12 +772,11 @@
         },
         "sqlstate": "42501",
         "message_family": [
-          "B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED"
+          "B1_ACTION_TYPE_MISMATCH"
         ],
-        "contract_note": "REMEDIATION-09 G1. In act_on_b1_student_request_step_atomic the authorization gate can_current_user_act_on_step(p_step_id, v_action) runs BEFORE the v_config.action_type comparison, and can_current_user_act_on_step itself returns false when the passed action differs from the configured action_type. An exact direct assignee sending an illegal action is therefore denied with ERRCODE 42501 and message B1_DIRECT_ASSIGNEE_AUTHORIZATION_REQUIRED. B1_ACTION_TYPE_MISMATCH is unreachable from any external caller and must never be expected.",
+        "contract_note": "LONGRUN-08 G4. Live production act_on probes can_current_user_act_on_step with CONFIGURED action_type, then enforces p_action === action_type. Exact assignee + illegal action => B1_ACTION_TYPE_MISMATCH / 42501. Extracted from production READ-ONLY pg_get_functiondef on 2026-08-08.",
         "source_ref": [
-          "supabase/migrations/20260727120200_b1_27_act_on_academic_effect_integration_01.sql:36-40",
-          "supabase/migrations/20260723070217_645bb701-b2a3-4da3-bacf-b36dec211b99.sql:102-108"
+          "production READ-ONLY pg_get_functiondef(public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)) @ 2026-08-08"
         ]
       },
       {
