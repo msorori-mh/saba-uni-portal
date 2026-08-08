@@ -261,7 +261,7 @@ This mission adds the following source-only artifacts to the promotion package b
 - `scripts/ga-local-exact-rehearsal.sh`
 - `scripts/ga-failure-matrix-rehearsal.sh`
 
-**CI Run:** https://github.com/msorori-mh/saba-uni-portal/actions/runs/31277429566
+**CI Run:** https://github.com/msorori-mh/saba-uni-portal/actions/runs/31277914378
 - Conclusion: `success`
 - All jobs passed, including the three promoted GA migration post-verifier legs and the follow-up authority-race verifier.
 - Only annotations are non-blocking Node.js 20 deprecation warnings from `actions/checkout@v4`.
