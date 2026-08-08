@@ -23,6 +23,11 @@ BEGIN
   IF to_regclass('public.academic_council_decisions') IS NULL THEN
     RAISE EXCEPTION 'C7 audit and archive requires C6 decisions foundation';
   END IF;
+  IF to_regprocedure(
+       'public.council_transition_meeting(uuid,public.academic_council_meeting_status,public.academic_council_meeting_status,jsonb)'
+     ) IS NULL THEN
+    RAISE EXCEPTION 'C7 audit and archive requires real C1 council_transition_meeting';
+  END IF;
 END $$;
 
 -- ---------------------------------------------------------------------
@@ -138,6 +143,10 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_CHAIR_AUTHORITY_REQUIRED' USING ERRCODE = '42501';
   END IF;
 
+  IF v_meeting.status <> 'minutes_locked'::public.academic_council_meeting_status THEN
+    RAISE EXCEPTION 'COUNCIL_ARCHIVE_PREREQUISITES_NOT_MET: meeting status is %', v_meeting.status USING ERRCODE = '22000';
+  END IF;
+
   -- Archive prerequisite 1: Session closed
   IF v_meeting.closed_at IS NULL THEN
     RAISE EXCEPTION 'COUNCIL_ARCHIVE_PREREQUISITES_NOT_MET: session not closed' USING ERRCODE = '22000';
@@ -158,12 +167,25 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_ARCHIVE_PREREQUISITES_NOT_MET: unresolved agenda items exist' USING ERRCODE = '22000';
   END IF;
 
-  -- Apply Archive status
-  UPDATE public.academic_council_meetings
-  SET status = 'archived'::public.academic_council_meeting_status,
-      updated_at = now(),
-      updated_by = v_uid
-  WHERE id = p_meeting_id;
+  -- No active voting/session inconsistency
+  IF EXISTS (
+    SELECT 1 FROM public.academic_council_agenda_items
+    WHERE meeting_id = p_meeting_id
+      AND session_status IN (
+        'in_discussion'::public.academic_council_agenda_item_session_status,
+        'voting_open'::public.academic_council_agenda_item_session_status
+      )
+  ) THEN
+    RAISE EXCEPTION 'COUNCIL_ARCHIVE_PREREQUISITES_NOT_MET: active session/voting state remains' USING ERRCODE = '22000';
+  END IF;
+
+  -- Authoritative C1 transition: minutes_locked → archived
+  PERFORM public.council_transition_meeting(
+    p_meeting_id,
+    'minutes_locked'::public.academic_council_meeting_status,
+    'archived'::public.academic_council_meeting_status,
+    jsonb_build_object('via', 'archive_council_meeting', 'archived_by', v_uid)
+  );
 
   INSERT INTO public.academic_council_audit_events (
     meeting_id, council_id, actor_user_id, action_type, entity_type, entity_id, payload

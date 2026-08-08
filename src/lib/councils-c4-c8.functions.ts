@@ -238,3 +238,14 @@ export const getCouncilHistoricalMinutesFn = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return res;
   });
+
+export const getCouncilVoteResultFn = createServerFn({ method: "GET" })
+  .validator((d: { agenda_item_id: string }) => d)
+  .handler(async ({ data, request }) => {
+    const { supabase } = await requireSupabaseAuth(request);
+    const { data: res, error } = await supabase.rpc("get_council_vote_result", {
+      p_agenda_item_id: data.agenda_item_id,
+    });
+    if (error) throw new Error(error.message);
+    return res;
+  });

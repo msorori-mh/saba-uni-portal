@@ -20,6 +20,7 @@ import {
   Plus,
   CheckCircle2,
   ListChecks,
+  ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { FacultyPortalShell } from "@/components/portal/FacultyPortalShell";
@@ -78,7 +79,6 @@ import {
   type CouncilTopicReviewQueueItem,
 } from "@/lib/faculty-councils.functions";
 import { CouncilSessionAndGovernanceWorkspace } from "@/components/councils/CouncilSessionAndGovernanceWorkspace";
-import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
   head: () => ({
@@ -695,6 +695,51 @@ function FacultyAcademicCouncilsPage() {
                 roleByCouncilId={roleByCouncilId}
                 onUpdated={() => void topicsQuery.refetch()}
               />
+            ) : null}
+
+            {(upcomingMeetings.length > 0 || previousMeetings.length > 0) &&
+            currentMemberships.length > 0 ? (
+              <SectionShell icon={ShieldCheck} title="الجلسة الحية والحوكمة">
+                <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                  إدارة الجلسة والتصويت والمحضر والقرارات والأرشفة وفق دورك في المجلس. الصلاحيات
+                  النهائية يحددها الخادم وليس واجهة الأزرار فقط.
+                </p>
+                <div className="space-y-6">
+                  {[...upcomingMeetings, ...previousMeetings]
+                    .filter((m) =>
+                      [
+                        "agenda_ready",
+                        "in_session",
+                        "minutes_draft",
+                        "minutes_review",
+                        "minutes_locked",
+                        "archived",
+                      ].includes(m.status),
+                    )
+                    .map((m) => {
+                      const role =
+                        m.user_membership_role ??
+                        roleByCouncilId.get(m.council_id) ??
+                        "viewer";
+                      return (
+                        <div key={`gov-${m.meeting_id}`} className="space-y-2">
+                          <div className="text-sm font-bold text-primary">
+                            {m.council_name} · الاجتماع رقم {m.meeting_number} ·{" "}
+                            {meetingStatusLabel(m.status)}
+                          </div>
+                          <CouncilSessionAndGovernanceWorkspace
+                            meetingId={m.meeting_id}
+                            councilId={m.council_id}
+                            meetingStatus={m.status}
+                            userRole={role}
+                            userId={userId ?? undefined}
+                            onStateChanged={() => void meetingsQuery.refetch()}
+                          />
+                        </div>
+                      );
+                    })}
+                </div>
+              </SectionShell>
             ) : null}
 
             <SectionShell icon={ScrollText} title="موضوعات المجلس">

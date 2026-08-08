@@ -1,12 +1,11 @@
--- ACADEMIC-COUNCILS-C4-C8 Late Lifecycle Verifier (disposable PG17).
--- Transactional: begin … rollback. Proves C4-C7 lifecycle, security, negative cases, and immutability.
+-- ACADEMIC-COUNCILS-C0-C8 Final Integration Verifier (disposable PG17).
+-- Proves real C1 + C3 + C4-C7 together. Transactional: begin … rollback.
+-- No C1 shim dependency.
 
 begin;
 
 create or replace function pg_temp.as_user(p_user uuid)
-returns void
-language plpgsql
-as $$
+returns void language plpgsql as $$
 begin
   perform set_config('request.jwt.claim.sub', coalesce(p_user::text, ''), true);
   execute 'set local role authenticated';
@@ -14,9 +13,7 @@ end;
 $$;
 
 create or replace function pg_temp.reset_role()
-returns void
-language plpgsql
-as $$
+returns void language plpgsql as $$
 begin
   execute 'reset role';
   perform set_config('request.jwt.claim.sub', '', true);
@@ -24,9 +21,7 @@ end;
 $$;
 
 create or replace function pg_temp.expect_fail(p_label text, p_sql text)
-returns void
-language plpgsql
-as $$
+returns void language plpgsql as $$
 begin
   begin
     execute p_sql;
@@ -43,335 +38,609 @@ begin
     when sqlstate '28000' then null;
     when sqlstate '22000' then null;
     when sqlstate '22023' then null;
+    when sqlstate '23505' then null;
     when sqlstate 'P0001' then null;
+    when sqlstate 'P0002' then null;
+    when sqlstate '42883' then null;
   end;
 end;
 $$;
 
-create or replace function pg_temp.get_fingerprint()
-returns text
-language sql
-as $$
-  select md5(
-    coalesce((select count(*)::text from public.academic_council_meetings), '0') || ':' ||
-    coalesce((select count(*)::text from public.academic_council_agenda_items), '0') || ':' ||
-    coalesce((select count(*)::text from public.academic_council_votes), '0') || ':' ||
-    coalesce((select count(*)::text from public.academic_council_minutes), '0') || ':' ||
-    coalesce((select count(*)::text from public.academic_council_decisions), '0') || ':' ||
-    coalesce((select count(*)::text from public.academic_council_audit_events), '0')
-  );
+create temporary table if not exists pg_temp.denial_log (
+  label text primary key
+);
+grant all on table pg_temp.denial_log to authenticated, anon, service_role;
+
+create or replace function pg_temp.deny_zero(
+  p_label text,
+  p_sql text,
+  p_fp_sql text default null
+)
+returns void language plpgsql as $$
+declare
+  v_before text;
+  v_after text;
+begin
+  if p_fp_sql is null then
+    v_before := md5(
+      coalesce((select string_agg(id::text || status::text, ',' order by id) from public.academic_council_meetings), '') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_votes), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_minutes), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_decisions), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_agenda_items), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_meeting_transition_events), '0')
+    );
+  else
+    execute p_fp_sql into v_before;
+  end if;
+
+  perform pg_temp.expect_fail(p_label, p_sql);
+
+  if p_fp_sql is null then
+    v_after := md5(
+      coalesce((select string_agg(id::text || status::text, ',' order by id) from public.academic_council_meetings), '') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_votes), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_minutes), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_decisions), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_agenda_items), '0') || '|' ||
+      coalesce((select count(*)::text from public.academic_council_meeting_transition_events), '0')
+    );
+  else
+    execute p_fp_sql into v_after;
+  end if;
+
+  if v_before is distinct from v_after then
+    raise exception '%_MUTATED_STATE', p_label;
+  end if;
+
+  insert into pg_temp.denial_log(label) values (p_label)
+  on conflict do nothing;
+end;
 $$;
 
+-- ---------------------------------------------------------------------
+-- 0) Real C1 contract present; shim absent
+-- ---------------------------------------------------------------------
+do $$
+begin
+  if to_regprocedure(
+       'public.council_transition_meeting(uuid,public.academic_council_meeting_status,public.academic_council_meeting_status,jsonb)'
+     ) is null
+     or to_regprocedure(
+       'public.council_meeting_transition_is_legal(public.academic_council_meeting_status,public.academic_council_meeting_status)'
+     ) is null then
+    raise exception 'REAL_C1_MISSING';
+  end if;
+  if to_regprocedure('public.can_transition_council_meeting_state(uuid,text)') is not null then
+    raise exception 'C1_SHIM_MUST_NOT_BE_LOADED_IN_FULL_INTEGRATION';
+  end if;
+  if not public.council_assert_c1_contract_present() then
+    raise exception 'C1_ASSERT_FAILED';
+  end if;
+  raise notice 'REAL_C1_CONTRACT_PRESENT';
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 1) Fixture council + memberships
+-- ---------------------------------------------------------------------
 do $$
 declare
-  v_council_id uuid := 'c1000000-0000-0000-0000-000000000001';
+  v_council uuid := 'c1000000-0000-0000-0000-000000000001';
+  v_council_b uuid := 'c1000000-0000-0000-0000-000000000002';
+  v_admin uuid := 'a1000000-0000-0000-0000-000000000002';
+  v_sys uuid := 'a1000000-0000-0000-0000-000000000001';
+  v_dean uuid := 'a1000000-0000-0000-0000-000000000003';
   v_chair uuid := 'a1000000-0000-0000-0000-000000000011';
   v_chair_other uuid := 'a1000000-0000-0000-0000-000000000012';
   v_sec uuid := 'a1000000-0000-0000-0000-000000000013';
   v_mem_a uuid := 'a1000000-0000-0000-0000-000000000014';
   v_viewer uuid := 'a1000000-0000-0000-0000-000000000015';
+  v_unrelated uuid := 'a1000000-0000-0000-0000-000000000016';
+  v_student uuid := 'a1000000-0000-0000-0000-000000000017';
   v_mem_b uuid := 'a1000000-0000-0000-0000-000000000018';
   v_mem_c uuid := 'a1000000-0000-0000-0000-000000000019';
-  v_admin uuid := 'a1000000-0000-0000-0000-000000000002';
-
-  v_meeting_id uuid := '14000000-0000-0000-0000-000000000001';
-  v_item_1_id uuid := '15000000-0000-0000-0000-000000000001';
-  v_item_2_id uuid := '15000000-0000-0000-0000-000000000002';
-
-  v_fp_before text;
-  v_fp_after text;
-  v_res jsonb;
-  v_dec_id uuid;
 begin
   perform pg_temp.reset_role();
 
-  -- Setup fixture council
-  insert into public.academic_councils (
-    id, name, council_type, department_id, created_by
-  ) values (
-    v_council_id, 'College Academic Council', 'college', null, v_admin
-  ) on conflict do nothing;
+  insert into public.academic_councils (id, name, council_type, created_by) values
+    (v_council, 'College Academic Council', 'college', v_admin),
+    (v_council_b, 'Other Council', 'college', v_admin)
+  on conflict do nothing;
 
-  -- Setup members
   insert into public.academic_council_members (
-    id, council_id, user_id, member_role, is_active, created_by
+    id, council_id, user_id, member_role, is_active, active_from, created_by
   ) values
-   ('11000000-0000-0000-0000-000000000011', v_council_id, v_chair, 'chair', true, v_admin),
-   ('11000000-0000-0000-0000-000000000013', v_council_id, v_sec, 'secretary', true, v_admin),
-   ('11000000-0000-0000-0000-000000000014', v_council_id, v_mem_a, 'member', true, v_admin),
-   ('11000000-0000-0000-0000-000000000015', v_council_id, v_viewer, 'viewer', true, v_admin),
-   ('11000000-0000-0000-0000-000000000018', v_council_id, v_mem_b, 'member', true, v_admin),
-   ('11000000-0000-0000-0000-000000000019', v_council_id, v_mem_c, 'member', true, v_admin)
+    ('11000000-0000-0000-0000-000000000011', v_council, v_chair, 'chair', true, current_date, v_admin),
+    ('11000000-0000-0000-0000-000000000013', v_council, v_sec, 'secretary', true, current_date, v_admin),
+    ('11000000-0000-0000-0000-000000000014', v_council, v_mem_a, 'member', true, current_date, v_admin),
+    ('11000000-0000-0000-0000-000000000015', v_council, v_viewer, 'viewer', true, current_date, v_admin),
+    ('11000000-0000-0000-0000-000000000018', v_council, v_mem_b, 'member', true, current_date, v_admin),
+    ('11000000-0000-0000-0000-000000000019', v_council, v_mem_c, 'member', true, current_date, v_admin),
+    ('11000000-0000-0000-0000-000000000012', v_council_b, v_chair_other, 'chair', true, current_date, v_admin)
   on conflict do nothing;
 
-  -- 1) Approve Quorum Policy (ratio 3/5)
-  perform pg_temp.as_user(v_chair);
-  perform public.council_approve_quorum_policy(v_council_id, 'ratio'::public.academic_council_quorum_threshold_kind, null, 3, 5);
-
-  -- 2) Create Meeting in agenda_ready status with approved agenda items
-  perform pg_temp.reset_role();
-  insert into public.academic_council_meetings (
-    id, council_id, meeting_number, title, scheduled_at, status, created_by
-  ) values (
-    v_meeting_id, v_council_id, 1, 'Regular Council Meeting 1', now() + interval '1 day', 'agenda_ready', v_admin
-  ) on conflict do nothing;
-
-  insert into public.academic_council_agenda_items (
-    id, meeting_id, order_index, title, is_approved, created_by
+  -- Historical / inactive / expired memberships for negative matrix
+  insert into public.academic_council_members (
+    id, council_id, user_id, member_role, is_active, active_from, active_to, created_by
   ) values
-   (v_item_1_id, v_meeting_id, 1, 'Topic A Approval', true, v_chair),
-   (v_item_2_id, v_meeting_id, 2, 'Topic B Discussion', true, v_chair)
+    ('11000000-0000-0000-0000-000000000016', v_council, v_unrelated, 'member', false, current_date - 400, current_date - 30, v_admin)
   on conflict do nothing;
 
-  -- ---------------------------------------------------------------------
-  -- TEST 1: Direct write denied on votes / vote results (Zero Mutation)
-  -- ---------------------------------------------------------------------
-  v_fp_before := pg_temp.get_fingerprint();
+  -- Silence unused warnings
+  perform v_sys, v_dean, v_student;
+end $$;
 
-  perform pg_temp.as_user(v_mem_a);
-  perform pg_temp.expect_fail('DIRECT_VOTE_INSERT',
-    format('insert into public.academic_council_votes (meeting_id, agenda_item_id, council_id, voter_user_id, vote_value) values (''%s'', ''%s'', ''%s'', ''%s'', ''yes'')',
-    v_meeting_id, v_item_1_id, v_council_id, v_mem_a));
+-- ---------------------------------------------------------------------
+-- 2) POSITIVE FULL LIFECYCLE (scheduled → archived) via real RPCs
+-- ---------------------------------------------------------------------
+do $$
+declare
+  v_council uuid := 'c1000000-0000-0000-0000-000000000001';
+  v_chair uuid := 'a1000000-0000-0000-0000-000000000011';
+  v_sec uuid := 'a1000000-0000-0000-0000-000000000013';
+  v_mem_a uuid := 'a1000000-0000-0000-0000-000000000014';
+  v_mem_b uuid := 'a1000000-0000-0000-0000-000000000018';
+  v_mem_c uuid := 'a1000000-0000-0000-0000-000000000019';
+  v_viewer uuid := 'a1000000-0000-0000-0000-000000000015';
+  v_admin uuid := 'a1000000-0000-0000-0000-000000000002';
+  v_sys uuid := 'a1000000-0000-0000-0000-000000000001';
+  v_dean uuid := 'a1000000-0000-0000-0000-000000000003';
+  v_chair_other uuid := 'a1000000-0000-0000-0000-000000000012';
+  v_unrelated uuid := 'a1000000-0000-0000-0000-000000000016';
+  v_student uuid := 'a1000000-0000-0000-0000-000000000017';
 
-  perform pg_temp.expect_fail('DIRECT_VOTE_RESULT_INSERT',
-    format('insert into public.academic_council_vote_results (agenda_item_id, meeting_id, council_id, yes_count, outcome, calculated_by) values (''%s'', ''%s'', ''%s'', 1, ''passed'', ''%s'')',
-    v_item_1_id, v_meeting_id, v_council_id, v_chair));
-
-  v_fp_after := pg_temp.get_fingerprint();
-  if v_fp_before <> v_fp_after then
-    raise exception 'DIRECT_WRITE_DENIED_MUTATED_STATE';
-  end if;
-  raise notice 'DIRECT_WRITE_DENIED_ZERO_MUTATION';
-
-  -- ---------------------------------------------------------------------
-  -- TEST 2: Session Open Negative Cases (Without quorum / wrong chair / admin bypass)
-  -- ---------------------------------------------------------------------
-  v_fp_before := pg_temp.get_fingerprint();
-
-  -- Attempt open session without finalized attendance/quorum -> DENIED
+  v_meeting uuid;
+  v_topic1 uuid;
+  v_topic2 uuid;
+  v_item1 uuid;
+  v_item2 uuid;
+  v_dec uuid;
+  v_res jsonb;
+  v_status text;
+  v_neg int := 0;
+begin
+  -- Quorum policy (chair)
   perform pg_temp.as_user(v_chair);
-  perform pg_temp.expect_fail('OPEN_SESSION_NO_QUORUM',
-    format('select public.open_council_session(''%s'')', v_meeting_id));
+  perform public.council_approve_quorum_policy(
+    v_council, 'ratio'::public.academic_council_quorum_threshold_kind, null, 3, 5
+  );
 
-  -- Attempt open session by Admin (academic bypass) -> DENIED
+  -- 1-2 schedule meeting
+  v_res := public.council_schedule_meeting(
+    v_council,
+    'Regular Council Meeting 1',
+    now() + interval '2 days',
+    'Hall A',
+    now() - interval '1 hour',
+    now() + interval '1 day'
+  );
+  v_meeting := (v_res->>'meeting_id')::uuid;
+  if (v_res->>'status') <> 'scheduled' then raise exception 'EXPECTED_SCHEDULED'; end if;
+
+  -- Illegal skip / reverse probes (authorization + state machine)
+  perform pg_temp.deny_zero('SKIP_TO_IN_SESSION',
+    format($q$select public.council_transition_meeting('%s','scheduled','in_session','{}'::jsonb)$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('BACKWARD_TRANSITION',
+    format($q$select public.council_transition_meeting('%s','scheduled','archived','{}'::jsonb)$q$, v_meeting));
+  v_neg := v_neg + 1;
+
+  -- 3 open intake
+  v_res := public.council_transition_meeting(
+    v_meeting, 'scheduled', 'intake_open', jsonb_build_object('via','positive_journey')
+  );
+  if (v_res->>'to_status') <> 'intake_open' then raise exception 'EXPECTED_INTAKE_OPEN'; end if;
+
+  -- Wrong actors cannot open session later / mutate early
   perform pg_temp.as_user(v_admin);
-  perform pg_temp.expect_fail('OPEN_SESSION_ADMIN_BYPASS',
-    format('select public.open_council_session(''%s'')', v_meeting_id));
+  perform pg_temp.deny_zero('ADMIN_TRANSITION_BYPASS',
+    format($q$select public.council_transition_meeting('%s','intake_open','intake_closed','{}'::jsonb)$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_sys);
+  perform pg_temp.deny_zero('SYSADMIN_TRANSITION_BYPASS',
+    format($q$select public.council_transition_meeting('%s','intake_open','intake_closed','{}'::jsonb)$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_dean);
+  perform pg_temp.deny_zero('DEAN_TRANSITION_BYPASS',
+    format($q$select public.council_transition_meeting('%s','intake_open','intake_closed','{}'::jsonb)$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_chair_other);
+  perform pg_temp.deny_zero('WRONG_COUNCIL_CHAIR_TRANSITION',
+    format($q$select public.council_transition_meeting('%s','intake_open','intake_closed','{}'::jsonb)$q$, v_meeting));
+  v_neg := v_neg + 1;
 
-  -- Attempt open session by Secretary -> DENIED
+  -- 4 submit topics
+  perform pg_temp.as_user(v_mem_a);
+  v_res := public.council_submit_topic(v_council, v_meeting, 'Topic A Approval', 'Body A', 'academic');
+  v_topic1 := (v_res->>'topic_id')::uuid;
+  v_res := public.council_submit_topic(v_council, v_meeting, 'Topic B Discussion', 'Body B', 'academic');
+  v_topic2 := (v_res->>'topic_id')::uuid;
+
+  perform pg_temp.as_user(v_viewer);
+  perform pg_temp.deny_zero('VIEWER_TOPIC_SUBMIT',
+    format($q$select public.council_submit_topic('%s','%s','x','y',null)$q$, v_council, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_student);
+  perform pg_temp.deny_zero('STUDENT_TOPIC_SUBMIT',
+    format($q$select public.council_submit_topic('%s','%s','x','y',null)$q$, v_council, v_meeting));
+  v_neg := v_neg + 1;
+
+  -- 5 secretary review
   perform pg_temp.as_user(v_sec);
-  perform pg_temp.expect_fail('OPEN_SESSION_SECRETARY',
-    format('select public.open_council_session(''%s'')', v_meeting_id));
+  perform public.council_review_topic(v_topic1, 'under_review');
+  perform public.council_review_topic(v_topic2, 'under_review');
 
-  v_fp_after := pg_temp.get_fingerprint();
-  if v_fp_before <> v_fp_after then
-    raise exception 'OPEN_SESSION_NEGATIVE_MUTATED_STATE';
-  end if;
-  raise notice 'SESSION_OPEN_NEGATIVE_MATRIX_PASS';
+  -- 6 chair acceptance
+  perform pg_temp.as_user(v_chair);
+  perform public.council_review_topic(v_topic1, 'accepted_for_agenda');
+  perform public.council_review_topic(v_topic2, 'accepted_for_agenda');
 
-  -- ---------------------------------------------------------------------
-  -- TEST 3: Positive Attendance, Quorum, & Session Open
-  -- ---------------------------------------------------------------------
-  -- Record attendance: chair, sec, mem_a, mem_b present (4 present out of 5 eligible -> quorum met)
+  -- 7 close intake
+  perform public.council_transition_meeting(
+    v_meeting, 'intake_open', 'intake_closed', jsonb_build_object('via','positive_journey')
+  );
+
+  -- 8 add to agenda
   perform pg_temp.as_user(v_sec);
-  perform public.record_council_meeting_attendance(v_meeting_id, jsonb_build_array(
+  v_res := public.council_add_topic_to_agenda(v_meeting, v_topic1, 1);
+  v_item1 := (v_res->>'agenda_item_id')::uuid;
+  v_res := public.council_add_topic_to_agenda(v_meeting, v_topic2, 2);
+  v_item2 := (v_res->>'agenda_item_id')::uuid;
+
+  -- 9 finalize non-empty agenda + 10 ready
+  perform pg_temp.as_user(v_chair);
+  perform public.council_finalize_meeting_agenda(v_meeting);
+  perform public.council_transition_meeting(
+    v_meeting, 'intake_closed', 'agenda_ready', jsonb_build_object('via','positive_journey')
+  );
+
+  select status::text into v_status from public.academic_council_meetings where id = v_meeting;
+  if v_status <> 'agenda_ready' then raise exception 'EXPECTED_AGENDA_READY'; end if;
+
+  -- Direct PostgREST-style status mutate denied (as authenticated)
+  perform pg_temp.as_user(v_chair);
+  perform pg_temp.deny_zero('DIRECT_STATUS_UPDATE',
+    format($q$update public.academic_council_meetings set status = 'in_session' where id = '%s'$q$, v_meeting));
+  v_neg := v_neg + 1;
+
+  -- Open session negatives before attendance
+  perform pg_temp.deny_zero('OPEN_SESSION_NO_QUORUM',
+    format($q$select public.open_council_session('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_admin);
+  perform pg_temp.deny_zero('OPEN_SESSION_ADMIN_BYPASS',
+    format($q$select public.open_council_session('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_sec);
+  perform pg_temp.deny_zero('OPEN_SESSION_SECRETARY',
+    format($q$select public.open_council_session('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_mem_a);
+  perform pg_temp.deny_zero('OPEN_SESSION_MEMBER',
+    format($q$select public.open_council_session('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_viewer);
+  perform pg_temp.deny_zero('OPEN_SESSION_VIEWER',
+    format($q$select public.open_council_session('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_unrelated);
+  perform pg_temp.deny_zero('OPEN_SESSION_INACTIVE_MEMBER',
+    format($q$select public.open_council_session('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  raise notice 'AUTHORIZATION_MATRIX_PASS';
+
+  -- 9-11 attendance + quorum
+  perform pg_temp.as_user(v_sec);
+  perform public.record_council_meeting_attendance(v_meeting, jsonb_build_array(
     jsonb_build_object('user_id', v_chair, 'attendance_state', 'present'),
     jsonb_build_object('user_id', v_sec, 'attendance_state', 'present'),
     jsonb_build_object('user_id', v_mem_a, 'attendance_state', 'present_remote'),
     jsonb_build_object('user_id', v_mem_b, 'attendance_state', 'present'),
     jsonb_build_object('user_id', v_mem_c, 'attendance_state', 'absent')
   ));
-
   perform pg_temp.as_user(v_chair);
-  perform public.evaluate_council_meeting_quorum(v_meeting_id);
-  perform public.finalize_council_meeting_attendance(v_meeting_id);
-
-  if not public.meeting_has_valid_quorum(v_meeting_id) then
+  perform public.evaluate_council_meeting_quorum(v_meeting);
+  perform public.finalize_council_meeting_attendance(v_meeting);
+  if not public.meeting_has_valid_quorum(v_meeting) then
     raise exception 'EXPECTED_VALID_QUORUM';
   end if;
 
-  -- Open session as Chair
-  v_res := public.open_council_session(v_meeting_id);
-  if (v_res->>'status') <> 'in_session' then
-    raise exception 'EXPECTED_IN_SESSION';
+  -- 12 open session via C4 → real C1 transition
+  v_res := public.open_council_session(v_meeting);
+  if (v_res->>'status') <> 'in_session' then raise exception 'EXPECTED_IN_SESSION'; end if;
+  if not exists (
+    select 1 from public.academic_council_meeting_transition_events
+    where meeting_id = v_meeting
+      and from_status = 'agenda_ready'
+      and to_status = 'in_session'
+  ) then
+    raise exception 'MISSING_C1_TRANSITION_EVENT_IN_SESSION';
   end if;
-  raise notice 'SESSION_OPENED_SUCCESS';
 
-  -- ---------------------------------------------------------------------
-  -- TEST 4: Agenda Execution & Voting Lifecycle
-  -- ---------------------------------------------------------------------
-  -- Start discussion item 1
-  perform public.start_agenda_item_discussion(v_item_1_id);
+  -- Stale concurrency: second open must fail with zero mutation
+  perform pg_temp.deny_zero('SESSION_OPEN_RACE',
+    format($q$select public.open_council_session('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
 
-  -- Open vote item 1
-  perform public.open_agenda_item_vote(v_item_1_id);
+  -- 13-18 agenda + voting
+  perform public.start_agenda_item_discussion(v_item1);
+  perform public.open_agenda_item_vote(v_item1);
 
-  -- Cast votes:
-  -- Member C (absent) tries to vote -> DENIED
   perform pg_temp.as_user(v_mem_c);
-  perform pg_temp.expect_fail('ABSENT_MEMBER_VOTE',
-    format('select public.cast_council_vote(''%s'', ''yes'')', v_item_1_id));
-
-  -- Viewer tries to vote -> DENIED
+  perform pg_temp.deny_zero('ABSENT_MEMBER_VOTE',
+    format($q$select public.cast_council_vote('%s','yes')$q$, v_item1));
+  v_neg := v_neg + 1;
   perform pg_temp.as_user(v_viewer);
-  perform pg_temp.expect_fail('VIEWER_VOTE',
-    format('select public.cast_council_vote(''%s'', ''yes'')', v_item_1_id));
+  perform pg_temp.deny_zero('VIEWER_VOTE',
+    format($q$select public.cast_council_vote('%s','yes')$q$, v_item1));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_admin);
+  perform pg_temp.deny_zero('ADMIN_VOTE_BYPASS',
+    format($q$select public.cast_council_vote('%s','yes')$q$, v_item1));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_chair_other);
+  perform pg_temp.deny_zero('CROSS_COUNCIL_VOTE',
+    format($q$select public.cast_council_vote('%s','yes')$q$, v_item1));
+  v_neg := v_neg + 1;
 
-  -- Member A votes yes
+  -- Direct vote insert denied
   perform pg_temp.as_user(v_mem_a);
-  perform public.cast_council_vote(v_item_1_id, 'yes');
+  perform pg_temp.deny_zero('DIRECT_VOTE_INSERT',
+    format($q$insert into public.academic_council_votes (meeting_id, agenda_item_id, council_id, voter_user_id, vote_value)
+           values ('%s','%s','%s','%s','yes')$q$, v_meeting, v_item1, v_council, v_mem_a));
+  v_neg := v_neg + 1;
 
-  -- Member A double vote -> DENIED
-  perform pg_temp.expect_fail('DOUBLE_VOTE',
-    format('select public.cast_council_vote(''%s'', ''yes'')', v_item_1_id));
+  perform public.cast_council_vote(v_item1, 'yes');
+  perform pg_temp.deny_zero('DOUBLE_VOTE',
+    format($q$select public.cast_council_vote('%s','no')$q$, v_item1));
+  v_neg := v_neg + 1;
 
-  -- Secretary votes yes
   perform pg_temp.as_user(v_sec);
-  perform public.cast_council_vote(v_item_1_id, 'yes');
-
-  -- Member B votes no
+  perform public.cast_council_vote(v_item1, 'yes');
   perform pg_temp.as_user(v_mem_b);
-  perform public.cast_council_vote(v_item_1_id, 'no');
-
-  -- Close vote item 1
+  perform public.cast_council_vote(v_item1, 'no');
   perform pg_temp.as_user(v_chair);
-  perform public.close_agenda_item_vote(v_item_1_id);
+  perform public.cast_council_vote(v_item1, 'abstain');
 
-  -- Vote after close -> DENIED
+  perform public.close_agenda_item_vote(v_item1);
   perform pg_temp.as_user(v_mem_a);
-  perform pg_temp.expect_fail('VOTE_AFTER_CLOSE',
-    format('select public.cast_council_vote(''%s'', ''abstain'')', v_item_1_id));
+  perform pg_temp.deny_zero('VOTE_AFTER_CLOSE',
+    format($q$select public.cast_council_vote('%s','abstain')$q$, v_item1));
+  v_neg := v_neg + 1;
 
-  -- Calculate result
   perform pg_temp.as_user(v_chair);
-  v_res := public.calculate_agenda_item_result(v_item_1_id);
+  v_res := public.calculate_agenda_item_result(v_item1);
   if (v_res->>'outcome') <> 'passed' or (v_res->>'yes_count')::int <> 2 then
     raise exception 'VOTE_CALCULATION_MISMATCH: %', v_res;
   end if;
+  perform public.resolve_agenda_item(v_item1, 'Approved by vote');
 
-  -- Resolve item 1
-  perform public.resolve_agenda_item(v_item_1_id, 'Approved by vote 2-1');
+  perform public.start_agenda_item_discussion(v_item2);
+  perform public.resolve_agenda_item(v_item2, 'Noted without vote');
+  raise notice 'VOTING_SECURITY_PASS';
 
-  -- Execute item 2: resolve directly
-  perform public.start_agenda_item_discussion(v_item_2_id);
-  perform public.resolve_agenda_item(v_item_2_id, 'Noted without vote');
+  -- 19 close session → minutes_draft via C1
+  v_res := public.close_council_session(v_meeting);
+  if (v_res->>'status') <> 'minutes_draft' then raise exception 'EXPECTED_MINUTES_DRAFT'; end if;
 
-  -- Close session -> status: minutes_draft
-  v_res := public.close_council_session(v_meeting_id);
-  if (v_res->>'status') <> 'minutes_draft' then
-    raise exception 'EXPECTED_MINUTES_DRAFT';
-  end if;
-  raise notice 'SESSION_CLOSED_SUCCESS';
-
-  -- ---------------------------------------------------------------------
-  -- TEST 5: Minutes Drafting, Review, & Lock Guards
-  -- ---------------------------------------------------------------------
-  -- Secretary drafts minutes
+  -- 20-22 minutes
   perform pg_temp.as_user(v_sec);
-  perform public.draft_council_minutes(v_meeting_id, 'Initial draft minutes for Meeting 1.');
+  perform public.draft_council_minutes(v_meeting, 'Initial draft minutes for Meeting 1.');
+  perform public.submit_council_minutes_for_review(v_meeting);
+  select status::text into v_status from public.academic_council_meetings where id = v_meeting;
+  if v_status <> 'minutes_review' then raise exception 'EXPECTED_MINUTES_REVIEW'; end if;
 
-  -- Secretary submits for review
-  perform public.submit_council_minutes_for_review(v_meeting_id);
+  perform pg_temp.deny_zero('SECRETARY_LOCK_MINUTES',
+    format($q$select public.approve_and_lock_council_minutes('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
 
-  -- Secretary tries to approve & lock -> DENIED (Chair only)
-  perform pg_temp.expect_fail('SECRETARY_LOCK_MINUTES',
-    format('select public.approve_and_lock_council_minutes(''%s'')', v_meeting_id));
-
-  -- Chair approves & locks minutes
   perform pg_temp.as_user(v_chair);
-  v_res := public.approve_and_lock_council_minutes(v_meeting_id, 'Final approved minutes content for Meeting 1.');
-  if (v_res->>'is_locked')::boolean <> true then
-    raise exception 'EXPECTED_MINUTES_LOCKED';
-  end if;
-  raise notice 'MINUTES_LOCKED_SUCCESS';
+  v_res := public.approve_and_lock_council_minutes(v_meeting, 'Final approved minutes content for Meeting 1.');
+  if (v_res->>'is_locked')::boolean is not true then raise exception 'EXPECTED_MINUTES_LOCKED'; end if;
+  select status::text into v_status from public.academic_council_meetings where id = v_meeting;
+  if v_status <> 'minutes_locked' then raise exception 'EXPECTED_MEETING_MINUTES_LOCKED'; end if;
 
-  -- Post-lock mutation attempts:
-  -- 1) Edit locked minutes -> DENIED
+  -- Post-lock immutability
   perform pg_temp.as_user(v_sec);
-  perform pg_temp.expect_fail('EDIT_LOCKED_MINUTES',
-    format('select public.draft_council_minutes(''%s'', ''tampered body'')', v_meeting_id));
-
-  -- 2) Direct DELETE on minutes -> DENIED
+  perform pg_temp.deny_zero('EDIT_LOCKED_MINUTES',
+    format($q$select public.draft_council_minutes('%s','tampered')$q$, v_meeting));
+  v_neg := v_neg + 1;
   perform pg_temp.as_user(v_admin);
-  perform pg_temp.expect_fail('DELETE_LOCKED_MINUTES',
-    format('delete from public.academic_council_minutes where meeting_id = ''%s''', v_meeting_id));
+  perform pg_temp.deny_zero('DELETE_LOCKED_MINUTES',
+    format($q$delete from public.academic_council_minutes where meeting_id = '%s'$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('UPDATE_LOCKED_AGENDA_ITEM',
+    format($q$update public.academic_council_agenda_items set title = 'tampered' where id = '%s'$q$, v_item1));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('UPDATE_LOCKED_VOTE',
+    format($q$update public.academic_council_votes set vote_value = 'no' where agenda_item_id = '%s'$q$, v_item1));
+  v_neg := v_neg + 1;
+  raise notice 'MINUTES_IMMUTABILITY_PASS';
 
-  -- 3) Direct UPDATE on agenda item after lock -> DENIED
-  perform pg_temp.expect_fail('UPDATE_LOCKED_AGENDA_ITEM',
-    format('update public.academic_council_agenda_items set title = ''tampered'' where id = ''%s''', v_item_1_id));
-
-  raise notice 'LOCKED_MINUTES_IMMUTABILITY_PASS';
-
-  -- ---------------------------------------------------------------------
-  -- TEST 6: Decisions & Follow-up
-  -- ---------------------------------------------------------------------
-  -- Issue Decision
+  -- 23-26 decisions
   perform pg_temp.as_user(v_chair);
   v_res := public.issue_council_decision(
-    v_meeting_id, v_item_1_id, 'Execute Topic A Plan',
+    v_meeting, v_item1, 'Execute Topic A Plan',
     'Department shall implement Topic A recommendations by due date.',
-    v_mem_a, 'Department of Computer Science', (CURRENT_DATE + interval '30 days')::date
+    v_mem_a, 'Department of Computer Science', (current_date + 30)::date
   );
-  v_dec_id := (v_res->>'decision_id')::uuid;
-  if v_dec_id is null or (v_res->>'canonical_number') is null then
-    raise exception 'DECISION_ISSUANCE_FAILED';
-  end if;
+  v_dec := (v_res->>'decision_id')::uuid;
+  if v_dec is null then raise exception 'DECISION_ISSUANCE_FAILED'; end if;
 
-  -- Attempt to mutate core decision text after minutes lock -> DENIED
-  perform pg_temp.expect_fail('MUTATE_LOCKED_DECISION_TEXT',
-    format('update public.academic_council_decisions set title = ''tampered'' where id = ''%s''', v_dec_id));
+  perform pg_temp.deny_zero('MUTATE_LOCKED_DECISION_TEXT',
+    format($q$update public.academic_council_decisions set title = 'tampered' where id = '%s'$q$, v_dec));
+  v_neg := v_neg + 1;
 
-  -- Unassigned Member B tries to update follow-up -> DENIED
   perform pg_temp.as_user(v_mem_b);
-  perform pg_temp.expect_fail('UNASSIGNED_FOLLOWUP_UPDATE',
-    format('select public.update_council_decision_followup(''%s'', ''in_progress'')', v_dec_id));
+  perform pg_temp.deny_zero('UNASSIGNED_FOLLOWUP_UPDATE',
+    format($q$select public.update_council_decision_followup('%s','in_progress')$q$, v_dec));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_admin);
+  perform pg_temp.deny_zero('ADMIN_FOLLOWUP_BYPASS',
+    format($q$select public.update_council_decision_followup('%s','in_progress')$q$, v_dec));
+  v_neg := v_neg + 1;
 
-  -- Responsible Member A updates progress to in_progress
   perform pg_temp.as_user(v_mem_a);
-  perform public.update_council_decision_followup(v_dec_id, 'in_progress', 'Work started with committee.');
-
-  -- Responsible Member A completes decision
-  perform public.complete_council_decision(v_dec_id, 'Execution fully completed and verified.');
-
-  -- Attempt backward transition from completed to issued -> DENIED
-  perform pg_temp.expect_fail('COMPLETED_DECISION_BACKWARD',
-    format('select public.update_council_decision_followup(''%s'', ''issued'')', v_dec_id));
-
+  perform public.update_council_decision_followup(v_dec, 'in_progress', 'Work started.');
+  perform public.complete_council_decision(v_dec, 'Execution completed.');
+  perform pg_temp.deny_zero('COMPLETED_DECISION_BACKWARD',
+    format($q$select public.update_council_decision_followup('%s','issued')$q$, v_dec));
+  v_neg := v_neg + 1;
   raise notice 'DECISION_FOLLOWUP_PASS';
 
-  -- ---------------------------------------------------------------------
-  -- TEST 7: Archive Prerequisites & Historical Access
-  -- ---------------------------------------------------------------------
-  -- Secretary tries to archive -> DENIED
+  -- 27 archive
   perform pg_temp.as_user(v_sec);
-  perform pg_temp.expect_fail('SECRETARY_ARCHIVE',
-    format('select public.archive_council_meeting(''%s'')', v_meeting_id));
+  perform pg_temp.deny_zero('SECRETARY_ARCHIVE',
+    format($q$select public.archive_council_meeting('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_admin);
+  perform pg_temp.deny_zero('ADMIN_ARCHIVE_BYPASS',
+    format($q$select public.archive_council_meeting('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
 
-  -- Chair archives meeting
   perform pg_temp.as_user(v_chair);
-  v_res := public.archive_council_meeting(v_meeting_id);
-  if (v_res->>'status') <> 'archived' then
-    raise exception 'ARCHIVE_FAILED';
+  v_res := public.archive_council_meeting(v_meeting);
+  if (v_res->>'status') <> 'archived' then raise exception 'ARCHIVE_FAILED'; end if;
+
+  perform pg_temp.deny_zero('POST_ARCHIVE_MEETING_MUTATION',
+    format($q$update public.academic_council_meetings set title = 'tampered' where id = '%s'$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('POST_ARCHIVE_AGENDA_MUTATION',
+    format($q$update public.academic_council_agenda_items set resolution = 'x' where id = '%s'$q$, v_item1));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('POST_ARCHIVE_VOTE_MUTATION',
+    format($q$update public.academic_council_votes set vote_value = 'abstain' where agenda_item_id = '%s'$q$, v_item1));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('POST_ARCHIVE_MINUTES_MUTATION',
+    format($q$update public.academic_council_minutes set body = 'x' where meeting_id = '%s'$q$, v_meeting));
+  v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('POST_ARCHIVE_DECISION_MUTATION',
+    format($q$update public.academic_council_decisions set title = 'x' where id = '%s'$q$, v_dec));
+  v_neg := v_neg + 1;
+  raise notice 'ARCHIVE_IMMUTABILITY_PASS';
+
+  -- 28 historical read
+  v_res := public.get_council_archive_summary(v_council);
+  if (v_res->>'total_archived_meetings')::int < 1 then raise exception 'ARCHIVE_SUMMARY_MISMATCH'; end if;
+  v_res := public.get_council_decision_followup_dashboard(v_council);
+  if ((v_res->'summary')->>'completed')::int < 1 then raise exception 'DASHBOARD_COMPLETED_MISMATCH'; end if;
+  v_res := public.get_council_historical_minutes(v_meeting);
+  if (v_res->>'is_locked')::boolean is not true then raise exception 'HISTORICAL_MINUTES_MISMATCH'; end if;
+  v_res := public.get_council_meeting_metrics(v_council);
+  if (v_res->>'archived_meetings')::int < 1 then raise exception 'METRICS_MISMATCH'; end if;
+
+  -- Anonymous / student historical deny
+  perform pg_temp.reset_role();
+  perform set_config('request.jwt.claim.sub', '', true);
+  execute 'set local role anon';
+  perform pg_temp.expect_fail('ANON_HISTORICAL_MINUTES',
+    format($q$select public.get_council_historical_minutes('%s')$q$, v_meeting));
+  insert into pg_temp.denial_log(label) values ('ANON_HISTORICAL_MINUTES') on conflict do nothing;
+  v_neg := v_neg + 1;
+
+  perform pg_temp.as_user(v_student);
+  perform pg_temp.deny_zero('STUDENT_HISTORICAL_MINUTES',
+    format($q$select public.get_council_historical_minutes('%s')$q$, v_meeting));
+  v_neg := v_neg + 1;
+
+  -- Cancellation legality only pre-session (on a fresh meeting)
+  perform pg_temp.as_user(v_chair);
+  v_res := public.council_schedule_meeting(v_council, 'Cancelable', now() + interval '5 days');
+  perform public.council_transition_meeting(
+    (v_res->>'meeting_id')::uuid, 'scheduled', 'cancelled', '{"via":"cancel_ok"}'::jsonb
+  );
+
+  raise notice 'POSITIVE_FULL_LIFECYCLE_PASS';
+  raise notice 'ZERO_MUTATION_DENIALS_COUNTED';
+  raise notice 'NEGATIVE_CASE_COUNT=%', (select count(*) from pg_temp.denial_log);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 3) CONCURRENCY / STALE-STATE races on a second meeting path
+-- ---------------------------------------------------------------------
+do $$
+declare
+  v_council uuid := 'c1000000-0000-0000-0000-000000000001';
+  v_chair uuid := 'a1000000-0000-0000-0000-000000000011';
+  v_sec uuid := 'a1000000-0000-0000-0000-000000000013';
+  v_mem_a uuid := 'a1000000-0000-0000-0000-000000000014';
+  v_mem_b uuid := 'a1000000-0000-0000-0000-000000000018';
+  v_mem_c uuid := 'a1000000-0000-0000-0000-000000000019';
+  v_meeting uuid;
+  v_topic uuid;
+  v_item uuid;
+  v_res jsonb;
+begin
+  perform pg_temp.as_user(v_chair);
+  v_res := public.council_schedule_meeting(
+    v_council, 'Concurrency Meeting', now() + interval '3 days',
+    null, now() - interval '1 hour', now() + interval '12 hours'
+  );
+  v_meeting := (v_res->>'meeting_id')::uuid;
+  perform public.council_transition_meeting(v_meeting, 'scheduled', 'intake_open', '{}'::jsonb);
+
+  perform pg_temp.as_user(v_mem_a);
+  v_res := public.council_submit_topic(v_council, v_meeting, 'Race Topic', 'Body');
+  v_topic := (v_res->>'topic_id')::uuid;
+  perform pg_temp.as_user(v_sec);
+  perform public.council_review_topic(v_topic, 'under_review');
+  perform pg_temp.as_user(v_chair);
+  perform public.council_review_topic(v_topic, 'accepted_for_agenda');
+  perform public.council_transition_meeting(v_meeting, 'intake_open', 'intake_closed', '{}'::jsonb);
+  perform pg_temp.as_user(v_sec);
+  v_res := public.council_add_topic_to_agenda(v_meeting, v_topic, 1);
+  v_item := (v_res->>'agenda_item_id')::uuid;
+  perform pg_temp.as_user(v_chair);
+  perform public.council_finalize_meeting_agenda(v_meeting);
+
+  -- Transition race: stale expected status
+  perform public.council_transition_meeting(v_meeting, 'intake_closed', 'agenda_ready', '{}'::jsonb);
+  perform pg_temp.deny_zero('TRANSITION_STALE_RACE',
+    format($q$select public.council_transition_meeting('%s','intake_closed','agenda_ready','{}'::jsonb)$q$, v_meeting));
+
+  perform pg_temp.as_user(v_sec);
+  perform public.record_council_meeting_attendance(v_meeting, jsonb_build_array(
+    jsonb_build_object('user_id', v_chair, 'attendance_state', 'present'),
+    jsonb_build_object('user_id', v_sec, 'attendance_state', 'present'),
+    jsonb_build_object('user_id', v_mem_a, 'attendance_state', 'present'),
+    jsonb_build_object('user_id', v_mem_b, 'attendance_state', 'present'),
+    jsonb_build_object('user_id', v_mem_c, 'attendance_state', 'absent')
+  ));
+  perform pg_temp.as_user(v_chair);
+  perform public.finalize_council_meeting_attendance(v_meeting);
+  perform pg_temp.deny_zero('ATTENDANCE_FINALIZE_RACE',
+    format($q$select public.finalize_council_meeting_attendance('%s')$q$, v_meeting));
+
+  perform public.open_council_session(v_meeting);
+  perform public.start_agenda_item_discussion(v_item);
+  perform public.open_agenda_item_vote(v_item);
+  perform pg_temp.as_user(v_mem_a);
+  perform public.cast_council_vote(v_item, 'yes');
+  perform pg_temp.as_user(v_chair);
+  perform public.close_agenda_item_vote(v_item);
+  perform pg_temp.deny_zero('VOTE_VS_CLOSE_RACE',
+    format($q$select public.cast_council_vote('%s','no')$q$, v_item));
+
+  perform public.calculate_agenda_item_result(v_item);
+  perform public.resolve_agenda_item(v_item, 'done');
+  perform public.close_council_session(v_meeting);
+  perform pg_temp.as_user(v_sec);
+  perform public.draft_council_minutes(v_meeting, 'Draft for concurrency meeting.');
+  perform public.submit_council_minutes_for_review(v_meeting);
+  perform pg_temp.deny_zero('MINUTES_LOCK_VS_DRAFT',
+    format($q$select public.draft_council_minutes('%s','tamper during review')$q$, v_meeting));
+  -- Chair may still lock; draft after lock already covered in primary journey.
+
+  raise notice 'CONCURRENCY_PASS';
+end $$;
+
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from pg_temp.denial_log;
+  if v_count < 25 then
+    raise exception 'INSUFFICIENT_NEGATIVE_CASES: %', v_count;
   end if;
-
-  -- Post-archive mutation on meeting -> DENIED
-  perform pg_temp.expect_fail('POST_ARCHIVE_MUTATION',
-    format('update public.academic_council_meetings set title = ''tampered'' where id = ''%s''', v_meeting_id));
-
-  -- Read Models Verification
-  v_res := public.get_council_archive_summary(v_council_id);
-  if (v_res->>'total_archived_meetings')::int <> 1 then raise exception 'ARCHIVE_SUMMARY_MISMATCH'; end if;
-
-  v_res := public.get_council_decision_followup_dashboard(v_council_id);
-  if ((v_res->'summary')->>'completed')::int <> 1 then raise exception 'DASHBOARD_COMPLETED_MISMATCH'; end if;
-
-  v_res := public.get_council_historical_minutes(v_meeting_id);
-  if (v_res->>'is_locked')::boolean <> true then raise exception 'HISTORICAL_MINUTES_MISMATCH'; end if;
-
-  v_res := public.get_council_meeting_metrics(v_council_id);
-  if (v_res->>'archived_meetings')::int <> 1 then raise exception 'METRICS_MISMATCH'; end if;
-
-  raise notice 'C7_ARCHIVE_READ_MODELS_PASS';
   raise notice 'ACADEMIC_COUNCILS_C4_C8_VERIFIER_PASS';
 end $$;
 

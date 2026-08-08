@@ -8,8 +8,6 @@ import {
   Archive,
   Vote,
   FileText,
-  AlertCircle,
-  Clock,
   Loader2,
   Send,
   Sparkles,
@@ -38,23 +36,19 @@ import {
 import {
   openCouncilSessionFn,
   startAgendaItemDiscussionFn,
-  openAgendaItemVoteFn,
-  castCouncilVoteFn,
-  closeAgendaItemVoteFn,
-  calculateAgendaItemResultFn,
-  resolveAgendaItemFn,
   closeCouncilSessionFn,
   draftCouncilMinutesFn,
   submitCouncilMinutesForReviewFn,
   approveAndLockCouncilMinutesFn,
   issueCouncilDecisionFn,
   updateCouncilDecisionFollowupFn,
-  completeCouncilDecisionFn,
   archiveCouncilMeetingFn,
   getCouncilDecisionFollowupDashboardFn,
   getCouncilHistoricalMinutesFn,
-  getCouncilVoteResultFn,
 } from "@/lib/councils-c4-c8.functions";
+import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl";
+import { getAgendaItemsForMeeting } from "@/lib/faculty-councils.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 interface CouncilSessionWorkspaceProps {
   meetingId: string;
@@ -247,10 +241,50 @@ export function CouncilSessionAndGovernanceWorkspace({
   const minutesData = minutesQuery.data;
   const isMinutesLocked = minutesData?.is_locked || meetingStatus === "minutes_locked" || meetingStatus === "archived";
 
+  const fetchAgenda = useServerFn(getAgendaItemsForMeeting);
+  const agendaQuery = useQuery({
+    queryKey: ["council-session-agenda", meetingId],
+    queryFn: () => fetchAgenda({ data: { meetingId } }),
+    enabled: Boolean(meetingId) && (meetingStatus === "in_session" || meetingStatus === "agenda_ready"),
+  });
+
+  const ROLE_LABELS: Record<string, string> = {
+    chair: "رئيس المجلس",
+    secretary: "أمين السر",
+    member: "عضو",
+    viewer: "مطّلع",
+  };
+  const STATUS_LABELS: Record<string, string> = {
+    scheduled: "مجدول",
+    intake_open: "فتح استقبال الموضوعات",
+    intake_closed: "إغلاق الاستقبال",
+    agenda_ready: "جدول الأعمال جاهز",
+    in_session: "جلسة منعقدة",
+    minutes_draft: "مسودة محضر",
+    minutes_review: "مراجعة المحضر",
+    minutes_locked: "محضر مقفل",
+    archived: "مؤرشف",
+    cancelled: "ملغى",
+  };
+
+  async function handleStartDiscussion(agendaItemId: string) {
+    setLoadingAction(`discuss-${agendaItemId}`);
+    try {
+      await startAgendaItemDiscussionFn({ data: { agenda_item_id: agendaItemId } });
+      toast.success("تم بدء مناقشة البند");
+      qc.invalidateQueries({ queryKey: ["council-session-agenda", meetingId] });
+      onStateChanged?.();
+    } catch (err: any) {
+      toast.error(err.message || "تعذر بدء المناقشة");
+    } finally {
+      setLoadingAction(null);
+    }
+  }
+
   return (
-    <div className="space-y-6 dir-rtl text-right font-sans">
+    <div className="space-y-6" dir="rtl">
       {/* Session Header Status Banner */}
-      <div className="p-4 rounded-xl bg-slate-900 text-white shadow-md flex items-center justify-between border border-slate-800">
+      <div className="p-4 rounded-xl bg-slate-900 text-white shadow-md flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border border-slate-800">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-lg bg-indigo-600/30 text-indigo-400">
             <ShieldCheck className="w-6 h-6" />
@@ -258,9 +292,13 @@ export function CouncilSessionAndGovernanceWorkspace({
           <div>
             <h3 className="font-bold text-lg">إدارة وتيسير الجلسة الحية والقرارات</h3>
             <p className="text-xs text-slate-400">
-              الدور الحالي: <span className="text-indigo-300 font-semibold">{userRole}</span> · حالة الاجتماع:{" "}
+              الدور الحالي:{" "}
+              <span className="text-indigo-300 font-semibold">
+                {ROLE_LABELS[userRole] ?? userRole}
+              </span>{" "}
+              · حالة الاجتماع:{" "}
               <Badge variant="outline" className="border-indigo-400/40 text-indigo-300">
-                {meetingStatus}
+                {STATUS_LABELS[meetingStatus] ?? meetingStatus}
               </Badge>
             </p>
           </div>
@@ -325,6 +363,76 @@ export function CouncilSessionAndGovernanceWorkspace({
           )}
         </div>
       </div>
+
+      {/* In-session agenda + voting */}
+      {meetingStatus === "in_session" && (
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <Vote className="w-5 h-5 text-indigo-600" />
+            <h4 className="font-bold text-md">بنود الجلسة والتصويت</h4>
+          </div>
+          {agendaQuery.isLoading ? (
+            <p className="text-sm text-slate-500">جاري تحميل بنود جدول الأعمال...</p>
+          ) : (agendaQuery.data?.items ?? []).length === 0 ? (
+            <p className="text-sm text-slate-500">لا توجد بنود معتمدة لهذا الاجتماع.</p>
+          ) : (
+            <div className="space-y-4">
+              {(agendaQuery.data?.items ?? []).map((item) => {
+                const sessionStatus = item.session_status ?? "pending";
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-slate-200 p-4 space-y-3 bg-slate-50/60"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-bold text-sm text-slate-900">
+                          {item.order_index}. {item.title}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          حالة البند: {sessionStatus}
+                        </p>
+                      </div>
+                      {isChair && sessionStatus === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={loadingAction === `discuss-${item.id}`}
+                          onClick={() => void handleStartDiscussion(item.id)}
+                        >
+                          {loadingAction === `discuss-${item.id}` ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin ml-1" />
+                          ) : (
+                            <Play className="w-3.5 h-3.5 ml-1" />
+                          )}
+                          بدء المناقشة
+                        </Button>
+                      )}
+                    </div>
+                    {sessionStatus !== "pending" && (
+                      <CouncilVotingControl
+                        agendaItemId={item.id}
+                        sessionStatus={sessionStatus}
+                        isChair={isChair}
+                        isEligibleMember={
+                          userRole === "member" ||
+                          userRole === "chair" ||
+                          userRole === "secretary"
+                        }
+                        resolutionText={item.resolution}
+                        onStatusChanged={() => {
+                          qc.invalidateQueries({ queryKey: ["council-session-agenda", meetingId] });
+                          onStateChanged?.();
+                        }}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Minutes & Lock Section */}
       <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -435,7 +543,11 @@ export function CouncilSessionAndGovernanceWorkspace({
                       : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                   }
                 >
-                  {dec.status}
+                  {dec.status === "completed"
+                    ? "مكتمل"
+                    : dec.status === "in_progress"
+                    ? "قيد التنفيذ"
+                    : "صادر"}
                 </Badge>
               </div>
 

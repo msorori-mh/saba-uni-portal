@@ -1458,6 +1458,8 @@ function mapFacultyAgendaItemRow(row: Record<string, unknown>): CouncilAgendaIte
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
     updated_by: (row.updated_by as string | null) ?? null,
+    session_status: (row.session_status as string | null) ?? null,
+    resolution: (row.resolution as string | null) ?? null,
     topic: topicRow
       ? {
           id: topicRow.id as string,
@@ -1497,7 +1499,7 @@ export const getAgendaItemsForMeeting = createServerFn({ method: "POST" })
     const { data: rows, error } = await sb
       .from("academic_council_agenda_items")
       .select(
-        "id, meeting_id, topic_id, title, order_index, notes, is_approved, approved_by, approved_at, created_by, created_at, updated_at, updated_by, topic:academic_council_topics(id, title, status, submitted_by, submitted_at, review_note)",
+        "id, meeting_id, topic_id, title, order_index, notes, is_approved, approved_by, approved_at, created_by, created_at, updated_at, updated_by, session_status, resolution, topic:academic_council_topics(id, title, status, submitted_by, submitted_at, review_note)",
       )
       .eq("meeting_id", data.meetingId)
       .order("order_index", { ascending: true });

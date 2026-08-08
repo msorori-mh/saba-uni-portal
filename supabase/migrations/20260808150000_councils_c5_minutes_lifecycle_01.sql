@@ -22,6 +22,11 @@ BEGIN
   IF to_regclass('public.academic_council_minutes') IS NULL THEN
     RAISE EXCEPTION 'C5 minutes lifecycle requires academic_council_minutes table';
   END IF;
+  IF to_regprocedure(
+       'public.council_transition_meeting(uuid,public.academic_council_meeting_status,public.academic_council_meeting_status,jsonb)'
+     ) IS NULL THEN
+    RAISE EXCEPTION 'C5 minutes lifecycle requires real C1 council_transition_meeting';
+  END IF;
 END $$;
 
 -- ---------------------------------------------------------------------
@@ -244,6 +249,10 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_SECRETARY_AUTHORITY_REQUIRED' USING ERRCODE = '42501';
   END IF;
 
+  IF v_meeting.status <> 'minutes_draft'::public.academic_council_meeting_status THEN
+    RAISE EXCEPTION 'COUNCIL_MINUTES_SUBMIT_STATE_INVALID: status is %', v_meeting.status USING ERRCODE = '22000';
+  END IF;
+
   SELECT * INTO v_min FROM public.academic_council_minutes WHERE meeting_id = p_meeting_id FOR UPDATE;
   IF v_min.id IS NULL THEN RAISE EXCEPTION 'COUNCIL_MINUTES_NOT_FOUND' USING ERRCODE = 'P0002'; END IF;
 
@@ -251,10 +260,46 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_MINUTES_LOCKED_IMMUTABLE' USING ERRCODE = '42501';
   END IF;
 
+  IF length(trim(coalesce(v_min.body, ''))) = 0 THEN
+    RAISE EXCEPTION 'COUNCIL_MINUTES_BODY_REQUIRED' USING ERRCODE = '22000';
+  END IF;
+
   UPDATE public.academic_council_minutes
   SET status = 'minutes_review'::public.academic_council_minutes_status,
       updated_at = now()
   WHERE meeting_id = p_meeting_id;
+
+  -- Secretary-owned edge: minutes_draft → minutes_review.
+  -- Uses C1 legality + append-only transition event; does not grant chair powers.
+  IF NOT public.council_meeting_transition_is_legal(
+    'minutes_draft'::public.academic_council_meeting_status,
+    'minutes_review'::public.academic_council_meeting_status
+  ) THEN
+    RAISE EXCEPTION 'COUNCIL_TRANSITION_ILLEGAL' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.academic_council_meetings
+  SET status = 'minutes_review'::public.academic_council_meeting_status,
+      updated_by = v_uid,
+      updated_at = now()
+  WHERE id = p_meeting_id
+    AND status = 'minutes_draft'::public.academic_council_meeting_status;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'COUNCIL_MEETING_STALE_STATE' USING ERRCODE = '22000';
+  END IF;
+
+  INSERT INTO public.academic_council_meeting_transition_events (
+    meeting_id, council_id, from_status, to_status, expected_from_status, actor_user_id, evidence
+  ) VALUES (
+    p_meeting_id,
+    v_meeting.council_id,
+    'minutes_draft'::public.academic_council_meeting_status,
+    'minutes_review'::public.academic_council_meeting_status,
+    'minutes_draft'::public.academic_council_meeting_status,
+    v_uid,
+    jsonb_build_object('via', 'submit_council_minutes_for_review')
+  );
 
   PERFORM public.council_attendance_emit_audit(
     p_meeting_id, v_meeting.council_id, v_uid,
@@ -293,6 +338,10 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_CHAIR_AUTHORITY_REQUIRED' USING ERRCODE = '42501';
   END IF;
 
+  IF v_meeting.status <> 'minutes_review'::public.academic_council_meeting_status THEN
+    RAISE EXCEPTION 'COUNCIL_MINUTES_LOCK_STATE_INVALID: status is %', v_meeting.status USING ERRCODE = '22000';
+  END IF;
+
   -- Quorum check
   IF NOT public.meeting_has_valid_quorum(p_meeting_id) THEN
     RAISE EXCEPTION 'COUNCIL_QUORUM_NOT_MET' USING ERRCODE = '22000';
@@ -303,6 +352,10 @@ BEGIN
 
   IF v_min.is_locked OR v_min.status = 'minutes_locked'::public.academic_council_minutes_status THEN
     RAISE EXCEPTION 'COUNCIL_MINUTES_ALREADY_LOCKED' USING ERRCODE = '22000';
+  END IF;
+
+  IF v_min.status <> 'minutes_review'::public.academic_council_minutes_status THEN
+    RAISE EXCEPTION 'COUNCIL_MINUTES_NOT_IN_REVIEW' USING ERRCODE = '22000';
   END IF;
 
   v_final_body := coalesce(p_approved_body, v_min.body);
@@ -325,11 +378,13 @@ BEGIN
       updated_at = now()
   WHERE meeting_id = p_meeting_id;
 
-  UPDATE public.academic_council_meetings
-  SET status = 'minutes_locked'::public.academic_council_meeting_status,
-      updated_at = now(),
-      updated_by = v_uid
-  WHERE id = p_meeting_id;
+  -- Authoritative C1 transition: minutes_review → minutes_locked
+  PERFORM public.council_transition_meeting(
+    p_meeting_id,
+    'minutes_review'::public.academic_council_meeting_status,
+    'minutes_locked'::public.academic_council_meeting_status,
+    jsonb_build_object('via', 'approve_and_lock_council_minutes', 'fingerprint', v_fp)
+  );
 
   PERFORM public.council_attendance_emit_audit(
     p_meeting_id, v_meeting.council_id, v_uid,

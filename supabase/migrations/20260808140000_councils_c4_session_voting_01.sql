@@ -25,6 +25,16 @@ BEGIN
      OR to_regproc('public.meeting_has_valid_quorum') IS NULL THEN
     RAISE EXCEPTION 'C4 session and voting requires C3 attendance and quorum foundation';
   END IF;
+
+  -- Real C1 state machine must be present (no test-only shim substitute).
+  IF to_regprocedure(
+       'public.council_transition_meeting(uuid,public.academic_council_meeting_status,public.academic_council_meeting_status,jsonb)'
+     ) IS NULL
+     OR to_regprocedure(
+       'public.council_meeting_transition_is_legal(public.academic_council_meeting_status,public.academic_council_meeting_status)'
+     ) IS NULL THEN
+    RAISE EXCEPTION 'C4 session and voting requires real C1 meeting state machine';
+  END IF;
 END $$;
 
 -- ---------------------------------------------------------------------
@@ -142,9 +152,14 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-  -- Production check: fail closed if state transition contract is absent
-  IF to_regproc('public.can_transition_council_meeting_state') IS NULL
-     AND to_regproc('public.c1_assert_meeting_transition_contract') IS NULL THEN
+  -- Fail closed unless the REAL C1 transition RPC + legality helper exist.
+  -- Test-only shims (e.g. can_transition_council_meeting_state) are NOT accepted.
+  IF to_regprocedure(
+       'public.council_transition_meeting(uuid,public.academic_council_meeting_status,public.academic_council_meeting_status,jsonb)'
+     ) IS NULL
+     OR to_regprocedure(
+       'public.council_meeting_transition_is_legal(public.academic_council_meeting_status,public.academic_council_meeting_status)'
+     ) IS NULL THEN
     RAISE EXCEPTION 'COUNCIL_C1_TRANSITION_CONTRACT_ABSENT' USING ERRCODE = '42883';
   END IF;
   RETURN true;
@@ -219,15 +234,22 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_ATTENDANCE_NOT_FINALIZED' USING ERRCODE = '22000';
   END IF;
 
-  -- 7) Quorum check
+  -- 7) Quorum check (also enforced again inside real C1 transition)
   IF NOT public.meeting_has_valid_quorum(p_meeting_id) THEN
     RAISE EXCEPTION 'COUNCIL_QUORUM_NOT_MET' USING ERRCODE = '22000';
   END IF;
 
-  -- Update state to in_session
+  -- 8) Authoritative C1 transition: agenda_ready → in_session (no direct status mutate)
+  PERFORM public.council_transition_meeting(
+    p_meeting_id,
+    'agenda_ready'::public.academic_council_meeting_status,
+    'in_session'::public.academic_council_meeting_status,
+    jsonb_build_object('via', 'open_council_session', 'opened_by', v_uid)
+  );
+
+  -- Session telemetry columns (status already set by C1)
   UPDATE public.academic_council_meetings
-  SET status = 'in_session'::public.academic_council_meeting_status,
-      opened_at = now(),
+  SET opened_at = now(),
       opened_by = v_uid,
       updated_at = now(),
       updated_by = v_uid
@@ -612,9 +634,16 @@ BEGIN
     RAISE EXCEPTION 'COUNCIL_UNRESOLVED_ITEMS_EXIST: % items pending', v_unresolved_count USING ERRCODE = '22000';
   END IF;
 
+  -- Authoritative C1 transition: in_session → minutes_draft
+  PERFORM public.council_transition_meeting(
+    p_meeting_id,
+    'in_session'::public.academic_council_meeting_status,
+    'minutes_draft'::public.academic_council_meeting_status,
+    jsonb_build_object('via', 'close_council_session', 'closed_by', v_uid)
+  );
+
   UPDATE public.academic_council_meetings
-  SET status = 'minutes_draft'::public.academic_council_meeting_status,
-      closed_at = now(),
+  SET closed_at = now(),
       closed_by = v_uid,
       updated_at = now(),
       updated_by = v_uid
