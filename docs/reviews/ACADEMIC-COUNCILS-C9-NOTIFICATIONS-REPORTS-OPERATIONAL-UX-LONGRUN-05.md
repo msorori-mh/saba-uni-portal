@@ -7,7 +7,7 @@
 - **الفرع:** `feat/councils-c9-notifications-reports-ux-longrun-01`
 - **القاعدة:** `integration/councils-c0-c8-final-longrun-01`
 - **الـ PR:** [#303](https://github.com/msorori-mh/saba-uni-portal/pull/303)
-- **الـ FINAL_SHA:** `f3543d6e9784006c70eab16cda14bf544ce98568`
+- **الـ FINAL_SHA:** `9355dd311ab79b60414abecb2fdc483998841d6b`
 
 ## الملفات المعدلة والجديدة
 
