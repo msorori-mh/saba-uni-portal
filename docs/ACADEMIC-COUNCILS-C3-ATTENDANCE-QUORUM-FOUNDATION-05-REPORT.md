@@ -67,6 +67,9 @@ Forward-only C3 package (does **not** duplicate C0 write-surface hardening or C1
 | Field | Value |
 |---|---|
 | BRANCH | `feat/councils-c3-attendance-quorum-01` |
+| SHA | `e3c8b3b4` |
+| PR_NUMBER | 295 |
+| PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/295 |
 | DIRECT_WRITE_VERDICT | DENIED (C3 tables; zero mutation) |
 | QUORUM_FAIL_CLOSED | PASS (no policy / not finalized ⇒ false) |
 | ADMIN_ACADEMIC_BYPASS | ABSENT |
