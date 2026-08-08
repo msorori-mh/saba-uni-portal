@@ -270,6 +270,97 @@ begin
   raise notice 'DIRECT_WRITE_DENIED_ZERO_MUTATION';
 end $$;
 
+-- Accidental regrant defense-in-depth (disposable only): even if INSERT/UPDATE
+-- are re-granted to authenticated, deny-all write policies must still block mutation.
+do $$
+declare
+  u uuid := 'a1000000-0000-0000-0000-000000000011'::uuid;
+begin
+  perform pg_temp.reset_role();
+
+  grant insert, update on table public.academic_councils to authenticated;
+  grant insert, update on table public.academic_council_members to authenticated;
+  grant insert, update on table public.academic_council_meetings to authenticated;
+  grant insert, update on table public.academic_council_topics to authenticated;
+  grant insert, update on table public.academic_council_agenda_items to authenticated;
+  grant insert, update on table public.academic_council_minutes to authenticated;
+  grant insert, update on table public.academic_council_decisions to authenticated;
+
+  perform pg_temp.as_user(u);
+  perform pg_temp.expect_fail(
+    'REGRANT_INSERT_TOPICS',
+    $q$insert into public.academic_council_topics(council_id,title,body,submitted_by,status)
+       values ('c1000000-0000-0000-0000-000000000001','regrant','y',auth.uid(),'submitted')$q$
+  );
+  perform pg_temp.expect_fail(
+    'REGRANT_INSERT_MEETINGS',
+    $q$insert into public.academic_council_meetings(council_id,meeting_number,title,scheduled_at,created_by)
+       values ('c1000000-0000-0000-0000-000000000001',99,'regrant',now(),auth.uid())$q$
+  );
+  perform pg_temp.expect_fail(
+    'REGRANT_INSERT_AGENDA',
+    $q$insert into public.academic_council_agenda_items(meeting_id,title,order_index,created_by)
+       values ('14000000-0000-0000-0000-000000000001','regrant',50,auth.uid())$q$
+  );
+  perform pg_temp.expect_fail(
+    'REGRANT_INSERT_MEMBERS',
+    $q$insert into public.academic_council_members(council_id,user_id,member_role,created_by)
+       values ('c1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000016','member',auth.uid())$q$
+  );
+  perform pg_temp.expect_fail(
+    'REGRANT_INSERT_COUNCILS',
+    $q$insert into public.academic_councils(name,council_type,created_by)
+       values ('regrant','college',auth.uid())$q$
+  );
+  perform pg_temp.expect_fail(
+    'REGRANT_INSERT_MINUTES',
+    $q$insert into public.academic_council_minutes(meeting_id,body,drafted_by)
+       values ('14000000-0000-0000-0000-000000000001','regrant',auth.uid())$q$
+  );
+  perform pg_temp.expect_fail(
+    'REGRANT_INSERT_DECISIONS',
+    $q$insert into public.academic_council_decisions(meeting_id,decision_number,title,body,created_by)
+       values ('14000000-0000-0000-0000-000000000001',1,'regrant','y',auth.uid())$q$
+  );
+
+  -- UPDATE under deny-all USING(false) may affect 0 rows without raising;
+  -- prove zero mutation either way.
+  begin
+    execute $q$update public.academic_council_topics set title = 'regrant-hacked'
+               where id = '12000000-0000-0000-0000-000000000001'$q$;
+  exception
+    when insufficient_privilege then null;
+    when sqlstate '42501' then null;
+  end;
+  begin
+    execute $q$update public.academic_council_meetings set title = 'regrant-hacked'
+               where id = '14000000-0000-0000-0000-000000000001'$q$;
+  exception
+    when insufficient_privilege then null;
+    when sqlstate '42501' then null;
+  end;
+  begin
+    execute $q$update public.academic_council_agenda_items set title = 'regrant-hacked'
+               where id = '13000000-0000-0000-0000-000000000001'$q$;
+  exception
+    when insufficient_privilege then null;
+    when sqlstate '42501' then null;
+  end;
+
+  perform pg_temp.reset_role();
+  perform pg_temp.assert_zero_mutation('ACCIDENTAL_REGRANT');
+
+  revoke insert, update, delete on table public.academic_councils from authenticated;
+  revoke insert, update, delete on table public.academic_council_members from authenticated;
+  revoke insert, update, delete on table public.academic_council_meetings from authenticated;
+  revoke insert, update, delete on table public.academic_council_topics from authenticated;
+  revoke insert, update, delete on table public.academic_council_agenda_items from authenticated;
+  revoke insert, update, delete on table public.academic_council_minutes from authenticated;
+  revoke insert, update, delete on table public.academic_council_decisions from authenticated;
+
+  raise notice 'ACCIDENTAL_REGRANT_STILL_DENIED';
+end $$;
+
 do $$
 declare
   v jsonb;

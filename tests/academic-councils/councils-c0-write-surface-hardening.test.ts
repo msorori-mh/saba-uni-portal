@@ -134,13 +134,26 @@ afterAll(() => {
 });
 
 describe("Academic Councils C0 write-surface hardening", () => {
-  it("ships a forward-only revoke + RPC migration without production apply", () => {
+  it("ships a forward-only revoke + deny-all policy + RPC migration without production apply", () => {
     expect(migration).toContain("PROMOTED MIGRATION - NOT APPLIED TO PRODUCTION");
     expect(migration).toContain("REVOKE INSERT, UPDATE, DELETE ON TABLE public.academic_councils");
     expect(migration).toContain("REVOKE INSERT, UPDATE, DELETE ON TABLE public.academic_council_topics");
     expect(migration).toContain("GRANT SELECT ON TABLE public.academic_councils TO authenticated");
     expect(migration).not.toMatch(/GRANT\s+INSERT/i);
     expect(migration).not.toMatch(/TO\s+anon\b/i);
+    expect(migration).not.toMatch(/DROP\s+POLICY/i);
+    expect(migration).not.toMatch(/DELETE\s+FROM/i);
+    expect(migration).not.toMatch(/DROP\s+TABLE/i);
+    expect(migration).not.toMatch(/TRUNCATE/i);
+    expect(migration).toContain("fail-closed");
+    expect(migration).toContain("councils_insert_admin");
+    expect(migration).toContain("topics_update_owner_draft");
+    expect(migration).toContain("ALTER POLICY \"councils_insert_admin\"");
+    expect(migration).toContain("WITH CHECK (false)");
+    expect(migration).toContain("USING (false)");
+    expect(migration).toMatch(
+      /ALTER POLICY "councils_update_admin_or_chair"[\s\S]*USING \(false\)[\s\S]*WITH CHECK \(false\)/,
+    );
     for (const name of RPCS) {
       expect(migration).toContain(`FUNCTION public.${name}(`);
       expect(migration).toContain(`SET search_path = public, pg_temp`);
@@ -215,6 +228,7 @@ describe("Academic Councils C0 write-surface hardening", () => {
     expect(verifier).not.toMatch(/^\s*commit;/im);
     for (const fragment of [
       "DIRECT_WRITE_DENIED_ZERO_MUTATION",
+      "ACCIDENTAL_REGRANT_STILL_DENIED",
       "NEGATIVE_MATRIX_ZERO_MUTATION",
       "ADMIN_BYPASS_VERDICT_REMOVED",
       "TOPIC_OWNER_ALLOWLIST_PASS",
@@ -225,6 +239,7 @@ describe("Academic Councils C0 write-surface hardening", () => {
       "VIEWER_SUBMIT",
       "OWNER_DRAFT_ON_SUBMITTED",
       "assert_zero_mutation",
+      "grant insert, update on table public.academic_council_topics to authenticated",
     ]) {
       expect(verifier).toContain(fragment);
     }
@@ -282,6 +297,7 @@ describe("Academic Councils C0 write-surface hardening", () => {
       throw new Error(`C0 verifier failed:\n${noticeCheck.out}`);
     }
     expect(noticeCheck.out).toContain("DIRECT_WRITE_DENIED_ZERO_MUTATION");
+    expect(noticeCheck.out).toContain("ACCIDENTAL_REGRANT_STILL_DENIED");
     expect(noticeCheck.out).toContain("NEGATIVE_MATRIX_ZERO_MUTATION");
     expect(noticeCheck.out).toContain("ADMIN_BYPASS_VERDICT_REMOVED");
     expect(noticeCheck.out).toContain("TOPIC_OWNER_ALLOWLIST_PASS");
