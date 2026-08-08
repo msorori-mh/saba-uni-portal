@@ -79,6 +79,11 @@ import {
   type CouncilTopicReviewQueueItem,
 } from "@/lib/faculty-councils.functions";
 import { CouncilSessionAndGovernanceWorkspace } from "@/components/councils/CouncilSessionAndGovernanceWorkspace";
+import { CouncilNotificationBell } from "@/components/councils/CouncilNotificationBell";
+import { CouncilChairDashboard } from "@/components/councils/CouncilChairDashboard";
+import { CouncilSecretaryDashboard } from "@/components/councils/CouncilSecretaryDashboard";
+import { CouncilMemberWorkspace } from "@/components/councils/CouncilMemberWorkspace";
+import { CouncilResponsibleActorView } from "@/components/councils/CouncilResponsibleActorView";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
   head: () => ({
@@ -556,16 +561,24 @@ function FacultyAcademicCouncilsPage() {
       breadcrumbs={[{ label: "المجالس الأكاديمية" }]}
     >
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
-        <div className="flex items-center gap-3">
-          <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
-            <ScrollText className="h-5 w-5" aria-hidden />
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-lg bg-gold-gradient text-primary-deep shrink-0">
+              <ScrollText className="h-5 w-5" aria-hidden />
+            </div>
+            <div>
+              <h1 className="font-display text-xl font-extrabold text-primary">مجالسي الأكاديمية</h1>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
+                من هذه الصفحة يمكنك الاطلاع على عضوياتك في المجالس الأكاديمية، متابعة الاجتماعات،
+                وتقديم موضوعات للعرض على المجلس حسب صلاحياتك.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display text-xl font-extrabold text-primary">مجالسي الأكاديمية</h1>
-            <p className="text-xs text-muted-foreground mt-0.5 max-w-2xl leading-relaxed">
-              من هذه الصفحة يمكنك الاطلاع على عضوياتك في المجالس الأكاديمية، متابعة الاجتماعات،
-              وتقديم موضوعات للعرض على المجلس حسب صلاحياتك.
-            </p>
+          <div className="flex items-center gap-2">
+            <CouncilNotificationBell />
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/faculty-portal/academic-councils/reports">التقارير</Link>
+            </Button>
           </div>
         </div>
 
@@ -606,6 +619,15 @@ function FacultyAcademicCouncilsPage() {
                 </ul>
               )}
             </SectionShell>
+
+            {currentMemberships.length > 0 ? (
+              <SectionShell icon={ShieldCheck} title="لوحة العمل والمتابعة">
+                <CouncilWorkspacesSection
+                  memberships={currentMemberships}
+                  userId={userId}
+                />
+              </SectionShell>
+            ) : null}
 
             {chairMemberships.length > 0 ? (
               <ChairMeetingScheduleSection
@@ -2483,5 +2505,71 @@ function SubmitTopicForm() {
         </form>
       )}
     </SectionShell>
+  );
+}
+
+
+function CouncilWorkspacesSection({
+  memberships,
+  userId,
+}: {
+  memberships: MyCouncilMembershipV2[];
+  userId: string | null;
+}) {
+  const [selectedId, setSelectedId] = useState(memberships[0]?.council_id ?? "");
+  const selected = memberships.find((m) => m.council_id === selectedId) ?? memberships[0];
+
+  if (!selected) {
+    return (
+      <div className="rounded-md border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+        لا توجد عضويات متاحة.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <Select value={selectedId} onValueChange={setSelectedId} dir="rtl">
+          <SelectTrigger className="sm:max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent dir="rtl">
+            {memberships.map((m) => (
+              <SelectItem key={m.council_id} value={m.council_id}>
+                {m.council_name} · {MEMBER_ROLE_LABELS[m.role as CouncilLinkMemberRole] ?? m.role}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-xs text-muted-foreground">
+          الصلاحيات النهائية يحددها الخادم وليس واجهة الأزرار فقط.
+        </p>
+      </div>
+
+      {selected.role === "chair" ? (
+        <CouncilChairDashboard councilId={selected.council_id} councilName={selected.council_name} />
+      ) : selected.role === "secretary" ? (
+        <CouncilSecretaryDashboard
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+        />
+      ) : selected.role === "viewer" ? (
+        <CouncilMemberWorkspace
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+          readOnly
+        />
+      ) : (
+        <CouncilMemberWorkspace
+          councilId={selected.council_id}
+          councilName={selected.council_name}
+        />
+      )}
+
+      {userId && selected.role !== "viewer" ? (
+        <CouncilResponsibleActorView userId={userId} />
+      ) : null}
+    </div>
   );
 }
