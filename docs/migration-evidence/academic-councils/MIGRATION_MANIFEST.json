@@ -1,12 +1,21 @@
 {
-  "mission": "ACADEMIC-COUNCILS-C0-C9-SECURITY-AND-PRODUCTION-READINESS-LONGRUN-10",
+  "mission": "ACADEMIC-COUNCILS-PR306-RELEASE-QUALIFICATION-REMEDIATION-LONGRUN-12",
   "base_pr": 304,
+  "pr_number": 306,
   "base_sha": "2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb",
+  "remediation_start_sha": "e76ace8bc68c1472da85aed7cb10b495d99dd689",
   "base_branch": "fix/councils-c0-c9-final-security-closure-01",
   "hash_contract": "SHA256_LF_NORMALIZED_V1",
   "hash_authority": "FULL_SHA256_LF",
   "hash_note": "Councils migrations use uppercase BEGIN; FULL file LF hash is authoritative. Do not use platform-native file hashes.",
   "status": "SOURCE_READY_NOT_APPLIED",
+  "release_qualification": {
+    "test_only_executable": true,
+    "preflight_strict_fail_closed": true,
+    "postgrest_http_auth_matrix": true,
+    "http_matrix_test": "tests/academic-councils/councils-c0-c9-postgrest-http-auth-matrix.test.ts",
+    "remediation_test": "tests/academic-councils/councils-c0-c9-release-qualification-remediation.test.ts"
+  },
   "max_migrations_per_apply_session": 1,
   "batch_apply_forbidden": true,
   "production_apply": false,

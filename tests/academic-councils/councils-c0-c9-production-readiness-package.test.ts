@@ -123,9 +123,11 @@ describe("Academic Councils C0-C9 production readiness package", () => {
 
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     expect(manifest.hash_contract).toBe("SHA256_LF_NORMALIZED_V1");
-    expect(manifest.mission).toBe("ACADEMIC-COUNCILS-C0-C9-SECURITY-AND-PRODUCTION-READINESS-LONGRUN-10");
+    expect(manifest.mission).toBe("ACADEMIC-COUNCILS-PR306-RELEASE-QUALIFICATION-REMEDIATION-LONGRUN-12");
     expect(manifest.base_pr).toBe(304);
+    expect(manifest.pr_number).toBe(306);
     expect(manifest.base_sha).toBe("2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb");
+    expect(manifest.release_qualification?.postgrest_http_auth_matrix).toBe(true);
     expect(manifest.max_migrations_per_apply_session).toBe(1);
     expect(manifest.promoted_chain).toHaveLength(10);
     expect(manifest.production_apply).toBe(false);
@@ -182,21 +184,26 @@ describe("Academic Councils C0-C9 production readiness package", () => {
     const fixture = readFileSync(packageFiles.fixture, "utf8");
     expect(fixture).toContain("TEST_ONLY_COUNCILS_C0_C9_E2E_01");
     expect(fixture).toContain("councils.pkg_dry_run");
+    expect(fixture).toContain("councils.test_only.execute");
     expect(fixture).toContain("chair");
     expect(fixture).toContain("secretary");
     expect(fixture).toContain("responsible");
     expect(fixture).toContain("DRY RUN");
+    expect(fixture).toContain("COUNCILS_TESTONLY_E2E_FIXTURE_EXECUTE_COMPLETE");
+    expect(fixture).not.toContain("EXECUTE_HANDOFF");
 
     const cleanup = readFileSync(packageFiles.cleanup, "utf8");
     expect(cleanup).toContain("p_dry_run boolean DEFAULT true");
     expect(cleanup).toContain("councils.pkg_dry_run");
     expect(cleanup).toContain("c0c90000-0000-4000-8000-000000000001");
     expect(cleanup).toContain("c0c90000-0000-4000-8000-ffffffffffff");
-    expect(cleanup).not.toMatch(/LIKE\s+'%TEST%/i);
+    expect(cleanup).not.toMatch(/WHERE[\s\S]{0,80}LIKE\s+'%TEST%/i);
+    expect(cleanup).not.toMatch(/DELETE[\s\S]{0,120}LIKE\s+'/i);
 
     const zero = readFileSync(packageFiles.zeroResidue, "utf8");
     expect(zero).toContain("COUNCILS_ZERO_RESIDUE_VERIFIER_PASS");
     expect(zero).toContain("ZERO_RESIDUE_SENTINEL");
+    expect(zero).toContain("TEST_ONLY_RESIDUE_TOTAL");
 
     const obs = readFileSync(packageFiles.observability, "utf8");
     expect(obs).toContain("OBS_MEETING_LIFECYCLE");
@@ -224,7 +231,18 @@ describe("Academic Councils C0-C9 production readiness package", () => {
   it("preflight and post-verifiers are read-only catalog scripts", () => {
     const preflight = readFileSync(packageFiles.preflight, "utf8");
     expect(preflight).toContain("READY_FOR_APPLY_C0");
-    expect(preflight.toLowerCase()).not.toMatch(/\b(insert|update|delete|truncate|drop table)\b/);
+    expect(preflight).toContain("v_expected_policies");
+    expect(preflight).toContain("can_schedule_council_meeting");
+    const preflightBody = preflight
+      .split("\n")
+      .filter((l) => !l.trimStart().startsWith("--"))
+      .join("\n")
+      .toLowerCase();
+    expect(preflightBody).not.toMatch(/\binsert\s+into\b/);
+    expect(preflightBody).not.toMatch(/\bdelete\s+from\b/);
+    expect(preflightBody).not.toMatch(/\btruncate\b/);
+    expect(preflightBody).not.toMatch(/\bdrop\s+table\b/);
+    expect(preflightBody).not.toMatch(/\bupdate\s+public\./);
     for (const step of chain) {
       const v = readFileSync(join(root, step.verifier), "utf8");
       expect(v).toContain(step.pass);

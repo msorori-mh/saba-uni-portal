@@ -1,18 +1,50 @@
--- ACADEMIC-COUNCILS-C0-C9-PRODUCTION-READINESS-PACKAGE-LONGRUN-09
--- Production READ-ONLY preflight before C0 apply.
--- No DML, no RPC mutation, no production write.
--- Expect: READY_FOR_APPLY_C0 or exact HOLD exception.
+-- ACADEMIC-COUNCILS-PR306-RELEASE-QUALIFICATION-REMEDIATION-LONGRUN-12
+-- ============================================================================
+-- Production READ-ONLY preflight BEFORE C0 apply
+-- (or disposable PG17 with predecessors only).
+--
+-- MODE: catalog reads + assertions only. No DML.
+-- Zero INSERT/UPDATE/DELETE/TRUNCATE/MERGE.
+-- Zero CREATE/ALTER/DROP (including temp tables).
+-- Zero GRANT/REVOKE.
+-- Fail-closed: any unexpected council object/policy/function drift
+-- raises EXCEPTION 'HOLD: ...'.
+--
+-- Predecessor sources (inventory pins):
+--   20260703192337_*  MVP create (tables, helpers, policies, indexes)
+--   20260703194033_*  MVP harden (ACL tighten; NO FORCE RLS)
+--   20260704200326_*  membership-on-date / topic submit helpers (policy body refresh)
+--   20260705012437_* / 20260708120000_*  topic attachments (optional predecessor)
+--   20260705232119_* / 20260710120000_*  schedule helpers
+--
+-- Post-C9 ACL contract (document only; objects must NOT exist yet):
+--   create_council_notification / get_council_notification_recipients /
+--   dispatch_council_notification → EXECUTE service_role only
+--     (REVOKED from PUBLIC, anon, authenticated)
+--   get_my_council_notifications / acknowledge_council_notification /
+--   get_council_report_% / dashboard helpers → EXECUTE authenticated + service_role
+--     (REVOKED from PUBLIC, anon)
+-- ============================================================================
 
 \set ON_ERROR_STOP on
 
 DO $$
 DECLARE
   v_missing text[];
-  v_c0_funcs text[];
+  v_extra text[];
   v_promoted_in_ledger text[];
-  v_bucket text;
+  v_fn text;
+  v_oid oid;
+  v_has_auth boolean;
+  v_has_anon boolean;
+  v_search text;
   v_flag_note text := 'NO_FLAG_CONTRACT_UI_UNGATED';
-  v_council_tables text[] := ARRAY[
+  v_attachments_present boolean;
+  v_exp_count int;
+  v_hit_count int;
+
+  -- Required predecessor tables (MVP create).
+  v_required_tables text[] := ARRAY[
     'academic_councils',
     'academic_council_members',
     'academic_council_meetings',
@@ -21,7 +53,58 @@ DECLARE
     'academic_council_minutes',
     'academic_council_decisions'
   ];
-  v_c0_plus text[] := ARRAY[
+
+  -- Optional predecessor table (attachments migration).
+  v_optional_table text := 'academic_council_topic_attachments';
+
+  -- C1+ extension tables that must NOT exist before C0.
+  v_forbidden_tables text[] := ARRAY[
+    'academic_council_meeting_transition_events',
+    'academic_council_quorum_policies',
+    'academic_council_votes',
+    'academic_council_vote_results',
+    'academic_council_audit_events',
+    'academic_council_notifications',
+    'academic_council_meeting_attendance',
+    'academic_council_meeting_attendance_rolls',
+    'academic_council_meeting_quorum_evaluations',
+    'academic_council_attendance_audit_events',
+    'academic_council_minutes_amendments'
+  ];
+
+  -- Required membership / schedule helpers (MVP + schedule helpers).
+  v_required_helpers text[] := ARRAY[
+    'is_council_admin',
+    'is_council_member',
+    'has_council_role',
+    'can_manage_council',
+    'can_write_council_agenda',
+    'can_schedule_council_meeting'
+  ];
+
+  -- Allowlisted public functions with proname LIKE '%council%'
+  -- (MVP helpers + triggers + schedule helper + membership-date helpers
+  --  + optional attachment helpers from 20260705012437 / 20260708120000).
+  v_allowed_council_fns text[] := ARRAY[
+    'is_council_admin',
+    'is_council_member',
+    'has_council_role',
+    'can_manage_council',
+    'can_write_council_agenda',
+    'can_schedule_council_meeting',
+    'was_council_member_on',
+    'can_submit_council_topic',
+    'tg_academic_councils_touch_updated_at',
+    'tg_councils_validate_department_binding',
+    'council_topic_attachment_count',
+    'can_add_council_topic_attachment',
+    'can_read_council_topic_attachment',
+    'can_upload_council_topic_attachment',
+    'tg_enforce_council_topic_attachment'
+  ];
+
+  -- C0+ write / notification / report RPCs must be absent (partial apply).
+  v_forbidden_fns text[] := ARRAY[
     'council_schedule_meeting',
     'council_transition_meeting',
     'record_council_meeting_attendance',
@@ -29,10 +112,43 @@ DECLARE
     'draft_council_minutes',
     'issue_council_decision',
     'archive_council_meeting',
-    'create_council_notification'
+    'create_council_notification',
+    'dispatch_council_notification',
+    'get_council_notification_recipients',
+    'get_my_council_notifications',
+    'acknowledge_council_notification'
+  ];
+
+  -- Exact MVP policy inventory encoded as "tablename|policyname|cmd".
+  -- All policies are TO authenticated only (roles = {authenticated}).
+  -- Source: 20260703192337 MVP create (schedule helpers ALTER policy bodies only).
+  v_expected_policies text[] := ARRAY[
+    'academic_councils|councils_select|SELECT',
+    'academic_councils|councils_insert_admin|INSERT',
+    'academic_councils|councils_update_admin_or_chair|UPDATE',
+    'academic_council_members|council_members_select|SELECT',
+    'academic_council_members|council_members_insert|INSERT',
+    'academic_council_members|council_members_update|UPDATE',
+    'academic_council_meetings|meetings_select|SELECT',
+    'academic_council_meetings|meetings_insert|INSERT',
+    'academic_council_meetings|meetings_update|UPDATE',
+    'academic_council_topics|topics_select|SELECT',
+    'academic_council_topics|topics_insert_member|INSERT',
+    'academic_council_topics|topics_update_owner_draft|UPDATE',
+    'academic_council_agenda_items|agenda_select|SELECT',
+    'academic_council_agenda_items|agenda_insert|INSERT',
+    'academic_council_agenda_items|agenda_update|UPDATE',
+    'academic_council_minutes|minutes_select|SELECT',
+    'academic_council_minutes|minutes_insert_secretary|INSERT',
+    'academic_council_minutes|minutes_update_before_lock|UPDATE',
+    'academic_council_decisions|decisions_select|SELECT',
+    'academic_council_decisions|decisions_insert|INSERT',
+    'academic_council_decisions|decisions_update|UPDATE'
   ];
 BEGIN
-  -- 1) Migration ledger: none of the promoted C0–C9 migrations may already be recorded.
+  -- -------------------------------------------------------------------------
+  -- 1) Migration ledger: none of promoted C0–C9 names may be present.
+  -- -------------------------------------------------------------------------
   IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
     SELECT array_agg(name ORDER BY name)
     INTO v_promoted_in_ledger
@@ -50,111 +166,397 @@ BEGIN
       '20260808180000_councils_c9_notifications_reporting_01'
     );
     IF v_promoted_in_ledger IS NOT NULL THEN
-      RAISE EXCEPTION 'HOLD: promoted C0-C9 migration(s) already in ledger: %', array_to_string(v_promoted_in_ledger, ', ');
+      RAISE EXCEPTION
+        'HOLD: promoted C0-C9 migration(s) already in ledger: %',
+        array_to_string(v_promoted_in_ledger, ', ');
     END IF;
   ELSE
     RAISE NOTICE 'PREFLIGHT_INFO: supabase_migrations.schema_migrations absent (disposable PG17 OK)';
   END IF;
 
-  -- 2) Council predecessor schema must exist (MVP create+harden chain).
-  SELECT array_agg(t)
+  -- -------------------------------------------------------------------------
+  -- 2) Required predecessor tables must exist; optional attachments OK.
+  -- -------------------------------------------------------------------------
+  SELECT array_agg(t ORDER BY t)
   INTO v_missing
-  FROM unnest(v_council_tables) t
+  FROM unnest(v_required_tables) AS t
   WHERE to_regclass('public.' || t) IS NULL;
+
   IF v_missing IS NOT NULL THEN
-    RAISE EXCEPTION 'HOLD: predecessor council tables missing: %', array_to_string(v_missing, ', ');
+    RAISE EXCEPTION
+      'HOLD: predecessor council tables missing: %',
+      array_to_string(v_missing, ', ');
   END IF;
 
-  -- 3) Helper membership functions from MVP.
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = 'has_council_role'
-  ) THEN
-    RAISE EXCEPTION 'HOLD: predecessor function has_council_role missing';
-  END IF;
+  v_attachments_present :=
+    to_regclass('public.' || v_optional_table) IS NOT NULL;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = 'is_council_admin'
-  ) THEN
-    RAISE EXCEPTION 'HOLD: predecessor function is_council_admin missing';
-  END IF;
-
-  -- 4) C0+ objects must NOT already exist (mixed/partial apply detection).
-  SELECT array_agg(f)
-  INTO v_c0_funcs
-  FROM unnest(v_c0_plus) f
-  WHERE EXISTS (
-    SELECT 1 FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = f
-  );
-  IF v_c0_funcs IS NOT NULL THEN
-    RAISE EXCEPTION 'HOLD: C0+ council RPCs already present (partial/mixed state): %', array_to_string(v_c0_funcs, ', ');
-  END IF;
-
-  IF to_regclass('public.academic_council_meeting_transition_events') IS NOT NULL
-     OR to_regclass('public.academic_council_quorum_policies') IS NOT NULL
-     OR to_regclass('public.academic_council_votes') IS NOT NULL
-     OR to_regclass('public.academic_council_audit_events') IS NOT NULL
-     OR to_regclass('public.academic_council_notifications') IS NOT NULL THEN
-    RAISE EXCEPTION 'HOLD: C1+ council extension tables already present; resolve mixed state before C0';
-  END IF;
-
-  -- 5) Roles / membership inventory (read-only advisory counts).
-  IF to_regclass('public.academic_council_members') IS NOT NULL THEN
-    RAISE NOTICE 'PREFLIGHT_MEMBERSHIP_ROWS: %', (SELECT count(*) FROM public.academic_council_members);
-    RAISE NOTICE 'PREFLIGHT_ACTIVE_MEMBERSHIPS: %', (
-      SELECT count(*) FROM public.academic_council_members WHERE is_active
-    );
-  END IF;
-
-  -- 6) Current policies on predecessor tables (inventory).
-  RAISE NOTICE 'PREFLIGHT_COUNCIL_POLICY_COUNT: %', (
-    SELECT count(*) FROM pg_policies
-    WHERE schemaname = 'public'
-      AND tablename LIKE 'academic_council%'
-  );
-
-  -- 7) Feature flag contract (source-level; DB cannot read portal-features.ts).
-  RAISE NOTICE 'PREFLIGHT_FLAGS: % — activation package docs/migration-drafts/COUNCILS-C0-C9-FLAGS-01.md remains OFF', v_flag_note;
-
-  -- 8) Storage / attachments predecessor (if topic attachments bucket/table exist).
-  IF to_regclass('public.academic_council_topic_attachments') IS NOT NULL THEN
-    RAISE NOTICE 'PREFLIGHT_ATTACHMENTS_TABLE: present';
+  IF v_attachments_present THEN
+    RAISE NOTICE 'PREFLIGHT_ATTACHMENTS_TABLE: present (allowed optional predecessor)';
   ELSE
-    RAISE NOTICE 'PREFLIGHT_ATTACHMENTS_TABLE: absent (OK if attachments migration not in this environment)';
+    RAISE NOTICE 'PREFLIGHT_ATTACHMENTS_TABLE: absent (OK)';
   END IF;
 
-  IF to_regclass('storage.buckets') IS NOT NULL THEN
-    SELECT id INTO v_bucket FROM storage.buckets WHERE id ILIKE '%council%' LIMIT 1;
-    IF v_bucket IS NOT NULL THEN
-      RAISE NOTICE 'PREFLIGHT_STORAGE_BUCKET: %', v_bucket;
-    ELSE
-      RAISE NOTICE 'PREFLIGHT_STORAGE_BUCKET: none matching council*';
+  -- Unknown academic_council* tables (not required, not optional attachments,
+  -- and not already listed as forbidden — forbidden checked separately).
+  SELECT array_agg(c.relname ORDER BY c.relname)
+  INTO v_extra
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public'
+    AND c.relkind IN ('r', 'p')
+    AND c.relname LIKE 'academic_council%'
+    AND NOT (c.relname = ANY (v_required_tables))
+    AND c.relname IS DISTINCT FROM v_optional_table
+    AND NOT (c.relname = ANY (v_forbidden_tables));
+
+  IF v_extra IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: unknown academic_council* table(s) not in predecessor inventory: %',
+      array_to_string(v_extra, ', ');
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 3) RLS enabled on required predecessor tables.
+  --    FORCE RLS: NOT required — 20260703194033 harden does not set FORCE.
+  -- -------------------------------------------------------------------------
+  SELECT array_agg(t ORDER BY t)
+  INTO v_missing
+  FROM unnest(v_required_tables) AS t
+  JOIN pg_class c ON c.oid = to_regclass('public.' || t)
+  WHERE NOT c.relrowsecurity;
+
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: predecessor table(s) missing RLS enabled: %',
+      array_to_string(v_missing, ', ');
+  END IF;
+
+  IF v_attachments_present THEN
+    IF NOT (
+      SELECT c.relrowsecurity
+      FROM pg_class c
+      WHERE c.oid = to_regclass('public.' || v_optional_table)
+    ) THEN
+      RAISE EXCEPTION
+        'HOLD: optional predecessor % exists but RLS is not enabled',
+        v_optional_table;
     END IF;
-  ELSE
-    RAISE NOTICE 'PREFLIGHT_STORAGE: storage.buckets absent (disposable PG17 OK)';
   END IF;
 
-  -- 9) Notification dependency (C9 will extend notifications.type check).
-  IF to_regclass('public.notifications') IS NOT NULL THEN
-    RAISE NOTICE 'PREFLIGHT_NOTIFICATIONS_TABLE: present';
-  ELSE
-    RAISE NOTICE 'PREFLIGHT_NOTIFICATIONS_TABLE: absent — C9 apply will require notifications predecessor or fail-closed';
+  RAISE NOTICE
+    'PREFLIGHT_FORCE_RLS: not required (harden 20260703194033 does not FORCE); relforcerowsecurity left unasserted';
+
+  -- -------------------------------------------------------------------------
+  -- 4) Exact expected policy inventory on predecessor tables.
+  -- -------------------------------------------------------------------------
+  v_exp_count := cardinality(v_expected_policies);
+
+  SELECT count(*)::int
+  INTO v_hit_count
+  FROM unnest(v_expected_policies) AS exp(spec)
+  JOIN LATERAL (
+    SELECT
+      split_part(exp.spec, '|', 1) AS tablename,
+      split_part(exp.spec, '|', 2) AS policyname,
+      split_part(exp.spec, '|', 3) AS cmd
+  ) e ON true
+  JOIN pg_policies p
+    ON p.schemaname = 'public'
+   AND p.tablename = e.tablename
+   AND p.policyname = e.policyname
+   AND p.cmd = e.cmd
+   AND p.roles = ARRAY['authenticated']::name[];
+
+  IF v_hit_count <> v_exp_count THEN
+    SELECT array_agg(e.tablename || '.' || e.policyname ORDER BY e.tablename, e.policyname)
+    INTO v_missing
+    FROM (
+      SELECT
+        split_part(spec, '|', 1) AS tablename,
+        split_part(spec, '|', 2) AS policyname,
+        split_part(spec, '|', 3) AS cmd
+      FROM unnest(v_expected_policies) AS spec
+    ) e
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM pg_policies p
+      WHERE p.schemaname = 'public'
+        AND p.tablename = e.tablename
+        AND p.policyname = e.policyname
+        AND p.cmd = e.cmd
+        AND p.roles = ARRAY['authenticated']::name[]
+    );
+
+    RAISE EXCEPTION
+      'HOLD: missing or drifted expected predecessor policy(ies): %',
+      coalesce(array_to_string(v_missing, ', '), '<unresolved>');
   END IF;
 
-  -- 10) Report dependency: no C9 report RPCs yet.
-  IF EXISTS (
-    SELECT 1 FROM pg_proc p
+  -- Extra unknown policies on academic_council* tables.
+  -- Allowed extras: acta_* on academic_council_topic_attachments only.
+  SELECT array_agg(p.tablename || '.' || p.policyname ORDER BY p.tablename, p.policyname)
+  INTO v_extra
+  FROM pg_policies p
+  WHERE p.schemaname = 'public'
+    AND p.tablename LIKE 'academic_council%'
+    AND NOT EXISTS (
+      SELECT 1
+      FROM unnest(v_expected_policies) AS spec
+      WHERE split_part(spec, '|', 1) = p.tablename
+        AND split_part(spec, '|', 2) = p.policyname
+    )
+    AND NOT (
+      p.tablename = v_optional_table
+      AND p.policyname LIKE 'acta_%'
+    );
+
+  IF v_extra IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: unknown policy(ies) on academic_council* tables: %',
+      array_to_string(v_extra, ', ');
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 5) Predecessor helpers: exist, SECURITY DEFINER, search_path has public.
+  --    can_schedule_council_meeting REQUIRED (schedule helpers predecessor).
+  -- -------------------------------------------------------------------------
+  FOREACH v_fn IN ARRAY v_required_helpers LOOP
+    SELECT p.oid
+    INTO v_oid
+    FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname LIKE 'get_council_report_%'
-  ) THEN
-    RAISE EXCEPTION 'HOLD: get_council_report_* already present before C9';
+    WHERE n.nspname = 'public'
+      AND p.proname = v_fn
+    ORDER BY p.oid
+    LIMIT 1;
+
+    IF v_oid IS NULL THEN
+      RAISE EXCEPTION 'HOLD: predecessor function % missing', v_fn;
+    END IF;
+
+    IF NOT (
+      SELECT prosecdef FROM pg_proc WHERE oid = v_oid
+    ) THEN
+      RAISE EXCEPTION 'HOLD: predecessor function % is not SECURITY DEFINER', v_fn;
+    END IF;
+
+    SELECT coalesce(array_to_string(proconfig, ','), '')
+    INTO v_search
+    FROM pg_proc
+    WHERE oid = v_oid;
+
+    IF position('search_path' IN v_search) = 0
+       OR position('public' IN v_search) = 0 THEN
+      RAISE EXCEPTION
+        'HOLD: predecessor function % search_path must contain public (proconfig=%)',
+        v_fn, v_search;
+    END IF;
+  END LOOP;
+
+  -- Optional predecessor helpers (faculty-history / attachments): if present,
+  -- assert SECURITY DEFINER + search_path containing public.
+  FOREACH v_fn IN ARRAY ARRAY[
+    'was_council_member_on',
+    'can_submit_council_topic',
+    'council_topic_attachment_count',
+    'can_add_council_topic_attachment',
+    'can_read_council_topic_attachment',
+    'can_upload_council_topic_attachment',
+    'tg_enforce_council_topic_attachment'
+  ] LOOP
+    SELECT p.oid
+    INTO v_oid
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = v_fn
+    ORDER BY p.oid
+    LIMIT 1;
+
+    IF v_oid IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    IF NOT (SELECT prosecdef FROM pg_proc WHERE oid = v_oid) THEN
+      RAISE EXCEPTION 'HOLD: attachment helper % is not SECURITY DEFINER', v_fn;
+    END IF;
+
+    SELECT coalesce(array_to_string(proconfig, ','), '')
+    INTO v_search
+    FROM pg_proc
+    WHERE oid = v_oid;
+
+    IF position('search_path' IN v_search) = 0
+       OR position('public' IN v_search) = 0 THEN
+      RAISE EXCEPTION
+        'HOLD: attachment helper % search_path must contain public (proconfig=%)',
+        v_fn, v_search;
+    END IF;
+  END LOOP;
+
+  -- -------------------------------------------------------------------------
+  -- 6) Function EXECUTE ACL: authenticated YES; anon/PUBLIC-effective NO.
+  -- -------------------------------------------------------------------------
+  FOREACH v_fn IN ARRAY v_required_helpers LOOP
+    SELECT p.oid
+    INTO v_oid
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = v_fn
+    ORDER BY p.oid
+    LIMIT 1;
+
+    v_has_auth := has_function_privilege('authenticated', v_oid, 'EXECUTE');
+    v_has_anon := has_function_privilege('anon', v_oid, 'EXECUTE');
+
+    IF NOT v_has_auth THEN
+      RAISE EXCEPTION
+        'HOLD: authenticated lacks EXECUTE on predecessor helper %',
+        v_fn;
+    END IF;
+
+    IF v_has_anon THEN
+      RAISE EXCEPTION
+        'HOLD: anon (or PUBLIC-effective) has EXECUTE on predecessor helper %',
+        v_fn;
+    END IF;
+  END LOOP;
+
+  -- -------------------------------------------------------------------------
+  -- 7) C0+ functions must NOT exist (including get_council_report_%).
+  -- -------------------------------------------------------------------------
+  SELECT array_agg(f ORDER BY f)
+  INTO v_extra
+  FROM unnest(v_forbidden_fns) AS f
+  WHERE EXISTS (
+    SELECT 1
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = f
+  );
+
+  IF v_extra IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: C0+ council RPC(s) already present (partial/mixed state): %',
+      array_to_string(v_extra, ', ');
   END IF;
 
+  SELECT array_agg(p.proname ORDER BY p.proname)
+  INTO v_extra
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.proname LIKE 'get_council_report_%';
+
+  IF v_extra IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: get_council_report_%% already present before C0/C9: %',
+      array_to_string(v_extra, ', ');
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 8) C1+ extension tables must NOT exist.
+  -- -------------------------------------------------------------------------
+  SELECT array_agg(t ORDER BY t)
+  INTO v_extra
+  FROM unnest(v_forbidden_tables) AS t
+  WHERE to_regclass('public.' || t) IS NOT NULL;
+
+  IF v_extra IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: C1+ council extension table(s) already present: %',
+      array_to_string(v_extra, ', ');
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 9) Unknown public functions with proname LIKE '%council%' → HOLD.
+  -- -------------------------------------------------------------------------
+  SELECT array_agg(DISTINCT p.proname ORDER BY p.proname)
+  INTO v_extra
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND p.proname LIKE '%council%'
+    AND NOT (p.proname = ANY (v_allowed_council_fns));
+
+  IF v_extra IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: unknown public %%council%% function(s) not in predecessor allowlist: %',
+      array_to_string(v_extra, ', ');
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 10) C9 internal-helper ACL drift:
+  --     Absence already enforced in (7). Expected post-C9 ACL documented
+  --     in file header (service_role-only internals; authenticated reports).
+  -- -------------------------------------------------------------------------
+  RAISE NOTICE
+    'PREFLIGHT_C9_ACL_CONTRACT: create/dispatch/recipients = service_role only after C9; get_my/acknowledge/reports = authenticated+service_role; objects must be absent now';
+
+  -- -------------------------------------------------------------------------
+  -- 11) Constraints / indexes needed by next migration.
+  -- -------------------------------------------------------------------------
+  -- Primary keys on all required predecessor tables.
+  SELECT array_agg(t ORDER BY t)
+  INTO v_missing
+  FROM unnest(v_required_tables) AS t
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = t
+      AND con.contype = 'p'
+  );
+
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: predecessor table(s) missing PRIMARY KEY: %',
+      array_to_string(v_missing, ', ');
+  END IF;
+
+  -- Unique membership constraint from MVP:
+  --   UNIQUE (council_id, user_id, member_role, active_from)
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = 'academic_council_members'
+      AND con.contype = 'u'
+      AND pg_get_constraintdef(con.oid) ILIKE '%council_id%'
+      AND pg_get_constraintdef(con.oid) ILIKE '%user_id%'
+      AND pg_get_constraintdef(con.oid) ILIKE '%member_role%'
+      AND pg_get_constraintdef(con.oid) ILIKE '%active_from%'
+  ) THEN
+    RAISE EXCEPTION
+      'HOLD: academic_council_members missing UNIQUE (council_id, user_id, member_role, active_from)';
+  END IF;
+
+  -- Named unique meeting indexes from MVP create.
+  IF to_regclass('public.idx_acmeet_council_year_number') IS NULL THEN
+    RAISE EXCEPTION 'HOLD: missing unique index idx_acmeet_council_year_number';
+  END IF;
+
+  IF to_regclass('public.idx_acmeet_council_number_without_year') IS NULL THEN
+    RAISE EXCEPTION 'HOLD: missing unique index idx_acmeet_council_number_without_year';
+  END IF;
+
+  -- -------------------------------------------------------------------------
+  -- 12) Feature flag contract (cannot read TypeScript from SQL).
+  -- -------------------------------------------------------------------------
+  RAISE NOTICE
+    'PREFLIGHT_FLAGS: % — flags remain OFF; activation package docs/migration-drafts/COUNCILS-C0-C9-FLAGS-01.md',
+    v_flag_note;
+
+  -- -------------------------------------------------------------------------
+  -- 13) Success
+  -- -------------------------------------------------------------------------
   RAISE NOTICE 'READY_FOR_APPLY_C0';
 END $$;
 
