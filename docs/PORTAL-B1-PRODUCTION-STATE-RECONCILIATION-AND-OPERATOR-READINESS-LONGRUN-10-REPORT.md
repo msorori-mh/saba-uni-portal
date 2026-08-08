@@ -11,15 +11,25 @@
 
 ## Phase Summary & Evidence
 
-### Phase A — Function Graph Transitive Closure (28 vs 29)
-- **Canonical Discovered Closure Count**: **29 functions**
-- **Analysis**:
-  - Entry RPC 1: `public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)`
-  - Entry RPC 2: `public.record_external_university_payment_confirmation(uuid,text)`
-  - Direct & indirect helpers called: 23 functions.
-  - Table triggers on write-reachable set (`student_requests`, `student_request_workflow_steps`, `student_profiles`): 3 trigger functions (`guard_b1_runtime_step_activation`, `update_updated_at_column`, `protect_student_sensitive_fields`).
-  - Helper function `current_user_has_b1_e2e_88_actor_binding(uuid,uuid,text)` was added in migration `20260804120000_b1_88_request_scoped_e2e_support.sql` (and `20260806003612`) to support request-scoped E2E actor bindings in payment confirmation.
-- **Proof**: Pre-migration 20260804120000 closure count was 28. Following migration head `20260807023229`, `current_user_has_b1_e2e_88_actor_binding` is invoked by `record_external_university_payment_confirmation`, bringing the true canonical transitive closure to **29 functions**.
+### Phase A — Function Graph Transitive Closure (36 Canonical Closure)
+- **Canonical Discovered Closure Count**: **36 functions**
+- **Contract & Breakdown**:
+  - 28 previously pinned entry & helper functions.
+  - 8 reachable Migration-88 E2E helpers added in `20260804120000_b1_88_request_scoped_e2e_support.sql`:
+    1. `public.current_user_has_b1_e2e_88_actor_binding(uuid,uuid,text)`
+    2. `public.current_user_has_b1_e2e_88_department_binding(uuid,text)`
+    3. `public.b1_e2e_88_request_is_marked(uuid)`
+    4. `public.b1_e2e_88_correlations_aligned(uuid,uuid,uuid)`
+    5. `public.b1_e2e_88_request_correlation(uuid)`
+    6. `public.b1_e2e_88_parse_correlation(text)`
+    7. `public.b1_e2e_88_marker()`
+    8. `public.b1_e2e_88_is_five_service(text)`
+- **Proof**: Entry RPCs (`act_on_b1_student_request_step_atomic` and `record_external_university_payment_confirmation`) invoke `current_user_has_b1_e2e_88_actor_binding`, which transitively invokes the remaining 7 E2E helpers. The canonical closure size is exactly **36 functions**.
+
+### Hash Normalization Contract
+- **Production Normalization Rule**:
+  `btrim(regexp_replace(pg_get_functiondef(oid), '\s+', ' ', 'g'))` then SHA256 UTF8 bytes.
+- All function definition SHA256 hashes in `TARGET-MANIFEST.json` adhere strictly to this canonical normalization rule.
 
 ### Phase B — Drift Semantic Analysis
 The 4 drifted production functions were evaluated against repository migration history:
@@ -39,8 +49,8 @@ The 4 drifted production functions were evaluated against repository migration h
 All four drifts are safe, expected security additions applied intentionally up to ledger tip `20260807023229`.
 
 ### Phase C — Repinned Canonical Production Graph
-- Pinned all 29 production function SHA256 hashes, signatures, DEFINER/INVOKER security modes, `postgres` owners, and `search_path` settings in `scripts/b1-rpc-principal-harness-01/TARGET-MANIFEST.json` and attestation logs.
-- Added tests confirming old hashes fail validation with `FUNCTION_GRAPH_DRIFT` and repinned 29 hashes pass cleanly.
+- Pinned all 36 canonical production function SHA256 hashes, signatures, DEFINER/INVOKER security modes, `postgres` owners, and `search_path` settings in `scripts/b1-rpc-principal-harness-01/TARGET-MANIFEST.json` and attestation logs.
+- Added unit tests confirming old un-repinned hashes fail validation with `FUNCTION_GRAPH_DRIFT` while all 36 canonical hashes pass cleanly.
 
 ### Phase D — Terminal Request Strategy
 - The 5 original scope requests (`SR-20260727-50BEDCE2`, `SR-20260727-695EC35B`, `SR-20260727-88D885F0`, `SR-20260727-42393846`, `SR-20260727-3C550070`) are terminal (completed/cancelled) with 0 active steps.
@@ -57,7 +67,7 @@ All four drifts are safe, expected security additions applied intentionally up t
 - 0 cases rendered as BLOCKED.
 
 ### Phase H & I — Compliant Operator Role Architecture & Package
-- **Role Architecture**: Ephemeral LOGIN role `b1_matrix_operator` with constraints:
+- **Role Architecture**: Dedicated ephemeral LOGIN role `b1_matrix_operator` with constraints:
   - `NOSUPERUSER`, `NOBYPASSRLS`, `NOCREATEDB`, `NOCREATEROLE`
   - `SELECT`-only permissions on `public` schema tables
   - `REVOKE` all table DML (`INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`)
@@ -77,7 +87,7 @@ All four drifts are safe, expected security additions applied intentionally up t
 
 ### Phase K — Baseline Contract V2
 - Updated `scripts/b1-rpc-principal-harness-01/baseline/AUTHORITATIVE-BASELINE.json` and `TARGET-MANIFEST.json` to Baseline Contract V2 (`status: "PINNED"`).
-- Explicitly separates `PROTECTED_REFERENCE_SENTINELS` (5 terminal requests) and `ACTIONABLE_FIXTURE_TARGETS` (`TEST_ONLY_B1_FIXTURE_13`).
+- Explicitly separates `PROTECTED_REFERENCE_SENTINELS` (5 terminal requests) and `ACTIONABLE_TEST_ONLY_TARGETS` (`TEST_ONLY_B1_FIXTURE_13`).
 - Pinned production ledger tip `20260807023229` and fingerprint `86ccc1bbf280f466b7e7c0a902b17d5d`.
 
 ### Phase L — No-Retry / Fail-Closed Contract

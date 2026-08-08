@@ -124,13 +124,13 @@
     "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY",
     "reattestation": {
       "mission_id": "PORTAL-B1-PRODUCTION-STATE-RECONCILIATION-AND-OPERATOR-READINESS-LONGRUN-10",
-      "repinned_entries": 29,
-      "graph_verdict": "29_total/29_resolved/29_matching/0_mismatched",
+      "repinned_entries": 36,
+      "graph_verdict": "36_total/36_resolved/36_matching/0_mismatched",
       "channel": "Lovable Cloud query_database SELECT-only",
       "production_rpc_calls": 0,
       "production_writes": 0
     },
-    "closure_size": 29,
+    "closure_size": 36,
     "functions": [
       {
         "signature": "public.act_on_b1_student_request_step_atomic(uuid,text,text,jsonb)",
@@ -233,6 +233,66 @@
         "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
       },
       {
+        "signature": "public.b1_e2e_88_correlations_aligned(uuid,uuid,uuid)",
+        "entry_point": false,
+        "definition_sha256": "b8370052b3724c623b85290c54c4abe5eefaf5bb64c74b3f0557b4004bdaca4c",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_is_five_service(text)",
+        "entry_point": false,
+        "definition_sha256": "c93de84a0012b527c56fecf1269524071f7bd65ccdffe858a2c3fa76fee6026b",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_marker()",
+        "entry_point": false,
+        "definition_sha256": "b3c9a6bfa1c9625da61c72e269fa1e70d66e4a4b6808716d8da3daa65c0e324b",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_parse_correlation(text)",
+        "entry_point": false,
+        "definition_sha256": "20820255b9aabd56d4969072a7c12a8a38a48bc263586b080dd9f27c916c806e",
+        "security": "INVOKER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_request_correlation(uuid)",
+        "entry_point": false,
+        "definition_sha256": "280fced47670b1962c5174aa396c03e639d54c0831e8b923831218030a3f5ed2",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.b1_e2e_88_request_is_marked(uuid)",
+        "entry_point": false,
+        "definition_sha256": "bc4e928200b60e0c58a8abc7d2f43318a94cdd53a6157ce6f276ea6b711ee775",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
         "signature": "public.b1_lock_assignment_identity_boundary()",
         "entry_point": false,
         "definition_sha256": "fa3a5943001e102e4acb998d35a61ed21f50149dbdf2f18be017ee80e246b72c",
@@ -276,6 +336,16 @@
         "signature": "public.current_user_has_b1_e2e_88_actor_binding(uuid,uuid,text)",
         "entry_point": false,
         "definition_sha256": "4a43bd524d8bcdd9d724a3c2466e5fa5f2df2d1ada9cf601d7a2cd32e6685337",
+        "security": "DEFINER",
+        "owner": "postgres",
+        "search_path": "search_path=public, pg_temp",
+        "attested_at_utc": "2026-08-08T20:30:00Z",
+        "attestation_mode": "PRODUCTION_READ_ONLY_ATTESTATION_ONLY"
+      },
+      {
+        "signature": "public.current_user_has_b1_e2e_88_department_binding(uuid,text)",
+        "entry_point": false,
+        "definition_sha256": "25e8246a87717622161c4e74e3f62cb592b0c703b739d9e30425f5f1d0cad6d2",
         "security": "DEFINER",
         "owner": "postgres",
         "search_path": "search_path=public, pg_temp",

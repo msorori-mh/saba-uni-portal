@@ -1015,7 +1015,8 @@ describe("PORTAL-B1-NEGATIVE-RPC-MATRIX-EXECUTABLE-PACKAGE-REMEDIATION-57", () =
   // ---- 10. function graph completeness -------------------------------------
   it("10: every function in the graph has a signature and a non-empty SHA256", () => {
     const fns = manifest.function_graph.functions as Array<Record<string, string>>;
-    expect(fns.length).toBeGreaterThanOrEqual(28);
+    expect(fns.length).toBe(36);
+    expect(manifest.function_graph.closure_size).toBe(36);
     for (const f of fns) {
       expect(typeof f.signature).toBe("string");
       expect(f.signature.length).toBeGreaterThan(0);
