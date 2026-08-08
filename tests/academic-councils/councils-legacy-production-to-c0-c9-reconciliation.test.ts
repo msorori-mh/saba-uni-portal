@@ -33,6 +33,7 @@ const legacyPredecessors = [
   "supabase/migrations/20260708120000_council_topic_attachments.sql",
   "supabase/migrations/20260709120000_department_councils_seed.sql",
   "supabase/migrations/20260710120000_council_meeting_schedule_helpers.sql",
+  "tests/academic-councils/postgres-legacy-production-grants.sql",
 ] as const;
 
 const legacyDataSeed = "tests/academic-councils/postgres-legacy-production-data-seed.sql";
@@ -132,6 +133,95 @@ function psqlFile(filePath: string): { ok: boolean; out: string } {
   return psql(readFileSync(filePath, "utf8"));
 }
 
+function discoverSchemaFingerprint(): string {
+  const r = psql(`
+    CREATE EXTENSION IF NOT EXISTS pgcrypto;
+    SELECT encode(
+      digest(
+        string_agg(line, E'\\n' ORDER BY line),
+        'sha256'
+      ),
+      'hex'
+    ) AS fp
+    FROM (
+      SELECT 'table:' || c.relname || ':' || a.attnum || ':' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) AS line
+      FROM pg_class c
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_attribute a ON a.attrelid = c.oid
+      WHERE n.nspname = 'public'
+        AND c.relname LIKE 'academic_council%'
+        AND c.relkind = 'r'
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+      UNION ALL
+      SELECT 'constraint:' || con.conname || ':' || pg_get_constraintdef(con.oid)
+      FROM pg_constraint con
+      JOIN pg_class c ON c.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname LIKE 'academic_council%'
+      UNION ALL
+      SELECT 'index:' || i.relname || ':' || pg_get_indexdef(i.oid)
+      FROM pg_index idx
+      JOIN pg_class i ON i.oid = idx.indexrelid
+      JOIN pg_class c ON c.oid = idx.indrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname LIKE 'academic_council%'
+      UNION ALL
+      SELECT 'trigger:' || t.tgname || ':' || pg_get_triggerdef(t.oid, true)
+      FROM pg_trigger t
+      JOIN pg_class c ON c.oid = t.tgrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relname LIKE 'academic_council%'
+        AND NOT t.tgisinternal
+      UNION ALL
+      SELECT 'enum:' || t.typname || ':' || string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder)
+      FROM pg_type t
+      JOIN pg_enum e ON e.enumtypid = t.oid
+      JOIN pg_namespace n ON n.oid = t.typnamespace
+      WHERE n.nspname = 'public'
+        AND t.typname LIKE 'academic_council%'
+      GROUP BY t.typname
+      UNION ALL
+      SELECT 'function:' || p.proname || ':' || pg_get_function_identity_arguments(p.oid) || ':' ||
+             btrim(regexp_replace(pg_get_functiondef(p.oid), '\\s+', ' ', 'g')) AS line
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND p.proname = ANY (ARRAY[
+          'is_council_admin',
+          'is_council_member',
+          'has_council_role',
+          'can_manage_council',
+          'can_write_council_agenda',
+          'can_schedule_council_meeting',
+          'was_council_member_on',
+          'can_submit_council_topic',
+          'tg_academic_councils_touch_updated_at',
+          'tg_councils_validate_department_binding',
+          'tg_minutes_block_locked_edits',
+          'council_topic_attachment_count',
+          'can_add_council_topic_attachment',
+          'can_read_council_topic_attachment',
+          'can_upload_council_topic_attachment',
+          'tg_enforce_council_topic_attachment'
+        ])
+      UNION ALL
+      SELECT 'policy:' || p.schemaname || ':' || p.tablename || ':' || p.policyname || ':' || p.cmd || ':' ||
+             coalesce(p.qual::text, 'NULL') || ':' || coalesce(p.with_check::text, 'NULL') AS line
+      FROM pg_policies p
+      WHERE (p.schemaname = 'public' AND p.tablename LIKE 'academic_council%')
+         OR (p.schemaname = 'storage' AND p.tablename = 'objects' AND p.policyname LIKE 'acta_%')
+    ) s;
+  `);
+  if (!r.ok) throw new Error(`fingerprint discovery failed:\n${r.out}`);
+  const m = r.out.match(/([0-9a-f]{64})/);
+  if (!m) throw new Error(`fingerprint missing:\n${r.out}`);
+  return m[1]!;
+}
+
 async function waitReady(): Promise<boolean> {
   for (let i = 0; i < 60; i++) {
     const r = spawnSync("docker", ["exec", container, "pg_isready", "-U", "postgres"], {
@@ -190,10 +280,10 @@ describe("Academic Councils legacy production → C0-C9 reconciliation", () => {
   it("ships a V2 preflight that classifies legacy production state as supported", () => {
     expect(existsSync(preflightV2)).toBe(true);
     const body = readFileSync(preflightV2, "utf8");
-    expect(body).toContain("LEGACY_SUPPORTED");
-    expect(body).toContain("C0_PARTIAL");
-    expect(body).toContain("C0-Cn_PARTIAL");
-    expect(body).toContain("C0-C9_COMPLETE");
+    expect(body).toContain("LEGACY_SUPPORTED_EXACT");
+    expect(body).toContain("LEGACY_VARIANT_HOLD");
+    expect(body).toContain("PARTIAL_NEW_CHAIN");
+    expect(body).toContain("FULL_NEW_CHAIN");
     expect(body).toContain("UNKNOWN_UNSAFE");
     expect(body).toContain("READY_FOR_APPLY_C0");
   });
@@ -232,14 +322,52 @@ describe("Academic Councils legacy production → C0-C9 reconciliation", () => {
       // ---- PHASE B: capture before fingerprint ----
       const fingerprintBefore = legacyFingerprint();
 
-      // ---- PHASE C: V2 preflight must classify as LEGACY_SUPPORTED ----
-      const preflight = psqlFile(preflightV2);
+      // ---- PHASE C: V2 preflight must classify as LEGACY_SUPPORTED_EXACT ----
+      const localFingerprint = discoverSchemaFingerprint();
+      const preflight = psql(
+        `SET councils.fingerprint_expected = '${localFingerprint}';\n` +
+          readFileSync(preflightV2, "utf8"),
+      );
       if (!preflight.ok) throw new Error(`preflight V2 failed:\n${preflight.out}`);
-      expect(preflight.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: LEGACY_SUPPORTED");
+      expect(preflight.out).toContain("PREFLIGHT_STATE_CLASSIFICATION: LEGACY_SUPPORTED_EXACT");
+      expect(preflight.out).toContain("PREFLIGHT_FINGERPRINT_MATCH: LEGACY_SUPPORTED_EXACT");
       expect(preflight.out).toContain("READY_FOR_APPLY_C0");
 
       // ---- PHASE D: apply C0-C9 chain with post-verifiers ----
       applyChain();
+
+      // ---- PHASE D.1: prove authenticated direct DML was rescoped (no bypass) ----
+      const directDmlRescoped = psql(`
+        DO $$
+        DECLARE
+          v_table text;
+          v_has_insert boolean;
+          v_has_update boolean;
+          v_has_delete boolean;
+        BEGIN
+          FOREACH v_table IN ARRAY ARRAY[
+            'academic_councils',
+            'academic_council_members',
+            'academic_council_meetings',
+            'academic_council_agenda_items',
+            'academic_council_topics',
+            'academic_council_topic_attachments',
+            'academic_council_decisions',
+            'academic_council_minutes'
+          ]
+          LOOP
+            v_has_insert := has_table_privilege('authenticated', 'public.' || v_table, 'INSERT');
+            v_has_update := has_table_privilege('authenticated', 'public.' || v_table, 'UPDATE');
+            v_has_delete := has_table_privilege('authenticated', 'public.' || v_table, 'DELETE');
+            IF v_has_insert OR v_has_update OR v_has_delete THEN
+              RAISE EXCEPTION 'DML_NOT_RESCOPED: authenticated retains INSERT/UPDATE/DELETE on %', v_table;
+            END IF;
+          END LOOP;
+          RAISE NOTICE 'AUTHENTICATED_DIRECT_DML_RESCOPED: SELECT retained, INSERT/UPDATE/DELETE revoked';
+        END $$;
+      `);
+      if (!directDmlRescoped.ok) throw new Error(`direct DML rescope check failed:\n${directDmlRescoped.out}`);
+      expect(directDmlRescoped.out).toContain("AUTHENTICATED_DIRECT_DML_RESCOPED");
 
       // ---- PHASE E: capture after fingerprint and assert preservation ----
       const fingerprintAfter = legacyFingerprint();

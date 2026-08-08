@@ -72,7 +72,7 @@
       "path": "supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql",
       "ledger_name": "20260808120000_councils_c0_write_surface_hardening_01",
       "timestamp": "20260808120000",
-      "sha256_lf": "cca51386d7c3bfe1a3b9ce5ec2cdfb3cd124e3e5eeef01f6270e4299c715dc13",
+      "sha256_lf": "7b7686535e3f77cae5bc72146e2f65db2231a92de75a1815170305d7abac6029",
       "timestamp_unique": true,
       "post_verifier": "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C0.sql",
       "behavioral_verifier_local_only": "tests/academic-councils/postgres-c0-write-surface-verifier.sql",

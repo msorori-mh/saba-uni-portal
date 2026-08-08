@@ -4,7 +4,7 @@
 - **Base:** PR #306 / `1f50e7dcc8042cf15780c7817ecefa579c49f431`
 - **Hash contract:** `SHA256_LF_NORMALIZED_V1` (FULL file LF hash — authoritative)
 - **Rule:** **ONE migration per session.** No batch. No parallel. No CI auto-apply.
-- **Supported prestates (V2 preflight):** `LEGACY_SUPPORTED` only. Unknown variation = HOLD.
+- **Supported prestates (V2 preflight):** `LEGACY_SUPPORTED_EXACT` or `FULL_NEW_CHAIN`. Unknown variation = HOLD.
 - **Status:** SOURCE READY — **NOT APPLIED**
 
 Pinned hashes: `docs/migration-evidence/academic-councils/HASHES.txt`  
@@ -53,7 +53,7 @@ Feature flags remain **OFF**. No deploy. No merge from this package alone.
 | Field | Value |
 |---|---|
 | Migration | `supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql` |
-| FULL_SHA256_LF | `cca51386d7c3bfe1a3b9ce5ec2cdfb3cd124e3e5eeef01f6270e4299c715dc13` |
+| FULL_SHA256_LF | `7b7686535e3f77cae5bc72146e2f65db2231a92de75a1815170305d7abac6029` |
 | Post-verifier | `docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C0.sql` |
 | Pass marker | `COUNCILS_C0_PRODUCTION_POST_VERIFIER_PASS` |
 | Local behavioral (never prod) | `tests/academic-councils/postgres-c0-write-surface-verifier.sql` |

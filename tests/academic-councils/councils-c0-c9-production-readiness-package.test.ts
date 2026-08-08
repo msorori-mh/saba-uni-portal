@@ -26,7 +26,7 @@ const packageFiles = {
 };
 
 const chain = [
-  { step: "C0", migration: "supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C0.sql", pass: "COUNCILS_C0_PRODUCTION_POST_VERIFIER_PASS", sha: "cca51386d7c3bfe1a3b9ce5ec2cdfb3cd124e3e5eeef01f6270e4299c715dc13" },
+  { step: "C0", migration: "supabase/migrations/20260808120000_councils_c0_write_surface_hardening_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C0.sql", pass: "COUNCILS_C0_PRODUCTION_POST_VERIFIER_PASS", sha: "7b7686535e3f77cae5bc72146e2f65db2231a92de75a1815170305d7abac6029" },
   { step: "C1", migration: "supabase/migrations/20260808121000_councils_c1_meeting_state_machine_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C1.sql", pass: "COUNCILS_C1_PRODUCTION_POST_VERIFIER_PASS", sha: "498a8d8c274277ff3ffc96e95fa30202e859aa2a2cfd74bcfaaa9f5d39a033d5" },
   { step: "C2", migration: "supabase/migrations/20260808122000_councils_c2_topic_intake_review_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C2.sql", pass: "COUNCILS_C2_PRODUCTION_POST_VERIFIER_PASS", sha: "f969c6c0f63a4758944cc59f6c78292f56f3a4ac360ae77f0b386bf72e0e364e" },
   { step: "C3", migration: "supabase/migrations/20260808130000_councils_c3_attendance_quorum_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C3.sql", pass: "COUNCILS_C3_PRODUCTION_POST_VERIFIER_PASS", sha: "e7361f6c85014fb37b6f8d97bd468dc1205700748a526cb7a8063f82ff6c0de6" },

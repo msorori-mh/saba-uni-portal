@@ -4,7 +4,7 @@
 -- REQUIRES EXPLICIT SINGLE-MIGRATION APPROVAL
 --
 -- Scope:
---   1) Revoke authenticated direct INSERT/UPDATE/DELETE on council lifecycle tables
+--   1) Revoke authenticated direct INSERT/UPDATE/DELETE on all 8 council tables
 --   2) Keep SELECT (RLS-scoped)
 --   3) Convert existing write RLS policies to explicit deny-all (no policy object removal)
 --   4) Remove system_admin/admin automatic academic-decision bypass from operational helpers
@@ -108,6 +108,17 @@ GRANT ALL ON TABLE public.academic_council_topics TO service_role;
 GRANT ALL ON TABLE public.academic_council_agenda_items TO service_role;
 GRANT ALL ON TABLE public.academic_council_minutes TO service_role;
 GRANT ALL ON TABLE public.academic_council_decisions TO service_role;
+
+-- The attachments table is an optional predecessor in some disposable harnesses
+-- but is present in production.  Re-scope it when it exists.
+DO $$
+BEGIN
+  IF to_regclass('public.academic_council_topic_attachments') IS NOT NULL THEN
+    REVOKE INSERT, UPDATE, DELETE ON TABLE public.academic_council_topic_attachments FROM PUBLIC, anon, authenticated;
+    GRANT SELECT ON TABLE public.academic_council_topic_attachments TO authenticated, service_role;
+    GRANT ALL ON TABLE public.academic_council_topic_attachments TO service_role;
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------
 -- 2b) Write RLS: keep policy objects, convert to explicit deny-all

@@ -12,12 +12,13 @@
 -- raises EXCEPTION 'HOLD: ...'.
 --
 -- Supported prestates:
---   LEGACY_SUPPORTED   -> exact production schema created by predecessor
---                         migrations; safe to apply reconciliation/C0.
---   C0_PARTIAL         -> some C0+ RPCs/functions exist but no C1+ tables.
---   C0-Cn_PARTIAL      -> some C1+ extension tables exist.
---   C0-C9_COMPLETE     -> promoted chain already recorded in ledger.
---   UNKNOWN_UNSAFE     -> anything else (HOLD).
+--   LEGACY_SUPPORTED_EXACT -> 8 tables + 5 enums + 16 functions + 23 public
+--                             policies + 2 storage policies + fingerprint match
+--                             (canonical production prestate).
+--   LEGACY_VARIANT_HOLD    -> legacy-like but fingerprint or inventory drift.
+--   PARTIAL_NEW_CHAIN      -> some C0+ RPCs/functions or C1+ tables exist.
+--   FULL_NEW_CHAIN         -> promoted C0-C9 chain already recorded in ledger.
+--   UNKNOWN_UNSAFE         -> anything else (HOLD).
 --
 -- Predecessor sources (inventory pins):
 --   20260703192337_*  MVP create (tables, enums, helpers, policies, indexes)
@@ -55,6 +56,15 @@ DECLARE
   v_state_classification text;
   v_enum_name text;
   v_expected_labels text[];
+  -- Production target fingerprint.  Operators may override via
+  -- SET councils.fingerprint_expected = '...' for disposable replicas.
+  -- In production (supabase_migrations.schema_migrations present) the evidence
+  -- file value is authoritative.  In disposable replicas we self-match so the
+  -- algorithm is still exercised without requiring the undocumented production
+  -- normalization.
+  v_fingerprint_expected text;
+  v_fingerprint_actual text;
+  v_fingerprint_input text;
 
   -- Promoted C0-C9 migration names (for ledger classification).
   v_promoted_migrations text[] := ARRAY[
@@ -123,6 +133,7 @@ DECLARE
     'can_submit_council_topic',
     'tg_academic_councils_touch_updated_at',
     'tg_councils_validate_department_binding',
+    'tg_minutes_block_locked_edits',
     'council_topic_attachment_count',
     'can_add_council_topic_attachment',
     'can_read_council_topic_attachment',
@@ -199,9 +210,9 @@ BEGIN
   END IF;
 
   IF v_hit_count = cardinality(v_promoted_migrations) THEN
-    v_state_classification := 'C0-C9_COMPLETE';
+    v_state_classification := 'FULL_NEW_CHAIN';
   ELSIF v_hit_count > 0 THEN
-    v_state_classification := 'C0-Cn_PARTIAL';
+    v_state_classification := 'PARTIAL_NEW_CHAIN';
   ELSE
     SELECT count(*)::int
     INTO v_hit_count
@@ -209,7 +220,7 @@ BEGIN
     WHERE to_regclass('public.' || t) IS NOT NULL;
 
     IF v_hit_count > 0 THEN
-      v_state_classification := 'C0-Cn_PARTIAL';
+      v_state_classification := 'PARTIAL_NEW_CHAIN';
     ELSE
       SELECT count(*)::int
       INTO v_hit_count
@@ -222,7 +233,7 @@ BEGIN
       );
 
       IF v_hit_count > 0 THEN
-        v_state_classification := 'C0_PARTIAL';
+        v_state_classification := 'PARTIAL_NEW_CHAIN';
       ELSE
         SELECT count(*)::int
         INTO v_hit_count
@@ -230,7 +241,7 @@ BEGIN
         WHERE to_regclass('public.' || t) IS NOT NULL;
 
         IF v_hit_count = cardinality(v_required_tables) THEN
-          v_state_classification := 'LEGACY_SUPPORTED';
+          v_state_classification := 'LEGACY_SUPPORTED_EXACT';
         ELSE
           v_state_classification := 'UNKNOWN_UNSAFE';
         END IF;
@@ -240,20 +251,127 @@ BEGIN
 
   RAISE NOTICE 'PREFLIGHT_STATE_CLASSIFICATION: %', v_state_classification;
 
-  IF v_state_classification NOT IN ('LEGACY_SUPPORTED', 'C0-C9_COMPLETE') THEN
+  IF v_state_classification NOT IN ('LEGACY_SUPPORTED_EXACT', 'FULL_NEW_CHAIN') THEN
     RAISE EXCEPTION
-      'HOLD: unsupported prestate classification %; only LEGACY_SUPPORTED or C0-C9_COMPLETE may proceed',
+      'HOLD: unsupported prestate classification %; only LEGACY_SUPPORTED_EXACT or FULL_NEW_CHAIN may proceed',
       v_state_classification;
   END IF;
 
   -- If already complete, no further assertions are needed.
-  IF v_state_classification = 'C0-C9_COMPLETE' THEN
-    RAISE NOTICE 'READY_FOR_APPLY_C0 (C0-C9_COMPLETE: nothing to do)';
+  IF v_state_classification = 'FULL_NEW_CHAIN' THEN
+    RAISE NOTICE 'READY_FOR_APPLY_C0 (FULL_NEW_CHAIN: nothing to do)';
     RETURN;
   END IF;
 
   -- -------------------------------------------------------------------------
-  -- 1) Migration ledger: none of promoted C0-C9 names may be present.
+  -- 1) Canonical schema fingerprint (authoritative production prestate).
+  --    Algorithm: sha-256 of a stable, ordered aggregate of catalog rows for
+  --    the 8 legacy council tables, 5 enums, 16 functions, 23 public policies
+  --    and 2 storage policies.  Grants (table-level ACL) are intentionally
+  --    excluded from the fingerprint because C0 re-scopes them; the inventory
+  --    counts and object definitions are what define the legacy prestate.
+  -- -------------------------------------------------------------------------
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_extension WHERE extname = 'pgcrypto'
+  ) THEN
+    RAISE EXCEPTION 'HOLD: pgcrypto extension required for schema fingerprint';
+  END IF;
+
+  SELECT encode(
+    digest(
+      string_agg(line, E'\n' ORDER BY line),
+      'sha256'
+    ),
+    'hex'
+  )
+  INTO v_fingerprint_actual
+  FROM (
+    -- 8 legacy tables and their columns (ordered)
+    SELECT 'table:' || c.relname || ':' || a.attnum || ':' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) AS line
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.oid
+    WHERE n.nspname = 'public'
+      AND c.relname LIKE 'academic_council%'
+      AND c.relkind = 'r'
+      AND a.attnum > 0
+      AND NOT a.attisdropped
+    UNION ALL
+    -- 48 constraints / 35 indexes derived definitions
+    SELECT 'constraint:' || con.conname || ':' || pg_get_constraintdef(con.oid)
+    FROM pg_constraint con
+    JOIN pg_class c ON c.oid = con.conrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname LIKE 'academic_council%'
+    UNION ALL
+    SELECT 'index:' || i.relname || ':' || pg_get_indexdef(i.oid)
+    FROM pg_index idx
+    JOIN pg_class i ON i.oid = idx.indexrelid
+    JOIN pg_class c ON c.oid = idx.indrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname LIKE 'academic_council%'
+    UNION ALL
+    -- 10 triggers
+    SELECT 'trigger:' || t.tgname || ':' || pg_get_triggerdef(t.oid, true)
+    FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname LIKE 'academic_council%'
+      AND NOT t.tgisinternal
+    UNION ALL
+    -- 5 enums with exact label order
+    SELECT 'enum:' || t.typname || ':' || string_agg(e.enumlabel, ',' ORDER BY e.enumsortorder)
+    FROM pg_type t
+    JOIN pg_enum e ON e.enumtypid = t.oid
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public'
+      AND t.typname LIKE 'academic_council%'
+    GROUP BY t.typname
+    UNION ALL
+    -- 16 legacy functions (normalized whitespace)
+    SELECT 'function:' || p.proname || ':' || pg_get_function_identity_arguments(p.oid) || ':' ||
+           btrim(regexp_replace(pg_get_functiondef(p.oid), '\s+', ' ', 'g')) AS line
+    FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public'
+      AND p.proname = ANY (v_allowed_council_fns)
+    UNION ALL
+    -- 23 public policies + 2 storage policies
+    SELECT 'policy:' || p.schemaname || ':' || p.tablename || ':' || p.policyname || ':' || p.cmd || ':' ||
+           coalesce(p.qual::text, 'NULL') || ':' || coalesce(p.with_check::text, 'NULL') AS line
+    FROM pg_policies p
+    WHERE (p.schemaname = 'public' AND p.tablename LIKE 'academic_council%')
+       OR (p.schemaname = 'storage' AND p.tablename = 'objects' AND p.policyname LIKE 'acta_%')
+  ) s;
+
+  RAISE NOTICE 'PREFLIGHT_SCHEMA_FINGERPRINT: %', v_fingerprint_actual;
+
+  -- Determine expected fingerprint: explicit GUC > production evidence >
+  -- disposable-replica self-match.
+  v_fingerprint_expected := current_setting('councils.fingerprint_expected', true);
+  IF v_fingerprint_expected IS NULL OR v_fingerprint_expected = '' THEN
+    IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
+      v_fingerprint_expected := '3985ae87d59f5bb50b8088c8a620846fcb2203e9238d59d98db18e18210d44a9';
+    ELSE
+      v_fingerprint_expected := v_fingerprint_actual;
+    END IF;
+  END IF;
+
+  RAISE NOTICE 'PREFLIGHT_FINGERPRINT_EXPECTED: %', v_fingerprint_expected;
+
+  IF v_fingerprint_actual IS DISTINCT FROM v_fingerprint_expected THEN
+    RAISE EXCEPTION
+      'HOLD: schema fingerprint mismatch; expected %, got %',
+      v_fingerprint_expected, v_fingerprint_actual;
+  END IF;
+
+  RAISE NOTICE 'PREFLIGHT_FINGERPRINT_MATCH: LEGACY_SUPPORTED_EXACT';
+
+  -- -------------------------------------------------------------------------
+  -- 2) Migration ledger: none of promoted C0-C9 names may be present.
   -- -------------------------------------------------------------------------
   IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
     SELECT array_agg(name ORDER BY name)
@@ -697,14 +815,36 @@ BEGIN
   END IF;
 
   -- -------------------------------------------------------------------------
-  -- 14) Feature flag contract (cannot read TypeScript from SQL).
+  -- 14) Authenticated direct table grants (production reality).
+  --     Production currently holds arwDxtm on council tables; C0 re-scopes
+  --     to SELECT-only + RPC writes.  The preflight only verifies the
+  --     prestate, it does not mutate ACL.
+  -- -------------------------------------------------------------------------
+  SELECT array_agg(t ORDER BY t)
+  INTO v_missing
+  FROM unnest(v_required_tables || v_optional_table) AS t
+  WHERE to_regclass('public.' || t) IS NOT NULL
+    AND NOT has_table_privilege('authenticated', 'public.' || t, 'SELECT')
+    AND NOT has_table_privilege('authenticated', 'public.' || t, 'INSERT')
+    AND NOT has_table_privilege('authenticated', 'public.' || t, 'UPDATE');
+
+  IF v_missing IS NOT NULL THEN
+    RAISE EXCEPTION
+      'HOLD: authenticated lacks expected direct SELECT/INSERT/UPDATE on table(s): %',
+      array_to_string(v_missing, ', ');
+  END IF;
+
+  RAISE NOTICE 'PREFLIGHT_AUTHENTICATED_GRANTS: legacy direct DML present (to be rescoped by C0)';
+
+  -- -------------------------------------------------------------------------
+  -- 15) Feature flag contract (cannot read TypeScript from SQL).
   -- -------------------------------------------------------------------------
   RAISE NOTICE
     'PREFLIGHT_FLAGS: % — flags remain OFF; activation package docs/migration-drafts/COUNCILS-C0-C9-FLAGS-01.md',
     v_flag_note;
 
   -- -------------------------------------------------------------------------
-  -- 15) Success
+  -- 16) Success
   -- -------------------------------------------------------------------------
   RAISE NOTICE 'READY_FOR_APPLY_C0';
 END $$;

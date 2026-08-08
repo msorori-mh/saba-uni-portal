@@ -12,13 +12,13 @@ Companion: `docs/migration-drafts/COUNCILS-C0-C9-ROLLBACK-BY-FORWARD-01.sql`
 
 | Classification | Meaning | Resume |
 |---|---|---|
-| `LEGACY_SUPPORTED` | Exact production predecessor schema present; C0+ objects absent. Safe to apply C0. | C0 |
-| `C0_PARTIAL` | Some C0+ RPCs exist but no C1+ tables. Investigate before continuing. | HOLD |
-| `C0-Cn_PARTIAL` | Some C1+ extension tables exist without complete ledger. Mixed state. | HOLD |
-| `C0-C9_COMPLETE` | All ten promoted migrations already applied. Nothing to do. | N/A |
+| `LEGACY_SUPPORTED_EXACT` | Exact production predecessor schema present (8 tables + 5 enums + 16 functions + 23 public policies + 2 storage policies + fingerprint match); C0+ objects absent. Safe to apply C0. | C0 |
+| `LEGACY_VARIANT_HOLD` | Legacy-like but fingerprint or inventory drift. | HOLD |
+| `PARTIAL_NEW_CHAIN` | Some C0+ RPCs exist or some C1+ extension tables exist without complete ledger. Mixed state. | HOLD |
+| `FULL_NEW_CHAIN` | All ten promoted migrations already applied. Nothing to do. | N/A |
 | `UNKNOWN_UNSAFE` | Does not match any known supported prestate. | HOLD |
 
-Preflight V2 emits the classification and raises `HOLD:` for any state other than `LEGACY_SUPPORTED` or `C0-C9_COMPLETE`.
+Preflight V2 emits the classification and raises `HOLD:` for any state other than `LEGACY_SUPPORTED_EXACT` or `FULL_NEW_CHAIN`.
 
 ---
 
