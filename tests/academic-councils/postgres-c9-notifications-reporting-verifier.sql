@@ -165,14 +165,13 @@ end $$;
 
 -- ---------------------------------------------------------------------
 -- 2) Positive notification dispatch + read + acknowledge
+--     Dispatch must occur via trusted path (meeting schedule trigger),
+--     not via direct authenticated RPC to INTERNAL_ONLY helpers.
 -- ---------------------------------------------------------------------
 do $$
 declare
   v_council uuid := 'c1000000-0000-0000-0000-000000000001';
   v_chair uuid := 'a1000000-0000-0000-0000-000000000011';
-  v_sec uuid := 'a1000000-0000-0000-0000-000000000013';
-  v_mem uuid := 'a1000000-0000-0000-0000-000000000014';
-  v_viewer uuid := 'a1000000-0000-0000-0000-000000000015';
   v_meeting uuid;
   v_res jsonb;
   v_notif_id uuid;
@@ -180,26 +179,34 @@ declare
 begin
   perform pg_temp.as_user(v_chair);
 
-  -- Use a real meeting so notification FK is satisfied
+  -- Schedule meeting → SECURITY DEFINER trigger dispatches notifications
   v_meeting := ((public.council_schedule_meeting(
     v_council, 'C9 Notification Test Meeting', now() + interval '2 days'
   ))->>'meeting_id')::uuid;
-
-  -- Direct dispatch
-  perform public.dispatch_council_notification(
-    'meeting_scheduled', v_council, v_meeting,
-    'academic_council_meetings', v_meeting,
-    jsonb_build_object('title', 'Test Meeting')
-  );
 
   -- Count notifications globally (bypass RLS)
   perform pg_temp.reset_role();
   execute 'set local role service_role';
   select count(*) into v_count
   from public.academic_council_notifications
-  where council_id = v_council and event_type = 'meeting_scheduled';
+  where council_id = v_council and event_type = 'meeting_scheduled' and meeting_id = v_meeting;
   if v_count < 4 then
     raise exception 'EXPECTED_NOTIFICATIONS_FOR_ALL_MEMBERS: %', v_count;
+  end if;
+
+  -- Prove forged title/body cannot be injected even via service_role create helper
+  perform public.create_council_notification(
+    v_chair, 'meeting_scheduled', v_council, v_meeting,
+    'academic_council_meetings', v_meeting,
+    'FORGED TITLE SHOULD BE IGNORED',
+    'FORGED BODY SHOULD BE IGNORED',
+    '{"forged":true,"title":"safe-server-title"}'::jsonb
+  );
+  if exists (
+    select 1 from public.academic_council_notifications
+    where meeting_id = v_meeting and (title like 'FORGED%' or body like 'FORGED%' or payload ? 'forged')
+  ) then
+    raise exception 'SERVER_SIDE_MESSAGE_HARDENING_FAILED';
   end if;
 
   -- Chair can read own notifications
@@ -228,7 +235,7 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
--- 3) Auth matrix: read/ack/report/dashboard cross-council and zero mutation
+-- 3) Auth matrix: internal RPC ACL + forgery + cross-council + zero mutation
 -- ---------------------------------------------------------------------
 do $$
 declare
@@ -240,17 +247,73 @@ declare
   v_mem uuid := 'a1000000-0000-0000-0000-000000000014';
   v_viewer uuid := 'a1000000-0000-0000-0000-000000000015';
   v_student uuid := 'a1000000-0000-0000-0000-000000000017';
+  v_admin uuid := 'a1000000-0000-0000-0000-000000000002';
+  v_dean uuid := 'a1000000-0000-0000-0000-000000000020';
+  v_system_admin uuid := 'a1000000-0000-0000-0000-000000000021';
   v_notif uuid;
+  v_other_notif uuid;
+  v_actor uuid;
   v_neg int := 0;
 begin
-  select id into v_notif from public.academic_council_notifications
-  where council_id = v_council limit 1;
+  -- Catalog ACL: INTERNAL_ONLY helpers must not be executable by clients
+  perform pg_temp.reset_role();
+  if has_function_privilege('authenticated', 'public.create_council_notification(uuid,text,uuid,uuid,text,uuid,text,text,jsonb)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.dispatch_council_notification(text,uuid,uuid,text,uuid,jsonb)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.get_council_notification_recipients(uuid,text,jsonb)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.create_council_notification(uuid,text,uuid,uuid,text,uuid,text,text,jsonb)', 'EXECUTE')
+     or has_function_privilege('public', 'public.create_council_notification(uuid,text,uuid,uuid,text,uuid,text,text,jsonb)', 'EXECUTE') then
+    raise exception 'C9_INTERNAL_HELPERS_STILL_CLIENT_EXECUTABLE';
+  end if;
+  raise notice 'C9_INTERNAL_RPC_ACL_PASS';
 
-  -- Student cannot read council notifications
-  perform pg_temp.as_user(v_student);
-  perform pg_temp.deny_zero('STUDENT_NOTIFICATION_READ',
-    format($q$select public.get_my_council_notifications(10)$q$));
+  select id into v_notif from public.academic_council_notifications
+  where council_id = v_council and user_id = v_chair limit 1;
+  select id into v_other_notif from public.academic_council_notifications
+  where council_id = v_council and user_id = v_mem limit 1;
+
+  -- Forgery matrix across roles: direct INTERNAL_ONLY RPCs must deny with zero mutation
+  foreach v_actor in array array[v_chair, v_other_chair, v_sec, v_mem, v_viewer, v_student, v_admin, v_dean, v_system_admin]
+  loop
+    perform pg_temp.as_user(v_actor);
+    perform pg_temp.deny_zero('FORGE_CREATE_' || v_actor::text,
+      format($q$select public.create_council_notification('%s','decision_assigned','%s',null,'forged','f1000000-0000-0000-0000-000000000099','FORGED','FORGED','{"forged":true}'::jsonb)$q$,
+        v_student, v_council_b));
+    v_neg := v_neg + 1;
+    perform pg_temp.deny_zero('FORGE_DISPATCH_' || v_actor::text,
+      format($q$select public.dispatch_council_notification('meeting_scheduled','%s',null,'forged','f1000000-0000-0000-0000-000000000088','{"forged":true}'::jsonb)$q$,
+        v_council_b));
+    v_neg := v_neg + 1;
+    perform pg_temp.deny_zero('FORGE_RECIPIENTS_' || v_actor::text,
+      format($q$select * from public.get_council_notification_recipients('%s','decision_assigned','{"responsible_user_id":"%s"}'::jsonb)$q$,
+        v_council, v_student));
+    v_neg := v_neg + 1;
+  end loop;
+
+  -- Anonymous forgery denied
+  perform pg_temp.reset_role();
+  execute 'set local role anon';
+  perform pg_temp.deny_zero('ANON_FORGE_CREATE',
+    format($q$select public.create_council_notification('%s','meeting_scheduled','%s',null,null,null,'x','y','{}'::jsonb)$q$, v_chair, v_council));
   v_neg := v_neg + 1;
+  perform pg_temp.deny_zero('ANON_FORGE_DISPATCH',
+    format($q$select public.dispatch_council_notification('meeting_scheduled','%s',null,null,null,'{}'::jsonb)$q$, v_council));
+  v_neg := v_neg + 1;
+
+  -- Cross-user acknowledge denied (member cannot ack chair notification)
+  perform pg_temp.as_user(v_mem);
+  perform pg_temp.deny_zero('CROSS_USER_ACK',
+    format($q$select public.acknowledge_council_notification('%s')$q$, v_notif));
+  v_neg := v_neg + 1;
+  perform pg_temp.as_user(v_other_chair);
+  perform pg_temp.deny_zero('CROSS_COUNCIL_ACK',
+    format($q$select public.acknowledge_council_notification('%s')$q$, v_other_notif));
+  v_neg := v_neg + 1;
+
+  -- Student: may call get_my (own inbox) but must see zero council rows; reports denied
+  perform pg_temp.as_user(v_student);
+  if coalesce(jsonb_array_length(public.get_my_council_notifications(10)->'notifications'), 0) <> 0 then
+    raise exception 'STUDENT_SAW_COUNCIL_NOTIFICATIONS';
+  end if;
   perform pg_temp.deny_zero('STUDENT_REPORT_READ',
     format($q$select public.get_council_report_meetings_by_period('%s', null, null)$q$, v_council));
   v_neg := v_neg + 1;
@@ -306,8 +369,13 @@ begin
     format($q$update public.academic_council_notifications set body = 'tampered' where id = '%s'$q$, v_notif));
   v_neg := v_neg + 1;
 
+  if v_neg < 30 then
+    raise exception 'C9_AUTH_MATRIX_TOO_SMALL: %', v_neg;
+  end if;
+
   raise notice 'AUTHORIZATION_MATRIX_PASS';
   raise notice 'ZERO_MUTATION_DENIALS_COUNTED';
+  raise notice 'C9_AUTH_MATRIX_CASE_COUNT=%', v_neg;
 end $$;
 
 -- ---------------------------------------------------------------------
@@ -474,7 +542,7 @@ do $$
 declare v_count integer;
 begin
   select count(*) into v_count from pg_temp.denial_log;
-  if v_count < 8 then
+  if v_count < 30 then
     raise exception 'INSUFFICIENT_NEGATIVE_CASES: %', v_count;
   end if;
   raise notice 'ACADEMIC_COUNCILS_C9_NOTIFICATIONS_REPORTING_VERIFIER_PASS';

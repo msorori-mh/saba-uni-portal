@@ -180,58 +180,98 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_id uuid;
-  v_title text := p_title;
-  v_body text := p_body;
+  v_title text;
+  v_body text;
+  v_payload jsonb := coalesce(p_payload, '{}'::jsonb);
 BEGIN
-  IF p_user_id IS NULL THEN RETURN NULL; END IF;
-  IF p_council_id IS NULL THEN RETURN NULL; END IF;
+  -- INTERNAL_ONLY helper: never trust caller-supplied title/body.
+  -- p_title/p_body retained for signature stability but are ignored.
+  PERFORM p_title, p_body;
 
-  IF v_title IS NULL THEN
-    v_title := CASE p_event_type
-      WHEN 'meeting_scheduled' THEN 'تم جدولة اجتماع جديد'
-      WHEN 'intake_opened' THEN 'فتح استقبال الموضوعات'
-      WHEN 'intake_closing' THEN 'استقبال الموضوعات على وشك الإغلاق'
-      WHEN 'intake_closed' THEN 'إغلاق استقبال الموضوعات'
-      WHEN 'topic_submitted' THEN 'موضوع جديد مقدم للمجلس'
-      WHEN 'needs_completion' THEN 'موضوع يحتاج استكمالاً'
-      WHEN 'accepted' THEN 'قبول موضوع للمجلس'
-      WHEN 'rejected' THEN 'رفض موضوع'
-      WHEN 'agenda_ready' THEN 'جدول الأعمال جاهز'
-      WHEN 'attendance_requested' THEN 'طلب تأكيد الحضور'
-      WHEN 'session_ready' THEN 'الجلسة جاهزة للانعقاد'
-      WHEN 'decision_assigned' THEN 'قرار موجه لك للتنفيذ'
-      WHEN 'decision_nearing_deadline' THEN 'قرار يقترب من تاريخ الاستحقاق'
-      WHEN 'decision_overdue' THEN 'قرار متأخر عن التنفيذ'
-      WHEN 'meeting_archived' THEN 'تم أرشفة الاجتماع'
-      ELSE 'إشعار مجلس أكاديمي'
-    END;
+  IF p_user_id IS NULL THEN
+    RAISE EXCEPTION 'COUNCIL_NOTIFICATION_USER_REQUIRED' USING ERRCODE = '22023';
+  END IF;
+  IF p_council_id IS NULL THEN
+    RAISE EXCEPTION 'COUNCIL_NOTIFICATION_COUNCIL_REQUIRED' USING ERRCODE = '22023';
+  END IF;
+  IF p_event_type IS NULL OR p_event_type NOT IN (
+    'meeting_scheduled', 'intake_opened', 'intake_closing', 'intake_closed',
+    'topic_submitted', 'needs_completion', 'accepted', 'rejected',
+    'agenda_ready', 'attendance_requested', 'session_ready',
+    'decision_assigned', 'decision_nearing_deadline', 'decision_overdue',
+    'meeting_archived'
+  ) THEN
+    RAISE EXCEPTION 'COUNCIL_NOTIFICATION_EVENT_TYPE_NOT_ALLOWED' USING ERRCODE = '22023';
   END IF;
 
-  IF v_body IS NULL THEN
-    v_body := CASE p_event_type
-      WHEN 'meeting_scheduled' THEN 'تم جدولة اجتماع جديد للمجلس. يمكنك الاطلاع على التفاصيل.'
-      WHEN 'intake_opened' THEN 'فُتح استقبال الموضوعات لاجتماع قادم. بإمكانك تقديم موضوع حسب صلاحياتك.'
-      WHEN 'intake_closing' THEN 'استقبال الموضوعات سيُغلق قريباً. يرجى إنهاء ما يلزم.'
-      WHEN 'intake_closed' THEN 'أُغلق استقبال الموضوعات. سيتم البدء بإعداد جدول الأعمال.'
-      WHEN 'topic_submitted' THEN 'تم تقديم موضوع جديد للمجلس وهو قيد المراجعة.'
-      WHEN 'needs_completion' THEN 'موضوع مقدم يحتاج إلى استكمال بيانات قبل المتابعة.'
-      WHEN 'accepted' THEN 'تم قبول موضوع وإدراجه ضمن بنود جدول الأعمال المحتملة.'
-      WHEN 'rejected' THEN 'تم رفض موضوع. يمكنك مراجعة الملاحظات.'
-      WHEN 'agenda_ready' THEN 'جدول أعمال الاجتماع جاهز للاطلاع والتحضير.'
-      WHEN 'attendance_requested' THEN 'يُرجى تأكيد حضورك لاجتماع المجلس القادم.'
-      WHEN 'session_ready' THEN 'الجلسة جاهزة للانعقاد. يمكنك المشاركة عند بدء التصويت.'
-      WHEN 'decision_assigned' THEN 'تم توجيه قرار للتنفيذ من قبلك. راجع التفاصيل والموعد المحدد.'
-      WHEN 'decision_nearing_deadline' THEN 'قرار موجه للتنفيذ يقترب من موعد استحقاقه.'
-      WHEN 'decision_overdue' THEN 'قرار متأخر عن التنفيذ. يرجى تحديث مجريات التنفيذ فوراً.'
-      WHEN 'meeting_archived' THEN 'تمت أرشفة الاجتماع وتحويل محضره للسجل التاريخي.'
-      ELSE 'لديك إشعار جديد من المجلس الأكاديمي.'
-    END;
+  IF NOT EXISTS (SELECT 1 FROM public.academic_councils c WHERE c.id = p_council_id) THEN
+    RAISE EXCEPTION 'COUNCIL_NOTIFICATION_COUNCIL_NOT_FOUND' USING ERRCODE = 'P0002';
   END IF;
+
+  IF p_meeting_id IS NOT NULL THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM public.academic_council_meetings m
+      WHERE m.id = p_meeting_id AND m.council_id = p_council_id
+    ) THEN
+      RAISE EXCEPTION 'COUNCIL_NOTIFICATION_MEETING_COUNCIL_MISMATCH' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+
+  v_title := CASE p_event_type
+    WHEN 'meeting_scheduled' THEN 'تم جدولة اجتماع جديد'
+    WHEN 'intake_opened' THEN 'فتح استقبال الموضوعات'
+    WHEN 'intake_closing' THEN 'استقبال الموضوعات على وشك الإغلاق'
+    WHEN 'intake_closed' THEN 'إغلاق استقبال الموضوعات'
+    WHEN 'topic_submitted' THEN 'موضوع جديد مقدم للمجلس'
+    WHEN 'needs_completion' THEN 'موضوع يحتاج استكمالاً'
+    WHEN 'accepted' THEN 'قبول موضوع للمجلس'
+    WHEN 'rejected' THEN 'رفض موضوع'
+    WHEN 'agenda_ready' THEN 'جدول الأعمال جاهز'
+    WHEN 'attendance_requested' THEN 'طلب تأكيد الحضور'
+    WHEN 'session_ready' THEN 'الجلسة جاهزة للانعقاد'
+    WHEN 'decision_assigned' THEN 'قرار موجه لك للتنفيذ'
+    WHEN 'decision_nearing_deadline' THEN 'قرار يقترب من تاريخ الاستحقاق'
+    WHEN 'decision_overdue' THEN 'قرار متأخر عن التنفيذ'
+    WHEN 'meeting_archived' THEN 'تم أرشفة الاجتماع'
+  END;
+
+  v_body := CASE p_event_type
+    WHEN 'meeting_scheduled' THEN 'تم جدولة اجتماع جديد للمجلس. يمكنك الاطلاع على التفاصيل.'
+    WHEN 'intake_opened' THEN 'فُتح استقبال الموضوعات لاجتماع قادم. بإمكانك تقديم موضوع حسب صلاحياتك.'
+    WHEN 'intake_closing' THEN 'استقبال الموضوعات سيُغلق قريباً. يرجى إنهاء ما يلزم.'
+    WHEN 'intake_closed' THEN 'أُغلق استقبال الموضوعات. سيتم البدء بإعداد جدول الأعمال.'
+    WHEN 'topic_submitted' THEN 'تم تقديم موضوع جديد للمجلس وهو قيد المراجعة.'
+    WHEN 'needs_completion' THEN 'موضوع مقدم يحتاج إلى استكمال بيانات قبل المتابعة.'
+    WHEN 'accepted' THEN 'تم قبول موضوع وإدراجه ضمن بنود جدول الأعمال المحتملة.'
+    WHEN 'rejected' THEN 'تم رفض موضوع. يمكنك مراجعة الملاحظات.'
+    WHEN 'agenda_ready' THEN 'جدول أعمال الاجتماع جاهز للاطلاع والتحضير.'
+    WHEN 'attendance_requested' THEN 'يُرجى تأكيد حضورك لاجتماع المجلس القادم.'
+    WHEN 'session_ready' THEN 'الجلسة جاهزة للانعقاد. يمكنك المشاركة عند بدء التصويت.'
+    WHEN 'decision_assigned' THEN 'تم توجيه قرار للتنفيذ من قبلك. راجع التفاصيل والموعد المحدد.'
+    WHEN 'decision_nearing_deadline' THEN 'قرار موجه للتنفيذ يقترب من موعد استحقاقه.'
+    WHEN 'decision_overdue' THEN 'قرار متأخر عن التنفيذ. يرجى تحديث مجريات التنفيذ فوراً.'
+    WHEN 'meeting_archived' THEN 'تمت أرشفة الاجتماع وتحويل محضره للسجل التاريخي.'
+  END;
+
+  -- Strip client-forgeable freeform keys; keep only safe server metadata keys.
+  v_payload := jsonb_strip_nulls(jsonb_build_object(
+    'meeting_number', v_payload->'meeting_number',
+    'title', v_payload->'title',
+    'scheduled_at', v_payload->'scheduled_at',
+    'from_status', v_payload->'from_status',
+    'to_status', v_payload->'to_status',
+    'topic_title', v_payload->'topic_title',
+    'status', v_payload->'status',
+    'review_note', v_payload->'review_note',
+    'decision_number', v_payload->'decision_number',
+    'responsible_user_id', v_payload->'responsible_user_id',
+    'due_date', v_payload->'due_date'
+  ));
 
   INSERT INTO public.academic_council_notifications (
     user_id, event_type, council_id, meeting_id, entity_type, entity_id, title, body, payload
   ) VALUES (
-    p_user_id, p_event_type, p_council_id, p_meeting_id, p_entity_type, p_entity_id, v_title, v_body, p_payload
+    p_user_id, p_event_type, p_council_id, p_meeting_id, p_entity_type, p_entity_id, v_title, v_body, v_payload
   ) RETURNING id INTO v_id;
 
   RETURN v_id;
@@ -303,54 +343,24 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_user_id uuid;
-  v_title text;
-  v_body text;
 BEGIN
-  SELECT
-    CASE p_event_type
-      WHEN 'meeting_scheduled' THEN 'تم جدولة اجتماع جديد'
-      WHEN 'intake_opened' THEN 'فتح استقبال الموضوعات'
-      WHEN 'intake_closing' THEN 'استقبال الموضوعات على وشك الإغلاق'
-      WHEN 'intake_closed' THEN 'إغلاق استقبال الموضوعات'
-      WHEN 'topic_submitted' THEN 'موضوع جديد مقدم للمجلس'
-      WHEN 'needs_completion' THEN 'موضوع يحتاج استكمالاً'
-      WHEN 'accepted' THEN 'قبول موضوع للمجلس'
-      WHEN 'rejected' THEN 'رفض موضوع'
-      WHEN 'agenda_ready' THEN 'جدول الأعمال جاهز'
-      WHEN 'attendance_requested' THEN 'طلب تأكيد الحضور'
-      WHEN 'session_ready' THEN 'الجلسة جاهزة للانعقاد'
-      WHEN 'decision_assigned' THEN 'قرار موجه لك للتنفيذ'
-      WHEN 'decision_nearing_deadline' THEN 'قرار يقترب من تاريخ الاستحقاق'
-      WHEN 'decision_overdue' THEN 'قرار متأخر عن التنفيذ'
-      WHEN 'meeting_archived' THEN 'تم أرشفة الاجتماع'
-      ELSE 'إشعار مجلس أكاديمي'
-    END,
-    CASE p_event_type
-      WHEN 'meeting_scheduled' THEN 'تم جدولة اجتماع جديد للمجلس. يمكنك الاطلاع على التفاصيل.'
-      WHEN 'intake_opened' THEN 'فُتح استقبال الموضوعات لاجتماع قادم. بإمكانك تقديم موضوع حسب صلاحياتك.'
-      WHEN 'intake_closing' THEN 'استقبال الموضوعات سيُغلق قريباً. يرجى إنهاء ما يلزم.'
-      WHEN 'intake_closed' THEN 'أُغلق استقبال الموضوعات. سيتم البدء بإعداد جدول الأعمال.'
-      WHEN 'topic_submitted' THEN 'تم تقديم موضوع جديد للمجلس وهو قيد المراجعة.'
-      WHEN 'needs_completion' THEN 'موضوع مقدم يحتاج إلى استكمال بيانات قبل المتابعة.'
-      WHEN 'accepted' THEN 'تم قبول موضوع وإدراجه ضمن بنود جدول الأعمال المحتملة.'
-      WHEN 'rejected' THEN 'تم رفض موضوع. يمكنك مراجعة الملاحظات.'
-      WHEN 'agenda_ready' THEN 'جدول أعمال الاجتماع جاهز للاطلاع والتحضير.'
-      WHEN 'attendance_requested' THEN 'يُرجى تأكيد حضورك لاجتماع المجلس القادم.'
-      WHEN 'session_ready' THEN 'الجلسة جاهزة للانعقاد. يمكنك المشاركة عند بدء التصويت.'
-      WHEN 'decision_assigned' THEN 'تم توجيه قرار للتنفيذ من قبلك. راجع التفاصيل والموعد المحدد.'
-      WHEN 'decision_nearing_deadline' THEN 'قرار موجه للتنفيذ يقترب من موعد استحقاقه.'
-      WHEN 'decision_overdue' THEN 'قرار متأخر عن التنفيذ. يرجى تحديث مجريات التنفيذ فوراً.'
-      WHEN 'meeting_archived' THEN 'تمت أرشفة الاجتماع وتحويل محضره للسجل التاريخي.'
-      ELSE 'لديك إشعار جديد من المجلس الأكاديمي.'
-    END
-  INTO v_title, v_body;
+  -- INTERNAL_ONLY: recipients and message text are derived server-side.
+  IF p_event_type IS NULL OR p_event_type NOT IN (
+    'meeting_scheduled', 'intake_opened', 'intake_closing', 'intake_closed',
+    'topic_submitted', 'needs_completion', 'accepted', 'rejected',
+    'agenda_ready', 'attendance_requested', 'session_ready',
+    'decision_assigned', 'decision_nearing_deadline', 'decision_overdue',
+    'meeting_archived'
+  ) THEN
+    RAISE EXCEPTION 'COUNCIL_NOTIFICATION_EVENT_TYPE_NOT_ALLOWED' USING ERRCODE = '22023';
+  END IF;
 
   FOR v_user_id IN
-    SELECT r.user_id FROM public.get_council_notification_recipients(p_council_id, p_event_type, p_payload) r
+    SELECT r.user_id FROM public.get_council_notification_recipients(p_council_id, p_event_type, coalesce(p_payload, '{}'::jsonb)) r
   LOOP
     PERFORM public.create_council_notification(
       v_user_id, p_event_type, p_council_id, p_meeting_id,
-      p_entity_type, p_entity_id, v_title, v_body, p_payload
+      p_entity_type, p_entity_id, NULL, NULL, coalesce(p_payload, '{}'::jsonb)
     );
   END LOOP;
 END;
@@ -1239,10 +1249,21 @@ $$;
 
 -- ---------------------------------------------------------------------
 -- 8) Grants / Revokes
+-- Classification:
+--   INTERNAL_ONLY: create/dispatch/recipients + protect/notify triggers
+--   PUBLIC_ACTOR_SAFE: get_my / acknowledge (auth.uid derived server-side)
+--   READ_ONLY_PUBLIC: report + dashboard RPCs (membership-scoped)
 -- ---------------------------------------------------------------------
-REVOKE ALL ON FUNCTION public.create_council_notification(uuid, text, uuid, uuid, text, uuid, text, text, jsonb) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.get_council_notification_recipients(uuid, text, jsonb) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.dispatch_council_notification(text, uuid, uuid, text, uuid, jsonb) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.create_council_notification(uuid, text, uuid, uuid, text, uuid, text, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_council_notification_recipients(uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.dispatch_council_notification(text, uuid, uuid, text, uuid, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.tg_ac_notifications_protect() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.tg_ac_meeting_schedule_notify() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.tg_ac_meeting_status_notify() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.tg_ac_topic_status_notify() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.tg_ac_decision_notify() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.council_attendance_require_auth_uid() FROM PUBLIC, anon, authenticated;
+
 REVOKE ALL ON FUNCTION public.get_my_council_notifications(integer) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.acknowledge_council_notification(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.get_council_report_meetings_by_period(uuid, date, date) FROM PUBLIC, anon;
@@ -1261,9 +1282,11 @@ REVOKE ALL ON FUNCTION public.get_council_secretary_dashboard(uuid) FROM PUBLIC,
 REVOKE ALL ON FUNCTION public.get_council_member_workspace(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.get_council_responsible_decisions(uuid) FROM PUBLIC, anon;
 
-GRANT EXECUTE ON FUNCTION public.create_council_notification(uuid, text, uuid, uuid, text, uuid, text, text, jsonb) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.get_council_notification_recipients(uuid, text, jsonb) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.dispatch_council_notification(text, uuid, uuid, text, uuid, jsonb) TO authenticated, service_role;
+-- Trusted execution path only (SECURITY DEFINER owners + service_role).
+GRANT EXECUTE ON FUNCTION public.create_council_notification(uuid, text, uuid, uuid, text, uuid, text, text, jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_council_notification_recipients(uuid, text, jsonb) TO service_role;
+GRANT EXECUTE ON FUNCTION public.dispatch_council_notification(text, uuid, uuid, text, uuid, jsonb) TO service_role;
+
 GRANT EXECUTE ON FUNCTION public.get_my_council_notifications(integer) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.acknowledge_council_notification(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_council_report_meetings_by_period(uuid, date, date) TO authenticated, service_role;
@@ -1281,5 +1304,42 @@ GRANT EXECUTE ON FUNCTION public.get_council_chair_dashboard(uuid) TO authentica
 GRANT EXECUTE ON FUNCTION public.get_council_secretary_dashboard(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_council_member_workspace(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_council_responsible_decisions(uuid) TO authenticated, service_role;
+
+-- Fail-closed catalog assertions: INTERNAL_ONLY helpers must not be client-executable.
+DO $c9_internal_acl$
+DECLARE
+  v_bad text;
+BEGIN
+  SELECT string_agg(format('%s(%s)', p.proname, pg_get_function_identity_arguments(p.oid)), ', ' ORDER BY p.proname)
+  INTO v_bad
+  FROM pg_proc p
+  JOIN pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND (
+      (p.proname = 'create_council_notification' AND pg_get_function_identity_arguments(p.oid) = 'p_user_id uuid, p_event_type text, p_council_id uuid, p_meeting_id uuid, p_entity_type text, p_entity_id uuid, p_title text, p_body text, p_payload jsonb')
+      OR (p.proname = 'get_council_notification_recipients' AND pg_get_function_identity_arguments(p.oid) = 'p_council_id uuid, p_event_type text, p_context jsonb')
+      OR (p.proname = 'dispatch_council_notification' AND pg_get_function_identity_arguments(p.oid) = 'p_event_type text, p_council_id uuid, p_meeting_id uuid, p_entity_type text, p_entity_id uuid, p_payload jsonb')
+    )
+    AND (
+      has_function_privilege('public', p.oid, 'EXECUTE')
+      OR has_function_privilege('anon', p.oid, 'EXECUTE')
+      OR has_function_privilege('authenticated', p.oid, 'EXECUTE')
+    );
+
+  IF v_bad IS NOT NULL THEN
+    RAISE EXCEPTION 'C9_INTERNAL_RPC_ACL_UNEXPECTED: %', v_bad;
+  END IF;
+
+  IF NOT has_function_privilege('authenticated', 'public.get_my_council_notifications(integer)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.acknowledge_council_notification(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'C9_PUBLIC_ACTOR_SAFE_ACL_MISSING';
+  END IF;
+
+  IF has_function_privilege('anon', 'public.get_my_council_notifications(integer)', 'EXECUTE')
+     OR has_function_privilege('anon', 'public.acknowledge_council_notification(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'C9_PUBLIC_ACTOR_SAFE_ANON_EXECUTE_UNEXPECTED';
+  END IF;
+END
+$c9_internal_acl$;
 
 COMMIT;

@@ -35,7 +35,7 @@ const chain = [
   { step: "C6", migration: "supabase/migrations/20260808160000_councils_c6_decisions_followup_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C6.sql", pass: "COUNCILS_C6_PRODUCTION_POST_VERIFIER_PASS", sha: "1051df7e816fc2e260616a9f1f9dba457e5e39e001c5ab06a91f376b84d92b43" },
   { step: "C7", migration: "supabase/migrations/20260808170000_councils_c7_audit_archive_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C7.sql", pass: "COUNCILS_C7_PRODUCTION_POST_VERIFIER_PASS", sha: "3fd74518d57722b7018b06ba9ce50f7fb9033c2d8527fe515d5ad133a4081f6a" },
   { step: "C8", migration: "supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C8.sql", pass: "COUNCILS_C8_PRODUCTION_POST_VERIFIER_PASS", sha: "6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3" },
-  { step: "C9", migration: "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C9.sql", pass: "COUNCILS_C9_PRODUCTION_POST_VERIFIER_PASS", sha: "f7b6133ced9d7b1ab56a7fc2b40c059986d4c70f0ddc6ca90b6e1b8de5c7d051" },
+  { step: "C9", migration: "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql", verifier: "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C9.sql", pass: "COUNCILS_C9_PRODUCTION_POST_VERIFIER_PASS", sha: "c15f3378d12de10a0ef04d93ce033adca06f70fd7d9d53b764a21e828c329d4e" },
 ] as const;
 
 const predecessors = [
@@ -123,11 +123,17 @@ describe("Academic Councils C0-C9 production readiness package", () => {
 
     const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     expect(manifest.hash_contract).toBe("SHA256_LF_NORMALIZED_V1");
+    expect(manifest.mission).toBe("ACADEMIC-COUNCILS-C0-C9-SECURITY-AND-PRODUCTION-READINESS-LONGRUN-10");
     expect(manifest.base_pr).toBe(304);
     expect(manifest.base_sha).toBe("2cb8baf73db6a97c5d8bfcd123c642b15a51b9fb");
     expect(manifest.max_migrations_per_apply_session).toBe(1);
     expect(manifest.promoted_chain).toHaveLength(10);
     expect(manifest.production_apply).toBe(false);
+
+    const c9Verifier = readFileSync(join(root, "docs/migration-drafts/councils-c0-c9-verifiers/POST-VERIFIER-C9.sql"), "utf8");
+    expect(c9Verifier).toContain("INTERNAL_ONLY");
+    expect(c9Verifier).toContain("C9_INTERNAL_RPC_ACL_PASS");
+    expect(c9Verifier).toContain("still client-executable");
   });
 
   it("pins LF-normalized FULL hashes for every promoted migration", () => {

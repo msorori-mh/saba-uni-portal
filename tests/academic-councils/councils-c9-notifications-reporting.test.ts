@@ -87,6 +87,20 @@ describe("Academic Councils C9 Notifications and Reporting", () => {
     expect(migrationC9).toContain("get_council_secretary_dashboard");
     expect(migrationC9).toContain("get_council_responsible_decisions");
     expect(migrationC9).toContain("COUNCIL_RESPONSIBLE_DECISIONS_IMPERSONATION_DENIED");
+    expect(migrationC9).toContain("INTERNAL_ONLY");
+    expect(migrationC9).toContain("C9_INTERNAL_RPC_ACL_UNEXPECTED");
+    expect(migrationC9).toContain(
+      "REVOKE ALL ON FUNCTION public.create_council_notification(uuid, text, uuid, uuid, text, uuid, text, text, jsonb) FROM PUBLIC, anon, authenticated",
+    );
+    expect(migrationC9).toContain(
+      "REVOKE ALL ON FUNCTION public.dispatch_council_notification(text, uuid, uuid, text, uuid, jsonb) FROM PUBLIC, anon, authenticated",
+    );
+    expect(migrationC9).not.toContain(
+      "GRANT EXECUTE ON FUNCTION public.create_council_notification(uuid, text, uuid, uuid, text, uuid, text, text, jsonb) TO authenticated, service_role",
+    );
+    expect(migrationC9).toContain(
+      "GRANT EXECUTE ON FUNCTION public.create_council_notification(uuid, text, uuid, uuid, text, uuid, text, text, jsonb) TO service_role",
+    );
   });
 
   it("verifier proves C9 auth matrix and zero mutation", () => {
@@ -97,6 +111,9 @@ describe("Academic Councils C9 Notifications and Reporting", () => {
     expect(verifier).toContain("REPORTS_SHAPE_PASS");
     expect(verifier).toContain("DASHBOARDS_SHAPE_PASS");
     expect(verifier).toContain("RESPONSIBLE_ACTOR_PII_PASS");
+    expect(verifier).toContain("C9_INTERNAL_RPC_ACL_PASS");
+    expect(verifier).toContain("FORGE_CREATE_");
+    expect(verifier).toContain("CROSS_USER_ACK");
     expect(verifier).toContain("ACADEMIC_COUNCILS_C9_NOTIFICATIONS_REPORTING_VERIFIER_PASS");
     expect(verifier).toMatch(/^\s*begin;/im);
     expect(verifier).toMatch(/^\s*rollback;/im);

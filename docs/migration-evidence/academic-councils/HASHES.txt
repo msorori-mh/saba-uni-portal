@@ -1,4 +1,4 @@
-# ACADEMIC-COUNCILS-C0-C9-PRODUCTION-READINESS-PACKAGE-LONGRUN-09
+# ACADEMIC-COUNCILS-C0-C9-SECURITY-AND-PRODUCTION-READINESS-LONGRUN-10
 # Hash contract: SHA256_LF_NORMALIZED_V1
 # Algorithm: SHA256 over UTF-8 after CRLF/CR → LF (scripts/sha256_lf_normalized_v1.py)
 # Note: Councils migrations use BEGIN; (uppercase). FULL_SHA256_LF is authoritative
@@ -44,7 +44,7 @@ C7_FULL_SHA256_LF=3fd74518d57722b7018b06ba9ce50f7fb9033c2d8527fe515d5ad133a4081f
 C8_SECURITY_CLOSURE=supabase/migrations/20260808171000_councils_c0_c8_final_security_closure_01.sql
 C8_SECURITY_CLOSURE_FULL_SHA256_LF=6cb87098f9f038d0d6174aa08c37c524b1b4d91cca49244251cbc03ab6df37c3
 C9=supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql
-C9_FULL_SHA256_LF=f7b6133ced9d7b1ab56a7fc2b40c059986d4c70f0ddc6ca90b6e1b8de5c7d051
+C9_FULL_SHA256_LF=c15f3378d12de10a0ef04d93ce033adca06f70fd7d9d53b764a21e828c329d4e
 
 ## Timestamp uniqueness
 All ten promoted timestamps are unique within supabase/migrations/ (count=1 each).
