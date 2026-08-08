@@ -11,8 +11,11 @@
 - **Canonical C9:** #303 / `4d5d7482252f5d580a298ff97c74a8ffa7c0a7f4`
 - **Rejected C9 base:** #302 (old-base candidate — not integrated)
 - **Branch:** `fix/councils-c0-c9-final-security-closure-01`
-- **FINAL_SHA:** `69f83b3c06d48cbab190a37e9d2b536db79216eb`
+- **FINAL_SHA:** `662c3ab8e007f3f118bda4fcaab54fb349d78bff`
 - **PR:** #304
+- **PR_URL:** https://github.com/msorori-mh/saba-uni-portal/pull/304
+- **WEB_CI:** SUCCESS
+- **MIGRATION_REVIEW:** SUCCESS
 - **Mode:** source-only (no production apply / deploy / publish / merge)
 
 ## Phase A — Codex HIGH reproduction (pre-closure)
