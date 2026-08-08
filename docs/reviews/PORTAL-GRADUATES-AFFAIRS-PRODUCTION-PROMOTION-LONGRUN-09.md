@@ -4,7 +4,7 @@
 
 **Repository:** `msorori-mh/saba-uni-portal`
 **Source SHA:** `ef73881fbf7b8a12729c0f04b46fb346c47e7fb8`
-**Final SHA:** `d1c4e1e3598c2616fbd346df6ff213322a8e51cb`
+**Final SHA:** see branch tip returned in final mission output
 **Branch:** `prep/ga-production-promotion-longrun-01`
 **Stacked PR:** [#299](https://github.com/msorori-mh/saba-uni-portal/pull/299)
 **Base:** `fix/graduates-affairs-multimodel-remediation-01` (NOT `main`)
