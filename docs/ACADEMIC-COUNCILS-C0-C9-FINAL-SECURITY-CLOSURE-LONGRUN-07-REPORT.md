@@ -11,7 +11,7 @@
 - **Canonical C9:** #303 / `4d5d7482252f5d580a298ff97c74a8ffa7c0a7f4`
 - **Rejected C9 base:** #302 (old-base candidate — not integrated)
 - **Branch:** `fix/councils-c0-c9-final-security-closure-01`
-- **FINAL_SHA:** `4032ad56` (tip; see `git rev-parse HEAD` after push)
+- **FINAL_SHA:** `69f83b3c06d48cbab190a37e9d2b536db79216eb`
 - **PR:** #304
 - **Mode:** source-only (no production apply / deploy / publish / merge)
 
