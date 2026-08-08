@@ -125,9 +125,10 @@ describe("status rules (six-status invariants)", () => {
     }
   });
 
-  test("the LIVE set is exactly the six proven admin sections + student self-service", () => {
+  test("the LIVE set is exactly the six proven admin sections + student self-service + C9 councils", () => {
     // ADMIN-REPORTS-TEST-HARDENING-AND-CATALOG-RECONCILIATION-01 promoted the
     // six wired /admin/reports sections after the tests pillar was added.
+    // C9 added eleven faculty-portal council reports (canonical #303).
     const live = REPORT_CATALOG_ENTRIES.filter((entry) => entry.status === "LIVE");
     expect(live.map((entry) => entry.report_code)).toEqual([
       "ADM-STUDENTS-DIRECTORY",
@@ -137,6 +138,17 @@ describe("status rules (six-status invariants)", () => {
       "ADM-SCHEDULE-SUITE",
       "ADM-STUDENT-REQUESTS",
       "STU-SELF-SERVICE-VIEWS",
+      "COUNCIL-MEETINGS-BY-PERIOD",
+      "COUNCIL-ATTENDANCE-RATE",
+      "COUNCIL-QUORUM-HISTORY",
+      "COUNCIL-TOPIC-DISPOSITION",
+      "COUNCIL-AGENDA-COMPLETION",
+      "COUNCIL-VOTE-RESULT-SUMMARY",
+      "COUNCIL-DECISION-EXECUTION-STATUS",
+      "COUNCIL-OVERDUE-DECISIONS",
+      "COUNCIL-MEETING-DURATION",
+      "COUNCIL-ARCHIVE-STATUS",
+      "COUNCIL-ACTIVITY",
     ]);
   });
 

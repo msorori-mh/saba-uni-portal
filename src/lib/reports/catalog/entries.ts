@@ -1264,4 +1264,293 @@ export const REPORT_CATALOG_ENTRIES: readonly ReportEntry[] = [
     blocker: "غير موصولة بأي route — يستورد reports.tsx من العائلة القديمة getReportsRequests فقط",
     evidence: ["src/lib/admin-reports.functions.ts", "src/routes/admin/reports.tsx (قائمة الاستيرادات)"],
   },
+  // ------------------------------------------------------------------
+  // Academic councils reports (C9)
+  // ------------------------------------------------------------------
+  {
+    report_code: "COUNCIL-MEETINGS-BY-PERIOD",
+    name_ar: "تقرير اجتماعات المجلس حسب الفترة",
+    description:
+      "قائمة باجتماعات المجلس الأكاديمي ضمن فترة زمنية محددة، مع الحالة والموعد والمكان.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_meetings_by_period في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: ["from", "to"],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-ATTENDANCE-RATE",
+    name_ar: "تقرير معدل حضور المجلس",
+    description:
+      "معدل الحضور والغياب لأعضاء المجلس بناءً على سجلات الحضور المُعتمدة.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_attendance_rate في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-QUORUM-HISTORY",
+    name_ar: "تقرير تاريخ نصاب المجلس",
+    description:
+      "سجل تقييمات النصاب القانوني للاجتماعات مع عدد الحاضرين والنصاب المطلوب.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_quorum_history في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-TOPIC-DISPOSITION",
+    name_ar: "تقرير توزيع حالات موضوعات المجلس",
+    description:
+      "توزيع الموضوعات المقدمة على حالاتها (مسودة، مقدم، قيد المراجعة، مقبول، مرفوض...).",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_topic_disposition في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-AGENDA-COMPLETION",
+    name_ar: "تقرير إنجاز جدول أعمال المجلس",
+    description:
+      "عدد بنود جدول الأعمال لكل اجتماع وما تم اعتماده ومُبت فيه.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_agenda_completion في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-VOTE-RESULT-SUMMARY",
+    name_ar: "تقرير ملخص نتائج تصويت المجلس",
+    description:
+      "نتائج التصويت على بنود جدول الأعمال: موافق، رافض، محايد، والنتيجة.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_vote_result_summary في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-DECISION-EXECUTION-STATUS",
+    name_ar: "تقرير حالة تنفيذ قرارات المجلس",
+    description:
+      "حالة تنفيذ القرارات الصادرة: صادر، قيد التنفيذ، مكتمل، معطل، متأخر.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_decision_execution_status في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-OVERDUE-DECISIONS",
+    name_ar: "تقرير قرارات المجلس المتأخرة",
+    description:
+      "القرارات التي تجاوزت موعد الاستحقاق ولم تُعلَن مكتملة بعد.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_overdue_decisions في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-MEETING-DURATION",
+    name_ar: "تقرير مدة اجتماعات المجلس",
+    description:
+      "مدة كل اجتماع محسوبة من فتح الجلسة حتى إغلاقها.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_meeting_duration في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-ARCHIVE-STATUS",
+    name_ar: "تقرير حالة أرشفة المجلس",
+    description:
+      "إحصائية باجتماعات المجلس المؤرشفة والملغاة والنشطة.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_archive_status في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
+  {
+    report_code: "COUNCIL-ACTIVITY",
+    name_ar: "تقرير نشاط المجلس",
+    description:
+      "مؤشرات مجمعة عن نشاط المجلس: أعضاء، اجتماعات، موضوعات، قرارات، أصوات، آخر حدث.",
+    beneficiaries: ["academic_affairs", "dean"],
+    required_role: ["chair", "secretary", "member"],
+    data_scope: "council",
+    source:
+      "RPC get_council_report_council_activity في supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+    filters: [],
+    sensitivity: "internal",
+    output_types: ["screen"],
+    route: "/faculty-portal/academic-councils/reports",
+    tests: ["tests/academic-councils/postgres-c9-notifications-reporting-verifier.sql"],
+    dependencies: [
+      "src/lib/councils-c9.functions.ts",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+    status: "LIVE",
+    blocker: null,
+    evidence: [
+      "supabase/migrations/20260808180000_councils_c9_notifications_reporting_01.sql",
+      "src/components/councils/CouncilReportsView.tsx",
+    ],
+  },
 ];
