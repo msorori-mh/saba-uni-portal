@@ -245,6 +245,26 @@ jobs:
               supabase/migrations/20260807023229_7adcb3fb-73a1-483c-8ca2-4c93645fb84b.sql
               supabase/migrations/20260808010000_gp_student_level4_only_eligibility_guard_01.sql
               tests/graduation-projects/postgres-student-level4-eligibility-guard-verifier.sql
+          # Chain: GA authorization setup -> promoted Foundation ->
+          # promoted Completion -> promoted AUTH04 -> post-verifier.
+          - name: graduates-affairs-promotion-foundation
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              tests/graduates-affairs/ga-production-promotion-post-verifier-foundation.sql
+          - name: graduates-affairs-promotion-completion
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              supabase/migrations/20260808210100_ga_mvp_completion_01.sql
+              tests/graduates-affairs/ga-production-promotion-post-verifier-completion.sql
+          - name: graduates-affairs-promotion-auth04
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              supabase/migrations/20260808210000_ga_mvp_foundation_01.sql
+              supabase/migrations/20260808210100_ga_mvp_completion_01.sql
+              supabase/migrations/20260808210200_ga_authorization_04.sql
+              tests/graduates-affairs/ga-production-promotion-post-verifier-auth04.sql
           # Chain: minimal schema -> 20260721000000_materials_secure_activation
           # draft -> secure activation verifier (38 assertion groups).
           - name: materials-secure-activation
