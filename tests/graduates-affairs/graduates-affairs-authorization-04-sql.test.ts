@@ -62,6 +62,8 @@ const HELPERS = [
   "graduate_affairs_audit",
   "graduate_affairs_resolve_authorized_staff_profile_id",
   "graduate_affairs_resolve_caller_authorized_staff_profile_id",
+  "graduate_affairs_lock_authorized_staff_profile_id",
+  "graduate_affairs_lock_caller_authorized_staff_profile",
   "graduate_affairs_is_manager",
   "graduate_affairs_is_specialist",
   "graduate_affairs_specialist_department_ids",
@@ -73,6 +75,13 @@ const HELPERS = [
   "graduate_affairs_can_access_record",
   "graduate_audience_matches",
   "graduate_self_matches_audience",
+];
+
+const STAFF_MUTATING_RPCS = [
+  "graduate_affairs_create_followup",
+  "graduate_affairs_transition_followup",
+  "graduate_affairs_moderate_opportunity",
+  "graduate_affairs_set_employer_verification",
 ];
 
 // Helpers referenced by RLS policy expressions must stay executable by
@@ -124,7 +133,7 @@ describe("function inventory and privileges", () => {
     const functions = sql.match(/CREATE OR REPLACE FUNCTION/g) ?? [];
     const definer = sql.match(/SECURITY DEFINER/g) ?? [];
     const searchPath = sql.match(/SET search_path = public, pg_temp/g) ?? [];
-    expect(functions).toHaveLength(36);
+    expect(functions).toHaveLength(38);
     expect(definer).toHaveLength(functions.length);
     expect(searchPath).toHaveLength(functions.length);
   });
@@ -206,6 +215,25 @@ describe("self-service locking and approved-record gate", () => {
   test("self mutating RPCs call graduate_require_approved_record_locked", () => {
     for (const name of SELF_MUTATING_RPCS) {
       expect(bodyOf(name)).toContain("graduate_require_approved_record_locked(");
+    }
+  });
+});
+
+describe("staff authority locking boundary", () => {
+  test("authority lock helper FOR SHAREs exact assignment and profile rows", () => {
+    const helper = bodyOf("graduate_affairs_lock_authorized_staff_profile_id");
+    expect(helper).toContain("FOR SHARE OF a");
+    expect(helper).toContain("FOR SHARE OF sp");
+    expect(helper).toContain("FOR SHARE OF spd");
+    expect(helper).toContain("request_processing_assignments");
+    expect(helper).toContain("graduate_affairs_resolve_authorized_staff_profile_id");
+  });
+
+  test("staff mutating RPCs use the locked caller authority helper", () => {
+    for (const name of STAFF_MUTATING_RPCS) {
+      expect(bodyOf(name)).toContain(
+        "graduate_affairs_lock_caller_authorized_staff_profile(",
+      );
     }
   });
 });
@@ -321,7 +349,10 @@ describe("actor model has no bypass", () => {
       const body = bodyOf(name);
       expect(
         body.includes("graduate_affairs_is_manager()") ||
-          body.includes("graduate_affairs_can_access_record("),
+          body.includes("graduate_affairs_can_access_record(") ||
+          body.includes(
+            "graduate_affairs_lock_caller_authorized_staff_profile(",
+          ),
       ).toBe(true);
     }
   });
@@ -332,9 +363,13 @@ describe("actor model has no bypass", () => {
       "graduate_affairs_set_employer_verification",
     ]) {
       const body = bodyOf(name);
-      expect(body).toContain("graduate_affairs_is_manager()");
+      expect(body).toContain(
+        "graduate_affairs_lock_caller_authorized_staff_profile(",
+      );
+      expect(body).toContain("'graduate_affairs_manager'");
       expect(body).not.toContain("graduate_affairs_is_specialist()");
       expect(body).not.toContain("graduate_affairs_specialist_department_ids()");
+      expect(body).not.toContain("'graduate_affairs_specialist'");
     }
   });
 

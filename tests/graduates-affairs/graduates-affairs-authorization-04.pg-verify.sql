@@ -1045,6 +1045,8 @@ DECLARE
     'graduate_affairs_audit(text,text,uuid,text,jsonb)',
     'graduate_affairs_resolve_authorized_staff_profile_id(uuid,text)',
     'graduate_affairs_resolve_caller_authorized_staff_profile_id(text)',
+    'graduate_affairs_lock_authorized_staff_profile_id(uuid,text)',
+    'graduate_affairs_lock_caller_authorized_staff_profile(text)',
     'graduate_affairs_is_manager()',
     'graduate_affairs_is_specialist()',
     'graduate_affairs_specialist_department_ids()',

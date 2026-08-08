@@ -163,6 +163,15 @@ jobs:
               docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
               docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
               tests/graduates-affairs/graduates-affairs-remediation-concurrency-01.pg-verify.sql
+          # Follow-up authority-loss concurrency: FOR SHARE on exact assignment /
+          # profile / department authority rows (forward + reverse).
+          - name: graduates-affairs-followup-authority-race
+            files: >-
+              tests/graduates-affairs/graduates-affairs-authorization-04.pg-setup.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-FOUNDATION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-MVP-COMPLETION-01.sql
+              docs/migration-drafts/GRADUATES-AFFAIRS-AUTHORIZATION-04.sql
+              tests/graduates-affairs/graduates-affairs-followup-authority-race-01.pg-verify.sql
           # Codex final HIGH-1/HIGH-2: direct-user active-staff + profile-bound scope.
           - name: graduates-affairs-codex-final-high-profile-binding
             files: >-

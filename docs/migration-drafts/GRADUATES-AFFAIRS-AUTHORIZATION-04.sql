@@ -29,6 +29,15 @@
 --     (caller variant:
 --     graduate_affairs_resolve_caller_authorized_staff_profile_id(role)).
 --     Multiple distinct authorizing profiles for the same role => DENY.
+--   * Mutating staff RPCs must call the locking authority boundary:
+--     graduate_affairs_lock_authorized_staff_profile_id(user, role)
+--     (caller variant:
+--     graduate_affairs_lock_caller_authorized_staff_profile(role)).
+--     That helper FOR SHARE locks exact authorizing
+--     request_processing_assignments + authorizing staff_profiles (+
+--     specialist staff_profile_departments), then re-resolves under those
+--     locks. A mutation must not commit on authority that ceased to be
+--     valid before this serialization boundary (fail closed).
 --   * specialist department scope binds ONLY to that authorizing profile
 --     (never the union of other active profiles owned by the same user,
 --     and never other specialists' staff_profile_departments).
@@ -195,6 +204,113 @@ BEGIN
   RETURN public.graduate_affairs_resolve_caller_authorized_staff_profile_id(
     'graduate_affairs_specialist'
   ) IS NOT NULL;
+END;
+$$;
+
+-- Serialize staff mutations against concurrent authority loss.
+-- Locks exact currently-valid authorizing assignment rows and identity /
+-- department binding rows with FOR SHARE, then re-resolves under those locks.
+-- Broad table locks are intentionally avoided.
+CREATE OR REPLACE FUNCTION public.graduate_affairs_lock_authorized_staff_profile_id(
+  p_user_id uuid,
+  p_role_code text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_profile_id uuid;
+BEGIN
+  IF p_user_id IS NULL OR p_role_code IS NULL OR btrim(p_role_code) = '' THEN
+    RETURN NULL;
+  END IF;
+
+  -- Exact authorizing assignment rows for this user + role (time window +
+  -- active unit/role). FOR SHARE blocks concurrent revoke/expire/rebind
+  -- UPDATEs (ROW EXCLUSIVE) until this transaction commits.
+  PERFORM 1
+  FROM public.request_processing_assignments a
+  JOIN public.request_processing_units u
+    ON u.id = a.unit_id AND u.code = 'graduate_affairs' AND u.is_active
+  JOIN public.request_processing_roles r
+    ON r.id = a.role_id AND r.code = p_role_code AND r.is_active
+  WHERE a.is_active
+    AND (a.starts_at IS NULL OR a.starts_at <= now())
+    AND (a.ends_at IS NULL OR a.ends_at > now())
+    AND (
+      (
+        a.assignment_type = 'staff_profile'
+        AND a.staff_profile_id IS NOT NULL
+        AND EXISTS (
+          SELECT 1
+          FROM public.staff_profiles sp
+          WHERE sp.id = a.staff_profile_id
+            AND sp.user_id = p_user_id
+            AND sp.status = 'active'
+        )
+      )
+      OR (
+        a.assignment_type = 'user'
+        AND a.user_id = p_user_id
+      )
+    )
+  FOR SHARE OF a;
+
+  -- Active staff identity rows for this user (direct-user uniqueness +
+  -- staff_profile assignment ownership).
+  PERFORM 1
+  FROM public.staff_profiles sp
+  WHERE sp.user_id = p_user_id
+    AND sp.status = 'active'
+  FOR SHARE OF sp;
+
+  v_profile_id := public.graduate_affairs_resolve_authorized_staff_profile_id(
+    p_user_id, p_role_code
+  );
+  IF v_profile_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  PERFORM 1
+  FROM public.staff_profiles sp
+  WHERE sp.id = v_profile_id
+    AND sp.status = 'active'
+  FOR SHARE OF sp;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  IF p_role_code = 'graduate_affairs_specialist' THEN
+    PERFORM 1
+    FROM public.staff_profile_departments spd
+    WHERE spd.staff_profile_id = v_profile_id
+    FOR SHARE OF spd;
+  END IF;
+
+  -- Final revalidation under the held locks.
+  RETURN public.graduate_affairs_resolve_authorized_staff_profile_id(
+    p_user_id, p_role_code
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.graduate_affairs_lock_caller_authorized_staff_profile(
+  p_role_code text
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RETURN NULL;
+  END IF;
+  RETURN public.graduate_affairs_lock_authorized_staff_profile_id(
+    auth.uid(), p_role_code
+  );
 END;
 $$;
 
@@ -1118,7 +1234,10 @@ AS $$
 DECLARE
   v_department_id uuid;
   v_followup_id uuid;
-  v_assignee_ok boolean;
+  v_manager_profile uuid;
+  v_specialist_profile uuid;
+  v_assignee_manager uuid;
+  v_assignee_specialist uuid;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
@@ -1129,19 +1248,39 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_TARGET_NOT_FOUND';
   END IF;
-  IF NOT (
-    public.graduate_affairs_is_manager()
-    OR (public.graduate_affairs_is_specialist()
-        AND v_department_id IN (SELECT public.graduate_affairs_specialist_department_ids()))
-  ) THEN
+
+  -- Authority boundary under FOR SHARE locks (exact assignment/profile rows).
+  v_manager_profile := public.graduate_affairs_lock_caller_authorized_staff_profile(
+    'graduate_affairs_manager'
+  );
+  IF v_manager_profile IS NULL THEN
+    v_specialist_profile := public.graduate_affairs_lock_caller_authorized_staff_profile(
+      'graduate_affairs_specialist'
+    );
+  END IF;
+  IF v_manager_profile IS NULL
+     AND (
+       v_specialist_profile IS NULL
+       OR v_department_id NOT IN (
+         SELECT spd.department_id
+         FROM public.staff_profile_departments spd
+         WHERE spd.staff_profile_id = v_specialist_profile
+       )
+     ) THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
   IF p_purpose_code IS NULL OR btrim(p_purpose_code) = '' THEN
     RAISE EXCEPTION 'GRADUATE_FOLLOWUP_INVALID_INPUT';
   END IF;
 
-  -- Assignee must be active GA staff (active staff_profile when typed).
-  IF NOT public.graduate_affairs_user_is_active_staff(p_assignee_user_id) THEN
+  -- Assignee must be active GA staff under the same locked authority contract.
+  v_assignee_manager := public.graduate_affairs_lock_authorized_staff_profile_id(
+    p_assignee_user_id, 'graduate_affairs_manager'
+  );
+  v_assignee_specialist := public.graduate_affairs_lock_authorized_staff_profile_id(
+    p_assignee_user_id, 'graduate_affairs_specialist'
+  );
+  IF v_assignee_manager IS NULL AND v_assignee_specialist IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_FOLLOWUP_ASSIGNEE_NOT_STAFF';
   END IF;
 
@@ -1149,15 +1288,17 @@ BEGIN
   -- assignee whose independent authorized scope already includes the
   -- target record's department (or an active manager). Creating a
   -- follow-up must not manufacture out-of-scope authority.
-  IF public.graduate_affairs_is_manager() THEN
+  IF v_manager_profile IS NOT NULL THEN
     NULL;
-  ELSIF public.graduate_affairs_is_specialist() THEN
-    v_assignee_ok := public.graduate_affairs_resolve_authorized_staff_profile_id(
-      p_assignee_user_id, 'graduate_affairs_manager'
-    ) IS NOT NULL;
-    IF NOT v_assignee_ok
-       AND v_department_id NOT IN (
-         SELECT public.graduate_affairs_user_specialist_department_ids(p_assignee_user_id)
+  ELSIF v_specialist_profile IS NOT NULL THEN
+    IF v_assignee_manager IS NULL
+       AND (
+         v_assignee_specialist IS NULL
+         OR v_department_id NOT IN (
+           SELECT spd.department_id
+           FROM public.staff_profile_departments spd
+           WHERE spd.staff_profile_id = v_assignee_specialist
+         )
        ) THEN
       RAISE EXCEPTION 'GRADUATE_FOLLOWUP_ASSIGNEE_OUT_OF_SCOPE';
     END IF;
@@ -1195,6 +1336,8 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_followup public.graduate_followups%ROWTYPE;
+  v_manager_profile uuid;
+  v_specialist_profile uuid;
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
@@ -1207,12 +1350,20 @@ BEGIN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_TARGET_NOT_FOUND';
   END IF;
   -- Manager may always transition. Direct assignee may transition only while
-  -- still holding active GA staff capability (revocation fails closed).
-  IF public.graduate_affairs_is_manager() THEN
+  -- still holding active GA staff capability under the locked authority
+  -- boundary (concurrent revocation/expiry/profile loss fails closed).
+  v_manager_profile := public.graduate_affairs_lock_caller_authorized_staff_profile(
+    'graduate_affairs_manager'
+  );
+  IF v_manager_profile IS NOT NULL THEN
     NULL;
-  ELSIF v_followup.assignee_user_id = auth.uid()
-        AND public.graduate_affairs_is_specialist() THEN
-    NULL;
+  ELSIF v_followup.assignee_user_id = auth.uid() THEN
+    v_specialist_profile := public.graduate_affairs_lock_caller_authorized_staff_profile(
+      'graduate_affairs_specialist'
+    );
+    IF v_specialist_profile IS NULL THEN
+      RAISE EXCEPTION 'GRADUATE_FOLLOWUP_NOT_ASSIGNEE';
+    END IF;
   ELSE
     RAISE EXCEPTION 'GRADUATE_FOLLOWUP_NOT_ASSIGNEE';
   END IF;
@@ -1250,7 +1401,9 @@ BEGIN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
   END IF;
   -- MVP: manager-only until an enforceable object-to-scope model exists.
-  IF NOT public.graduate_affairs_is_manager() THEN
+  IF public.graduate_affairs_lock_caller_authorized_staff_profile(
+       'graduate_affairs_manager'
+     ) IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
   SELECT o.state INTO v_current_state
@@ -1301,7 +1454,9 @@ BEGIN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_NOT_AUTHENTICATED';
   END IF;
   -- MVP: manager-only until an enforceable object-to-scope model exists.
-  IF NOT public.graduate_affairs_is_manager() THEN
+  IF public.graduate_affairs_lock_caller_authorized_staff_profile(
+       'graduate_affairs_manager'
+     ) IS NULL THEN
     RAISE EXCEPTION 'GRADUATE_AFFAIRS_ACCESS_DENIED';
   END IF;
   SELECT e.verification_state INTO v_current_state
@@ -1534,6 +1689,8 @@ $$;
 REVOKE ALL ON FUNCTION public.graduate_affairs_audit(text, text, uuid, text, jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_resolve_authorized_staff_profile_id(uuid, text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_resolve_caller_authorized_staff_profile_id(text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_affairs_lock_authorized_staff_profile_id(uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.graduate_affairs_lock_caller_authorized_staff_profile(text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_is_manager() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_is_specialist() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.graduate_affairs_specialist_department_ids() FROM PUBLIC, anon, authenticated;
