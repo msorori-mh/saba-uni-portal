@@ -70,6 +70,8 @@ import {
   type CouncilMeetingV2Item,
   type MyCouncilTopicItem,
 } from "@/lib/faculty-councils.functions";
+import { CouncilSessionAndGovernanceWorkspace } from "@/components/councils/CouncilSessionAndGovernanceWorkspace";
+import { CouncilVotingControl } from "@/components/councils/CouncilVotingControl";
 
 export const Route = createFileRoute("/faculty-portal/academic-councils")({
   head: () => ({
