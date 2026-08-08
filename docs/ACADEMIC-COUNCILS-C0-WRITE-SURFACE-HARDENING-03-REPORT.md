@@ -60,4 +60,20 @@ Actors: system_admin, admin, dean, chair same, chair other, secretary, member, v
 - **MIGRATION_APPLIED: NO**
 
 ## Decision
-PASS when bun/tsc/build/diff checks green and PG17 verifier prints `ACADEMIC_COUNCILS_C0_WRITE_SURFACE_HARDENING_VERIFIER_PASS`.
+**PASS_ACADEMIC_COUNCILS_C0_WRITE_SURFACE_HARDENING_PR_READY**
+
+| Field | Value |
+|---|---|
+| BRANCH | `fix/councils-c0-write-surface-hardening-01` |
+| SHA | `1835713ef426b8a633eabe96fcd5c26672698bce` |
+| PR_NUMBER | 294 |
+| PR_URL | https://github.com/msorori-mh/saba-uni-portal/pull/294 |
+| DIRECT_WRITE_VERDICT | DENIED (authenticated/anon INSERT/UPDATE/DELETE revoked; zero mutation) |
+| ADMIN_BYPASS_VERDICT | REMOVED for academic ops; provisioning retained via `can_manage_council` |
+| TOPIC_OWNER_VERDICT | ALLOWLIST title/body/category only on draft/needs_completion |
+| NEGATIVE_MATRIX | PASS (PG17 disposable) |
+| PG17 | PASS |
+| TSC | PASS |
+| BUILD | PASS |
+| PRODUCTION_WRITES | 0 |
+| MIGRATION_APPLIED | NO |
