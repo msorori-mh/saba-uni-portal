@@ -546,8 +546,14 @@ export function CouncilSessionAndGovernanceWorkspace({
                   {dec.status === "completed"
                     ? "مكتمل"
                     : dec.status === "in_progress"
-                    ? "قيد التنفيذ"
-                    : "صادر"}
+                      ? "قيد التنفيذ"
+                      : dec.status === "blocked"
+                        ? "متعثّر"
+                        : dec.status === "issued"
+                          ? "صادر"
+                          : dec.status === "assigned"
+                            ? "مُسند"
+                            : dec.status}
                 </Badge>
               </div>
 
@@ -690,9 +696,9 @@ export function CouncilSessionAndGovernanceWorkspace({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent dir="rtl">
-                  <SelectItem value="in_progress">قيد التنفيذ (In Progress)</SelectItem>
-                  <SelectItem value="completed">مكتمل ومُنفّذ (Completed)</SelectItem>
-                  <SelectItem value="blocked">متعثّر / معطّل (Blocked)</SelectItem>
+                  <SelectItem value="in_progress">قيد التنفيذ</SelectItem>
+                  <SelectItem value="completed">مكتمل ومُنفّذ</SelectItem>
+                  <SelectItem value="blocked">متعثّر / معطّل</SelectItem>
                 </SelectContent>
               </Select>
             </div>

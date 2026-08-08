@@ -249,3 +249,14 @@ export const getCouncilVoteResultFn = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return res;
   });
+
+export const getCouncilAttendanceQuorumSummaryFn = createServerFn({ method: "GET" })
+  .validator((d: { meeting_id: string }) => d)
+  .handler(async ({ data, request }) => {
+    const { supabase } = await requireSupabaseAuth(request);
+    const { data: res, error } = await supabase.rpc("get_council_attendance_quorum_summary", {
+      p_meeting_id: data.meeting_id,
+    });
+    if (error) throw new Error(error.message);
+    return res;
+  });
